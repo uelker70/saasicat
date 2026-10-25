@@ -1,6 +1,5 @@
-// The tenant detail shows the credits of the tenant's subscriber, where the
-// platform serves them, and records a payout against one behind the second
-// factor.
+// The subscriber's record shows its credits, where the platform serves them,
+// and records a payout against one behind the second factor.
 //
 // Mounted through a router, the way an app mounts the page, against a stubbed
 // registry: the test says what the server answers and reads what the operator
@@ -10,18 +9,15 @@
 // @requirement SC-PRIC-083 — A credit is paid out by the operator, and never offset against a later invoice
 
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { defineComponent, nextTick } from 'vue';
+import { nextTick } from 'vue';
 import { flushPromises } from '@vue/test-utils';
-import { createMemoryHistory, createRouter } from 'vue-router';
 
-import { payoutOf, type PayoutForm } from '../../src/internal/tenant-detail/subscriber-payout.js';
-import TenantDetailPage from '../../src/pages/TenantDetailPage.vue';
-import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
-import { SUPER_ADMIN_MANIFEST_KEY } from '../../src/vue/super-admin-context.js';
-import { SUPER_ADMIN_NOTIFY_KEY } from '../../src/vue/ui-notify.js';
-import { provideStubResources } from './support/stub-resources.js';
+import {
+    payoutOf,
+    type PayoutForm,
+} from '../../src/internal/subscriber-record/subscriber-payout.js';
+import { mountRecord } from './support/subscriber-record.js';
 
-const TENANT = { id: 't-1', slug: 'wien', name: 'Wien', isActive: true, users: [] };
 const CODE = '123456';
 
 const CREDITS = {
@@ -77,48 +73,25 @@ async function settle(): Promise<void> {
 
 type Call = [string, ...unknown[]];
 
-async function mountPage(manifest: unknown = PAYING) {
+async function mountPage(manifest: { capabilities: Record<string, boolean> } = PAYING) {
     const calls: Call[] = [];
-    const notices: Array<[string, string]> = [];
-    const router = createRouter({
-        history: createMemoryHistory(),
-        routes: [
-            { path: '/admin/tenants/:slug', component: TenantDetailPage },
-            { path: '/:rest(.*)', component: { template: '<div />' } },
-        ],
-    });
-    await router.push('/admin/tenants/wien');
-    await router.isReady();
-    const tenants = {
-        detail: async () => TENANT,
-        credits: async (...args: unknown[]) => {
-            calls.push(['credits', ...args]);
-            return CREDITS;
-        },
-        recordPayout: async (...args: unknown[]) => {
-            calls.push(['payout', ...args]);
-            return CREDITS;
-        },
-    };
-    // SAFETY: the two keys are the symbols the page injects its manifest and its
-    // notify port under, typed as Vue's injection keys rather than as symbols.
-    const manifestKey = SUPER_ADMIN_MANIFEST_KEY as symbol;
-    // SAFETY: as above, for the notify port.
-    const notifyKey = SUPER_ADMIN_NOTIFY_KEY as symbol;
-    const wrapper = mountWithQuasar(defineComponent({ template: '<router-view />' }), {
-        attachTo: document.body,
-        global: {
-            plugins: [router],
-            provide: {
-                ...provideStubResources({ tenants }),
-                [manifestKey]: () => manifest,
-                [notifyKey]: (kind: string, message: string) => notices.push([kind, message]),
+    const page = await mountRecord({
+        capabilities: manifest.capabilities,
+        attach: true,
+        subscribers: {
+            credits: async (...args: unknown[]) => {
+                calls.push(['credits', ...args]);
+                return CREDITS;
+            },
+            recordPayout: async (...args: unknown[]) => {
+                calls.push(['payout', ...args]);
+                return CREDITS;
             },
         },
     });
-    mounted.push(wrapper);
+    mounted.push(page.wrapper);
     await settle();
-    return { wrapper, calls, notices };
+    return { ...page, calls };
 }
 
 type Mounted = Awaited<ReturnType<typeof mountPage>>['wrapper'];
@@ -178,11 +151,11 @@ async function enterTheCode(): Promise<void> {
     await settle();
 }
 
-describe("the tenant detail shows the subscriber's credits", () => {
+describe("the subscriber's record shows its credits", () => {
     test('where each comes from, what was paid out and what is open, the oldest first', async () => {
         const { wrapper, calls } = await mountPage();
 
-        expect(calls).toEqual([['credits', 'wien']]);
+        expect(calls).toEqual([['credits', 's-1']]);
         expect(creditRows(wrapper).map((row) => row.slice(0, 5))).toEqual([
             ['2026-02-01', 'Payment pi_1 for AHP-2026-000001', '€5', '€5', '€0'],
             ['2026-02-02', 'Invoice AHP-2026-000002', '€40', '€7.50', '€32.50'],
@@ -214,7 +187,7 @@ describe("the tenant detail shows the subscriber's credits", () => {
     });
 });
 
-describe('a payout the operator records on the tenant page', () => {
+describe('a payout the operator records in the record', () => {
     test('opens with what is open, is sent once a reference names it, with the second factor', async () => {
         const { wrapper, calls, notices } = await mountPage();
 
@@ -233,7 +206,7 @@ describe('a payout the operator records on the tenant page', () => {
         expect(calls.slice(1, 2)).toEqual([
             [
                 'payout',
-                'wien',
+                's-1',
                 'credit-2',
                 { amount: 32.5, reference: 'TRF-2026-0042', paidOn: '2026-03-03', note: null },
                 CODE,

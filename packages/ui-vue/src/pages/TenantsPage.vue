@@ -328,6 +328,7 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('tenants');
+const subscriberMsg = useSaMessages('subscribers');
 const common = useSaMessages('common');
 const notify = useSuperAdminNotify();
 const { intlLocale } = useSuperAdminI18n();
@@ -393,7 +394,7 @@ const attention = useSubscriberAttention(
 
 /** The pill for a tenant whose subscriber is held back: one, or none. */
 function heldBackOf(row: TenantRow): HeldBackPill[] {
-    const pill = heldBackPill(attention.of(row.id), msg.value.subscriber);
+    const pill = heldBackPill(attention.of(row.id), subscriberMsg.value.subscriber);
     return pill ? [pill] : [];
 }
 

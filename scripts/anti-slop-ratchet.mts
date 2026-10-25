@@ -94,6 +94,11 @@ const SOURCE_FILES = [
 const DECLARATIONS = ['.d.ts', '.d.mts', '.d.cts'] as const;
 // Several thousand paths would exceed the length of a command line.
 const FILES_PER_RUN = 300;
+/**
+ * What a child process may write before it is stopped: a diff against `main` of a
+ * change that regenerates the requirements page runs past Node's 1 MB default.
+ */
+const MAX_CHILD_OUTPUT = 256 * 1024 * 1024;
 const MOST_SHOWN = 50;
 // How this repository's `.prettierrc` indents JSON.
 const JSON_INDENT = 4;
@@ -170,7 +175,7 @@ function isCountTable(value: unknown): value is Record<string, number> {
 }
 
 function git(...args: string[]): string {
-    return execFileSync('git', args, { encoding: 'utf8' });
+    return execFileSync('git', args, { encoding: 'utf8', maxBuffer: MAX_CHILD_OUTPUT });
 }
 
 async function readConfig(): Promise<Config> {
@@ -231,7 +236,7 @@ function oxlint(files: readonly string[]): OxlintOutput {
         // A batch whose files are all excluded is not an error — without the
         // flag, oxlint answers with plain text instead of JSON.
         ['-c', OXLINT_CONFIG, '-f', 'json', '--no-error-on-unmatched-pattern', ...files],
-        { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 },
+        { encoding: 'utf8', maxBuffer: MAX_CHILD_OUTPUT },
     );
     // oxlint exits with 1 as soon as there are findings; that is the normal case here.
     if (run.error !== undefined || (run.status !== 0 && run.status !== 1)) {
@@ -377,7 +382,7 @@ function countsAtMergeBase(
             );
         for (const file of files) {
             const old = spawnSync('git', ['show', `${base}:${origins.get(file) ?? file}`], {
-                maxBuffer: 256 * 1024 * 1024,
+                maxBuffer: MAX_CHILD_OUTPUT,
             });
             if (old.status !== 0) continue;
             const target = join(store, file);
@@ -388,7 +393,7 @@ function countsAtMergeBase(
         }
         for (const file of deleted) {
             const old = spawnSync('git', ['show', `${base}:${file}`], {
-                maxBuffer: 256 * 1024 * 1024,
+                maxBuffer: MAX_CHILD_OUTPUT,
             });
             if (old.status !== 0) continue;
             const target = join(store, 'deleted', file);

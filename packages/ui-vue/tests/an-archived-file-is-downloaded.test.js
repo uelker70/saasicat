@@ -22,9 +22,13 @@ import {
     createAxiosHttpClient,
     createFetchHttpClient,
     saveFile,
-    tenantsResource,
+    subscribersResource,
 } from '../dist/index.js';
-import { useFileDownload, useTenantContracts, useTenantDownloads } from '../dist/vue/index.js';
+import {
+    useFileDownload,
+    useSubscriberContracts,
+    useSubscriberDownloads,
+} from '../dist/vue/index.js';
 
 /** Every byte value, the zero byte and 0xFF among them, opening as a PDF does. */
 const PDF = Uint8Array.from({ length: 300 }, (_, index) => index % 256);
@@ -70,9 +74,9 @@ for (const [name, clientOn] of CLIENTS) {
     describe(`a file through ${name}`, () => {
         test('arrives as the bytes the server sent, under the name it offers', async () => {
             await withServer(async (base) => {
-                const tenants = bindResource(tenantsResource, clientOn(base), CTX);
+                const subscribers = bindResource(subscribersResource, clientOn(base), CTX);
 
-                const file = await tenants.invoiceDocument('inv-1');
+                const file = await subscribers.invoiceDocument('inv-1');
 
                 assert.deepEqual(file.content, PDF);
                 assert.equal(file.mediaType, 'application/pdf');
@@ -82,9 +86,9 @@ for (const [name, clientOn] of CLIENTS) {
 
         test('without a name offered is saved under the one the download falls back to', async () => {
             await withServer(async (base) => {
-                const tenants = bindResource(tenantsResource, clientOn(base), CTX);
+                const subscribers = bindResource(subscribersResource, clientOn(base), CTX);
 
-                const file = await tenants.contractConfirmation('c-1');
+                const file = await subscribers.contractConfirmation('c-1');
 
                 assert.equal(file.fileName, 'contract-confirmation.pdf');
                 assert.deepEqual(file.content, PDF);
@@ -93,16 +97,16 @@ for (const [name, clientOn] of CLIENTS) {
 
         test('refused reads as the platform’s code, and a JSON read beside it is untouched', async () => {
             await withServer(async (base) => {
-                const tenants = bindResource(tenantsResource, clientOn(base), CTX);
+                const subscribers = bindResource(subscribersResource, clientOn(base), CTX);
 
                 await assert.rejects(
-                    tenants.contractConfirmation('c-2'),
+                    subscribers.contractConfirmation('c-2'),
                     (error) =>
                         error instanceof AdminError &&
                         error.status === 409 &&
                         error.code === 'CONTRACT_CONFIRMATION_MISMATCH',
                 );
-                assert.deepEqual(await tenants.contracts('northwind'), { contracts: [] });
+                assert.deepEqual(await subscribers.contracts('s-northwind'), { contracts: [] });
             });
         });
     });
@@ -111,14 +115,14 @@ for (const [name, clientOn] of CLIENTS) {
 describe('a file through a client of the application’s own', () => {
     test('asks for any type rather than JSON where createFetchHttpClient sends it', async () => {
         await withServer(async (base, seen) => {
-            const tenants = bindResource(
-                tenantsResource,
+            const subscribers = bindResource(
+                subscribersResource,
                 createFetchHttpClient({ baseUrl: base }),
                 CTX,
             );
 
-            await tenants.invoiceDocument('inv-1');
-            await tenants.contracts('northwind');
+            await subscribers.invoiceDocument('inv-1');
+            await subscribers.contracts('s-northwind');
 
             assert.deepEqual(
                 seen.map((request) => request.accept),
@@ -134,10 +138,10 @@ describe('a file through a client of the application’s own', () => {
             json: async () => null,
             text: async () => '%PDF',
         });
-        const tenants = bindResource(tenantsResource, textOnly, CTX);
+        const subscribers = bindResource(subscribersResource, textOnly, CTX);
 
         await assert.rejects(
-            tenants.invoiceDocument('inv-1'),
+            subscribers.invoiceDocument('inv-1'),
             /has no bytes\(\)|have no bytes\(\)/,
         );
     });
@@ -237,22 +241,26 @@ describe('a download from a row', () => {
     });
 });
 
-describe('the downloads and the contracts beside a tenant', () => {
+describe('the downloads and the contracts in a subscriber’s record', () => {
     const manifestWith = (capabilities) => ref({ capabilities });
-    const tenants = {
+    const subscribers = {
         invoiceDocument: async () => assert.fail(),
         contractConfirmation: async () => assert.fail(),
     };
 
     test('are offered each where the manifest announces its route', () => {
-        const both = useTenantDownloads(
+        const both = useSubscriberDownloads(
             manifestWith({ 'invoices.read': true, 'contracts.read': true }),
-            tenants,
+            subscribers,
             { notify: () => {} },
         );
-        const invoicesOnly = useTenantDownloads(manifestWith({ 'invoices.read': true }), tenants, {
-            notify: () => {},
-        });
+        const invoicesOnly = useSubscriberDownloads(
+            manifestWith({ 'invoices.read': true }),
+            subscribers,
+            {
+                notify: () => {},
+            },
+        );
 
         assert.ok(both.invoices.value && both.confirmations.value);
         assert.ok(invoicesOnly.invoices.value);
@@ -268,16 +276,16 @@ describe('the downloads and the contracts beside a tenant', () => {
             },
         };
 
-        const served = useTenantContracts(
-            ref('northwind'),
+        const served = useSubscriberContracts(
+            ref('s-northwind'),
             manifestWith({ 'contracts.read': true }),
             reader,
         );
-        const unserved = useTenantContracts(ref('northwind'), manifestWith({}), reader);
+        const unserved = useSubscriberContracts(ref('s-northwind'), manifestWith({}), reader);
         await settled();
 
         assert.deepEqual(served.data.value, { contracts: [] });
         assert.equal(unserved.available.value, false);
-        assert.deepEqual(asked, ['northwind']);
+        assert.deepEqual(asked, ['s-northwind']);
     });
 });

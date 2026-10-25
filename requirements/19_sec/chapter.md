@@ -490,7 +490,12 @@ _Tested by:_
 
 - `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
     - every subscriber route
-        - ${what}: the tenant is found and its subscriber read outside the tenants' row-level policy
+        - ${what}: the subscriber is read outside the tenants' row-level policy
+- `packages/nest/tests/an-operator-finds-a-subscriber.test.js`
+    - the list of subscribers
+        - is read outside the tenants' row-level policy, the tenants named in one question
+    - the head of a subscriber's record
+        - is read outside the tenants' row-level policy
 - `packages/nest/tests/an-operator-route-acts-across-tenants.test.js`
     - the frame a route runs in follows its guard chain
         - every route behind the administrator runs in the bypass, and no other does

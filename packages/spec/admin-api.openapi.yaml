@@ -365,12 +365,12 @@ paths:
                         application/json:
                             schema: { $ref: '#/components/schemas/SubscriptionDetail' }
 
-    /tenants/{slug}/charges:
+    /subscribers/{id}/charges:
         parameters:
-            - $ref: '#/components/parameters/TenantSlug'
+            - $ref: '#/components/parameters/SubscriberId'
         get:
             tags: [subscriptions]
-            summary: The charges of the tenant's subscriber, newest first
+            summary: The subscriber's charges, newest first, whichever tenant each arose for
             description: >-
                 Served where the platform keeps a charge journal
                 (`tenantBilling.chargeJournal`) and shows tenants
@@ -385,14 +385,14 @@ paths:
                         application/json:
                             schema: { $ref: '#/components/schemas/AdminSubscriberAccount' }
                 '404':
-                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+                    description: No subscriber under this id (`SUBSCRIBER_NOT_FOUND`)
 
-    /tenants/{slug}/credits:
+    /subscribers/{id}/credits:
         parameters:
-            - $ref: '#/components/parameters/TenantSlug'
+            - $ref: '#/components/parameters/SubscriberId'
         get:
             tags: [subscriptions]
-            summary: The credits of the tenant's subscriber, the oldest first
+            summary: The subscriber's credits, the oldest first
             description: >-
                 Served where the platform shows tenants (`adminResources`) and
                 collects invoices, recording what each collection brought
@@ -411,11 +411,11 @@ paths:
                         application/json:
                             schema: { $ref: '#/components/schemas/AdminSubscriberCredits' }
                 '404':
-                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+                    description: No subscriber under this id (`SUBSCRIBER_NOT_FOUND`)
 
-    /tenants/{slug}/credits/{creditId}/payouts:
+    /subscribers/{id}/credits/{creditId}/payouts:
         parameters:
-            - $ref: '#/components/parameters/TenantSlug'
+            - $ref: '#/components/parameters/SubscriberId'
             - name: creditId
               in: path
               required: true
@@ -448,20 +448,19 @@ paths:
                         installation's zone (`SUBSCRIBER_PAYOUT_NOT_MADE_YET`)
                 '404':
                     description: >-
-                        No tenant with this slug (`TENANT_NOT_FOUND`), or no
-                        credit under this id of its subscriber
+                        No credit under this id of the subscriber
                         (`SUBSCRIBER_CREDIT_NOT_FOUND`)
                 '409':
                     description: >-
                         More than the credit still owes, which it names
                         (`SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT`); nothing is recorded
 
-    /tenants/{slug}/payments:
+    /subscribers/{id}/payments:
         parameters:
-            - $ref: '#/components/parameters/TenantSlug'
+            - $ref: '#/components/parameters/SubscriberId'
         get:
             tags: [subscriptions]
-            summary: The tenant's invoices with what each still owes, and its open cases
+            summary: The subscriber's invoices with what each still owes, and its open cases
             description: >-
                 Served where the credits are; the manifest announces it as
                 `payments.read`. The invoices come the latest first, each with
@@ -473,30 +472,30 @@ paths:
                     description: The invoices and the open cases
                     content:
                         application/json:
-                            schema: { $ref: '#/components/schemas/AdminTenantPayments' }
+                            schema: { $ref: '#/components/schemas/AdminSubscriberPayments' }
                 '404':
-                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+                    description: No subscriber under this id (`SUBSCRIBER_NOT_FOUND`)
 
-    /tenants/{slug}/contracts:
+    /subscribers/{id}/contracts:
         parameters:
-            - $ref: '#/components/parameters/TenantSlug'
+            - $ref: '#/components/parameters/SubscriberId'
         get:
             tags: [subscriptions]
-            summary: The tenant's contracts, each with where its confirmation stands
+            summary: The subscriber's contracts, each with where its confirmation stands
             description: >-
                 Served where invoices confirm every contract written since
                 confirmations exist (`SC-AUD-016`); the manifest announces it as
                 `contracts.read`, beside the confirmation's download. Every
-                contract the tenant has — in force, superseded and ended — the
-                newest first.
+                contract concluded with the subscriber — in force, superseded and
+                ended, whichever tenant it was for — the newest first.
             responses:
                 '200':
                     description: The contracts
                     content:
                         application/json:
-                            schema: { $ref: '#/components/schemas/AdminTenantContracts' }
+                            schema: { $ref: '#/components/schemas/AdminSubscriberContracts' }
                 '404':
-                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+                    description: No subscriber under this id (`SUBSCRIBER_NOT_FOUND`)
 
     /reconciliation:
         get:
@@ -640,9 +639,8 @@ paths:
                         checksum and is not handed out
                         (`CONTRACT_CONFIRMATION_MISMATCH`)
 
-    /tenants/{slug}/invoices/{invoiceId}:
+    /invoices/{invoiceId}:
         parameters:
-            - $ref: '#/components/parameters/TenantSlug'
             - name: invoiceId
               in: path
               required: true
@@ -652,7 +650,9 @@ paths:
             tags: [subscriptions]
             summary: An invoice with its lines, as its cancellation starts from
             description: >-
-                Served beside the cancellation (`invoices.cancel`). Each line as
+                Served beside the cancellation (`invoices.cancel`), reached by the
+                invoice alone, so an invoice of a tenant deleted since is reached as
+                well. Each line as
                 the document states it, with what its charge stands at — its
                 amount and every correction of it an earlier cancellation wrote
                 along the invoice's chain — and whether a cancellation may name
@@ -666,14 +666,10 @@ paths:
                         application/json:
                             schema: { $ref: '#/components/schemas/AdminInvoice' }
                 '404':
-                    description: >-
-                        No tenant with this slug (`TENANT_NOT_FOUND`), or no
-                        invoice under this id of the tenant
-                        (`SUBSCRIPTION_INVOICE_NOT_FOUND`)
+                    description: No invoice under this id (`SUBSCRIPTION_INVOICE_NOT_FOUND`)
 
-    /tenants/{slug}/invoices/{invoiceId}/cancellation/preview:
+    /invoices/{invoiceId}/cancellation/preview:
         parameters:
-            - $ref: '#/components/parameters/TenantSlug'
             - name: invoiceId
               in: path
               required: true
@@ -705,10 +701,7 @@ paths:
                 '400':
                     description: A field out of shape, or a reason blank or too long
                 '404':
-                    description: >-
-                        No tenant with this slug (`TENANT_NOT_FOUND`), or no
-                        invoice under this id of the tenant
-                        (`SUBSCRIPTION_INVOICE_NOT_FOUND`)
+                    description: No invoice under this id (`SUBSCRIPTION_INVOICE_NOT_FOUND`)
                 '409':
                     description: >-
                         The invoice is cancelled already
@@ -740,9 +733,8 @@ paths:
                         `SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE`, or the tax
                         adapter's refusal)
 
-    /tenants/{slug}/invoices/{invoiceId}/cancellation:
+    /invoices/{invoiceId}/cancellation:
         parameters:
-            - $ref: '#/components/parameters/TenantSlug'
             - name: invoiceId
               in: path
               required: true
@@ -776,10 +768,7 @@ paths:
                 '400':
                     description: A field out of shape, or a reason blank or too long
                 '404':
-                    description: >-
-                        No tenant with this slug (`TENANT_NOT_FOUND`), or no
-                        invoice under this id of the tenant
-                        (`SUBSCRIPTION_INVOICE_NOT_FOUND`)
+                    description: No invoice under this id (`SUBSCRIPTION_INVOICE_NOT_FOUND`)
                 '409':
                     description: >-
                         As the preview; a second cancellation of the same invoice
@@ -797,13 +786,14 @@ paths:
             - $ref: '#/components/parameters/TenantSlug'
         get:
             tags: [subscriptions]
-            summary: The tenant's subscriber, its tax details and what holds its next contract back
+            summary: The tenant's subscriber and what holds its next contract back
             description: >-
                 Served where the platform keeps subscribers and shows tenants
                 (`adminResources`); the manifest announces it as
-                `subscribers.read`. The standing is computed when it is read,
-                and only where a tax adapter decides; elsewhere `readiness` is
-                null.
+                `subscribers.read`. The card on the tenant's page that leads into
+                the subscriber's record (`/subscribers/{id}`). The standing is
+                computed when it is read, and only where a tax adapter decides;
+                elsewhere `readiness` is null.
             responses:
                 '200':
                     description: The subscriber, or none
@@ -813,17 +803,16 @@ paths:
                 '404':
                     description: No tenant with this slug (`TENANT_NOT_FOUND`)
 
-    /tenants/{slug}/subscriber/history:
+    /subscribers/{id}/history:
         parameters:
-            - $ref: '#/components/parameters/TenantSlug'
+            - $ref: '#/components/parameters/SubscriberId'
         get:
             tags: [subscriptions]
             summary: Every correction, change of country or business status, and check of the subscriber, the latest first
             description: >-
-                Served beside `/tenants/{slug}/subscriber`; the manifest
-                announces it as `subscribers.correct`. A correction that gives
-                another VAT number is named once, as the correction it was. Empty
-                for a tenant without a subscriber.
+                Served beside the subscriber's record; the manifest announces it
+                as `subscribers.correct`. A correction that gives another VAT
+                number is named once, as the correction it was.
             responses:
                 '200':
                     description: The history
@@ -838,14 +827,14 @@ paths:
                                         items:
                                             $ref: '#/components/schemas/AdminSubscriberHistoryEntry'
                 '404':
-                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+                    description: No subscriber under this id (`SUBSCRIBER_NOT_FOUND`)
 
-    /tenants/{slug}/subscriber/identity:
+    /subscribers/{id}/identity:
         parameters:
-            - $ref: '#/components/parameters/TenantSlug'
+            - $ref: '#/components/parameters/SubscriberId'
         post:
             tags: [subscriptions]
-            summary: Correct the legal identity of the tenant's subscriber
+            summary: Correct the subscriber's legal identity
             description: >-
                 A correction of the same legal entity — a field left out keeps
                 its value, `null` clears a tax identifier — recorded with the
@@ -876,9 +865,7 @@ paths:
                         application/json:
                             schema: { $ref: '#/components/schemas/AdminSubscriberCorrected' }
                 '404':
-                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
-                '409':
-                    description: The tenant has no subscriber (`SUBSCRIBER_REQUIRED`)
+                    description: No subscriber under this id (`SUBSCRIBER_NOT_FOUND`)
                 '422':
                     description: >-
                         A takeover, no reason, or a correction that changes
@@ -886,12 +873,12 @@ paths:
                         `SUBSCRIBER_CORRECTION_REASON_REQUIRED`,
                         `SUBSCRIBER_CORRECTION_CHANGES_NOTHING`)
 
-    /tenants/{slug}/subscriber/business-status:
+    /subscribers/{id}/business-status:
         parameters:
-            - $ref: '#/components/parameters/TenantSlug'
+            - $ref: '#/components/parameters/SubscriberId'
         post:
             tags: [subscriptions]
-            summary: Record whether the tenant's subscriber acts as a business, and why
+            summary: Record whether the subscriber acts as a business, and why
             description: >-
                 Recorded as a change of the tax origin with its reason and who
                 made it; it applies from the next contract. Setting the status it
@@ -914,18 +901,16 @@ paths:
                         application/json:
                             schema: { $ref: '#/components/schemas/AdminSubscriberCorrected' }
                 '404':
-                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
-                '409':
-                    description: The tenant has no subscriber (`SUBSCRIBER_REQUIRED`)
+                    description: No subscriber under this id (`SUBSCRIBER_NOT_FOUND`)
                 '422':
                     description: No reason (`SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED`)
 
-    /tenants/{slug}/subscriber/vat-id-check:
+    /subscribers/{id}/vat-id-check:
         parameters:
-            - $ref: '#/components/parameters/TenantSlug'
+            - $ref: '#/components/parameters/SubscriberId'
         post:
             tags: [subscriptions]
-            summary: Check the VAT number the tenant's subscriber holds, again
+            summary: Check the VAT number the subscriber holds, again
             description: >-
                 Asks the service the tax adapter names and records a completed
                 check, valid or not; a check that does not complete records
@@ -938,13 +923,69 @@ paths:
                         application/json:
                             schema: { $ref: '#/components/schemas/AdminSubscriberCorrected' }
                 '404':
-                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+                    description: No subscriber under this id (`SUBSCRIBER_NOT_FOUND`)
                 '409':
-                    description: >-
-                        The tenant has no subscriber, or no tax adapter names a
-                        service (`SUBSCRIBER_REQUIRED`, `TAX_VAT_ID_CHECK_NOT_AVAILABLE`)
+                    description: No tax adapter names a service (`TAX_VAT_ID_CHECK_NOT_AVAILABLE`)
                 '422':
                     description: The subscriber holds no VAT number (`SUBSCRIBER_VAT_ID_MISSING`)
+
+    /subscribers:
+        get:
+            tags: [subscriptions]
+            summary: One page of the subscribers, the latest customer number first
+            description: >-
+                Served beside `/tenants/{slug}/subscriber`; the manifest announces
+                it as `subscribers.read`. `q` matches a customer number — behind
+                the prefix typed, in any case, or behind any prefix where none is
+                typed —, a part of the legal name in any case with every character
+                taken literally, or a VAT number however it is spaced.
+                `withoutLiveTenant=true` keeps the subscribers whose every tenant
+                link is closed. Each row names the tenant it is live for as the
+                application answers for it now (`SC-ADM-036`).
+            parameters:
+                - name: q
+                  in: query
+                  required: false
+                  schema: { type: string, maxLength: 200 }
+                - name: withoutLiveTenant
+                  in: query
+                  required: false
+                  schema: { type: string, enum: ['true', 'false'] }
+                - name: after
+                  in: query
+                  required: false
+                  description: The subscriber the page before ended with, as `next` named it.
+                  schema: { type: string, maxLength: 200 }
+            responses:
+                '200':
+                    description: One page of subscribers
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminSubscriberList' }
+                '400':
+                    description: A search too long, or a narrowing other than true or false
+
+    /subscribers/{id}:
+        parameters:
+            - $ref: '#/components/parameters/SubscriberId'
+        get:
+            tags: [subscriptions]
+            summary: The head of the subscriber's record
+            description: >-
+                Its master data, what holds its next contract back where a tax
+                adapter decides, and every tenant it was linked to, the live one
+                first — each named as the application answers for it now, and
+                `known: false` where the application no longer has it
+                (`SC-ADM-021`, `SC-ADM-036`). The manifest announces it as
+                `subscribers.read`.
+            responses:
+                '200':
+                    description: The record's head
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminSubscriberRecord' }
+                '404':
+                    description: No subscriber under this id (`SUBSCRIBER_NOT_FOUND`)
 
     /subscribers/attention:
         get:
@@ -2449,6 +2490,12 @@ components:
             name: pageSize
             in: query
             schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        SubscriberId:
+            name: id
+            in: path
+            required: true
+            description: The subscriber's id
+            schema: { type: string }
         TenantSlug:
             name: slug
             in: path
@@ -3525,8 +3572,7 @@ components:
             properties:
                 holder:
                     type: object
-                    nullable: true
-                    description: Whose account it is; null for a tenant that has no subscriber.
+                    description: Whose account it is.
                     required: [id, customerNumber, legalName]
                     properties:
                         id: { type: string }
@@ -3912,7 +3958,7 @@ components:
                     description: In the order the document lists them.
                     items: { $ref: '#/components/schemas/AdminInvoiceLine' }
 
-        AdminTenantInvoice:
+        AdminSubscriberInvoice:
             type: object
             required:
                 [
@@ -3971,29 +4017,29 @@ components:
                         Whether its document is archived, and can be downloaded
                         at `GET admin/invoices/:id/document`.
 
-        AdminTenantPayments:
+        AdminSubscriberPayments:
             type: object
             required: [invoices, openCases]
             properties:
                 invoices:
                     type: array
                     description: The latest first.
-                    items: { $ref: '#/components/schemas/AdminTenantInvoice' }
+                    items: { $ref: '#/components/schemas/AdminSubscriberInvoice' }
                 openCases:
                     type: array
                     description: The oldest first.
                     items: { $ref: '#/components/schemas/AdminReconciliationCase' }
 
-        AdminTenantContracts:
+        AdminSubscriberContracts:
             type: object
             required: [contracts]
             properties:
                 contracts:
                     type: array
                     description: The newest first.
-                    items: { $ref: '#/components/schemas/AdminTenantContract' }
+                    items: { $ref: '#/components/schemas/AdminSubscriberContract' }
 
-        AdminTenantContract:
+        AdminSubscriberContract:
             type: object
             required:
                 [
@@ -4077,53 +4123,148 @@ components:
                     type: string
                     nullable: true
 
+        AdminSubscriberDetails:
+            type: object
+            description: A subscriber's master data, and what a tax adapter decides from.
+            required:
+                [
+                    id,
+                    customerNumber,
+                    legalName,
+                    addressLine1,
+                    addressLine2,
+                    postalCode,
+                    city,
+                    country,
+                    invoiceEmail,
+                    business,
+                    vatId,
+                    vatIdValidated,
+                    taxNumber,
+                    migrated,
+                ]
+            properties:
+                id: { type: string }
+                customerNumber: { type: string }
+                legalName: { type: string }
+                addressLine1: { type: string, nullable: true }
+                addressLine2: { type: string, nullable: true }
+                postalCode: { type: string, nullable: true }
+                city: { type: string, nullable: true }
+                country: { type: string, nullable: true }
+                invoiceEmail: { type: string, nullable: true }
+                business: { type: boolean, nullable: true }
+                vatId: { type: string, nullable: true }
+                vatIdValidated:
+                    type: boolean
+                    description: Whether the check that counts for the VAT id found it valid.
+                taxNumber: { type: string, nullable: true }
+                migrated:
+                    type: boolean
+                    description: Created from the application's own tenant record.
+
+        AdminSubscriberStanding:
+            type: object
+            required: [subscriber, readiness]
+            properties:
+                subscriber: { $ref: '#/components/schemas/AdminSubscriberDetails' }
+                readiness:
+                    nullable: true
+                    description: Null where no tax adapter decides.
+                    allOf:
+                        - $ref: '#/components/schemas/SubscriberReadiness'
+
         AdminTenantSubscriber:
             type: object
             required: [subscriber, readiness]
             properties:
                 subscriber:
-                    type: object
                     nullable: true
                     description: Null for a tenant that has no subscriber.
-                    required:
-                        [
-                            id,
-                            customerNumber,
-                            legalName,
-                            addressLine1,
-                            addressLine2,
-                            postalCode,
-                            city,
-                            country,
-                            business,
-                            vatId,
-                            vatIdValidated,
-                            taxNumber,
-                            migrated,
-                        ]
-                    properties:
-                        id: { type: string }
-                        customerNumber: { type: string }
-                        legalName: { type: string }
-                        addressLine1: { type: string, nullable: true }
-                        addressLine2: { type: string, nullable: true }
-                        postalCode: { type: string, nullable: true }
-                        city: { type: string, nullable: true }
-                        country: { type: string, nullable: true }
-                        business: { type: boolean, nullable: true }
-                        vatId: { type: string, nullable: true }
-                        vatIdValidated:
-                            type: boolean
-                            description: Whether the check that counts for the VAT id found it valid.
-                        taxNumber: { type: string, nullable: true }
-                        migrated:
-                            type: boolean
-                            description: Created from the application's own tenant record.
+                    allOf:
+                        - $ref: '#/components/schemas/AdminSubscriberDetails'
                 readiness:
                     nullable: true
                     description: Null where no tax adapter decides, or the tenant has no subscriber.
                     allOf:
                         - $ref: '#/components/schemas/SubscriberReadiness'
+
+        AdminSubscriberTenant:
+            type: object
+            description: >-
+                A tenant the subscriber is or was linked to, named as the
+                application answers for its id now.
+            required: [tenantId, linkedAt, unlinkedAt, known, slug, name, deletedAt]
+            properties:
+                tenantId: { type: string }
+                linkedAt: { type: string, format: date-time }
+                unlinkedAt:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Null while the link is live.
+                known:
+                    type: boolean
+                    description: >-
+                        False where the application no longer has the tenant, which
+                        does not end the link.
+                slug: { type: string, nullable: true }
+                name: { type: string, nullable: true }
+                deletedAt:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Where the application soft-deleted the tenant, when.
+
+        AdminSubscriberRecord:
+            type: object
+            required: [subscriber, readiness, tenants]
+            properties:
+                subscriber: { $ref: '#/components/schemas/AdminSubscriberDetails' }
+                readiness:
+                    nullable: true
+                    description: Null where no tax adapter decides.
+                    allOf:
+                        - $ref: '#/components/schemas/SubscriberReadiness'
+                tenants:
+                    type: array
+                    description: The live link first, then the closed ones, the latest closed first.
+                    items: { $ref: '#/components/schemas/AdminSubscriberTenant' }
+
+        AdminSubscriberRow:
+            type: object
+            required: [id, customerNumber, legalName, vatId, city, country, liveTenant]
+            properties:
+                id: { type: string }
+                customerNumber: { type: string }
+                legalName: { type: string }
+                vatId: { type: string, nullable: true }
+                city: { type: string, nullable: true }
+                country: { type: string, nullable: true }
+                liveTenant:
+                    type: object
+                    nullable: true
+                    description: >-
+                        The tenant its live link names, its slug and name null where
+                        the application no longer has it; null without a live link.
+                    required: [id, slug, name]
+                    properties:
+                        id: { type: string }
+                        slug: { type: string, nullable: true }
+                        name: { type: string, nullable: true }
+
+        AdminSubscriberList:
+            type: object
+            required: [subscribers, next]
+            properties:
+                subscribers:
+                    type: array
+                    description: The latest customer number first.
+                    items: { $ref: '#/components/schemas/AdminSubscriberRow' }
+                next:
+                    type: string
+                    nullable: true
+                    description: The subscriber the next page continues after; null on the last page.
 
         AdminVatIdCheckOutcome:
             description: >-
@@ -4150,7 +4291,7 @@ components:
             type: object
             required: [subscriber, vatIdCheck]
             properties:
-                subscriber: { $ref: '#/components/schemas/AdminTenantSubscriber' }
+                subscriber: { $ref: '#/components/schemas/AdminSubscriberStanding' }
                 vatIdCheck:
                     nullable: true
                     description: The check a VAT number got, where one was made.

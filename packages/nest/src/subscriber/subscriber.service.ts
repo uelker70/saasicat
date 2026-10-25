@@ -323,10 +323,8 @@ export class SubscriberService {
         return readinessOf(subscriber, check, this.taxes, standingPeriod(asOf));
     }
 
-    private async requireById(
-        subscriberId: string,
-        tx?: TransactionContext,
-    ): Promise<SubscriberRecord> {
+    /** The subscriber, refused with `SUBSCRIBER_NOT_FOUND` where there is none. */
+    async requireById(subscriberId: string, tx?: TransactionContext): Promise<SubscriberRecord> {
         const subscriber = await this.repo.findById(subscriberId, tx);
         if (!subscriber) throw subscriberNotFound(subscriberId);
         return subscriber;
@@ -587,7 +585,8 @@ export function subscriberRequired(tenantId: string): ConflictException {
     );
 }
 
-function subscriberNotFound(subscriberId: string): NotFoundException {
+/** The refusal for a subscriber id nothing is kept under. */
+export function subscriberNotFound(subscriberId: string): NotFoundException {
     return new NotFoundException(
         codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_NOT_FOUND, { subscriberId }),
     );

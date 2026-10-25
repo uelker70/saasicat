@@ -1194,7 +1194,7 @@ _Tested by:_
         - states as paid on the replacement what moves onto it, and no share below nothing
         - withdraws a collection of it planned and not yet made
     - a cancellation refused
-        - for an invoice the tenant does not have, or that does not exist
+        - for an invoice that does not exist
         - for an invoice cancelled already, and for a cancellation invoice, drawing no number
         - while the invoice’s document is not archived
         - where the subscriber can be reached at no address, until one is given
@@ -1902,7 +1902,7 @@ _Tested by:_
 - `packages/nest/tests/an-operator-reads-and-pays-out-a-credit.test.js`
     - the operator reads a subscriber's credits
         - the oldest first, each named by the invoice it comes from, with what is open
-        - a tenant without a subscriber has none
+        - of a subscriber there is not are refused, by code
         - a refund paid out of a credit is shown with its reference at the gateway
     - a payout the operator records
         - is written against the credit, with its reference and who recorded it, up to what is open
@@ -1916,32 +1916,32 @@ _Tested by:_
         - of a payment SaaSiCat did not collect, or of none, is not its to act on
         - in a state Stripe does not document is refused, so Stripe delivers it again
 - `packages/ui-vue/tests/component/an-operator-pays-out-a-credit.test.ts`
-    - the tenant detail shows the subscriber's credits
+    - the subscriber's record shows its credits
         - where each comes from, what was paid out and what is open, the oldest first
         - offers a payout only for a credit with something open
         - without the capabilities, shows nothing and reads nothing, and offers no payout with the
           view alone
-    - a payout the operator records on the tenant page
+    - a payout the operator records in the record
         - opens with what is open, is sent once a reference names it, with the second factor
         - is dated today in the installation's time zone, read again each time the dialog opens
         - more than is open cannot be sent
     - the payout the form describes
         - is what is open, a reference and a note trimmed, an empty note as none
-- `packages/ui-vue/tests/tenant-credits-resource.test.js`
-    - tenantsResource.credits
-        - asks for the tenant's credits, with its slug escaped
-        - an answer with no credits is an error, not a tenant with none
-    - tenantsResource.recordPayout
+- `packages/ui-vue/tests/subscriber-credits-resource.test.js`
+    - subscribersResource.credits
+        - asks for the subscriber's credits, with its id escaped
+        - an answer with no credits is an error, not a subscriber with none
+    - subscribersResource.recordPayout
         - posts the payout against the credit, both escaped, with the second factor
-- `packages/ui-vue/tests/use-tenant-credits.test.js`
-    - the credits of a tenant
+- `packages/ui-vue/tests/use-subscriber-credits.test.js`
+    - the credits of a subscriber
         - are read where the platform serves them
         - are neither read nor offered where it does not, and a payout only with both
     - a payout
         - is recorded behind the second factor, announced, and the credits read again
         - where the operator steps back from the second factor records nothing and answers null
         - that fails rejects, so the dialog keeps the form, and announces nothing
-        - belongs to the tenant it was asked on, even if the page moved on meanwhile
+        - belongs to the subscriber it was asked on, even if the page moved on meanwhile
 
 <!-- END proof -->
 
@@ -1951,7 +1951,7 @@ _Tested by:_
 arrives twice records one reversal. A reversal takes back what the payment brought, the credit
 first, so the operator is not left refunding what is owed again: the credit the payment left
 shrinks by what is still open of it; the part of that credit already refunded or paid out is shown
-to the operator to reconcile (`SC-ADM-033`); and only what remains opens again the invoices the
+to the operator to reconcile (`SC-ADM-039`); and only what remains opens again the invoices the
 payment settles, each by no more than the payment settles there. A refund is different: SaaSiCat
 never initiates one (`SC-PRIC-076`), and one the operator makes in the gateway is recorded against
 the credit it pays out, reopening nothing; the part of a refund that no credit takes is shown to the
@@ -2159,7 +2159,7 @@ _Tested by:_
     - an invoice is corrected by a cancellation invoice
         - a reversal given back before records what of that covered its cases, once
 - `packages/ui-vue/tests/component/an-operator-reconciles-what-matched-nothing.test.ts`
-    - the tenant page's payments
+    - the subscriber's payments in its record
         - a credit a reversal given back left names the reversal
 
 <!-- END proof -->
@@ -2770,7 +2770,7 @@ _Tested by:_
         - is none where the last cancellation left no replacement
 - `packages/nest/tests/an-invoice-is-cancelled.test.js`
     - a cancellation refused
-        - for an invoice the tenant does not have, or that does not exist
+        - for an invoice that does not exist
         - for an invoice cancelled already, and for a cancellation invoice, drawing no number
         - while the invoice’s document is not archived
         - where the subscriber can be reached at no address, until one is given
@@ -3885,21 +3885,15 @@ _Tested by:_
         - marks the tenant of each subscription held back, beside its name
 - `packages/ui-vue/tests/component/tenant-detail-shows-the-subscriber.test.ts`
     - the tenant detail shows the tenant's subscriber
-        - whom the contracts are concluded with, and nothing held back
+        - whom the contracts are concluded with, and the way into its record
         - a warning names each reason the next contract is held back
-        - without a tax adapter there is no standing, and no warning
-        - a tenant without a subscriber says so
+        - a tenant without a subscriber says so, and offers no record
         - a read that fails says so
         - without the capability, nothing is asked and no section is shown
 - `packages/ui-vue/tests/tenant-subscriber-resource.test.js`
     - tenantsResource.subscriber
         - asks for the tenant's subscriber, with its slug escaped
         - an answer with no body is an error, not a tenant without a subscriber
-    - the subscriber's corrections
-        - a correction is declared one of the same legal entity, and carries the second factor
-        - a change of business status carries the second factor
-        - a check sends nothing but the request, and no second factor
-        - the history is read as its entries
     - tenantsResource.subscriberAttention
         - names each tenant once, and answers what the server holds back
         - a list longer than the server takes is asked in pages of two hundred
@@ -3976,7 +3970,7 @@ _Tested by:_
         - a subscriber without a number has none to check
         - without a tax adapter there is no service to check with
 - `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
-    - the operator corrects the subscriber on the tenant page
+    - the operator corrects the subscriber in its record
         - a check is asked without the second factor
 - `packages/ui-vue/tests/use-subscriber-corrections.test.js`
     - useSubscriberCorrections

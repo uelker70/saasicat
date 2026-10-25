@@ -1,4 +1,5 @@
-// The tenant list, one tenant, and the two states an operator can put it in.
+// The tenant list, one tenant, the two states an operator can put it in, and
+// who the tenant's contracts are concluded with.
 //
 // The request pages; the controller does not. `AdminResourcesPort.listTenants`
 // takes `status`/`plan`/`search` and answers with a bare array — no `page`, no
@@ -11,27 +12,16 @@
 //
 // `detail`, `suspend` and `reactivate` mirror `createAdminResourceClient`,
 // which is what `TenantDetailPage` receives them through today. Slugs are
-// encoded on the way into the path there, so they are encoded here. `charges`,
-// `credits`, `payments`, `recordPayout`, the invoice's cancellation and the
-// subscriber's operations have no twin there: the pages reach them through
-// this descriptor alone.
+// encoded on the way into the path there, so they are encoded here. The
+// subscriber's account, invoices, contracts and corrections are in
+// `subscribers.resource.ts`: they belong to the subscriber, whose record
+// outlives the tenant.
 
 import {
     SUBSCRIBER_ATTENTION_PAGE_SIZE,
-    type AdminCancelledInvoice,
-    type AdminInvoice,
-    type AdminInvoiceCancellationPlan,
-    type AdminSubscriberAccount,
     type AdminSubscriberAttention,
-    type AdminSubscriberCorrected,
-    type AdminSubscriberCredits,
-    type AdminSubscriberHistoryEntry,
-    type AdminSubscriberPayout,
-    type AdminTenantContracts,
     type AdminTenantDetail,
-    type AdminTenantPayments,
     type AdminTenantSubscriber,
-    type InvoiceCancellationRequest,
     type TenantDto,
     type TenantListFilter,
 } from '@saasicat/core';
@@ -39,33 +29,10 @@ import {
 import { mfaHeader } from '../mfa-header.js';
 import { defineResource, type ResourceContext } from './define-resource.js';
 import { defineListOp, type ListFilterOf } from './list-resource.js';
-import {
-    requestFile,
-    requestJson,
-    requestJsonBody,
-    type DownloadedFile,
-} from './resource-request.js';
+import { requestJson, requestJsonBody } from './resource-request.js';
 
 /** What the tenants list can be narrowed by. The page number is not a filter. */
 export type TenantsListFilter = ListFilterOf<TenantListFilter>;
-
-/**
- * A correction of a subscriber's legal identity, as the operator states it:
- * the fields that change — `null` clears a tax identifier — and why. It is
- * always a correction of the same legal entity; a takeover is not an edit.
- */
-export interface SubscriberIdentityCorrectionInput {
-    legalName?: string;
-    vatId?: string | null;
-    taxNumber?: string | null;
-    reason: string;
-}
-
-/** Whether the subscriber acts as a business — `null` for not stated — and why. */
-export interface SubscriberBusinessStatusInput {
-    business: boolean | null;
-    reason: string;
-}
 
 function tenantsUrl(ctx: ResourceContext): string {
     return `${ctx.apiBase}/tenants`;
@@ -73,10 +40,6 @@ function tenantsUrl(ctx: ResourceContext): string {
 
 function tenantUrl(ctx: ResourceContext, slug: string): string {
     return `${tenantsUrl(ctx)}/${encodeURIComponent(slug)}`;
-}
-
-function invoiceUrl(ctx: ResourceContext, slug: string, invoiceId: string): string {
-    return `${tenantUrl(ctx, slug)}/invoices/${encodeURIComponent(invoiceId)}`;
 }
 
 /** The tenant ids in pages the server takes, each named once. */
@@ -116,213 +79,15 @@ export const tenantsResource = defineResource('tenants', {
     },
 
     /**
-     * The charges of the tenant's subscriber, newest first. Served only where
-     * the manifest announces `charges.read`.
-     */
-    charges: async (http, ctx, slug: string): Promise<AdminSubscriberAccount> =>
-        requestJsonBody<AdminSubscriberAccount>(
-            http,
-            `${tenantUrl(ctx, slug)}/charges`,
-            'The account returned no body',
-        ),
-
-    /**
-     * The credits of the tenant's subscriber, the oldest first. Served only
-     * where the manifest announces `credits.read`.
-     */
-    credits: async (http, ctx, slug: string): Promise<AdminSubscriberCredits> =>
-        requestJsonBody<AdminSubscriberCredits>(
-            http,
-            `${tenantUrl(ctx, slug)}/credits`,
-            'The credits returned no body',
-        ),
-
-    /**
-     * The tenant's invoices with what each still owes, and its cases still
-     * open to reconcile. Served only where the manifest announces
-     * `payments.read`.
-     */
-    payments: async (http, ctx, slug: string): Promise<AdminTenantPayments> =>
-        requestJsonBody<AdminTenantPayments>(
-            http,
-            `${tenantUrl(ctx, slug)}/payments`,
-            'The payments returned no body',
-        ),
-
-    /**
-     * The tenant's contracts, the newest first, each with where its
-     * confirmation stands. Served only where the manifest announces
-     * `contracts.read`.
-     */
-    contracts: async (http, ctx, slug: string): Promise<AdminTenantContracts> =>
-        requestJsonBody<AdminTenantContracts>(
-            http,
-            `${tenantUrl(ctx, slug)}/contracts`,
-            'The contracts returned no body',
-        ),
-
-    /**
-     * The archived confirmation of one contract, the file its subscriber was
-     * sent. Served where the manifest announces `contracts.read`.
-     */
-    contractConfirmation: async (http, ctx, contractId: string): Promise<DownloadedFile> =>
-        requestFile(
-            http,
-            `${ctx.apiBase}/contracts/${encodeURIComponent(contractId)}/confirmation`,
-            'contract-confirmation.pdf',
-        ),
-
-    /**
-     * The archived document of one invoice, the file it was issued as. Served
-     * where the manifest announces `invoices.read`.
-     */
-    invoiceDocument: async (http, ctx, invoiceId: string): Promise<DownloadedFile> =>
-        requestFile(
-            http,
-            `${ctx.apiBase}/invoices/${encodeURIComponent(invoiceId)}/document`,
-            'invoice.pdf',
-        ),
-
-    /**
-     * Records a payout made outside the gateway against one credit, and
-     * answers the credits as they stand after it. Requires the second factor;
-     * served where the manifest announces `credits.payout`.
-     */
-    recordPayout: async (
-        http,
-        ctx,
-        slug: string,
-        creditId: string,
-        payout: AdminSubscriberPayout,
-        mfaCode?: string,
-    ): Promise<AdminSubscriberCredits> =>
-        requestJsonBody<AdminSubscriberCredits>(
-            http,
-            `${tenantUrl(ctx, slug)}/credits/${encodeURIComponent(creditId)}/payouts`,
-            'The payout returned no body',
-            { method: 'POST', body: payout, headers: mfaHeader(mfaCode) },
-        ),
-
-    /**
-     * One of the tenant's invoices with its lines, each with what its charge
-     * stands at and whether a cancellation may correct it. Served where the
-     * manifest announces `invoices.cancel`.
-     */
-    invoice: async (http, ctx, slug: string, invoiceId: string): Promise<AdminInvoice> =>
-        requestJsonBody<AdminInvoice>(
-            http,
-            invoiceUrl(ctx, slug, invoiceId),
-            'The invoice returned no body',
-        ),
-
-    /**
-     * What cancelling one of the tenant's invoices would write — the
-     * cancellation invoice, the replacement and where what was paid goes —,
-     * computed as the cancellation computes it and refused as it is; nothing
-     * is written. Served where the manifest announces `invoices.cancel`.
-     */
-    previewInvoiceCancellation: async (
-        http,
-        ctx,
-        slug: string,
-        invoiceId: string,
-        request: InvoiceCancellationRequest,
-    ): Promise<AdminInvoiceCancellationPlan> =>
-        requestJsonBody<AdminInvoiceCancellationPlan>(
-            http,
-            `${invoiceUrl(ctx, slug, invoiceId)}/cancellation/preview`,
-            'The cancellation preview returned no body',
-            { method: 'POST', body: request },
-        ),
-
-    /**
-     * Cancels one of the tenant's invoices by a cancellation invoice and its
-     * replacement. Requires the second factor; the request carries the
-     * preview's digest, and a preview that no longer holds is refused with the
-     * new one.
-     */
-    cancelInvoice: async (
-        http,
-        ctx,
-        slug: string,
-        invoiceId: string,
-        request: InvoiceCancellationRequest,
-        mfaCode?: string,
-    ): Promise<AdminCancelledInvoice> =>
-        requestJsonBody<AdminCancelledInvoice>(
-            http,
-            `${invoiceUrl(ctx, slug, invoiceId)}/cancellation`,
-            'The cancellation returned no body',
-            { method: 'POST', body: request, headers: mfaHeader(mfaCode) },
-        ),
-
-    /**
-     * The tenant's subscriber, its tax details and what holds its next
-     * contract back. Served only where the manifest announces
-     * `subscribers.read`.
+     * The tenant's subscriber and what holds its next contract back — the card
+     * on the tenant's page that leads into its record. Served only where the
+     * manifest announces `subscribers.read`.
      */
     subscriber: async (http, ctx, slug: string): Promise<AdminTenantSubscriber> =>
         requestJsonBody<AdminTenantSubscriber>(
             http,
             `${tenantUrl(ctx, slug)}/subscriber`,
             'The subscriber returned no body',
-        ),
-
-    /** The subscriber's corrections, changes of country or business status, and checks, the latest first. */
-    subscriberHistory: async (http, ctx, slug: string): Promise<AdminSubscriberHistoryEntry[]> => {
-        const answer = await requestJsonBody<{ entries: AdminSubscriberHistoryEntry[] }>(
-            http,
-            `${tenantUrl(ctx, slug)}/subscriber/history`,
-            'The history returned no body',
-        );
-        return answer.entries;
-    },
-
-    /**
-     * Corrects the subscriber's legal identity — the same legal entity, with a
-     * reason. Requires the second factor. A VAT number it gives is checked
-     * right after, where a tax adapter decides, and the answer says how.
-     */
-    correctSubscriberIdentity: async (
-        http,
-        ctx,
-        slug: string,
-        correction: SubscriberIdentityCorrectionInput,
-        mfaCode?: string,
-    ): Promise<AdminSubscriberCorrected> =>
-        requestJsonBody<AdminSubscriberCorrected>(
-            http,
-            `${tenantUrl(ctx, slug)}/subscriber/identity`,
-            'The correction returned no body',
-            {
-                method: 'POST',
-                body: { kind: 'correction', ...correction },
-                headers: mfaHeader(mfaCode),
-            },
-        ),
-
-    /** Records whether the subscriber acts as a business, and why. Requires the second factor. */
-    changeSubscriberBusinessStatus: async (
-        http,
-        ctx,
-        slug: string,
-        change: SubscriberBusinessStatusInput,
-        mfaCode?: string,
-    ): Promise<AdminSubscriberCorrected> =>
-        requestJsonBody<AdminSubscriberCorrected>(
-            http,
-            `${tenantUrl(ctx, slug)}/subscriber/business-status`,
-            'The change returned no body',
-            { method: 'POST', body: change, headers: mfaHeader(mfaCode) },
-        ),
-
-    /** Checks the VAT number the subscriber holds again, without changing it. */
-    checkSubscriberVatId: async (http, ctx, slug: string): Promise<AdminSubscriberCorrected> =>
-        requestJsonBody<AdminSubscriberCorrected>(
-            http,
-            `${tenantUrl(ctx, slug)}/subscriber/vat-id-check`,
-            'The check returned no body',
-            { method: 'POST' },
         ),
 
     /**

@@ -11,7 +11,7 @@
 import {
     INVOICE_SUBSCRIBER_DETAILS,
     type AdminInvoiceLine,
-    type AdminTenantInvoice,
+    type AdminSubscriberInvoice,
     type InvoiceCancellationRequest,
     type InvoiceLineOwed,
     type InvoiceSubscriberDetail,
@@ -19,7 +19,7 @@ import {
 
 /** Whether `invoice` stands and is no cancellation invoice, so it can be cancelled. */
 export function isCancellable(
-    invoice: Pick<AdminTenantInvoice, 'correction' | 'cancelledBy'>,
+    invoice: Pick<AdminSubscriberInvoice, 'correction' | 'cancelledBy'>,
 ): boolean {
     return invoice.cancelledBy === null && invoice.correction?.kind !== 'cancellation';
 }

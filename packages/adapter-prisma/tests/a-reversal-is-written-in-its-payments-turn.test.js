@@ -14,7 +14,7 @@
 // @requirement SC-COMP-010 — An integrator's own data access translates; it does not decide
 // @requirement SC-PRIC-084 — A returned debit or a chargeback is recorded, and what the payment settled opens again
 // @requirement SC-PRIC-086 — A dispute won takes its reversal back, and what was paid meanwhile becomes a credit
-// @requirement SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+// @requirement SC-ADM-039 — The operator reconciles what no credit matched, and finds each case in the record
 // @requirement SC-PRIC-087 — A credit left for the same invoice covers what a reversal would open again
 
 import { describe, test } from 'node:test';

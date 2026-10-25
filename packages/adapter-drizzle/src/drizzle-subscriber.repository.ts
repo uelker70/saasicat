@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, isNull, lt, or, type SQL } from 'drizzle-orm';
 import type {
     CreateSubscriberData,
     RecordedVatIdCheck,
@@ -12,7 +12,10 @@ import type {
     SubscriberCorrectionResult,
     SubscriberRecord,
     SubscriberRepository,
+    SubscriberSearch,
+    SubscriberSearchPage,
     SubscriberTaxOriginChangeRecord,
+    SubscriberTenantLinkRecord,
     SubscriberVatIdCheckRecord,
     SubscriberWithCurrentCheck,
     TaxOriginWrite,
@@ -23,12 +26,13 @@ import {
     identityCorrectionDelta,
     keepsVatIdCheck,
     taxOriginWrite,
+    tenantLinksInOrder,
     toSubscriberCorrectionRecord,
     toSubscriberRecord,
     toSubscriberTaxOriginChangeRecord,
     toSubscriberVatIdCheckRecord,
 } from '@saasicat/core';
-import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
+import { DRIZZLE_DB_TOKEN, escapeLikePattern, resolveDb, type DrizzleClient } from './client.js';
 import {
     subscriberCorrections,
     subscriberTaxOriginChanges,
@@ -320,6 +324,76 @@ export class DrizzleSubscriberRepository implements SubscriberRepository {
             subscriber: toSubscriberRecord(row.subscriber, row.tenantId),
             currentVatIdCheck: row.check ? toSubscriberVatIdCheckRecord(row.check) : null,
         }));
+    }
+
+    async search(search: SubscriberSearch): Promise<SubscriberSearchPage> {
+        const conditions: SQL[] = [];
+        const { terms } = search;
+        if (terms) {
+            const number = terms.customerNumber;
+            const matches = [
+                ilike(subscribers.legalName, `%${escapeLikePattern(terms.legalName)}%`),
+                ...(number
+                    ? [
+                          number.prefix === null
+                              ? eq(subscribers.customerSequence, number.sequence)
+                              : and(
+                                    eq(subscribers.customerSequence, number.sequence),
+                                    // Without a wildcard, ILIKE is equality in any case.
+                                    ilike(
+                                        subscribers.customerNumberPrefix,
+                                        escapeLikePattern(number.prefix),
+                                    ),
+                                ),
+                      ]
+                    : []),
+                ...(terms.vatId ? [eq(subscribers.vatId, terms.vatId)] : []),
+            ];
+            const matched = or(...matches);
+            if (matched) conditions.push(matched);
+        }
+        if (search.withoutLiveTenant) conditions.push(isNull(subscriberTenants.id));
+        if (search.after) {
+            const [after] = await this.db
+                .select({ customerSequence: subscribers.customerSequence })
+                .from(subscribers)
+                .where(eq(subscribers.id, search.after))
+                .limit(1);
+            if (after) conditions.push(lt(subscribers.customerSequence, after.customerSequence));
+        }
+        const rows = await this.db
+            .select({ subscriber: subscribers, tenantId: subscriberTenants.tenantId })
+            .from(subscribers)
+            // The live link, of which there is one at most: the row stays one row.
+            .leftJoin(
+                subscriberTenants,
+                and(
+                    eq(subscriberTenants.subscriberId, subscribers.id),
+                    isNull(subscriberTenants.unlinkedAt),
+                ),
+            )
+            .where(and(...conditions))
+            .orderBy(desc(subscribers.customerSequence))
+            // One more than the page, to know whether another follows.
+            .limit(search.limit + 1);
+        return {
+            subscribers: rows
+                .slice(0, search.limit)
+                .map((row) => toSubscriberRecord(row.subscriber, row.tenantId)),
+            hasMore: rows.length > search.limit,
+        };
+    }
+
+    async listTenantLinks(subscriberId: string): Promise<SubscriberTenantLinkRecord[]> {
+        const rows = await this.db
+            .select({
+                tenantId: subscriberTenants.tenantId,
+                linkedAt: subscriberTenants.linkedAt,
+                unlinkedAt: subscriberTenants.unlinkedAt,
+            })
+            .from(subscriberTenants)
+            .where(eq(subscriberTenants.subscriberId, subscriberId));
+        return tenantLinksInOrder(rows);
     }
 
     async listTaxOriginChanges(subscriberId: string): Promise<SubscriberTaxOriginChangeRecord[]> {

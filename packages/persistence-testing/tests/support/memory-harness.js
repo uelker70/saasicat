@@ -19,6 +19,7 @@ import {
     planKeyTaken,
     promoCodeTaken,
     readCustomLimits,
+    tenantLinksInOrder,
     refuseForeignPaymentMethodReference,
     scheduledChangeAfterWrite,
     pendingAgreementColumns,
@@ -156,6 +157,8 @@ export function createMemoryHarness() {
         reversals: [],
         cases: [],
         subscribers: [],
+        // Every link between a subscriber and a tenant, as `subscriber_tenants` keeps them.
+        subscriberTenants: [],
         subscriberCorrections: [],
         subscriberTaxOriginChanges: [],
         subscriberVatIdChecks: [],
@@ -883,6 +886,7 @@ export function createMemoryHarness() {
                 .filter(
                     (row) =>
                         (!filter.tenantId || row.tenantId === filter.tenantId) &&
+                        (!filter.subscriberId || row.subscriberId === filter.subscriberId) &&
                         (!filter.status || row.status === filter.status) &&
                         (!filter.asOf || inWindow(row, filter.asOf)),
                 )
@@ -995,7 +999,49 @@ export function createMemoryHarness() {
                 updatedAt: FIXED_NOW,
             };
             state.subscribers.push(row);
+            state.subscriberTenants.push({
+                subscriberId: row.id,
+                tenantId: data.tenantId,
+                linkedAt: FIXED_NOW,
+                unlinkedAt: null,
+            });
             return subscriberRecord(row);
+        },
+        async search({ terms, withoutLiveTenant, limit, after }) {
+            const matches = (row) => {
+                if (!terms) return true;
+                const number = terms.customerNumber;
+                return (
+                    row.legalName.toLowerCase().includes(terms.legalName.toLowerCase()) ||
+                    (number !== null &&
+                        row.customerSequence === number.sequence &&
+                        (number.prefix === null ||
+                            row.customerNumberPrefix.toLowerCase() ===
+                                number.prefix.toLowerCase())) ||
+                    (terms.vatId !== null && row.vatId === terms.vatId)
+                );
+            };
+            const from = state.subscribers.find((row) => row.id === after);
+            const found = state.subscribers
+                .filter(matches)
+                .filter((row) => !withoutLiveTenant || row.tenantId === null)
+                .filter((row) => !from || row.customerSequence < from.customerSequence)
+                .sort((a, b) => b.customerSequence - a.customerSequence);
+            return {
+                subscribers: found.slice(0, limit).map(subscriberRecord),
+                hasMore: found.length > limit,
+            };
+        },
+        async listTenantLinks(subscriberId) {
+            return tenantLinksInOrder(
+                state.subscriberTenants
+                    .filter((link) => link.subscriberId === subscriberId)
+                    .map(({ tenantId, linkedAt, unlinkedAt }) => ({
+                        tenantId,
+                        linkedAt,
+                        unlinkedAt,
+                    })),
+            );
         },
         async findById(subscriberId) {
             const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
@@ -1477,6 +1523,15 @@ export function createMemoryHarness() {
             };
             state.subscribers.push(row);
             return { subscriberId: row.id };
+        },
+        async closeTenantLink(subscriberId, at) {
+            const link = state.subscriberTenants.find(
+                (candidate) =>
+                    candidate.subscriberId === subscriberId && candidate.unlinkedAt === null,
+            );
+            if (link) link.unlinkedAt = at;
+            const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
+            if (row) row.tenantId = null;
         },
         async clearBookingRequestDate(subscriptionBundleId) {
             const row = state.subscriptionBundles.find(
@@ -1994,6 +2049,16 @@ export function createMemoryHarness() {
             return state.ledgerEntries
                 .filter((entry) => entry.subscriptionId === subscriptionId)
                 .sort((a, b) => a.periodStart.getTime() - b.periodStart.getTime())
+                .map(toSubscriberChargeRecord);
+        },
+        async listBySubscriber(subscriberId) {
+            return state.ledgerEntries
+                .filter((entry) => entry.subscriberId === subscriberId)
+                .sort(
+                    (a, b) =>
+                        a.periodStart.getTime() - b.periodStart.getTime() ||
+                        (a.subscriptionId < b.subscriptionId ? -1 : 1),
+                )
                 .map(toSubscriberChargeRecord);
         },
     };

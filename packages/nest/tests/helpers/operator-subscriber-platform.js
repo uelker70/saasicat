@@ -15,6 +15,8 @@ import { TAX_SETTINGS, TEST_TAX_ADAPTER } from './tax-adapter.js';
 
 export const SUBSCRIBER_ROUTE = 'GET admin/tenants/:slug/subscriber';
 export const ATTENTION_ROUTE = 'GET admin/subscribers/attention';
+export const LIST_ROUTE = 'GET admin/subscribers';
+export const RECORD_ROUTE = 'GET admin/subscribers/:id';
 
 const ADDRESS = { addressLine1: 'Hafenstraße 1', postalCode: '20457', city: 'Hamburg' };
 
@@ -101,7 +103,19 @@ export async function aPlatform({
         service: 'VIES',
         confirmation: {},
     });
-    for (const method of ['findByTenantId', 'listForTenants']) {
+    // Each tenant's subscriber by the tenant's slug, read before the reads are
+    // watched: a test names a subscriber by its tenant, the routes by its id.
+    const ids = {};
+    for (const tenantId of Object.keys(SUBSCRIBERS)) {
+        ids[tenantId.slice('t-'.length)] = (await repo.findByTenantId(tenantId)).id;
+    }
+    for (const method of [
+        'findByTenantId',
+        'listForTenants',
+        'findById',
+        'search',
+        'listTenantLinks',
+    ]) {
         const read = repo[method].bind(repo);
         repo[method] = (...args) => {
             seen.reads.push({ method, bypassed: bypassed > 0 });
@@ -113,6 +127,14 @@ export async function aPlatform({
         async getTenantDetail(slug) {
             seen.lookups.push({ slug, bypassed: bypassed > 0 });
             return TENANTS.includes(slug) ? { id: `t-${slug}`, slug, name: slug } : null;
+        },
+        async findTenantsByIds(tenantIds) {
+            seen.lookups.push({ tenantIds, bypassed: bypassed > 0 });
+            return TENANTS.flatMap((slug) =>
+                tenantIds.includes(`t-${slug}`)
+                    ? [{ id: `t-${slug}`, slug, name: slug, deletedAt: null }]
+                    : [],
+            );
         },
         setTenantActive: async () => null,
         listUsers: async () => [],
@@ -178,6 +200,8 @@ export async function aPlatform({
         repo,
         served,
         call,
+        /** The id of the subscriber of the tenant `slug`, or one nothing is kept under. */
+        idOf: (slug) => ids[slug] ?? `no-subscriber-of-${slug}`,
         subscriberOf: (slug) => call(SUBSCRIBER_ROUTE)(slug),
         attention: (tenantId) => call(ATTENTION_ROUTE)({ tenantId }),
     };

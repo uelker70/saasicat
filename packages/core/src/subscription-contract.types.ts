@@ -293,6 +293,8 @@ export interface SupersedeSubscriptionContractData {
 
 export interface SubscriptionContractFilter {
     tenantId?: string;
+    /** The subscriber the contracts are concluded with, whichever tenant they were for. */
+    subscriberId?: string;
     status?: SubscriptionContractStatus;
     asOf?: Date;
 }

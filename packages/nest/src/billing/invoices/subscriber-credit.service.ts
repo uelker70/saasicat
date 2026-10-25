@@ -27,6 +27,7 @@ import {
 } from '@saasicat/core';
 
 import { codedError } from '../../errors/coded-error.js';
+import { subscriberNotFound } from '../../subscriber/subscriber.service.js';
 import { SUBSCRIBER_REPOSITORY_TOKEN } from '../../subscriber/subscriber.tokens.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
 import { SUBSCRIBER_PAYMENT_REPOSITORY_TOKEN } from './invoice-collection.tokens.js';
@@ -51,28 +52,28 @@ export class SubscriberCreditService {
         private readonly settings: PlanCatalogSettings,
     ) {}
 
-    /** The credits of the tenant's subscriber, the oldest first; none for a tenant without one. */
-    async creditsOf(tenantId: string): Promise<AdminSubscriberCredits> {
-        const subscriber = await this.subscribers.findByTenantId(tenantId);
-        if (!subscriber) return { credits: [], timeZone: this.zone() };
+    /** The subscriber's credits, the oldest first; refused where there is no such subscriber. */
+    async creditsOf(subscriberId: string): Promise<AdminSubscriberCredits> {
+        const subscriber = await this.subscribers.findById(subscriberId);
+        if (!subscriber) throw subscriberNotFound(subscriberId);
         return this.viewOf(await this.payments.listCredits(subscriber.id));
     }
 
     /**
-     * Records a payout the operator made against one credit of the tenant's
+     * Records a payout the operator made against one credit of the
      * subscriber. Refused where the credit is another subscriber's — the
-     * tenant's page reaches only its own —, where the day it left is still to
-     * come in the installation's zone, and where it exceeds what the credit
-     * still owes; nothing is written then.
+     * record reaches only its own —, where the day it left is still to come in
+     * the installation's zone, and where it exceeds what the credit still
+     * owes; nothing is written then.
      */
     async payOut(
-        tenantId: string,
+        subscriberId: string,
         creditId: string,
         payout: AdminSubscriberPayout,
         recordedBy: string,
         now: Date = new Date(),
     ): Promise<RecordedPayout> {
-        const subscriber = await this.subscribers.findByTenantId(tenantId);
+        const subscriber = await this.subscribers.findById(subscriberId);
         if (!subscriber) throw creditNotFound(creditId);
         const own = await this.payments.listCredits(subscriber.id);
         if (!own.some(({ credit }) => credit.id === creditId)) throw creditNotFound(creditId);

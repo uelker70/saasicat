@@ -3,14 +3,14 @@
 // legal name. The dialogs keep their confirming button disabled while the rule
 // answers `null`, so each class below is also what the operator can submit.
 
-// @requirement SC-SUB-041 — The operator corrects a subscriber's identity and business status, with a reason
+// @requirement SC-SUB-045 — The operator corrects a subscriber's identity and business status in its record
 
 import { describe, expect, test } from 'vitest';
 
 import {
     businessStatusChangeOf,
     identityCorrectionOf,
-} from '../../src/internal/tenant-detail/subscriber-corrections.js';
+} from '../../src/internal/subscriber-record/subscriber-corrections.js';
 
 const HELD = { legalName: 'Wien GmbH', vatId: 'ATU12345678', taxNumber: null };
 const UNCHANGED = { legalName: 'Wien GmbH', vatId: 'ATU12345678', taxNumber: '', reason: '' };

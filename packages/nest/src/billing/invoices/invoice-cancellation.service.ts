@@ -261,33 +261,30 @@ export class InvoiceCancellationService implements OnModuleInit {
     }
 
     /**
-     * What cancelling invoice `invoiceId` of tenant `tenantId` would write at
-     * `now`, computed as the cancellation computes it; nothing is written.
-     * Refused as the cancellation is.
+     * What cancelling invoice `invoiceId` would write at `now`, computed as
+     * the cancellation computes it; nothing is written. Refused as the
+     * cancellation is.
      */
     preview(
-        tenantId: string,
         invoiceId: string,
         request: InvoiceCancellationRequest,
         now: Date = new Date(),
     ): Promise<InvoiceCancellationPlan> {
         return readAcrossTenants(this.rlsBypass, () =>
-            this.runner().run((tx) => this.planIn(tenantId, invoiceId, request, now, tx)),
+            this.runner().run((tx) => this.planIn(invoiceId, request, now, tx)),
         );
     }
 
     /**
-     * Invoice `invoiceId` of tenant `tenantId` with its lines, each with what
-     * its charge stands at and whether a cancellation may correct it, by the
-     * rule the cancellation settles the operator's lines by (`SC-ADM-035`).
-     * Refused with `SUBSCRIPTION_INVOICE_NOT_FOUND` (404) for no such invoice
-     * of the tenant.
+     * Invoice `invoiceId` with its lines, each with what its charge stands at
+     * and whether a cancellation may correct it, by the rule the cancellation
+     * settles the operator's lines by (`SC-ADM-035`). Refused with
+     * `SUBSCRIPTION_INVOICE_NOT_FOUND` (404) for no such invoice.
      */
-    invoiceOf(tenantId: string, invoiceId: string): Promise<AdminInvoice> {
+    invoiceOf(invoiceId: string): Promise<AdminInvoice> {
         return readAcrossTenants(this.rlsBypass, async () => {
             const invoice = await this.invoices.findById(invoiceId);
-            // An invoice of another tenant is none of this one's.
-            if (!invoice || invoice.tenantId !== tenantId) {
+            if (!invoice) {
                 throw new NotFoundException(
                     codedError(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NOT_FOUND, { invoiceId }),
                 );
@@ -338,9 +335,10 @@ export class InvoiceCancellationService implements OnModuleInit {
     }
 
     /**
-     * Cancels invoice `invoiceId` of tenant `tenantId` at `now`, for
-     * `cancelledBy`. Refused with `SUBSCRIPTION_INVOICE_NOT_FOUND` (404) for no
-     * such invoice of the tenant, `SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`
+     * Cancels invoice `invoiceId` at `now`, for `cancelledBy`, whichever
+     * tenant it was for — one deleted since included. Refused with
+     * `SUBSCRIPTION_INVOICE_NOT_FOUND` (404) for no such invoice,
+     * `SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`
      * (409) for one cancelled already, `SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED`
      * (409) while its document is not archived, and with `422` for a reason
      * that is blank, longer than one line allows or too long, a correction the
@@ -352,26 +350,24 @@ export class InvoiceCancellationService implements OnModuleInit {
      * then, and no number is drawn.
      */
     cancel(
-        tenantId: string,
         invoiceId: string,
         request: InvoiceCancellationRequest,
         cancelledBy: string,
         now: Date = new Date(),
     ): Promise<CancelledInvoice> {
         return readAcrossTenants(this.rlsBypass, () =>
-            this.cancelIn(tenantId, invoiceId, request, cancelledBy, now),
+            this.cancelIn(invoiceId, request, cancelledBy, now),
         );
     }
 
     private cancelIn(
-        tenantId: string,
         invoiceId: string,
         request: InvoiceCancellationRequest,
         cancelledBy: string,
         now: Date,
     ): Promise<CancelledInvoice> {
         return this.runner().run(async (tx) => {
-            const plan = await this.planIn(tenantId, invoiceId, request, now, tx);
+            const plan = await this.planIn(invoiceId, request, now, tx);
             refuseChangedSincePreview(plan, request.previewDigest);
             const counterEntries = await this.writtenCounterEntries(plan, tx);
             const issued = await answeringRefusals(
@@ -459,7 +455,6 @@ export class InvoiceCancellationService implements OnModuleInit {
 
     /** The steps both take, in the turn of the invoice's chain on `tx`. */
     private async planIn(
-        tenantId: string,
         invoiceId: string,
         request: InvoiceCancellationRequest,
         now: Date,
@@ -467,8 +462,7 @@ export class InvoiceCancellationService implements OnModuleInit {
     ): Promise<InvoiceCancellationPlan> {
         const chain = await this.invoices.holdChain(invoiceId, tx);
         const cancelled = chain?.invoices.find((invoice) => invoice.id === invoiceId);
-        // An invoice of another tenant is none of this one's.
-        if (!chain || !cancelled || cancelled.tenantId !== tenantId) {
+        if (!chain || !cancelled) {
             throw new NotFoundException(
                 codedError(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NOT_FOUND, { invoiceId }),
             );

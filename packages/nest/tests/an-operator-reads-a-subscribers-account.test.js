@@ -1,4 +1,4 @@
-// The operator reads a subscriber's account beside the tenant it belongs to.
+// The operator reads a subscriber's account in the subscriber's record.
 //
 // The account is derived the way an application's calls derive it — through
 // `SubscriberChargeService` over a subscription whose window moves — and read
@@ -11,7 +11,6 @@ import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { BILLING_ERROR_CODES } from '@saasicat/core';
 
 import { RLS_BYPASS_PORT_TOKEN, AdminResourcesService } from '../dist/admin/index.js';
 import { SubscriberAccountModule, SubscriberAccountService } from '../dist/billing/index.js';
@@ -65,7 +64,7 @@ const rowOf = ({ charge, title }) => [
     charge.amountNet,
 ];
 
-// @requirement SC-ADM-028 — An operator reads a subscriber's charges beside its tenant
+// @requirement SC-ADM-037 — An operator reads a subscriber's charges in its record
 describe("the operator reads a subscriber's account", () => {
     test('newest first, and within one due date the plan, then its add-ons, then its discounts', async () => {
         const account = await twoMonthsOfAnAccount();
@@ -142,23 +141,29 @@ describe("the operator reads a subscriber's account", () => {
         assert.deepEqual(holder, HOLDER);
     });
 
-    test('a tenant without a subscriber has an account with no holder', async () => {
-        const account = anAccount({ subscriber: null });
+    test('of a subscriber there is not is refused, by code', async () => {
+        const account = anAccount({ subscriber: HOLDER });
 
-        assert.deepEqual(await account.read(), { holder: null, entries: [] });
+        await assert.rejects(
+            () => account.read('no-such-subscriber'),
+            (error) => error.getResponse?.().code === 'SUBSCRIBER_NOT_FOUND',
+        );
     });
 
-    test('a tenant without a subscription has no charges', async () => {
+    test('keeps its charges once the subscription they arose under is gone', async () => {
         const account = anAccount({ subscriber: HOLDER });
         await account.contract({ lineItems: [STANDARD()] });
         await account.charge(utc('2026-01-10'));
         account.subscription.id = null;
 
-        assert.deepEqual(await account.read(), { holder: HOLDER, entries: [] });
+        const { holder, entries } = await account.read();
+
+        assert.deepEqual(holder, HOLDER);
+        assert.deepEqual(entries.map(rowOf), [['2026-01-01', 'Standard', 'activation', 49]]);
     });
 });
 
-// @requirement SC-ADM-028 — An operator reads a subscriber's charges beside its tenant
+// @requirement SC-ADM-037 — An operator reads a subscriber's charges in its record
 describe('two charges due at the same moment', () => {
     test('the one for the later period comes first', async () => {
         const account = anAccount({ subscriber: HOLDER });
@@ -224,19 +229,21 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
     };
     const ledger = {
         recordCharges: async () => [],
-        async listBySubscription(subscriptionId) {
-            seen.reads.push({ subscriptionId, bypassed: bypassed > 0 });
+        listBySubscription: async () => [],
+        async listBySubscriber(subscriberId) {
+            seen.reads.push({ subscriberId, bypassed: bypassed > 0 });
+            if (subscriberId !== HOLDER.id) return [];
             return [
                 {
                     id: 'charge-1',
                     subscriberId: HOLDER.id,
                     tenantId: 't-northwind',
-                    subscriptionId,
+                    subscriptionId: 'sub-northwind',
                     contractId: 'c1',
                     contractLineItemId: 'l1',
                     origin: 'activation',
                     source: 'plan',
-                    sourceRef: subscriptionId,
+                    sourceRef: 'sub-northwind',
                     periodStart: utc('2026-01-01'),
                     periodEnd: utc('2026-02-01'),
                     currency: 'EUR',
@@ -297,6 +304,10 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
                 subscriberRepository: {
                     findByTenantId: async (tenantId) =>
                         tenantId === 't-northwind' ? HOLDER : null,
+                    async findById(subscriberId) {
+                        seen.lookups.push({ subscriberId, bypassed: bypassed > 0 });
+                        return subscriberId === HOLDER.id ? HOLDER : null;
+                    },
                 },
             },
             ...(journal
@@ -326,18 +337,19 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
         seen,
         served,
         /** Asks the route the way Nest dispatches to it. */
-        chargesOf: (slug) => moduleRef.get(served.controller, { strict: false })[served.name](slug),
+        chargesOf: (subscriberId) =>
+            moduleRef.get(served.controller, { strict: false })[served.name](subscriberId),
     };
 }
 
-const ROUTE = 'GET admin/tenants/:slug/charges';
+const ROUTE = 'GET admin/subscribers/:id/charges';
 
-// @requirement SC-ADM-028 — An operator reads a subscriber's charges beside its tenant
-describe("the account is served beside the tenant's detail", () => {
+// @requirement SC-ADM-037 — An operator reads a subscriber's charges in its record
+describe("the account is served in the subscriber's record", () => {
     test('with a journal and the tenants, the route answers and the manifest announces it', async () => {
         const platform = await aPlatform();
 
-        const account = await platform.chargesOf('northwind');
+        const account = await platform.chargesOf(HOLDER.id);
 
         assert.equal(platform.manifest.capabilities['charges.read'], true);
         assert.deepEqual(account.holder, HOLDER);
@@ -348,14 +360,14 @@ describe("the account is served beside the tenant's detail", () => {
         await platform.moduleRef.close();
     });
 
-    test('an unknown tenant is answered as not found, by code', async () => {
+    test('an unknown subscriber is answered as not found, by code', async () => {
         const platform = await aPlatform();
 
         await assert.rejects(
             () => platform.chargesOf('nowhere'),
             (error) => {
                 assert.ok(error instanceof NotFoundException);
-                assert.equal(error.getResponse().code, BILLING_ERROR_CODES.TENANT_NOT_FOUND);
+                assert.equal(error.getResponse().code, 'SUBSCRIBER_NOT_FOUND');
                 return true;
             },
         );
@@ -363,22 +375,20 @@ describe("the account is served beside the tenant's detail", () => {
         await platform.moduleRef.close();
     });
 
-    test("the tenant is found and its journal read outside the tenants' row-level policy", async () => {
+    test("the subscriber is found and its journal read outside the tenants' row-level policy", async () => {
         const platform = await aPlatform();
 
-        await platform.chargesOf('northwind');
+        await platform.chargesOf(HOLDER.id);
 
-        assert.deepEqual(platform.seen.lookups, [{ slug: 'northwind', bypassed: true }]);
-        assert.deepEqual(platform.seen.reads, [
-            { subscriptionId: 'sub-northwind', bypassed: true },
-        ]);
+        assert.deepEqual(platform.seen.lookups, [{ subscriberId: HOLDER.id, bypassed: true }]);
+        assert.deepEqual(platform.seen.reads, [{ subscriberId: HOLDER.id, bypassed: true }]);
         await platform.moduleRef.close();
     });
 
     test('the journal the route reads is the one the platform writes to, built once', async () => {
         const platform = await aPlatform();
 
-        await platform.chargesOf('northwind');
+        await platform.chargesOf(HOLDER.id);
 
         assert.equal(platform.seen.built, 1);
         await platform.moduleRef.close();
@@ -398,7 +408,7 @@ describe("the account is served beside the tenant's detail", () => {
     }
 });
 
-// @requirement SC-ADM-028 — An operator reads a subscriber's charges beside its tenant
+// @requirement SC-ADM-037 — An operator reads a subscriber's charges in its record
 describe('mounted by hand', () => {
     /** The two services the route needs, from a module standing in for the platform's. */
     const services = {

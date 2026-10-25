@@ -335,7 +335,7 @@ describe('the confirmation handed out again', () => {
     });
 });
 
-describe('a tenant’s contracts, as the operator reads them', () => {
+describe('a subscriber’s contracts, as the operator reads them', () => {
     test('are every contract, the newest first, each with where its confirmation stands', async () => {
         const installation = aConfirmingInstallation({ writtenBefore: ['contract-1'] });
         const before = await installation.aConfirmableContract('t1');
@@ -347,7 +347,9 @@ describe('a tenant’s contracts, as the operator reads them', () => {
         const waiting = await installation.aConfirmableContract('t1');
         await installation.aConfirmableContract('t2');
 
-        const { contracts } = await installation.confirmations.contractsOf('t1');
+        const { contracts } = await installation.confirmations.contractsOf(
+            (await installation.subscriberRepository.findByTenantId('t1')).id,
+        );
 
         assert.deepEqual(
             contracts.map((contract) => [contract.id, contract.confirmation.state]),
@@ -380,10 +382,17 @@ describe('a tenant’s contracts, as the operator reads them', () => {
         assert.ok(mailed.confirmation.deliveredAt, 'the moment it was mailed');
     });
 
-    test('of a tenant without contracts are none', async () => {
+    test('of a subscriber without contracts are none, and of one there is not are refused', async () => {
         const installation = aConfirmingInstallation();
+        const subscriber = await installation.aSubscriber('t1');
 
-        assert.deepEqual(await installation.confirmations.contractsOf('t1'), { contracts: [] });
+        assert.deepEqual(await installation.confirmations.contractsOf(subscriber.id), {
+            contracts: [],
+        });
+        await assert.rejects(
+            installation.confirmations.contractsOf('no-such-subscriber'),
+            (error) => error.getResponse?.().code === 'SUBSCRIBER_NOT_FOUND',
+        );
     });
 });
 
@@ -436,6 +445,9 @@ describe('the operator’s download of a confirmation', () => {
         // The contracts the installation wrote, which the download reads its contract from.
         platform.tenantBilling.contractFreeze.subscriptionContractRepository =
             installation.contracts;
+        // And the subscribers they name, which the contracts are listed by.
+        platform.tenantBilling.contractFreeze.subscriberRepository =
+            installation.subscriberRepository;
         adjust(platform);
         const root = SaaSiCatModule.forRoot({ ...platform, ...options });
         const moduleRef = await Test.createTestingModule({ imports: [root] }).compile();
@@ -443,13 +455,15 @@ describe('the operator’s download of a confirmation', () => {
         const handlers = controllersIn(root).flatMap(handlersOf);
         const served = handlers.find(({ route }) => route === ROUTE);
         const contracts = handlers.find(
-            ({ route }) => route === 'GET admin/tenants/:slug/contracts',
+            ({ route }) => route === 'GET admin/subscribers/:id/contracts',
         );
         return {
             moduleRef,
             served,
-            contractsOf: (slug) =>
-                moduleRef.get(contracts.controller, { strict: false })[contracts.name](slug),
+            contractsOf: (subscriberId) =>
+                moduleRef
+                    .get(contracts.controller, { strict: false })
+                    [contracts.name](subscriberId),
         };
     }
 
@@ -476,10 +490,10 @@ describe('the operator’s download of a confirmation', () => {
         await moduleRef.close();
     });
 
-    test('serves the tenant’s contracts beside it, found by its slug outside any row policy, and the manifest announces both', async () => {
+    test('serves the subscriber’s contracts in its record, read outside any row policy, and the manifest announces both', async () => {
         const installation = aConfirmingInstallation();
-        await installation.aConfirmableContract('t1');
-        const lookups = [];
+        const contract = await installation.aConfirmableContract('t1');
+        const reads = [];
         let bypassed = 0;
         const { moduleRef, contractsOf } = await aServingPlatform(installation, {}, (platform) => {
             platform.persistence.core.rlsBypass = {
@@ -492,22 +506,22 @@ describe('the operator’s download of a confirmation', () => {
                     }
                 },
             };
-            platform.persistence.adminResources.resources = {
-                ...platform.persistence.adminResources.resources,
-                async getTenantDetail(slug) {
-                    lookups.push({ slug, bypassed: bypassed > 0 });
-                    return slug === 'northwind' ? { id: 't1', slug, name: 'Northwind' } : null;
-                },
+            const listed = installation.contracts.list.bind(installation.contracts);
+            installation.contracts.list = (filter) => {
+                reads.push({ filter, bypassed: bypassed > 0 });
+                return listed(filter);
             };
         });
 
-        const { contracts } = await contractsOf('northwind');
+        const { contracts } = await contractsOf(contract.subscriberId);
 
         assert.deepEqual(
-            contracts.map((contract) => contract.confirmation.state),
+            contracts.map((each) => each.confirmation.state),
             ['being-made'],
         );
-        assert.deepEqual(lookups, [{ slug: 'northwind', bypassed: true }]);
+        assert.deepEqual(reads, [
+            { filter: { subscriberId: contract.subscriberId }, bypassed: true },
+        ]);
         await assert.rejects(contractsOf('nobody'), NotFoundException);
         const manifest = await moduleRef.get(AdminManifestService).getManifest();
         assert.equal(manifest.capabilities[CONTRACT_CONFIRMATIONS_CAPABILITY], true);

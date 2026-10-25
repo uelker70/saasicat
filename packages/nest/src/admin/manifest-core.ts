@@ -52,6 +52,9 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 requiredCapability: 'marketingProjections.read',
             },
             tenants: { enabled: true, requiredCapability: 'tenants.read' },
+            // Every subscriber and its record, whether its tenant lives or not.
+            // The capability is set where the subscribers' routes are served.
+            subscribers: { enabled: true, requiredCapability: 'subscribers.read' },
             users: { enabled: true, requiredCapability: 'users.read' },
             pilots: { enabled: true, requiredCapability: 'pilots.read' },
             // Audit log deliberately at the end — rarely needed, should

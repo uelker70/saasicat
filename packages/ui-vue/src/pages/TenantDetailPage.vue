@@ -52,18 +52,14 @@
                     </slot>
                 </AdminSection>
 
-                <!-- Whom the tenant's contracts are concluded with, where the platform keeps subscribers -->
-                <TenantSubscriber
+                <!-- Whom the tenant's contracts are concluded with, and the way into its record -->
+                <TenantSubscriberCard
                     v-if="subscriber.available.value"
                     :standing="subscriber.data.value"
                     :pending="subscriber.pending.value"
                     :error="subscriber.error.value"
                     :retry="subscriber.reload"
-                    :corrections="corrections"
-                />
-                <TenantSubscriberHistory
-                    v-if="corrections.available.value && subscriber.data.value?.subscriber"
-                    :history="corrections.history"
+                    :record-route="subscriberRecordRoute"
                 />
 
                 <!-- Usage -->
@@ -86,52 +82,6 @@
                         :columns="options?.userColumns ?? defaultUserColumns"
                     />
                 </AdminSection>
-
-                <!-- The subscriber's charges, where the platform keeps a journal -->
-                <TenantCharges
-                    v-if="account.available.value"
-                    :account="account.data.value"
-                    :pending="account.pending.value"
-                    :error="account.error.value"
-                    :retry="account.reload"
-                    :format-date="formatDateResolved"
-                />
-
-                <!-- The subscriber's credits, where the platform records what collections brought -->
-                <TenantCredits
-                    v-if="credits.available.value"
-                    :credits="credits.data.value"
-                    :pending="credits.pending.value"
-                    :error="credits.error.value"
-                    :retry="credits.reload"
-                    :format-date="formatDateResolved"
-                    :can-pay-out="credits.canPayOut.value"
-                    :pay-out="credits.payOut"
-                />
-
-                <!-- Its invoices with what each owes, and what is open to reconcile -->
-                <TenantPayments
-                    v-if="payments.available.value"
-                    :payments="payments.data.value"
-                    :pending="payments.pending.value"
-                    :error="payments.error.value"
-                    :retry="payments.reload"
-                    :format-date="formatDateResolved"
-                    :cancellation="cancellation"
-                    :record="subscriber.data.value?.subscriber ?? null"
-                    :documents="downloads.invoices.value"
-                />
-
-                <!-- Its contracts, each with where its confirmation stands -->
-                <TenantContracts
-                    v-if="contracts.available.value && downloads.confirmations.value"
-                    :contracts="contracts.data.value"
-                    :pending="contracts.pending.value"
-                    :error="contracts.error.value"
-                    :retry="contracts.reload"
-                    :format-date="formatDateResolved"
-                    :downloads="downloads.confirmations.value"
-                />
 
                 <slot name="extra-cards" :data="data" :reload="load" />
             </template>
@@ -172,26 +122,14 @@ import type { QTableColumn } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/core';
 import { formatMessage } from '../client/i18n/format.js';
-import TenantCharges from '../internal/tenant-detail/TenantCharges.vue';
-import TenantContracts from '../internal/tenant-detail/TenantContracts.vue';
-import TenantCredits from '../internal/tenant-detail/TenantCredits.vue';
-import TenantPayments from '../internal/tenant-detail/TenantPayments.vue';
 import TenantMasterData from '../internal/tenant-detail/TenantMasterData.vue';
-import TenantSubscriber from '../internal/tenant-detail/TenantSubscriber.vue';
-import TenantSubscriberHistory from '../internal/tenant-detail/TenantSubscriberHistory.vue';
+import TenantSubscriberCard from '../internal/tenant-detail/TenantSubscriberCard.vue';
 import TenantUsage from '../internal/tenant-detail/TenantUsage.vue';
 import TenantUsers from '../internal/tenant-detail/TenantUsers.vue';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
 import TenantActionConfirmDialog from '../features/tenant/TenantActionConfirmDialog.vue';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
-import { useTenantAccount } from '../vue/use-tenant-account.js';
-import { useTenantCredits } from '../vue/use-tenant-credits.js';
-import { useTenantPayments } from '../vue/use-tenant-payments.js';
-import { useTenantContracts } from '../vue/use-tenant-contracts.js';
-import { useTenantDownloads } from '../vue/use-tenant-downloads.js';
-import { useInvoiceCancellation } from '../vue/use-invoice-cancellation.js';
-import { useSubscriberCorrections } from '../vue/use-subscriber-corrections.js';
 import { useTenantSubscriber } from '../vue/use-tenant-subscriber.js';
 import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
 
@@ -302,13 +240,17 @@ watch(tenantSlug, () => {
 
 defineExpose({ reload: load });
 
-// Whether the charges and the subscriber are served is the manifest's to say.
-// The shell holds it; `options.manifest` wins where an app passes one, as it
-// does for the actions.
+// Whether the subscriber is served is the manifest's to say. The shell holds
+// it; `options.manifest` wins where an app passes one, as it does for the
+// actions.
 const shellManifest = useSuperAdminManifest();
 const servedBy = computed(() => props.options?.manifest ?? shellManifest);
-const account = useTenantAccount(tenantSlug, servedBy, tenants);
 const subscriber = useTenantSubscriber(tenantSlug, servedBy, tenants);
+
+/** Where the subscriber's record answers — beside this page, under the same base. */
+function subscriberRecordRoute(subscriberId: string): RouteLocationRaw {
+    return `/admin/subscribers/${encodeURIComponent(subscriberId)}`;
+}
 
 function defaultFormatDate(value: string | null | undefined): string {
     if (!value) return '—';
@@ -323,31 +265,6 @@ function formatDateResolved(value: string | null | undefined): string {
 const manifestRef = computed(() => props.options?.manifest ?? null);
 
 const mfa = useMfaPrompt();
-
-// The operator's corrections of the subscriber, behind the page's one second-factor dialog.
-const corrections = useSubscriberCorrections(tenantSlug, servedBy, tenants, {
-    notify,
-    mfa,
-    onChanged: () => subscriber.reload(),
-});
-
-// The subscriber's credits, and a payout behind the same second-factor dialog.
-const credits = useTenantCredits(tenantSlug, servedBy, tenants, { notify, mfa });
-
-// Its invoices with what each still owes, and its cases open to reconcile.
-const payments = useTenantPayments(tenantSlug, servedBy, tenants);
-
-// Its contracts with their confirmations, and the downloads of both files.
-const contracts = useTenantContracts(tenantSlug, servedBy, tenants);
-const downloads = useTenantDownloads(servedBy, tenants, { notify });
-
-// Cancelling one of them behind the same second-factor dialog; what was paid
-// for it moves, so its credits are read again with the invoices.
-const cancellation = useInvoiceCancellation(tenantSlug, servedBy, tenants, {
-    notify,
-    mfa,
-    onCancelled: () => Promise.all([payments.reload(), credits.reload()]),
-});
 
 function showMfaDialog(def: TenantActionDef, ctx: { row: TenantDto }): Promise<string | null> {
     return mfa.prompt(

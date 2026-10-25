@@ -1,4 +1,4 @@
-// Cancelling one of a tenant's invoices from its page, in two steps: the
+// Cancelling one of a subscriber's invoices from its record, in two steps: the
 // operator says why — what of each line is still owed, where not all of it is,
 // and, where the invoice named them wrongly, the subscriber's details the
 // replacement is to name —, reads what the server says the cancellation will
@@ -30,7 +30,7 @@ import {
     type AdminInvoice,
     type AdminInvoiceCancellationPlan,
     type AdminManifest,
-    type AdminTenantInvoice,
+    type AdminSubscriberInvoice,
     type InvoiceCancellationRequest,
 } from '@saasicat/core';
 
@@ -44,7 +44,7 @@ import {
     type InvoiceCancellationDraft,
 } from '../client/invoice-cancellation.js';
 import type { Bound } from '../client/resources/define-resource.js';
-import type { tenantsResource } from '../client/resources/tenants.resource.js';
+import type { subscribersResource } from '../client/resources/subscribers.resource.js';
 import { report } from './report.js';
 import { useAsyncData, type AsyncData } from './use-async-data.js';
 import type { UiNotify } from './ui-notify.js';
@@ -66,9 +66,9 @@ function changedPreviewOf(err: unknown): AdminInvoiceCancellationPlan | null {
     return body?.preview ?? null;
 }
 
-/** The tenant operations a cancellation calls, already bound to the shell's client. */
+/** The invoice operations a cancellation calls, already bound to the shell's client. */
 export type InvoiceCancellationResource = Pick<
-    Bound<(typeof tenantsResource)['ops']>,
+    Bound<(typeof subscribersResource)['ops']>,
     'invoice' | 'previewInvoiceCancellation' | 'cancelInvoice'
 >;
 
@@ -84,14 +84,14 @@ export interface InvoiceCancellationFlow {
     /** Whether the platform serves cancelling; the action is not offered without it. */
     readonly available: ComputedRef<boolean>;
     /** Whether `invoice` is offered for cancelling. */
-    canCancel: (invoice: AdminTenantInvoice) => boolean;
+    canCancel: (invoice: AdminSubscriberInvoice) => boolean;
     /** The invoice being cancelled while the dialog is open. */
-    readonly target: Ref<AdminTenantInvoice | null>;
+    readonly target: Ref<AdminSubscriberInvoice | null>;
     /** The invoice's lines, read when the dialog opens; `null` while closed. */
     readonly invoice: AsyncData<AdminInvoice | null>;
     /** What the cancellation will write, once read — the second step. */
     readonly preview: Ref<AdminInvoiceCancellationPlan | null>;
-    open: (invoice: AdminTenantInvoice) => void;
+    open: (invoice: AdminSubscriberInvoice) => void;
     close: () => void;
     /**
      * The first step: reads what `draft` would write, which is the second.
@@ -110,28 +110,24 @@ export interface InvoiceCancellationFlow {
 }
 
 export function useInvoiceCancellation(
-    slug: Ref<string>,
     manifest: Ref<AdminManifest | null>,
-    tenants: InvoiceCancellationResource,
+    invoices: InvoiceCancellationResource,
     ports: InvoiceCancellationPorts,
 ): InvoiceCancellationFlow {
-    const msg = useSaMessages('tenants');
+    const msg = useSaMessages('subscribers');
     const shell = useSaMessages('shell');
 
     const capable = (capability: string) => manifest.value?.capabilities?.[capability] === true;
     const available = computed(
         () => capable(SUBSCRIBER_PAYMENTS_CAPABILITY) && capable(INVOICE_CANCEL_CAPABILITY),
     );
-    const target = ref<AdminTenantInvoice | null>(null);
+    const target = ref<AdminSubscriberInvoice | null>(null);
     const preview = ref<AdminInvoiceCancellationPlan | null>(null);
     const invoice = useAsyncData(
-        async () => (target.value ? tenants.invoice(tenant, target.value.id) : null),
+        async () => (target.value ? invoices.invoice(target.value.id) : null),
         { initial: null, immediate: false, subject: () => target.value?.id },
     );
 
-    // The tenant the dialog was opened on: the page may move to another one
-    // while it is open, and what the operator confirms belongs to this one.
-    let tenant = '';
     // The request the standing preview answers, which the cancellation sends —
     // not the draft as it is by then.
     let previewed: InvoiceCancellationRequest | null = null;
@@ -145,9 +141,8 @@ export function useInvoiceCancellation(
         previewed = null;
     }
 
-    function open(invoice: AdminTenantInvoice): void {
+    function open(invoice: AdminSubscriberInvoice): void {
         abandon();
-        tenant = slug.value;
         target.value = invoice;
     }
 
@@ -162,7 +157,7 @@ export function useInvoiceCancellation(
         const question = (asked += 1);
         const request = cancellationRequestOf(draft);
         try {
-            const answer = await tenants.previewInvoiceCancellation(tenant, cancelled.id, request);
+            const answer = await invoices.previewInvoiceCancellation(cancelled.id, request);
             if (question === asked) {
                 preview.value = answer;
                 previewed = request;
@@ -187,8 +182,7 @@ export function useInvoiceCancellation(
                 formatMessage(msg.value.payments.mfaCancel, { number: cancelled.number }),
                 shell.value.mfa.invalidCode,
                 (code) =>
-                    tenants.cancelInvoice(
-                        tenant,
+                    invoices.cancelInvoice(
                         cancelled.id,
                         { ...request, previewDigest: shown.digest },
                         code,

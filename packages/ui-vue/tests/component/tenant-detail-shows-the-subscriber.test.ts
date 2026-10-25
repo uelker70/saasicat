@@ -1,5 +1,6 @@
-// The tenant detail shows whom the tenant's contracts are concluded with, and
-// where a tax adapter decides, what holds the next one back.
+// The tenant detail shows whom the tenant's contracts are concluded with, where
+// a tax adapter decides what holds the next one back, and the way into the
+// subscriber's record.
 //
 // Mounted through a router, the way an app mounts the page, against a stubbed
 // registry: the test says what the server answers and reads what the operator
@@ -31,6 +32,7 @@ const SUBSCRIBER = {
     vatId: 'ATU12345678',
     vatIdValidated: true,
     taxNumber: null,
+    invoiceEmail: null,
     migrated: false,
 };
 const READY = { ready: true, missing: [], taxRefusal: null };
@@ -83,47 +85,26 @@ async function mountPage({
     return { wrapper, asked };
 }
 
-type Mounted = Awaited<ReturnType<typeof mountPage>>['wrapper'];
-
-/** The subscriber section, as label → value. */
-function shownDetails(wrapper: Mounted): Record<string, string> {
-    return Object.fromEntries(
-        wrapper
-            .findAll('.kv')
-            .map((block) => [block.find('.kv__label').text(), block.find('.kv__value').text()]),
-    );
-}
-
 describe("the tenant detail shows the tenant's subscriber", () => {
-    test('whom the contracts are concluded with, and nothing held back', async () => {
+    test('whom the contracts are concluded with, and the way into its record', async () => {
         const { wrapper, asked } = await mountPage();
 
         expect(asked).toEqual(['wien']);
         expect(wrapper.text()).toContain('K-10001 · Wien GmbH');
-        expect(shownDetails(wrapper)).toMatchObject({
-            'Customer number': 'K-10001',
-            'Name on the contract': 'Wien GmbH',
-            'Billing address': 'Ringstraße 1, 1010 Wien',
-            Country: 'AT',
-            'Acts as': 'Business',
-            'VAT ID': 'ATU12345678 (validated)',
-            'Tax number': 'not stated',
-            Origin: 'Entered at sign-up',
-        });
+        const open = wrapper
+            .findAll('a')
+            .find((link) => link.text().includes('Open the subscriber record'));
+        expect(open, 'no way into the record').toBeTruthy();
+        expect(open?.attributes('href')).toBe('/admin/subscribers/s-1');
         expect(wrapper.text()).not.toContain('cannot be concluded');
+        // The subscriber's master data is the record's, not the card's.
+        expect(wrapper.text()).not.toContain('Name on the contract');
     });
 
     test('a warning names each reason the next contract is held back', async () => {
         const { wrapper } = await mountPage({
             subscriber: async () => ({
-                subscriber: {
-                    ...SUBSCRIBER,
-                    postalCode: null,
-                    city: null,
-                    business: false,
-                    vatIdValidated: false,
-                    migrated: true,
-                },
+                subscriber: { ...SUBSCRIBER, postalCode: null, city: null },
                 readiness: {
                     ready: false,
                     missing: ['postalCode', 'city'],
@@ -139,35 +120,15 @@ describe("the tenant detail shows the tenant's subscriber", () => {
             'The billing address lacks: Postal code, City.',
             'The tax adapter does not treat this case: A consumer outside Germany is not supported.',
         ]);
-        expect(shownDetails(wrapper)).toMatchObject({
-            'Billing address': 'Ringstraße 1',
-            'Acts as': 'Consumer',
-            'VAT ID': 'ATU12345678 (not validated)',
-            Origin: "Taken over from the tenant's record",
-        });
     });
 
-    test('without a tax adapter there is no standing, and no warning', async () => {
-        const { wrapper } = await mountPage({
-            subscriber: async () => ({
-                subscriber: { ...SUBSCRIBER, business: null, vatId: null },
-                readiness: null,
-            }),
-        });
-
-        expect(wrapper.find('.sa-banner--warning').exists()).toBe(false);
-        expect(shownDetails(wrapper)).toMatchObject({
-            'Acts as': 'not stated',
-            'VAT ID': 'not stated',
-        });
-    });
-
-    test('a tenant without a subscriber says so', async () => {
+    test('a tenant without a subscriber says so, and offers no record', async () => {
         const { wrapper } = await mountPage({
             subscriber: async () => ({ subscriber: null, readiness: null }),
         });
 
         expect(wrapper.text()).toContain('No subscriber is on record for this tenant.');
+        expect(wrapper.text()).not.toContain('Open the subscriber record');
     });
 
     test('a read that fails says so', async () => {

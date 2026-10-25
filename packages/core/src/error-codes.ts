@@ -848,7 +848,7 @@ export const INVOICE_ERROR_CODES = {
     SUBSCRIBER_RECONCILIATION_CASE_NOT_FOUND: 'SUBSCRIBER_RECONCILIATION_CASE_NOT_FOUND',
     /**
      * A case closed before (`caseId`, `closedAt`), by the operator or by
-     * SaaSiCat; its note stands, and nothing is written (`SC-ADM-033`).
+     * SaaSiCat; its note stands, and nothing is written (`SC-ADM-039`).
      */
     SUBSCRIBER_RECONCILIATION_CASE_CLOSED: 'SUBSCRIBER_RECONCILIATION_CASE_CLOSED',
 } as const;

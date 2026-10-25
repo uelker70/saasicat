@@ -1,12 +1,12 @@
-// The operator cancels one of a tenant's invoices from its page: at which
+// The operator cancels one of a subscriber's invoices from its record: at which
 // invoices it is offered, what of each line the operator may say is owed, the
-// request the input makes, the three requests of the tenants descriptor, and
+// request the input makes, the three requests of the subscribers descriptor, and
 // the flow — the invoice's lines read on opening, preview, back, the second
 // factor, the preview's digest sent along, and a preview that no longer holds
 // put in place of the one confirmed.
 //
 // The paths are the ones `@saasicat/nest` serves
-// (`GET /admin/tenants/{slug}/invoices/{invoiceId}`, `…/cancellation/preview`
+// (`GET /admin/invoices/{invoiceId}`, `…/cancellation/preview`
 // and `…/cancellation`); `tests/openapi-covers-the-implementation.test.js`
 // holds them to the contract from the other side.
 
@@ -23,7 +23,7 @@ import {
     emptyCancellationDraft,
     isAskable,
     isCancellable,
-    tenantsResource,
+    subscribersResource,
     useInvoiceCancellation,
     whyNotCorrectable,
 } from '../dist/index.js';
@@ -107,7 +107,7 @@ const CANCELLED = {
     credits: [{ amount: 19 }],
 };
 
-// @requirement SC-ADM-034 — Each invoice on the tenant page says what it corrects and what cancelled it
+// @requirement SC-ADM-040 — Each invoice in the subscriber's record says what it corrects and what cancelled it
 describe('the invoices a cancellation is offered at', () => {
     for (const [what, overrides, offered] of [
         ['an invoice issued for the charges', {}, true],
@@ -235,18 +235,18 @@ function answering(status, body) {
     return { http, calls };
 }
 
-describe('the tenants descriptor', () => {
+describe('the subscribers descriptor', () => {
     const REQUEST = { reason: 'Wrong address.', deliverTo: null };
 
     // @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
-    test('reads the invoice with its lines, the tenant and the invoice escaped', async () => {
+    test('reads the invoice with its lines, by its id escaped', async () => {
         const { http, calls } = answering(200, readOf());
 
-        const read = await bindResource(tenantsResource, http, CTX).invoice('a b', 'invoice/1');
+        const read = await bindResource(subscribersResource, http, CTX).invoice('invoice/1');
 
         assert.deepEqual(calls, [
             {
-                url: '/api/v1/admin/tenants/a%20b/invoices/invoice%2F1',
+                url: '/api/v1/admin/invoices/invoice%2F1',
                 method: 'GET',
                 body: undefined,
                 mfa: null,
@@ -255,18 +255,17 @@ describe('the tenants descriptor', () => {
         assert.deepEqual(read, readOf());
     });
 
-    test('asks for the preview, the tenant and the invoice escaped, without the second factor', async () => {
+    test('asks for the preview, the invoice escaped, without the second factor', async () => {
         const { http, calls } = answering(200, planOf());
 
-        const plan = await bindResource(tenantsResource, http, CTX).previewInvoiceCancellation(
-            'a b',
+        const plan = await bindResource(subscribersResource, http, CTX).previewInvoiceCancellation(
             'invoice/1',
             REQUEST,
         );
 
         assert.deepEqual(calls, [
             {
-                url: '/api/v1/admin/tenants/a%20b/invoices/invoice%2F1/cancellation/preview',
+                url: '/api/v1/admin/invoices/invoice%2F1/cancellation/preview',
                 method: 'POST',
                 body: REQUEST,
                 mfa: null,
@@ -280,8 +279,7 @@ describe('the tenants descriptor', () => {
         const { http, calls } = answering(200, CANCELLED);
         const request = { ...REQUEST, previewDigest: DIGEST };
 
-        const cancelled = await bindResource(tenantsResource, http, CTX).cancelInvoice(
-            'acme',
+        const cancelled = await bindResource(subscribersResource, http, CTX).cancelInvoice(
             'invoice-123',
             request,
             '123456',
@@ -289,7 +287,7 @@ describe('the tenants descriptor', () => {
 
         assert.deepEqual(calls, [
             {
-                url: '/api/v1/admin/tenants/acme/invoices/invoice-123/cancellation',
+                url: '/api/v1/admin/invoices/invoice-123/cancellation',
                 method: 'POST',
                 body: request,
                 mfa: '123456',
@@ -303,7 +301,7 @@ const serving = (capabilities) => ({ capabilities });
 const BOTH = serving({ 'payments.read': true, 'invoices.cancel': true });
 
 /**
- * The cancellation on tenant `acme`, every call recorded: the preview answers
+ * The cancellation in a subscriber's record, every call recorded: the preview answers
  * `plans` one after another, the cancellation answers `CANCELLED` or throws
  * `failWith`, and the second factor is answered as `code` after
  * `whilePrompted` has run.
@@ -323,36 +321,35 @@ function cancellationOf({
     const notices = [];
     const reloads = [];
     const answers = [...plans];
-    const tenants = {
-        invoice: async (slug, invoiceId) => {
-            reads.push([slug, invoiceId]);
+    const invoices = {
+        invoice: async (invoiceId) => {
+            reads.push(invoiceId);
             return readWith(invoiceId);
         },
-        previewInvoiceCancellation: async (slug, invoiceId, request) => {
-            calls.push(['preview', slug, invoiceId, request]);
+        previewInvoiceCancellation: async (invoiceId, request) => {
+            calls.push(['preview', invoiceId, request]);
             return previewWith ? previewWith() : answers.shift();
         },
-        cancelInvoice: async (slug, invoiceId, request, mfaCode) => {
-            calls.push(['cancel', slug, invoiceId, request, mfaCode]);
+        cancelInvoice: async (invoiceId, request, mfaCode) => {
+            calls.push(['cancel', invoiceId, request, mfaCode]);
             if (failWith) throw failWith;
             return answer;
         },
     };
-    const slug = ref('acme');
     const mfa = {
         async run(description, _invalidCode, action) {
             calls.push(['mfa', description]);
-            whilePrompted?.(slug);
+            whilePrompted?.(flow);
             if (code === null) return { done: false };
             return { done: true, value: await action(code) };
         },
     };
-    const flow = useInvoiceCancellation(slug, ref(manifest), tenants, {
+    const flow = useInvoiceCancellation(ref(manifest), invoices, {
         notify: (kind, message) => notices.push([kind, message]),
         mfa,
         onCancelled: async () => reloads.push('reloaded'),
     });
-    return { flow, calls, reads, notices, reloads, slug };
+    return { flow, calls, reads, notices, reloads };
 }
 
 const DRAFT = {
@@ -397,7 +394,7 @@ describe('cancelling an invoice', () => {
 
         const answered = await flow.ask(DRAFT);
 
-        assert.deepEqual(calls, [['preview', 'acme', 'invoice-123', ASKED]]);
+        assert.deepEqual(calls, [['preview', 'invoice-123', ASKED]]);
         assert.deepEqual([answered, flow.preview.value], [null, planOf()]);
     });
 
@@ -469,7 +466,7 @@ describe('cancelling an invoice', () => {
         assert.deepEqual(cancelled, CANCELLED);
         assert.deepEqual(calls.slice(1), [
             ['mfa', 'Cancel invoice AHP-2026-000123. Enter the TOTP code.'],
-            ['cancel', 'acme', 'invoice-123', { ...ASKED, previewDigest: DIGEST }, '123456'],
+            ['cancel', 'invoice-123', { ...ASKED, previewDigest: DIGEST }, '123456'],
         ]);
         assert.deepEqual(notices, [
             ['positive', 'Cancelled by AHP-2026-000140, replaced by AHP-2026-000141.'],
@@ -506,13 +503,13 @@ describe('cancelling an invoice', () => {
 
         await flow.cancel();
 
-        assert.deepEqual(calls.at(-1)[3], { ...ASKED, previewDigest: DIGEST });
+        assert.deepEqual(calls.at(-1)[2], { ...ASKED, previewDigest: DIGEST });
     });
 
-    test('for the tenant it was opened on, though the page moved on meanwhile', async () => {
+    test('for the invoice it was confirmed on, though another is opened during the second factor', async () => {
         const { flow, calls } = cancellationOf({
-            whilePrompted: (slug) => {
-                slug.value = 'northwind';
+            whilePrompted: (opened) => {
+                opened.open(invoiceOf({ id: 'invoice-124', number: 'AHP-2026-000124' }));
             },
         });
         flow.open(invoiceOf());
@@ -520,7 +517,7 @@ describe('cancelling an invoice', () => {
 
         await flow.cancel();
 
-        assert.equal(calls.at(-1)[1], 'acme');
+        assert.equal(calls.at(-1)[1], 'invoice-123');
     });
 
     test('stepped back from at the second factor stays on its preview, cancelling nothing', async () => {
@@ -568,7 +565,7 @@ describe('cancelling an invoice', () => {
 
         await assert.rejects(() => setUp.flow.cancel());
 
-        assert.equal(setUp.calls.at(-1)[3].previewDigest, DIGEST_AFTER_A_PAYMENT);
+        assert.equal(setUp.calls.at(-1)[2].previewDigest, DIGEST_AFTER_A_PAYMENT);
     });
 
     test('refused otherwise rejects with the refusal, and keeps the preview it was refused on', async () => {
@@ -614,7 +611,7 @@ describe('cancelling an invoice', () => {
 
         await flow.ask({ ...DRAFT, lines: { 1: { choice: 'part', amount: 24.5 } } });
 
-        assert.deepEqual(calls[0][3].lines, [{ position: 1, owed: 24.5 }]);
+        assert.deepEqual(calls[0][2].lines, [{ position: 1, owed: 24.5 }]);
     });
 });
 
@@ -626,7 +623,7 @@ describe('the lines the dialog offers', () => {
         flow.open(invoiceOf());
         await settle();
 
-        assert.deepEqual(reads, [['acme', 'invoice-123']]);
+        assert.deepEqual(reads, ['invoice-123']);
         assert.deepEqual(flow.invoice.data.value, readOf());
         assert.equal(flow.invoice.pending.value, false);
     });
@@ -653,7 +650,7 @@ describe('the lines the dialog offers', () => {
         await settle();
         assert.deepEqual(
             [reads.at(-1), flow.invoice.data.value.id],
-            [['acme', 'invoice-124'], 'invoice-124'],
+            ['invoice-124', 'invoice-124'],
         );
     });
 

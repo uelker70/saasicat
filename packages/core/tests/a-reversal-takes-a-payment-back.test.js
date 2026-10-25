@@ -602,7 +602,7 @@ describe('a credit entry of a reversal', () => {
     });
 });
 
-// @requirement SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+// @requirement SC-ADM-039 — The operator reconciles what no credit matched, and finds each case in the record
 describe('a case to reconcile', () => {
     const opened = (kind) => ({
         id: 'k-1',

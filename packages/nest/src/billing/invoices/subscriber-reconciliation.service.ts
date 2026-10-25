@@ -1,6 +1,6 @@
 // What the operator reconciles: the cases the gateway reported and nothing
 // matched, on a list of their own and closed with a note, and a tenant's
-// invoices with what each still owes beside its open cases (`SC-ADM-033`).
+// invoices with what each still owes beside its open cases (`SC-ADM-039`).
 //
 // The list is platform-wide, and the operator's routes read it inside
 // `RlsBypassPort`, as they read the tenant they are asked about.
@@ -10,7 +10,7 @@ import {
     INVOICE_ERROR_CODES,
     type AdminReconciliationCase,
     type AdminReconciliationCases,
-    type AdminTenantPayments,
+    type AdminSubscriberPayments,
     type ReconciliationCaseState,
     type SubscriberPaymentRepository,
     type SubscriberReconciliationCaseRecord,
@@ -19,6 +19,7 @@ import {
 } from '@saasicat/core';
 
 import { codedError } from '../../errors/coded-error.js';
+import { subscriberNotFound } from '../../subscriber/subscriber.service.js';
 import { SUBSCRIBER_REPOSITORY_TOKEN } from '../../subscriber/subscriber.tokens.js';
 import { SUBSCRIBER_PAYMENT_REPOSITORY_TOKEN } from './invoice-collection.tokens.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.tokens.js';
@@ -89,14 +90,14 @@ export class SubscriberReconciliationService {
     }
 
     /**
-     * The tenant's invoices, the latest first, each with what it still owes,
-     * what it corrects and the cancellation invoice that cancelled it, and its
-     * cases still open, the oldest first; none for a tenant without a
-     * subscriber.
+     * The subscriber's invoices, the latest first, each with what it still
+     * owes, what it corrects and the cancellation invoice that cancelled it,
+     * and its cases still open, the oldest first — whichever tenant each was
+     * for. Refused where there is no such subscriber.
      */
-    async paymentsOf(tenantId: string): Promise<AdminTenantPayments> {
-        const subscriber = await this.subscribers.findByTenantId(tenantId);
-        if (!subscriber) return { invoices: [], openCases: [] };
+    async paymentsOf(subscriberId: string): Promise<AdminSubscriberPayments> {
+        const subscriber = await this.subscribers.findById(subscriberId);
+        if (!subscriber) throw subscriberNotFound(subscriberId);
         const invoices = await this.invoices.listBySubscriber(subscriber.id);
         const archived = new Set(
             await this.invoices.listArchivedDocuments(invoices.map((invoice) => invoice.id)),

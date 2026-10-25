@@ -40,6 +40,7 @@ import {
     promotionsResource,
     settingsResource,
     subscriptionsResource,
+    subscribersResource,
     tenantsResource,
     useBundleVersions,
     useBundles,
@@ -779,34 +780,18 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
     reconciliation: Object.keys(reconciliationResource.ops),
     plans: Object.keys(plansResource.ops),
     planVersions: Object.keys(planVersionsResource.ops),
-    // `charges`, the credits, the payments, an invoice's cancellation, the
-    // contracts with the files beside them and the subscriber's operations are
-    // platform-served with no admin-client twin,
-    // like the settings: their requests are pinned in
-    // `tests/tenant-charges-resource.test.js`,
-    // `tests/tenant-credits-resource.test.js`, `tests/reconciliation.test.js`,
-    // `tests/an-operator-cancels-an-invoice.test.js` and
-    // `tests/tenant-subscriber-resource.test.js`; the contracts and the two
-    // downloads beside them in `tests/an-archived-file-is-downloaded.test.js`.
-    tenants: [
-        LIST_OP,
-        'charges',
-        'credits',
-        'payments',
-        'contracts',
-        'contractConfirmation',
-        'invoiceDocument',
-        'recordPayout',
-        'invoice',
-        'previewInvoiceCancellation',
-        'cancelInvoice',
-        'subscriber',
-        'subscriberAttention',
-        'subscriberHistory',
-        'correctSubscriberIdentity',
-        'changeSubscriberBusinessStatus',
-        'checkSubscriberVatId',
-    ],
+    // The tenant's subscriber and the tenants a list holds back are
+    // platform-served with no admin-client twin, like the settings: their
+    // requests are pinned in `tests/tenant-subscriber-resource.test.js`.
+    tenants: [LIST_OP, 'subscriber', 'subscriberAttention'],
+    // Everything in a subscriber's record, the same: the list, the record and
+    // the corrections in `tests/subscriber-record-resource.test.js`, the
+    // charges and the credits in `tests/subscriber-charges-resource.test.js`
+    // and `tests/subscriber-credits-resource.test.js`, the payments in
+    // `tests/reconciliation.test.js`, an invoice's cancellation in
+    // `tests/an-operator-cancels-an-invoice.test.js`, and the contracts and
+    // the two downloads beside them in `tests/an-archived-file-is-downloaded.test.js`.
+    subscribers: Object.keys(subscribersResource.ops),
 };
 
 describe('the comparison covers the whole roster', () => {

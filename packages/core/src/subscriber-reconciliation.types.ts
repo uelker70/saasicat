@@ -2,7 +2,7 @@
 // refund that no credit takes, and the part of a reversal that meets a credit
 // already paid out or goes beyond what its payment brought. Each is a case for
 // the operator to reconcile, on a list of its own and on the subscriber's
-// tenant page, closed with a note (`SC-ADM-033`). SaaSiCat closes a case
+// tenant page, closed with a note (`SC-ADM-039`). SaaSiCat closes a case
 // itself only where the money it was about came back: the refund failed, or
 // the gateway gave the reversal back (`SC-PRIC-086`).
 
@@ -115,7 +115,7 @@ export interface AdminReconciliationClose {
 }
 
 /** An invoice on its tenant's page: what it asked for, what it still owes, and what it stands for. */
-export interface AdminTenantInvoice {
+export interface AdminSubscriberInvoice {
     id: string;
     number: string;
     /** ISO 8601. */
@@ -141,7 +141,7 @@ export interface AdminTenantInvoice {
 }
 
 /** A tenant's invoices, the newest first, and its cases still open, the oldest first. */
-export interface AdminTenantPayments {
-    invoices: AdminTenantInvoice[];
+export interface AdminSubscriberPayments {
+    invoices: AdminSubscriberInvoice[];
     openCases: AdminReconciliationCase[];
 }

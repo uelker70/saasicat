@@ -23,8 +23,8 @@ import {
     confirmationStateOf,
     contractPartiesOf,
     invoiceFooterOf,
-    type AdminTenantContract,
-    type AdminTenantContracts,
+    type AdminSubscriberContract,
+    type AdminSubscriberContracts,
     type ContractConfirmationStanding,
     type ContractConfirmationArchivePort,
     type ContractConfirmationRenderer,
@@ -75,7 +75,7 @@ export class ContractConfirmationService implements OnModuleInit {
         @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
         private readonly contracts: SubscriptionContractRepository,
         @Inject(SubscriberService)
-        subscribers: SubscriberService,
+        private readonly subscribers: SubscriberService,
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
         settings: PlanCatalogSettings,
         // The terms the contracts record; the start refuses contracts that
@@ -237,12 +237,14 @@ export class ContractConfirmationService implements OnModuleInit {
     }
 
     /**
-     * The tenant's contracts — in force, superseded and ended — the newest
-     * first, each with where its confirmation stands (`SC-AUD-016`).
+     * The subscriber's contracts — in force, superseded and ended, whichever
+     * tenant each was for — the newest first, each with where its confirmation
+     * stands (`SC-AUD-016`). Refused where there is no such subscriber.
      */
-    async contractsOf(tenantId: string): Promise<AdminTenantContracts> {
+    async contractsOf(subscriberId: string): Promise<AdminSubscriberContracts> {
         return readAcrossTenants(this.rlsBypass, async () => {
-            const contracts = await this.contracts.list({ tenantId });
+            const subscriber = await this.subscribers.requireById(subscriberId);
+            const contracts = await this.contracts.list({ subscriberId: subscriber.id });
             const standings = await this.confirmations.listStandings(
                 contracts.map((contract) => contract.id),
             );
@@ -269,7 +271,7 @@ function newestFirst(a: SubscriptionContractRecord, b: SubscriptionContractRecor
 function adminContractOf(
     contract: SubscriptionContractRecord,
     standing: ContractConfirmationStanding | undefined,
-): AdminTenantContract {
+): AdminSubscriberContract {
     // A contract the store answers without a standing is one it did not find a
     // moment later, which is no confirmation either.
     const known = standing ?? { contractId: contract.id, due: false, confirmation: null };

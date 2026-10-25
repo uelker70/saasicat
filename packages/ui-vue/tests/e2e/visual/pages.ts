@@ -289,13 +289,25 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         load: () => import('../../../src/pages/TenantDetailPage.vue'),
         props: () => ({ slug: 'northwind' }),
     }),
+    visualCase({
+        id: 'subscribers',
+        load: () => import('../../../src/pages/SubscribersPage.vue'),
+    }),
+    // The record with every section the fixture's capabilities serve, and an
+    // earlier tenant the application no longer has — its warning renders only
+    // there.
+    visualCase({
+        id: 'subscriber-record',
+        load: () => import('../../../src/pages/SubscriberRecordPage.vue'),
+        props: () => ({ subscriberId: 's-0001' }),
+    }),
     // The cancellation's first step with an add-on owed in part and the
     // replacement's details opened: the dialog, the amount field and the
     // correction fields only exist once each is clicked.
     visualCase({
-        id: 'tenant-detail-cancel-invoice',
-        load: () => import('../../../src/pages/TenantDetailPage.vue'),
-        props: () => ({ slug: 'northwind' }),
+        id: 'subscriber-record-cancel-invoice',
+        load: () => import('../../../src/pages/SubscriberRecordPage.vue'),
+        props: () => ({ subscriberId: 's-0001' }),
         revealBy: [
             'button[aria-label="Cancel invoice AHP-2026-000124"]',
             '.sa-dialog .sa-invoice-cancel__lines > li:nth-child(2) .q-btn-toggle button:nth-child(3)',

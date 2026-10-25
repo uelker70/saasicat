@@ -439,16 +439,16 @@ _Tested by:_
     - the confirmation handed out again
         - is the archived file, and refused for no contract, one with none archived, and a file that
           does not match
-    - a tenant’s contracts, as the operator reads them
+    - a subscriber’s contracts, as the operator reads them
         - are every contract, the newest first, each with where its confirmation stands
-        - of a tenant without contracts are none
+        - of a subscriber without contracts are none, and of one there is not are refused
     - the confirmations start
         - not beside an archive that would let a confirmation it keeps be changed, naming why
     - the quarter-hourly run
         - confirms a contract written since the last one
     - the operator’s download of a confirmation
         - is served beside the invoices’ documents, and answers the archived file under its name
-        - serves the tenant’s contracts beside it, found by its slug outside any row policy, and the
+        - serves the subscriber’s contracts in its record, read outside any row policy, and the
           manifest announces both
         - is not served where the administration is not
 - `packages/nest/tests/invoices-start-only-as-configured.test.js`
@@ -478,17 +478,17 @@ _Tested by:_
     - a download from a row
         - saves the file, says which row is on its way, and takes one at a time
         - that fails tells the operator why, and leaves the row free for another try
-    - the downloads and the contracts beside a tenant
+    - the downloads and the contracts in a subscriber’s record
         - are offered each where the manifest announces its route
         - are read where the manifest announces them, and not otherwise
-- `packages/ui-vue/tests/component/tenant-detail-shows-the-contracts.test.ts`
-    - the tenant detail shows the tenant's contracts
+- `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
+    - the subscriber's record shows its contracts
         - every one, the newest first, with what it records and where its confirmation stands
         - downloads an archived confirmation under the name it was archived with
         - while one confirmation is on its way, the other downloads wait
         - a download that fails says so, and saves nothing
         - nothing of them where the platform does not serve them
-    - the tenant detail downloads an invoice's document
+    - the subscriber's record downloads an invoice's document
         - only where the platform serves it, the cancellation beside it or not
         - only for an invoice whose document is archived
         - beside the invoice, under the name it was issued with

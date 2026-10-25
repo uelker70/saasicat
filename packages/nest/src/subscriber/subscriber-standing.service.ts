@@ -2,7 +2,9 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import type {
     AdminSubscriberAttention,
     AdminSubscriberHistoryEntry,
+    AdminSubscriberStanding,
     AdminTenantSubscriber,
+    SubscriberRecord,
     SubscriberRepository,
 } from '@saasicat/core';
 import { taxOriginOf } from '@saasicat/core';
@@ -14,11 +16,11 @@ import { readinessOf, standingPeriod } from './subscriber-readiness.js';
 import { SUBSCRIBER_REPOSITORY_TOKEN } from './subscriber.tokens.js';
 
 /**
- * A tenant's subscriber as the operator sees it: its tax details beside the
- * tenant, and — where a tax adapter decides — which tenants of a list hold a
- * subscriber back from its next contract, and why (`SC-PRIC-070`). It reads
- * only, and computes the standing when it reads, from the record and the
- * adapter as they are then.
+ * A subscriber as the operator sees it: its master data and tax details, its
+ * history, and — where a tax adapter decides — what holds it back from its
+ * next contract and which tenants of a list have such a subscriber, and why
+ * (`SC-PRIC-070`). It reads only, and computes the standing when it reads,
+ * from the record and the adapter as they are then.
  */
 @Injectable()
 export class SubscriberStandingService {
@@ -34,6 +36,14 @@ export class SubscriberStandingService {
     async ofTenant(tenantId: string, asOf: Date = new Date()): Promise<AdminTenantSubscriber> {
         const subscriber = await this.repo.findByTenantId(tenantId);
         if (!subscriber) return { subscriber: null, readiness: null };
+        return this.standingOf(subscriber, asOf);
+    }
+
+    /** The subscriber's master data, and what holds its next contract back where an adapter decides. */
+    async standingOf(
+        subscriber: SubscriberRecord,
+        asOf: Date = new Date(),
+    ): Promise<AdminSubscriberStanding> {
         const check = await this.repo.findCurrentVatIdCheck(subscriber.id);
         return {
             subscriber: {
@@ -45,6 +55,7 @@ export class SubscriberStandingService {
                 postalCode: subscriber.postalCode,
                 city: subscriber.city,
                 country: subscriber.country,
+                invoiceEmail: subscriber.invoiceEmail,
                 business: subscriber.business,
                 vatId: subscriber.vatId,
                 vatIdValidated: taxOriginOf(subscriber, check).validatedVatId !== null,
@@ -58,19 +69,16 @@ export class SubscriberStandingService {
     }
 
     /**
-     * The history of the tenant's subscriber, the latest first: its
-     * corrections, its changes of country and business status, and the checks
-     * of its VAT number, each with who and why where it says. Empty for a
-     * tenant without a subscriber.
+     * The subscriber's history, the latest first: its corrections, its changes
+     * of country and business status, and the checks of its VAT number, each
+     * with who and why where it says.
      */
-    async historyOfTenant(tenantId: string): Promise<AdminSubscriberHistoryEntry[]> {
-        const subscriber = await this.repo.findByTenantId(tenantId);
-        if (!subscriber) return [];
+    async historyOf(subscriberId: string): Promise<AdminSubscriberHistoryEntry[]> {
         const [corrections, taxOriginChanges, vatIdChecks, counting] = await Promise.all([
-            this.repo.listCorrections(subscriber.id),
-            this.repo.listTaxOriginChanges(subscriber.id),
-            this.repo.listVatIdChecks(subscriber.id),
-            this.repo.findCurrentVatIdCheck(subscriber.id),
+            this.repo.listCorrections(subscriberId),
+            this.repo.listTaxOriginChanges(subscriberId),
+            this.repo.listVatIdChecks(subscriberId),
+            this.repo.findCurrentVatIdCheck(subscriberId),
         ]);
         return subscriberHistoryOf({
             corrections,

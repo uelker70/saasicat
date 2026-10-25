@@ -820,7 +820,7 @@ _Source:_ internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
-    - an invoice cancelled from the tenant page
+    - an invoice cancelled from the subscriber’s record
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
         - previews and announces a cancellation that leaves no replacement, naming no party for one
@@ -1477,7 +1477,7 @@ _Tested by:_
 - `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
     - the preview route
         - answers what the cancellation would write, and writes nothing
-        - of another tenant’s invoice is refused as none
+        - of an invoice there is not is refused as none
     - a cancellation held to the preview the operator confirmed
         - is written where it would write what the preview showed
         - names the same preview by the same digest at another moment of its day, and another the
@@ -1497,7 +1497,7 @@ _Tested by:_
           announced, and read again
         - announces a cancellation that left no replacement as one
         - sends what the preview answered, not what was entered after it
-        - for the tenant it was opened on, though the page moved on meanwhile
+        - for the invoice it was confirmed on, though another is opened during the second factor
         - stepped back from at the second factor stays on its preview, cancelling nothing
         - refused because what it writes changed shows the new preview to confirm, and nothing else
         - confirmed again after such a refusal, carries the digest of the new preview
@@ -1506,7 +1506,7 @@ _Tested by:_
         - asks nothing while a line owed in part says no amount
         - sends the lines the operator named with the request it previews
 - `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
-    - an invoice cancelled from the tenant page
+    - an invoice cancelled from the subscriber’s record
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
         - previews and announces a cancellation that leaves no replacement, naming no party for one

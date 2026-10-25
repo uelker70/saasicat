@@ -1,8 +1,8 @@
-// useSubscriberCorrections — the operator corrects a tenant's subscriber and
+// useSubscriberCorrections — the operator corrects a subscriber in its record and
 // checks its VAT number, behind the second factor where it changes something,
 // and reads the history of both. Offered only where the platform serves it.
 
-// @requirement SC-SUB-041 — The operator corrects a subscriber's identity and business status, with a reason
+// @requirement SC-SUB-045 — The operator corrects a subscriber's identity and business status in its record
 // @requirement SC-ADM-015 — The administration only offers what the application actually has
 
 import { describe, test } from 'node:test';
@@ -27,7 +27,7 @@ const serving = (extra = {}) => ({
 });
 
 /**
- * The corrections of tenant `wien`, every call recorded, the second factor
+ * The corrections of subscriber `s-wien`, every call recorded, the second factor
  * answered as `code` — after `whilePrompted` has run, as whatever the operator
  * does while the prompt is open.
  */
@@ -48,36 +48,36 @@ function correctionsOf({
     const prompts = [];
     let changed = 0;
     const answered = (vatIdCheck = null) => ({ subscriber: STANDING, vatIdCheck });
-    const tenants = {
-        subscriberHistory: async (slug) => {
-            calls.push(['history', slug]);
+    const subscribers = {
+        history: async (id) => {
+            calls.push(['history', id]);
             return HISTORY;
         },
-        correctSubscriberIdentity: async (slug, input, mfaCode) => {
-            calls.push(['identity', slug, input, mfaCode]);
+        correctIdentity: async (id, input, mfaCode) => {
+            calls.push(['identity', id, input, mfaCode]);
             if (failWith) throw failWith;
             return answered(answer.identity);
         },
-        changeSubscriberBusinessStatus: async (slug, input, mfaCode) => {
-            calls.push(['business', slug, input, mfaCode]);
+        changeBusinessStatus: async (id, input, mfaCode) => {
+            calls.push(['business', id, input, mfaCode]);
             return answered();
         },
-        checkSubscriberVatId: async (slug) => {
-            calls.push(['check', slug]);
+        checkVatId: async (id) => {
+            calls.push(['check', id]);
             if (failWith) throw failWith;
             return answered(answer.check);
         },
     };
-    const slug = ref('wien');
+    const id = ref('s-wien');
     const mfa = {
         async run(description, invalidCode, action) {
             prompts.push(description);
-            whilePrompted?.(slug);
+            whilePrompted?.(id);
             if (code === null) return { done: false };
             return { done: true, value: await action(code) };
         },
     };
-    const corrections = useSubscriberCorrections(slug, ref(manifest), tenants, {
+    const corrections = useSubscriberCorrections(id, ref(manifest), subscribers, {
         notify,
         mfa,
         onChanged: () => {
@@ -95,12 +95,12 @@ function correctionsOf({
 }
 
 describe('useSubscriberCorrections', () => {
-    test('where the manifest announces the corrections, the history is read for the tenant', async () => {
+    test('where the manifest announces the corrections, the history is read for the subscriber', async () => {
         const { corrections, calls } = correctionsOf();
         await settle();
 
         assert.equal(corrections.available.value, true);
-        assert.deepEqual(calls, [['history', 'wien']]);
+        assert.deepEqual(calls, [['history', 's-wien']]);
         assert.deepEqual(corrections.history.data.value, HISTORY);
     });
 
@@ -138,7 +138,7 @@ describe('useSubscriberCorrections', () => {
         });
 
         assert.deepEqual(writes(), [
-            ['identity', 'wien', { legalName: 'Wien AG', reason: 'Renamed' }, '123456'],
+            ['identity', 's-wien', { legalName: 'Wien AG', reason: 'Renamed' }, '123456'],
         ]);
         assert.equal(prompts.length, 1);
         assert.deepEqual(notices, [['positive', 'Correction saved.']]);
@@ -219,18 +219,18 @@ describe('useSubscriberCorrections', () => {
         ['a correction', 'correctIdentity', { legalName: 'Wien AG', reason: 'Renamed' }],
         ['a change of business status', 'changeBusinessStatus', { business: false, reason: 'x' }],
     ]) {
-        test(`${what} goes to the tenant it was confirmed on, though the page moved on during the second factor`, async () => {
+        test(`${what} goes to the subscriber it was confirmed on, though the page moved on during the second factor`, async () => {
             const { corrections, writes } = correctionsOf({
-                whilePrompted: (slug) => {
-                    slug.value = 'graz';
+                whilePrompted: (id) => {
+                    id.value = 's-graz';
                 },
             });
 
             await corrections[correct](input);
 
             assert.deepEqual(
-                writes().map(([, slug]) => slug),
-                ['wien'],
+                writes().map(([, id]) => id),
+                ['s-wien'],
             );
         });
     }
@@ -271,7 +271,7 @@ describe('useSubscriberCorrections', () => {
         await corrections.changeBusinessStatus({ business: false, reason: 'Sole trader' });
 
         assert.deepEqual(writes(), [
-            ['business', 'wien', { business: false, reason: 'Sole trader' }, '123456'],
+            ['business', 's-wien', { business: false, reason: 'Sole trader' }, '123456'],
         ]);
         assert.deepEqual(notices, [['positive', 'Business status saved.']]);
     });
@@ -284,7 +284,7 @@ describe('useSubscriberCorrections', () => {
 
         await corrections.checkVatId();
 
-        assert.deepEqual(writes(), [['check', 'wien']]);
+        assert.deepEqual(writes(), [['check', 's-wien']]);
         assert.deepEqual(prompts, []);
         assert.deepEqual(
             notices,

@@ -12,9 +12,9 @@ import type {
 const SOURCE_ORDER: Record<SubscriberChargeSource, number> = { plan: 0, bundle: 1, discount: 2 };
 
 export interface AccountViewInput {
-    subscriber: SubscriberRecord | null;
+    subscriber: SubscriberRecord;
     charges: readonly SubscriberChargeRecord[];
-    /** The tenant's contracts, superseded ones included: a charge names the line it came from. */
+    /** The subscriber's contracts, superseded ones included: a charge names the line it came from. */
     contracts: readonly SubscriptionContractRecord[];
 }
 
@@ -47,15 +47,13 @@ export function accountViewOf(input: AccountViewInput): AdminSubscriberAccount {
         charge: toWire(charge),
         title: titles.get(charge.contractLineItemId) ?? null,
     }));
-    const subscriber = input.subscriber;
+    const { subscriber } = input;
     return {
-        holder: subscriber
-            ? {
-                  id: subscriber.id,
-                  customerNumber: subscriber.customerNumber,
-                  legalName: subscriber.legalName,
-              }
-            : null,
+        holder: {
+            id: subscriber.id,
+            customerNumber: subscriber.customerNumber,
+            legalName: subscriber.legalName,
+        },
         entries,
     };
 }

@@ -209,6 +209,40 @@ describe('an app that calls everything something else', () => {
         ]);
     });
 
+    // @requirement SC-ADM-036 — An operator finds a subscriber by its number, name or VAT number, tenant or not
+    test('the tenants a subscriber names are read in one question, a soft-deleted one included', async () => {
+        const { client, calls } = clientWith(RENAMED, {
+            organization: [
+                {
+                    id: 't1',
+                    handle: 'acme',
+                    title: 'Acme',
+                    enabled: false,
+                    deletedAt: new Date('2026-06-30T10:00:00.000Z'),
+                },
+            ],
+        });
+        const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
+
+        const found = await adapter.findTenantsByIds(['t1', 't-gone']);
+
+        assert.deepEqual(
+            calls.map(({ delegate, args }) => [delegate, args.where]),
+            [['organization', { id: { in: ['t1', 't-gone'] } }]],
+        );
+        assert.deepEqual(found, [
+            { id: 't1', slug: 'acme', name: 'Acme', deletedAt: '2026-06-30T10:00:00.000Z' },
+        ]);
+    });
+
+    test('no tenants named, no question asked', async () => {
+        const { client, calls } = clientWith(RENAMED, { organization: [] });
+        const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
+
+        assert.deepEqual(await adapter.findTenantsByIds([]), []);
+        assert.deepEqual(calls, []);
+    });
+
     test('suspending writes the mapped flag', async () => {
         const { client, calls } = clientWith(RENAMED, {
             organization: [{ id: 't1', handle: 'acme' }],

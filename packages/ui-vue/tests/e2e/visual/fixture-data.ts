@@ -9,7 +9,7 @@
 
 import type {
     AdminManifest,
-    AdminTenantInvoice,
+    AdminSubscriberInvoice,
     BundleRow,
     BundleVersionRow,
     CapabilityCatalogEntryRow,
@@ -49,11 +49,17 @@ export const FIXTURE_MANIFEST: AdminManifest = {
         vatRate: 19,
         plans: [],
     },
-    // Only what a page asks for by name: the charges and payments sections on
-    // the tenant detail, and the cancellation at an invoice, are shown where
-    // the platform announces them, and a fixture that does not would leave
-    // them unrendered and unmeasured.
-    capabilities: { 'charges.read': true, 'payments.read': true, 'invoices.cancel': true },
+    // Only what a page asks for by name: the subscriber's card on the tenant
+    // detail, the subscribers' list and record with its charges and payments
+    // sections, and the cancellation at an invoice, are shown where the
+    // platform announces them, and a fixture that does not would leave them
+    // unrendered and unmeasured.
+    capabilities: {
+        'subscribers.read': true,
+        'charges.read': true,
+        'payments.read': true,
+        'invoices.cancel': true,
+    },
     navigation: { standardPages: {} },
     // Real KPI cards, not an empty list: `AdminStatistics` and `AdminKpi` are
     // exactly the primitives the token migration rewrites, so a dashboard that
@@ -971,6 +977,91 @@ const TENANT_DETAIL = {
     users: [],
 };
 
+// The tenant's subscriber, as its master data stands — a business in Germany
+// with a validated VAT number and nothing holding its next contract back.
+const SUBSCRIBER_DETAILS = {
+    id: 's-0001',
+    customerNumber: 'K-10001',
+    legalName: 'Northwind Ltd',
+    addressLine1: 'Hafenstraße 1',
+    addressLine2: null,
+    postalCode: '20457',
+    city: 'Hamburg',
+    country: 'DE',
+    invoiceEmail: 'invoices@northwind.example',
+    business: true,
+    vatId: 'DE123456789',
+    vatIdValidated: true,
+    taxNumber: null,
+    migrated: false,
+};
+
+const TENANT_SUBSCRIBER = { subscriber: SUBSCRIBER_DETAILS, readiness: null };
+
+// The record's head: a live link whose tenant the application no longer has —
+// the warning only that state shows — and an earlier tenant it soft-deleted,
+// with the way to its page.
+const SUBSCRIBER_RECORD = {
+    subscriber: SUBSCRIBER_DETAILS,
+    readiness: null,
+    tenants: [
+        {
+            tenantId: 't-0009',
+            linkedAt: '2026-01-05T09:00:00.000Z',
+            unlinkedAt: null,
+            known: false,
+            slug: null,
+            name: null,
+            deletedAt: null,
+        },
+        {
+            tenantId: 't-0001',
+            linkedAt: '2025-03-01T09:00:00.000Z',
+            unlinkedAt: '2025-12-31T23:00:00.000Z',
+            known: true,
+            slug: 'northwind',
+            name: 'Northwind Ltd',
+            deletedAt: '2025-12-31T23:00:00.000Z',
+        },
+    ],
+};
+
+// One subscriber live for a tenant, one whose tenant is gone, one the
+// application no longer knows the live tenant of: each way the tenant column
+// reads.
+const SUBSCRIBER_ROWS = {
+    subscribers: [
+        {
+            id: 's-0003',
+            customerNumber: 'K-10003',
+            legalName: 'Contoso SARL',
+            vatId: null,
+            city: 'Lyon',
+            country: 'FR',
+            liveTenant: { id: 't-0003', slug: null, name: null },
+        },
+        {
+            id: 's-0002',
+            customerNumber: 'K-10002',
+            legalName: 'Muster GmbH',
+            vatId: 'DE987654321',
+            city: 'Berlin',
+            country: 'DE',
+            liveTenant: null,
+        },
+        {
+            id: 's-0001',
+            customerNumber: 'K-10001',
+            legalName: 'Northwind Ltd',
+            vatId: 'DE123456789',
+            city: 'Hamburg',
+            country: 'DE',
+            liveTenant: { id: 't-0001', slug: 'northwind', name: 'Northwind Ltd' },
+        },
+    ],
+    next: 's-0001',
+};
+
 const accountCharge = (id: string, overrides: Record<string, unknown>) => ({
     id,
     subscriberId: 's-0001',
@@ -1019,7 +1110,7 @@ const TENANT_ACCOUNT = {
     ],
 };
 
-const tenantInvoice = (number: string, overrides: Partial<AdminTenantInvoice> = {}) => ({
+const tenantInvoice = (number: string, overrides: Partial<AdminSubscriberInvoice> = {}) => ({
     id: `inv-${number.slice(-3)}`,
     number,
     issuedAt: '2026-02-01T05:15:00.000Z',
@@ -1397,9 +1488,12 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/promo-codes', PROMO_ROWS],
     ['/api/admin/promo-codes/WELCOME20', PROMO_DETAIL],
     ['/api/admin/tenants/northwind', TENANT_DETAIL],
-    ['/api/admin/tenants/northwind/charges', TENANT_ACCOUNT],
-    ['/api/admin/tenants/northwind/payments', TENANT_PAYMENTS],
-    ['/api/admin/tenants/northwind/invoices/inv-124', INVOICE_TO_CANCEL],
+    ['/api/admin/tenants/northwind/subscriber', TENANT_SUBSCRIBER],
+    ['/api/admin/subscribers', SUBSCRIBER_ROWS],
+    ['/api/admin/subscribers/s-0001', SUBSCRIBER_RECORD],
+    ['/api/admin/subscribers/s-0001/charges', TENANT_ACCOUNT],
+    ['/api/admin/subscribers/s-0001/payments', TENANT_PAYMENTS],
+    ['/api/admin/invoices/inv-124', INVOICE_TO_CANCEL],
     ['/api/admin/pilots', PILOT_ROWS],
     // The page loads both lists. Deliberately empty and registered as such: an
     // unregistered path is a named gap, and the review strip carries no surface

@@ -19,12 +19,11 @@ import {
     RECONCILIATION_NOTE_MAX_LENGTH,
     type AdminReconciliationCase,
     type AdminReconciliationCases,
-    type AdminTenantPayments,
+    type AdminSubscriberPayments,
     type ReconciliationCaseState,
     type RlsBypassPort,
 } from '@saasicat/core';
 
-import { AdminResourcesService } from '../../admin/admin-resources.module.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { EnforceMfa } from '../../admin/enforce-mfa.decorator.js';
 import { UseRouteGuards } from '../../admin/use-route-guards.decorator.js';
@@ -62,10 +61,10 @@ export interface SubscriberReconciliationModuleOptions {
     /** The same chain the tenant routes of the administration run behind. */
     guards: Array<Type<CanActivate>>;
     /**
-     * Must bring `AdminResourcesService` and `SubscriberReconciliationService`
-     * into scope — the modules that already provide them, passed as the very
-     * objects the application imports. The `RlsBypassPort` and the second
-     * factor have to be visible too; `SaaSiCatModule` provides them globally.
+     * Must bring `SubscriberReconciliationService` into scope — the module
+     * that already provides it, passed as the very object the application
+     * imports. The `RlsBypassPort` and the second factor have to be visible
+     * too; `SaaSiCatModule` provides them globally.
      */
     imports: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
 }
@@ -76,8 +75,6 @@ function buildSubscriberReconciliationController(guards: Array<Type<CanActivate>
     @UseRouteGuards(...guards)
     class GeneratedSubscriberReconciliationController {
         constructor(
-            @Inject(AdminResourcesService)
-            private readonly tenants: AdminResourcesService,
             @Inject(SubscriberReconciliationService)
             private readonly reconciliation: SubscriberReconciliationService,
             @Inject(WebAuditLogger)
@@ -131,13 +128,10 @@ function buildSubscriberReconciliationController(guards: Array<Type<CanActivate>
             });
         }
 
-        /** The tenant's invoices with what each still owes, and its open cases. */
-        @Get('tenants/:slug/payments')
-        paymentsOf(@Param('slug') slug: string): Promise<AdminTenantPayments> {
-            return this.rlsBypass.runWithBypass(async () => {
-                const tenant = await this.tenants.getTenantDetail(slug);
-                return this.reconciliation.paymentsOf(tenant.id);
-            });
+        /** The subscriber's invoices with what each still owes, and its open cases. */
+        @Get('subscribers/:id/payments')
+        paymentsOf(@Param('id') id: string): Promise<AdminSubscriberPayments> {
+            return this.rlsBypass.runWithBypass(() => this.reconciliation.paymentsOf(id));
         }
     }
 
@@ -146,9 +140,9 @@ function buildSubscriberReconciliationController(guards: Array<Type<CanActivate>
 
 /**
  * The operator's list of what the gateway reported and nothing matched, the
- * closing of a case with a note, and a tenant's invoices with what each still
- * owes beside its open cases. Mounted where the platform shows tenants and
- * records what invoices' collections brought.
+ * closing of a case with a note, and a subscriber's invoices with what each
+ * still owes beside its open cases. Mounted where the platform shows tenants
+ * and records what invoices' collections brought.
  */
 @Module({})
 export class SubscriberReconciliationModule {

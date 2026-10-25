@@ -147,7 +147,7 @@ describe('a reversal the gateway reports', () => {
         assert.equal(await payments.owedBy(invoice.id), invoice.totalGross);
     });
 
-    // @requirement SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+    // @requirement SC-ADM-039 — The operator reconciles what no credit matched, and finds each case in the record
     test('that meets a credit already refunded opens a case, audited for the operator', async () => {
         quietLog();
         const { deliver, reversal, payments, audits, attempt, brought } = await aPaidInvoice({
@@ -692,7 +692,7 @@ describe('a reversal the gateway gives back', () => {
         );
     });
 
-    // @requirement SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+    // @requirement SC-ADM-039 — The operator reconciles what no credit matched, and finds each case in the record
     test('closes the cases it opened, audited as closed because the money came back', async () => {
         quietLog();
         const { deliver, reversal, payments, audits, attempt, brought } = await aPaidInvoice({

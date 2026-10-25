@@ -85,13 +85,14 @@ async function twoSubscribersWithACase() {
         at: new Date('2026-02-10T09:00:00.000Z'),
     });
     const subscribers = {
-        findByTenantId: async (tenantId) =>
-            tenantId.startsWith('tenant-of-') ? { id: tenantId.slice('tenant-of-'.length) } : null,
-        findById: async (id) => ({
-            id,
-            customerNumber: `K-${id.slice(-1)}`,
-            legalName: `Kunde ${id.slice(-1)} GmbH`,
-        }),
+        findById: async (id) =>
+            id.startsWith('subscriber-')
+                ? {
+                      id,
+                      customerNumber: `K-${id.slice(-1)}`,
+                      legalName: `Kunde ${id.slice(-1)} GmbH`,
+                  }
+                : null,
     };
     const store = {
         findById: async (id) => invoices.find((invoice) => invoice.id === id) ?? null,
@@ -114,7 +115,7 @@ const refusedAs = (status, code) => (error) => {
     return true;
 };
 
-// @requirement SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+// @requirement SC-ADM-039 — The operator reconciles what no credit matched, and finds each case in the record
 describe('the cases to reconcile', () => {
     test('are listed open, the oldest first, with whom and what each is about', async () => {
         const { service } = await twoSubscribersWithACase();
@@ -211,12 +212,12 @@ describe('the cases to reconcile', () => {
     });
 });
 
-// @requirement SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
-describe("a tenant's payments", () => {
+// @requirement SC-ADM-039 — The operator reconciles what no credit matched, and finds each case in the record
+describe("a subscriber's payments", () => {
     test('are its invoices, the latest first, with what each still owes, and its open cases alone', async () => {
         const { service } = await twoSubscribersWithACase();
 
-        const payments = await service.paymentsOf('tenant-of-subscriber-1');
+        const payments = await service.paymentsOf('subscriber-1');
 
         assert.deepEqual(
             payments.invoices.map((each) => [
@@ -235,13 +236,13 @@ describe("a tenant's payments", () => {
             payments.openCases.map((each) => each.reference),
             ['re_1'],
         );
-        assert.deepEqual((await service.paymentsOf('tenant-of-subscriber-2')).openCases, []);
+        assert.deepEqual((await service.paymentsOf('subscriber-2')).openCases, []);
     });
 
-    test('of a tenant without a subscriber are none', async () => {
+    test('of a subscriber there is not are refused, by code', async () => {
         const { service } = await twoSubscribersWithACase();
 
-        assert.deepEqual(await service.paymentsOf('tenant-alone'), { invoices: [], openCases: [] });
+        await assert.rejects(service.paymentsOf('alone'), refusedAs(404, 'SUBSCRIBER_NOT_FOUND'));
     });
 });
 
@@ -279,7 +280,6 @@ describe('the routes', () => {
         }).controllers;
         const logged = [];
         const controller = new Controller(
-            { getTenantDetail: async (slug) => ({ id: `tenant-of-${slug}`, slug }) },
             service,
             {
                 actorTagFromRequest: () => 'operator:op-1',
@@ -326,7 +326,7 @@ describe('the routes', () => {
 
         assert.deepEqual(routes(collecting), [
             'GET admin/reconciliation',
-            'GET admin/tenants/:slug/payments',
+            'GET admin/subscribers/:id/payments',
             'POST admin/reconciliation/:caseId/close',
         ]);
         assert.deepEqual(routes(unrecorded), []);

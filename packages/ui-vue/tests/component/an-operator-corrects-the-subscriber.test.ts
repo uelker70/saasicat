@@ -1,25 +1,19 @@
-// The operator corrects a tenant's subscriber on the tenant's page: its legal
-// identity and its business status, each in a dialog that asks for a reason
-// and then for the second factor, and checks its VAT number again; the history
-// below lists what was done. Mounted through a router against a stubbed
-// registry, so what is asserted is what the operator does and sees.
+// The operator corrects a subscriber in its record: its legal identity and its
+// business status, each in a dialog that asks for a reason and then for the
+// second factor, and checks its VAT number again; the history below lists what
+// was done. Mounted through a router against a stubbed registry, so what is
+// asserted is what the operator does and sees.
 
-// @requirement SC-SUB-041 — The operator corrects a subscriber's identity and business status, with a reason
-// @requirement SC-ADM-032 — The operator reads a subscriber's history, with who, when and why
+// @requirement SC-SUB-045 — The operator corrects a subscriber's identity and business status in its record
+// @requirement SC-ADM-038 — The operator reads a subscriber's history in its record, with who, when and why
 
 import { afterEach, describe, expect, test } from 'vitest';
 import { computed, nextTick, ref } from 'vue';
 import { flushPromises } from '@vue/test-utils';
-import { createMemoryHistory, createRouter } from 'vue-router';
 
-import TenantSubscriber from '../../src/internal/tenant-detail/TenantSubscriber.vue';
-import TenantDetailPage from '../../src/pages/TenantDetailPage.vue';
+import SubscriberMasterData from '../../src/internal/subscriber-record/SubscriberMasterData.vue';
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
-import { SUPER_ADMIN_MANIFEST_KEY } from '../../src/vue/super-admin-context.js';
-import { SUPER_ADMIN_NOTIFY_KEY } from '../../src/vue/ui-notify.js';
-import { provideStubResources } from './support/stub-resources.js';
-
-const TENANT = { id: 't-1', slug: 'wien', name: 'Wien', isActive: true, users: [] };
+import { mountRecord } from './support/subscriber-record.js';
 const CODE = '123456';
 
 const SUBSCRIBER = {
@@ -35,6 +29,7 @@ const SUBSCRIBER = {
     vatId: 'ATU12345678',
     vatIdValidated: false,
     taxNumber: null,
+    invoiceEmail: null,
     migrated: true,
 };
 const STANDING = {
@@ -96,83 +91,63 @@ type Call = [string, ...unknown[]];
 const unanswered = () => new Promise<never>(() => {});
 
 async function mountPage(
-    manifest: unknown = DECIDING,
+    manifest: { capabilities: Record<string, boolean> } = DECIDING,
     {
-        slowTenant,
+        slowSubscriber,
         slowHistoryOf,
         rereadsHang = false,
     }: {
-        /** A tenant whose subscriber and history do not answer while the test runs. */
-        slowTenant?: string;
-        /** A tenant whose subscriber answers and whose history does not. */
+        /** A subscriber whose record and history do not answer while the test runs. */
+        slowSubscriber?: string;
+        /** A subscriber whose record answers and whose history does not. */
         slowHistoryOf?: string;
-        /** Whether reading the subscriber again, after the first read, never answers. */
+        /** Whether reading the record again, after the first read, never answers. */
         rereadsHang?: boolean;
     } = {},
 ) {
-    let subscriberReads = 0;
+    let recordReads = 0;
     const calls: Call[] = [];
-    const notices: Array<[string, string]> = [];
     const answer = { subscriber: STANDING, vatIdCheck: null };
-    const router = createRouter({
-        history: createMemoryHistory(),
-        routes: [
-            { path: '/admin/tenants/:slug', component: TenantDetailPage },
-            { path: '/:rest(.*)', component: { template: '<div />' } },
-        ],
-    });
-    await router.push('/admin/tenants/wien');
-    await router.isReady();
-    const wrapper = mountWithQuasar({ template: '<router-view />' } as never, {
-        attachTo: document.body,
-        global: {
-            plugins: [router],
-            provide: {
-                ...provideStubResources({
-                    tenants: {
-                        detail: async () => TENANT,
-                        subscriber: (slug: string) => {
-                            subscriberReads += 1;
-                            if (slug === slowTenant) return unanswered();
-                            if (rereadsHang && subscriberReads > 1) return unanswered();
-                            return Promise.resolve(slug === 'graz' ? GRAZ : STANDING);
-                        },
-                        subscriberHistory: (slug: string) =>
-                            slug === slowTenant || slug === slowHistoryOf
-                                ? unanswered()
-                                : Promise.resolve(HISTORY),
-                        correctSubscriberIdentity: async (...args: unknown[]) => {
-                            calls.push(['identity', ...args]);
-                            return answer;
-                        },
-                        changeSubscriberBusinessStatus: async (...args: unknown[]) => {
-                            calls.push(['business', ...args]);
-                            return answer;
-                        },
-                        checkSubscriberVatId: async (...args: unknown[]) => {
-                            calls.push(['check', ...args]);
-                            return {
-                                subscriber: STANDING,
-                                vatIdCheck: {
-                                    completed: true,
-                                    valid: true,
-                                    checkedAt: '2026-10-06T10:00:00.000Z',
-                                    service: 'VIES',
-                                    counts: true,
-                                },
-                            };
-                        },
+    const page = await mountRecord({
+        capabilities: manifest.capabilities,
+        attach: true,
+        subscribers: {
+            record: (id: string) => {
+                recordReads += 1;
+                if (id === slowSubscriber) return unanswered();
+                if (rereadsHang && recordReads > 1) return unanswered();
+                return Promise.resolve({ ...(id === 's-2' ? GRAZ : STANDING), tenants: [] });
+            },
+            history: (id: string) =>
+                id === slowSubscriber || id === slowHistoryOf
+                    ? unanswered()
+                    : Promise.resolve(HISTORY),
+            correctIdentity: async (...args: unknown[]) => {
+                calls.push(['identity', ...args]);
+                return answer;
+            },
+            changeBusinessStatus: async (...args: unknown[]) => {
+                calls.push(['business', ...args]);
+                return answer;
+            },
+            checkVatId: async (...args: unknown[]) => {
+                calls.push(['check', ...args]);
+                return {
+                    subscriber: STANDING,
+                    vatIdCheck: {
+                        completed: true,
+                        valid: true,
+                        checkedAt: '2026-10-06T10:00:00.000Z',
+                        service: 'VIES',
+                        counts: true,
                     },
-                } as never),
-                [SUPER_ADMIN_MANIFEST_KEY as symbol]: () => manifest,
-                [SUPER_ADMIN_NOTIFY_KEY as symbol]: (kind: string, message: string) =>
-                    notices.push([kind, message]),
+                };
             },
         },
     });
-    mounted.push(wrapper);
+    mounted.push(page.wrapper);
     await settle();
-    return { wrapper, calls, notices, router };
+    return { ...page, calls };
 }
 
 type Mounted = Awaited<ReturnType<typeof mountPage>>['wrapper'];
@@ -215,7 +190,7 @@ async function enterTheCode(): Promise<void> {
     await settle();
 }
 
-describe('the operator corrects the subscriber on the tenant page', () => {
+describe('the operator corrects the subscriber in its record', () => {
     test('offers the corrections, and a check where a tax adapter decides and a number is held', async () => {
         const { wrapper } = await mountPage();
 
@@ -257,7 +232,7 @@ describe('the operator corrects the subscriber on the tenant page', () => {
         expect(calls).toEqual([
             [
                 'identity',
-                'wien',
+                's-1',
                 { taxNumber: '12/345/67890', reason: 'Tax number handed in' },
                 CODE,
             ],
@@ -291,50 +266,46 @@ describe('the operator corrects the subscriber on the tenant page', () => {
         expect(dialog().node?.querySelector('.sa-banner--negative')).toBeNull();
     });
 
-    test("moving to another tenant closes an open dialog and shows nothing of the first one's subscriber while the next one's is read", async () => {
-        const { wrapper, router, calls } = await mountPage(DECIDING, { slowTenant: 'graz' });
+    test('moving to another subscriber closes an open dialog and shows nothing of the first one while the next one is read', async () => {
+        const { wrapper, router, calls } = await mountPage(DECIDING, { slowSubscriber: 's-2' });
         await buttonNamed(wrapper, 'Correct identity')!.trigger('click');
         await settle();
         expect(dialog().node, 'the premise: the dialog is open').toBeTruthy();
         expect(wrapper.text(), 'the premise: the first subscriber is shown').toContain('Wien GmbH');
 
-        await router.push('/admin/tenants/graz');
+        await router.push('/admin/subscribers/s-2');
         await settle();
 
-        expect(dialog().node, "the dialog with the first tenant's form").toBeUndefined();
-        expect(wrapper.text(), "the first tenant's subscriber or history").not.toContain(
-            'Wien GmbH',
-        );
+        expect(dialog().node, "the dialog with the first subscriber's form").toBeUndefined();
+        expect(wrapper.text(), 'the first subscriber or its history').not.toContain('Wien GmbH');
         expect(wrapper.text()).not.toContain('Legal form spelt as registered');
         expect(buttonNamed(wrapper, 'Correct identity')).toBeUndefined();
         expect(calls).toEqual([]);
     });
 
-    test("the next tenant's subscriber read and its history not yet: none of the first one's history is shown", async () => {
-        const { wrapper, router } = await mountPage(DECIDING, { slowHistoryOf: 'graz' });
+    test("the next subscriber read and its history not yet: none of the first one's history is shown", async () => {
+        const { wrapper, router } = await mountPage(DECIDING, { slowHistoryOf: 's-2' });
         expect(wrapper.text(), 'the premise').toContain('Legal form spelt as registered');
 
-        await router.push('/admin/tenants/graz');
+        await router.push('/admin/subscribers/s-2');
         await settle();
 
-        expect(wrapper.text(), "the next tenant's subscriber").toContain('Graz AG');
+        expect(wrapper.text(), 'the next subscriber').toContain('Graz AG');
         expect(wrapper.text()).not.toContain('Legal form spelt as registered');
     });
 
     for (const label of ['Correct identity', 'Change business status']) {
-        test(`a "${label}" dialog left open does not open again for the next tenant once it is read`, async () => {
+        test(`a "${label}" dialog left open does not open again for the next subscriber once it is read`, async () => {
             const { wrapper, router } = await mountPage(DECIDING);
             await buttonNamed(wrapper, label)!.trigger('click');
             await settle();
             expect(dialog().node, 'the premise: the dialog is open').toBeTruthy();
 
-            await router.push('/admin/tenants/graz');
+            await router.push('/admin/subscribers/s-2');
             await settle();
 
-            expect(wrapper.text(), "the premise: the next tenant's subscriber").toContain(
-                'Graz AG',
-            );
-            expect(dialog().node, 'a dialog opened for the first tenant').toBeUndefined();
+            expect(wrapper.text(), 'the premise: the next subscriber').toContain('Graz AG');
+            expect(dialog().node, 'a dialog opened for the first subscriber').toBeUndefined();
         });
     }
 
@@ -362,7 +333,7 @@ describe('the operator corrects the subscriber on the tenant page', () => {
         await buttonNamed(wrapper, 'Check VAT ID')!.trigger('click');
         await settle();
 
-        expect(calls).toEqual([['check', 'wien']]);
+        expect(calls).toEqual([['check', 's-1']]);
         expect(document.querySelector('.mfa-card')).toBeNull();
         expect(notices).toEqual([['positive', 'VAT ID is valid (VIES).']]);
     });
@@ -407,7 +378,7 @@ describe('the subscriber section on its own', () => {
         ['Change business status', null],
     ] as const) {
         test(`closes a "${label}" dialog once ${next ? 'another subscriber' : 'none'} is shown`, async () => {
-            const wrapper = mountWithQuasar(TenantSubscriber as never, {
+            const wrapper = mountWithQuasar(SubscriberMasterData, {
                 attachTo: document.body,
                 props: {
                     standing: STANDING,

@@ -58,14 +58,15 @@ Read/query adapter for audit logs.
 
 One narrow backend boundary for the generic Tenant/User/Audit/Subscription SuperAdmin pages.
 
-| Member                                                                                                                   | What it does |
-| ------------------------------------------------------------------------------------------------------------------------ | ------------ |
-| `listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]>`                                              | —            |
-| `getTenantDetail(slug: string): Promise<AdminTenantDetail \| null>`                                                      | —            |
-| `setTenantActive( slug: string, active: boolean, subscriptionStatus: string, ): Promise<AdminTenantStateResult \| null>` | —            |
-| `listUsers(filter: AdminUserListFilter): Promise<AdminUserListRow[]>`                                                    | —            |
-| `listAudit(filter: AdminAuditListFilter): Promise<AuditEntry[]>`                                                         | —            |
-| `listSubscriptions(): Promise<AdminSubscriptionListRow[]>`                                                               | —            |
+| Member                                                                                                                   | What it does                                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]>`                                              | —                                                                                                                                                                     |
+| `getTenantDetail(slug: string): Promise<AdminTenantDetail \| null>`                                                      | —                                                                                                                                                                     |
+| `findTenantsByIds(tenantIds: readonly string[]): Promise<AdminTenantSummary[]>`                                          | The tenants among `tenantIds` the application still has, soft-deleted ones included, in one read: what the subscriber's record names the tenants it was linked to by. |
+| `setTenantActive( slug: string, active: boolean, subscriptionStatus: string, ): Promise<AdminTenantStateResult \| null>` | —                                                                                                                                                                     |
+| `listUsers(filter: AdminUserListFilter): Promise<AdminUserListRow[]>`                                                    | —                                                                                                                                                                     |
+| `listAudit(filter: AdminAuditListFilter): Promise<AuditEntry[]>`                                                         | —                                                                                                                                                                     |
+| `listSubscriptions(): Promise<AdminSubscriptionListRow[]>`                                                               | —                                                                                                                                                                     |
 
 ### `ManifestAccessPort`
 

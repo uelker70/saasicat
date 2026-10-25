@@ -74,8 +74,7 @@ async function twoSubscribersWithCredits() {
     await payments.creditInvoice('invoice-02', new Date('2026-02-02T00:00:00.000Z'));
     await payments.creditInvoice('invoice-04', new Date('2026-02-02T00:00:00.000Z'));
     const subscribers = {
-        findByTenantId: async (tenantId) =>
-            tenantId.startsWith('tenant-of-') ? { id: tenantId.slice('tenant-of-'.length) } : null,
+        findById: async (id) => (id.startsWith('subscriber-') ? { id } : null),
     };
     const store = {
         findById: async (id) => invoices.find((invoice) => invoice.id === id) ?? null,
@@ -112,7 +111,7 @@ describe("the operator reads a subscriber's credits", () => {
     test('the oldest first, each named by the invoice it comes from, with what is open', async () => {
         const { service } = await twoSubscribersWithCredits();
 
-        const { credits, timeZone } = await service.creditsOf('tenant-of-subscriber-1');
+        const { credits, timeZone } = await service.creditsOf('subscriber-1');
 
         assert.equal(timeZone, 'Europe/Berlin', 'the zone a payout day is judged in');
         assert.deepEqual(
@@ -143,13 +142,13 @@ describe("the operator reads a subscriber's credits", () => {
         );
     });
 
-    test('a tenant without a subscriber has none', async () => {
+    test('of a subscriber there is not are refused, by code', async () => {
         const { service } = await twoSubscribersWithCredits();
 
-        assert.deepEqual(await service.creditsOf('tenant-without'), {
-            credits: [],
-            timeZone: 'Europe/Berlin',
-        });
+        await assert.rejects(
+            service.creditsOf('no-such-subscriber'),
+            refusedAs(404, 'SUBSCRIBER_NOT_FOUND', { subscriberId: 'no-such-subscriber' }),
+        );
     });
 
     test('a refund paid out of a credit is shown with its reference at the gateway', async () => {
@@ -164,7 +163,7 @@ describe("the operator reads a subscriber's credits", () => {
             at: new Date('2026-02-10T09:00:00.000Z'),
         });
 
-        const [paidBack] = (await service.creditsOf('tenant-of-subscriber-1')).credits;
+        const [paidBack] = (await service.creditsOf('subscriber-1')).credits;
 
         assert.equal(paidBack.open, 0);
         assert.deepEqual(paidBack.entries, [
@@ -187,7 +186,7 @@ describe('a payout the operator records', () => {
         const [, fromInvoice] = ofTheFirst;
 
         const recorded = await service.payOut(
-            'tenant-of-subscriber-1',
+            'subscriber-1',
             fromInvoice.credit.id,
             payoutOf(40, '2026-03-03', { reference: '  TRF-2026-0042 ', note: '  ' }),
             'operator-1',
@@ -213,7 +212,7 @@ describe('a payout the operator records', () => {
         const [fromPayment] = ofTheFirst;
 
         await assert.rejects(
-            service.payOut('tenant-of-subscriber-1', fromPayment.credit.id, payoutOf(5.01), 'op'),
+            service.payOut('subscriber-1', fromPayment.credit.id, payoutOf(5.01), 'op'),
             refusedAs(409, INVOICE_ERROR_CODES.SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT, {
                 creditId: fromPayment.credit.id,
                 open: '5.00',
@@ -230,13 +229,13 @@ describe('a payout the operator records', () => {
         const [foreign] = ofTheSecond;
 
         await assert.rejects(
-            service.payOut('tenant-of-subscriber-1', foreign.credit.id, payoutOf(1), 'op'),
+            service.payOut('subscriber-1', foreign.credit.id, payoutOf(1), 'op'),
             refusedAs(404, INVOICE_ERROR_CODES.SUBSCRIBER_CREDIT_NOT_FOUND, {
                 creditId: foreign.credit.id,
             }),
         );
         await assert.rejects(
-            service.payOut('tenant-without', foreign.credit.id, payoutOf(1), 'op'),
+            service.payOut('no-such-subscriber', foreign.credit.id, payoutOf(1), 'op'),
             refusedAs(404, INVOICE_ERROR_CODES.SUBSCRIBER_CREDIT_NOT_FOUND),
         );
         assert.equal((await payments.listCredits('subscriber-2'))[0].open, 5);
@@ -250,7 +249,7 @@ describe('a payout the operator records', () => {
 
         await assert.rejects(
             service.payOut(
-                'tenant-of-subscriber-1',
+                'subscriber-1',
                 fromInvoice.credit.id,
                 payoutOf(1, '2026-03-05'),
                 'op',
@@ -262,7 +261,7 @@ describe('a payout the operator records', () => {
             }),
         );
         const recorded = await service.payOut(
-            'tenant-of-subscriber-1',
+            'subscriber-1',
             fromInvoice.credit.id,
             payoutOf(1, '2026-03-04'),
             'op',
@@ -315,7 +314,6 @@ describe('the route', () => {
         }).controllers;
         const logged = [];
         const controller = new Controller(
-            { getTenantDetail: async (slug) => ({ id: `tenant-of-${slug}`, slug }) },
             service,
             {
                 actorTagFromRequest: () => 'operator:op-1',
@@ -342,7 +340,7 @@ describe('the route', () => {
                 fromInvoice.credit.id,
                 'SUBSCRIBER_CREDIT_PAID_OUT',
                 {
-                    tenantId: 'tenant-of-subscriber-1',
+                    subscriberId: 'subscriber-1',
                     amount: 10,
                     reference: 'TRF-2026-0042',
                     paidOn: '2026-01-01',
@@ -363,8 +361,8 @@ describe('the route', () => {
         unrecorded.tenantBilling.chargeJournal.invoices.payments = undefined;
 
         assert.deepEqual(routes(collecting), [
-            'GET admin/tenants/:slug/credits',
-            'POST admin/tenants/:slug/credits/:creditId/payouts',
+            'GET admin/subscribers/:id/credits',
+            'POST admin/subscribers/:id/credits/:creditId/payouts',
         ]);
         assert.deepEqual(routes(unrecorded), []);
         assert.deepEqual(routes(withoutInvoicing(everythingOnOptions())), []);

@@ -90,9 +90,9 @@ export class InvoiceCancelCliFlow {
     async preview(options: InvoiceCancelOptions): Promise<InvoiceCancellationPlan> {
         const request = requestOf(options);
         await this.operator(options.as);
-        const { tenantId, invoiceId } = await this.invoiceOf(options);
+        const { invoiceId } = await this.invoiceOf(options);
         return refusalsAsCliErrors('INVOICE_CANCELLATION_REFUSED', () =>
-            this.cancellations.preview(tenantId, invoiceId, request),
+            this.cancellations.preview(invoiceId, request),
         );
     }
 
@@ -106,11 +106,11 @@ export class InvoiceCancelCliFlow {
         const request = requestOf(options);
         const identity = this.ctx.resolveIdentity(options.as);
         const user = await this.ctx.ensureSuperAdmin(identity);
-        const { tenantId, invoiceId } = await this.invoiceOf(options);
+        const { invoiceId } = await this.invoiceOf(options);
         await this.ctx.requireMfa(user.id);
         await this.ctx.ensureProductionConfirmation({ yes: options.yes });
         const cancelled = await refusalsAsCliErrors('INVOICE_CANCELLATION_REFUSED', () =>
-            this.cancellations.cancel(tenantId, invoiceId, request, identity.actor),
+            this.cancellations.cancel(invoiceId, request, identity.actor),
         );
         await this.ctx.log({ identity, userId: user.id, ...invoiceCancellationAudit(cancelled) });
         return cancelled;
@@ -177,9 +177,7 @@ export class InvoiceCancelCliFlow {
     }
 
     /** The tenant's id and the id of its invoice numbered as the options say. */
-    private async invoiceOf(
-        options: InvoiceCancelOptions,
-    ): Promise<{ tenantId: string; invoiceId: string }> {
+    private async invoiceOf(options: InvoiceCancelOptions): Promise<{ invoiceId: string }> {
         const slug = required(options.tenant, '--tenant <slug>');
         const number = required(options.invoice, '--invoice <number>');
         const tenant = await refusalsAsCliErrors('TENANT_NOT_FOUND', () =>
@@ -193,7 +191,7 @@ export class InvoiceCancelCliFlow {
                 EXIT_USER_ERROR,
             );
         }
-        return { tenantId: tenant.id, invoiceId };
+        return { invoiceId };
     }
 
     /** `read` in the bypass frame where one is bound, and plainly where none is. */

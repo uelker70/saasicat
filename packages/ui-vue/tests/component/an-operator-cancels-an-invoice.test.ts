@@ -1,4 +1,4 @@
-// The tenant page says of each invoice what it stands in relation to, and
+// The subscriber's record says of each invoice what it stands in relation to, and
 // cancels one that stands in two steps: what the operator gives — what of
 // each line is still owed among it —, then what the server says the
 // cancellation will write, confirmed behind the second factor.
@@ -8,24 +8,17 @@
 // is shown and what is sent.
 
 import { afterEach, describe, expect, test } from 'vitest';
-import { defineComponent } from 'vue';
-import { createMemoryHistory, createRouter } from 'vue-router';
 import {
     INVOICE_ERROR_CODES,
     type AdminInvoice,
     type AdminInvoiceCancellationPlan,
-    type AdminTenantInvoice,
+    type AdminSubscriberInvoice,
 } from '@saasicat/core';
 
 import { AdminError } from '../../src/client/admin-error.js';
-import TenantDetailPage from '../../src/pages/TenantDetailPage.vue';
-import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
-import { SUPER_ADMIN_MANIFEST_KEY } from '../../src/vue/super-admin-context.js';
-import { SUPER_ADMIN_NOTIFY_KEY } from '../../src/vue/ui-notify.js';
 import { dialog, enterTheCode, fieldOf, settle, typeInto } from './support/dialog-flow.js';
-import { provideStubResources } from './support/stub-resources.js';
+import { mountRecord } from './support/subscriber-record.js';
 
-const TENANT = { id: 't-1', slug: 'acme', name: 'Acme', isActive: true, users: [] };
 const CODE = '123456';
 
 const of = (number: string) => ({
@@ -34,7 +27,7 @@ const of = (number: string) => ({
     issueDate: '2026-02-01',
 });
 
-const invoice = (number: string, overrides: Partial<AdminTenantInvoice> = {}) => ({
+const invoice = (number: string, overrides: Partial<AdminSubscriberInvoice> = {}) => ({
     id: `invoice-${number.slice(-3)}`,
     number,
     issuedAt: '2026-02-01T05:15:00.000Z',
@@ -92,6 +85,7 @@ const RECORD = {
         addressLine2: null,
         business: true,
         vatIdValidated: true,
+        invoiceEmail: null,
         migrated: false,
     },
     readiness: null,
@@ -187,62 +181,39 @@ async function mountPage({
     cancelled = CANCELLED,
     readWith = async () => READ,
 }: {
-    manifest?: unknown;
+    manifest?: { capabilities: Record<string, boolean> };
     cancelWith?: () => never;
     plan?: unknown;
     cancelled?: unknown;
     readWith?: () => Promise<AdminInvoice>;
 } = {}) {
     const calls: Call[] = [];
-    const notices: Array<[string, string]> = [];
-    const router = createRouter({
-        history: createMemoryHistory(),
-        routes: [
-            { path: '/admin/tenants/:slug', component: TenantDetailPage },
-            { path: '/:rest(.*)', component: { template: '<div />' } },
-        ],
-    });
-    await router.push('/admin/tenants/acme');
-    await router.isReady();
-    const tenants = {
-        detail: async () => TENANT,
-        payments: async (...args: unknown[]) => {
-            calls.push(['payments', ...args]);
-            return PAYMENTS;
-        },
-        subscriber: async () => RECORD,
-        invoice: async (...args: unknown[]) => {
-            calls.push(['invoice', ...args]);
-            return readWith();
-        },
-        previewInvoiceCancellation: async (...args: unknown[]) => {
-            calls.push(['preview', ...args]);
-            return plan;
-        },
-        cancelInvoice: async (...args: unknown[]) => {
-            calls.push(['cancel', ...args]);
-            return cancelWith ? cancelWith() : cancelled;
-        },
-    };
-    // SAFETY: the two keys are the symbols the page injects its manifest and its
-    // notify port under, typed as Vue's injection keys rather than as symbols.
-    const manifestKey = SUPER_ADMIN_MANIFEST_KEY as symbol;
-    // SAFETY: as above, for the notify port.
-    const notifyKey = SUPER_ADMIN_NOTIFY_KEY as symbol;
-    const wrapper = mountWithQuasar(defineComponent({ template: '<router-view />' }), {
-        attachTo: document.body,
-        global: {
-            plugins: [router],
-            provide: {
-                ...provideStubResources({ tenants }),
-                [manifestKey]: () => manifest,
-                [notifyKey]: (kind: string, message: string) => notices.push([kind, message]),
+    const page = await mountRecord({
+        capabilities: manifest.capabilities,
+        attach: true,
+        subscribers: {
+            record: async () => ({ ...RECORD, tenants: [] }),
+            payments: async (...args: unknown[]) => {
+                calls.push(['payments', ...args]);
+                return PAYMENTS;
+            },
+            invoice: async (...args: unknown[]) => {
+                calls.push(['invoice', ...args]);
+                return readWith();
+            },
+            previewInvoiceCancellation: async (...args: unknown[]) => {
+                calls.push(['preview', ...args]);
+                return plan;
+            },
+            cancelInvoice: async (...args: unknown[]) => {
+                calls.push(['cancel', ...args]);
+                return cancelWith ? cancelWith() : cancelled;
             },
         },
     });
-    mounted.push(wrapper);
+    mounted.push(page.wrapper);
     await settle();
-    return { wrapper, calls, notices };
+    return { ...page, calls };
 }
 
 type Mounted = Awaited<ReturnType<typeof mountPage>>['wrapper'];
@@ -303,8 +274,8 @@ async function chooseAt(label: string, choice: string): Promise<void> {
 
 const REASON = 'The billing address was wrong.';
 
-// @requirement SC-ADM-034 — Each invoice on the tenant page says what it corrects and what cancelled it
-describe('the invoices on the tenant page', () => {
+// @requirement SC-ADM-040 — Each invoice in the subscriber's record says what it corrects and what cancelled it
+describe('the invoices in the subscriber’s record', () => {
     test('say what each stands in relation to, and offer cancelling only where one stands', async () => {
         const { wrapper } = await mountPage();
 
@@ -328,7 +299,7 @@ describe('the invoices on the tenant page', () => {
 
 // @requirement SC-UI-017 — A confirmation shows the answer to the question actually being asked
 // @requirement SC-UI-009 — A destructive action says what it will destroy, by name
-describe('an invoice cancelled from the tenant page', () => {
+describe('an invoice cancelled from the subscriber’s record', () => {
     test('names the invoice, and previews nothing before a reason is given', async () => {
         const { wrapper, calls } = await mountPage();
 
@@ -361,13 +332,10 @@ describe('an invoice cancelled from the tenant page', () => {
         dialogButton('Show preview').click();
         await settle();
 
-        expect(calls.filter(([what]) => what === 'invoice')).toEqual([
-            ['invoice', 'acme', 'invoice-124'],
-        ]);
+        expect(calls.filter(([what]) => what === 'invoice')).toEqual([['invoice', 'invoice-124']]);
         expect(calls.filter(([what]) => what === 'preview')).toEqual([
             [
                 'preview',
-                'acme',
                 'invoice-124',
                 {
                     reason: REASON,
@@ -438,7 +406,6 @@ describe('an invoice cancelled from the tenant page', () => {
         expect(calls.filter(([what]) => what === 'cancel')).toEqual([
             [
                 'cancel',
-                'acme',
                 'invoice-124',
                 {
                     reason: REASON,
@@ -501,7 +468,7 @@ describe('an invoice cancelled from the tenant page', () => {
 });
 
 // @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
-describe('the lines of an invoice cancelled from the tenant page', () => {
+describe('the lines of an invoice cancelled from the subscriber’s record', () => {
     async function openedAt(options: Parameters<typeof mountPage>[0] = {}) {
         const page = await mountPage(options);
         await cancelAt(page.wrapper, 'AHP-2026-000124').trigger('click');
@@ -555,7 +522,7 @@ describe('the lines of an invoice cancelled from the tenant page', () => {
         dialogButton('Show preview').click();
         await settle();
 
-        expect(calls.filter(([what]) => what === 'preview').map((call) => call[3])).toEqual([
+        expect(calls.filter(([what]) => what === 'preview').map((call) => call[2])).toEqual([
             { reason: REASON, deliverTo: null, lines: [{ position: 1, owed: 24.5 }] },
         ]);
     });
@@ -574,7 +541,7 @@ describe('the lines of an invoice cancelled from the tenant page', () => {
         dialogButton('Show preview').click();
         await settle();
 
-        expect(calls.filter(([what]) => what === 'preview').map((call) => call[3])).toEqual([
+        expect(calls.filter(([what]) => what === 'preview').map((call) => call[2])).toEqual([
             { reason: REASON, deliverTo: null, lines: [{ position: 1, owed: 0 }] },
             { reason: REASON, deliverTo: null },
         ]);

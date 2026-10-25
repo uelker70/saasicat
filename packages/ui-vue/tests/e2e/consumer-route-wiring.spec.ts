@@ -201,13 +201,14 @@ test.describe('an assembled consumer app resolves every one of its routes', () =
             // This is still not fixture data and must not grow into it: the
             // shape comes from the prop type, the content stays empty.
             //
-            // `/settings`, `/maintenance` and `/reconciliation` answer an object
-            // that `null` cannot stand for — each page's resource refuses it —
-            // so those routes are swept in their failure state on purpose: it
-            // proves the page mounts and shows its error banner, no more. The
-            // visual suite renders them with data.
+            // `/settings`, `/maintenance`, `/reconciliation`, the list of
+            // subscribers and a subscriber's record answer an object that `null`
+            // cannot stand for — each page's resource refuses it — so those
+            // routes are swept in their failure state on purpose: it proves the
+            // page mounts and shows its error banner, no more. The visual suite
+            // renders them with data.
             const OBJECT_VALUED =
-                /\/discovery(\/rescan)?$|\/manifest$|\/setup\/status$|\/settings$|\/maintenance$|\/reconciliation$/;
+                /\/discovery(\/rescan)?$|\/manifest$|\/setup\/status$|\/settings$|\/maintenance$|\/reconciliation$|\/subscribers(\/[^/]+)?$/;
             await page.route('**/api/**', (route) =>
                 route.fulfill({
                     status: 200,

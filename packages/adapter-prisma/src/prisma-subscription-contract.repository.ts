@@ -6,6 +6,7 @@ import type {
     SubscriptionContractFilter,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
+    SubscriptionContractStatus,
     SupersedeSubscriptionContractData,
     TerminateSubscriptionContractData,
     TransactionContext,
@@ -26,6 +27,15 @@ import {
     type PrismaModelDelegateLike,
 } from './prisma-client-token.js';
 import { isRecordNotFound } from './prisma-record-not-found.js';
+
+/** The `where` of a contract list, each part only where the filter names it. */
+interface ContractListWhere {
+    tenantId?: string;
+    subscriberId?: string;
+    status?: SubscriptionContractStatus;
+    effectiveFrom?: { lte: Date };
+    OR?: Array<{ effectiveUntil: null } | { effectiveUntil: { gt: Date } }>;
+}
 
 /**
  * What this repository reads from `contract_line_items`.
@@ -92,17 +102,16 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
     }
 
     async list(filter: SubscriptionContractFilter): Promise<SubscriptionContractRecord[]> {
+        const where: ContractListWhere = {};
+        if (filter.tenantId) where.tenantId = filter.tenantId;
+        if (filter.subscriberId) where.subscriberId = filter.subscriberId;
+        if (filter.status) where.status = filter.status;
+        if (filter.asOf) {
+            where.effectiveFrom = { lte: filter.asOf };
+            where.OR = [{ effectiveUntil: null }, { effectiveUntil: { gt: filter.asOf } }];
+        }
         const rows = await this.db().subscriptionContract.findMany({
-            where: {
-                ...(filter.tenantId ? { tenantId: filter.tenantId } : {}),
-                ...(filter.status ? { status: filter.status } : {}),
-                ...(filter.asOf
-                    ? {
-                          effectiveFrom: { lte: filter.asOf },
-                          OR: [{ effectiveUntil: null }, { effectiveUntil: { gt: filter.asOf } }],
-                      }
-                    : {}),
-            },
+            where,
             include: { lineItems: true },
             orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
         });

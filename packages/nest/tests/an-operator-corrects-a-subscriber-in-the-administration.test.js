@@ -12,14 +12,13 @@ import assert from 'node:assert/strict';
 
 import 'reflect-metadata';
 import { BadRequestException, NotFoundException, ValidationPipe } from '@nestjs/common';
-import { BILLING_ERROR_CODES } from '@saasicat/core';
 
 import { aPlatform } from './helpers/operator-subscriber-platform.js';
 
-const IDENTITY_ROUTE = 'POST admin/tenants/:slug/subscriber/identity';
-const BUSINESS_ROUTE = 'POST admin/tenants/:slug/subscriber/business-status';
-const CHECK_ROUTE = 'POST admin/tenants/:slug/subscriber/vat-id-check';
-const HISTORY_ROUTE = 'GET admin/tenants/:slug/subscriber/history';
+const IDENTITY_ROUTE = 'POST admin/subscribers/:id/identity';
+const BUSINESS_ROUTE = 'POST admin/subscribers/:id/business-status';
+const CHECK_ROUTE = 'POST admin/subscribers/:id/vat-id-check';
+const HISTORY_ROUTE = 'GET admin/subscribers/:id/history';
 
 /** The operator's request, as the application's guards leave it. */
 const REQUEST = { user: { sub: 'op-1', email: 'anna@ops.example' }, headers: {} };
@@ -32,22 +31,27 @@ const invalidAnswer = (vatId) => ({
 });
 const unreachable = () => ({ completed: false, reason: 'VIES timed out after 10 s.' });
 
-/** The platform, with the operator's routes as functions. */
+/**
+ * The platform, with the operator's routes as functions. Each names the
+ * subscriber by its tenant's slug, as the fixture keeps them, and asks the
+ * route by the subscriber's id.
+ */
 async function anAdministration(options) {
     const platform = await aPlatform(options);
+    const { idOf } = platform;
     return {
         ...platform,
-        correct: (slug, body) => platform.call(IDENTITY_ROUTE)(slug, body, REQUEST),
-        changeBusiness: (slug, body) => platform.call(BUSINESS_ROUTE)(slug, body, REQUEST),
-        check: (slug) => platform.call(CHECK_ROUTE)(slug, REQUEST),
-        history: async (slug) => (await platform.call(HISTORY_ROUTE)(slug)).entries,
+        correct: (slug, body) => platform.call(IDENTITY_ROUTE)(idOf(slug), body, REQUEST),
+        changeBusiness: (slug, body) => platform.call(BUSINESS_ROUTE)(idOf(slug), body, REQUEST),
+        check: (slug) => platform.call(CHECK_ROUTE)(idOf(slug), REQUEST),
+        history: async (slug) => (await platform.call(HISTORY_ROUTE)(idOf(slug))).entries,
         auditedActions: () => platform.seen.audited.map((entry) => entry.action),
     };
 }
 
 const refusedWith = (code) => (error) => error.getResponse?.().code === code;
 
-// @requirement SC-SUB-041 — The operator corrects a subscriber's identity and business status, with a reason
+// @requirement SC-SUB-045 — The operator corrects a subscriber's identity and business status in its record
 describe("the operator corrects a subscriber's legal identity", () => {
     test('the corrected values are what the subscriber now shows, recorded with who and why, and audited', async () => {
         const admin = await anAdministration();
@@ -201,7 +205,7 @@ describe("the operator corrects a subscriber's legal identity", () => {
     });
 });
 
-// @requirement SC-SUB-041 — The operator corrects a subscriber's identity and business status, with a reason
+// @requirement SC-SUB-045 — The operator corrects a subscriber's identity and business status in its record
 describe('the operator changes whether a subscriber acts as a business', () => {
     test('with a reason it is recorded, answered as it now stands, and audited', async () => {
         const admin = await anAdministration();
@@ -297,7 +301,7 @@ describe('the operator checks the VAT number held, again', () => {
     });
 });
 
-// @requirement SC-ADM-032 — The operator reads a subscriber's history, with who, when and why
+// @requirement SC-ADM-038 — The operator reads a subscriber's history in its record, with who, when and why
 describe("the subscriber's history", () => {
     test('names each correction, change and check once, the latest first, with who and why', async () => {
         const admin = await anAdministration();
@@ -330,10 +334,10 @@ describe("the subscriber's history", () => {
         for (const entry of entries) assert.ok(!Number.isNaN(Date.parse(entry.at)), entry.at);
     });
 
-    test('a tenant without a subscriber has none', async () => {
+    test('of a subscriber there is not is refused, by code', async () => {
         const admin = await anAdministration();
 
-        assert.deepEqual(await admin.history('empty'), []);
+        await assert.rejects(admin.history('empty'), refusedWith('SUBSCRIBER_NOT_FOUND'));
     });
 });
 
@@ -350,27 +354,25 @@ describe('every subscriber route', () => {
         ],
         ['a check', (admin, slug) => admin.check(slug)],
     ]) {
-        test(`${what}: an unknown tenant is not found, by code, and a tenant without a subscriber has none to correct`, async () => {
+        test(`${what}: a subscriber there is not is not found, by code, and nothing is audited`, async () => {
             const admin = await anAdministration();
 
             await assert.rejects(
                 act(admin, 'nowhere'),
                 (error) =>
                     error instanceof NotFoundException &&
-                    error.getResponse().code === BILLING_ERROR_CODES.TENANT_NOT_FOUND,
+                    error.getResponse().code === 'SUBSCRIBER_NOT_FOUND',
             );
-            await assert.rejects(act(admin, 'empty'), refusedWith('SUBSCRIBER_REQUIRED'));
             assert.deepEqual(admin.auditedActions(), []);
         });
 
         // @requirement SC-SEC-015 — An operator's route runs across tenants, and no other route does
-        test(`${what}: the tenant is found and its subscriber read outside the tenants' row-level policy`, async () => {
+        test(`${what}: the subscriber is read outside the tenants' row-level policy`, async () => {
             const admin = await anAdministration();
 
             await act(admin, 'wien');
 
-            assert.ok(admin.seen.lookups.length > 0);
-            assert.ok(admin.seen.lookups.every(({ bypassed }) => bypassed));
+            assert.ok(admin.seen.reads.length > 0);
             assert.ok(admin.seen.reads.every(({ bypassed }) => bypassed));
         });
     }

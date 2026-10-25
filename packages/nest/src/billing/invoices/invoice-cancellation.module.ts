@@ -35,7 +35,6 @@ import {
     type RlsBypassPort,
 } from '@saasicat/core';
 
-import { AdminResourcesService } from '../../admin/admin-resources.module.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { EnforceMfa } from '../../admin/enforce-mfa.decorator.js';
 import { UseRouteGuards } from '../../admin/use-route-guards.decorator.js';
@@ -180,10 +179,10 @@ export interface InvoiceCancellationModuleOptions {
     /** The same chain the tenant routes of the administration run behind. */
     guards: Array<Type<CanActivate>>;
     /**
-     * Must bring `AdminResourcesService` and `InvoiceCancellationService` into
-     * scope — the modules that already provide them, passed as the very
-     * objects the application imports. The `RlsBypassPort` and the second
-     * factor have to be visible too; `SaaSiCatModule` provides them globally.
+     * Must bring `InvoiceCancellationService` into scope — the module that
+     * already provides it, passed as the very object the application imports.
+     * The `RlsBypassPort` and the second factor have to be visible too;
+     * `SaaSiCatModule` provides them globally.
      */
     imports: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
 }
@@ -194,8 +193,6 @@ function buildInvoiceCancellationController(guards: Array<Type<CanActivate>>): T
     @UseRouteGuards(...guards)
     class GeneratedInvoiceCancellationController {
         constructor(
-            @Inject(AdminResourcesService)
-            private readonly tenants: AdminResourcesService,
             @Inject(InvoiceCancellationService)
             private readonly cancellations: InvoiceCancellationService,
             @Inject(WebAuditLogger)
@@ -209,17 +206,12 @@ function buildInvoiceCancellationController(guards: Array<Type<CanActivate>>): T
         /**
          * The invoice with its lines, each with what its charge stands at and
          * whether the cancellation may correct it, so the cancel dialog offers
-         * what the cancellation accepts (`SC-ADM-035`).
+         * what the cancellation accepts (`SC-ADM-035`). Keyed by the invoice
+         * alone, so an invoice of a tenant deleted since is reached as well.
          */
-        @Get('tenants/:slug/invoices/:invoiceId')
-        invoice(
-            @Param('slug') slug: string,
-            @Param('invoiceId') invoiceId: string,
-        ): Promise<AdminInvoice> {
-            return this.rlsBypass.runWithBypass(async () => {
-                const tenant = await this.tenants.getTenantDetail(slug);
-                return this.cancellations.invoiceOf(tenant.id, invoiceId);
-            });
+        @Get('invoices/:invoiceId')
+        invoice(@Param('invoiceId') invoiceId: string): Promise<AdminInvoice> {
+            return this.rlsBypass.runWithBypass(() => this.cancellations.invoiceOf(invoiceId));
         }
 
         /**
@@ -229,17 +221,13 @@ function buildInvoiceCancellationController(guards: Array<Type<CanActivate>>): T
          * so the confirmation shows what the cancellation will do
          * (`SC-UI-017`).
          */
-        @Post('tenants/:slug/invoices/:invoiceId/cancellation/preview')
+        @Post('invoices/:invoiceId/cancellation/preview')
         @HttpCode(200)
         preview(
-            @Param('slug') slug: string,
             @Param('invoiceId') invoiceId: string,
             @Body() body: CancelInvoiceDto,
         ): Promise<InvoiceCancellationPlan> {
-            return this.rlsBypass.runWithBypass(async () => {
-                const tenant = await this.tenants.getTenantDetail(slug);
-                return this.cancellations.preview(tenant.id, invoiceId, body);
-            });
+            return this.rlsBypass.runWithBypass(() => this.cancellations.preview(invoiceId, body));
         }
 
         /**
@@ -247,19 +235,16 @@ function buildInvoiceCancellationController(guards: Array<Type<CanActivate>>): T
          * with the second factor (`SC-ADM-019`), and records it in the audit
          * log under the operator (`SC-ADM-020`).
          */
-        @Post('tenants/:slug/invoices/:invoiceId/cancellation')
+        @Post('invoices/:invoiceId/cancellation')
         @HttpCode(200)
         @EnforceMfa()
         cancel(
-            @Param('slug') slug: string,
             @Param('invoiceId') invoiceId: string,
             @Body() body: CancelInvoiceDto,
             @Req() request: unknown,
         ): Promise<CancelledInvoice> {
             return this.rlsBypass.runWithBypass(async () => {
-                const tenant = await this.tenants.getTenantDetail(slug);
                 const cancelled = await this.cancellations.cancel(
-                    tenant.id,
                     invoiceId,
                     body,
                     this.audit.actorTagFromRequest(request),
@@ -276,10 +261,9 @@ function buildInvoiceCancellationController(guards: Array<Type<CanActivate>>): T
 
 /**
  * The operator's cancellation of an issued invoice, with its preview and the
- * read of the invoice's lines it starts from, served beside the tenant it
- * belongs to. Mounted where the platform shows tenants
- * and serves the invoices' documents: an invoice is cancelled only once its
- * document is archived.
+ * read of the invoice's lines it starts from, each reached by the invoice's
+ * own id. Mounted where the platform shows tenants and serves the invoices'
+ * documents: an invoice is cancelled only once its document is archived.
  */
 @Module({})
 export class InvoiceCancellationModule {

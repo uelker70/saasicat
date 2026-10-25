@@ -14,7 +14,11 @@ import type {
     SubscriberCorrectionResult,
     SubscriberRecord,
     SubscriberRepository,
+    SubscriberSearch,
+    SubscriberSearchPage,
+    SubscriberSearchTerms,
     SubscriberTaxOriginChangeRecord,
+    SubscriberTenantLinkRecord,
     SubscriberVatIdCheckRecord,
     SubscriberWithCurrentCheck,
     TaxOriginWrite,
@@ -25,11 +29,13 @@ import {
     identityCorrectionDelta,
     keepsVatIdCheck,
     taxOriginWrite,
+    tenantLinksInOrder,
     toSubscriberCorrectionRecord,
     toSubscriberRecord,
     toSubscriberTaxOriginChangeRecord,
     toSubscriberVatIdCheckRecord,
 } from '@saasicat/core';
+import { literalInLike } from './like-pattern.js';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
 /** A subscriber row with its live tenant link, when it has one. */
@@ -43,6 +49,8 @@ interface SubscriberTenantDbRow {
     id: string;
     subscriberId: string;
     tenantId: string;
+    linkedAt: Date;
+    unlinkedAt: Date | null;
 }
 
 /** Narrow view of the client and of a transaction client, which carry the same delegates. */
@@ -338,6 +346,38 @@ export class PrismaSubscriberRepository implements SubscriberRepository {
         });
     }
 
+    async search(search: SubscriberSearch): Promise<SubscriberSearchPage> {
+        const db = this.db();
+        const conditions: SubscriberSearchCondition[] = [];
+        if (search.terms) conditions.push({ OR: searchMatchesOf(search.terms) });
+        if (search.withoutLiveTenant) conditions.push({ tenants: { none: { unlinkedAt: null } } });
+        if (search.after) {
+            const after = await db.subscriber.findUnique({
+                where: { id: search.after },
+                select: { customerSequence: true },
+            });
+            if (after) conditions.push({ customerSequence: { lt: after.customerSequence } });
+        }
+        const rows = await db.subscriber.findMany({
+            where: { AND: conditions },
+            include: WITH_LIVE_TENANT,
+            orderBy: [{ customerSequence: 'desc' }],
+            // One more than the page, to know whether another follows.
+            take: search.limit + 1,
+        });
+        return {
+            subscribers: rows.slice(0, search.limit).map(toRecord),
+            hasMore: rows.length > search.limit,
+        };
+    }
+
+    async listTenantLinks(subscriberId: string): Promise<SubscriberTenantLinkRecord[]> {
+        const rows = await this.db().subscriberTenant.findMany({ where: { subscriberId } });
+        return tenantLinksInOrder(
+            rows.map(({ tenantId, linkedAt, unlinkedAt }) => ({ tenantId, linkedAt, unlinkedAt })),
+        );
+    }
+
     async listTaxOriginChanges(subscriberId: string): Promise<SubscriberTaxOriginChangeRecord[]> {
         const rows = await this.db().subscriberTaxOriginChange.findMany({
             where: { subscriberId },
@@ -345,6 +385,47 @@ export class PrismaSubscriberRepository implements SubscriberRepository {
         });
         return rows.map(toSubscriberTaxOriginChangeRecord);
     }
+}
+
+/** A part of a search's `where`, as the Prisma client takes it. */
+type SubscriberSearchCondition =
+    | { OR: SubscriberSearchMatch[] }
+    | { tenants: { none: { unlinkedAt: null } } }
+    | { customerSequence: { lt: number } };
+
+/** Matched case-insensitively — with ILIKE, where `%` and `_` are wildcards unless escaped. */
+interface InsensitiveText {
+    mode: 'insensitive';
+    contains?: string;
+    equals?: string;
+}
+
+interface CustomerNumberMatch {
+    customerSequence: number;
+    customerNumberPrefix?: InsensitiveText;
+}
+
+type SubscriberSearchMatch =
+    { legalName: InsensitiveText } | CustomerNumberMatch | { vatId: string };
+
+/** What a subscriber matches the terms by: its legal name, its customer number or its VAT number. */
+function searchMatchesOf(terms: SubscriberSearchTerms): SubscriberSearchMatch[] {
+    const matches: SubscriberSearchMatch[] = [
+        { legalName: { contains: literalInLike(terms.legalName), mode: 'insensitive' } },
+    ];
+    const number = terms.customerNumber;
+    if (number) {
+        const byNumber: CustomerNumberMatch = { customerSequence: number.sequence };
+        if (number.prefix !== null) {
+            byNumber.customerNumberPrefix = {
+                equals: literalInLike(number.prefix),
+                mode: 'insensitive',
+            };
+        }
+        matches.push(byNumber);
+    }
+    if (terms.vatId) matches.push({ vatId: terms.vatId });
+    return matches;
 }
 
 /**

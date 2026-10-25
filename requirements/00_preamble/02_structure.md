@@ -79,7 +79,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 65      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 44      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 45      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -88,7 +88,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 35      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 40      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 27      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 657 entries: 🟢 566 stand today, 🟡 50 decided but not yet delivered, ⚪ 0 drafts,
-🔵 36 superseded, 🔴 5 withdrawn.
+Of 663 entries: 🟢 567 stand today, 🟡 50 decided but not yet delivered, ⚪ 0 drafts,
+🔵 41 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -163,6 +163,7 @@ Of 657 entries: 🟢 566 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-SUB-020](#sc-sub-020--a-newer-version-is-offered-classified-against-the-version-bound),
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
+[SC-SUB-041](#sc-sub-041--the-operator-corrects-a-subscribers-identity-and-business-status-with-a-reason),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
 [SC-CANC-025](#sc-canc-025--a-cancellation-is-judged-by-the-notice-period-its-contract-recorded),
 [SC-PRIC-003](#sc-pric-003--this-platform-never-pays-money-back),
@@ -186,6 +187,10 @@ Of 657 entries: 🟢 566 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-PROMO-008](#sc-promo-008--an-absolute-discount-stays-below-the-lowest-price-it-can-apply-to),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
 [SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
+[SC-ADM-028](#sc-adm-028--an-operator-reads-a-subscribers-charges-beside-its-tenant),
+[SC-ADM-032](#sc-adm-032--the-operator-reads-a-subscribers-history-with-who-when-and-why),
+[SC-ADM-033](#sc-adm-033--the-operator-reconciles-what-no-credit-matched-and-closes-each-case-with-a-note),
+[SC-ADM-034](#sc-adm-034--each-invoice-on-the-tenant-page-says-what-it-corrects-and-what-cancelled-it),
 [SC-CFG-034](#sc-cfg-034--an-installation-whose-plans-live-in-the-database-reads-its-settings-from-the-file),
 [SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source),
 [SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),

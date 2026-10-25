@@ -244,6 +244,12 @@ function createHarness() {
                 });
                 return { subscriberId: row.id };
             },
+            async closeTenantLink(subscriberId, at) {
+                await prisma.subscriberTenant.updateMany({
+                    where: { subscriberId, unlinkedAt: null },
+                    data: { unlinkedAt: at },
+                });
+            },
             async createPromoCode(input) {
                 const row = await prisma.promoCode.create({
                     data: {

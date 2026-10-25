@@ -25,6 +25,7 @@ import type {
     AdminTenantListFilter,
     AdminTenantListRow,
     AdminTenantStateResult,
+    AdminTenantSummary,
     AdminUserListFilter,
     AdminUserListRow,
     AuditEntry,
@@ -77,6 +78,11 @@ export class AdminResourcesService {
             });
         }
         return tenant;
+    }
+
+    /** The tenants among `tenantIds` the application still has; one it no longer has is left out. */
+    findTenantsByIds(tenantIds: readonly string[]): Promise<AdminTenantSummary[]> {
+        return this.resources.findTenantsByIds([...new Set(tenantIds)]);
     }
 
     listUsers(filter: AdminUserListFilter): Promise<AdminUserListRow[]> {

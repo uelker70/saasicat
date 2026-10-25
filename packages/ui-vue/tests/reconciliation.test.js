@@ -5,7 +5,7 @@
 // and closed, and closing a case behind the second factor; and a tenant's
 // payments, asked for only where the manifest announces them.
 
-// @requirement SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+// @requirement SC-ADM-039 — The operator reconciles what no credit matched, and finds each case in the record
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,10 +14,10 @@ import { nextTick, ref } from 'vue';
 import {
     bindResource,
     reconciliationResource,
-    tenantsResource,
+    subscribersResource,
     useReconciliation,
 } from '../dist/index.js';
-import { useTenantPayments } from '../dist/vue/index.js';
+import { useSubscriberPayments } from '../dist/vue/index.js';
 import { answeringSecondFactor } from './support/retirement-flow.mjs';
 
 const CTX = { apiBase: '/api/v1/admin', locale: 'en' };
@@ -101,15 +101,18 @@ describe('reconciliationResource', () => {
     });
 });
 
-describe('tenantsResource.payments', () => {
-    test("asks for the tenant's payments, with its slug escaped", async () => {
+describe('subscribersResource.payments', () => {
+    test("asks for the subscriber's payments, with its id escaped", async () => {
         const payments = { invoices: [], openCases: [] };
         const { http, calls } = recordingHttp(payments);
 
-        assert.deepEqual(await bindResource(tenantsResource, http, CTX).payments('a b'), payments);
+        assert.deepEqual(
+            await bindResource(subscribersResource, http, CTX).payments('a b'),
+            payments,
+        );
         assert.deepEqual(
             calls.map((call) => call.url),
-            ['/api/v1/admin/tenants/a%20b/payments'],
+            ['/api/v1/admin/subscribers/a%20b/payments'],
         );
     });
 });
@@ -214,30 +217,30 @@ describe('the list of cases', () => {
     });
 });
 
-describe("a tenant's payments", () => {
+describe("a subscriber's payments", () => {
     const manifestWith = (capabilities) => ref({ capabilities });
 
     test('are read where the manifest announces them, and not otherwise', async () => {
         const asked = [];
-        const tenants = {
-            payments: async (slug) => {
-                asked.push(slug);
+        const subscribers = {
+            payments: async (id) => {
+                asked.push(id);
                 return { invoices: [], openCases: [] };
             },
         };
 
-        const served = useTenantPayments(
-            ref('northwind'),
+        const served = useSubscriberPayments(
+            ref('s-northwind'),
             manifestWith({ 'payments.read': true }),
-            tenants,
+            subscribers,
         );
-        const unserved = useTenantPayments(ref('northwind'), manifestWith({}), tenants);
+        const unserved = useSubscriberPayments(ref('s-northwind'), manifestWith({}), subscribers);
         await settled();
 
         assert.equal(served.available.value, true);
         assert.deepEqual(served.data.value, { invoices: [], openCases: [] });
         assert.equal(unserved.available.value, false);
         assert.equal(unserved.data.value, null);
-        assert.deepEqual(asked, ['northwind']);
+        assert.deepEqual(asked, ['s-northwind']);
     });
 });

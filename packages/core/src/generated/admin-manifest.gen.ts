@@ -76,6 +76,7 @@ export interface AdminManifest {
         standardPages: {
             dashboard?: StandardPageDef;
             tenants?: StandardPageDef;
+            subscribers?: StandardPageDef;
             subscriptions?: StandardPageDef;
             promoCodes?: StandardPageDef;
             plans?: StandardPageDef;

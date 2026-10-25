@@ -26,7 +26,6 @@ import {
 } from 'class-validator';
 import type { AdminSubscriberCredits, CalendarDay, RlsBypassPort } from '@saasicat/core';
 
-import { AdminResourcesService } from '../../admin/admin-resources.module.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { EnforceMfa } from '../../admin/enforce-mfa.decorator.js';
 import { UseRouteGuards } from '../../admin/use-route-guards.decorator.js';
@@ -73,10 +72,10 @@ export interface SubscriberCreditModuleOptions {
     /** The same chain the tenant routes of the administration run behind. */
     guards: Array<Type<CanActivate>>;
     /**
-     * Must bring `AdminResourcesService` and `SubscriberCreditService` into
-     * scope — the modules that already provide them, passed as the very
-     * objects the application imports. The `RlsBypassPort` and the second
-     * factor have to be visible too; `SaaSiCatModule` provides them globally.
+     * Must bring `SubscriberCreditService` into scope — the module that
+     * already provides it, passed as the very object the application imports.
+     * The `RlsBypassPort` and the second factor have to be visible too;
+     * `SaaSiCatModule` provides them globally.
      */
     imports: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
 }
@@ -87,8 +86,6 @@ function buildSubscriberCreditController(guards: Array<Type<CanActivate>>): Type
     @UseRouteGuards(...guards)
     class GeneratedSubscriberCreditController {
         constructor(
-            @Inject(AdminResourcesService)
-            private readonly tenants: AdminResourcesService,
             @Inject(SubscriberCreditService)
             private readonly credits: SubscriberCreditService,
             @Inject(WebAuditLogger)
@@ -99,33 +96,29 @@ function buildSubscriberCreditController(guards: Array<Type<CanActivate>>): Type
             private readonly rlsBypass: RlsBypassPort,
         ) {}
 
-        /** The credits of the tenant's subscriber, with what paid each out and what is open. */
-        @Get('tenants/:slug/credits')
-        creditsOf(@Param('slug') slug: string): Promise<AdminSubscriberCredits> {
-            return this.rlsBypass.runWithBypass(async () => {
-                const tenant = await this.tenants.getTenantDetail(slug);
-                return this.credits.creditsOf(tenant.id);
-            });
+        /** The subscriber's credits, with what paid each out and what is open. */
+        @Get('subscribers/:id/credits')
+        creditsOf(@Param('id') id: string): Promise<AdminSubscriberCredits> {
+            return this.rlsBypass.runWithBypass(() => this.credits.creditsOf(id));
         }
 
         /**
          * Records a payout the operator made outside the gateway against one
-         * credit of the tenant's subscriber, with the second factor, and
-         * answers the credits as they stand after it.
+         * of the subscriber's credits, with the second factor, and answers the
+         * credits as they stand after it.
          */
-        @Post('tenants/:slug/credits/:creditId/payouts')
+        @Post('subscribers/:id/credits/:creditId/payouts')
         @HttpCode(200)
         @EnforceMfa()
         payOut(
-            @Param('slug') slug: string,
+            @Param('id') id: string,
             @Param('creditId') creditId: string,
             @Body() body: RecordSubscriberPayoutDto,
             @Req() request: unknown,
         ): Promise<AdminSubscriberCredits> {
             return this.rlsBypass.runWithBypass(async () => {
-                const tenant = await this.tenants.getTenantDetail(slug);
                 const recorded = await this.credits.payOut(
-                    tenant.id,
+                    id,
                     creditId,
                     body,
                     this.audit.actorTagFromRequest(request),
@@ -136,7 +129,7 @@ function buildSubscriberCreditController(guards: Array<Type<CanActivate>>): Type
                     creditId,
                     'SUBSCRIBER_CREDIT_PAID_OUT',
                     {
-                        tenantId: tenant.id,
+                        subscriberId: id,
                         amount: recorded.entry.amount,
                         reference: recorded.entry.reference,
                         paidOn: recorded.entry.paidOn,
@@ -152,8 +145,8 @@ function buildSubscriberCreditController(guards: Array<Type<CanActivate>>): Type
 
 /**
  * The operator's view of a subscriber's credits, and the payout recorded
- * against one, served beside the tenant they belong to. Mounted where the
- * platform shows tenants and records what invoices' collections brought.
+ * against one, served in the subscriber's record. Mounted where the platform
+ * shows tenants and records what invoices' collections brought.
  */
 @Module({})
 export class SubscriberCreditModule {

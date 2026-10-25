@@ -3,7 +3,7 @@
 // `RECONCILIATION_READ_CAPABILITY`; elsewhere every route answers 404.
 //
 // Closing carries the second factor: it declares a mismatch of money
-// reconciled for good (`SC-ADM-033`).
+// reconciled for good (`SC-ADM-039`).
 
 import type {
     AdminReconciliationCase,

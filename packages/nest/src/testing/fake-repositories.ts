@@ -37,8 +37,11 @@ import type {
     SubscriberCorrectionResult,
     SubscriberRecord,
     SubscriberRepository,
+    SubscriberSearch,
+    SubscriberSearchPage,
     RecordedVatIdCheck,
     SubscriberTaxOriginChangeRecord,
+    SubscriberTenantLinkRecord,
     SubscriberVatIdCheckRecord,
     SubscriberWithCurrentCheck,
     TaxOriginWrite,
@@ -75,6 +78,7 @@ import {
     identityCorrectionDelta,
     keepsVatIdCheck,
     taxOriginWrite,
+    tenantLinksInOrder,
     isVersionActiveAt,
 } from '@saasicat/core';
 
@@ -287,6 +291,7 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
     async list(filter: SubscriptionContractFilter): Promise<SubscriptionContractRecord[]> {
         return [...this.byId.values()]
             .filter((row) => !filter.tenantId || row.tenantId === filter.tenantId)
+            .filter((row) => !filter.subscriberId || row.subscriberId === filter.subscriberId)
             .filter((row) => !filter.status || row.status === filter.status)
             .filter((row) => !filter.asOf || this.isActiveAt(row, filter.asOf))
             .sort((a, b) => b.effectiveFrom.getTime() - a.effectiveFrom.getTime())
@@ -466,9 +471,9 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
 
 /**
  * In-memory FakeSubscriberRepository — one live subscriber per tenant, customer
- * numbers counted from 10001 like the canonical schema, and corrections
- * recorded with the values they replaced. No transactions: `tx` is accepted and
- * ignored.
+ * numbers counted from 10001 like the canonical schema, every tenant link kept
+ * once it is closed, and corrections recorded with the values they replaced.
+ * No transactions: `tx` is accepted and ignored.
  */
 export class FakeSubscriberRepository implements SubscriberRepository {
     /** Where the canonical schema starts counting (`sql/constraints.postgres.sql`). */
@@ -485,6 +490,9 @@ export class FakeSubscriberRepository implements SubscriberRepository {
     private readonly vatIdSince = new Map<string, Date>();
     private nextSequence = FakeSubscriberRepository.FIRST_CUSTOMER_NUMBER;
     private nextCorrectionId = 1;
+    /** The number each subscriber was assigned, apart from its prefix, as the schema keeps it. */
+    private readonly numbers = new Map<string, { prefix: string; sequence: number }>();
+    private readonly links: Array<SubscriberTenantLinkRecord & { subscriberId: string }> = [];
 
     async createForTenant(data: CreateSubscriberData): Promise<SubscriberRecord | null> {
         if (this.liveFor(data.tenantId)) return null;
@@ -501,7 +509,60 @@ export class FakeSubscriberRepository implements SubscriberRepository {
             updatedAt: now,
         };
         this.byId.set(record.id, record);
+        this.numbers.set(record.id, { prefix: customerNumberPrefix, sequence });
+        this.links.push({ subscriberId: record.id, tenantId, linkedAt: now, unlinkedAt: null });
         return { ...record };
+    }
+
+    /**
+     * Closes the subscriber's live tenant link at `at`, as an application's
+     * deletion of the tenant does; nothing in the port does it, so a test
+     * that needs a subscriber without a live tenant calls this.
+     */
+    closeTenantLink(subscriberId: string, at: Date = new Date()): void {
+        const record = this.byId.get(subscriberId);
+        const live = this.links.find(
+            (link) => link.subscriberId === subscriberId && link.unlinkedAt === null,
+        );
+        if (!record || !live) return;
+        live.unlinkedAt = at;
+        this.byId.set(subscriberId, { ...record, tenantId: null });
+    }
+
+    async search(search: SubscriberSearch): Promise<SubscriberSearchPage> {
+        const { terms } = search;
+        const matches = (record: SubscriberRecord): boolean => {
+            if (!terms) return true;
+            const number = this.numbers.get(record.id);
+            const wanted = terms.customerNumber;
+            return (
+                record.legalName.toLowerCase().includes(terms.legalName.toLowerCase()) ||
+                (wanted !== null &&
+                    number?.sequence === wanted.sequence &&
+                    (wanted.prefix === null ||
+                        number.prefix.toLowerCase() === wanted.prefix.toLowerCase())) ||
+                (terms.vatId !== null && record.vatId === terms.vatId)
+            );
+        };
+        const sequenceOf = (id: string): number => this.numbers.get(id)?.sequence ?? 0;
+        const after = search.after === undefined ? undefined : this.numbers.get(search.after);
+        const found = [...this.byId.values()]
+            .filter(matches)
+            .filter((record) => !search.withoutLiveTenant || record.tenantId === null)
+            .filter((record) => !after || sequenceOf(record.id) < after.sequence)
+            .sort((a, b) => sequenceOf(b.id) - sequenceOf(a.id));
+        return {
+            subscribers: found.slice(0, search.limit).map((record) => ({ ...record })),
+            hasMore: found.length > search.limit,
+        };
+    }
+
+    async listTenantLinks(subscriberId: string): Promise<SubscriberTenantLinkRecord[]> {
+        return tenantLinksInOrder(
+            this.links
+                .filter((link) => link.subscriberId === subscriberId)
+                .map(({ tenantId, linkedAt, unlinkedAt }) => ({ tenantId, linkedAt, unlinkedAt })),
+        );
     }
 
     async findById(subscriberId: string): Promise<SubscriberRecord | null> {

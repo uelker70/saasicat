@@ -158,6 +158,12 @@ pictures in 112 other places, so the same checkmark existed in three geometries
 and — at one size — three stroke widths. A glyph is `<q-icon name="check">`;
 `saasicat/no-restricted-components` refuses a raw `<svg>` in the package.
 
+A link in a page's content that leads to another record — a customer number in a list, a tenant
+in a subscriber's record — is `<router-link class="sa-link">`. The class gives it the accent and
+the medium weight; without it an anchor keeps the browser's own blue, which neither theme moves
+and which reads at under 2:1 on the dark canvas. It is a class rather than a rule on every anchor
+because Quasar renders its buttons as anchors too, and those carry colours of their own.
+
 ---
 
 ## Decision rules

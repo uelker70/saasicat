@@ -6,6 +6,7 @@ import type {
     AdminTenantListFilter,
     AdminTenantListRow,
     AdminTenantStateResult,
+    AdminTenantSummary,
     AdminUserListFilter,
     AdminUserListRow,
     AuditEntry,
@@ -195,6 +196,18 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
             })),
             counts: row._count ?? {},
         };
+    }
+
+    async findTenantsByIds(tenantIds: readonly string[]): Promise<AdminTenantSummary[]> {
+        if (tenantIds.length === 0) return [];
+        const t = this.schema.tenant;
+        const rows = await this.tenants().findMany({ where: { id: { in: [...tenantIds] } } });
+        return rows.map((row) => ({
+            id: row.id,
+            slug: this.read<string>(row, t.slug) ?? '',
+            name: this.read<string>(row, t.name) ?? '',
+            deletedAt: this.read<Date | null>(row, t.deletedAt)?.toISOString() ?? null,
+        }));
     }
 
     async setTenantActive(

@@ -210,6 +210,15 @@ export interface AdminSubscriptionListRow {
     [extra: string]: unknown;
 }
 
+/** A tenant as the application still knows it, named where the platform only holds its id. */
+export interface AdminTenantSummary {
+    id: string;
+    slug: string;
+    name: string;
+    /** ISO 8601; where the application soft-deletes, the moment it did, otherwise `null`. */
+    deletedAt: string | null;
+}
+
 export interface AdminTenantStateResult {
     ok: true;
     id: string;
@@ -227,6 +236,13 @@ export interface AdminTenantStateResult {
 export interface AdminResourcesPort {
     listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]>;
     getTenantDetail(slug: string): Promise<AdminTenantDetail | null>;
+    /**
+     * The tenants among `tenantIds` the application still has, soft-deleted
+     * ones included, in one read: what the subscriber's record names the
+     * tenants it was linked to by. A tenant the application no longer has is
+     * left out, and the record says so rather than guessing (`SC-ADM-036`).
+     */
+    findTenantsByIds(tenantIds: readonly string[]): Promise<AdminTenantSummary[]>;
     setTenantActive(
         slug: string,
         active: boolean,

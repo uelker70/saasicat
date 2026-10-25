@@ -1,7 +1,7 @@
 // The tenant's subscriber and the tenants a list holds back — two requests of
 // the tenants descriptor that have no twin in the admin client.
 //
-// Pinned the way `tenant-charges-resource.test.js` pins its request: the path
+// Pinned the way `subscriber-charges-resource.test.js` pins its request: the path
 // is the one `@saasicat/nest` serves, and
 // `tests/openapi-covers-the-implementation.test.js` holds it to the contract
 // from the other side.
@@ -55,92 +55,6 @@ describe('tenantsResource.subscriber', () => {
             () => bindResource(tenantsResource, http, CTX).subscriber('northwind'),
             /no body/,
         );
-    });
-});
-
-// @requirement SC-SUB-041 — The operator corrects a subscriber's identity and business status, with a reason
-describe("the subscriber's corrections", () => {
-    /** Every request with its headers and its body as sent. */
-    function recording(body) {
-        const calls = [];
-        const http = (url, init) => {
-            calls.push({
-                url,
-                method: init?.method ?? 'GET',
-                mfa: init?.headers?.['X-Mfa-Code'] ?? null,
-                body: init?.body === undefined ? undefined : JSON.parse(init.body),
-            });
-            return Promise.resolve({
-                status: 200,
-                headers: { get: () => 'application/json' },
-                json: async () => body,
-                text: async () => JSON.stringify(body),
-            });
-        };
-        return { http, calls, ops: bindResource(tenantsResource, http, CTX) };
-    }
-    const CORRECTED = { subscriber: STANDING, vatIdCheck: null };
-
-    test('a correction is declared one of the same legal entity, and carries the second factor', async () => {
-        const { calls, ops } = recording(CORRECTED);
-
-        const answer = await ops.correctSubscriberIdentity(
-            'a b',
-            { vatId: null, reason: 'Withdrawn' },
-            '123456',
-        );
-
-        assert.deepEqual(calls, [
-            {
-                url: '/api/v1/admin/tenants/a%20b/subscriber/identity',
-                method: 'POST',
-                mfa: '123456',
-                body: { kind: 'correction', vatId: null, reason: 'Withdrawn' },
-            },
-        ]);
-        assert.deepEqual(answer, CORRECTED);
-    });
-
-    test('a change of business status carries the second factor', async () => {
-        const { calls, ops } = recording(CORRECTED);
-
-        await ops.changeSubscriberBusinessStatus(
-            'wien',
-            { business: true, reason: 'Why' },
-            '654321',
-        );
-
-        assert.deepEqual(calls, [
-            {
-                url: '/api/v1/admin/tenants/wien/subscriber/business-status',
-                method: 'POST',
-                mfa: '654321',
-                body: { business: true, reason: 'Why' },
-            },
-        ]);
-    });
-
-    test('a check sends nothing but the request, and no second factor', async () => {
-        const { calls, ops } = recording(CORRECTED);
-
-        await ops.checkSubscriberVatId('wien');
-
-        assert.deepEqual(calls, [
-            {
-                url: '/api/v1/admin/tenants/wien/subscriber/vat-id-check',
-                method: 'POST',
-                mfa: null,
-                body: undefined,
-            },
-        ]);
-    });
-
-    test('the history is read as its entries', async () => {
-        const entries = [{ kind: 'vat-id-checked', at: '2026-10-06T08:00:00.000Z' }];
-        const { calls, ops } = recording({ entries });
-
-        assert.deepEqual(await ops.subscriberHistory('wien'), entries);
-        assert.deepEqual(calls[0].url, '/api/v1/admin/tenants/wien/subscriber/history');
     });
 });
 

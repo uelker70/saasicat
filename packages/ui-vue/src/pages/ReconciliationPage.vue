@@ -89,7 +89,7 @@ import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js
 // chargeback of a payment whose surplus was already refunded: what is open,
 // for whom, about which payment, and what was done about each? Closing a case
 // declares it reconciled for good, so it asks for a note and the second
-// factor (`SC-ADM-033`).
+// factor (`SC-ADM-039`).
 
 const props = defineProps<{
     /** Override the resource for this page only; see AP3 §3.2. */

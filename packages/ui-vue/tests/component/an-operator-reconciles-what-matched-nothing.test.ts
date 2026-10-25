@@ -7,23 +7,20 @@
 // Mounted against a stubbed registry: the test says what the server answers
 // and reads what the operator is shown and what is sent.
 
-// @requirement SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+// @requirement SC-ADM-039 — The operator reconciles what no credit matched, and finds each case in the record
 
 import type { AdminReconciliationCase } from '@saasicat/core';
 import { afterEach, describe, expect, test } from 'vitest';
-import { defineComponent } from 'vue';
-import { createMemoryHistory, createRouter } from 'vue-router';
 
 import ReconciliationPage from '../../src/pages/ReconciliationPage.vue';
-import TenantDetailPage from '../../src/pages/TenantDetailPage.vue';
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 import { SUPER_ADMIN_MANIFEST_KEY } from '../../src/vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY } from '../../src/vue/ui-notify.js';
 import { dialog, enterTheCode, settle, typeInto } from './support/dialog-flow.js';
 import { provideStubResources } from './support/stub-resources.js';
+import { mountRecord } from './support/subscriber-record.js';
 
 const CODE = '123456';
-const TENANT = { id: 't-1', slug: 'wien', name: 'Wien', isActive: true, users: [] };
 
 const caseOf = (
     id: string,
@@ -170,76 +167,61 @@ describe('the reconciliation page', () => {
     });
 });
 
-async function mountTenant(manifest: unknown) {
-    const router = createRouter({
-        history: createMemoryHistory(),
-        routes: [
-            { path: '/admin/tenants/:slug', component: TenantDetailPage },
-            { path: '/:rest(.*)', component: { template: '<div />' } },
-        ],
-    });
-    await router.push('/admin/tenants/wien');
-    await router.isReady();
+async function mountTheRecord(manifest: { capabilities: Record<string, boolean> }) {
     const asked: string[] = [];
-    const tenants = {
-        detail: async () => TENANT,
-        payments: async (slug: string) => {
-            asked.push(slug);
-            return {
-                invoices: [
+    const page = await mountRecord({
+        capabilities: manifest.capabilities,
+        attach: true,
+        subscribers: {
+            payments: async (id: string) => {
+                asked.push(id);
+                return {
+                    invoices: [
+                        {
+                            id: 'invoice-2',
+                            number: 'AHP-2026-000002',
+                            issuedAt: '2026-03-01T05:15:00.000Z',
+                            dueDate: '2026-03-15',
+                            totalGross: 58.31,
+                            currency: 'EUR',
+                            owed: 58.31,
+                        },
+                    ],
+                    openCases: [caseOf('k-1', { kind: 'REVERSAL_UNMATCHED', reference: 'du_1' })],
+                };
+            },
+            credits: async () => ({
+                credits: [
                     {
-                        id: 'invoice-2',
-                        number: 'AHP-2026-000002',
-                        issuedAt: '2026-03-01T05:15:00.000Z',
-                        dueDate: '2026-03-15',
-                        totalGross: 58.31,
+                        id: 'credit-1',
+                        amount: 58.31,
                         currency: 'EUR',
-                        owed: 58.31,
+                        origin: {
+                            kind: 'reversal',
+                            reversalRef: 'du_1',
+                            invoiceNumber: 'AHP-2026-000001',
+                        },
+                        createdAt: '2026-05-20T09:00:00.000Z',
+                        open: 58.31,
+                        entries: [],
                     },
                 ],
-                openCases: [caseOf('k-1', { kind: 'REVERSAL_UNMATCHED', reference: 'du_1' })],
-            };
-        },
-        credits: async () => ({
-            credits: [
-                {
-                    id: 'credit-1',
-                    amount: 58.31,
-                    currency: 'EUR',
-                    origin: {
-                        kind: 'reversal',
-                        reversalRef: 'du_1',
-                        invoiceNumber: 'AHP-2026-000001',
-                    },
-                    createdAt: '2026-05-20T09:00:00.000Z',
-                    open: 58.31,
-                    entries: [],
-                },
-            ],
-            timeZone: 'Europe/Berlin',
-        }),
-    };
-    const wrapper = mountWithQuasar(defineComponent({ template: '<router-view />' }), {
-        attachTo: document.body,
-        global: {
-            plugins: [router],
-            provide: {
-                ...provideStubResources({ tenants }),
-                [manifestKey]: () => manifest,
-                [notifyKey]: () => undefined,
-            },
+                timeZone: 'Europe/Berlin',
+            }),
         },
     });
-    mounted.push(wrapper);
+    mounted.push(page.wrapper);
     await settle();
-    return { wrapper, asked };
+    return { wrapper: page.wrapper, asked };
 }
 
-describe("the tenant page's payments", () => {
+describe("the subscriber's payments in its record", () => {
     test('shows the invoices with what each still owes, and the open cases', async () => {
-        const { wrapper, asked } = await mountTenant({ capabilities: { 'payments.read': true } });
+        const { wrapper, asked } = await mountTheRecord({
+            capabilities: { 'payments.read': true },
+        });
 
-        expect(asked).toEqual(['wien']);
+        expect(asked).toEqual(['s-1']);
         const text = wrapper.text();
         expect(text).toContain('AHP-2026-000002');
         expect(text).toContain('Reversal without a credit');
@@ -247,7 +229,7 @@ describe("the tenant page's payments", () => {
     });
 
     test('are not asked for where the platform does not serve them', async () => {
-        const { wrapper, asked } = await mountTenant({ capabilities: {} });
+        const { wrapper, asked } = await mountTheRecord({ capabilities: {} });
 
         expect(asked).toEqual([]);
         expect(wrapper.text()).not.toContain('Open cases');
@@ -255,7 +237,7 @@ describe("the tenant page's payments", () => {
 
     // @requirement SC-PRIC-086 — A dispute won takes its reversal back, and what was paid meanwhile becomes a credit
     test('a credit a reversal given back left names the reversal', async () => {
-        const { wrapper } = await mountTenant({ capabilities: { 'credits.read': true } });
+        const { wrapper } = await mountTheRecord({ capabilities: { 'credits.read': true } });
 
         expect(wrapper.text()).toContain('Reversal du_1 given back, for AHP-2026-000001');
     });
