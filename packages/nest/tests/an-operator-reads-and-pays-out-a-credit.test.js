@@ -46,7 +46,8 @@ const invoiceOf = (id, subscriberId, totalGross) => ({
 /**
  * Two subscribers, each with an invoice paid 5.00 beyond what it owed and an
  * invoice totalling −40.00 — so each has two credits —, and the service that
- * reads and pays them out, in the zone `Europe/Berlin`.
+ * reads and pays them out, in the zone `Europe/Berlin`. The first is live for
+ * its tenant; the second's tenant is gone, so it is live for none.
  */
 async function twoSubscribersWithCredits() {
     const invoices = [
@@ -74,8 +75,10 @@ async function twoSubscribersWithCredits() {
     await payments.creditInvoice('invoice-02', new Date('2026-02-02T00:00:00.000Z'));
     await payments.creditInvoice('invoice-04', new Date('2026-02-02T00:00:00.000Z'));
     const subscribers = {
-        findById: async (id) =>
-            id.startsWith('subscriber-') ? { id, tenantId: `tenant-of-${id}` } : null,
+        findById: async (id) => {
+            if (!id.startsWith('subscriber-')) return null;
+            return { id, tenantId: id === 'subscriber-2' ? null : `tenant-of-${id}` };
+        },
     };
     const store = {
         findById: async (id) => invoices.find((invoice) => invoice.id === id) ?? null,
@@ -305,23 +308,29 @@ describe('a payout as the route takes it', () => {
     }
 });
 
+/** The route's controller over `service`, and the audit entries it writes. */
+function aPayoutRoute(service) {
+    const [Controller] = SubscriberCreditModule.forRoot({
+        guards: [],
+        imports: [],
+    }).controllers;
+    const logged = [];
+    const controller = new Controller(
+        service,
+        {
+            actorTagFromRequest: () => 'operator:op-1',
+            logFromRequest: async (...entry) => logged.push(entry),
+        },
+        { runWithBypass: (fn) => fn() },
+    );
+    return { controller, logged };
+}
+
 describe('the route', () => {
     test('records the payout in the audit log as the operator who made it, and answers the credits', async () => {
         const { service, ofTheFirst } = await twoSubscribersWithCredits();
         const [, fromInvoice] = ofTheFirst;
-        const [Controller] = SubscriberCreditModule.forRoot({
-            guards: [],
-            imports: [],
-        }).controllers;
-        const logged = [];
-        const controller = new Controller(
-            service,
-            {
-                actorTagFromRequest: () => 'operator:op-1',
-                logFromRequest: async (...entry) => logged.push(entry),
-            },
-            { runWithBypass: (fn) => fn() },
-        );
+        const { controller, logged } = aPayoutRoute(service);
 
         const answered = await controller.payOut(
             'subscriber-1',
@@ -349,6 +358,23 @@ describe('the route', () => {
                 },
             ],
         ]);
+    });
+
+    test('records the payout of a subscriber whose tenant is gone, with no tenant', async () => {
+        const { service, ofTheSecond } = await twoSubscribersWithCredits();
+        const [, fromInvoice] = ofTheSecond;
+        const { controller, logged } = aPayoutRoute(service);
+
+        await controller.payOut('subscriber-2', fromInvoice.credit.id, payoutOf(10, '2026-01-01'), {
+            user: { id: 'op-1' },
+        });
+
+        assert.equal(logged.length, 1);
+        const [, , creditId, action, details] = logged[0];
+        assert.deepEqual(
+            [creditId, action, details.subscriberId, details.tenantId],
+            [fromInvoice.credit.id, 'SUBSCRIBER_CREDIT_PAID_OUT', 'subscriber-2', null],
+        );
     });
 
     test('is served only where what collections bring is recorded', () => {
