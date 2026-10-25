@@ -195,6 +195,7 @@ _Tested by:_
 - `tests/the-cli-runs-from-the-project.test.js`
     - the command the migration guide gives runs as written
         - no Markdown a reader copies from runs the CLI through a one-off fetch
+        - no Markdown a reader copies from installs the CLI as a development dependency
         - the guide runs its codemod from the project
 
 <!-- END proof -->

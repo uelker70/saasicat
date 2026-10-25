@@ -31,7 +31,7 @@ layer as well. `./vue` is the narrow door.
 ### Migrating
 
 ```bash
-pnpm add -D @saasicat/cli@latest
+pnpm add @saasicat/cli@latest
 pnpm exec saasicat codemod v1-imports --dir=./src
 ```
 

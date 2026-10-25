@@ -10,7 +10,7 @@ CLI loads `@nestjs/common` and `nest-commander` from your application, and a one
 `npx` or `pnpm dlx` installs neither, so it stops before it reads its arguments.
 
 ```bash
-pnpm add -D @saasicat/cli@latest
+pnpm add @saasicat/cli@latest
 pnpm exec saasicat codemod v1 --dir=.
 ```
 
