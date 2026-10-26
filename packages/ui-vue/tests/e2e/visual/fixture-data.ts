@@ -1449,6 +1449,72 @@ const INVOICE_REGISTER_TOTALS = {
     ],
 };
 
+// The open items: an invoice overdue by direct debit whose collection
+// failed, one not due yet paid by transfer, a credit still owed, and totals
+// per currency with what is overdue apart; a further page of invoices follows,
+// so its button renders.
+const OPEN_INVOICE = {
+    issueDate: '2026-02-01',
+    currency: 'EUR',
+    tenantId: 't-0001',
+    subscriber: { id: 's-0001', customerNumber: 'K-10001', legalName: 'Northwind Ltd' },
+};
+const OPEN_INVOICES = {
+    today: '2026-02-27',
+    overdueOnly: false,
+    invoices: [
+        {
+            ...OPEN_INVOICE,
+            id: 'inv-131',
+            number: 'AHP-2026-000131',
+            dueDate: '2026-02-15',
+            daysOverdue: 12,
+            totalGross: 106.81,
+            owed: 96.81,
+            payment: { type: 'sepa_debit', last4: '3000' },
+            lastAttempt: {
+                status: 'FAILED',
+                submittedAt: '2026-02-15T06:00:00.000Z',
+                failureReason: 'insufficient-funds',
+            },
+        },
+        {
+            ...OPEN_INVOICE,
+            id: 'inv-132',
+            number: 'AHP-2026-000132',
+            dueDate: '2026-03-01',
+            daysOverdue: 0,
+            totalGross: 49,
+            owed: 49,
+            subscriber: { id: 's-0003', customerNumber: 'K-10003', legalName: 'Contoso SARL' },
+            payment: null,
+            lastAttempt: null,
+        },
+    ],
+    next: 'inv-132',
+};
+const OPEN_CREDITS = {
+    credits: [
+        {
+            id: 'cr-1',
+            currency: 'EUR',
+            amount: 30,
+            open: 20,
+            origin: 'payment',
+            createdAt: '2026-02-02T09:00:00.000Z',
+            subscriber: { id: 's-0002', customerNumber: 'K-10002', legalName: 'Muster GmbH' },
+            tenantId: 't-0002',
+        },
+    ],
+    next: null,
+    timeZone: 'Europe/Berlin',
+};
+const OPEN_ITEM_TOTALS = {
+    today: '2026-02-27',
+    invoices: [{ currency: 'EUR', owed: 145.81, overdue: 96.81 }],
+    credits: [{ currency: 'EUR', open: 20 }],
+};
+
 const INVOICE_TO_CANCEL = {
     id: 'inv-124',
     number: 'AHP-2026-000124',
@@ -1772,6 +1838,9 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/invoices/inv-124', INVOICE_TO_CANCEL],
     ['/api/admin/invoices', INVOICE_REGISTER],
     ['/api/admin/invoice-totals', INVOICE_REGISTER_TOTALS],
+    ['/api/admin/open-items', OPEN_INVOICES],
+    ['/api/admin/open-credits', OPEN_CREDITS],
+    ['/api/admin/open-item-totals', OPEN_ITEM_TOTALS],
     ['/api/admin/pilots', PILOT_ROWS],
     // The page loads both lists. Deliberately empty and registered as such: an
     // unregistered path is a named gap, and the review strip carries no surface

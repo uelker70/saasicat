@@ -418,6 +418,16 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
         return rows.map(toIssuedInvoiceAmounts);
     }
 
+    async findByIds(ids: readonly string[]): Promise<SubscriptionInvoiceRecord[]> {
+        if (ids.length === 0) return [];
+        const db = resolveDb(this.db);
+        const rows = await db
+            .select()
+            .from(subscriptionInvoices)
+            .where(inArray(subscriptionInvoices.id, [...ids]));
+        return recordsOf(db, rows);
+    }
+
     async findByNumber(number: string): Promise<SubscriptionInvoiceRecord | null> {
         const db = resolveDb(this.db);
         const rows = await db

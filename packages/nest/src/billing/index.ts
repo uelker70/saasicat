@@ -212,6 +212,13 @@ export {
     SubscriberReconciliationModule,
     type SubscriberReconciliationModuleOptions,
 } from './invoices/subscriber-reconciliation.module.js';
+export { OpenItemsService } from './invoices/open-items.service.js';
+export {
+    OpenCreditsQueryDto,
+    OpenInvoicesQueryDto,
+    OpenItemsModule,
+    type OpenItemsModuleOptions,
+} from './invoices/open-items.module.js';
 export {
     INVOICE_ARCHIVE_TOKEN,
     INVOICE_MAIL_PORT_TOKEN,

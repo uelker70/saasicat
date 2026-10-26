@@ -494,6 +494,30 @@ export default tseslint.config(
         },
     },
     {
+        // A raw statement sends its values as parameters: the tagged templates
+        // `$queryRaw` and `$executeRaw` hand each `${…}` to the database apart
+        // from the SQL. `$queryRawUnsafe` and `$executeRawUnsafe` take a
+        // finished string, which is an injection as soon as any part of it came
+        // from a value. The test harnesses that run the shipped DDL file by
+        // file are outside `src/`, and stay outside this block.
+        files: ['packages/*/src/**/*.{ts,mts,js,mjs}'],
+        rules: {
+            'no-restricted-properties': [
+                'error',
+                {
+                    property: '$queryRawUnsafe',
+                    message:
+                        'Use the tagged template $queryRaw`…`, which sends every value as a parameter.',
+                },
+                {
+                    property: '$executeRawUnsafe',
+                    message:
+                        'Use the tagged template $executeRaw`…`, which sends every value as a parameter.',
+                },
+            ],
+        },
+    },
+    {
         // The whitelisted co-located modules above are part of the main
         // entry and therefore must stay framework-free themselves.
         files: [

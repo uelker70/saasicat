@@ -33,7 +33,6 @@ import type {
 import {
     COLLECTION_NOT_SENT_PAID,
     FOLLOWED_UP_COLLECTION_STATUSES,
-    REOPENING_SETTLEMENT_KINDS,
     REVERSIBLE_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
@@ -48,12 +47,12 @@ import {
 } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import { lockChainOf } from './drizzle-invoice-chain.js';
+import { owedOnInvoice, stillOwes } from './drizzle-open-sums.js';
 import {
     subscriberPaymentMethods,
     subscriptionInvoiceCancellations,
     subscriptionInvoiceCollections,
     subscriptionInvoiceDocuments,
-    subscriptionInvoiceSettlements,
     subscriptionInvoices,
 } from './schema.js';
 
@@ -68,25 +67,6 @@ const chainAttempts = alias(subscriptionInvoiceCollections, 'chain_attempts');
 
 /** The invoices of the chain of the invoice a query lists. */
 const chainInvoices = alias(subscriptionInvoices, 'chain_invoices');
-
-/**
- * Whether the invoice a query reads still owes something: its total exceeds
- * what is settled against it, and it is neither cancelled nor a cancellation
- * invoice. Exact in the database's numeric arithmetic.
- */
-const settledOnIt = sql`COALESCE((
-    SELECT SUM(CASE WHEN ${inArray(subscriptionInvoiceSettlements.kind, [...REOPENING_SETTLEMENT_KINDS])}
-                    THEN -${subscriptionInvoiceSettlements.amount}
-                    ELSE ${subscriptionInvoiceSettlements.amount} END)
-      FROM ${subscriptionInvoiceSettlements}
-     WHERE ${subscriptionInvoiceSettlements.invoiceId} = ${subscriptionInvoices.id}
-), 0)`;
-const stillOwes = sql`${subscriptionInvoices.totalGross} > ${settledOnIt}
-AND NOT EXISTS (
-    SELECT 1 FROM ${subscriptionInvoiceCancellations}
-     WHERE ${subscriptionInvoiceCancellations.cancelledInvoiceId} = ${subscriptionInvoices.id}
-        OR ${subscriptionInvoiceCancellations.cancellationInvoiceId} = ${subscriptionInvoices.id}
-)`;
 
 /** The attempts what follows is decided for, as a parameter of the queries below. */
 const FOLLOWED_UP_STATUSES = [...FOLLOWED_UP_COLLECTION_STATUSES];
@@ -109,7 +89,7 @@ async function owes(db: ReturnType<typeof resolveDb>, invoiceId: string): Promis
  */
 async function owedIn(db: ReturnType<typeof resolveDb>, invoiceId: string): Promise<number> {
     const [row] = await db
-        .select({ owed: sql<string>`(${subscriptionInvoices.totalGross} - ${settledOnIt})::text` })
+        .select({ owed: sql<string>`${owedOnInvoice}::text` })
         .from(subscriptionInvoices)
         .where(and(eq(subscriptionInvoices.id, invoiceId), stillOwes));
     return row
@@ -708,6 +688,15 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
             .from(subscriptionInvoiceCollections)
             .where(eq(subscriptionInvoiceCollections.invoiceId, invoiceId))
             .orderBy(asc(subscriptionInvoiceCollections.attempt));
+        return rows.map(toInvoiceCollectionRecord);
+    }
+
+    async listByInvoices(invoiceIds: readonly string[]): Promise<InvoiceCollectionRecord[]> {
+        if (invoiceIds.length === 0) return [];
+        const rows = await resolveDb(this.db)
+            .select()
+            .from(subscriptionInvoiceCollections)
+            .where(inArray(subscriptionInvoiceCollections.invoiceId, [...invoiceIds]));
         return rows.map(toInvoiceCollectionRecord);
     }
 }

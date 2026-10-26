@@ -529,6 +529,75 @@ paths:
                         contract of this subscriber under that one
                         (`SUBSCRIPTION_CONTRACT_NOT_FOUND`)
 
+    /open-items:
+        get:
+            tags: [subscriptions]
+            summary: One page of the invoices that still owe something, the oldest due date first
+            description: >-
+                Served where the subscribers' credits and the cases to reconcile are; the manifest
+                announces the page as `payments.read`. Every invoice of the installation whose gross
+                less the signed sum of its settlements is above zero, a cancelled invoice and a
+                cancellation invoice not among them, whichever tenant it was for — by due date, then
+                number —, each with how many days it is overdue in the installation's time zone, how
+                it is paid and its latest collection attempt (`SC-ADM-044`).
+            parameters:
+                - name: overdue
+                  in: query
+                  required: false
+                  description: '`true` for the invoices due before today alone.'
+                  schema: { type: string, enum: ['true', 'false'] }
+                - name: after
+                  in: query
+                  required: false
+                  description: The invoice the page before ended with, as `next` named it.
+                  schema: { type: string, maxLength: 200 }
+            responses:
+                '200':
+                    description: One page of open invoices
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminOpenInvoicePage' }
+                '400':
+                    description: An `overdue` other than true or false, or an `after` longer than any id
+
+    /open-credits:
+        get:
+            tags: [subscriptions]
+            summary: One page of the credits the operator still owes, the oldest first
+            description: >-
+                Served and announced as `/open-items` is. Every credit whose amount less the signed
+                sum of what was paid out of it is above zero, each with its subscriber as its record
+                names it now; a payout is recorded at
+                `/subscribers/{id}/credits/{creditId}/payouts`, as from the record (`SC-ADM-044`).
+            parameters:
+                - name: after
+                  in: query
+                  required: false
+                  description: The credit the page before ended with, as `next` named it.
+                  schema: { type: string, maxLength: 200 }
+            responses:
+                '200':
+                    description: One page of open credits
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminOpenCreditPage' }
+                '400':
+                    description: An `after` longer than any id
+
+    /open-item-totals:
+        get:
+            tags: [subscriptions]
+            summary: What the open invoices and credits add up to per currency
+            description: >-
+                Served and announced as `/open-items` is: per currency what the open invoices owe and
+                of it what was due before today, and what the open credits hold (`SC-ADM-044`).
+            responses:
+                '200':
+                    description: The totals of the open items
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminOpenItemTotals' }
+
     /reconciliation:
         get:
             tags: [subscriptions]
@@ -3830,6 +3899,168 @@ components:
                     nullable: true
                     description: Who closed it; null while open, and where SaaSiCat closed it.
                 note: { type: string, nullable: true }
+
+        AdminOpenInvoice:
+            type: object
+            required:
+                [
+                    id,
+                    number,
+                    issueDate,
+                    dueDate,
+                    daysOverdue,
+                    currency,
+                    totalGross,
+                    owed,
+                    subscriber,
+                    tenantId,
+                    payment,
+                    lastAttempt,
+                ]
+            properties:
+                id: { type: string }
+                number: { type: string }
+                issueDate: { type: string, format: date }
+                dueDate: { type: string, format: date }
+                daysOverdue:
+                    type: integer
+                    description: Calendar days since its due date in the installation's zone; 0 while it is not overdue.
+                currency: { type: string }
+                totalGross: { type: number }
+                owed: { type: number, description: Above zero. }
+                subscriber:
+                    type: object
+                    description: The subscriber as the invoice names it, and the record it leads to.
+                    required: [id, customerNumber, legalName]
+                    properties:
+                        id: { type: string }
+                        customerNumber: { type: string }
+                        legalName: { type: string }
+                tenantId: { type: string }
+                payment:
+                    type: object
+                    nullable: true
+                    description: The payment method it is collected with; null where it is paid by transfer.
+                    required: [type, last4]
+                    properties:
+                        type: { type: string, enum: [card, sepa_debit] }
+                        last4: { type: string }
+                lastAttempt:
+                    type: object
+                    nullable: true
+                    description: The latest attempt to collect it; null where none was made.
+                    required: [status, submittedAt, failureReason]
+                    properties:
+                        status:
+                            type: string
+                            enum:
+                                [
+                                    SCHEDULED,
+                                    SUBMITTED,
+                                    PENDING,
+                                    SUCCEEDED,
+                                    FAILED,
+                                    WITHDRAWN,
+                                    REVERSED,
+                                ]
+                        submittedAt: { type: string, format: date-time, nullable: true }
+                        failureReason:
+                            type: string
+                            nullable: true
+                            enum:
+                                [
+                                    insufficient-funds,
+                                    declined,
+                                    authentication-required,
+                                    payment-method-unusable,
+                                    mandate-invalid,
+                                    other,
+                                    null,
+                                ]
+
+        AdminOpenInvoicePage:
+            type: object
+            required: [today, overdueOnly, invoices, next]
+            properties:
+                today:
+                    {
+                        type: string,
+                        format: date,
+                        description: The day they were read on,
+                        in the installation's zone.,
+                    }
+                overdueOnly: { type: boolean }
+                invoices:
+                    type: array
+                    description: By due date, then number.
+                    items: { $ref: '#/components/schemas/AdminOpenInvoice' }
+                next:
+                    type: string
+                    nullable: true
+                    description: The invoice the next page continues after; null on the last page.
+
+        AdminOpenCredit:
+            type: object
+            required: [id, currency, amount, open, origin, createdAt, subscriber, tenantId]
+            properties:
+                id: { type: string }
+                currency: { type: string }
+                amount: { type: number }
+                open: { type: number, description: Above zero. }
+                origin: { type: string, enum: [payment, invoice, reversal, cancellation] }
+                createdAt: { type: string, format: date-time }
+                subscriber:
+                    type: object
+                    description: The subscriber as its record names it now.
+                    required: [id, customerNumber, legalName]
+                    properties:
+                        id: { type: string }
+                        customerNumber: { type: string }
+                        legalName: { type: string }
+                tenantId: { type: string }
+
+        AdminOpenCreditPage:
+            type: object
+            required: [credits, next, timeZone]
+            properties:
+                credits:
+                    type: array
+                    description: The oldest first.
+                    items: { $ref: '#/components/schemas/AdminOpenCredit' }
+                next:
+                    type: string
+                    nullable: true
+                    description: The credit the next page continues after; null on the last page.
+                timeZone:
+                    {
+                        type: string,
+                        description: The installation's zone,
+                        in which a payout's day is judged.,
+                    }
+
+        AdminOpenItemTotals:
+            type: object
+            required: [today, invoices, credits]
+            properties:
+                today: { type: string, format: date }
+                invoices:
+                    type: array
+                    items:
+                        type: object
+                        required: [currency, owed, overdue]
+                        properties:
+                            currency: { type: string }
+                            owed: { type: number }
+                            overdue:
+                                { type: number, description: Of it, what was due before today. }
+                credits:
+                    type: array
+                    items:
+                        type: object
+                        required: [currency, open]
+                        properties:
+                            currency: { type: string }
+                            open: { type: number }
 
         AdminReconciliationCases:
             type: object

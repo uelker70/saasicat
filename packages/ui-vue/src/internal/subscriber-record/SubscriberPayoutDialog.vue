@@ -71,7 +71,8 @@ import {
 
 const props = defineProps<{
     modelValue: boolean;
-    credit: AdminSubscriberCredit | null;
+    /** What the payout is made against: what is open of it, in its currency. */
+    credit: Pick<AdminSubscriberCredit, 'open' | 'currency'> | null;
     /** The day the dialog opens on, which no payout can lie after. */
     today: CalendarDay;
     /** The write, as the credits composable runs it behind the second factor. */

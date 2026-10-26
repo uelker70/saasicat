@@ -477,6 +477,14 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         });
         return rows.map(toInvoiceCollectionRecord);
     }
+
+    async listByInvoices(invoiceIds: readonly string[]): Promise<InvoiceCollectionRecord[]> {
+        if (invoiceIds.length === 0) return [];
+        const rows = await this.db().subscriptionInvoiceCollection.findMany({
+            where: { invoiceId: { in: [...invoiceIds] } },
+        });
+        return rows.map(toInvoiceCollectionRecord);
+    }
 }
 
 /**

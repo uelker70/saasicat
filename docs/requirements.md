@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 43      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 45      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 27      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 666 entries: 🟢 569 stand today, 🟡 50 decided but not yet delivered, ⚪ 0 drafts,
-🔵 42 superseded, 🔴 5 withdrawn.
+Of 668 entries: 🟢 570 stand today, 🟡 50 decided but not yet delivered, ⚪ 0 drafts,
+🔵 43 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -164,12 +164,12 @@ Of 666 entries: 🟢 569 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
-[SC-ADM-023](#sc-adm-023--an-operator-can-list-open-items-and-every-contract-including-former-subscribers),
 [SC-ADM-024](#sc-adm-024--a-suspended-tenants-users-cannot-act-and-a-read-only-tenant-cannot-write),
 [SC-ADM-025](#sc-adm-025--an-operator-gets-a-description-of-the-invoicing-procedure-to-document-its-own-on),
 [SC-ADM-026](#sc-adm-026--the-administrator-changes-what-the-tenant-pays-billing-needs-the-billing-permission),
 [SC-ADM-027](#sc-adm-027--an-operator-joins-a-returning-customers-new-tenant-to-the-subscriber-it-had),
 [SC-ADM-043](#sc-adm-043--an-operator-exports-the-invoice-register-for-a-tax-advisor),
+[SC-ADM-045](#sc-adm-045--an-operator-lists-every-contract-a-former-subscribers-included),
 [SC-UI-022](#sc-ui-022--a-tenant-downloads-its-subscriptions-invoices-and-tells-them-from-the-applications),
 [SC-UI-023](#sc-ui-023--a-tenants-invoices-payment-method-and-billing-details-need-the-billing-permission),
 [SC-UI-024](#sc-ui-024--a-tenants-invoice-list-says-what-each-invoice-stands-for),
@@ -220,6 +220,7 @@ Of 666 entries: 🟢 569 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
 [SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
 [SC-ADM-022](#sc-adm-022--an-operator-lists-every-invoice-with-totals-per-period-and-tax-rate-and-exports-it),
+[SC-ADM-023](#sc-adm-023--an-operator-can-list-open-items-and-every-contract-including-former-subscribers),
 [SC-ADM-028](#sc-adm-028--an-operator-reads-a-subscribers-charges-beside-its-tenant),
 [SC-ADM-032](#sc-adm-032--the-operator-reads-a-subscribers-history-with-who-when-and-why),
 [SC-ADM-033](#sc-adm-033--the-operator-reconciles-what-no-credit-matched-and-closes-each-case-with-a-note),
@@ -235,7 +236,7 @@ Of 666 entries: 🟢 569 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 666 requirements. Do not edit by hand:
+Generated from `requirements/` — 668 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -15693,6 +15694,11 @@ _Tested by:_
     - where the register is served
         - beside the invoices’ documents, its page announced under invoices.read
         - nowhere the administration shows no tenants, or no invoices are issued
+- `packages/nest/tests/an-operator-reads-the-open-items.test.js`
+    - where the open items are served
+        - beside the credits and the cases to reconcile, and nowhere what collections bring is not
+          recorded
+        - its page announced under payments.read where they are served
 - `packages/nest/tests/an-operator-reconciles-what-matched-nothing.test.js`
     - the manifest
         - announces the cases, their closing and the payments where they are served, and none where
@@ -16100,6 +16106,14 @@ _Tested by:_
         - reads the subscriber’s record each time the dialog opens, for the same subscriber too
         - reads its subscriber’s record for the dialog, is confirmed behind the second factor, and
           the register read again
+- `packages/ui-vue/tests/component/an-operator-reads-the-open-items.test.ts`
+    - a credit paid out from the open items
+        - is recorded for its subscriber behind the second factor, and the credits and totals are
+          read again
+- `packages/ui-vue/tests/use-open-items.test.js`
+    - useOpenItems
+        - a credit is paid out for its subscriber behind the second factor, and the credits and
+          totals read again
 
 <!-- END proof -->
 
@@ -16200,8 +16214,8 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-ADM-023 — An operator can list open items, and every contract including former subscribers'
 
-🟡 _(Decided, not yet delivered.)_ 💰 A contract register that forgets a subscriber once its
-tenant is gone answers the one question it exists for wrongly.
+🔵 _(Superseded on 2026-10-26 by `SC-ADM-045`.)_ 💰 A contract register that forgets a subscriber
+once its tenant is gone answers the one question it exists for wrongly.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -16561,7 +16575,7 @@ _Tested by:_
 and tenant each arose under: each with the title its contract line had when the contract was
 concluded, its period, what made it arise, when it became due, and its net amount in its currency.
 The section names whose account it is, by customer number and legal name. It is read only and shows
-no total: a sum of charges would be read as what is owed (`SC-ADM-023`). It is offered only where
+no total: a sum of charges would be read as what is owed (`SC-ADM-044`). It is offered only where
 the installation keeps a journal of charges (`SC-ADM-015`), only the platform administrator reaches
 it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the administration does
 (`SC-SEC-003`).
@@ -17050,6 +17064,95 @@ in it carries the moment it was recorded. The same period as of the same moment 
 every time it is taken, so a hand-over to a tax advisor can be repeated and compared; as of a later
 moment, the export shows what was recorded since, such as a payment confirmed or an invoice
 cancelled after a period ended, rather than silently changing a row.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #335
+
+### SC-ADM-044 — An operator lists what subscribers still owe and are still owed, across every tenant
+
+🟢 💰 The open items list every invoice that still owes something — its gross less what is settled
+against it, as the subscriber's record reads it — whichever subscriber and tenant it was for, a
+tenant deleted since included, the oldest due date first, fifty to a page; a cancelled invoice and a
+cancellation invoice are never among them, and the replacement is. Each names its number, its due
+date, how many days it is overdue in the installation's time zone, the subscriber as the invoice
+names it with the way into its record, its gross and what it still owes, how it is paid — by direct
+debit or card, with the last four digits, or by transfer — and how its latest collection attempt
+ended. They can be narrowed to the invoices due before today. Beside them stand the credits the
+operator still owes, the oldest first, each with its subscriber as the record names it now, what it
+arose from, when, its amount and what is open of it, paid out from its row with the second factor as
+from the record; and per currency what is owed, of it what is overdue, and what the credits hold.
+What an invoice owes and what a credit holds are read by the same rule the record reads them by, and
+never kept a second time beside the rows they come from. Only the platform administrator reaches
+them (`SC-ADM-001`), and they read past the tenants' row-level policy the way the administration
+does (`SC-SEC-003`).
+
+_Source:_ #335 (decided 2026-10-26) · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-reads-the-open-items.test.js`
+    - the open invoices
+        - are those that still owe, the oldest due date first, with what each owes and how many days
+          it is overdue in the installation’s zone
+        - say how each is paid and how its latest collection attempt ended
+        - overdue alone, are those due before today, today not among them
+        - are read ${OPEN_ITEMS_PAGE_SIZE} to a page, the next one named by the last on it
+    - the open credits
+        - are those the operator still owes, the oldest first, each with its subscriber as the
+          record names it now
+    - the totals of the open items
+        - add up what is owed per currency, what is overdue today apart, and what the credits hold
+    - every read of the open items
+        - runs outside the tenants' row-level policy, a page in a few reads
+    - the requests as the routes take them
+        - overdue alone is true or false, and a page goes on after an id of a length one can have
+        - a query string’s text asks for overdue ones alone only where it says true
+    - where the open items are served
+        - beside the credits and the cases to reconcile, and nowhere what collections bring is not
+          recorded
+        - its page announced under payments.read where they are served
+- `packages/ui-vue/tests/component/an-operator-reads-the-open-items.test.ts`
+    - the open items
+        - read each list and the totals once, and say per currency what is owed, overdue and held as
+          credit
+        - list each open invoice with what it owes, the days it is overdue, how it is paid and its
+          last collection
+        - lead into a subscriber’s record wherever the shell put the subscribers
+        - overdue alone asks for those again, and reads neither the credits nor the totals anew
+        - say so where nothing is open
+        - list each open credit with its origin, and offer its payout only where the platform takes
+          one
+    - a credit paid out from the open items
+        - is recorded for its subscriber behind the second factor, and the credits and totals are
+          read again
+- `packages/ui-vue/tests/open-items-resource.test.js`
+    - the open items’ requests
+        - every operation the descriptor declares is pinned here
+        - a page of open invoices for ${JSON.stringify(request)} asks ${url}
+        - a page of open credits for ${JSON.stringify(request)} asks ${url}
+        - the totals ask /open-item-totals
+- `packages/ui-vue/tests/use-open-items.test.js`
+    - useOpenItems
+        - reads the first page of open invoices and credits and the totals at once
+        - overdue alone reads the invoices anew from their first page, and leaves the credits as
+          they are
+        - the next page of each list is added after the last row read
+        - a page of invoices for a filter left while it was on its way is dropped
+        - a page that fails is the list’s failure, for the list on screen
+        - a credit is paid out for its subscriber behind the second factor, and the credits and
+          totals read again
+        - a payout the second factor was not given for records nothing and reads nothing again
+        - offers a payout only where the platform takes one
+
+<!-- END proof -->
+
+### SC-ADM-045 — An operator lists every contract, a former subscriber's included
+
+🟡 _(Decided, not yet delivered.)_ 💰 The contract register lists every contract of the installation,
+a former subscriber's and a deleted tenant's included: a register that forgets a subscriber once its
+tenant is gone answers the one question it exists for wrongly. It stands beside the open items
+(`SC-ADM-044`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #335
 
@@ -21926,6 +22029,9 @@ _Tested by:_
 - `packages/nest/tests/an-operator-reads-the-invoice-register.test.js`
     - a page of the register
         - is read outside the tenants' row-level policy
+- `packages/nest/tests/an-operator-reads-the-open-items.test.js`
+    - every read of the open items
+        - runs outside the tenants' row-level policy, a page in a few reads
 - `packages/nest/tests/an-operator-route-acts-across-tenants.test.js`
     - the frame a route runs in follows its guard chain
         - every route behind the administrator runs in the bypass, and no other does

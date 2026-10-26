@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, gt, inArray, lt, notExists, sql } from 'drizzle-orm';
 import type {
+    CalendarDay,
     ClosedReconciliationCase,
     CloseReconciliationCase,
     CreditPart,
@@ -9,6 +10,9 @@ import type {
     MovedPaymentPart,
     NewSubscriberPayment,
     NewSubscriberPayout,
+    OpenItemTotals,
+    OwedCreditPage,
+    OwingInvoicePage,
     ReconciliationCaseState,
     RecordedSubscriberPayment,
     RecordedSubscriberPayout,
@@ -27,7 +31,7 @@ import type {
 } from '@saasicat/core';
 import {
     CASE_CLOSED_REFUND_ENDED,
-    GIVING_BACK_CREDIT_ENTRY_KINDS,
+    columnAmountOf,
     isEndedRefund,
     openOfCredit,
     owedByInvoice,
@@ -47,6 +51,7 @@ import {
     toSubscriberRefundRecord,
     toSubscriberReversalRecord,
 } from '@saasicat/core';
+import { alias } from 'drizzle-orm/pg-core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import {
     correctedStateOf,
@@ -68,6 +73,7 @@ import {
     owedIn,
     readInvoice,
 } from './drizzle-subscriber-payment-rows.js';
+import { openOfCreditSql, owedOnInvoice, paidOutOfCredit, stillOwes } from './drizzle-open-sums.js';
 import { recordReversalIn } from './drizzle-subscriber-reversal.js';
 import {
     subscriberCreditEntries,
@@ -562,16 +568,134 @@ export class DrizzleSubscriberPaymentRepository implements SubscriberPaymentRepo
         return closeCaseIn(resolveDb(this.db, tx), close);
     }
 
+    async listOpenInvoices(page: {
+        limit: number;
+        after?: string;
+        overdueOn?: CalendarDay;
+    }): Promise<OwingInvoicePage> {
+        const rows = await resolveDb(this.db)
+            .select({
+                id: subscriptionInvoices.id,
+                owed: sql<string>`${owedOnInvoice}::text`,
+            })
+            .from(subscriptionInvoices)
+            .where(
+                and(
+                    stillOwes,
+                    page.overdueOn ? lt(subscriptionInvoices.dueDate, page.overdueOn) : undefined,
+                    page.after
+                        ? notExists(
+                              resolveDb(this.db)
+                                  .select({ id: afterInvoice.id })
+                                  .from(afterInvoice)
+                                  .where(
+                                      and(
+                                          eq(afterInvoice.id, page.after),
+                                          sql`(${subscriptionInvoices.dueDate}, ${subscriptionInvoices.numberYear}, ${subscriptionInvoices.numberSequence})
+                                              <= (${afterInvoice.dueDate}, ${afterInvoice.numberYear}, ${afterInvoice.numberSequence})`,
+                                      ),
+                                  ),
+                          )
+                        : undefined,
+                ),
+            )
+            .orderBy(
+                asc(subscriptionInvoices.dueDate),
+                asc(subscriptionInvoices.numberYear),
+                asc(subscriptionInvoices.numberSequence),
+            )
+            .limit(page.limit + 1);
+        return {
+            invoices: rows.slice(0, page.limit).map((row) => ({
+                invoiceId: row.id,
+                owed: columnAmountOf(row.owed, {
+                    table: 'subscription_invoices',
+                    column: 'owed',
+                    id: row.id,
+                }),
+            })),
+            hasMore: rows.length > page.limit,
+        };
+    }
+
+    async listOpenCredits(page: { limit: number; after?: string }): Promise<OwedCreditPage> {
+        const db = resolveDb(this.db);
+        const rows = await db
+            .select({ credit: subscriberCredits, open: sql<string>`${openOfCreditSql}::text` })
+            .from(subscriberCredits)
+            .where(
+                and(
+                    sql`${openOfCreditSql} > 0`,
+                    page.after
+                        ? notExists(
+                              db
+                                  .select({ id: afterCredit.id })
+                                  .from(afterCredit)
+                                  .where(
+                                      and(
+                                          eq(afterCredit.id, page.after),
+                                          sql`(${subscriberCredits.createdAt}, ${subscriberCredits.id})
+                                              <= (${afterCredit.createdAt}, ${afterCredit.id})`,
+                                      ),
+                                  ),
+                          )
+                        : undefined,
+                ),
+            )
+            .orderBy(asc(subscriberCredits.createdAt), asc(subscriberCredits.id))
+            .limit(page.limit + 1);
+        return {
+            credits: rows.slice(0, page.limit).map((row) => ({
+                credit: toSubscriberCreditRecord(row.credit),
+                open: columnAmountOf(row.open, {
+                    table: 'subscriber_credits',
+                    column: 'open',
+                    id: row.credit.id,
+                }),
+            })),
+            hasMore: rows.length > page.limit,
+        };
+    }
+
+    async openItemTotals(today: CalendarDay): Promise<OpenItemTotals> {
+        const db = resolveDb(this.db);
+        const invoiceRows = await db
+            .select({
+                currency: subscriptionInvoices.currency,
+                owed: sql<string>`SUM(${owedOnInvoice})::text`,
+                overdue: sql<string>`COALESCE(SUM(${owedOnInvoice}) FILTER (WHERE ${subscriptionInvoices.dueDate} < ${today}::date), 0)::text`,
+            })
+            .from(subscriptionInvoices)
+            .where(stillOwes)
+            .groupBy(subscriptionInvoices.currency)
+            .orderBy(asc(subscriptionInvoices.currency));
+        const creditRows = await db
+            .select({
+                currency: subscriberCredits.currency,
+                open: sql<string>`SUM(${openOfCreditSql})::text`,
+            })
+            .from(subscriberCredits)
+            .where(sql`${openOfCreditSql} > 0`)
+            .groupBy(subscriberCredits.currency)
+            .orderBy(asc(subscriberCredits.currency));
+        const amount = (text: string, table: string, column: string, id: string) =>
+            columnAmountOf(text, { table, column, id });
+        return {
+            invoices: invoiceRows.map((row) => ({
+                currency: row.currency,
+                owed: amount(row.owed, 'subscription_invoices', 'owed', row.currency),
+                overdue: amount(row.overdue, 'subscription_invoices', 'overdue', row.currency),
+            })),
+            credits: creditRows.map((row) => ({
+                currency: row.currency,
+                open: amount(row.open, 'subscriber_credits', 'open', row.currency),
+            })),
+        };
+    }
+
     async accountsHoldingCredits(tx?: TransactionContext): Promise<string[]> {
         // A credit from a reversal given back is held at the account of the
         // payment the reversal took back; one from an invoice at no account.
-        const paidOut = sql<string>`COALESCE((
-            SELECT SUM(CASE WHEN ${inArray(subscriberCreditEntries.kind, GIVING_BACK)}
-                            THEN -${subscriberCreditEntries.amount}
-                            ELSE ${subscriberCreditEntries.amount} END)
-              FROM ${subscriberCreditEntries}
-             WHERE ${subscriberCreditEntries.creditId} = ${subscriberCredits.id}
-        ), 0)`;
         const rows = await resolveDb(this.db, tx)
             .selectDistinct({ account: subscriberPayments.gatewayAccount })
             .from(subscriberCredits)
@@ -586,14 +710,17 @@ export class DrizzleSubscriberPaymentRepository implements SubscriberPaymentRepo
                     sql`COALESCE(${subscriberCredits.originPaymentId}, ${subscriberReversals.paymentId})`,
                 ),
             )
-            .where(gt(subscriberCredits.amount, paidOut))
+            .where(gt(subscriberCredits.amount, paidOutOfCredit))
             .orderBy(asc(subscriberPayments.gatewayAccount));
         return rows.map((row) => row.account);
     }
 }
 
-/** The credit entry kinds that give back, as a parameter of the sum above. */
-const GIVING_BACK = [...GIVING_BACK_CREDIT_ENTRY_KINDS];
+/** The invoice a page of open invoices goes on after, beside the one the query lists. */
+const afterInvoice = alias(subscriptionInvoices, 'after_invoice');
+
+/** The credit a page of open credits goes on after, beside the one the query lists. */
+const afterCredit = alias(subscriberCredits, 'after_credit');
 
 /** The subscriber's credits, in `currency` where it is given, the oldest first. */
 async function standingsOf(

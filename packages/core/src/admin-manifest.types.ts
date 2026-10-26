@@ -75,6 +75,7 @@ export type StandardPageKey =
     | 'tenants'
     | 'subscribers'
     | 'invoices'
+    | 'openItems'
     | 'subscriptions'
     | 'promoCodes'
     | 'plans'

@@ -2680,6 +2680,24 @@ exceptions:
   `subscribers.payments.taxTreatment`, where the register reads it too, and the register's own texts
   in the new namespace `invoices`. An admin shell that lists its pages by hand adds the page.
 
+### An operator reads the open items
+
+The administration gains a standard page `openItems` (`/admin/open-items`): every invoice that still
+owes something and every credit the operator still owes, across every tenant, with their totals per
+currency, a credit paid out from its row (`SC-ADM-044`). It is served and announced where the
+subscribers' credits are, under `payments.read`, at `GET admin/open-items`, `GET admin/open-credits`
+and `GET admin/open-item-totals`. Nothing is stored for it, so there is no migration. A repository of
+your own adds the reads; one that extends a shipped repository inherits them, and the persistence
+contract holds them:
+
+- **`SubscriberPaymentRepository`**: `listOpenInvoices`, `listOpenCredits` and `openItemTotals`,
+  each reading what is owed by the signed sums `owedByInvoice` and `openOfCredit` compute.
+- **`SubscriptionInvoiceRepository`** and **`SubscriberRepository`**: `findByIds`.
+- **`InvoiceCollectionRepository`**: `listByInvoices`.
+
+An admin shell that lists its pages by hand adds the page. A persistence contract harness of your
+own is held, after every scenario, to open items that agree with the rule.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

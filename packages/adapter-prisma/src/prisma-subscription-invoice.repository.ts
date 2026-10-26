@@ -402,6 +402,15 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
         return rows.map(toIssuedInvoiceAmounts);
     }
 
+    async findByIds(ids: readonly string[]): Promise<SubscriptionInvoiceRecord[]> {
+        if (ids.length === 0) return [];
+        const rows = await this.db().subscriptionInvoice.findMany({
+            where: { id: { in: [...ids] } },
+            include: WITH_LINES,
+        });
+        return rows.map(recordOf);
+    }
+
     async findByNumber(number: string): Promise<SubscriptionInvoiceRecord | null> {
         const row = await this.db().subscriptionInvoice.findUnique({
             where: { number },

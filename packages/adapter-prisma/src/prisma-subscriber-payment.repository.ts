@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type {
+    CalendarDay,
     ClosedReconciliationCase,
     CloseReconciliationCase,
     CreditPart,
@@ -8,6 +9,9 @@ import type {
     MovedPaymentPart,
     NewSubscriberPayment,
     NewSubscriberPayout,
+    OpenItemTotals,
+    OwedCreditPage,
+    OwingInvoicePage,
     ReconciliationCaseState,
     RecordedSubscriberPayment,
     RecordedSubscriberPayout,
@@ -27,6 +31,8 @@ import type {
 import {
     CASE_CLOSED_REFUND_ENDED,
     GIVING_BACK_CREDIT_ENTRY_KINDS,
+    REOPENING_SETTLEMENT_KINDS,
+    columnAmountOf,
     isEndedRefund,
     openOfCredit,
     owedByInvoice,
@@ -70,6 +76,14 @@ interface PaymentRepositoryClient {
 
 /** The credit entry kinds that give back, as a parameter of the sum below. */
 const GIVING_BACK = [...GIVING_BACK_CREDIT_ENTRY_KINDS];
+
+/** The settlement kinds that add back to what an invoice owes, as a parameter of the sums below. */
+const REOPENING = [...REOPENING_SETTLEMENT_KINDS];
+
+/** An amount a raw query selected as text, checked as a column read is. */
+function amountsOf(rows: unknown, column: string, table: string): number[] {
+    return textsOf(rows, column).map((text) => columnAmountOf(text, { table, column, id: column }));
+}
 
 /**
  * `SubscriberPaymentRepository` against the seven tables of fragment 24.
@@ -543,6 +557,148 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
         tx?: TransactionContext,
     ): Promise<ClosedReconciliationCase> {
         return closeCaseIn(this.db(tx), close);
+    }
+
+    // The open items below read what an invoice owes and what a credit holds
+    // as the signed sums `owedByInvoice` and `openOfCredit` compute, in SQL:
+    // the gross less its settlements, a cancelled invoice and a cancellation
+    // invoice left out, and the amount less what was paid out of it. Each
+    // query states its sum once, in a CTE; the signs are the parameters.
+
+    async listOpenInvoices(page: {
+        limit: number;
+        after?: string;
+        overdueOn?: CalendarDay;
+    }): Promise<OwingInvoicePage> {
+        const rows = await this.db().$queryRaw`
+            WITH owing AS (
+                SELECT i."id", i."dueDate", i."numberYear", i."numberSequence",
+                       i."totalGross" - COALESCE((
+                           SELECT SUM(CASE WHEN s."kind" = ANY(${REOPENING}) THEN -s."amount"
+                                           ELSE s."amount" END)
+                             FROM "subscription_invoice_settlements" s
+                            WHERE s."invoiceId" = i."id"
+                       ), 0) AS "owed"
+                  FROM "subscription_invoices" i
+                 WHERE NOT EXISTS (
+                           SELECT 1 FROM "subscription_invoice_cancellations" x
+                            WHERE x."cancelledInvoiceId" = i."id" OR x."cancellationInvoiceId" = i."id"
+                       )
+            ), after_it AS (
+                SELECT "dueDate", "numberYear", "numberSequence"
+                  FROM "subscription_invoices" WHERE "id" = ${page.after ?? null}
+            )
+            SELECT o."id", o."owed"::text AS "owed"
+              FROM owing o
+             WHERE o."owed" > 0
+               AND (${page.overdueOn ?? null}::date IS NULL OR o."dueDate" < ${page.overdueOn ?? null}::date)
+               AND NOT EXISTS (
+                       SELECT 1 FROM after_it a
+                        WHERE (o."dueDate", o."numberYear", o."numberSequence")
+                           <= (a."dueDate", a."numberYear", a."numberSequence")
+                   )
+             ORDER BY o."dueDate", o."numberYear", o."numberSequence"
+             LIMIT ${page.limit + 1}`;
+        const ids = idsOf(rows);
+        const owed = amountsOf(rows, 'owed', 'subscription_invoices');
+        return {
+            invoices: ids
+                .slice(0, page.limit)
+                .map((invoiceId, index) => ({ invoiceId, owed: owed[index]! })),
+            hasMore: ids.length > page.limit,
+        };
+    }
+
+    async listOpenCredits(page: { limit: number; after?: string }): Promise<OwedCreditPage> {
+        const db = this.db();
+        const rows = await db.$queryRaw`
+            WITH open_credits AS (
+                SELECT c."id", c."createdAt",
+                       c."amount" - COALESCE((
+                           SELECT SUM(CASE WHEN e."kind" = ANY(${GIVING_BACK}) THEN -e."amount"
+                                           ELSE e."amount" END)
+                             FROM "subscriber_credit_entries" e
+                            WHERE e."creditId" = c."id"
+                       ), 0) AS "open"
+                  FROM "subscriber_credits" c
+            ), after_it AS (
+                SELECT "createdAt", "id" FROM "subscriber_credits" WHERE "id" = ${page.after ?? null}
+            )
+            SELECT o."id", o."open"::text AS "open"
+              FROM open_credits o
+             WHERE o."open" > 0
+               AND NOT EXISTS (
+                       SELECT 1 FROM after_it a WHERE (o."createdAt", o."id") <= (a."createdAt", a."id")
+                   )
+             ORDER BY o."createdAt", o."id"
+             LIMIT ${page.limit + 1}`;
+        const ids = idsOf(rows).slice(0, page.limit);
+        const open = amountsOf(rows, 'open', 'subscriber_credits');
+        const credits = new Map(
+            (await db.subscriberCredit.findMany({ where: { id: { in: ids } } })).map((row) => [
+                row.id,
+                toSubscriberCreditRecord(row),
+            ]),
+        );
+        return {
+            credits: ids.flatMap((id, index) => {
+                const credit = credits.get(id);
+                return credit ? [{ credit, open: open[index]! }] : [];
+            }),
+            hasMore: idsOf(rows).length > page.limit,
+        };
+    }
+
+    async openItemTotals(today: CalendarDay): Promise<OpenItemTotals> {
+        const db = this.db();
+        const invoiceRows = await db.$queryRaw`
+            WITH owing AS (
+                SELECT i."currency", i."dueDate",
+                       i."totalGross" - COALESCE((
+                           SELECT SUM(CASE WHEN s."kind" = ANY(${REOPENING}) THEN -s."amount"
+                                           ELSE s."amount" END)
+                             FROM "subscription_invoice_settlements" s
+                            WHERE s."invoiceId" = i."id"
+                       ), 0) AS "owed"
+                  FROM "subscription_invoices" i
+                 WHERE NOT EXISTS (
+                           SELECT 1 FROM "subscription_invoice_cancellations" x
+                            WHERE x."cancelledInvoiceId" = i."id" OR x."cancellationInvoiceId" = i."id"
+                       )
+            )
+            SELECT "currency",
+                   SUM("owed")::text AS "owed",
+                   COALESCE(SUM("owed") FILTER (WHERE "dueDate" < ${today}::date), 0)::text AS "overdue"
+              FROM owing WHERE "owed" > 0
+             GROUP BY "currency" ORDER BY "currency"`;
+        const creditRows = await db.$queryRaw`
+            WITH open_credits AS (
+                SELECT c."currency",
+                       c."amount" - COALESCE((
+                           SELECT SUM(CASE WHEN e."kind" = ANY(${GIVING_BACK}) THEN -e."amount"
+                                           ELSE e."amount" END)
+                             FROM "subscriber_credit_entries" e
+                            WHERE e."creditId" = c."id"
+                       ), 0) AS "open"
+                  FROM "subscriber_credits" c
+            )
+            SELECT "currency", SUM("open")::text AS "open"
+              FROM open_credits WHERE "open" > 0
+             GROUP BY "currency" ORDER BY "currency"`;
+        const owed = amountsOf(invoiceRows, 'owed', 'subscription_invoices');
+        const overdue = amountsOf(invoiceRows, 'overdue', 'subscription_invoices');
+        const open = amountsOf(creditRows, 'open', 'subscriber_credits');
+        return {
+            invoices: textsOf(invoiceRows, 'currency').map((currency, index) => ({
+                currency,
+                owed: owed[index]!,
+                overdue: overdue[index]!,
+            })),
+            credits: textsOf(creditRows, 'currency').map((currency, index) => ({
+                currency,
+                open: open[index]!,
+            })),
+        };
     }
 
     async accountsHoldingCredits(tx?: TransactionContext): Promise<string[]> {

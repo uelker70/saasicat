@@ -1280,6 +1280,28 @@ the tenants' row-level policy like every operator route. They read the invoice r
 `listIssued` and `listIssuedAmounts`, which the shipped adapters implement and the persistence
 contract holds. The export a tax advisor imports follows (`SC-ADM-043`).
 
+### The open items
+
+Wherever the payments of collected invoices are recorded, the administration's standard page
+`openItems` lists what subscribers still owe and what they are still owed, across every tenant,
+deleted ones included (`SC-ADM-044`): the invoices whose gross less what is settled against them is
+above zero, the oldest due date first, each with the days it is overdue, how it is paid and how its
+latest collection attempt ended; the credits the operator still owes, each paid out from its row
+with the second factor, as from the subscriber's record; and per currency what is owed, of it what
+is overdue, and what the credits hold.
+
+- **The invoices**, `GET admin/open-items?overdue=true&after=…`, answer fifty and `next`;
+  `overdue=true` keeps those due before today, in the installation's time zone.
+- **The credits**, `GET admin/open-credits?after=…`, answer fifty and `next`; a payout is recorded at
+  `POST admin/subscribers/:id/credits/:creditId/payouts`, as from the record.
+- **The totals**, `GET admin/open-item-totals`.
+
+All three are served and announced where the credits and the cases to reconcile are, under
+`payments.read`. What an invoice owes and what a credit holds are read in SQL by the rule
+`owedByInvoice` and `openOfCredit` compute — the signs passed as parameters from `@saasicat/core` —,
+so nothing is stored beside the settlements and the credit entries; the persistence contract holds
+both adapters to the rule after every payment scenario.
+
 ### Cancelling an invoice
 
 An issued invoice is never edited (`SC-PRIC-095`): the operator cancels it, and the platform writes

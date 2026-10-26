@@ -367,6 +367,9 @@ export function collectionStore(
         async listByInvoice(invoiceId) {
             return structuredClone(attempts.filter((each) => each.invoiceId === invoiceId));
         },
+        async listByInvoices(invoiceIds) {
+            return structuredClone(attempts.filter((each) => invoiceIds.includes(each.invoiceId)));
+        },
         async accountsInUse() {
             return [
                 ...new Set(

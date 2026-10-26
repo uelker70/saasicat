@@ -149,6 +149,8 @@ export * from './contract-confirmation-mapping.js';
 export * from './contract-dossier.js';
 export * from './invoice-register.types.js';
 export * from './invoice-register.js';
+export * from './open-items.types.js';
+export * from './open-items.js';
 export * from './subscription-contract-mapping.js';
 export * from './subscription-contract.types.js';
 export * from './subscription.types.js';

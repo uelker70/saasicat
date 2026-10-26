@@ -137,6 +137,15 @@ export class PrismaSubscriberRepository implements SubscriberRepository {
         return row ? toRecord(row) : null;
     }
 
+    async findByIds(ids: readonly string[]): Promise<SubscriberRecord[]> {
+        if (ids.length === 0) return [];
+        const rows = await this.db().subscriber.findMany({
+            where: { id: { in: [...ids] } },
+            include: WITH_LIVE_TENANT,
+        });
+        return rows.map(toRecord);
+    }
+
     async findByTenantId(
         tenantId: string,
         tx?: TransactionContext,
