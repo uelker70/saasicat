@@ -138,9 +138,11 @@ function anInstallation() {
 
 /**
  * The platform serving `installation`'s invoices, each read of them recorded
- * with whether it ran inside the bypass frame.
+ * with whether it ran inside the bypass frame. `through` binds the bypass the
+ * way an adapter without row-level policies does: it calls `fn` and hands back
+ * what it returns, as it returns it.
  */
-async function aPlatform(installation, options = {}) {
+async function aPlatform(installation, options = {}, { through = false } = {}) {
     const reads = [];
     let bypassed = 0;
     const { store } = installation;
@@ -160,16 +162,18 @@ async function aPlatform(installation, options = {}) {
     const platform = invoicingPlatform({
         invoices: wiredInvoices({ invoiceRepository: repository }),
     });
-    platform.persistence.core.rlsBypass = {
-        async runWithBypass(fn) {
-            bypassed += 1;
-            try {
-                return await fn();
-            } finally {
-                bypassed -= 1;
-            }
-        },
-    };
+    platform.persistence.core.rlsBypass = through
+        ? { runWithBypass: (fn) => fn() }
+        : {
+              async runWithBypass(fn) {
+                  bypassed += 1;
+                  try {
+                      return await fn();
+                  } finally {
+                      bypassed -= 1;
+                  }
+              },
+          };
     const root = SaaSiCatModule.forRoot({ ...platform, ...options });
     const moduleRef = await Test.createTestingModule({ imports: [root] }).compile();
     await moduleRef.init();
@@ -377,7 +381,9 @@ describe('the months the register refuses', () => {
         ],
     ]) {
         test(`${why}, with its code and no read, for the page and the totals`, async () => {
-            const platform = await aPlatform(anInstallation());
+            // A bypass that calls through hands the route's answer back as it
+            // is, so a refusal thrown rather than rejected would escape here.
+            const platform = await aPlatform(anInstallation(), {}, { through: true });
 
             for (const read of [platform.page, platform.totals]) {
                 await assert.rejects(read(query), (error) => {

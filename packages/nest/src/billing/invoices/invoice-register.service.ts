@@ -70,10 +70,10 @@ export class InvoiceRegisterService {
      * One page of the invoices issued in the months `query` names, by issue
      * date and then number, each with the subscriber it names, whether its
      * document is archived and what cancelled it; the page after the invoice
-     * `after` names, where it is given. Refused with `422` for months the
+     * `after` names, where it is given. Rejected with `422` for months the
      * register does not span: reversed, or more than a year.
      */
-    page(
+    async page(
         query: InvoiceRegisterQuery & { after?: string },
         now: Date = new Date(),
     ): Promise<AdminInvoiceRegisterPage> {
@@ -104,7 +104,7 @@ export class InvoiceRegisterService {
      * month, currency, tax treatment and rate, and over all of them. Refused as
      * `page` is.
      */
-    totals(
+    async totals(
         query: InvoiceRegisterQuery,
         now: Date = new Date(),
     ): Promise<AdminInvoiceRegisterTotals> {

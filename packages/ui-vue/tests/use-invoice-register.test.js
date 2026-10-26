@@ -228,6 +228,35 @@ describe('useInvoiceRegister', () => {
         );
     });
 
+    test('the months a stale answer named are read when they are picked, not taken as shown', async () => {
+        let release;
+        const { asked, invoices } = aRegister(({ from }) =>
+            from === undefined
+                ? new Promise((resolve) => {
+                      release = () => resolve({ invoices: [row('stale')], next: null });
+                  })
+                : { invoices: [row(from)], next: null },
+        );
+        const register = useInvoiceRegister(invoices);
+        await settle();
+        register.from.value = '2026-03';
+        await settle();
+        release();
+        await settle();
+
+        // Both at once, the months the stale answer named: what is on screen
+        // was read for March, so October is asked for.
+        register.from.value = '2026-10';
+        register.until.value = '2026-10';
+        await settle();
+
+        assert.deepEqual(asked.list.at(-1), { from: '2026-10', until: '2026-10' });
+        assert.deepEqual(
+            register.rows.value.map(({ id }) => id),
+            ['2026-10'],
+        );
+    });
+
     test('a failure of the totals is the register’s failure, and a reload clears it', async () => {
         const { invoices } = aRegister();
         let fail = true;
