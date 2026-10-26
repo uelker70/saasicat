@@ -336,6 +336,11 @@ describe('useCancellationParty', () => {
         subject.value = null;
         await settle();
         assert.deepEqual([reads, party.data.value], [['s-1', 's-2'], null]);
+
+        // Named again after none: read again, as it may have changed.
+        subject.value = 's-2';
+        await settle();
+        assert.deepEqual(reads, ['s-1', 's-2', 's-2']);
     });
 });
 

@@ -180,7 +180,12 @@ const cancellation = useInvoiceCancellation(servedBy, subscribers, {
     onCancelled: reload,
 });
 const cancelling = ref<AdminInvoiceRegisterRow | null>(null);
-const party = useCancellationParty(subscribers, () => cancelling.value?.subscriber.id ?? null);
+// Named only while the dialog is open, so each opening reads the record as it
+// is then — also for the subscriber of the opening before, corrected since or
+// read in vain then.
+const party = useCancellationParty(subscribers, () =>
+    cancellation.target.value === null ? null : (cancelling.value?.subscriber.id ?? null),
+);
 
 function openCancellation(invoice: AdminInvoiceRegisterRow): void {
     cancelling.value = invoice;

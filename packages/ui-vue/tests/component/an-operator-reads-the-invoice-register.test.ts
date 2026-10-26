@@ -332,6 +332,30 @@ describe('the register of invoices', () => {
 
 // @requirement SC-ADM-019 — Early deletion, cancelling an invoice and joining a subscriber need a second factor
 describe('an invoice cancelled from the register', () => {
+    test('reads the subscriber’s record each time the dialog opens, for the same subscriber too', async () => {
+        const { wrapper, calls } = await mountRegister();
+        const open = async () => {
+            await wrapper
+                .find('button[aria-label="Cancel invoice AHP-2026-000002"]')
+                .trigger('click');
+            await settle();
+        };
+
+        await open();
+        dialog()
+            .node?.querySelectorAll<HTMLButtonElement>('.sa-dialog__actions button')[0]
+            ?.click();
+        await settle();
+        await open();
+
+        // The record may have been corrected in between; what the dialog
+        // offers to take over is the record as it is when it opens.
+        expect(calls.filter(([what]) => what === 'record')).toEqual([
+            ['record', 's-2'],
+            ['record', 's-2'],
+        ]);
+    });
+
     test('reads its subscriber’s record for the dialog, is confirmed behind the second factor, and the register read again', async () => {
         const { wrapper, calls, notices } = await mountRegister();
 

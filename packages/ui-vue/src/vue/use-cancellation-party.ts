@@ -14,7 +14,9 @@ export type CancellationPartyResource = Pick<Bound<(typeof subscribersResource)[
 
 /**
  * The details of the subscriber `subscriberId` names, read each time it names
- * another, and `null` while it names none — no dialog open.
+ * one after naming another or none, and `null` while it names none: a caller
+ * that names none while no dialog is open has each opening read the record
+ * anew.
  */
 export function useCancellationParty(
     subscribers: CancellationPartyResource,

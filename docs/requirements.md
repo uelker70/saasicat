@@ -16097,6 +16097,7 @@ _Tested by:_
           invoices read again
 - `packages/ui-vue/tests/component/an-operator-reads-the-invoice-register.test.ts`
     - an invoice cancelled from the register
+        - reads the subscriber’s record each time the dialog opens, for the same subscriber too
         - reads its subscriber’s record for the dialog, is confirmed behind the second factor, and
           the register read again
 
@@ -17008,6 +17009,7 @@ _Tested by:_
         - says so where no invoice was issued in the months
         - offers cancelling where an invoice stands and the platform serves it, and nowhere else
     - an invoice cancelled from the register
+        - reads the subscriber’s record each time the dialog opens, for the same subscriber too
         - reads its subscriber’s record for the dialog, is confirmed behind the second factor, and
           the register read again
 - `packages/ui-vue/tests/invoice-register-resource.test.js`
