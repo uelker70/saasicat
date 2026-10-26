@@ -263,6 +263,25 @@ describe('what a contract changed against the one before it', () => {
         assert.equal(changes.get('c3').frozenAnew, true);
     });
 
+    test('a cancellation that lands where a scheduled change was to begin is said at the contract it ended', () => {
+        // A downgrade scheduled for 1 May, then a cancellation to the same day:
+        // the cancellation finds the scheduled contract, which starts then, and
+        // ends it before it begins. The contract the tenant was under ends on
+        // 1 May all the same, and nothing follows it.
+        const basic = contract('c1', '2026-01-01T00:00:00Z', [plan('BASIC', 29)], {
+            effectiveUntil: new Date('2026-05-01T00:00:00Z'),
+        });
+        const downgrade = contract('c2', '2026-05-01T00:00:00Z', [plan('LITE', 19)], {
+            status: 'terminated',
+            effectiveUntil: new Date('2026-05-01T00:00:00Z'),
+            createdAt: new Date('2026-03-01T00:00:00Z'),
+        });
+
+        const changes = contractChangesOf([basic, downgrade]);
+        assert.equal(changes.get('c1').cancelled, true, 'the last contract in force was cancelled');
+        assert.equal(changes.get('c2').cancelled, false, 'the one that never began was not');
+    });
+
     test('each tenant has a timeline of its own, ordered by start and then by when written', () => {
         const laterT1 = contract('c2', '2026-03-01T00:00:00Z', [plan('PRO', 49)]);
         const firstT2 = contract('c3', '2026-02-01T00:00:00Z', [plan('PRO', 49)], {

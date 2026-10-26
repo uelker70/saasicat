@@ -55,7 +55,10 @@ export function neverInForce(contract: SubscriptionContractRecord): boolean {
  *
  * A tenant's contracts follow one another by their start, then by when each
  * was written. A contract that never came into force is compared with the one
- * in force before it, and is skipped as the one before the next.
+ * in force before it, and is skipped as the one before the next. Whether the
+ * tenant's contracts ended is read off the last one that was in force: a
+ * cancellation that lands where a scheduled change was to begin ends that
+ * change before it begins, and the contract it ended is the one before it.
  */
 export function contractChangesOf(
     contracts: readonly SubscriptionContractRecord[],
@@ -69,12 +72,13 @@ export function contractChangesOf(
     const changes = new Map<string, AdminContractChange>();
     for (const chain of byTenant.values()) {
         const ordered = [...chain].sort(inSequence);
+        const inForce = ordered.filter((contract) => !neverInForce(contract));
+        const lastInForce = inForce[inForce.length - 1] ?? null;
         let before: SubscriptionContractRecord | null = null;
-        ordered.forEach((contract, index) => {
-            const last = index === ordered.length - 1;
-            changes.set(contract.id, changeOf(before, contract, last));
+        for (const contract of ordered) {
+            changes.set(contract.id, changeOf(before, contract, contract === lastInForce));
             if (!neverInForce(contract)) before = contract;
-        });
+        }
     }
     return changes;
 }
@@ -243,15 +247,14 @@ export function contractSourceStateOf(
     return row.deletedAt ? 'removed' : 'in-catalog';
 }
 
+/** `lastInForce`: the contract is the last of its tenant that came into force. */
 function changeOf(
     before: SubscriptionContractRecord | null,
     contract: SubscriptionContractRecord,
-    last: boolean,
+    lastInForce: boolean,
 ): AdminContractChange {
     const cancelled =
-        last &&
-        !neverInForce(contract) &&
-        (contract.status === 'terminated' || contract.effectiveUntil !== null);
+        lastInForce && (contract.status === 'terminated' || contract.effectiveUntil !== null);
     if (!before) {
         return {
             concluded: true,

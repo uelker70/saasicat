@@ -16818,6 +16818,8 @@ _Tested by:_
         - the price compares per year, so a yearly contract at the same price per month is unchanged
         - the last contract of a tenant that ends is cancelled; one open-ended or superseded is not
         - a contract never in force is not what the next one changed, and is not cancelled
+        - a cancellation that lands where a scheduled change was to begin is said at the contract it
+          ended
         - each tenant has a timeline of its own, ordered by start and then by when written
     - a contract as the list shows it
         - reads its days in the installation’s zone, across midnight
