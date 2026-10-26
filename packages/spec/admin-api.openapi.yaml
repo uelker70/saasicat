@@ -653,7 +653,9 @@ paths:
                 - name: until
                   in: query
                   required: false
-                  description: The last month, `YYYY-MM`; at most twelve months after `from`.
+                  description: >-
+                      The last month, `YYYY-MM`; the span from `from` to it, both included,
+                      covers at most twelve months.
                   schema: { type: string, pattern: '^[1-9]\d{3}-(?:0[1-9]|1[0-2])$' }
                 - name: after
                   in: query
@@ -695,7 +697,9 @@ paths:
                 - name: until
                   in: query
                   required: false
-                  description: The last month, `YYYY-MM`; at most twelve months after `from`.
+                  description: >-
+                      The last month, `YYYY-MM`; the span from `from` to it, both included,
+                      covers at most twelve months.
                   schema: { type: string, pattern: '^[1-9]\d{3}-(?:0[1-9]|1[0-2])$' }
             responses:
                 '200':
