@@ -7,7 +7,6 @@ import {
     Inject,
     Module,
     Param,
-    type Provider,
     StreamableFile,
     type Type,
 } from '@nestjs/common';
@@ -18,14 +17,9 @@ import { UseRouteGuards } from '../../admin/use-route-guards.decorator.js';
 import type {
     AdminSubscriberContractDossier,
     AdminSubscriberContracts,
-    BundleRepository,
     InvoiceDocument,
-    PersistenceProvider,
-    PlanRepository,
     RlsBypassPort,
 } from '@saasicat/core';
-import { BUNDLE_REPOSITORY_TOKEN, PLAN_REPOSITORY_TOKEN } from '../../catalog/catalog.tokens.js';
-import { asProvider } from '../../core/di.js';
 import { ContractConfirmationService } from '../confirmations/contract-confirmation.service.js';
 import { CatalogContractSourceLookup } from '../confirmations/contract-source-lookup.js';
 import { InvoiceDocumentService } from './invoice-document.service.js';
@@ -42,15 +36,6 @@ export interface InvoiceDocumentModuleOptions {
     imports: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /** Whether the contracts' confirmations are offered too. */
     confirmations: boolean;
-    /**
-     * The installation's plans and add-ons, which a contract's dossier asks
-     * whether a line's source is still in the catalogue. Either may be absent;
-     * the lines of that kind then say nothing about it.
-     */
-    catalog?: {
-        plans?: PersistenceProvider<PlanRepository>;
-        bundles?: PersistenceProvider<BundleRepository>;
-    };
 }
 
 /**
@@ -169,16 +154,12 @@ export class InvoiceDocumentModule {
                     ? [buildContractConfirmationController(options.guards)]
                     : []),
             ],
-            providers: options.confirmations ? contractSourceProviders(options.catalog) : [],
+            // Where a line came from is asked of the catalogue's own plan and
+            // bundle repositories, which the platform exports with the
+            // catalogue module. Registered again here, a factory would lose
+            // the scope the application gave the catalogue — `catalog.imports`,
+            // `catalog.extraProviders` — and the application would not start.
+            providers: options.confirmations ? [CatalogContractSourceLookup] : [],
         };
     }
-}
-
-/** The dossier's lookup of where a line came from, with whichever repositories the catalogue has. */
-function contractSourceProviders(catalog: InvoiceDocumentModuleOptions['catalog']): Provider[] {
-    return [
-        CatalogContractSourceLookup,
-        ...(catalog?.plans ? [asProvider(PLAN_REPOSITORY_TOKEN, catalog.plans)] : []),
-        ...(catalog?.bundles ? [asProvider(BUNDLE_REPOSITORY_TOKEN, catalog.bundles)] : []),
-    ];
 }

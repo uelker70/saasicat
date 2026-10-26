@@ -1567,6 +1567,8 @@ _Tested by:_
     - the operator’s download of a confirmation
         - serves a contract’s dossier in its record, read outside any row policy, each line with
           where the platform’s catalogue has it
+        - starts where the catalogue’s repositories need what only the catalogue is given, and asks
+          them there
 - `packages/ui-vue/tests/a-contract-timeline-reads-per-tenant.test.js`
     - the timelines of a subscriber’s contracts
         - are one per tenant, in the order the record names the tenants, the latest start first

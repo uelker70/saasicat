@@ -5,7 +5,6 @@ import { InvoiceDocumentModule } from '../../billing/invoices/invoice-document.m
 import type { SaaSiCatModuleOptions } from '../module-options.js';
 
 import { adminResourceGuards } from './admin-resources.js';
-import { resolveBundleRepository } from './bundle-repository-source.js';
 import { optionsOf, type CompositionContext } from './context.js';
 
 /**
@@ -56,12 +55,6 @@ export function composeInvoiceDocuments(ctx: CompositionContext): DynamicModule[
             imports: [adminResourcesModule, tenantBillingModule, ...applicationImports],
             // Required with invoices: the start refuses invoices without them.
             confirmations: servesContractConfirmations(ctx.options),
-            // A contract's dossier says whether a line's source is still in
-            // the catalogue, from the same repositories the catalogue runs on.
-            catalog: {
-                plans: ctx.persistence?.catalog?.planRepository,
-                bundles: resolveBundleRepository(ctx.persistence),
-            },
         }),
         InvoiceCancellationModule.forRoot({
             guards,

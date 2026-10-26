@@ -462,6 +462,8 @@ _Tested by:_
           manifest announces both
         - serves a contract’s dossier in its record, read outside any row policy, each line with
           where the platform’s catalogue has it
+        - starts where the catalogue’s repositories need what only the catalogue is given, and asks
+          them there
         - is not served where the administration is not
 - `packages/nest/tests/invoices-start-only-as-configured.test.js`
     - the confirmations every contract is due, beside the invoices

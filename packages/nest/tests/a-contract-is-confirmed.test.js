@@ -749,6 +749,40 @@ describe('the operator’s download of a confirmation', () => {
         await moduleRef.close();
     });
 
+    // @requirement SC-ADM-041 — The record shows every contract as it was concluded, and how one followed another
+    test('starts where the catalogue’s repositories need what only the catalogue is given, and asks them there', async () => {
+        const installation = aConfirmingInstallation();
+        const contract = await installation.aConfirmableContract('t1');
+        // A plan repository built by a factory that injects a provider the
+        // application gives the catalogue alone.
+        const CATALOG_ONLY = Symbol('catalog-only');
+        const { moduleRef, dossierOf } = await aServingPlatform(installation, {}, (platform) => {
+            const { catalog } = platform.persistence;
+            const fake = catalog.planRepository;
+            platform.catalog.extraProviders = [
+                { provide: CATALOG_ONLY, useValue: { removed: new Set(['STANDARD']) } },
+            ];
+            catalog.planRepository = {
+                useFactory: (only) =>
+                    Object.assign(Object.create(fake), {
+                        findByKey: async (key) => ({
+                            planKey: key,
+                            deletedAt: only.removed.has(key) ? new Date() : null,
+                        }),
+                    }),
+                inject: [CATALOG_ONLY],
+            };
+        });
+
+        const dossier = await dossierOf(contract.subscriberId, contract.id);
+
+        assert.deepEqual(
+            dossier.lines.map(({ source }) => source),
+            ['removed'],
+        );
+        await moduleRef.close();
+    });
+
     test('is not served where the administration is not', async () => {
         const installation = aConfirmingInstallation();
         const { moduleRef, served } = await aServingPlatform(installation, {
