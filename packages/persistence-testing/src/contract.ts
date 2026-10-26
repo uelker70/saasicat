@@ -12568,7 +12568,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const { payments, issued, pay } = account;
             await pay(0, 10);
 
-            const totals = await payments.openItemTotals('2026-02-15');
+            // The second is due on the day asked about, so not overdue yet.
+            const totals = await payments.openItemTotals('2026-02-20');
 
             const owedFirst = sumToCents(issued[0]!.totalGross, -10);
             assert.deepEqual(totals, {

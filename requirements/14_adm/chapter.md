@@ -1807,6 +1807,13 @@ _Source:_ #335 (decided 2026-10-26) · #276
 
 _Tested by:_
 
+- `packages/core/tests/an-open-invoice-is-overdue-from-the-day-after.test.js`
+    - an open invoice
+        - due ${dueDate} and read on ${today} is ${days} days overdue
+        - a day that is no day is refused rather than counted
+    - the latest attempts
+        - are each invoice’s highest attempt, in whatever order the attempts come
+        - are none of no attempts
 - `packages/nest/tests/an-operator-reads-the-open-items.test.js`
     - the open invoices
         - are those that still owe, the oldest due date first, with what each owes and how many days
