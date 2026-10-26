@@ -1258,6 +1258,28 @@ repositories, by the key the line froze; there is nothing to wire for it. The ma
 all three routes as `contracts.read`. Keep `contract_confirmation_archive` in every backup, for as
 long as the contracts it confirms are kept.
 
+### The register of every invoice
+
+Wherever invoices are issued, the administration's standard page `invoices` lists every invoice of
+the months the operator picks — the current month in the installation's time zone where none is, at
+most twelve at a time — by issue date and then number, whichever subscriber and tenant each was for,
+each with what it corrects, what cancelled it, the subscriber it names and whether its document is
+archived (`SC-ADM-042`). Beside the list stand the sums per month, currency, tax treatment and rate,
+and over the whole span, a cancellation invoice counting with its own sign in the month it was
+issued: the figures a tax advisor asks for, without opening one record after another.
+
+- **The page**, `GET admin/invoices?from=YYYY-MM&until=YYYY-MM`, answers fifty invoices and `next`,
+  the invoice the following page continues after (`after=`).
+- **The sums**, `GET admin/invoice-totals?from=YYYY-MM&until=YYYY-MM`, answer each month and the
+  span, per currency, treatment and rate. Months reversed or more than twelve are refused with
+  `422` and `SUBSCRIPTION_INVOICE_REGISTER_RANGE_REVERSED` or
+  `SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG`.
+
+Both are served and announced as the invoices' documents are, under `invoices.read`, and read past
+the tenants' row-level policy like every operator route. They read the invoice repository's
+`listIssued` and `listIssuedAmounts`, which the shipped adapters implement and the persistence
+contract holds. The export a tax advisor imports follows (`SC-ADM-043`).
+
 ### Cancelling an invoice
 
 An issued invoice is never edited (`SC-PRIC-095`): the operator cancels it, and the platform writes
@@ -1295,8 +1317,10 @@ invoice.
   — what the operator gives, each line owed, not owed or owed in part among it, then the preview
   with the lines that move and the replacement's lines, confirmed with the second factor
   (`SC-ADM-040`, `SC-ADM-035`). Nothing to wire beyond the routes.
-- **From the command line**, `<app> invoices cancel --tenant <slug> --invoice <number> --reason "…"`
-  shows the same and writes nothing — `--line 2=not-owed` or `--line 2=24.50` names a line by its
+- **From the command line**, `<app> invoices cancel --invoice <number> --reason "…"` shows the same
+  and writes nothing — the number names one invoice across the installation, so an invoice of a
+  tenant deleted since is cancelled the same way, and `--tenant <slug>` beside it refuses an invoice
+  issued for another tenant; `--line 2=not-owed` or `--line 2=24.50` names a line by its
   position on the document; `--apply` cancels, with the second factor and, against
   production, a confirmation, and says what it took over as paid and credited — it sends no
   `previewDigest`, so that is what was written ([Extend your CLI](extend-your-cli.md)).

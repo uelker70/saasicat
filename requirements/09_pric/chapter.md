@@ -1095,8 +1095,8 @@ _Tested by:_
 
 - `packages/cli/tests/invoice-cancel-cli-flow.test.js`
     - the preview is the command, and the cancellation the second one
-        - without --apply it previews the tenant’s invoice so numbered, and asks for neither factor
-          nor confirmation
+        - without --apply it previews the invoice so numbered, and asks for neither factor nor
+          confirmation
         - with --apply it asks for the second factor and the confirmation, cancels as the operator
           and records it
         - passes the corrections and the address on as typed, a correction left empty clearing its
@@ -2321,7 +2321,7 @@ number is drawn (`SC-PRIC-027`), so what can still fail afterwards is rendering 
 document rather than the invoice itself. The invoice and its number are written in one transaction,
 and the rendered document is then archived under that number, which makes a repeated attempt the
 same write rather than a second document. Until the archive confirms, the invoice is neither sent
-nor offered for download, the register shows it as awaiting its document (`SC-ADM-022`), and an
+nor offered for download, the register shows it as awaiting its document (`SC-ADM-042`), and an
 attempt that fails is retried; it never draws a new number for the same charges (`SC-PRIC-096`,
 `SC-PRIC-072`).
 
@@ -3208,7 +3208,7 @@ _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 ### SC-PRIC-045 — Invoice dates and tax periods count in the installation's time zone
 
 🟡 _(Decided, not yet delivered.)_ 💰 `config/saas.yaml` names it. The issue date, the period a charge
-covers, the due date and the periods the invoice register exports (`SC-ADM-022`) are days in that
+covers, the due date and the periods the invoice register exports (`SC-ADM-043`) are days in that
 zone, so an invoice issued half an hour after midnight on the first of January belongs to the new
 year whatever the server's clock says (`SC-OPS-011`).
 

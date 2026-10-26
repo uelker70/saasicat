@@ -19,8 +19,9 @@ import type { InvoiceCollectionNotice } from './invoice-collection-notice.types.
 import type { SubscriptionInvoiceRecord } from './subscription-invoice.types.js';
 
 /**
- * The manifest capability that announces the operator's download of an
- * invoice's archived document. The platform sets it where it serves the route.
+ * The manifest capability that announces the operator's register of every
+ * invoice issued (`SC-ADM-042`) and the download of an invoice's archived
+ * document. The platform sets it where it serves the routes.
  */
 export const INVOICE_DOCUMENT_CAPABILITY = 'invoices.read';
 

@@ -37,6 +37,7 @@ import {
     subscriptionInvoiceColumns,
     subscriptionInvoiceLineColumns,
     toSubscriptionInvoiceCancellationRecord,
+    toIssuedInvoiceAmounts,
     toSubscriptionInvoiceRecord,
     toArchivedInvoiceDocument,
     toArchivedTermsVersion,
@@ -2067,6 +2068,14 @@ export function createMemoryHarness() {
     // key does, and a charge stands on one line per step of its chain, the way
     // the unique index keeps it; both are checked before anything is written,
     // so a refused invoice leaves its number undrawn.
+    /** By issue date, then by number within its year. */
+    const byRegisterOrder = (a, b) =>
+        (a.issueDate < b.issueDate ? -1 : a.issueDate > b.issueDate ? 1 : 0) ||
+        a.numberYear - b.numberYear ||
+        a.numberSequence - b.numberSequence;
+    /** The invoice rows issued on the days of `range`, both included. */
+    const issuedWithin = (range) =>
+        state.invoices.filter((row) => row.issueDate >= range.from && row.issueDate <= range.until);
     const invoiceRead = (row) => {
         const cancellation = state.cancellations.find(
             (each) => each.cancellationInvoiceId === row.id || each.replacementInvoiceId === row.id,
@@ -2351,6 +2360,39 @@ export function createMemoryHarness() {
                 .filter((row) => row.subscriberId === subscriberId)
                 .sort((a, b) => b.numberYear - a.numberYear || b.numberSequence - a.numberSequence)
                 .map(invoiceRead);
+        },
+        async listIssued(range, { limit, after }) {
+            const named =
+                after === undefined ? undefined : state.invoices.find((row) => row.id === after);
+            const following = issuedWithin(range)
+                .filter((row) => !named || byRegisterOrder(row, named) > 0)
+                .sort(byRegisterOrder);
+            return {
+                invoices: following.slice(0, limit).map((row) => {
+                    const cancellation = state.cancellations.find(
+                        (each) => each.cancelledInvoiceId === row.id,
+                    );
+                    const cancelledBy =
+                        cancellation &&
+                        state.invoices.find(
+                            (each) => each.id === cancellation.cancellationInvoiceId,
+                        );
+                    return {
+                        invoice: invoiceRead(row),
+                        cancelledBy: cancelledBy
+                            ? { invoiceId: cancelledBy.id, number: cancelledBy.number }
+                            : null,
+                    };
+                }),
+                hasMore: following.length > limit,
+            };
+        },
+        async listIssuedAmounts(range) {
+            return issuedWithin(range).map(toIssuedInvoiceAmounts);
+        },
+        async findByNumber(number) {
+            const row = state.invoices.find((candidate) => candidate.number === number);
+            return row ? invoiceRead(row) : null;
         },
         async listIssuedNumberPrefixes() {
             return [...new Set(state.invoices.map((row) => row.numberPrefix))].sort().slice(0, 2);

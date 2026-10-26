@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 41      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 43      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 27      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 664 entries: 🟢 568 stand today, 🟡 50 decided but not yet delivered, ⚪ 0 drafts,
-🔵 41 superseded, 🔴 5 withdrawn.
+Of 666 entries: 🟢 569 stand today, 🟡 50 decided but not yet delivered, ⚪ 0 drafts,
+🔵 42 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -164,12 +164,12 @@ Of 664 entries: 🟢 568 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
-[SC-ADM-022](#sc-adm-022--an-operator-lists-every-invoice-with-totals-per-period-and-tax-rate-and-exports-it),
 [SC-ADM-023](#sc-adm-023--an-operator-can-list-open-items-and-every-contract-including-former-subscribers),
 [SC-ADM-024](#sc-adm-024--a-suspended-tenants-users-cannot-act-and-a-read-only-tenant-cannot-write),
 [SC-ADM-025](#sc-adm-025--an-operator-gets-a-description-of-the-invoicing-procedure-to-document-its-own-on),
 [SC-ADM-026](#sc-adm-026--the-administrator-changes-what-the-tenant-pays-billing-needs-the-billing-permission),
 [SC-ADM-027](#sc-adm-027--an-operator-joins-a-returning-customers-new-tenant-to-the-subscriber-it-had),
+[SC-ADM-043](#sc-adm-043--an-operator-exports-the-invoice-register-for-a-tax-advisor),
 [SC-UI-022](#sc-ui-022--a-tenant-downloads-its-subscriptions-invoices-and-tells-them-from-the-applications),
 [SC-UI-023](#sc-ui-023--a-tenants-invoices-payment-method-and-billing-details-need-the-billing-permission),
 [SC-UI-024](#sc-ui-024--a-tenants-invoice-list-says-what-each-invoice-stands-for),
@@ -219,6 +219,7 @@ Of 664 entries: 🟢 568 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-PROMO-008](#sc-promo-008--an-absolute-discount-stays-below-the-lowest-price-it-can-apply-to),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
 [SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
+[SC-ADM-022](#sc-adm-022--an-operator-lists-every-invoice-with-totals-per-period-and-tax-rate-and-exports-it),
 [SC-ADM-028](#sc-adm-028--an-operator-reads-a-subscribers-charges-beside-its-tenant),
 [SC-ADM-032](#sc-adm-032--the-operator-reads-a-subscribers-history-with-who-when-and-why),
 [SC-ADM-033](#sc-adm-033--the-operator-reconciles-what-no-credit-matched-and-closes-each-case-with-a-note),
@@ -234,7 +235,7 @@ Of 664 entries: 🟢 568 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 664 requirements. Do not edit by hand:
+Generated from `requirements/` — 666 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9376,8 +9377,8 @@ _Tested by:_
 
 - `packages/cli/tests/invoice-cancel-cli-flow.test.js`
     - the preview is the command, and the cancellation the second one
-        - without --apply it previews the tenant’s invoice so numbered, and asks for neither factor
-          nor confirmation
+        - without --apply it previews the invoice so numbered, and asks for neither factor nor
+          confirmation
         - with --apply it asks for the second factor and the confirmation, cancels as the operator
           and records it
         - passes the corrections and the address on as typed, a correction left empty clearing its
@@ -10602,7 +10603,7 @@ number is drawn (`SC-PRIC-027`), so what can still fail afterwards is rendering 
 document rather than the invoice itself. The invoice and its number are written in one transaction,
 and the rendered document is then archived under that number, which makes a repeated attempt the
 same write rather than a second document. Until the archive confirms, the invoice is neither sent
-nor offered for download, the register shows it as awaiting its document (`SC-ADM-022`), and an
+nor offered for download, the register shows it as awaiting its document (`SC-ADM-042`), and an
 attempt that fails is retried; it never draws a new number for the same charges (`SC-PRIC-096`,
 `SC-PRIC-072`).
 
@@ -11489,7 +11490,7 @@ _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 ### SC-PRIC-045 — Invoice dates and tax periods count in the installation's time zone
 
 🟡 _(Decided, not yet delivered.)_ 💰 `config/saas.yaml` names it. The issue date, the period a charge
-covers, the due date and the periods the invoice register exports (`SC-ADM-022`) are days in that
+covers, the due date and the periods the invoice register exports (`SC-ADM-043`) are days in that
 zone, so an invoice issued half an hour after midnight on the first of January belongs to the new
 year whatever the server's clock says (`SC-OPS-011`).
 
@@ -15688,6 +15689,10 @@ _Tested by:_
 - `packages/nest/tests/an-operator-reads-and-pays-out-a-credit.test.js`
     - the manifest
         - announces the credits and the payout where they are served, and neither where they are not
+- `packages/nest/tests/an-operator-reads-the-invoice-register.test.js`
+    - where the register is served
+        - beside the invoices’ documents, its page announced under invoices.read
+        - nowhere the administration shows no tenants, or no invoices are issued
 - `packages/nest/tests/an-operator-reconciles-what-matched-nothing.test.js`
     - the manifest
         - announces the cases, their closing and the payments where they are served, and none where
@@ -16090,6 +16095,10 @@ _Tested by:_
     - an invoice cancelled from the subscriber’s record
         - is confirmed behind the second factor with the preview’s digest, announced, and the
           invoices read again
+- `packages/ui-vue/tests/component/an-operator-reads-the-invoice-register.test.ts`
+    - an invoice cancelled from the register
+        - reads its subscriber’s record for the dialog, is confirmed behind the second factor, and
+          the register read again
 
 <!-- END proof -->
 
@@ -16175,16 +16184,16 @@ _Tested by:_
 
 ### SC-ADM-022 — An operator lists every invoice with totals per period and tax rate, and exports it
 
-🟡 _(Decided, not yet delivered.)_ 💰 The register is ordered by issue date, cancellation and
-replacement invoices included, and an invoice still awaiting its document (`SC-PRIC-033`) is listed
-as such, so no number in the range stands without an explanation. Its export is machine-readable:
-each line with its tax treatment and rate (`SC-PRIC-038`), the payments and reversals against each
-invoice, the cancellation and replacement each names, and each document's checksum (`SC-AUD-019`).
-Every export names the moment it is as of, and every payment, reversal, cancellation and replacement
-in it carries the moment it was recorded. The same period as of the same moment gives the same rows
-every time it is taken, so a hand-over to a tax advisor can be repeated and compared; as of a later
-moment, the export shows what was recorded since, such as a payment confirmed or an invoice
-cancelled after a period ended, rather than silently changing a row.
+🔵 _(Superseded on 2026-10-26 by `SC-ADM-043`.)_ 💰 The register is ordered by issue date,
+cancellation and replacement invoices included, and an invoice still awaiting its document
+(`SC-PRIC-033`) is listed as such, so no number in the range stands without an explanation. Its
+export is machine-readable: each line with its tax treatment and rate (`SC-PRIC-038`), the payments
+and reversals against each invoice, the cancellation and replacement each names, and each document's
+checksum (`SC-AUD-019`). Every export names the moment it is as of, and every payment, reversal,
+cancellation and replacement in it carries the moment it was recorded. The same period as of the
+same moment gives the same rows every time it is taken, so a hand-over to a tax advisor can be
+repeated and compared; as of a later moment, the export shows what was recorded since, such as a
+payment confirmed or an invoice cancelled after a period ended, rather than silently changing a row.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -16904,6 +16913,140 @@ _Tested by:_
         - an answer with no body is an error
 
 <!-- END proof -->
+
+### SC-ADM-042 — An operator lists the invoices of chosen months, summed per tax treatment and rate
+
+🟢 💰 The register lists every invoice issued in the months asked for — the current month in the
+installation's time zone where none is, one month alone where only one is, and never more than
+twelve at a time, so one read stays bounded; a longer stretch is read a year at a time —, whichever
+subscriber and tenant it was for, a tenant deleted since included. It lists them by issue date and
+then by number, cancellation invoices and replacements among them, fifty to a page. Each names its
+number, its date, what it corrects and the cancellation invoice that cancelled it however much
+later, the subscriber as the invoice names it with the way into its record, its net, tax and gross,
+and whether its document is archived or still awaited (`SC-PRIC-033`). Beside the list stand the
+sums of each month per currency, tax treatment and rate — net, tax and gross —, a month without
+invoices saying so, and the sums of the whole span: two invoices at 0 %, one exempt and one under
+the reverse charge, are two sums, two currencies are never added together, and a cancellation
+invoice takes off, in the month it was issued, what the invoice it cancels added in its own. Months
+that cannot be read — the second before the first, more than twelve — are refused with a code of
+their own and said before anything is asked. An invoice that stands is cancelled from its row as
+from the subscriber's record (`SC-ADM-020`, `SC-ADM-035`), and on the command line by its number
+alone, a tenant named beside it only refusing an invoice issued for another tenant. Only the
+platform administrator reaches the register (`SC-ADM-001`), and it reads past the tenants' row-level
+policy the way the administration does (`SC-SEC-003`).
+
+_Source:_ #335 (decided 2026-10-26) · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/invoice-cancel-cli-flow.test.js`
+    - the invoice the command names
+        - is named by its number alone, an invoice of a tenant deleted since included, and no tenant
+          is read
+        - with --tenant, is cancelled where it was issued for that tenant
+        - with --tenant, is refused where it was issued for another tenant, asking no second factor
+          and cancelling nothing
+- `packages/core/tests/the-register-adds-up-its-months.test.js`
+    - the months a view spans
+        - ${JSON.stringify(asked)} spans ${from} to ${until}
+        - the current month is the one today falls on, from its first day to its last
+        - a span across the turn of the year lists December before January
+        - ${month} ends on ${last}
+        - ${INVOICE_REGISTER_MAX_MONTHS} months are one view
+        - one month more is refused, naming how many were asked
+        - a span of centuries is refused as one more month is
+        - ${from} to ${until} is refused as reversed
+        - ${JSON.stringify(text)} is no month to span
+    - what a month is
+        - ${JSON.stringify(text)} ${month ? 'is' : 'is not'} one
+    - what the invoices add up to
+        - every month of the span is there, one without invoices with no sums
+        - an invoice adds to its month and to the span, its gross its net plus its tax
+        - two rates are two sums, the lower rate first
+        - 0 % exempt and 0 % under the reverse charge are reported apart, in the order the
+          treatments are named
+        - a cancellation takes off in its own month what the invoice it cancels added in its month
+        - a month a cancellation empties keeps its sum at nothing rather than dropping it
+        - two currencies are never added together
+        - amounts are added in whole cents, as an advisor adds them
+        - an invoice dated outside the span is refused rather than left out
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - the invoice an operator names by its number
+        - is the invoice under that number with the tenant it was issued for, and none for a number
+          none carries
+- `packages/nest/tests/an-operator-reads-the-invoice-register.test.js`
+    - a page of the register
+        - is every invoice of the months asked for, whichever tenant it was for, by issue date and
+          then number
+        - names each invoice’s subscriber as it names itself, the way into its record, and its
+          amounts
+        - says whose document is archived, and which cancellation invoice cancelled an invoice,
+          however much later
+        - holds ${INVOICE_REGISTER_PAGE_SIZE} invoices, and the next one continues after its last
+        - is the current month in the installation’s zone where no month is asked for
+        - is read outside the tenants' row-level policy
+    - the totals of the register
+        - are the months asked for, per rate, a cancellation taking off in its own month
+    - the months the register refuses
+        - ${why}, with its code and no read, for the page and the totals
+    - what the register takes
+        - two months and an invoice to continue after, and nothing else
+        - refuses ${why} at ${route}
+    - where the register is served
+        - beside the invoices’ documents, its page announced under invoices.read
+        - nowhere the administration shows no tenants, or no invoices are issued
+- `packages/ui-vue/tests/component/an-operator-reads-the-invoice-register.test.ts`
+    - the register of invoices
+        - reads the platform’s current month once, and shows the months it answered
+        - adds up each month per treatment and rate, and the whole span beneath
+        - lists each invoice with how it stands, its subscriber and amounts, and whether its
+          document is archived
+        - leads into a subscriber’s record wherever the shell put the subscribers
+        - asks again for the months picked, and refuses months it cannot read without asking
+        - says so where no invoice was issued in the months
+        - offers cancelling where an invoice stands and the platform serves it, and nowhere else
+    - an invoice cancelled from the register
+        - reads its subscriber’s record for the dialog, is confirmed behind the second factor, and
+          the register read again
+- `packages/ui-vue/tests/invoice-register-resource.test.js`
+    - the register’s requests
+        - every operation the descriptor declares is pinned here
+        - a page of ${JSON.stringify(request)} asks ${url}
+        - the totals of ${JSON.stringify(months)} ask ${url}, never after an invoice
+- `packages/ui-vue/tests/use-invoice-register.test.js`
+    - useInvoiceRegister
+        - reads the platform’s current month at once, page and totals, and shows the months it
+          answered
+        - showing the months it answered is no change of what is asked, and reads nothing again
+        - months picked are read anew, page and totals, from the first page
+        - ${why} is said in the platform’s words before anything is asked
+        - ${JSON.stringify(typed)} is no month, and nothing is asked for it
+        - back from refused months to the ones read before, reads them again
+        - the next page is added after the last invoice read
+        - a page whose months were left while it was on its way is dropped
+        - months typed while the first answer is on its way are not overwritten by it
+        - a failure of the totals is the register’s failure, and a reload clears it
+    - useCancellationParty
+        - reads nothing until an invoice names a subscriber, then that subscriber’s record
+    - invoiceStandingOf
+        - ${why} reads ${JSON.stringify(standing)}
+
+<!-- END proof -->
+
+### SC-ADM-043 — An operator exports the invoice register for a tax advisor
+
+🟡 _(Decided, not yet delivered.)_ 💰 The export of the register (`SC-ADM-042`) is machine-readable:
+each line with its tax treatment and rate (`SC-PRIC-038`), the payments and reversals against each
+invoice, the cancellation and replacement each names, and each document's checksum (`SC-AUD-019`).
+Every export names the moment it is as of, and every payment, reversal, cancellation and replacement
+in it carries the moment it was recorded. The same period as of the same moment gives the same rows
+every time it is taken, so a hand-over to a tax advisor can be repeated and compared; as of a later
+moment, the export shows what was recorded since, such as a payment confirmed or an invoice
+cancelled after a period ended, rather than silently changing a row.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #335
 
 ## 15. Working in the interface
 
@@ -21775,6 +21918,9 @@ _Tested by:_
         - is read outside the tenants' row-level policy, the tenants named in one question
     - the head of a subscriber's record
         - is read outside the tenants' row-level policy
+- `packages/nest/tests/an-operator-reads-the-invoice-register.test.js`
+    - a page of the register
+        - is read outside the tenants' row-level policy
 - `packages/nest/tests/an-operator-route-acts-across-tenants.test.js`
     - the frame a route runs in follows its guard chain
         - every route behind the administrator runs in the bypass, and no other does
@@ -22412,7 +22558,7 @@ attempt repeated after an interruption (`SC-PRIC-033`) that renders other bytes 
 in between — records the new checksum in place of the old one and writes both to the audit log,
 rather than holding a numbered invoice that can never be sent. Every download is checked against the
 recorded checksum, and a file that does not match is not handed out but shown to the operator. The
-register's export (`SC-ADM-022`) carries each checksum.
+register's export (`SC-ADM-043`) carries each checksum.
 
 _Source:_ #424 · #332 · #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 

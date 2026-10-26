@@ -112,6 +112,9 @@ export function line(kind, sourceKey, priceNet, title = sourceKey) {
 function invoiceStore(journal) {
     const invoices = [];
     const cancellations = [];
+    /** The invoices issued on the days of `range`, both included. */
+    const issuedWithin = (range) =>
+        invoices.filter((inv) => inv.issueDate >= range.from && inv.issueDate <= range.until);
     const documents = new Map();
     const lastOfYear = new Map();
     const onInvoice = () => new Set(invoices.flatMap((inv) => inv.lines.map((l) => l.chargeId)));
@@ -270,6 +273,47 @@ function invoiceStore(journal) {
                             b.numberYear - a.numberYear || b.numberSequence - a.numberSequence,
                     ),
             );
+        },
+        // By issue date, then by number, as the port promises and the
+        // persistence contract holds both adapters to.
+        async listIssued(range, { limit, after }) {
+            const byRegisterOrder = (a, b) =>
+                (a.issueDate < b.issueDate ? -1 : a.issueDate > b.issueDate ? 1 : 0) ||
+                a.numberYear - b.numberYear ||
+                a.numberSequence - b.numberSequence;
+            const named =
+                after === undefined ? undefined : invoices.find((inv) => inv.id === after);
+            const following = issuedWithin(range)
+                .filter((inv) => !named || byRegisterOrder(inv, named) > 0)
+                .sort(byRegisterOrder);
+            return structuredClone({
+                invoices: following.slice(0, limit).map((invoice) => {
+                    const cancellation = cancellations.find(
+                        (each) => each.cancelledInvoiceId === invoice.id,
+                    );
+                    const by =
+                        cancellation &&
+                        invoices.find((inv) => inv.id === cancellation.cancellationInvoiceId);
+                    return {
+                        invoice,
+                        cancelledBy: by ? { invoiceId: by.id, number: by.number } : null,
+                    };
+                }),
+                hasMore: following.length > limit,
+            });
+        },
+        async listIssuedAmounts(range) {
+            return structuredClone(
+                issuedWithin(range).map((inv) => ({
+                    issueDate: inv.issueDate,
+                    currency: inv.currency,
+                    kind: inv.taxTreatment.kind,
+                    taxes: inv.taxes,
+                })),
+            );
+        },
+        async findByNumber(number) {
+            return structuredClone(invoices.find((inv) => inv.number === number) ?? null);
         },
         async listIssuedNumberPrefixes() {
             return [...new Set(invoices.map((inv) => inv.numberPrefix))].sort().slice(0, 2);

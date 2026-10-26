@@ -131,6 +131,7 @@
                         "dashboard": { "$ref": "#/$defs/StandardPageDef" },
                         "tenants": { "$ref": "#/$defs/StandardPageDef" },
                         "subscribers": { "$ref": "#/$defs/StandardPageDef" },
+                        "invoices": { "$ref": "#/$defs/StandardPageDef" },
                         "subscriptions": { "$ref": "#/$defs/StandardPageDef" },
                         "promoCodes": { "$ref": "#/$defs/StandardPageDef" },
                         "plans": { "$ref": "#/$defs/StandardPageDef" },

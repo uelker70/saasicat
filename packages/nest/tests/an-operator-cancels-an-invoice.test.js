@@ -675,18 +675,18 @@ describe('the invoices in the subscriber’s record after a cancellation', () =>
     });
 });
 
+// @requirement SC-ADM-042 — An operator lists the invoices of chosen months, summed per tax treatment and rate
 describe('the invoice an operator names by its number', () => {
-    test('is the tenant’s invoice under that number, and none of another tenant or none so numbered', async () => {
+    test('is the invoice under that number with the tenant it was issued for, and none for a number none carries', async () => {
         const installation = await anInvoiceToCollect();
         const { cancellation, invoice } = installation;
 
         assert.deepEqual(
             [
-                await cancellation.invoiceIdNumbered('t1', invoice.number),
-                await cancellation.invoiceIdNumbered('t2', invoice.number),
-                await cancellation.invoiceIdNumbered('t1', 'AHP-2026-999999'),
+                await cancellation.invoiceNumbered(invoice.number),
+                await cancellation.invoiceNumbered('AHP-2026-999999'),
             ],
-            [invoice.id, null, null],
+            [{ invoiceId: invoice.id, tenantId: invoice.tenantId }, null],
         );
     });
 });

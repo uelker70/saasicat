@@ -1,11 +1,12 @@
-// Cancelling one of a subscriber's invoices from its record, in two steps: the
-// operator says why — what of each line is still owed, where not all of it is,
-// and, where the invoice named them wrongly, the subscriber's details the
-// replacement is to name —, reads what the server says the cancellation will
-// write, and confirms that behind the second factor (`SC-ADM-019`,
-// `SC-ADM-020`, `SC-ADM-035`). The lines are read when the dialog opens, each
-// saying whether the cancellation may correct it, so the dialog offers what
-// the server accepts rather than deciding it a second time.
+// Cancelling one of a subscriber's invoices, from its record or from the
+// register of every invoice, in two steps: the operator says why — what of
+// each line is still owed, where not all of it is, and, where the invoice
+// named them wrongly, the subscriber's details the replacement is to name —,
+// reads what the server says the cancellation will write, and confirms that
+// behind the second factor (`SC-ADM-019`, `SC-ADM-020`, `SC-ADM-035`). The
+// lines are read when the dialog opens, each saying whether the cancellation
+// may correct it, so the dialog offers what the server accepts rather than
+// deciding it a second time.
 //
 // What is confirmed is what was shown (`SC-UI-017`): the cancellation sends
 // the request the preview answered, not whatever was entered since; going
@@ -66,6 +67,16 @@ function changedPreviewOf(err: unknown): AdminInvoiceCancellationPlan | null {
     return body?.preview ?? null;
 }
 
+/**
+ * What a cancellation needs of the invoice it is opened on: its id and number,
+ * what it corrects and what cancelled it — a row of the subscriber's record
+ * and one of the register alike.
+ */
+export type CancellableInvoice = Pick<
+    AdminSubscriberInvoice,
+    'id' | 'number' | 'correction' | 'cancelledBy'
+>;
+
 /** The invoice operations a cancellation calls, already bound to the shell's client. */
 export type InvoiceCancellationResource = Pick<
     Bound<(typeof subscribersResource)['ops']>,
@@ -84,14 +95,14 @@ export interface InvoiceCancellationFlow {
     /** Whether the platform serves cancelling; the action is not offered without it. */
     readonly available: ComputedRef<boolean>;
     /** Whether `invoice` is offered for cancelling. */
-    canCancel: (invoice: AdminSubscriberInvoice) => boolean;
+    canCancel: (invoice: CancellableInvoice) => boolean;
     /** The invoice being cancelled while the dialog is open. */
-    readonly target: Ref<AdminSubscriberInvoice | null>;
+    readonly target: Ref<CancellableInvoice | null>;
     /** The invoice's lines, read when the dialog opens; `null` while closed. */
     readonly invoice: AsyncData<AdminInvoice | null>;
     /** What the cancellation will write, once read — the second step. */
     readonly preview: Ref<AdminInvoiceCancellationPlan | null>;
-    open: (invoice: AdminSubscriberInvoice) => void;
+    open: (invoice: CancellableInvoice) => void;
     close: () => void;
     /**
      * The first step: reads what `draft` would write, which is the second.
@@ -121,7 +132,7 @@ export function useInvoiceCancellation(
     const available = computed(
         () => capable(SUBSCRIBER_PAYMENTS_CAPABILITY) && capable(INVOICE_CANCEL_CAPABILITY),
     );
-    const target = ref<AdminSubscriberInvoice | null>(null);
+    const target = ref<CancellableInvoice | null>(null);
     const preview = ref<AdminInvoiceCancellationPlan | null>(null);
     const invoice = useAsyncData(
         async () => (target.value ? invoices.invoice(target.value.id) : null),
@@ -141,7 +152,7 @@ export function useInvoiceCancellation(
         previewed = null;
     }
 
-    function open(invoice: AdminSubscriberInvoice): void {
+    function open(invoice: CancellableInvoice): void {
         abandon();
         target.value = invoice;
     }

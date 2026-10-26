@@ -326,6 +326,13 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             '.sa-contract-lines .sa-accordion__trigger',
         ],
     }),
+    // The register of every invoice with each kind of row it lists and sums
+    // over two rates, a reverse charge and a month without invoices; a
+    // further page follows, so its button renders.
+    visualCase({
+        id: 'invoices',
+        load: () => import('../../../src/pages/InvoicesPage.vue'),
+    }),
     visualCase({
         id: 'promo-code-detail',
         load: () => import('../../../src/pages/PromoCodeDetailPage.vue'),

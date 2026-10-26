@@ -321,16 +321,15 @@ export class InvoiceCancellationService implements OnModuleInit {
     }
 
     /**
-     * The id of the invoice of tenant `tenantId` numbered `number`, as an
-     * operator reads it off the document, or `null` where the tenant has none
-     * so numbered.
+     * The invoice numbered `number`, as an operator reads it off the document,
+     * with the tenant it was issued for — one deleted since included —, or
+     * `null` where no invoice is so numbered. A number is unique across the
+     * installation, so it names one invoice without its tenant.
      */
-    invoiceIdNumbered(tenantId: string, number: string): Promise<string | null> {
+    invoiceNumbered(number: string): Promise<{ invoiceId: string; tenantId: string } | null> {
         return readAcrossTenants(this.rlsBypass, async () => {
-            const subscriber = await this.subscribers.findByTenantId(tenantId);
-            if (!subscriber) return null;
-            const invoices = await this.invoices.listBySubscriber(subscriber.id);
-            return invoices.find((invoice) => invoice.number === number)?.id ?? null;
+            const invoice = await this.invoices.findByNumber(number);
+            return invoice && { invoiceId: invoice.id, tenantId: invoice.tenantId };
         });
     }
 

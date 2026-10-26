@@ -21,7 +21,6 @@ import { InvoiceCancelCliFlow, InvoicesCancelCommand, InvoicesCommands } from '.
 import { cliErrorOf, printed, recordingContext } from './helpers/operator-cli.js';
 
 const OPTIONS = {
-    tenant: 'acme',
     invoice: 'AHP-2026-000123',
     reason: 'The billing address was wrong.',
 };
@@ -48,7 +47,7 @@ const CANCELLED = {
 
 function setUp({
     refusal = null,
-    numbered = 'invoice-1',
+    numbered = { invoiceId: 'invoice-1', tenantId: 't1' },
     bypass = 'bound',
     cancelled = CANCELLED,
 } = {}) {
@@ -76,8 +75,8 @@ function setUp({
         },
     };
     const cancellations = {
-        async invoiceIdNumbered(tenantId, number) {
-            calls.push(['numbered', tenantId, number]);
+        async invoiceNumbered(number) {
+            calls.push(['numbered', number]);
             return numbered;
         },
         async preview(invoiceId, request) {
@@ -122,14 +121,13 @@ function setUp({
 
 // @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
 describe('the preview is the command, and the cancellation the second one', () => {
-    test('without --apply it previews the tenant’s invoice so numbered, and asks for neither factor nor confirmation', async () => {
+    test('without --apply it previews the invoice so numbered, and asks for neither factor nor confirmation', async () => {
         const { flow, calls, ctx } = setUp();
 
         await flow.preview(OPTIONS);
 
         assert.deepEqual(calls, [
-            ['tenant', 'acme'],
-            ['numbered', 't1', OPTIONS.invoice],
+            ['numbered', OPTIONS.invoice],
             [
                 'preview',
                 'invoice-1',
@@ -217,11 +215,56 @@ describe('the preview is the command, and the cancellation the second one', () =
     });
 });
 
+// @requirement SC-ADM-042 — An operator lists the invoices of chosen months, summed per tax treatment and rate
+describe('the invoice the command names', () => {
+    test('is named by its number alone, an invoice of a tenant deleted since included, and no tenant is read', async () => {
+        const { flow, calls } = setUp({ numbered: { invoiceId: 'invoice-9', tenantId: 't-gone' } });
+
+        await flow.preview(OPTIONS);
+
+        assert.deepEqual(
+            calls.map(([what, id]) => [what, id]),
+            [
+                ['numbered', OPTIONS.invoice],
+                ['preview', 'invoice-9'],
+            ],
+        );
+    });
+
+    test('with --tenant, is cancelled where it was issued for that tenant', async () => {
+        const { flow, calls } = setUp();
+
+        await flow.apply({ ...OPTIONS, tenant: 'acme', yes: true });
+
+        assert.deepEqual(calls.slice(0, 2), [
+            ['tenant', 'acme'],
+            ['numbered', OPTIONS.invoice],
+        ]);
+        assert.equal(calls.at(-1)[0], 'cancel');
+    });
+
+    test('with --tenant, is refused where it was issued for another tenant, asking no second factor and cancelling nothing', async () => {
+        const { flow, calls, ctx } = setUp({
+            numbered: { invoiceId: 'invoice-1', tenantId: 't-other' },
+        });
+
+        const error = await cliErrorOf(() => flow.apply({ ...OPTIONS, tenant: 'acme', yes: true }));
+
+        assert.deepEqual([error.code, error.exitCode], ['INVOICE_TENANT_MISMATCH', 1]);
+        assert.match(error.message, /AHP-2026-000123 was not issued for tenant acme/);
+        assert.ok(!ctx.asked.some((each) => each.startsWith('second factor')));
+        assert.deepEqual(
+            calls.filter(([what]) => what === 'preview' || what === 'cancel'),
+            [],
+        );
+    });
+});
+
 describe('the tenant the command names', () => {
     test('is read in the bypass frame where one is bound, so row-level security does not hide it', async () => {
         const { flow, calls } = setUp();
 
-        await flow.preview(OPTIONS);
+        await flow.preview({ ...OPTIONS, tenant: 'acme' });
 
         assert.deepEqual(calls[0], ['tenant', 'acme']);
     });
@@ -229,7 +272,7 @@ describe('the tenant the command names', () => {
     test('is read plainly where none is bound', async () => {
         const { flow, calls } = setUp({ bypass: 'none' });
 
-        await flow.preview(OPTIONS);
+        await flow.preview({ ...OPTIONS, tenant: 'acme' });
 
         assert.deepEqual(calls[0], ['tenant', 'acme']);
     });
@@ -237,7 +280,6 @@ describe('the tenant the command names', () => {
 
 describe('what the command refuses', () => {
     for (const [flag, options] of [
-        ['--tenant', { ...OPTIONS, tenant: undefined }],
         ['--invoice', { ...OPTIONS, invoice: undefined }],
         ['--reason', { ...OPTIONS, reason: '  ' }],
     ]) {
@@ -315,7 +357,7 @@ describe('what the command refuses', () => {
         assert.deepEqual([error.code, error.exitCode], ['TENANT_NOT_FOUND', 1]);
     });
 
-    test('a number the tenant has no invoice under, asking no second factor', async () => {
+    test('a number no invoice carries, asking no second factor', async () => {
         const { flow, ctx } = setUp({ numbered: null });
 
         const error = await cliErrorOf(() => flow.apply(OPTIONS));

@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 294 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 296 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -306,6 +306,8 @@ Invoices issued from the charge journal.
 | `SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL`             | Subscriber {subscriberId} has no invoice email, so its invoice cannot be sent; it is sent once one is entered.                                                                                  |
 | `SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD`            | The subscriber {subscriberId} has no payment method in use. The invoice is collected once one is.                                                                                               |
 | `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED`          | Contract {contractId} does not say who its parties were when it was concluded — a migration copied them, or it names no issuer — so its charges are not invoiced.                               |
+| `SUBSCRIPTION_INVOICE_REGISTER_RANGE_REVERSED`      | The register is read from one month to a later one, and {until} comes before {from}.                                                                                                            |
+| `SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG`      | The register shows at most {max} months at a time, and {from} to {until} spans {months}. Read a longer stretch a year at a time.                                                                |
 | `SUBSCRIPTION_INVOICE_STATES_A_CREDIT`              | Invoice {number} states a credit, which the subscriber was credited when it was issued; it is not cancelled.                                                                                    |
 
 ## Subscribers

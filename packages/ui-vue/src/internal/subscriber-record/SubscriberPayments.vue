@@ -55,14 +55,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { QTableColumn } from 'quasar';
-import type {
-    AdminSubscriberInvoice,
-    AdminSubscriberPayments,
-    AdminSubscriberDetails,
-} from '@saasicat/core';
+import type { AdminSubscriberPayments, AdminSubscriberDetails } from '@saasicat/core';
 
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { formatMessage } from '../../client/i18n/format.js';
+import { invoiceStandingOf } from '../../client/invoice-standing.js';
 import AdminTable from '../../ui/data/AdminTable.vue';
 import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
@@ -108,29 +105,12 @@ const invoiceRows = computed(() =>
         due: props.formatDate(invoice.dueDate),
         total: formatCurrency(invoice.totalGross, locale.value, invoice.currency),
         owed: formatCurrency(invoice.owed, locale.value, invoice.currency),
-        standing: standingOf(invoice),
+        standing: invoiceStandingOf(invoice, msg.value.payments),
         cancellable: props.cancellation.canCancel(invoice),
         documentArchived: invoice.documentArchived,
         invoice,
     })),
 );
-
-/**
- * What `invoice` stands in relation to, by the numbers on the documents: what
- * it corrects, and what cancelled it — a replacement can be both.
- */
-function standingOf({ correction, cancelledBy }: AdminSubscriberInvoice): string {
-    const m = msg.value.payments;
-    const corrects = correction
-        ? formatMessage(correction.kind === 'cancellation' ? m.cancellationOf : m.replacementOf, {
-              number: correction.of.number,
-          })
-        : null;
-    const cancelled = cancelledBy
-        ? formatMessage(m.cancelledBy, { number: cancelledBy.number })
-        : null;
-    return [corrects, cancelled].filter((part) => part !== null).join(' · ');
-}
 
 const caseRows = computed(() =>
     (props.payments?.openCases ?? []).map((each) => ({

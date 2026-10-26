@@ -2659,6 +2659,27 @@ the subscriber and leads into its record.
   builds one adds them. An application that overrides the `contracts` texts finds the old table's
   `column…` entries gone and the timeline's and the dossier's beside the rest.
 
+### An operator reads the register of every invoice
+
+The administration gains a standard page `invoices` (`/admin/invoices`): every invoice issued in the
+months picked, whichever tenant it was for, with its sums per month, currency, tax treatment and
+rate, and the cancellation offered from its row as from the subscriber's record (`SC-ADM-042`). It
+is served and announced where the invoices' documents are, under `invoices.read`, at
+`GET admin/invoices` and `GET admin/invoice-totals`. Nothing is to be wired for it, with three
+exceptions:
+
+- **A `SubscriptionInvoiceRepository` of your own** implements `listIssued`, `listIssuedAmounts` and
+  `findByNumber`; one that extends a shipped repository inherits them. The persistence contract
+  holds all three.
+- **`InvoiceCancellationService.invoiceIdNumbered(tenantId, number)`** is
+  `invoiceNumbered(number)`, which answers the invoice's id with the tenant it was issued for: a
+  number is unique across the installation. `<app> invoices cancel` takes `--invoice` alone;
+  `--tenant` stays, and refuses an invoice issued for another tenant with `INVOICE_TENANT_MISMATCH`.
+  A script that passes both keeps working.
+- **An application that overrides texts** finds `subscribers.payments.cancelDialog.taxTreatment` at
+  `subscribers.payments.taxTreatment`, where the register reads it too, and the register's own texts
+  in the new namespace `invoices`. An admin shell that lists its pages by hand adds the page.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

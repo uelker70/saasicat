@@ -384,6 +384,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_INVOICE_DOCUMENT_NOT_ARCHIVED:
         'Das Dokument der Rechnung {invoiceId} ist noch nicht archiviert.',
     SUBSCRIPTION_INVOICE_NOT_FOUND: "Keine Rechnung '{invoiceId}'.",
+    SUBSCRIPTION_INVOICE_REGISTER_RANGE_REVERSED:
+        'Das Register wird von einem Monat bis zu einem späteren gelesen, und {until} liegt vor {from}.',
+    SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG:
+        'Das Register zeigt höchstens {max} Monate auf einmal, und {from} bis {until} umfasst {months}. Einen längeren Zeitraum jahresweise lesen.',
     SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL:
         'Der Abonnent {subscriberId} hat keine Rechnungs-E-Mail; seine Rechnung wird versendet, sobald eine eingetragen ist.',
     SUBSCRIBER_CREDIT_NOT_FOUND: "Kein Guthaben '{creditId}' des Abonnenten dieses Mandanten.",

@@ -288,7 +288,7 @@ function replacementLineText(line: AdminReplacementLine): string {
 const treatment = computed(() => {
     const decided = plan.value?.replacement?.taxTreatment;
     if (!decided) return '';
-    return formatMessage(dialog.value.taxTreatment[decided.kind], { rate: decided.rate });
+    return formatMessage(texts.value.taxTreatment[decided.kind], { rate: decided.rate });
 });
 
 /** The replacement's subscriber, detail by detail, each one it names otherwise marked. */

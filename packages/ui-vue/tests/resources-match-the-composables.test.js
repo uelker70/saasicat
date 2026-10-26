@@ -27,6 +27,7 @@ import {
     createAdminResourceClient,
     discoveryResource,
     featureWithdrawalsResource,
+    invoicesResource,
     reconciliationResource,
     emailHistoryResource,
     maintenanceResource,
@@ -792,6 +793,8 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
     // `tests/an-operator-cancels-an-invoice.test.js`, and the contracts and
     // the two downloads beside them in `tests/an-archived-file-is-downloaded.test.js`.
     subscribers: Object.keys(subscribersResource.ops),
+    // The register of every invoice, the same: `tests/invoice-register-resource.test.js`.
+    invoices: Object.keys(invoicesResource.ops),
 };
 
 describe('the comparison covers the whole roster', () => {

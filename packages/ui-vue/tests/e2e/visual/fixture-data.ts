@@ -1356,6 +1356,99 @@ const SUBSCRIBER_CONTRACT_DOSSIER: AdminSubscriberContractDossier = {
     integrity: 'mismatch',
 };
 
+// The register's months: each kind of row it lists — an invoice cancelled
+// later, its cancellation invoice with negative amounts and the replacement,
+// one whose document is still awaited — and sums that hold two rates, an
+// invoice under the reverse charge and a month without invoices.
+const INVOICE_REGISTER_ROW = {
+    tenantId: 't-0001',
+    currency: 'EUR',
+    subscriber: { id: 's-0001', customerNumber: 'K-10001', legalName: 'Northwind Ltd' },
+    documentArchived: true,
+    correction: null,
+    cancelledBy: null,
+};
+const CANCELLED_IN_THE_REGISTER = {
+    invoiceId: 'inv-124',
+    number: 'AHP-2026-000124',
+    issueDate: '2026-02-01',
+};
+const INVOICE_REGISTER = {
+    from: '2026-01',
+    until: '2026-02',
+    invoices: [
+        {
+            ...INVOICE_REGISTER_ROW,
+            id: 'inv-124',
+            number: 'AHP-2026-000124',
+            issueDate: '2026-02-01',
+            totalNet: 89.75,
+            totalTax: 17.06,
+            totalGross: 106.81,
+            cancelledBy: { invoiceId: 'inv-140', number: 'AHP-2026-000140' },
+        },
+        {
+            ...INVOICE_REGISTER_ROW,
+            id: 'inv-125',
+            number: 'AHP-2026-000125',
+            issueDate: '2026-02-01',
+            subscriber: { id: 's-0003', customerNumber: 'K-10003', legalName: 'Contoso SARL' },
+            totalNet: 49,
+            totalTax: 0,
+            totalGross: 49,
+            documentArchived: false,
+        },
+        {
+            ...INVOICE_REGISTER_ROW,
+            id: 'inv-140',
+            number: 'AHP-2026-000140',
+            issueDate: '2026-02-20',
+            totalNet: -89.75,
+            totalTax: -17.06,
+            totalGross: -106.81,
+            correction: { kind: 'cancellation', of: CANCELLED_IN_THE_REGISTER },
+        },
+        {
+            ...INVOICE_REGISTER_ROW,
+            id: 'inv-141',
+            number: 'AHP-2026-000141',
+            issueDate: '2026-02-20',
+            totalNet: 79.75,
+            totalTax: 15.15,
+            totalGross: 94.9,
+            correction: { kind: 'replacement', of: CANCELLED_IN_THE_REGISTER },
+        },
+    ],
+    next: 'inv-141',
+};
+const INVOICE_REGISTER_TOTALS = {
+    from: '2026-01',
+    until: '2026-02',
+    months: [
+        { month: '2026-01', totals: [] },
+        {
+            month: '2026-02',
+            totals: [
+                { currency: 'EUR', kind: 'standard', rate: 7, net: 10, tax: 0.7, gross: 10.7 },
+                {
+                    currency: 'EUR',
+                    kind: 'standard',
+                    rate: 19,
+                    net: 69.75,
+                    tax: 14.45,
+                    gross: 84.2,
+                },
+                { currency: 'EUR', kind: 'reverse-charge', rate: 0, net: 49, tax: 0, gross: 49 },
+            ],
+        },
+    ],
+    range: [
+        { currency: 'EUR', kind: 'standard', rate: 7, net: 10, tax: 0.7, gross: 10.7 },
+        { currency: 'EUR', kind: 'standard', rate: 19, net: 69.75, tax: 14.45, gross: 84.2 },
+        { currency: 'EUR', kind: 'reverse-charge', rate: 0, net: 49, tax: 0, gross: 49 },
+    ],
+};
+
 const INVOICE_TO_CANCEL = {
     id: 'inv-124',
     number: 'AHP-2026-000124',
@@ -1677,6 +1770,8 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/subscribers/s-0001/contracts', SUBSCRIBER_CONTRACTS],
     ['/api/admin/subscribers/s-0001/contracts/c-0003', SUBSCRIBER_CONTRACT_DOSSIER],
     ['/api/admin/invoices/inv-124', INVOICE_TO_CANCEL],
+    ['/api/admin/invoices', INVOICE_REGISTER],
+    ['/api/admin/invoice-totals', INVOICE_REGISTER_TOTALS],
     ['/api/admin/pilots', PILOT_ROWS],
     // The page loads both lists. Deliberately empty and registered as such: an
     // unregistered path is a named gap, and the review strip carries no surface
