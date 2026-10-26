@@ -314,6 +314,18 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             '.sa-dialog .sa-accordion__trigger',
         ],
     }),
+    // A contract opened, and its plan's line: the dossier, its lines and the
+    // warning of a confirmation that no longer matches its checksum only exist
+    // once each is clicked.
+    visualCase({
+        id: 'subscriber-record-contract',
+        load: () => import('../../../src/pages/SubscriberRecordPage.vue'),
+        props: () => ({ subscriberId: 's-0001' }),
+        revealBy: [
+            '.sa-subscriber-contracts__tenant .sa-accordion__trigger',
+            '.sa-contract-lines .sa-accordion__trigger',
+        ],
+    }),
     visualCase({
         id: 'promo-code-detail',
         load: () => import('../../../src/pages/PromoCodeDetailPage.vue'),

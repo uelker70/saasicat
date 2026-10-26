@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {
     DEFAULT_STANDARD_PAGE_ROUTES,
     buildRoutes,
+    standardPageRouteOf,
     buildSidebar,
     resolveExtension,
 } from '../dist/index.js';
@@ -112,6 +113,14 @@ describe('buildRoutes — StandardPages filter', () => {
         });
         const tenants = routes.find((r) => r.id === 'tenants');
         assert.equal(tenants.path, '/admin/clubs');
+    });
+
+    test('a page linking to another resolves it as the navigation does', () => {
+        const routeOf = standardPageRouteOf({ tenants: '/admin/clubs' });
+
+        assert.equal(routeOf('tenants'), '/admin/clubs');
+        assert.equal(routeOf('plans'), '/admin/plans', 'a page the mapping does not name');
+        assert.equal(standardPageRouteOf(undefined)('subscribers'), '/admin/subscribers');
     });
 
     test('isStandard=true for StandardPages', () => {

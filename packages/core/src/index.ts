@@ -146,6 +146,7 @@ export * from './subscription-bundle-mapping.js';
 export * from './contract-agreement-mapping.js';
 export * from './contract-confirmation.types.js';
 export * from './contract-confirmation-mapping.js';
+export * from './contract-dossier.js';
 export * from './subscription-contract-mapping.js';
 export * from './subscription-contract.types.js';
 export * from './subscription.types.js';

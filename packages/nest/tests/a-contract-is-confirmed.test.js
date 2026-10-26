@@ -88,6 +88,7 @@ function aConfirmingInstallation({
         terms,
         null,
         installation.auditLog,
+        installation.store,
     );
     return {
         ...installation,
@@ -130,7 +131,7 @@ function aConfirmingInstallation({
                     vatRate: 19,
                     totalGross: 58.31,
                 },
-                lineItems: [line('plan', 'STANDARD', 49, 'Standard, monthly')],
+                lineItems: rest.lineItems ?? [line('plan', 'STANDARD', 49, 'Standard, monthly')],
             });
             written.push(contract.id);
             return contract;
@@ -363,15 +364,31 @@ describe('a subscriber’s contracts, as the operator reads them', () => {
         const [, , mailed] = contracts;
         assert.deepEqual(mailed, {
             id: sent.id,
+            tenantId: 't1',
             status: 'active',
             concludedAt: sent.createdAt.toISOString(),
             effectiveFrom: sent.effectiveFrom.toISOString(),
             effectiveUntil: null,
+            firstDay: '2026-01-01',
+            lastDay: null,
+            neverInForce: false,
             billingCycle: 'monthly',
             currency: 'EUR',
             totalGross: 58.31,
             termsVersion: null,
             cancellationNoticeDays: 14,
+            plan: { key: 'STANDARD', title: 'Standard, monthly' },
+            bundles: [],
+            minimumTermUntil: null,
+            change: {
+                concluded: false,
+                plan: null,
+                bundlesAdded: [],
+                bundlesRemoved: [],
+                frozenAnew: true,
+                priceChanged: false,
+                cancelled: false,
+            },
             confirmation: {
                 state: 'sent',
                 archivedAt: AT.toISOString(),
@@ -392,6 +409,140 @@ describe('a subscriber’s contracts, as the operator reads them', () => {
         await assert.rejects(
             installation.confirmations.contractsOf('no-such-subscriber'),
             (error) => error.getResponse?.().code === 'SUBSCRIBER_NOT_FOUND',
+        );
+    });
+});
+
+// @requirement SC-ADM-041 — The record shows every contract as it was concluded, and how one followed another
+describe('a contract’s dossier', () => {
+    /** Where each line came from, by its key; a key it does not name is in the catalogue. */
+    const sourcesSaying = (states = {}) => ({
+        asked: [],
+        async stateOf(asking) {
+            this.asked.push(asking.sourceKey);
+            return states[asking.sourceKey] ?? 'in-catalog';
+        },
+    });
+
+    test('is the contract as it was frozen, each line with where it came from, and the invoices issued under it', async () => {
+        const installation = aConfirmingInstallation();
+        const contract = await installation.aConfirmableContract('t1', {
+            lineItems: [
+                line('plan', 'STANDARD', 49, 'Standard, monthly'),
+                line('discount', 'WELCOME', -4.9, 'Welcome discount'),
+            ],
+        });
+        const other = await installation.aConfirmableContract('t1');
+        installation.charge(contract, 'plan');
+        installation.charge(other, 'plan', {
+            periodStart: berlin('2026-03-01'),
+            periodEnd: berlin('2026-04-01'),
+        });
+        await installation.run(new Date('2026-03-01T05:15:00.000Z'));
+        await installation.confirmations.archiveDue(AT);
+        const sources = sourcesSaying({ STANDARD: 'removed' });
+
+        const dossier = await installation.confirmations.dossierOf(
+            contract.subscriberId,
+            contract.id,
+            sources,
+        );
+
+        assert.equal(dossier.contract.id, contract.id);
+        assert.deepEqual(
+            dossier.lines.map(({ kind, key, title, priceNet, source }) => [
+                kind,
+                key,
+                title,
+                priceNet,
+                source,
+            ]),
+            [
+                ['plan', 'STANDARD', 'Standard, monthly', 49, 'removed'],
+                ['discount', 'WELCOME', 'Welcome discount', -4.9, null],
+            ],
+        );
+        assert.deepEqual(sources.asked, ['STANDARD'], 'a discount is not asked about');
+        const own = installation.store.invoices.filter((each) => each.contractId === contract.id);
+        assert.equal(own.length, 1, 'the fixture issued one invoice under the contract');
+        assert.deepEqual(
+            dossier.invoices.map(({ id }) => id),
+            own.map(({ id }) => id),
+            'and none of the other contract',
+        );
+        assert.equal(dossier.integrity, 'intact');
+        assert.deepEqual(
+            [dossier.agreedAt, dossier.totalNet, dossier.partiesMigrated],
+            [berlin('2026-01-01').toISOString(), 49, false],
+        );
+    });
+
+    test('says when its archived confirmation no longer matches, and writes that to the audit log once', async () => {
+        quietLog();
+        const installation = aConfirmingInstallation();
+        const contract = await installation.aConfirmableContract('t1');
+        await installation.confirmations.archiveDue(AT);
+        installation.archive.files.get(contract.id).content = new TextEncoder().encode(
+            '%PDF-1.7 something else',
+        );
+
+        const read = () =>
+            installation.confirmations.dossierOf(contract.subscriberId, contract.id, null);
+
+        assert.equal((await read()).integrity, 'mismatch');
+        assert.equal((await read()).integrity, 'mismatch');
+        assert.equal(entriesOf(installation.audits, 'CONTRACT_CONFIRMATION_MISMATCH').length, 1);
+    });
+
+    test('is waiting while its confirmation is due and not archived, and not due for one written before', async () => {
+        const installation = aConfirmingInstallation({ writtenBefore: ['contract-1'] });
+        const before = await installation.aConfirmableContract('t1');
+        const due = await installation.aConfirmableContract('t1');
+
+        const integrityOf = async (contract) =>
+            (await installation.confirmations.dossierOf(contract.subscriberId, contract.id, null))
+                .integrity;
+
+        assert.equal(before.id, 'contract-1');
+        assert.deepEqual(
+            [await integrityOf(before), await integrityOf(due)],
+            ['not-due', 'waiting'],
+        );
+    });
+
+    test('without a catalogue to ask, no line says where it came from', async () => {
+        const installation = aConfirmingInstallation();
+        const contract = await installation.aConfirmableContract('t1');
+
+        const dossier = await installation.confirmations.dossierOf(
+            contract.subscriberId,
+            contract.id,
+            null,
+        );
+
+        assert.deepEqual(
+            dossier.lines.map(({ source }) => source),
+            [null],
+        );
+    });
+
+    test('of another subscriber’s contract is refused as one that does not exist, as are an unknown one and an unknown subscriber', async () => {
+        const installation = aConfirmingInstallation();
+        const mine = await installation.aConfirmableContract('t1');
+        const theirs = await installation.aConfirmableContract('t2');
+        const refusedWith = (code) => (error) => error.getResponse?.().code === code;
+
+        await assert.rejects(
+            installation.confirmations.dossierOf(mine.subscriberId, theirs.id, null),
+            refusedWith(CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_NOT_FOUND),
+        );
+        await assert.rejects(
+            installation.confirmations.dossierOf(mine.subscriberId, 'no-such-contract', null),
+            refusedWith(CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_NOT_FOUND),
+        );
+        await assert.rejects(
+            installation.confirmations.dossierOf('no-such-subscriber', mine.id, null),
+            refusedWith('SUBSCRIBER_NOT_FOUND'),
         );
     });
 });
@@ -441,7 +592,10 @@ describe('the operator’s download of a confirmation', () => {
             repository: installation.record,
             archive: installation.archive,
         };
-        const platform = invoicingPlatform({ invoices: wiredInvoices({ confirmations }) });
+        // The installation's invoices, which a contract's dossier names.
+        const platform = invoicingPlatform({
+            invoices: wiredInvoices({ confirmations, invoiceRepository: installation.store }),
+        });
         // The contracts the installation wrote, which the download reads its contract from.
         platform.tenantBilling.contractFreeze.subscriptionContractRepository =
             installation.contracts;
@@ -457,6 +611,9 @@ describe('the operator’s download of a confirmation', () => {
         const contracts = handlers.find(
             ({ route }) => route === 'GET admin/subscribers/:id/contracts',
         );
+        const dossier = handlers.find(
+            ({ route }) => route === 'GET admin/subscribers/:id/contracts/:contractId',
+        );
         return {
             moduleRef,
             served,
@@ -464,6 +621,10 @@ describe('the operator’s download of a confirmation', () => {
                 moduleRef
                     .get(contracts.controller, { strict: false })
                     [contracts.name](subscriberId),
+            dossierOf: (subscriberId, contractId) =>
+                moduleRef
+                    .get(dossier.controller, { strict: false })
+                    [dossier.name](subscriberId, contractId),
         };
     }
 
@@ -525,6 +686,100 @@ describe('the operator’s download of a confirmation', () => {
         await assert.rejects(contractsOf('nobody'), NotFoundException);
         const manifest = await moduleRef.get(AdminManifestService).getManifest();
         assert.equal(manifest.capabilities[CONTRACT_CONFIRMATIONS_CAPABILITY], true);
+        await moduleRef.close();
+    });
+
+    // @requirement SC-ADM-041 — The record shows every contract as it was concluded, and how one followed another
+    test('serves a contract’s dossier in its record, read outside any row policy, each line with where the platform’s catalogue has it', async () => {
+        const installation = aConfirmingInstallation();
+        const contract = await installation.aConfirmableContract('t1', {
+            lineItems: [
+                line('plan', 'STANDARD', 49, 'Standard, monthly'),
+                line('bundle', 'STORAGE', 5, 'Storage'),
+                line('bundle', 'GONE', 5, 'Gone'),
+            ],
+        });
+        const theirs = await installation.aConfirmableContract('t2');
+        const reads = [];
+        let bypassed = 0;
+        const { moduleRef, dossierOf } = await aServingPlatform(installation, {}, (platform) => {
+            platform.persistence.core.rlsBypass = {
+                runWithBypass: async (fn) => {
+                    bypassed += 1;
+                    try {
+                        return await fn();
+                    } finally {
+                        bypassed -= 1;
+                    }
+                },
+            };
+            const listed = installation.contracts.list.bind(installation.contracts);
+            installation.contracts.list = (filter) => {
+                reads.push({ filter, bypassed: bypassed > 0 });
+                return listed(filter);
+            };
+            // The plan was removed from the catalogue; one add-on is still in
+            // it, and the catalogue never knew the other. Each repository keeps
+            // the rest of what the platform's catalogue asks of it at start.
+            const { catalog } = platform.persistence;
+            catalog.planRepository = Object.assign(Object.create(catalog.planRepository), {
+                findByKey: async (key) =>
+                    key === 'STANDARD' ? { planKey: key, deletedAt: new Date() } : null,
+            });
+            catalog.bundleRepository = Object.assign(Object.create(catalog.bundleRepository), {
+                findByKey: async (key) =>
+                    key === 'STORAGE' ? { bundleKey: key, deletedAt: null } : null,
+            });
+        });
+
+        const dossier = await dossierOf(contract.subscriberId, contract.id);
+
+        assert.deepEqual(
+            dossier.lines.map(({ key, source }) => [key, source]),
+            [
+                ['STANDARD', 'removed'],
+                ['STORAGE', 'in-catalog'],
+                ['GONE', 'deleted'],
+            ],
+        );
+        assert.deepEqual(reads, [
+            { filter: { subscriberId: contract.subscriberId }, bypassed: true },
+        ]);
+        await assert.rejects(dossierOf(contract.subscriberId, theirs.id), NotFoundException);
+        await moduleRef.close();
+    });
+
+    // @requirement SC-ADM-041 — The record shows every contract as it was concluded, and how one followed another
+    test('starts where the catalogue’s repositories need what only the catalogue is given, and asks them there', async () => {
+        const installation = aConfirmingInstallation();
+        const contract = await installation.aConfirmableContract('t1');
+        // A plan repository built by a factory that injects a provider the
+        // application gives the catalogue alone.
+        const CATALOG_ONLY = Symbol('catalog-only');
+        const { moduleRef, dossierOf } = await aServingPlatform(installation, {}, (platform) => {
+            const { catalog } = platform.persistence;
+            const fake = catalog.planRepository;
+            platform.catalog.extraProviders = [
+                { provide: CATALOG_ONLY, useValue: { removed: new Set(['STANDARD']) } },
+            ];
+            catalog.planRepository = {
+                useFactory: (only) =>
+                    Object.assign(Object.create(fake), {
+                        findByKey: async (key) => ({
+                            planKey: key,
+                            deletedAt: only.removed.has(key) ? new Date() : null,
+                        }),
+                    }),
+                inject: [CATALOG_ONLY],
+            };
+        });
+
+        const dossier = await dossierOf(contract.subscriberId, contract.id);
+
+        assert.deepEqual(
+            dossier.lines.map(({ source }) => source),
+            ['removed'],
+        );
         await moduleRef.close();
     });
 

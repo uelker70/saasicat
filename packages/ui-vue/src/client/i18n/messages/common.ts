@@ -22,6 +22,9 @@ export const commonMessages = defineMessages(
         reset: 'Zurücksetzen',
         copy: 'Kopieren',
         copied: 'Kopiert',
+        copiedText: '„{text}“ kopiert',
+        copyFailed:
+            'Kopieren nicht möglich – der Browser erlaubt keinen Zugriff auf die Zwischenablage.',
         show: 'Anzeigen',
         hide: 'Ausblenden',
         open: 'Öffnen',
@@ -131,6 +134,8 @@ export const commonMessages = defineMessages(
         reset: 'Reset',
         copy: 'Copy',
         copied: 'Copied',
+        copiedText: '“{text}” copied',
+        copyFailed: 'Could not copy — the browser allows no access to the clipboard.',
         show: 'Show',
         hide: 'Hide',
         open: 'Open',

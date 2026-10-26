@@ -64,6 +64,7 @@
                 <!-- The invoices with what each owes, and what is open to reconcile -->
                 <SubscriberPayments
                     v-if="payments.available.value"
+                    :id="INVOICES_ANCHOR"
                     :payments="payments.data.value"
                     :pending="payments.pending.value"
                     :error="payments.error.value"
@@ -74,15 +75,20 @@
                     :documents="downloads.invoices.value"
                 />
 
-                <!-- The contracts, each with where its confirmation stands -->
+                <!-- The contracts per tenant, each opening into what it froze -->
                 <SubscriberContracts
                     v-if="contracts.available.value && downloads.confirmations.value"
                     :contracts="contracts.data.value"
                     :pending="contracts.pending.value"
                     :error="contracts.error.value"
                     :retry="contracts.reload"
+                    :tenants="record.data.value.tenants"
                     :format-date="formatDate"
                     :downloads="downloads.confirmations.value"
+                    :dossier="dossier"
+                    :copy="copy"
+                    :invoices-anchor="payments.available.value ? INVOICES_ANCHOR : null"
+                    :catalog-route="catalogRoute"
                 />
             </template>
         </AdminBody>
@@ -99,9 +105,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { StandardPageKey } from '@saasicat/core';
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router';
 
 import { formatMessage } from '../client/i18n/format.js';
+import { servesStandardPage } from '../client/nav-builder.js';
 import type { subscribersResource } from '../client/resources/subscribers.resource.js';
 import SubscriberCharges from '../internal/subscriber-record/SubscriberCharges.vue';
 import SubscriberContracts from '../internal/subscriber-record/SubscriberContracts.vue';
@@ -117,6 +125,9 @@ import AdminBody from '../ui/page/AdminBody.vue';
 import AdminHero from '../ui/page/AdminHero.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
 import { type ResourceOverride, useResource } from '../vue/resource-registry.js';
+import { useContractDossier } from '../vue/use-contract-dossier.js';
+import { useCopyText } from '../vue/use-copy-text.js';
+import { useStandardPageRoute } from '../vue/standard-page-routes.js';
 import { useInvoiceCancellation } from '../vue/use-invoice-cancellation.js';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useSubscriberAccount } from '../vue/use-subscriber-account.js';
@@ -171,6 +182,8 @@ const account = useSubscriberAccount(subscriberId, servedBy, subscribers);
 const credits = useSubscriberCredits(subscriberId, servedBy, subscribers, { notify, mfa });
 const payments = useSubscriberPayments(subscriberId, servedBy, subscribers);
 const contracts = useSubscriberContracts(subscriberId, servedBy, subscribers);
+const dossier = useContractDossier(subscriberId, subscribers);
+const copy = useCopyText({ notify });
 const downloads = useSubscriberDownloads(servedBy, subscribers, { notify });
 // What was paid for a cancelled invoice moves, so the credits are read again
 // with the invoices.
@@ -195,6 +208,24 @@ function formatDate(value: string | null | undefined): string {
     return String(value).slice(0, 10);
 }
 
+/** The invoices section, which a contract's invoices lead to. */
+const INVOICES_ANCHOR = 'sa-subscriber-invoices';
+
+/** The catalogue's page of plans or of add-ons, where the manifest serves it. */
+const CATALOG_PAGES: Readonly<Record<'plan' | 'bundle', StandardPageKey>> = {
+    plan: 'plans',
+    bundle: 'bundles',
+};
+
+// Where the shell put each standard page — the navigation's own mapping.
+const standardPageRoute = useStandardPageRoute();
+
+function catalogRoute(kind: 'plan' | 'bundle'): RouteLocationRaw | null {
+    const key = CATALOG_PAGES[kind];
+    const manifest = servedBy.value;
+    return manifest && servesStandardPage(manifest, key) ? standardPageRoute(key) : null;
+}
+
 /** Where a tenant's page answers — beside this page, under the same base. */
 function tenantRoute(slug: string): RouteLocationRaw {
     return `/admin/tenants/${encodeURIComponent(slug)}`;
@@ -205,6 +236,6 @@ function tenantRoute(slug: string): RouteLocationRaw {
  * hero in the package does.
  */
 function goBack(): void {
-    void router.push('/admin/subscribers');
+    void router.push(standardPageRoute('subscribers'));
 }
 </script>

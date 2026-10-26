@@ -1247,9 +1247,16 @@ for, the newest first — each with
 its start, its rhythm and price, the version of the terms and the notice period it records, and where
 its confirmation stands: `not-due` for a contract written before confirmations, `being-made` while
 it is not archived — a held one among them, which the audit log says why —, `awaiting-mail` once
-archived, `sent` once the mail took it. The manifest announces both routes as `contracts.read`.
-Keep `contract_confirmation_archive` in every backup, for as long as the contracts it confirms are
-kept.
+archived, `sent` once the mail took it. Each also names what it changed against the contract in
+force before it for the same tenant, read from the two as they were frozen. **One contract**, at
+`GET admin/subscribers/:id/contracts/:contractId`, is answered as it was frozen — its lines with
+where each one's plan or add-on stands in today's catalogue, the invoices issued under it, and
+whether its archived confirmation still matches its checksum, checked by reading the file. A
+contract that is another subscriber's is answered `404` with `SUBSCRIPTION_CONTRACT_NOT_FOUND`
+(`SC-ADM-041`). Where a line came from is asked of the catalogue's own plan and bundle
+repositories, by the key the line froze; there is nothing to wire for it. The manifest announces
+all three routes as `contracts.read`. Keep `contract_confirmation_archive` in every backup, for as
+long as the contracts it confirms are kept.
 
 ### Cancelling an invoice
 

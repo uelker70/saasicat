@@ -2651,6 +2651,13 @@ the subscriber and leads into its record.
   an `AdminSubscriberStanding`. An account always names its holder now.
 - **An application that overrides texts** moves the record's messages from the `tenants` namespace
   to `subscribers`: `charges`, `credits`, `payments`, `contracts` and `subscriber`.
+- **The record's contracts open into what each froze** — a timeline per tenant, and a contract's
+  lines, invoices and confirmation at `GET admin/subscribers/:id/contracts/:contractId`
+  (`SC-ADM-041`). Nothing is to be wired: where a line came from is asked of the catalogue's own
+  plan and bundle repositories. `AdminSubscriberContract` gains `tenantId`, `firstDay`, `lastDay`,
+  `neverInForce`, `plan`, `bundles`, `minimumTermUntil` and `change`; a fixture of your own that
+  builds one adds them. An application that overrides the `contracts` texts finds the old table's
+  `column…` entries gone and the timeline's and the dossier's beside the rest.
 
 ### The plan catalogue is read when it is asked for
 

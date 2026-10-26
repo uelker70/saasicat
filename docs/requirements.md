@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 40      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 41      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 27      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 663 entries: 🟢 567 stand today, 🟡 50 decided but not yet delivered, ⚪ 0 drafts,
+Of 664 entries: 🟢 568 stand today, 🟡 50 decided but not yet delivered, ⚪ 0 drafts,
 🔵 41 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -234,7 +234,7 @@ Of 663 entries: 🟢 567 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 663 requirements. Do not edit by hand:
+Generated from `requirements/` — 664 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -15728,6 +15728,12 @@ _Tested by:_
         - reads exactly the endpoint the card declares
         - a reading, not a rendering — the timestamp comes back unformatted
         - a body with no recognised number reads as null, not as a failure
+- `packages/ui-vue/tests/component/a-link-to-a-standard-page-goes-where-the-navigation-does.test.ts`
+    - a link from one standard page to another
+        - below the shell, goes where the shell’s navigation puts the page
+        - outside any shell, goes to each page’s default route
+    - a tenant’s page
+        - goes back to the list of tenants where the shell put it
 - `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
     - the operator corrects the subscriber in its record
         - without the capability, nothing is offered and no history is shown
@@ -15782,10 +15788,23 @@ _Tested by:_
         - without the capability, nothing is asked and no section is shown
 - `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
     - the subscriber's record shows its contracts
-        - every one, the newest first, with what it records and where its confirmation stands
-        - downloads an archived confirmation under the name it was archived with
-        - while one confirmation is on its way, the other downloads wait
+        - one timeline per tenant, the latest start first, each naming what it changed and where its
+          confirmation stands
+        - marks the contracts in force on a day picked, and says so when none was
+        - a contract superseded before it began says it was never in force, and is marked on no day
+        - opens a contract into what it froze: its lines with where each came from, its invoices and
+          its ids
+        - leads to the catalogue, and back to the list, where the shell put those pages
+        - leads to no catalogue page the platform does not serve
+        - shows each line’s features and quotas, and filters the lines by them
+        - copies an id, and says whether the browser let it
+        - a confirmation that no longer matches its checksum is said at the contract, and not
+          offered
+        - a confirmation not archived yet, or not due, is said and not offered
+        - downloads an intact confirmation under the name it was archived with
         - a download that fails says so, and saves nothing
+        - a contract that fails to load says so
+        - opening another contract closes the first, and reads the one opened
         - nothing of them where the platform does not serve them
     - the subscriber's record downloads an invoice's document
         - only where the platform serves it, the cancellation beside it or not
@@ -15842,6 +15861,7 @@ _Tested by:_
         - does not expose the removed planVersions standard page
         - ignores standard pages unsupported by this UI build
         - standardPageRoutes override
+        - a page linking to another resolves it as the navigation does
         - isStandard=true for StandardPages
     - buildRoutes — ProjectPages
         - lists a ProjectPage without requiredCapability
@@ -16762,6 +16782,126 @@ _Tested by:_
     - the invoices in the subscriber’s record
         - say what each stands in relation to, and offer cancelling only where one stands
         - offer no cancelling where the platform does not serve it
+
+<!-- END proof -->
+
+### SC-ADM-041 — The record shows every contract as it was concluded, and how one followed another
+
+🟢 💰 Each contract in a subscriber's record shows what was frozen when it was written — its plan,
+add-ons and discounts with their titles, descriptions, quantities, prices, tax, features, quotas and
+minimum terms, its terms version and notice period — and never what today's catalogue says. The
+contracts of each tenant stand in a timeline by their start, each naming what it changed against the
+one in force before it: concluded, the plan upgraded or downgraded by its net price per month or
+changed at the same price, add-ons added or removed, frozen anew, or cancelled; a contract
+superseded before it began is shown as never in force. A day picked marks the contracts in force on
+it, read in the installation's time zone. Each line names where it came from and whether that source
+is still in the catalogue, was removed from it, or is gone, and leads to the catalogue only where it
+still is. A contract names the invoices issued under it. Where its archived confirmation no longer
+matches the checksum recorded when it was rendered, the contract says so and offers no download of
+it. A contract is read through its subscriber: one that is another subscriber's is refused as one
+that does not exist.
+
+_Source:_ #335 (decided 2026-10-26) · #43
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-contract-reads-as-it-was-frozen.test.js`
+    - what a contract changed against the one before it
+        - the first contract of a tenant is concluded, not changed
+        - ${why} is ${expected ?? 'no change of plan'}
+        - a plan on one side only is a change of plan; none on either is none
+        - names the add-ons added and the ones removed, by their key
+        - an add-on at another version is neither added nor removed
+        - the same plan and add-ons written anew is frozen anew, at the price it says
+        - the price compares per year, so a yearly contract at the same price per month is unchanged
+        - the last contract of a tenant that ends is cancelled; one open-ended or superseded is not
+        - a contract never in force is not what the next one changed, and is not cancelled
+        - a cancellation that lands where a scheduled change was to begin is said at the contract it
+          ended
+        - each tenant has a timeline of its own, ordered by start and then by when written
+    - a contract as the list shows it
+        - reads its days in the installation’s zone, across midnight
+        - an end at midnight leaves the day before as its last day
+        - one never in force has no last day and says so
+        - names its plan and add-ons as frozen, and the latest minimum term of its lines
+        - lists the one written last first
+    - the lines of a contract
+        - read the plan, then the add-ons, then the discounts, each kind in the contract’s order
+        - a discount names no source, and the catalogue is not asked about it
+        - hand out copies of what the contract froze
+    - where a line’s source stands in today’s catalogue
+        - is in the catalogue, removed from it, or deleted
+    - the invoices issued under a contract
+        - are only the contract’s, the latest issue day first, and of one day by number
+- `packages/nest/tests/a-contract-is-confirmed.test.js`
+    - a contract’s dossier
+        - is the contract as it was frozen, each line with where it came from, and the invoices
+          issued under it
+        - says when its archived confirmation no longer matches, and writes that to the audit log
+          once
+        - is waiting while its confirmation is due and not archived, and not due for one written
+          before
+        - without a catalogue to ask, no line says where it came from
+        - of another subscriber’s contract is refused as one that does not exist, as are an unknown
+          one and an unknown subscriber
+    - the operator’s download of a confirmation
+        - serves a contract’s dossier in its record, read outside any row policy, each line with
+          where the platform’s catalogue has it
+        - starts where the catalogue’s repositories need what only the catalogue is given, and asks
+          them there
+- `packages/ui-vue/tests/a-contract-timeline-reads-per-tenant.test.js`
+    - the timelines of a subscriber’s contracts
+        - are one per tenant, in the order the record names the tenants, the latest start first
+        - of two contracts that start together, the one written later comes first
+    - a contract in force on a day
+        - ${day} is ${expected ? 'in' : 'outside'} 2026-01-05 – 2026-01-31
+        - one open-ended is in force on every day from its first
+        - one never in force is in force on no day, its first included
+    - what a contract changed, as the timeline says it
+        - in order: concluded or the plan, the add-ons, frozen anew, cancelled
+        - frozen anew says whether the price moved
+        - the first contract is concluded
+    - the lines a filter keeps
+        - are every line while nothing is typed
+        - are those with a feature or a quota holding the text, in any case
+        - take the text as it is, a character a pattern would read otherwise included
+    - a standard page the manifest serves
+        - is enabled, and given the capability it names
+        - is not one disabled, one without its capability, or one the manifest does not name
+    - useContractDossier
+        - reads nothing until a contract is opened, then the one opened
+        - opening the one open closes it; opening another reads that one
+        - another subscriber finds nothing open, and asks nothing about the contract of the one
+          before
+    - useCopyText
+        - writes the text and says it did
+        - a clipboard that refuses, or none at all, is said rather than thrown
+- `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
+    - the subscriber's record shows its contracts
+        - one timeline per tenant, the latest start first, each naming what it changed and where its
+          confirmation stands
+        - marks the contracts in force on a day picked, and says so when none was
+        - a contract superseded before it began says it was never in force, and is marked on no day
+        - opens a contract into what it froze: its lines with where each came from, its invoices and
+          its ids
+        - leads to the catalogue, and back to the list, where the shell put those pages
+        - leads to no catalogue page the platform does not serve
+        - shows each line’s features and quotas, and filters the lines by them
+        - copies an id, and says whether the browser let it
+        - a confirmation that no longer matches its checksum is said at the contract, and not
+          offered
+        - a confirmation not archived yet, or not due, is said and not offered
+        - downloads an intact confirmation under the name it was archived with
+        - a download that fails says so, and saves nothing
+        - a contract that fails to load says so
+        - opening another contract closes the first, and reads the one opened
+        - nothing of them where the platform does not serve them
+- `packages/ui-vue/tests/subscriber-record-resource.test.js`
+    - subscribersResource.contract
+        - asks for one of the subscriber's contracts by both ids, each escaped
+        - an answer with no body is an error
 
 <!-- END proof -->
 
@@ -22364,6 +22504,16 @@ _Tested by:_
     - a subscriber’s contracts, as the operator reads them
         - are every contract, the newest first, each with where its confirmation stands
         - of a subscriber without contracts are none, and of one there is not are refused
+    - a contract’s dossier
+        - is the contract as it was frozen, each line with where it came from, and the invoices
+          issued under it
+        - says when its archived confirmation no longer matches, and writes that to the audit log
+          once
+        - is waiting while its confirmation is due and not archived, and not due for one written
+          before
+        - without a catalogue to ask, no line says where it came from
+        - of another subscriber’s contract is refused as one that does not exist, as are an unknown
+          one and an unknown subscriber
     - the confirmations start
         - not beside an archive that would let a confirmation it keeps be changed, naming why
     - the quarter-hourly run
@@ -22372,6 +22522,10 @@ _Tested by:_
         - is served beside the invoices’ documents, and answers the archived file under its name
         - serves the subscriber’s contracts in its record, read outside any row policy, and the
           manifest announces both
+        - serves a contract’s dossier in its record, read outside any row policy, each line with
+          where the platform’s catalogue has it
+        - starts where the catalogue’s repositories need what only the catalogue is given, and asks
+          them there
         - is not served where the administration is not
 - `packages/nest/tests/invoices-start-only-as-configured.test.js`
     - the confirmations every contract is due, beside the invoices
@@ -22405,10 +22559,23 @@ _Tested by:_
         - are read where the manifest announces them, and not otherwise
 - `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
     - the subscriber's record shows its contracts
-        - every one, the newest first, with what it records and where its confirmation stands
-        - downloads an archived confirmation under the name it was archived with
-        - while one confirmation is on its way, the other downloads wait
+        - one timeline per tenant, the latest start first, each naming what it changed and where its
+          confirmation stands
+        - marks the contracts in force on a day picked, and says so when none was
+        - a contract superseded before it began says it was never in force, and is marked on no day
+        - opens a contract into what it froze: its lines with where each came from, its invoices and
+          its ids
+        - leads to the catalogue, and back to the list, where the shell put those pages
+        - leads to no catalogue page the platform does not serve
+        - shows each line’s features and quotas, and filters the lines by them
+        - copies an id, and says whether the browser let it
+        - a confirmation that no longer matches its checksum is said at the contract, and not
+          offered
+        - a confirmation not archived yet, or not due, is said and not offered
+        - downloads an intact confirmation under the name it was archived with
         - a download that fails says so, and saves nothing
+        - a contract that fails to load says so
+        - opening another contract closes the first, and reads the one opened
         - nothing of them where the platform does not serve them
     - the subscriber's record downloads an invoice's document
         - only where the platform serves it, the cancellation beside it or not

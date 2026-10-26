@@ -442,6 +442,16 @@ _Tested by:_
     - a subscriber’s contracts, as the operator reads them
         - are every contract, the newest first, each with where its confirmation stands
         - of a subscriber without contracts are none, and of one there is not are refused
+    - a contract’s dossier
+        - is the contract as it was frozen, each line with where it came from, and the invoices
+          issued under it
+        - says when its archived confirmation no longer matches, and writes that to the audit log
+          once
+        - is waiting while its confirmation is due and not archived, and not due for one written
+          before
+        - without a catalogue to ask, no line says where it came from
+        - of another subscriber’s contract is refused as one that does not exist, as are an unknown
+          one and an unknown subscriber
     - the confirmations start
         - not beside an archive that would let a confirmation it keeps be changed, naming why
     - the quarter-hourly run
@@ -450,6 +460,10 @@ _Tested by:_
         - is served beside the invoices’ documents, and answers the archived file under its name
         - serves the subscriber’s contracts in its record, read outside any row policy, and the
           manifest announces both
+        - serves a contract’s dossier in its record, read outside any row policy, each line with
+          where the platform’s catalogue has it
+        - starts where the catalogue’s repositories need what only the catalogue is given, and asks
+          them there
         - is not served where the administration is not
 - `packages/nest/tests/invoices-start-only-as-configured.test.js`
     - the confirmations every contract is due, beside the invoices
@@ -483,10 +497,23 @@ _Tested by:_
         - are read where the manifest announces them, and not otherwise
 - `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
     - the subscriber's record shows its contracts
-        - every one, the newest first, with what it records and where its confirmation stands
-        - downloads an archived confirmation under the name it was archived with
-        - while one confirmation is on its way, the other downloads wait
+        - one timeline per tenant, the latest start first, each naming what it changed and where its
+          confirmation stands
+        - marks the contracts in force on a day picked, and says so when none was
+        - a contract superseded before it began says it was never in force, and is marked on no day
+        - opens a contract into what it froze: its lines with where each came from, its invoices and
+          its ids
+        - leads to the catalogue, and back to the list, where the shell put those pages
+        - leads to no catalogue page the platform does not serve
+        - shows each line’s features and quotas, and filters the lines by them
+        - copies an id, and says whether the browser let it
+        - a confirmation that no longer matches its checksum is said at the contract, and not
+          offered
+        - a confirmation not archived yet, or not due, is said and not offered
+        - downloads an intact confirmation under the name it was archived with
         - a download that fails says so, and saves nothing
+        - a contract that fails to load says so
+        - opening another contract closes the first, and reads the one opened
         - nothing of them where the platform does not serve them
     - the subscriber's record downloads an invoice's document
         - only where the platform serves it, the cancellation beside it or not

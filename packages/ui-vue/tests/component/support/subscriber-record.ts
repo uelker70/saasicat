@@ -9,7 +9,12 @@ import { defineComponent } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import SubscriberRecordPage from '../../../src/pages/SubscriberRecordPage.vue';
+import { standardPageRouteOf } from '../../../src/client/nav-builder.js';
 import { mountWithQuasar } from '../../../src/testing/mount-with-quasar.js';
+import {
+    STANDARD_PAGE_ROUTES_KEY,
+    type StandardPageRoute,
+} from '../../../src/vue/standard-page-routes.js';
 import { SUPER_ADMIN_MANIFEST_KEY } from '../../../src/vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY } from '../../../src/vue/ui-notify.js';
 import { provideStubResources, type ResourceStubs } from './stub-resources.js';
@@ -52,6 +57,8 @@ export const RECORD = {
 export interface MountedRecordOptions {
     /** The manifest's capabilities beside `subscribers.read`, which the record needs. */
     capabilities?: Record<string, boolean>;
+    /** The manifest's standard pages, for a record that links to one of them. */
+    standardPages?: Record<string, { enabled: boolean; requiredCapability?: string | null }>;
     /** The subscribers descriptor's operations; `record` answers `RECORD` unless given. */
     subscribers?: ResourceStubs[string];
     /** Which record the route opens. */
@@ -60,15 +67,19 @@ export interface MountedRecordOptions {
     notices?: Array<[string, string]>;
     /** Mounted into the document, for a dialog teleported out of the wrapper. */
     attach?: boolean;
+    /** Where the shell put each standard page; the default routes unless given. */
+    standardPageRoute?: StandardPageRoute;
 }
 
 /** The record page under `/admin/subscribers/:id`, its manifest and notify port provided. */
 export async function mountRecord({
     capabilities = {},
+    standardPages = {},
     subscribers = {},
     id = 's-1',
     notices = [],
     attach = false,
+    standardPageRoute = standardPageRouteOf(undefined),
 }: MountedRecordOptions = {}) {
     const router = createRouter({
         history: createMemoryHistory(),
@@ -79,7 +90,10 @@ export async function mountRecord({
     });
     await router.push(`/admin/subscribers/${id}`);
     await router.isReady();
-    const manifest = { capabilities: { 'subscribers.read': true, ...capabilities } };
+    const manifest = {
+        capabilities: { 'subscribers.read': true, ...capabilities },
+        navigation: { standardPages, projectPages: [] },
+    };
     // SAFETY: the two keys are the symbols the page injects its manifest and its
     // notify port under, typed as Vue's injection keys rather than as symbols.
     const manifestKey = SUPER_ADMIN_MANIFEST_KEY as symbol;
@@ -94,6 +108,7 @@ export async function mountRecord({
                 }),
                 [manifestKey]: () => manifest,
                 [notifyKey]: (kind: string, message: string) => notices.push([kind, message]),
+                [STANDARD_PAGE_ROUTES_KEY]: standardPageRoute,
             },
         },
     };

@@ -14,8 +14,14 @@ import {
 import { AllowDuringMaintenance } from '../../maintenance/allow-during-maintenance.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { UseRouteGuards } from '../../admin/use-route-guards.decorator.js';
-import type { AdminSubscriberContracts, InvoiceDocument, RlsBypassPort } from '@saasicat/core';
+import type {
+    AdminSubscriberContractDossier,
+    AdminSubscriberContracts,
+    InvoiceDocument,
+    RlsBypassPort,
+} from '@saasicat/core';
 import { ContractConfirmationService } from '../confirmations/contract-confirmation.service.js';
+import { CatalogContractSourceLookup } from '../confirmations/contract-source-lookup.js';
 import { InvoiceDocumentService } from './invoice-document.service.js';
 
 export interface InvoiceDocumentModuleOptions {
@@ -88,15 +94,33 @@ function buildContractConfirmationController(guards: Array<Type<CanActivate>>): 
             // request has none of. Missing, the module does not start.
             @Inject(RLS_BYPASS_PORT_TOKEN)
             private readonly rlsBypass: RlsBypassPort,
+            @Inject(CatalogContractSourceLookup)
+            private readonly sources: CatalogContractSourceLookup,
         ) {}
 
         /**
-         * The subscriber's contracts, the newest first, each with where its
-         * confirmation stands (`SC-AUD-016`).
+         * The subscriber's contracts, the newest first, each with what it
+         * changed against the one before it and where its confirmation stands
+         * (`SC-AUD-016`, `SC-ADM-041`).
          */
         @Get('subscribers/:id/contracts')
         contractsOf(@Param('id') id: string): Promise<AdminSubscriberContracts> {
             return this.rlsBypass.runWithBypass(() => this.confirmations.contractsOf(id));
+        }
+
+        /**
+         * One of the subscriber's contracts as it was frozen, with the invoices
+         * issued under it and whether its archived confirmation is intact
+         * (`SC-ADM-041`).
+         */
+        @Get('subscribers/:id/contracts/:contractId')
+        dossierOf(
+            @Param('id') id: string,
+            @Param('contractId') contractId: string,
+        ): Promise<AdminSubscriberContractDossier> {
+            return this.rlsBypass.runWithBypass(() =>
+                this.confirmations.dossierOf(id, contractId, this.sources),
+            );
         }
 
         /**
@@ -130,6 +154,12 @@ export class InvoiceDocumentModule {
                     ? [buildContractConfirmationController(options.guards)]
                     : []),
             ],
+            // Where a line came from is asked of the catalogue's own plan and
+            // bundle repositories, which the platform exports with the
+            // catalogue module. Registered again here, a factory would lose
+            // the scope the application gave the catalogue — `catalog.imports`,
+            // `catalog.extraProviders` — and the application would not start.
+            providers: options.confirmations ? [CatalogContractSourceLookup] : [],
         };
     }
 }
