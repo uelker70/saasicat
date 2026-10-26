@@ -7,6 +7,7 @@ import {
     Inject,
     Module,
     Param,
+    type Provider,
     StreamableFile,
     type Type,
 } from '@nestjs/common';
@@ -14,8 +15,19 @@ import {
 import { AllowDuringMaintenance } from '../../maintenance/allow-during-maintenance.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { UseRouteGuards } from '../../admin/use-route-guards.decorator.js';
-import type { AdminSubscriberContracts, InvoiceDocument, RlsBypassPort } from '@saasicat/core';
+import type {
+    AdminSubscriberContractDossier,
+    AdminSubscriberContracts,
+    BundleRepository,
+    InvoiceDocument,
+    PersistenceProvider,
+    PlanRepository,
+    RlsBypassPort,
+} from '@saasicat/core';
+import { BUNDLE_REPOSITORY_TOKEN, PLAN_REPOSITORY_TOKEN } from '../../catalog/catalog.tokens.js';
+import { asProvider } from '../../core/di.js';
 import { ContractConfirmationService } from '../confirmations/contract-confirmation.service.js';
+import { CatalogContractSourceLookup } from '../confirmations/contract-source-lookup.js';
 import { InvoiceDocumentService } from './invoice-document.service.js';
 
 export interface InvoiceDocumentModuleOptions {
@@ -30,6 +42,15 @@ export interface InvoiceDocumentModuleOptions {
     imports: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /** Whether the contracts' confirmations are offered too. */
     confirmations: boolean;
+    /**
+     * The installation's plans and add-ons, which a contract's dossier asks
+     * whether a line's source is still in the catalogue. Either may be absent;
+     * the lines of that kind then say nothing about it.
+     */
+    catalog?: {
+        plans?: PersistenceProvider<PlanRepository>;
+        bundles?: PersistenceProvider<BundleRepository>;
+    };
 }
 
 /**
@@ -88,15 +109,33 @@ function buildContractConfirmationController(guards: Array<Type<CanActivate>>): 
             // request has none of. Missing, the module does not start.
             @Inject(RLS_BYPASS_PORT_TOKEN)
             private readonly rlsBypass: RlsBypassPort,
+            @Inject(CatalogContractSourceLookup)
+            private readonly sources: CatalogContractSourceLookup,
         ) {}
 
         /**
-         * The subscriber's contracts, the newest first, each with where its
-         * confirmation stands (`SC-AUD-016`).
+         * The subscriber's contracts, the newest first, each with what it
+         * changed against the one before it and where its confirmation stands
+         * (`SC-AUD-016`, `SC-ADM-041`).
          */
         @Get('subscribers/:id/contracts')
         contractsOf(@Param('id') id: string): Promise<AdminSubscriberContracts> {
             return this.rlsBypass.runWithBypass(() => this.confirmations.contractsOf(id));
+        }
+
+        /**
+         * One of the subscriber's contracts as it was frozen, with the invoices
+         * issued under it and whether its archived confirmation is intact
+         * (`SC-ADM-041`).
+         */
+        @Get('subscribers/:id/contracts/:contractId')
+        dossierOf(
+            @Param('id') id: string,
+            @Param('contractId') contractId: string,
+        ): Promise<AdminSubscriberContractDossier> {
+            return this.rlsBypass.runWithBypass(() =>
+                this.confirmations.dossierOf(id, contractId, this.sources),
+            );
         }
 
         /**
@@ -130,6 +169,16 @@ export class InvoiceDocumentModule {
                     ? [buildContractConfirmationController(options.guards)]
                     : []),
             ],
+            providers: options.confirmations ? contractSourceProviders(options.catalog) : [],
         };
     }
+}
+
+/** The dossier's lookup of where a line came from, with whichever repositories the catalogue has. */
+function contractSourceProviders(catalog: InvoiceDocumentModuleOptions['catalog']): Provider[] {
+    return [
+        CatalogContractSourceLookup,
+        ...(catalog?.plans ? [asProvider(PLAN_REPOSITORY_TOKEN, catalog.plans)] : []),
+        ...(catalog?.bundles ? [asProvider(BUNDLE_REPOSITORY_TOKEN, catalog.bundles)] : []),
+    ];
 }

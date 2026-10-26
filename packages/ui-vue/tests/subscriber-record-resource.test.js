@@ -165,3 +165,22 @@ describe('subscribersResource.record', () => {
         await assert.rejects(() => ops.record('s-1'), /no body/);
     });
 });
+
+// @requirement SC-ADM-041 — The record shows every contract as it was concluded, and how one followed another
+describe('subscribersResource.contract', () => {
+    test("asks for one of the subscriber's contracts by both ids, each escaped", async () => {
+        const dossier = { contract: { id: 'c/1' }, lines: [], invoices: [], integrity: 'intact' };
+        const { calls, ops } = answeringWith(dossier);
+
+        assert.deepEqual(await ops.contract('a b', 'c/1'), dossier);
+        assert.deepEqual(calls, [
+            { url: '/api/v1/admin/subscribers/a%20b/contracts/c%2F1', method: 'GET' },
+        ]);
+    });
+
+    test('an answer with no body is an error', async () => {
+        const { ops } = answeringWith(undefined);
+
+        await assert.rejects(() => ops.contract('s-1', 'c-1'), /no body/);
+    });
+});

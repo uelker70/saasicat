@@ -9,7 +9,7 @@
 // not required at all). The manifest is Discovery, not security — the server
 // enforces the routes independently.
 
-import type { AdminManifest, StandardPageDef, StandardPageKey } from '@saasicat/core';
+import type { AdminManifest, StandardPageKey } from '@saasicat/core';
 
 import { DEFAULT_SA_LOCALE, isSaBuiltinLocale, type SaLocale } from './i18n/locale.js';
 import { navMessages, type SaNavMessages } from './i18n/messages/nav.js';
@@ -178,6 +178,18 @@ export function defaultSectionOrder(
 }
 
 /**
+ * Whether the manifest serves the standard page `key`: it is enabled, and the
+ * capability it names, where it names one, is given. The navigation offers
+ * exactly these, and a page that links to another asks the same question.
+ */
+export function servesStandardPage(manifest: AdminManifest, key: StandardPageKey): boolean {
+    const page = manifest.navigation?.standardPages?.[key];
+    if (!page?.enabled) return false;
+    const capability = page.requiredCapability ?? null;
+    return !capability || manifest.capabilities?.[capability] === true;
+}
+
+/**
  * Returns the list of all routes defined by the current manifest —
  * filtered to the capabilities that the logged-in user has.
  *
@@ -207,10 +219,8 @@ export function buildRoutes(
         // cache. Ignore standard pages this UI build does not know instead of
         // emitting navigation entries with undefined path/label/icon values.
         if (!isSupportedStandardPageKey(key)) continue;
-        const def = standard[key] as StandardPageDef | undefined;
-        if (!def?.enabled) continue;
-        const cap = def.requiredCapability ?? null;
-        if (cap && capabilities[cap] !== true) continue;
+        if (!servesStandardPage(manifest, key)) continue;
+        const cap = standard[key]?.requiredCapability ?? null;
         routes.push({
             id: key,
             path: overrideRoutes[key],

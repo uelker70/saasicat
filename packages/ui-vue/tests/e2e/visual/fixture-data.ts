@@ -8,7 +8,11 @@
 // Every id, date and number is fixed. Nothing here may derive from the clock.
 
 import type {
+    AdminContractChange,
     AdminManifest,
+    AdminSubscriberContract,
+    AdminSubscriberContractDossier,
+    AdminSubscriberContracts,
     AdminSubscriberInvoice,
     BundleRow,
     BundleVersionRow,
@@ -50,14 +54,15 @@ export const FIXTURE_MANIFEST: AdminManifest = {
         plans: [],
     },
     // Only what a page asks for by name: the subscriber's card on the tenant
-    // detail, the subscribers' list and record with its charges and payments
-    // sections, and the cancellation at an invoice, are shown where the
-    // platform announces them, and a fixture that does not would leave them
+    // detail, the subscribers' list and record with its charges, payments and
+    // contracts sections, and the cancellation at an invoice, are shown where
+    // the platform announces them, and a fixture that does not would leave them
     // unrendered and unmeasured.
     capabilities: {
         'subscribers.read': true,
         'charges.read': true,
         'payments.read': true,
+        'contracts.read': true,
         'invoices.cancel': true,
     },
     navigation: { standardPages: {} },
@@ -1175,6 +1180,182 @@ const invoiceLine = (position: number, title: string, amountNet: number, source:
     correctable: amountNet > 0,
 });
 
+const UNCHANGED_CONTRACT: AdminContractChange = {
+    concluded: false,
+    plan: null,
+    bundlesAdded: [],
+    bundlesRemoved: [],
+    frozenAnew: false,
+    priceChanged: false,
+    cancelled: false,
+};
+
+const contractRow = (
+    id: string,
+    overrides: Partial<AdminSubscriberContract>,
+): AdminSubscriberContract => ({
+    id,
+    tenantId: 't-0001',
+    status: 'superseded',
+    concludedAt: '2025-01-01T09:00:00.000Z',
+    effectiveFrom: '2025-01-01T00:00:00.000Z',
+    effectiveUntil: null,
+    firstDay: '2025-01-01',
+    lastDay: null,
+    neverInForce: false,
+    billingCycle: 'monthly',
+    currency: 'EUR',
+    totalGross: 58.31,
+    termsVersion: '2025-01',
+    cancellationNoticeDays: 14,
+    plan: { key: 'BASIC', title: 'Basic' },
+    bundles: [],
+    minimumTermUntil: null,
+    change: { ...UNCHANGED_CONTRACT, concluded: true },
+    confirmation: { state: 'not-due', archivedAt: null, deliveredAt: null, deliveredTo: null },
+    ...overrides,
+});
+
+// One contract per state the timeline names: the tenant the application no
+// longer has with a contract running, and Northwind's two — concluded, then
+// upgraded with an add-on and cancelled.
+const SUBSCRIBER_CONTRACTS: AdminSubscriberContracts = {
+    contracts: [
+        contractRow('c-0003', {
+            tenantId: 't-0009',
+            status: 'active',
+            concludedAt: '2026-01-01T09:00:00.000Z',
+            effectiveFrom: '2026-01-01T00:00:00.000Z',
+            firstDay: '2026-01-01',
+            totalGross: 106.81,
+            termsVersion: '2026-01',
+            plan: { key: 'PRO', title: 'Pro' },
+            bundles: [{ key: 'STORAGE', title: 'Storage' }],
+            minimumTermUntil: '2027-01-01T00:00:00.000Z',
+            confirmation: {
+                state: 'sent',
+                archivedAt: '2026-01-01T09:15:00.000Z',
+                deliveredAt: '2026-01-01T09:30:00.000Z',
+                deliveredTo: 'invoices@northwind.example',
+            },
+        }),
+        contractRow('c-0002', {
+            status: 'terminated',
+            concludedAt: '2025-07-01T09:00:00.000Z',
+            effectiveFrom: '2025-07-01T00:00:00.000Z',
+            effectiveUntil: '2025-12-31T23:00:00.000Z',
+            firstDay: '2025-07-01',
+            lastDay: '2025-12-31',
+            totalGross: 106.81,
+            plan: { key: 'PRO', title: 'Pro' },
+            bundles: [{ key: 'STORAGE', title: 'Storage' }],
+            change: {
+                ...UNCHANGED_CONTRACT,
+                plan: 'upgraded',
+                bundlesAdded: [{ key: 'STORAGE', title: 'Storage' }],
+                cancelled: true,
+            },
+            confirmation: {
+                state: 'awaiting-mail',
+                archivedAt: '2025-07-01T09:15:00.000Z',
+                deliveredAt: null,
+                deliveredTo: null,
+            },
+        }),
+        contractRow('c-0001', {
+            effectiveUntil: '2025-06-30T22:00:00.000Z',
+            lastDay: '2025-06-30',
+        }),
+    ],
+};
+
+// The running contract opened: its plan removed from the catalogue since, an
+// add-on still in it, a discount, an invoice, and a confirmation that no longer
+// matches its checksum — the warning renders only there.
+const SUBSCRIBER_CONTRACT_DOSSIER: AdminSubscriberContractDossier = {
+    contract: SUBSCRIBER_CONTRACTS.contracts[0],
+    agreedAt: '2026-01-01T09:00:00.000Z',
+    originalOfferId: 'offer-0007',
+    originalPlanVersionId: 'pv-pro-2',
+    originalBundleVersionIds: ['bv-storage-1'],
+    partiesMigrated: false,
+    subtotalNet: 99,
+    discountNet: 9,
+    totalNet: 90,
+    lines: [
+        {
+            id: 'l-plan',
+            kind: 'plan',
+            key: 'PRO',
+            versionId: 'pv-pro-2',
+            title: 'Pro',
+            description: 'For teams that export and integrate.',
+            quantity: 1,
+            unit: null,
+            priceNet: 89,
+            priceGross: 105.91,
+            taxRate: 19,
+            taxAmount: 16.91,
+            billingCycle: 'monthly',
+            currency: 'EUR',
+            minimumTermUntil: '2027-01-01T00:00:00.000Z',
+            features: ['export', 'api-access'],
+            quotas: { users: 25 },
+            source: 'removed',
+        },
+        {
+            id: 'l-storage',
+            kind: 'bundle',
+            key: 'STORAGE',
+            versionId: 'bv-storage-1',
+            title: 'Storage',
+            description: null,
+            quantity: 1,
+            unit: null,
+            priceNet: 10,
+            priceGross: 11.9,
+            taxRate: 19,
+            taxAmount: 1.9,
+            billingCycle: 'monthly',
+            currency: 'EUR',
+            minimumTermUntil: null,
+            features: [],
+            quotas: { storageGb: 50 },
+            source: 'in-catalog',
+        },
+        {
+            id: 'l-welcome',
+            kind: 'discount',
+            key: 'WELCOME',
+            versionId: null,
+            title: 'Welcome',
+            description: null,
+            quantity: 1,
+            unit: null,
+            priceNet: -9,
+            priceGross: -10.71,
+            taxRate: 19,
+            taxAmount: -1.71,
+            billingCycle: 'monthly',
+            currency: 'EUR',
+            minimumTermUntil: null,
+            features: [],
+            quotas: {},
+            source: null,
+        },
+    ],
+    invoices: [
+        {
+            id: 'inv-124',
+            number: 'AHP-2026-000124',
+            issueDate: '2026-02-01',
+            currency: 'EUR',
+            totalGross: 106.81,
+        },
+    ],
+    integrity: 'mismatch',
+};
+
 const INVOICE_TO_CANCEL = {
     id: 'inv-124',
     number: 'AHP-2026-000124',
@@ -1493,6 +1674,8 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/subscribers/s-0001', SUBSCRIBER_RECORD],
     ['/api/admin/subscribers/s-0001/charges', TENANT_ACCOUNT],
     ['/api/admin/subscribers/s-0001/payments', TENANT_PAYMENTS],
+    ['/api/admin/subscribers/s-0001/contracts', SUBSCRIBER_CONTRACTS],
+    ['/api/admin/subscribers/s-0001/contracts/c-0003', SUBSCRIBER_CONTRACT_DOSSIER],
     ['/api/admin/invoices/inv-124', INVOICE_TO_CANCEL],
     ['/api/admin/pilots', PILOT_ROWS],
     // The page loads both lists. Deliberately empty and registered as such: an

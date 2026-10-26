@@ -20,10 +20,15 @@ import {
 } from '@nestjs/common';
 import {
     CONTRACT_ERROR_CODES,
-    confirmationStateOf,
+    adminContractDossierOf,
+    adminContractInvoicesOf,
+    adminContractLinesOf,
+    adminSubscriberContractsOf,
     contractPartiesOf,
     invoiceFooterOf,
-    type AdminSubscriberContract,
+    type AdminContractIntegrity,
+    type AdminContractSourceState,
+    type AdminSubscriberContractDossier,
     type AdminSubscriberContracts,
     type ContractConfirmationStanding,
     type ContractConfirmationArchivePort,
@@ -35,6 +40,7 @@ import {
     type RlsBypassPort,
     type SubscriptionContractRecord,
     type SubscriptionContractRepository,
+    type SubscriptionInvoiceRepository,
     type TermsArchivePort,
 } from '@saasicat/core';
 
@@ -52,16 +58,20 @@ import {
     type MailingRun,
 } from '../archived-files/archived-file-run.js';
 import { INVOICE_MAIL_PORT_TOKEN } from '../invoices/invoice-document.tokens.js';
+import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from '../invoices/subscription-invoice.tokens.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
 import {
     CONTRACT_CONFIRMATION_ARCHIVE_TOKEN,
     CONTRACT_CONFIRMATION_RENDERER_TOKEN,
     CONTRACT_CONFIRMATION_REPOSITORY_TOKEN,
 } from './contract-confirmation.tokens.js';
+import type { ContractSourceLookup } from './contract-source-lookup.js';
 
 @Injectable()
 export class ContractConfirmationService implements OnModuleInit {
     private readonly run: ArchivedFileRun<SubscriptionContractRecord>;
+    /** The zone the days of a contract are read in; invoicing requires one. */
+    private readonly timeZone: string | undefined;
 
     constructor(
         @Inject(CONTRACT_CONFIRMATION_REPOSITORY_TOKEN)
@@ -90,7 +100,13 @@ export class ContractConfirmationService implements OnModuleInit {
         @Optional()
         @Inject(AdminAuditService)
         audit: AdminAuditService | null = null,
+        // The invoices a contract's dossier names. Provided wherever
+        // confirmations are, which invoicing alone wires.
+        @Optional()
+        @Inject(SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN)
+        private readonly invoices: SubscriptionInvoiceRepository | null = null,
     ) {
+        this.timeZone = settings.timeZone;
         /** The archived terms of the version `contract` records, or `null` where it records none. */
         const termsOf = async (contract: SubscriptionContractRecord) => {
             if (!contract.termsVersion) return null;
@@ -218,11 +234,7 @@ export class ContractConfirmationService implements OnModuleInit {
             case 'file':
                 return found.file;
             case 'unknown':
-                throw new NotFoundException(
-                    codedError(CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_NOT_FOUND, {
-                        contractId,
-                    }),
-                );
+                throw contractNotFound(contractId);
             case 'waiting':
                 throw new ConflictException(
                     codedError(CONTRACT_ERROR_CODES.CONTRACT_CONFIRMATION_NOT_ARCHIVED, {
@@ -243,55 +255,103 @@ export class ContractConfirmationService implements OnModuleInit {
      */
     async contractsOf(subscriberId: string): Promise<AdminSubscriberContracts> {
         return readAcrossTenants(this.rlsBypass, async () => {
-            const subscriber = await this.subscribers.requireById(subscriberId);
-            const contracts = await this.contracts.list({ subscriberId: subscriber.id });
-            const standings = await this.confirmations.listStandings(
-                contracts.map((contract) => contract.id),
-            );
-            const byContract = new Map(
-                standings.map((standing) => [standing.contractId, standing]),
-            );
-            return {
-                contracts: [...contracts]
-                    .sort(newestFirst)
-                    .map((contract) => adminContractOf(contract, byContract.get(contract.id))),
-            };
+            const { contracts, standings } = await this.contractsAndStandingsOf(subscriberId);
+            return { contracts: adminSubscriberContractsOf(contracts, standings, this.zone()) };
         });
+    }
+
+    /**
+     * One of the subscriber's contracts as it was frozen (`SC-ADM-041`): its
+     * lines with where each came from, the invoices issued under it, and
+     * whether its archived confirmation still matches the checksum recorded
+     * when it was rendered — checked here, by reading the file. Refused with
+     * `SUBSCRIBER_NOT_FOUND` for no such subscriber, and with
+     * `SUBSCRIPTION_CONTRACT_NOT_FOUND` for a contract that is not this
+     * subscriber's, another subscriber's included.
+     *
+     * `sources` answers where a line's source stands in today's catalogue;
+     * without one, no line says.
+     */
+    async dossierOf(
+        subscriberId: string,
+        contractId: string,
+        sources: ContractSourceLookup | null,
+    ): Promise<AdminSubscriberContractDossier> {
+        return readAcrossTenants(this.rlsBypass, async () => {
+            const { subscriber, contracts, standings } =
+                await this.contractsAndStandingsOf(subscriberId);
+            const contract = contracts.find((candidate) => candidate.id === contractId);
+            const view = adminSubscriberContractsOf(contracts, standings, this.zone()).find(
+                (candidate) => candidate.id === contractId,
+            );
+            if (!contract || !view) throw contractNotFound(contractId);
+            const standing = standings.find((candidate) => candidate.contractId === contractId);
+            const fromCatalog = contract.lineItems.filter((line) => line.kind !== 'discount');
+            const states = new Map<string, AdminContractSourceState | null>(
+                await Promise.all(
+                    fromCatalog.map(
+                        async (line): Promise<[string, AdminContractSourceState | null]> => [
+                            line.id,
+                            sources ? await sources.stateOf(line) : null,
+                        ],
+                    ),
+                ),
+            );
+            const issued = this.invoices ? await this.invoices.listBySubscriber(subscriber.id) : [];
+            return adminContractDossierOf({
+                contract,
+                view,
+                lines: adminContractLinesOf(contract, (line) => states.get(line.id) ?? null),
+                invoices: adminContractInvoicesOf(issued, contract.id),
+                integrity: await this.integrityOf(contract.id, standing),
+            });
+        });
+    }
+
+    private async contractsAndStandingsOf(subscriberId: string) {
+        const subscriber = await this.subscribers.requireById(subscriberId);
+        const contracts = await this.contracts.list({ subscriberId: subscriber.id });
+        const standings = await this.confirmations.listStandings(
+            contracts.map((contract) => contract.id),
+        );
+        return { subscriber, contracts, standings };
+    }
+
+    /**
+     * Whether the contract's archived confirmation is the file recorded for it,
+     * read the way its download reads it: a file that does not match is
+     * written to the audit log once, as there.
+     */
+    private async integrityOf(
+        contractId: string,
+        standing: ContractConfirmationStanding | undefined,
+    ): Promise<AdminContractIntegrity> {
+        const found = await this.run.handOut(contractId);
+        switch (found.kind) {
+            case 'file':
+                return 'intact';
+            case 'mismatch':
+                return 'mismatch';
+            case 'waiting':
+                return standing?.due ? 'waiting' : 'not-due';
+            case 'unknown':
+                throw contractNotFound(contractId);
+        }
+    }
+
+    private zone(): string {
+        if (!this.timeZone) {
+            throw new Error(
+                "A contract's days are read in config/saas.yaml's timeZone, which invoicing " +
+                    'requires and this installation does not name.',
+            );
+        }
+        return this.timeZone;
     }
 }
 
-/** The contract written last first; of two written at once, the larger id first. */
-function newestFirst(a: SubscriptionContractRecord, b: SubscriptionContractRecord): number {
-    return (
-        b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0)
+function contractNotFound(contractId: string): NotFoundException {
+    return new NotFoundException(
+        codedError(CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_NOT_FOUND, { contractId }),
     );
-}
-
-/** A contract as the operator reads it beside its tenant. */
-function adminContractOf(
-    contract: SubscriptionContractRecord,
-    standing: ContractConfirmationStanding | undefined,
-): AdminSubscriberContract {
-    // A contract the store answers without a standing is one it did not find a
-    // moment later, which is no confirmation either.
-    const known = standing ?? { contractId: contract.id, due: false, confirmation: null };
-    const { confirmation } = known;
-    return {
-        id: contract.id,
-        status: contract.status,
-        concludedAt: contract.createdAt.toISOString(),
-        effectiveFrom: contract.effectiveFrom.toISOString(),
-        effectiveUntil: contract.effectiveUntil?.toISOString() ?? null,
-        billingCycle: contract.priceSnapshot.billingCycle,
-        currency: contract.priceSnapshot.currency,
-        totalGross: contract.priceSnapshot.totalGross,
-        termsVersion: contract.termsVersion,
-        cancellationNoticeDays: contract.cancellationNoticeDays,
-        confirmation: {
-            state: confirmationStateOf(known),
-            archivedAt: confirmation?.archivedAt?.toISOString() ?? null,
-            deliveredAt: confirmation?.deliveredAt?.toISOString() ?? null,
-            deliveredTo: confirmation?.deliveredTo ?? null,
-        },
-    };
 }

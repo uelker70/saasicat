@@ -497,6 +497,38 @@ paths:
                 '404':
                     description: No subscriber under this id (`SUBSCRIBER_NOT_FOUND`)
 
+    /subscribers/{id}/contracts/{contractId}:
+        parameters:
+            - $ref: '#/components/parameters/SubscriberId'
+            - name: contractId
+              in: path
+              required: true
+              schema: { type: string }
+              description: The contract's id.
+        get:
+            tags: [subscriptions]
+            summary: One of the subscriber's contracts as it was frozen
+            description: >-
+                Served beside the list of contracts, under `contracts.read`
+                (`SC-ADM-041`). The contract's lines as it froze them, each with
+                where its source stands in today's catalogue; the invoices
+                issued under it; and whether its archived confirmation still
+                matches the checksum recorded when it was rendered — checked by
+                reading the file, and a file that does not match is written to
+                the audit log. Read through the subscriber: a contract that is
+                another subscriber's is answered as one that does not exist.
+            responses:
+                '200':
+                    description: The contract's dossier
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminSubscriberContractDossier' }
+                '404':
+                    description: >-
+                        No subscriber under this id (`SUBSCRIBER_NOT_FOUND`), or no
+                        contract of this subscriber under that one
+                        (`SUBSCRIPTION_CONTRACT_NOT_FOUND`)
+
     /reconciliation:
         get:
             tags: [subscriptions]
@@ -4039,24 +4071,76 @@ components:
                     description: The newest first.
                     items: { $ref: '#/components/schemas/AdminSubscriberContract' }
 
+        AdminContractSource:
+            type: object
+            description: A plan or an add-on as a contract froze it.
+            required: [key, title]
+            properties:
+                key: { type: string, description: Its key in the catalogue. }
+                title: { type: string, description: The title it bore. }
+
+        AdminContractChange:
+            type: object
+            description: >-
+                What a contract changed against the one in force before it for
+                the same tenant, read from the two as they were frozen.
+            required:
+                [concluded, plan, bundlesAdded, bundlesRemoved, frozenAnew, priceChanged, cancelled]
+            properties:
+                concluded: { type: boolean, description: The first contract of its tenant. }
+                plan:
+                    type: string
+                    enum: [upgraded, downgraded, changed]
+                    nullable: true
+                    description: >-
+                        Another plan, judged by its net price per month; `changed`
+                        at the same price or in another currency; `null` for the
+                        same plan and for the first contract.
+                bundlesAdded:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminContractSource' }
+                bundlesRemoved:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminContractSource' }
+                frozenAnew:
+                    type: boolean
+                    description: The same plan and add-ons, written anew.
+                priceChanged:
+                    type: boolean
+                    description: Written at another price per year than the contract before it.
+                cancelled:
+                    type: boolean
+                    description: The last of its tenant, and ended.
+
         AdminSubscriberContract:
             type: object
             required:
                 [
                     id,
+                    tenantId,
                     status,
                     concludedAt,
                     effectiveFrom,
                     effectiveUntil,
+                    firstDay,
+                    lastDay,
+                    neverInForce,
                     billingCycle,
                     currency,
                     totalGross,
                     termsVersion,
                     cancellationNoticeDays,
+                    plan,
+                    bundles,
+                    minimumTermUntil,
+                    change,
                     confirmation,
                 ]
             properties:
                 id: { type: string }
+                tenantId:
+                    type: string
+                    description: The tenant it was concluded for, which the timeline groups by.
                 status: { type: string, enum: [active, scheduled, terminated, superseded] }
                 concludedAt:
                     type: string
@@ -4064,6 +4148,20 @@ components:
                     description: When the contract was written.
                 effectiveFrom: { type: string, format: date-time }
                 effectiveUntil: { type: string, format: date-time, nullable: true }
+                firstDay:
+                    type: string
+                    format: date
+                    description: The first day it is in force, in the installation's time zone.
+                lastDay:
+                    type: string
+                    format: date
+                    nullable: true
+                    description: >-
+                        The last day it is in force there; `null` while it runs
+                        open-ended, and for one never in force.
+                neverInForce:
+                    type: boolean
+                    description: Superseded before it began.
                 billingCycle: { type: string, enum: [monthly, yearly] }
                 currency: { type: string }
                 totalGross:
@@ -4071,6 +4169,18 @@ components:
                     description: What the contract costs per billing period, tax included.
                 termsVersion: { type: string, nullable: true }
                 cancellationNoticeDays: { type: integer, minimum: 0 }
+                plan:
+                    allOf: [{ $ref: '#/components/schemas/AdminContractSource' }]
+                    nullable: true
+                bundles:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminContractSource' }
+                minimumTermUntil:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: The latest minimum term any of its lines binds to.
+                change: { $ref: '#/components/schemas/AdminContractChange' }
                 confirmation:
                     type: object
                     required: [state, archivedAt, deliveredAt, deliveredTo]
@@ -4087,6 +4197,121 @@ components:
                         archivedAt: { type: string, format: date-time, nullable: true }
                         deliveredAt: { type: string, format: date-time, nullable: true }
                         deliveredTo: { type: string, nullable: true }
+
+        AdminContractLine:
+            type: object
+            description: A contract's line, as the contract froze it.
+            required:
+                [
+                    id,
+                    kind,
+                    key,
+                    versionId,
+                    title,
+                    description,
+                    quantity,
+                    unit,
+                    priceNet,
+                    priceGross,
+                    taxRate,
+                    taxAmount,
+                    billingCycle,
+                    currency,
+                    minimumTermUntil,
+                    features,
+                    quotas,
+                    source,
+                ]
+            properties:
+                id: { type: string }
+                kind: { type: string, enum: [plan, bundle, discount] }
+                key: { type: string }
+                versionId: { type: string, nullable: true }
+                title: { type: string }
+                description: { type: string, nullable: true }
+                quantity: { type: number }
+                unit: { type: string, nullable: true }
+                priceNet:
+                    type: number
+                    description: Over one of its billing periods, `quantity` already in it.
+                priceGross: { type: number }
+                taxRate: { type: number, description: In percent. }
+                taxAmount: { type: number }
+                billingCycle: { type: string, enum: [monthly, yearly] }
+                currency: { type: string }
+                minimumTermUntil: { type: string, format: date-time, nullable: true }
+                features: { type: array, items: { type: string } }
+                quotas:
+                    type: object
+                    additionalProperties: { type: number }
+                source:
+                    type: string
+                    enum: [in-catalog, removed, deleted]
+                    nullable: true
+                    description: >-
+                        Where its source stands in today's catalogue: still in it,
+                        removed from it (soft-deleted), or deleted (purged, or a key
+                        it never knew); `null` for a discount and where the
+                        installation keeps no catalogue to ask.
+
+        AdminContractInvoice:
+            type: object
+            required: [id, number, issueDate, currency, totalGross]
+            properties:
+                id: { type: string }
+                number: { type: string }
+                issueDate: { type: string, format: date }
+                currency: { type: string }
+                totalGross: { type: number }
+
+        AdminSubscriberContractDossier:
+            type: object
+            required:
+                [
+                    contract,
+                    agreedAt,
+                    originalOfferId,
+                    originalPlanVersionId,
+                    originalBundleVersionIds,
+                    partiesMigrated,
+                    subtotalNet,
+                    discountNet,
+                    totalNet,
+                    lines,
+                    invoices,
+                    integrity,
+                ]
+            properties:
+                contract: { $ref: '#/components/schemas/AdminSubscriberContract' }
+                agreedAt:
+                    type: string
+                    format: date-time
+                    description: When the subscriber agreed to its terms and notice period.
+                originalOfferId: { type: string, nullable: true }
+                originalPlanVersionId: { type: string, nullable: true }
+                originalBundleVersionIds: { type: array, items: { type: string } }
+                partiesMigrated:
+                    type: boolean
+                    description: The parties were copied by the migration rather than agreed.
+                subtotalNet: { type: number }
+                discountNet: { type: number }
+                totalNet: { type: number }
+                lines:
+                    type: array
+                    description: The plan first, then the add-ons, then the discounts.
+                    items: { $ref: '#/components/schemas/AdminContractLine' }
+                invoices:
+                    type: array
+                    description: The invoices issued under the contract, the latest issue day first.
+                    items: { $ref: '#/components/schemas/AdminContractInvoice' }
+                integrity:
+                    type: string
+                    enum: [intact, mismatch, waiting, not-due]
+                    description: >-
+                        Whether the archived confirmation is the file recorded:
+                        `mismatch` no longer matches its checksum and is not
+                        handed out; `waiting` is due and not archived yet;
+                        `not-due` was written before confirmations existed.
 
         AdminSubscriberPayout:
             type: object

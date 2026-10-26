@@ -52,6 +52,8 @@ export const RECORD = {
 export interface MountedRecordOptions {
     /** The manifest's capabilities beside `subscribers.read`, which the record needs. */
     capabilities?: Record<string, boolean>;
+    /** The manifest's standard pages, for a record that links to one of them. */
+    standardPages?: Record<string, { enabled: boolean; requiredCapability?: string | null }>;
     /** The subscribers descriptor's operations; `record` answers `RECORD` unless given. */
     subscribers?: ResourceStubs[string];
     /** Which record the route opens. */
@@ -65,6 +67,7 @@ export interface MountedRecordOptions {
 /** The record page under `/admin/subscribers/:id`, its manifest and notify port provided. */
 export async function mountRecord({
     capabilities = {},
+    standardPages = {},
     subscribers = {},
     id = 's-1',
     notices = [],
@@ -79,7 +82,10 @@ export async function mountRecord({
     });
     await router.push(`/admin/subscribers/${id}`);
     await router.isReady();
-    const manifest = { capabilities: { 'subscribers.read': true, ...capabilities } };
+    const manifest = {
+        capabilities: { 'subscribers.read': true, ...capabilities },
+        navigation: { standardPages, projectPages: [] },
+    };
     // SAFETY: the two keys are the symbols the page injects its manifest and its
     // notify port under, typed as Vue's injection keys rather than as symbols.
     const manifestKey = SUPER_ADMIN_MANIFEST_KEY as symbol;

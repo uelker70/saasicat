@@ -63,6 +63,8 @@ export * from './use-tenant-action-flow.js';
 export * from './use-subscriber-account.js';
 export * from './use-subscriber-credits.js';
 export * from './use-subscriber-payments.js';
+export * from './use-contract-dossier.js';
+export * from './use-copy-text.js';
 export * from './use-subscriber-contracts.js';
 export * from './use-subscriber-downloads.js';
 export * from './use-subscriber-record.js';

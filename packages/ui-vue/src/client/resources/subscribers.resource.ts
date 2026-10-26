@@ -14,6 +14,7 @@ import type {
     AdminInvoice,
     AdminInvoiceCancellationPlan,
     AdminSubscriberAccount,
+    AdminSubscriberContractDossier,
     AdminSubscriberContracts,
     AdminSubscriberCorrected,
     AdminSubscriberCredits,
@@ -214,6 +215,24 @@ export const subscribersResource = defineResource('subscribers', {
             http,
             `${subscriberUrl(ctx, id)}/contracts`,
             'The contracts returned no body',
+        ),
+
+    /**
+     * One of the subscriber's contracts as it was frozen, with where each line
+     * came from, the invoices issued under it and whether its archived
+     * confirmation is intact (`SC-ADM-041`). Served where the manifest
+     * announces `contracts.read`.
+     */
+    contract: (
+        http,
+        ctx,
+        id: string,
+        contractId: string,
+    ): Promise<AdminSubscriberContractDossier> =>
+        requestJsonBody<AdminSubscriberContractDossier>(
+            http,
+            `${subscriberUrl(ctx, id)}/contracts/${encodeURIComponent(contractId)}`,
+            'The contract returned no body',
         ),
 
     /**
