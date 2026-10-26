@@ -17028,6 +17028,8 @@ _Tested by:_
         - a page whose months were left while it was on its way is dropped
         - months typed while the first answer is on its way are not overwritten by it
         - the months a stale answer named are read when they are picked, not taken as shown
+        - back to the months on screen while others are on their way, reads them again and drops the
+          others
         - a failure of the totals is the register’s failure, and a reload clears it
     - useCancellationParty
         - reads nothing until an invoice names a subscriber, then that subscriber’s record

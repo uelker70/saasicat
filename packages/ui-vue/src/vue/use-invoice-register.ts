@@ -101,7 +101,11 @@ export function useInvoiceRegister(invoices: InvoiceRegisterResource): InvoiceRe
     });
 
     // The months the page on screen was read for, as the platform answered
-    // them: filling the inputs with them is not a change of what is asked.
+    // them, while no other read is on its way: filling the inputs with them is
+    // not a change of what is asked. A read started for other months clears
+    // it, so turning back to these while that read is out reads them again —
+    // otherwise its answer, the newest, would stand under months it was not
+    // read for.
     let readFor: string | null = null;
     // Every read of the first page counts, so a later page can tell whether it
     // still continues the list on screen.
@@ -111,11 +115,8 @@ export function useInvoiceRegister(invoices: InvoiceRegisterResource): InvoiceRe
             firstReads += 1;
             const read = firstReads;
             later.value = [];
-            if (refusal.value !== null) {
-                // Nothing on screen was read for any months now.
-                readFor = null;
-                return null;
-            }
+            readFor = null;
+            if (refusal.value !== null) return null;
             const page = await invoices.list(asked());
             if (read === firstReads) {
                 readFor = spanKeyOf({ from: page.from, until: page.until });

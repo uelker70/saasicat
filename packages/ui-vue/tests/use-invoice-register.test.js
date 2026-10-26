@@ -257,6 +257,41 @@ describe('useInvoiceRegister', () => {
         );
     });
 
+    test('back to the months on screen while others are on their way, reads them again and drops the others', async () => {
+        const held = [];
+        const { asked, invoices } = aRegister(({ from }) =>
+            from === '2026-07'
+                ? new Promise((resolve) => {
+                      held.push(() => resolve({ invoices: [row('july')], next: 'july' }));
+                  })
+                : { invoices: [row(from ?? 'current')], next: null },
+        );
+        const totals = invoices.totals;
+        invoices.totals = (months) =>
+            months.from === '2026-07'
+                ? new Promise((resolve) => held.push(() => resolve(totals(months))))
+                : totals(months);
+        const register = useInvoiceRegister(invoices);
+        await settle();
+
+        register.from.value = '2026-07';
+        register.until.value = '2026-07';
+        await settle();
+        register.from.value = '2026-10';
+        register.until.value = '2026-10';
+        await settle();
+        for (const release of held) release();
+        await settle();
+
+        assert.deepEqual(asked.list.at(-1), { from: '2026-10', until: '2026-10' });
+        assert.deepEqual(
+            register.rows.value.map(({ id }) => id),
+            ['2026-10'],
+        );
+        assert.deepEqual(register.totals.value?.from, '2026-10');
+        assert.equal(register.hasMore.value, false, 'no page continues July under October');
+    });
+
     test('a failure of the totals is the register’s failure, and a reload clears it', async () => {
         const { invoices } = aRegister();
         let fail = true;
