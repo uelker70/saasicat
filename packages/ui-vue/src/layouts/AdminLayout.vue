@@ -102,10 +102,10 @@ import { computed, inject, ref, getCurrentInstance } from 'vue';
 import { useRoute } from 'vue-router';
 import { MAINTENANCE_CAPABILITY, type AdminManifest, type StandardPageKey } from '@saasicat/core';
 import {
-    DEFAULT_STANDARD_PAGE_ROUTES,
     buildRoutes,
     buildSidebar,
     defaultSectionOrder,
+    standardPageRouteOf,
 } from '../client/nav-builder.js';
 import MaintenanceLockBanner from '../internal/maintenance/MaintenanceLockBanner.vue';
 import LocaleSwitcher from '../ui/page/LocaleSwitcher.vue';
@@ -113,6 +113,7 @@ import ThemeSwitcher from '../ui/page/ThemeSwitcher.vue';
 import { SUPER_ADMIN_BRAND_KEY, SUPER_ADMIN_MANIFEST_KEY } from '../vue/super-admin-context.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useSignOut } from '../vue/use-sign-out.js';
+import { provideStandardPageRoutes } from '../vue/standard-page-routes.js';
 import { ADMIN_UI_VERSION } from '../client/version.js';
 
 // SuperAdmin layout — universal platform shell for all consumer apps.
@@ -129,7 +130,9 @@ import { ADMIN_UI_VERSION } from '../client/version.js';
 //                           manifest
 //   - `availableExtensions` : set for ProjectPage capability filter
 //   - `standardPageRoutes`: override per StandardPageKey (e.g.
-//                           `dashboard` → '/admin/' instead of '/admin/dashboard')
+//                           `dashboard` → '/admin/' instead of '/admin/dashboard');
+//                           the navigation, the lock strip and a page's link
+//                           to another standard page all follow it
 //   - `pageTitleResolver` : (path) => string mapping for the header title
 //   - `userName` / `userEmail` / `userInitials` : display
 //   - `isProduction`      : shows red production banner
@@ -239,9 +242,13 @@ const activeManifest = computed(() => props.manifest ?? injectedManifest?.() ?? 
 const maintenanceEnabled = computed(
     () => activeManifest.value?.capabilities?.[MAINTENANCE_CAPABILITY] === true,
 );
-const maintenanceRoute = computed(
-    () => props.standardPageRoutes?.maintenance ?? DEFAULT_STANDARD_PAGE_ROUTES.maintenance,
-);
+// Where each standard page answers, read from the props on every call so a
+// changed mapping reaches the pages too: the navigation, the lock strip and a
+// page linking to another resolve it alike.
+const standardPageRoute = (key: StandardPageKey): string =>
+    standardPageRouteOf(props.standardPageRoutes)(key);
+provideStandardPageRoutes(standardPageRoute);
+const maintenanceRoute = computed(() => standardPageRoute('maintenance'));
 const brand = computed(() => ({
     logoText: props.brandLogoText ?? injectedBrand?.logoText ?? '',
     name: props.brandName ?? injectedBrand?.name ?? '',

@@ -27,3 +27,9 @@ exist. `AdminSubscriberContract` gains the fields the timeline reads
 `minimumTermUntil`, `change`), `@saasicat/core` the functions that derive them,
 and `@saasicat/ui-vue` `useContractDossier`, `useCopyText` and
 `servesStandardPage`. Nothing is to be wired.
+
+A link from one standard page to another — a contract's line to the catalogue,
+the way back from a subscriber's record or a tenant's page to its list — goes
+where `AdminLayout`'s `standardPageRoutes` put that page, as the navigation
+does, rather than to the default route (`useStandardPageRoute`,
+`standardPageRouteOf`).

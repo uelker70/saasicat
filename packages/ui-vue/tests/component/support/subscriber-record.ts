@@ -9,7 +9,12 @@ import { defineComponent } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import SubscriberRecordPage from '../../../src/pages/SubscriberRecordPage.vue';
+import { standardPageRouteOf } from '../../../src/client/nav-builder.js';
 import { mountWithQuasar } from '../../../src/testing/mount-with-quasar.js';
+import {
+    STANDARD_PAGE_ROUTES_KEY,
+    type StandardPageRoute,
+} from '../../../src/vue/standard-page-routes.js';
 import { SUPER_ADMIN_MANIFEST_KEY } from '../../../src/vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY } from '../../../src/vue/ui-notify.js';
 import { provideStubResources, type ResourceStubs } from './stub-resources.js';
@@ -62,6 +67,8 @@ export interface MountedRecordOptions {
     notices?: Array<[string, string]>;
     /** Mounted into the document, for a dialog teleported out of the wrapper. */
     attach?: boolean;
+    /** Where the shell put each standard page; the default routes unless given. */
+    standardPageRoute?: StandardPageRoute;
 }
 
 /** The record page under `/admin/subscribers/:id`, its manifest and notify port provided. */
@@ -72,6 +79,7 @@ export async function mountRecord({
     id = 's-1',
     notices = [],
     attach = false,
+    standardPageRoute = standardPageRouteOf(undefined),
 }: MountedRecordOptions = {}) {
     const router = createRouter({
         history: createMemoryHistory(),
@@ -100,6 +108,7 @@ export async function mountRecord({
                 }),
                 [manifestKey]: () => manifest,
                 [notifyKey]: (kind: string, message: string) => notices.push([kind, message]),
+                [STANDARD_PAGE_ROUTES_KEY]: standardPageRoute,
             },
         },
     };

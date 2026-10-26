@@ -132,6 +132,7 @@ import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
 import { useTenantSubscriber } from '../vue/use-tenant-subscriber.js';
 import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
+import { useStandardPageRoute } from '../vue/standard-page-routes.js';
 
 export type { TenantDetailData, UsageField } from '../internal/tenant-detail/types.js';
 
@@ -341,6 +342,8 @@ const manifestActions = computed(() => {
 });
 
 const router = useRouter();
+// Where the shell put the list of tenants — the navigation's own mapping.
+const standardPageRoute = useStandardPageRoute();
 
 /**
  * The hero back button navigates rather than rendering a link.
@@ -350,7 +353,7 @@ const router = useRouter();
  * the package uses a button for the same step.
  */
 function goBack(): void {
-    void router.push(props.options?.backRoute ?? '/admin/tenants');
+    void router.push(props.options?.backRoute ?? standardPageRoute('tenants'));
 }
 
 function iconForActionKey(actionKey: string): string {

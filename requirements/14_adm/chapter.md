@@ -446,6 +446,12 @@ _Tested by:_
         - reads exactly the endpoint the card declares
         - a reading, not a rendering — the timestamp comes back unformatted
         - a body with no recognised number reads as null, not as a failure
+- `packages/ui-vue/tests/component/a-link-to-a-standard-page-goes-where-the-navigation-does.test.ts`
+    - a link from one standard page to another
+        - below the shell, goes where the shell’s navigation puts the page
+        - outside any shell, goes to each page’s default route
+    - a tenant’s page
+        - goes back to the list of tenants where the shell put it
 - `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
     - the operator corrects the subscriber in its record
         - without the capability, nothing is offered and no history is shown
@@ -506,6 +512,7 @@ _Tested by:_
         - a contract superseded before it began says it was never in force, and is marked on no day
         - opens a contract into what it froze: its lines with where each came from, its invoices and
           its ids
+        - leads to the catalogue, and back to the list, where the shell put those pages
         - leads to no catalogue page the platform does not serve
         - shows each line’s features and quotas, and filters the lines by them
         - copies an id, and says whether the browser let it
@@ -572,6 +579,7 @@ _Tested by:_
         - does not expose the removed planVersions standard page
         - ignores standard pages unsupported by this UI build
         - standardPageRoutes override
+        - a page linking to another resolves it as the navigation does
         - isStandard=true for StandardPages
     - buildRoutes — ProjectPages
         - lists a ProjectPage without requiredCapability
@@ -1592,6 +1600,7 @@ _Tested by:_
         - a contract superseded before it began says it was never in force, and is marked on no day
         - opens a contract into what it froze: its lines with where each came from, its invoices and
           its ids
+        - leads to the catalogue, and back to the list, where the shell put those pages
         - leads to no catalogue page the platform does not serve
         - shows each line’s features and quotas, and filters the lines by them
         - copies an id, and says whether the browser let it

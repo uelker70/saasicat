@@ -21,6 +21,8 @@ import type {
 } from '@saasicat/core';
 import { flushPromises } from '@vue/test-utils';
 
+import { standardPageRouteOf } from '../../src/client/nav-builder.js';
+import type { StandardPageRoute } from '../../src/vue/standard-page-routes.js';
 import { RECORD, mountRecord } from './support/subscriber-record.js';
 const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
 
@@ -261,6 +263,7 @@ async function settle(): Promise<void> {
 async function mountPage({
     manifest = SERVING,
     standardPages = {},
+    standardPageRoute = standardPageRouteOf(undefined),
     contracts = CONTRACTS,
     dossier = async (contractId: string): Promise<unknown> => {
         const summary = CONTRACTS.contracts.find((each) => each.id === contractId);
@@ -275,6 +278,7 @@ async function mountPage({
 }: {
     manifest?: { capabilities: Record<string, boolean> };
     standardPages?: Record<string, { enabled: boolean }>;
+    standardPageRoute?: StandardPageRoute;
     contracts?: { contracts: AdminSubscriberContract[] };
     dossier?: (contractId: string) => Promise<unknown>;
     confirmation?: () => Promise<unknown>;
@@ -283,6 +287,7 @@ async function mountPage({
     const page = await mountRecord({
         capabilities: manifest.capabilities,
         standardPages,
+        standardPageRoute,
         attach: true,
         subscribers: {
             record: async () => TENANTS_RECORD,
@@ -462,6 +467,25 @@ describe("the subscriber's record shows its contracts", () => {
             'Copy Plan version pv-pro-2',
             'Copy Add-on version bv-storage-1',
         ]);
+    });
+
+    test('leads to the catalogue, and back to the list, where the shell put those pages', async () => {
+        const { wrapper, router } = await mountPage({
+            standardPages: { plans: { enabled: true }, bundles: { enabled: true } },
+            standardPageRoute: standardPageRouteOf({
+                bundles: '/admin/katalog/zusaetze',
+                subscribers: '/admin/kunden',
+            }),
+        });
+        await openContract(wrapper, 'Plan upgraded');
+
+        expect(dossierIn(wrapper).find('.sa-contract-lines a.sa-link').attributes('href')).toBe(
+            '/admin/katalog/zusaetze',
+        );
+
+        await wrapper.find('header button').trigger('click');
+        await settle();
+        expect(router.currentRoute.value.path).toBe('/admin/kunden');
     });
 
     test('leads to no catalogue page the platform does not serve', async () => {

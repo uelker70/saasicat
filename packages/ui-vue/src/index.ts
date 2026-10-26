@@ -87,6 +87,7 @@ export * from './vue/use-tenant-action-flow.js';
 export * from './vue/use-subscriber-account.js';
 export * from './vue/use-subscriber-credits.js';
 export * from './vue/use-subscriber-payments.js';
+export * from './vue/standard-page-routes.js';
 export * from './vue/use-contract-dossier.js';
 export * from './vue/use-copy-text.js';
 export * from './vue/use-subscriber-contracts.js';

@@ -178,6 +178,18 @@ export function defaultSectionOrder(
 }
 
 /**
+ * Where each standard page answers: the route `overrides` names for it, and
+ * its default route where it names none. The navigation is built from it, and
+ * a page that links to another resolves the link by it, so the two cannot
+ * disagree.
+ */
+export function standardPageRouteOf(
+    overrides: Partial<Record<StandardPageKey, string>> | undefined,
+): (key: StandardPageKey) => string {
+    return (key) => overrides?.[key] ?? DEFAULT_STANDARD_PAGE_ROUTES[key];
+}
+
+/**
  * Whether the manifest serves the standard page `key`: it is enabled, and the
  * capability it names, where it names one, is given. The navigation offers
  * exactly these, and a page that links to another asks the same question.
@@ -209,7 +221,7 @@ export function buildRoutes(
     const defaultNavSections: Partial<Record<StandardPageKey, string>> = Object.fromEntries(
         Object.entries(PAGE_SECTIONS).map(([page, section]) => [page, nav.sections[section]]),
     );
-    const overrideRoutes = { ...DEFAULT_STANDARD_PAGE_ROUTES, ...options.standardPageRoutes };
+    const routeOf = standardPageRouteOf(options.standardPageRoutes);
     const overrideLabels = { ...nav.pages, ...options.standardPageLabels };
     const overrideIcons = { ...DEFAULT_ICONS, ...options.standardPageIcons };
     const overrideNavSection = { ...defaultNavSections, ...options.standardPageNavSection };
@@ -223,7 +235,7 @@ export function buildRoutes(
         const cap = standard[key]?.requiredCapability ?? null;
         routes.push({
             id: key,
-            path: overrideRoutes[key],
+            path: routeOf(key),
             label: overrideLabels[key],
             icon: overrideIcons[key],
             navSection: overrideNavSection[key],

@@ -127,6 +127,7 @@ import AdminPage from '../ui/page/AdminPage.vue';
 import { type ResourceOverride, useResource } from '../vue/resource-registry.js';
 import { useContractDossier } from '../vue/use-contract-dossier.js';
 import { useCopyText } from '../vue/use-copy-text.js';
+import { useStandardPageRoute } from '../vue/standard-page-routes.js';
 import { useInvoiceCancellation } from '../vue/use-invoice-cancellation.js';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useSubscriberAccount } from '../vue/use-subscriber-account.js';
@@ -211,15 +212,18 @@ function formatDate(value: string | null | undefined): string {
 const INVOICES_ANCHOR = 'sa-subscriber-invoices';
 
 /** The catalogue's page of plans or of add-ons, where the manifest serves it. */
-const CATALOG_PAGES = {
-    plan: { key: 'plans', path: '/admin/plans' },
-    bundle: { key: 'bundles', path: '/admin/bundles' },
-} as const satisfies Record<'plan' | 'bundle', { key: StandardPageKey; path: string }>;
+const CATALOG_PAGES: Readonly<Record<'plan' | 'bundle', StandardPageKey>> = {
+    plan: 'plans',
+    bundle: 'bundles',
+};
+
+// Where the shell put each standard page — the navigation's own mapping.
+const standardPageRoute = useStandardPageRoute();
 
 function catalogRoute(kind: 'plan' | 'bundle'): RouteLocationRaw | null {
-    const page = CATALOG_PAGES[kind];
+    const key = CATALOG_PAGES[kind];
     const manifest = servedBy.value;
-    return manifest && servesStandardPage(manifest, page.key) ? page.path : null;
+    return manifest && servesStandardPage(manifest, key) ? standardPageRoute(key) : null;
 }
 
 /** Where a tenant's page answers — beside this page, under the same base. */
@@ -232,6 +236,6 @@ function tenantRoute(slug: string): RouteLocationRaw {
  * hero in the package does.
  */
 function goBack(): void {
-    void router.push('/admin/subscribers');
+    void router.push(standardPageRoute('subscribers'));
 }
 </script>
