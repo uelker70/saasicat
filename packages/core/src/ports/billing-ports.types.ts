@@ -71,6 +71,11 @@ import type {
 } from '../subscriber-reconciliation.types.js';
 import type { CalendarDay } from '../zoned-day.js';
 import type {
+    InvoiceRegisterPage,
+    InvoiceRegisterRange,
+    IssuedInvoiceAmounts,
+} from '../invoice-register.types.js';
+import type {
     IssuedSubscriptionInvoiceCancellation,
     NewSubscriptionInvoice,
     NewSubscriptionInvoiceCancellation,
@@ -722,6 +727,31 @@ export interface SubscriptionInvoiceRepository {
         subscriberId: string,
         tx?: TransactionContext,
     ): Promise<SubscriptionInvoiceRecord[]>;
+
+    /**
+     * One page of the invoices issued on the days of `range`, both included,
+     * whichever subscriber and tenant each was for — the register an operator
+     * reads (`SC-ADM-042`). By issue date, then by number within its year, the
+     * earliest first; each with the cancellation invoice that cancelled it,
+     * whenever that was issued. A page continues after the invoice `after`
+     * names; one it does not know continues after nothing. Platform-wide: the
+     * platform wraps the call in `RlsBypassPort`.
+     */
+    listIssued(
+        range: InvoiceRegisterRange,
+        page: { limit: number; after?: string },
+    ): Promise<InvoiceRegisterPage>;
+
+    /**
+     * What each invoice issued on the days of `range` adds to the register's
+     * totals, every one of them and in no order: its date, currency, tax
+     * treatment and taxes rate by rate. Read without lines or parties, so a
+     * year of invoices is one read the totals are computed from.
+     */
+    listIssuedAmounts(range: InvoiceRegisterRange): Promise<IssuedInvoiceAmounts[]>;
+
+    /** The invoice numbered `number`, as its document names it, or `null`. */
+    findByNumber(number: string): Promise<SubscriptionInvoiceRecord | null>;
 
     /**
      * The prefixes the issued invoices carry, at most two: one is the range,

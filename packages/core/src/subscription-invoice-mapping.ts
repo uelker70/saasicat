@@ -33,7 +33,9 @@ import {
     type SubscriptionInvoiceRecord,
     type SubscriptionInvoiceSubscriber,
 } from './subscription-invoice.types.js';
+import type { IssuedInvoiceAmounts } from './invoice-register.types.js';
 import { taxTreatmentToJson, toTaxTreatment } from './tax-origin.js';
+import type { TaxTreatment } from './tax.types.js';
 import type { CalendarDay } from './zoned-day.js';
 
 const INVOICES = 'subscription_invoices';
@@ -134,10 +136,7 @@ export function toSubscriptionInvoiceRecord(
     correction: CanonicalInvoiceCorrection | null = null,
 ): SubscriptionInvoiceRecord {
     const where = (column: string) => ({ table: INVOICES, column, id: row.id });
-    const treatment = toTaxTreatment(row.taxTreatment);
-    if (!treatment) {
-        throw new Error(`${INVOICES}.taxTreatment of ${row.id} is not a tax treatment.`);
-    }
+    const treatment = treatmentOf(row);
     const dueDate = dayOf(row.dueDate, where('dueDate'));
     return {
         id: row.id,
@@ -173,6 +172,38 @@ export function toSubscriptionInvoiceRecord(
         correction: correction && correctionOf(row.id, correction),
         createdAt: row.createdAt,
     };
+}
+
+/** The columns of an invoice row the register's totals are read from. */
+export type CanonicalIssuedInvoiceAmountsRow = Pick<
+    CanonicalSubscriptionInvoiceRow,
+    'id' | 'issueDate' | 'currency' | 'taxTreatment' | 'taxes'
+>;
+
+/**
+ * Reads what an invoice row adds to the register's totals (`SC-ADM-042`),
+ * checked as `toSubscriptionInvoiceRecord` checks the same columns.
+ */
+export function toIssuedInvoiceAmounts(
+    row: CanonicalIssuedInvoiceAmountsRow,
+): IssuedInvoiceAmounts {
+    const where = (column: string) => ({ table: INVOICES, column, id: row.id });
+    return {
+        issueDate: dayOf(row.issueDate, where('issueDate')),
+        currency: row.currency,
+        kind: treatmentOf(row).kind,
+        taxes: taxesOf(row.taxes, where('taxes')),
+    };
+}
+
+function treatmentOf(
+    row: Pick<CanonicalSubscriptionInvoiceRow, 'id' | 'taxTreatment'>,
+): TaxTreatment {
+    const treatment = toTaxTreatment(row.taxTreatment);
+    if (!treatment) {
+        throw new Error(`${INVOICES}.taxTreatment of ${row.id} is not a tax treatment.`);
+    }
+    return treatment;
 }
 
 /**

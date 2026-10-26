@@ -350,7 +350,7 @@ attempt repeated after an interruption (`SC-PRIC-033`) that renders other bytes 
 in between — records the new checksum in place of the old one and writes both to the audit log,
 rather than holding a numbered invoice that can never be sent. Every download is checked against the
 recorded checksum, and a file that does not match is not handed out but shown to the operator. The
-register's export (`SC-ADM-022`) carries each checksum.
+register's export (`SC-ADM-043`) carries each checksum.
 
 _Source:_ #424 · #332 · #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 

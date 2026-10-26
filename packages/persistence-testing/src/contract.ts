@@ -32,8 +32,12 @@ import type {
     NewSubscriptionInvoice,
     SubscriberChargeRecord,
     SubscriptionInvoicePayment,
+    SubscriptionInvoiceRecord,
     NewInvoiceCollection,
     InvoiceCollectionRecord,
+    InvoiceRegisterPage,
+    InvoiceRegisterRange,
+    IssuedInvoiceAmounts,
     NewSubscriberPayment,
     NewSubscriberPayout,
     PlannedInvoiceCollection,
@@ -12041,6 +12045,231 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 refused?.status === 'rejected' ? refused.reason : null,
             );
             assert.equal((await invoices.listBySubscriber(subscriberId)).length, 3);
+        });
+
+        // -------------------------------------------------------------
+        // The register — every invoice the installation issued, by its days
+        // -------------------------------------------------------------
+
+        /** February 2026, the days the register scenarios below read. */
+        const FEBRUARY: InvoiceRegisterRange = { from: '2026-02-01', until: '2026-02-28' };
+
+        /**
+         * One invoice per day, each on a charge of its own, issued in the
+         * order given — so its number says when it was issued, and the issue
+         * date when it is dated.
+         */
+        async function issuedOn(t: TestContext, tenantId: string, days: readonly string[]) {
+            const account = await anInvoiceAccount(t, tenantId);
+            if (!account) return null;
+            const { invoices, record, invoiceOf } = account;
+            const charges = await record(...days.map((_, index) => monthly(index)));
+            const issued: SubscriptionInvoiceRecord[] = [];
+            for (const [index, day] of days.entries()) {
+                issued.push(await invoices.issue(invoiceOf([charges[index]!], { issueDate: day })));
+            }
+            return { ...account, issued };
+        }
+
+        // @requirement SC-ADM-042
+        test('the register lists the invoices of its days by issue date and then number, the first and the last day included', async (t) => {
+            const account = await issuedOn(t, 'tenant-register-order', [
+                '2026-02-28',
+                '2026-02-01',
+                '2026-01-31',
+                '2026-02-28',
+                '2026-03-01',
+            ]);
+            if (!account) return;
+
+            const page = await account.invoices.listIssued(FEBRUARY, { limit: 10 });
+
+            assert.deepEqual(
+                page.invoices.map(({ invoice }) => [invoice.issueDate, invoice.number]),
+                [
+                    ['2026-02-01', 'EX-2026-000002'],
+                    ['2026-02-28', 'EX-2026-000001'],
+                    ['2026-02-28', 'EX-2026-000004'],
+                ],
+            );
+            assert.equal(page.hasMore, false);
+            assert.deepEqual(
+                page.invoices[0]!.invoice.lines.map((line) => line.position),
+                [1],
+                'an invoice of the register is read with its lines',
+            );
+        });
+
+        // @requirement SC-ADM-042
+        test('a page of the register holds at most its limit, says whether another follows, and goes on after the invoice it names', async (t) => {
+            const account = await issuedOn(t, 'tenant-register-pages', [
+                '2026-02-03',
+                '2026-02-04',
+                '2026-02-05',
+            ]);
+            if (!account) return;
+            const { invoices, issued } = account;
+            const numbers = (page: InvoiceRegisterPage) =>
+                page.invoices.map(({ invoice }) => invoice.number);
+
+            const first = await invoices.listIssued(FEBRUARY, { limit: 2 });
+            const second = await invoices.listIssued(FEBRUARY, {
+                limit: 2,
+                after: first.invoices[1]!.invoice.id,
+            });
+            const whole = await invoices.listIssued(FEBRUARY, { limit: 3 });
+            const unknown = await invoices.listIssued(FEBRUARY, {
+                limit: 3,
+                after: 'no-such-invoice',
+            });
+
+            assert.deepEqual(
+                [numbers(first), first.hasMore],
+                [['EX-2026-000001', 'EX-2026-000002'], true],
+            );
+            assert.deepEqual([numbers(second), second.hasMore], [['EX-2026-000003'], false]);
+            assert.deepEqual(
+                [numbers(whole), whole.hasMore],
+                [issued.map((each) => each.number), false],
+            );
+            assert.deepEqual(
+                numbers(unknown),
+                numbers(whole),
+                'an invoice it does not know continues after nothing',
+            );
+        });
+
+        // @requirement SC-ADM-042
+        test('the register names the cancellation invoice that cancelled an invoice, however long after its days', async (t) => {
+            if (
+                !harness.adapter.subscriberPaymentRepository ||
+                !CONTRACT_GAPS.subscriberPayments.present(harness)
+            ) {
+                missing(t, 'subscriberPayments');
+                return;
+            }
+            const account = await issuedOn(t, 'tenant-register-cancelled', [
+                '2026-02-10',
+                '2026-02-11',
+            ]);
+            if (!account) return;
+            const { invoices, issued } = account;
+
+            const { cancellationInvoice, replacement } = await cancelInvoice(issued[0]!.id);
+
+            const february = await invoices.listIssued(FEBRUARY, { limit: 10 });
+            const march = await invoices.listIssued(
+                { from: '2026-03-01', until: '2026-03-31' },
+                { limit: 10 },
+            );
+            assert.deepEqual(
+                february.invoices.map(({ invoice, cancelledBy }) => [invoice.number, cancelledBy]),
+                [
+                    [
+                        issued[0]!.number,
+                        { invoiceId: cancellationInvoice.id, number: cancellationInvoice.number },
+                    ],
+                    [issued[1]!.number, null],
+                ],
+            );
+            assert.deepEqual(
+                march.invoices.map(({ invoice, cancelledBy }) => [
+                    invoice.id,
+                    invoice.correction?.kind,
+                    cancelledBy,
+                ]),
+                [
+                    [cancellationInvoice.id, 'cancellation', null],
+                    [replacement!.id, 'replacement', null],
+                ],
+            );
+        });
+
+        // @requirement SC-ADM-042
+        test("the register's amounts are those of every invoice of its days, rate by rate, a cancellation's reversed", async (t) => {
+            if (
+                !harness.adapter.subscriberPaymentRepository ||
+                !CONTRACT_GAPS.subscriberPayments.present(harness)
+            ) {
+                missing(t, 'subscriberPayments');
+                return;
+            }
+            const account = await anInvoiceAccount(t, 'tenant-register-amounts');
+            if (!account) return;
+            const { invoices, record, invoiceOf } = account;
+            const [january, february, march] = await record(monthly(0), monthly(1), monthly(2));
+            await invoices.issue(invoiceOf([january!], { issueDate: '2026-01-31' }));
+            const standard = await invoices.issue(
+                invoiceOf([february!], { issueDate: '2026-02-01' }),
+            );
+            const reverse = await invoices.issue(
+                invoiceOf([march!], { issueDate: '2026-02-28' }, REVERSE_CHARGE),
+            );
+            await cancelInvoice(standard.id);
+
+            const sorted = (amounts: IssuedInvoiceAmounts[]) =>
+                amounts
+                    .map((each) => [each.issueDate, each.currency, each.kind, each.taxes])
+                    .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b), 'en'));
+            assert.deepEqual(
+                sorted(await invoices.listIssuedAmounts(FEBRUARY)),
+                sorted([
+                    {
+                        issueDate: '2026-02-01',
+                        currency: 'EUR',
+                        kind: 'standard',
+                        taxes: standard.taxes,
+                    },
+                    {
+                        issueDate: '2026-02-28',
+                        currency: 'EUR',
+                        kind: 'reverse-charge',
+                        taxes: reverse.taxes,
+                    },
+                ]),
+            );
+            assert.deepEqual(
+                sorted(
+                    await invoices.listIssuedAmounts({ from: '2026-03-02', until: '2026-03-02' }),
+                ),
+                sorted([
+                    {
+                        issueDate: '2026-03-02',
+                        currency: 'EUR',
+                        kind: 'standard',
+                        taxes: standard.taxes.map((entry) => ({
+                            rate: entry.rate,
+                            net: reversedAmount(entry.net),
+                            tax: reversedAmount(entry.tax),
+                        })),
+                    },
+                    {
+                        issueDate: '2026-03-02',
+                        currency: 'EUR',
+                        kind: 'standard',
+                        taxes: standard.taxes,
+                    },
+                ]),
+            );
+        });
+
+        // @requirement SC-ADM-042
+        test('an invoice is found by the number on its document, and no other', async (t) => {
+            const account = await issuedOn(t, 'tenant-register-number', [
+                '2026-02-02',
+                '2026-02-03',
+            ]);
+            if (!account) return;
+            const { invoices, issued } = account;
+
+            const found = await invoices.findByNumber(issued[1]!.number);
+
+            assert.deepEqual(
+                [found?.id, found?.lines.map((line) => line.chargeId)],
+                [issued[1]!.id, issued[1]!.lines.map((line) => line.chargeId)],
+            );
+            assert.equal(await invoices.findByNumber('EX-2026-000009'), null);
+            assert.equal(await invoices.findByNumber(issued[1]!.number.toLowerCase()), null);
         });
 
         // -------------------------------------------------------------

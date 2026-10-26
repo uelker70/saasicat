@@ -41,7 +41,10 @@ export class InvoicesCancelCommand extends OperatorCommand<CancelFlags> {
         );
     }
 
-    @Option({ flags: '--tenant <slug>', description: 'the tenant the invoice belongs to' })
+    @Option({
+        flags: '--tenant <slug>',
+        description: 'the tenant the invoice belongs to; refused where it was issued for another',
+    })
     parseTenant(value: string): string {
         return value;
     }

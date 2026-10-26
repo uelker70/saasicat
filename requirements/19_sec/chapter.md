@@ -496,6 +496,9 @@ _Tested by:_
         - is read outside the tenants' row-level policy, the tenants named in one question
     - the head of a subscriber's record
         - is read outside the tenants' row-level policy
+- `packages/nest/tests/an-operator-reads-the-invoice-register.test.js`
+    - a page of the register
+        - is read outside the tenants' row-level policy
 - `packages/nest/tests/an-operator-route-acts-across-tenants.test.js`
     - the frame a route runs in follows its guard chain
         - every route behind the administrator runs in the bypass, and no other does

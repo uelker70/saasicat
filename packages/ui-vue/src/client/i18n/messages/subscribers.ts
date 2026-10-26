@@ -130,6 +130,14 @@ export const subscribersMessages = defineMessages(
             cancelled: 'Storniert durch {cancellation}, ersetzt durch {replacement}.',
             cancelledWithoutReplacement:
                 'Storniert durch {cancellation}. Nichts davon ist mehr geschuldet, es gibt keine Ersatzrechnung.',
+            taxTreatment: {
+                standard: '{rate} % USt',
+                reduced: '{rate} % USt (ermäßigt)',
+                exempt: 'steuerfrei',
+                'reverse-charge': 'Steuerschuldnerschaft des Leistungsempfängers',
+                'not-taxable': 'nicht steuerbar',
+                'small-business': 'keine USt (Kleinunternehmer)',
+            },
             cancelDialog: {
                 askSubtitle:
                     'Eine ausgestellte Rechnung wird nie geändert: Eine Stornorechnung hebt sie auf, und eine Ersatzrechnung tritt an ihre Stelle. Was bezahlt war, zählt für die Ersatzrechnung.',
@@ -182,14 +190,6 @@ export const subscribersMessages = defineMessages(
                 submit: 'Stornieren',
                 previewChanged:
                     'Seit der Vorschau hat sich etwas geändert, etwa ist eine Zahlung eingegangen. Die Vorschau zeigt jetzt, was die Stornierung schreibt – bitte erneut prüfen.',
-                taxTreatment: {
-                    standard: '{rate} % USt',
-                    reduced: '{rate} % USt (ermäßigt)',
-                    exempt: 'steuerfrei',
-                    'reverse-charge': 'Steuerschuldnerschaft des Leistungsempfängers',
-                    'not-taxable': 'nicht steuerbar',
-                    'small-business': 'keine USt (Kleinunternehmer)',
-                },
             },
         },
         contracts: {
@@ -502,6 +502,14 @@ export const subscribersMessages = defineMessages(
             cancelled: 'Cancelled by {cancellation}, replaced by {replacement}.',
             cancelledWithoutReplacement:
                 'Cancelled by {cancellation}. Nothing of it is owed any more, so there is no replacement.',
+            taxTreatment: {
+                standard: '{rate} % VAT',
+                reduced: '{rate} % VAT (reduced)',
+                exempt: 'exempt',
+                'reverse-charge': 'reverse charge',
+                'not-taxable': 'not taxable',
+                'small-business': 'no VAT (small business)',
+            },
             cancelDialog: {
                 askSubtitle:
                     'An issued invoice is never changed: a cancellation invoice cancels it, and a replacement takes its place. What was paid counts for the replacement.',
@@ -554,14 +562,6 @@ export const subscribersMessages = defineMessages(
                 submit: 'Cancel invoice',
                 previewChanged:
                     'Something changed since the preview — a payment came in, for instance. The preview now shows what the cancellation writes; check it again.',
-                taxTreatment: {
-                    standard: '{rate} % VAT',
-                    reduced: '{rate} % VAT (reduced)',
-                    exempt: 'exempt',
-                    'reverse-charge': 'reverse charge',
-                    'not-taxable': 'not taxable',
-                    'small-business': 'no VAT (small business)',
-                },
             },
         },
         contracts: {

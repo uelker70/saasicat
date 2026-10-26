@@ -827,6 +827,16 @@ export const INVOICE_ERROR_CODES = {
     /** No invoice with this id (`invoiceId`). */
     SUBSCRIPTION_INVOICE_NOT_FOUND: 'SUBSCRIPTION_INVOICE_NOT_FOUND',
     /**
+     * The register is asked for the months `from` to `until`, and `until`
+     * comes first (`SC-ADM-042`).
+     */
+    SUBSCRIPTION_INVOICE_REGISTER_RANGE_REVERSED: 'SUBSCRIPTION_INVOICE_REGISTER_RANGE_REVERSED',
+    /**
+     * The register is asked for `months` months, `from` to `until`, and shows
+     * at most `max` at a time, so that one read stays bounded (`SC-ADM-042`).
+     */
+    SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG: 'SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG',
+    /**
      * The subscriber's record holds no invoice email (`subscriberId`), so the
      * archived invoice cannot be sent (`SC-PRIC-094`); it is sent once one is
      * entered.

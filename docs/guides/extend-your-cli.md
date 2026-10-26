@@ -78,7 +78,7 @@ myapp manifest check                                         # drift detection
 myapp maintenance on --until 2026-10-02T23:00+02:00 --yes    # before a migration
 myapp maintenance off --yes                                  # after the health check
 myapp contracts refresh --all                                # what a new vocabulary would change
-myapp invoices cancel --tenant acme --invoice AHP-2026-000123 \
+myapp invoices cancel --invoice AHP-2026-000123 \
     --reason "The billing address was wrong."                # what a cancellation would write
 ```
 
@@ -92,7 +92,9 @@ would change, and writes it only with `--apply`. See
 
 `invoices cancel` shows the cancellation invoice and the replacement an issued invoice would be
 corrected by, and writes them only with `--apply`, which asks for the second factor and, against
-production, `--yes`. It names the invoice by its tenant and the number on its document; `--correct
+production, `--yes`. It names the invoice by the number on its document, which no other invoice of
+the installation carries — an invoice of a tenant deleted since included —, and `--tenant acme` beside
+it refuses an invoice issued for another tenant; `--correct
 city=Bremen` corrects a detail the replacement names, `--deliver-to` gives the address both invoices
 go to. `--line 2=not-owed` says that line 2 is not owed and `--line 2=24.50` that 24.50 of it is
 still owed, net; repeat it for several lines. The amount takes a dot and at most two decimals — a

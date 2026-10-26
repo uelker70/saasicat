@@ -3,7 +3,7 @@
 // Cancels an issued invoice by a cancellation invoice and its replacement, on
 // the operator's command (`SC-PRIC-095`):
 //
-//     <app> invoices cancel --tenant acme --invoice AHP-2026-000123 \
+//     <app> invoices cancel --invoice AHP-2026-000123 \
 //         --reason "The billing address was wrong."          # shows what it writes
 //     <app> invoices cancel … --line 2=not-owed --line 3=24.50   # lines not owed in full
 //     <app> invoices cancel … --apply                        # writes it
@@ -14,7 +14,9 @@
 // (`SC-ADM-035`). `--apply` asks for the second
 // factor (`SC-ADM-019`) and, against production, a confirmation; the audit log
 // records the operator and the reason (`SC-ADM-020`). The invoice is named by
-// the number on its document and the tenant it belongs to.
+// the number on its document, which is unique across the installation, so an
+// invoice of a tenant deleted since is cancelled as well; `--tenant` makes the
+// command refuse an invoice issued for another one.
 
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
@@ -51,7 +53,7 @@ const AMOUNT = /^\d+(?:\.\d{1,2})?$/;
 export interface InvoiceCancelOptions {
     as?: string;
     yes?: boolean;
-    /** The tenant's slug. */
+    /** The tenant's slug; where it is given, an invoice issued for another tenant is refused. */
     tenant?: string;
     /** The invoice's number, as its document names it. */
     invoice?: string;
@@ -176,22 +178,35 @@ export class InvoiceCancelCliFlow {
         await this.ctx.ensureSuperAdmin(this.ctx.resolveIdentity(as));
     }
 
-    /** The tenant's id and the id of its invoice numbered as the options say. */
+    /**
+     * The id of the invoice numbered as the options say, refused where
+     * `--tenant` names another tenant than the one it was issued for.
+     */
     private async invoiceOf(options: InvoiceCancelOptions): Promise<{ invoiceId: string }> {
-        const slug = required(options.tenant, '--tenant <slug>');
         const number = required(options.invoice, '--invoice <number>');
-        const tenant = await refusalsAsCliErrors('TENANT_NOT_FOUND', () =>
-            this.acrossTenants(() => this.tenants.getTenantDetail(slug)),
-        );
-        const invoiceId = await this.cancellations.invoiceIdNumbered(tenant.id, number);
-        if (!invoiceId) {
+        const slug = options.tenant;
+        const tenant =
+            slug === undefined
+                ? null
+                : await refusalsAsCliErrors('TENANT_NOT_FOUND', () =>
+                      this.acrossTenants(() => this.tenants.getTenantDetail(slug)),
+                  );
+        const numbered = await this.cancellations.invoiceNumbered(number);
+        if (!numbered) {
             throw new CliError(
                 'SUBSCRIPTION_INVOICE_NOT_FOUND',
-                `Tenant ${slug} has no invoice numbered ${number}.`,
+                `No invoice is numbered ${number}.`,
                 EXIT_USER_ERROR,
             );
         }
-        return { invoiceId };
+        if (tenant && numbered.tenantId !== tenant.id) {
+            throw new CliError(
+                'INVOICE_TENANT_MISMATCH',
+                `Invoice ${number} was not issued for tenant ${slug}.`,
+                EXIT_USER_ERROR,
+            );
+        }
+        return { invoiceId: numbered.invoiceId };
     }
 
     /** `read` in the bypass frame where one is bound, and plainly where none is. */

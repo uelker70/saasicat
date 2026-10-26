@@ -632,6 +632,90 @@ paths:
                         archived file does not match the recorded checksum and
                         is not handed out (`SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH`)
 
+    /invoices:
+        get:
+            tags: [subscriptions]
+            summary: One page of every invoice issued in a span of months
+            description: >-
+                Served beside the invoices' documents, where the platform keeps
+                invoices and shows tenants; the manifest announces it as
+                `invoices.read`. Lists every invoice issued in the months asked
+                for — the current month in the installation's time zone where
+                none is, one month alone where only one is —, whichever
+                subscriber and tenant it was for, by issue date and then number
+                (`SC-ADM-042`).
+            parameters:
+                - name: from
+                  in: query
+                  required: false
+                  description: The first month, `YYYY-MM`.
+                  schema: { type: string, pattern: '^[1-9]\d{3}-(?:0[1-9]|1[0-2])$' }
+                - name: until
+                  in: query
+                  required: false
+                  description: >-
+                      The last month, `YYYY-MM`; the span from `from` to it, both included,
+                      covers at most twelve months.
+                  schema: { type: string, pattern: '^[1-9]\d{3}-(?:0[1-9]|1[0-2])$' }
+                - name: after
+                  in: query
+                  required: false
+                  description: The invoice the page before ended with, as `next` named it.
+                  schema: { type: string, maxLength: 200 }
+            responses:
+                '200':
+                    description: One page of the register
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminInvoiceRegisterPage' }
+                '400':
+                    description: A month that is not one, or an `after` longer than any id
+                '422':
+                    description: >-
+                        `until` before `from`
+                        (`SUBSCRIPTION_INVOICE_REGISTER_RANGE_REVERSED`), or
+                        more than twelve months
+                        (`SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG`)
+
+    /invoice-totals:
+        get:
+            tags: [subscriptions]
+            summary: What the invoices of a span of months add up to
+            description: >-
+                Served and announced as `/invoices` is, for the same months: per
+                month, currency, tax treatment and rate — net, tax and gross —,
+                and over the whole span. A cancellation invoice counts with its
+                own sign in the month it was issued (`SC-ADM-042`). Not under
+                `/invoices/`, where `/invoices/{invoiceId}` would answer it on a
+                router that matches in the order routes were registered.
+            parameters:
+                - name: from
+                  in: query
+                  required: false
+                  description: The first month, `YYYY-MM`.
+                  schema: { type: string, pattern: '^[1-9]\d{3}-(?:0[1-9]|1[0-2])$' }
+                - name: until
+                  in: query
+                  required: false
+                  description: >-
+                      The last month, `YYYY-MM`; the span from `from` to it, both included,
+                      covers at most twelve months.
+                  schema: { type: string, pattern: '^[1-9]\d{3}-(?:0[1-9]|1[0-2])$' }
+            responses:
+                '200':
+                    description: The totals of the months
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminInvoiceRegisterTotals' }
+                '400':
+                    description: A month that is not one
+                '422':
+                    description: >-
+                        `until` before `from`
+                        (`SUBSCRIPTION_INVOICE_REGISTER_RANGE_REVERSED`), or
+                        more than twelve months
+                        (`SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG`)
+
     /contracts/{id}/confirmation:
         parameters:
             - name: id
@@ -4490,6 +4574,123 @@ components:
                     type: string
                     nullable: true
                     description: The subscriber the next page continues after; null on the last page.
+
+        AdminInvoiceRegisterRow:
+            type: object
+            required:
+                [
+                    id,
+                    number,
+                    issueDate,
+                    correction,
+                    subscriber,
+                    tenantId,
+                    currency,
+                    totalNet,
+                    totalTax,
+                    totalGross,
+                    documentArchived,
+                    cancelledBy,
+                ]
+            properties:
+                id: { type: string }
+                number: { type: string }
+                issueDate: { type: string, format: date }
+                correction:
+                    type: object
+                    nullable: true
+                    description: >-
+                        What it corrects, on a cancellation invoice or a
+                        replacement; `null` on any other.
+                    required: [kind, of]
+                    properties:
+                        kind: { type: string, enum: [cancellation, replacement] }
+                        of:
+                            type: object
+                            required: [invoiceId, number, issueDate]
+                            properties:
+                                invoiceId: { type: string }
+                                number: { type: string }
+                                issueDate: { type: string, format: date }
+                subscriber:
+                    type: object
+                    description: The subscriber as the invoice names it, and the record it leads to.
+                    required: [id, customerNumber, legalName]
+                    properties:
+                        id: { type: string }
+                        customerNumber: { type: string }
+                        legalName: { type: string }
+                tenantId: { type: string }
+                currency: { type: string }
+                totalNet: { type: number }
+                totalTax: { type: number }
+                totalGross: { type: number }
+                documentArchived:
+                    type: boolean
+                    description: Whether its document is archived; until then it is neither sent nor cancelled.
+                cancelledBy:
+                    type: object
+                    nullable: true
+                    description: >-
+                        The cancellation invoice that cancelled it, however long
+                        after the months asked for; `null` while it stands.
+                    required: [invoiceId, number]
+                    properties:
+                        invoiceId: { type: string }
+                        number: { type: string }
+
+        AdminInvoiceRegisterPage:
+            type: object
+            required: [from, until, invoices, next]
+            properties:
+                from: { type: string, description: 'The first month read, `YYYY-MM`.' }
+                until: { type: string, description: 'The last month read, `YYYY-MM`.' }
+                invoices:
+                    type: array
+                    description: By issue date, then by number.
+                    items: { $ref: '#/components/schemas/AdminInvoiceRegisterRow' }
+                next:
+                    type: string
+                    nullable: true
+                    description: The invoice the next page continues after; null on the last page.
+
+        AdminInvoiceTotal:
+            type: object
+            required: [currency, kind, rate, net, tax, gross]
+            properties:
+                currency: { type: string }
+                kind:
+                    type: string
+                    enum: [standard, reduced, exempt, reverse-charge, not-taxable, small-business]
+                rate: { type: number, description: In per cent. }
+                net: { type: number }
+                tax: { type: number }
+                gross: { type: number }
+
+        AdminInvoiceRegisterTotals:
+            type: object
+            required: [from, until, months, range]
+            properties:
+                from: { type: string, description: 'The first month, `YYYY-MM`.' }
+                until: { type: string, description: 'The last month, `YYYY-MM`.' }
+                months:
+                    type: array
+                    description: >-
+                        Every month of the span, the earliest first; one without
+                        invoices with no totals. Within a month, by currency,
+                        then treatment, then the lowest rate first.
+                    items:
+                        type: object
+                        required: [month, totals]
+                        properties:
+                            month: { type: string }
+                            totals:
+                                type: array
+                                items: { $ref: '#/components/schemas/AdminInvoiceTotal' }
+                range:
+                    type: array
+                    description: The totals of the whole span, ordered as a month's.
+                    items: { $ref: '#/components/schemas/AdminInvoiceTotal' }
 
         AdminVatIdCheckOutcome:
             description: >-

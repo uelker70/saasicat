@@ -1,8 +1,27 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import {
+    and,
+    asc,
+    desc,
+    eq,
+    gt,
+    gte,
+    inArray,
+    isNotNull,
+    isNull,
+    lt,
+    lte,
+    ne,
+    or,
+    sql,
+} from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type {
     CanonicalInvoiceCorrection,
+    InvoiceRegisterPage,
+    InvoiceRegisterRange,
+    IssuedInvoiceAmounts,
     IssuedSubscriptionInvoiceCancellation,
     NewCorrectionInvoice,
     NewInvoiceRendering,
@@ -28,6 +47,7 @@ import {
     toSubscriptionInvoiceDocumentRecord,
     subscriptionInvoiceColumns,
     subscriptionInvoiceLineColumns,
+    toIssuedInvoiceAmounts,
     toSubscriberChargeRecord,
     toSubscriptionInvoiceRecord,
 } from '@saasicat/core';
@@ -46,6 +66,17 @@ type Db = ReturnType<typeof resolveDb>;
 type InvoiceRow = typeof subscriptionInvoices.$inferSelect;
 
 type LineRow = typeof subscriptionInvoiceLines.$inferSelect;
+
+/** The cancellation invoice that cancelled an invoice of the register, read beside it. */
+const cancellationInvoices = alias(subscriptionInvoices, 'cancellation_invoices');
+
+/** The invoices issued on the days of `range`, both included. */
+function issuedWithin(range: InvoiceRegisterRange) {
+    return and(
+        gte(subscriptionInvoices.issueDate, range.from),
+        lte(subscriptionInvoices.issueDate, range.until),
+    );
+}
 
 /**
  * `SubscriptionInvoiceRepository` against `subscription_invoices`,
@@ -297,6 +328,105 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
                 desc(subscriptionInvoices.numberSequence),
             );
         return recordsOf(db, rows);
+    }
+
+    async listIssued(
+        range: InvoiceRegisterRange,
+        page: { limit: number; after?: string },
+    ): Promise<InvoiceRegisterPage> {
+        const db = resolveDb(this.db);
+        const [after] = page.after
+            ? await db
+                  .select({
+                      issueDate: subscriptionInvoices.issueDate,
+                      numberYear: subscriptionInvoices.numberYear,
+                      numberSequence: subscriptionInvoices.numberSequence,
+                  })
+                  .from(subscriptionInvoices)
+                  .where(eq(subscriptionInvoices.id, page.after))
+                  .limit(1)
+            : [];
+        const rows = await db
+            .select({
+                invoice: subscriptionInvoices,
+                cancelledBy: { id: cancellationInvoices.id, number: cancellationInvoices.number },
+            })
+            .from(subscriptionInvoices)
+            .leftJoin(
+                subscriptionInvoiceCancellations,
+                eq(subscriptionInvoiceCancellations.cancelledInvoiceId, subscriptionInvoices.id),
+            )
+            .leftJoin(
+                cancellationInvoices,
+                eq(cancellationInvoices.id, subscriptionInvoiceCancellations.cancellationInvoiceId),
+            )
+            .where(
+                and(
+                    issuedWithin(range),
+                    after &&
+                        or(
+                            gt(subscriptionInvoices.issueDate, after.issueDate),
+                            and(
+                                eq(subscriptionInvoices.issueDate, after.issueDate),
+                                gt(subscriptionInvoices.numberYear, after.numberYear),
+                            ),
+                            and(
+                                eq(subscriptionInvoices.issueDate, after.issueDate),
+                                eq(subscriptionInvoices.numberYear, after.numberYear),
+                                gt(subscriptionInvoices.numberSequence, after.numberSequence),
+                            ),
+                        ),
+                ),
+            )
+            .orderBy(
+                asc(subscriptionInvoices.issueDate),
+                asc(subscriptionInvoices.numberYear),
+                asc(subscriptionInvoices.numberSequence),
+            )
+            // One more than the page, to know whether another follows.
+            .limit(page.limit + 1);
+        const shown = rows.slice(0, page.limit);
+        const records = await recordsOf(
+            db,
+            shown.map((row) => row.invoice),
+        );
+        return {
+            invoices: records.map((invoice, index) => {
+                const cancelledBy = shown[index]?.cancelledBy;
+                return {
+                    invoice,
+                    cancelledBy: cancelledBy?.id
+                        ? { invoiceId: cancelledBy.id, number: cancelledBy.number }
+                        : null,
+                };
+            }),
+            hasMore: rows.length > page.limit,
+        };
+    }
+
+    async listIssuedAmounts(range: InvoiceRegisterRange): Promise<IssuedInvoiceAmounts[]> {
+        const rows = await resolveDb(this.db)
+            .select({
+                id: subscriptionInvoices.id,
+                issueDate: subscriptionInvoices.issueDate,
+                currency: subscriptionInvoices.currency,
+                taxTreatment: subscriptionInvoices.taxTreatment,
+                taxes: subscriptionInvoices.taxes,
+            })
+            .from(subscriptionInvoices)
+            .where(issuedWithin(range));
+        return rows.map(toIssuedInvoiceAmounts);
+    }
+
+    async findByNumber(number: string): Promise<SubscriptionInvoiceRecord | null> {
+        const db = resolveDb(this.db);
+        const rows = await db
+            .select()
+            .from(subscriptionInvoices)
+            .where(eq(subscriptionInvoices.number, number))
+            .limit(1);
+        const [record] = await recordsOf(db, rows);
+        return record ?? null;
     }
 
     async listIssuedNumberPrefixes(tx?: TransactionContext): Promise<string[]> {

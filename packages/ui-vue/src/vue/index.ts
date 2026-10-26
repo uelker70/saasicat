@@ -72,6 +72,8 @@ export * from './use-subscriber-record.js';
 export * from './use-subscribers.js';
 export * from './use-file-download.js';
 export * from './use-invoice-cancellation.js';
+export * from './use-invoice-register.js';
+export * from './use-cancellation-party.js';
 export * from './use-tenant-subscriber.js';
 export * from './use-subscriber-attention.js';
 export * from './use-subscriber-corrections.js';

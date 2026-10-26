@@ -6,6 +6,9 @@ import type {
     CanonicalSubscriptionInvoiceDocumentRow,
     CanonicalSubscriptionInvoiceLineRow,
     CanonicalSubscriptionInvoiceRow,
+    InvoiceRegisterPage,
+    InvoiceRegisterRange,
+    IssuedInvoiceAmounts,
     IssuedSubscriptionInvoiceCancellation,
     NewCorrectionInvoice,
     NewInvoiceRendering,
@@ -31,6 +34,7 @@ import {
     toSubscriptionInvoiceDocumentRecord,
     subscriptionInvoiceColumns,
     subscriptionInvoiceLineColumns,
+    toIssuedInvoiceAmounts,
     toSubscriberChargeRecord,
     toSubscriptionInvoiceRecord,
     utcMidnightOf,
@@ -49,6 +53,8 @@ type InvoiceRow = CanonicalSubscriptionInvoiceRow & {
     cancels?: CancellationOfRow | null;
     /** The cancellation this invoice is the replacement of. */
     replaces?: CancellationOfRow | null;
+    /** The cancellation that cancelled this invoice, as the register reads it. */
+    cancelledBy?: { cancellationInvoice: { id: string; number: string } } | null;
 };
 
 /** Narrow view of the client and of a transaction client, which carry the same delegates. */
@@ -79,6 +85,19 @@ const WITH_LINES = {
     cancels: CANCELLED,
     replaces: CANCELLED,
 } as const;
+
+/** What the register reads beside an invoice: its lines, what it corrects, and what cancelled it. */
+const IN_THE_REGISTER = {
+    ...WITH_LINES,
+    cancelledBy: { select: { cancellationInvoice: { select: { id: true, number: true } } } },
+} as const;
+
+/** The register's order: by issue date, then by number within its year. */
+const REGISTER_ORDER = [
+    { issueDate: 'asc' },
+    { numberYear: 'asc' },
+    { numberSequence: 'asc' },
+] as const;
 
 /** An invoice row read with `WITH_LINES`, as a record. */
 function recordOf(row: InvoiceRow): SubscriptionInvoiceRecord {
@@ -329,6 +348,68 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
         return rows.map(recordOf);
     }
 
+    async listIssued(
+        range: InvoiceRegisterRange,
+        page: { limit: number; after?: string },
+    ): Promise<InvoiceRegisterPage> {
+        const db = this.db();
+        const conditions: unknown[] = [issuedWithin(range)];
+        if (page.after) {
+            const after = await db.subscriptionInvoice.findUnique({
+                where: { id: page.after },
+                select: { issueDate: true, numberYear: true, numberSequence: true },
+            });
+            if (after) {
+                conditions.push({
+                    OR: [
+                        { issueDate: { gt: after.issueDate } },
+                        { issueDate: after.issueDate, numberYear: { gt: after.numberYear } },
+                        {
+                            issueDate: after.issueDate,
+                            numberYear: after.numberYear,
+                            numberSequence: { gt: after.numberSequence },
+                        },
+                    ],
+                });
+            }
+        }
+        const rows = await db.subscriptionInvoice.findMany({
+            where: { AND: conditions },
+            include: IN_THE_REGISTER,
+            orderBy: REGISTER_ORDER,
+            // One more than the page, to know whether another follows.
+            take: page.limit + 1,
+        });
+        return {
+            invoices: rows.slice(0, page.limit).map((row) => ({
+                invoice: recordOf(row),
+                cancelledBy: row.cancelledBy
+                    ? {
+                          invoiceId: row.cancelledBy.cancellationInvoice.id,
+                          number: row.cancelledBy.cancellationInvoice.number,
+                      }
+                    : null,
+            })),
+            hasMore: rows.length > page.limit,
+        };
+    }
+
+    async listIssuedAmounts(range: InvoiceRegisterRange): Promise<IssuedInvoiceAmounts[]> {
+        const rows = await this.db().subscriptionInvoice.findMany({
+            where: issuedWithin(range),
+            select: { id: true, issueDate: true, currency: true, taxTreatment: true, taxes: true },
+        });
+        return rows.map(toIssuedInvoiceAmounts);
+    }
+
+    async findByNumber(number: string): Promise<SubscriptionInvoiceRecord | null> {
+        const row = await this.db().subscriptionInvoice.findUnique({
+            where: { number },
+            include: WITH_LINES,
+        });
+        return row ? recordOf(row) : null;
+    }
+
     async listIssuedNumberPrefixes(tx?: TransactionContext): Promise<string[]> {
         const rows = await this.db(tx).subscriptionInvoice.findMany({
             distinct: ['numberPrefix'],
@@ -493,6 +574,11 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
         });
         return rows.map((row) => row.invoiceId);
     }
+}
+
+/** The invoices issued on the days of `range`, both included: a `date` column compared at midnight UTC, as it is written. */
+function issuedWithin(range: InvoiceRegisterRange) {
+    return { issueDate: { gte: utcMidnightOf(range.from), lte: utcMidnightOf(range.until) } };
 }
 
 /**

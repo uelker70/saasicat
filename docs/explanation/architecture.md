@@ -185,6 +185,7 @@ screens in `src/auth/` and the primitives in `src/ui/`.
 | `DashboardPage`                            | KPI cards (fed by the manifest)                            |
 | `TenantsPage` / `TenantDetailPage`         | Tenant management + actions                                |
 | `SubscribersPage` / `SubscriberRecordPage` | Subscribers, and everything about one in its record        |
+| `InvoicesPage`                             | Every invoice of a span of months, with its sums           |
 | `PlansPage`                                | Plan lifecycle, editor, version timeline and diff          |
 | `BundlesPage`                              | Bundle/BundleVersion CRUD                                  |
 | `DiscoveryPage`                            | Capability/feature/quota review with lifecycle transitions |
