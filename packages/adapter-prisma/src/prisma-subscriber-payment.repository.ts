@@ -641,9 +641,12 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
             ]),
         );
         return {
-            credits: ids.flatMap((id, index) => {
+            credits: ids.map((id, index) => {
                 const credit = credits.get(id);
-                return credit ? [{ credit, open: open[index]! }] : [];
+                // No port deletes a credit, so the one the query above listed
+                // is there; an open credit is not left off the list unnoticed.
+                if (!credit) throw new Error(`The open credit ${id} cannot be read.`);
+                return { credit, open: open[index]! };
             }),
             hasMore: idsOf(rows).length > page.limit,
         };

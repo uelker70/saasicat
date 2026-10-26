@@ -1300,7 +1300,7 @@ All three are served and announced where the credits and the cases to reconcile 
 `payments.read`. What an invoice owes and what a credit holds are read in SQL by the rule
 `owedByInvoice` and `openOfCredit` compute — the signs passed as parameters from `@saasicat/core` —,
 so nothing is stored beside the settlements and the credit entries; the persistence contract holds
-both adapters to the rule after every payment scenario.
+both adapters to the rule after every scenario it runs.
 
 ### Cancelling an invoice
 

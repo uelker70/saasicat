@@ -140,11 +140,17 @@ export class OpenItemsService {
                 (await this.invoices.findByIds(ids)).map((invoice) => [invoice.id, invoice]),
             );
             const attempts = latestAttemptsOf(await this.collections.listByInvoices(ids));
-            const invoices = page.invoices.flatMap(({ invoiceId, owed }) => {
+            const invoices = page.invoices.map(({ invoiceId, owed }) => {
                 const invoice = records.get(invoiceId);
-                return invoice
-                    ? [openInvoiceOf(invoice, owed, attempts.get(invoiceId), today)]
-                    : [];
+                // No port deletes an invoice, so one listed a moment ago is
+                // there; where it is not, the store is inconsistent, and an
+                // invoice that still owes is not left off the list unnoticed.
+                if (!invoice) {
+                    throw new Error(
+                        `The store lists invoice ${invoiceId} as open and cannot read it.`,
+                    );
+                }
+                return openInvoiceOf(invoice, owed, attempts.get(invoiceId), today);
             });
             return {
                 today,
@@ -171,9 +177,15 @@ export class OpenItemsService {
                     ])
                 ).map((subscriber) => [subscriber.id, subscriber]),
             );
-            const credits = page.credits.flatMap((owed) => {
+            const credits = page.credits.map((owed) => {
                 const subscriber = subscribers.get(owed.credit.subscriberId);
-                return subscriber ? [openCreditOf(owed, subscriber)] : [];
+                // As for the invoices: no port deletes a subscriber.
+                if (!subscriber) {
+                    throw new Error(
+                        `The store lists credit ${owed.credit.id} as open and cannot read its subscriber ${owed.credit.subscriberId}.`,
+                    );
+                }
+                return openCreditOf(owed, subscriber);
             });
             const last = page.credits[page.credits.length - 1];
             return { credits, next: page.hasMore && last ? last.credit.id : null, timeZone };

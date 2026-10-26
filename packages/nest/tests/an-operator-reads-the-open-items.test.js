@@ -303,6 +303,39 @@ describe('every read of the open items', () => {
     });
 });
 
+describe('an open item the store lists and cannot read', () => {
+    /** The service over `payments`, its other stores answering nothing. */
+    const readingNothingBut = (payments) =>
+        new OpenItemsService(
+            payments,
+            { findByIds: async () => [] },
+            { listByInvoices: async () => [] },
+            { findByIds: async () => [] },
+            SETTINGS,
+            null,
+        );
+
+    test('fails the page of invoices rather than leaving the invoice off it', async () => {
+        const invoice = invoiceOf('subscriber-1', 100, '2026-02-10');
+        const { payments } = anInstallation([invoice]);
+
+        await assert.rejects(readingNothingBut(payments).invoicesPage({}, NOW), {
+            message: `The store lists invoice ${invoice.id} as open and cannot read it.`,
+        });
+    });
+
+    test('fails the page of credits rather than leaving the credit off it', async () => {
+        const invoice = invoiceOf('subscriber-1', 100, '2026-02-10');
+        const { payments, pay } = anInstallation([invoice]);
+        await pay(invoice, 150);
+        const [{ credit }] = (await payments.listOpenCredits({ limit: 1 })).credits;
+
+        await assert.rejects(readingNothingBut(payments).creditsPage({}), {
+            message: `The store lists credit ${credit.id} as open and cannot read its subscriber subscriber-1.`,
+        });
+    });
+});
+
 describe('the requests as the routes take them', () => {
     const problemsOf = async (Type, query) =>
         (await validate(plainToInstance(Type, query))).map((error) => error.property);

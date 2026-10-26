@@ -175,6 +175,25 @@ describe('useOpenItems', () => {
         assert.ok(!open.invoices.rows.value.some(({ id }) => id === 'late'));
     });
 
+    test('a page asked for twice before the first answer is added once', async () => {
+        const { asked, openItems, subscribers } = anInstallation({
+            invoicePages: ({ after }) =>
+                after
+                    ? { invoices: [invoice('2')], next: null }
+                    : { invoices: [invoice('1')], next: '1' },
+        });
+        const open = useOpenItems(PAYING, openItems, subscribers, portsWith().ports);
+        await settle();
+
+        await Promise.all([open.invoices.more(), open.invoices.more()]);
+
+        assert.equal(asked.invoices.filter(({ after }) => after === '1').length, 2);
+        assert.deepEqual(
+            open.invoices.rows.value.map(({ id }) => id),
+            ['1', '2'],
+        );
+    });
+
     test('a page that fails is the list’s failure, for the list on screen', async () => {
         const { openItems, subscribers } = anInstallation({
             creditPages: ({ after }) => {

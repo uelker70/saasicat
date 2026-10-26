@@ -17112,6 +17112,9 @@ _Tested by:_
         - add up what is owed per currency, what is overdue today apart, and what the credits hold
     - every read of the open items
         - runs outside the tenants' row-level policy, a page in a few reads
+    - an open item the store lists and cannot read
+        - fails the page of invoices rather than leaving the invoice off it
+        - fails the page of credits rather than leaving the credit off it
     - the requests as the routes take them
         - overdue alone is true or false, and a page goes on after an id of a length one can have
         - a query string’s text asks for overdue ones alone only where it says true
@@ -17146,6 +17149,7 @@ _Tested by:_
           they are
         - the next page of each list is added after the last row read
         - a page of invoices for a filter left while it was on its way is dropped
+        - a page asked for twice before the first answer is added once
         - a page that fails is the list’s failure, for the list on screen
         - a credit is paid out for its subscriber behind the second factor, and the credits and
           totals read again
