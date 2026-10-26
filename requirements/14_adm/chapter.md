@@ -1744,6 +1744,7 @@ _Tested by:_
         - the next page is added after the last invoice read
         - a page whose months were left while it was on its way is dropped
         - months typed while the first answer is on its way are not overwritten by it
+        - the months a stale answer named are read when they are picked, not taken as shown
         - a failure of the totals is the register’s failure, and a reload clears it
     - useCancellationParty
         - reads nothing until an invoice names a subscriber, then that subscriber’s record

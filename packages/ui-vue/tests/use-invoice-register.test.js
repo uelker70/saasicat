@@ -25,7 +25,7 @@ const TOTALS = (from, until) => ({ from, until, months: [], range: [] });
  * The register's operations, every request recorded. `pages` answers a page
  * by what it was asked, the platform's current month where none is.
  */
-function aRegister(pages = () => ({ invoices: [row('1')], next: null })) {
+function aRegister(pages = async () => ({ invoices: [row('1')], next: null })) {
     const asked = { list: [], totals: [] };
     const current = '2026-10';
     return {
