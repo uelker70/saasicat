@@ -336,6 +336,23 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
         return row ? toSubscriptionInvoiceCancellationRecord(row) : null;
     }
 
+    async listCancellations(
+        invoiceIds: readonly string[],
+    ): Promise<SubscriptionInvoiceCancellationRecord[]> {
+        if (invoiceIds.length === 0) return [];
+        const ids = [...invoiceIds];
+        const rows = await this.db().subscriptionInvoiceCancellation.findMany({
+            where: {
+                OR: [
+                    { cancelledInvoiceId: { in: ids } },
+                    { cancellationInvoiceId: { in: ids } },
+                    { replacementInvoiceId: { in: ids } },
+                ],
+            },
+        });
+        return rows.map(toSubscriptionInvoiceCancellationRecord);
+    }
+
     async listBySubscriber(
         subscriberId: string,
         tx?: TransactionContext,
@@ -526,6 +543,16 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
             where: { invoiceId, deliveredAt: null, deliveryClaimedAt: claimedAt },
             data: { deliveryClaimedAt: null },
         });
+    }
+
+    async findDocuments(
+        invoiceIds: readonly string[],
+    ): Promise<SubscriptionInvoiceDocumentRecord[]> {
+        if (invoiceIds.length === 0) return [];
+        const rows = await this.db().subscriptionInvoiceDocument.findMany({
+            where: { invoiceId: { in: [...invoiceIds] } },
+        });
+        return rows.map(toSubscriptionInvoiceDocumentRecord);
     }
 
     async findDocument(

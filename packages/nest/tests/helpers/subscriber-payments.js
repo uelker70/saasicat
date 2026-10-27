@@ -78,6 +78,17 @@ export class MemorySubscriberPayments {
         return `${prefix}-${this.counter}`;
     }
 
+    /** Records a settlement as both adapters do: with an id and the moment it was recorded. */
+    #settle(at, settlement) {
+        this.settlements.push({
+            id: this.#id('settlement'),
+            reversalId: null,
+            cancellationId: null,
+            ...settlement,
+            recordedAt: at,
+        });
+    }
+
     #invoice(invoiceId) {
         const invoice = this.invoices.find((each) => each.id === invoiceId);
         if (!invoice) throw new Error(`no invoice ${invoiceId}`);
@@ -124,7 +135,7 @@ export class MemorySubscriberPayments {
     async moveShares(move) {
         const cancelled = this.#invoice(move.cancelledInvoiceId);
         for (const part of move.parts) {
-            this.settlements.push({
+            this.#settle(move.at, {
                 invoiceId: cancelled.id,
                 paymentId: part.paymentId,
                 kind: 'MOVED_OUT',
@@ -132,7 +143,7 @@ export class MemorySubscriberPayments {
                 cancellationId: move.cancellationId,
             });
             if (move.replacementInvoiceId && part.movedIn > 0) {
-                this.settlements.push({
+                this.#settle(move.at, {
                     invoiceId: move.replacementInvoiceId,
                     paymentId: part.paymentId,
                     kind: 'MOVED_IN',
@@ -221,7 +232,7 @@ export class MemorySubscriberPayments {
         );
         this.payments.push(recorded);
         if (standing && settles > 0) {
-            this.settlements.push({
+            this.#settle(at, {
                 invoiceId: standing.id,
                 paymentId: recorded.id,
                 kind: 'PAYMENT',
@@ -410,6 +421,30 @@ export class MemorySubscriberPayments {
 
     async listCredits(subscriberId) {
         return this.#standings(subscriberId);
+    }
+
+    async listSettlements(invoiceIds) {
+        return structuredClone(
+            this.settlements
+                .filter((each) => invoiceIds.includes(each.invoiceId))
+                .map((each) => {
+                    const payment = this.payments.find((one) => one.id === each.paymentId);
+                    const reversal =
+                        each.reversalId === null
+                            ? null
+                            : this.reversals.find((one) => one.id === each.reversalId);
+                    return {
+                        ...each,
+                        payment: {
+                            id: payment.id,
+                            provider: payment.provider,
+                            gatewayAccount: payment.gatewayAccount,
+                            gatewayRef: payment.gatewayRef,
+                        },
+                        reversal: reversal && { id: reversal.id, gatewayRef: reversal.gatewayRef },
+                    };
+                }),
+        );
     }
 
     async findPaymentById(id) {
@@ -630,7 +665,7 @@ export class MemorySubscriberPayments {
     #writeTaken(reversal, credits, invoices, at) {
         for (const part of credits) this.#reversalEntry(reversal, 'REVERSAL', part, at);
         for (const part of invoices) {
-            this.settlements.push({
+            this.#settle(at, {
                 invoiceId: part.invoiceId,
                 paymentId: reversal.paymentId,
                 kind: 'REVERSAL',
@@ -757,7 +792,7 @@ export class MemorySubscriberPayments {
         for (const part of parts.credits)
             this.#reversalEntry(reversal, 'REVERSAL_TAKEN_BACK', part, at);
         for (const part of parts.invoices) {
-            this.settlements.push({
+            this.#settle(at, {
                 invoiceId: part.invoiceId,
                 paymentId: payment.id,
                 kind: 'REINSTATEMENT',

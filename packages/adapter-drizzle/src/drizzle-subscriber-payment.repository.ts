@@ -7,6 +7,7 @@ import type {
     CloseReconciliationCase,
     CreditPart,
     InvoicePaymentShare,
+    InvoiceSettlementRecord,
     MovedPaymentPart,
     NewSubscriberPayment,
     NewSubscriberPayout,
@@ -32,6 +33,7 @@ import type {
 import {
     CASE_CLOSED_REFUND_ENDED,
     columnAmountOf,
+    invoiceSettlementsOf,
     isEndedRefund,
     openOfCredit,
     owedByInvoice,
@@ -544,6 +546,34 @@ export class DrizzleSubscriberPaymentRepository implements SubscriberPaymentRepo
                 correctedState(invoice.id),
             ),
         }));
+    }
+
+    async listSettlements(invoiceIds: readonly string[]): Promise<InvoiceSettlementRecord[]> {
+        if (invoiceIds.length === 0) return [];
+        const db = resolveDb(this.db);
+        const rows = await db
+            .select()
+            .from(subscriptionInvoiceSettlements)
+            .where(inArray(subscriptionInvoiceSettlements.invoiceId, [...invoiceIds]));
+        const paymentIds = [...new Set(rows.map(({ paymentId }) => paymentId))];
+        const payments =
+            paymentIds.length === 0
+                ? []
+                : await db
+                      .select()
+                      .from(subscriberPayments)
+                      .where(inArray(subscriberPayments.id, paymentIds));
+        const reversalIds = [
+            ...new Set(rows.flatMap(({ reversalId }) => (reversalId === null ? [] : [reversalId]))),
+        ];
+        const reversals =
+            reversalIds.length === 0
+                ? []
+                : await db
+                      .select()
+                      .from(subscriberReversals)
+                      .where(inArray(subscriberReversals.id, reversalIds));
+        return invoiceSettlementsOf(rows, payments, reversals);
     }
 
     recordReversal(

@@ -255,6 +255,17 @@ function invoiceStore(journal) {
                 );
             return structuredClone(found ?? null);
         },
+        async listCancellations(invoiceIds) {
+            return structuredClone(
+                cancellations.filter((each) =>
+                    [
+                        each.cancelledInvoiceId,
+                        each.cancellationInvoiceId,
+                        each.replacementInvoiceId,
+                    ].some((id) => invoiceIds.includes(id)),
+                ),
+            );
+        },
         async findCancellationById(cancellationId) {
             return structuredClone(
                 cancellations.find((each) => each.id === cancellationId) ?? null,
@@ -382,6 +393,11 @@ function invoiceStore(journal) {
             ) {
                 state.deliveryClaimedAt = null;
             }
+        },
+        async findDocuments(invoiceIds) {
+            return structuredClone(
+                [...documents.values()].filter((state) => invoiceIds.includes(state.invoiceId)),
+            );
         },
         async findDocument(invoiceId) {
             return structuredClone(documents.get(invoiceId) ?? null);
