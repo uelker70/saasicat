@@ -12799,15 +12799,16 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 replacement!.id,
                 'no-such-invoice',
             ]);
-            const kinds = settlements.map(({ invoiceId: of, kind }) => [of, kind]).sort();
+            const byKey = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+            const kinds = settlements.map(({ invoiceId: of, kind }) => `${of}/${kind}`).sort(byKey);
             assert.deepEqual(
                 kinds,
                 [
-                    [invoiceId, 'MOVED_OUT'],
-                    [invoiceId, 'PAYMENT'],
-                    [invoiceId, 'REVERSAL'],
-                    [replacement!.id, 'MOVED_IN'],
-                ].sort(),
+                    `${invoiceId}/MOVED_OUT`,
+                    `${invoiceId}/PAYMENT`,
+                    `${invoiceId}/REVERSAL`,
+                    `${replacement!.id}/MOVED_IN`,
+                ].sort(byKey),
             );
             for (const settlement of settlements) {
                 assert.equal(settlement.payment.gatewayRef, 'pi_paid');

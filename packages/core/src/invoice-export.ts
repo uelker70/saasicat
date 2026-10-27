@@ -218,6 +218,8 @@ export function invoiceExportOf(input: {
 
 /** How a cell is written: as text, or as an amount or a number in the locale's notation. */
 type CellKind = 'text' | 'amount' | 'number';
+/** What a cell of the export holds: a row's fields are text, numbers and nothing. */
+type Cell = string | number | null;
 type Columns<Row> = ReadonlyArray<readonly [keyof Row & string, CellKind]>;
 
 const INVOICE_COLUMNS: Columns<InvoiceExportInvoiceRow> = [
@@ -305,8 +307,8 @@ const BYTE_ORDER_MARK = '﻿';
 const LINE_END = '\r\n';
 
 /** One cell, written for `locale`: quoted where it holds a separator, a quote or a line break. */
-function cellOf(value: unknown, kind: CellKind, locale: InvoiceExportLocale): string {
-    if (value === null || value === undefined) return '';
+function cellOf(value: Cell, kind: CellKind, locale: InvoiceExportLocale): string {
+    if (value === null) return '';
     const { delimiter, decimalSeparator } = NOTATION[locale];
     let text: string;
     if (kind === 'amount' && typeof value === 'number') {
@@ -326,7 +328,7 @@ function cellOf(value: unknown, kind: CellKind, locale: InvoiceExportLocale): st
 }
 
 /** A table: its header of column names, which every language writes alike, and a row per entry. */
-function csvOf<Row>(
+function csvOf<Row extends { [Field in keyof Row]: Cell }>(
     rows: readonly Row[],
     columns: Columns<Row>,
     locale: InvoiceExportLocale,

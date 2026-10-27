@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 296 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 297 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -293,6 +293,7 @@ Invoices issued from the charge journal.
 | `SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH`            | The archived document of invoice {invoiceId} does not match the checksum recorded when it was rendered, and is not handed out.                                                                  |
 | `SUBSCRIPTION_INVOICE_DOCUMENT_NOT_ARCHIVED`        | The document of invoice {invoiceId} is not archived yet.                                                                                                                                        |
 | `SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED`             | The tax adapter {adapter} refuses the rendered invoice: {missing}. The invoice keeps its number and waits for a document that passes.                                                           |
+| `SUBSCRIPTION_INVOICE_EXPORT_AS_OF_TOO_LATE`        | An export is taken as of {latest} at the latest, five minutes before now, so that what was still being written is in it; {asOf} is later.                                                       |
 | `SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD`             | The direct debit is announced once the subscriber has been told that collection {attemptKey} failed.                                                                                            |
 | `SUBSCRIPTION_INVOICE_IS_CANCELLATION`              | Invoice {number} is a cancellation invoice, which is not cancelled itself.                                                                                                                      |
 | `SUBSCRIPTION_INVOICE_LINE_NAMED_TWICE`             | The cancellation of invoice {number} names line {position} twice.                                                                                                                               |
