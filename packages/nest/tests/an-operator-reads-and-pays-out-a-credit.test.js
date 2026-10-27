@@ -389,6 +389,7 @@ describe('the route', () => {
         unrecorded.tenantBilling.chargeJournal.invoices.payments = undefined;
 
         assert.deepEqual(routes(collecting), [
+            'GET admin/open-credits',
             'GET admin/subscribers/:id/credits',
             'POST admin/subscribers/:id/credits/:creditId/payouts',
         ]);

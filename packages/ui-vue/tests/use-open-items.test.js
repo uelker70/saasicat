@@ -24,8 +24,8 @@ const credit = (id, subscriberId = 's-1') => ({ id, subscriber: { id: subscriber
  * `creditPages` answer by what was asked.
  */
 function anInstallation({
-    invoicePages = () => ({ invoices: [invoice('1')], next: null }),
-    creditPages = () => ({ credits: [credit('c-1')], next: null, timeZone: 'Europe/Berlin' }),
+    invoicePages = async () => ({ invoices: [invoice('1')], next: null }),
+    creditPages = async () => ({ credits: [credit('c-1')], next: null, timeZone: 'Europe/Berlin' }),
 } = {}) {
     const asked = { invoices: [], credits: [], totals: 0, payouts: [] };
     const openItems = {
@@ -98,7 +98,7 @@ describe('useOpenItems', () => {
 
     test('overdue alone reads the invoices anew from their first page, and leaves the credits as they are', async () => {
         const { asked, openItems, subscribers } = anInstallation({
-            invoicePages: ({ after }) =>
+            invoicePages: async ({ after }) =>
                 after
                     ? { invoices: [invoice('2')], next: null }
                     : { invoices: [invoice('1')], next: '1' },
@@ -121,11 +121,11 @@ describe('useOpenItems', () => {
 
     test('the next page of each list is added after the last row read', async () => {
         const { asked, openItems, subscribers } = anInstallation({
-            invoicePages: ({ after }) =>
+            invoicePages: async ({ after }) =>
                 after === '1'
                     ? { invoices: [invoice('2')], next: null }
                     : { invoices: [invoice('1')], next: '1' },
-            creditPages: ({ after }) =>
+            creditPages: async ({ after }) =>
                 after === 'c-1'
                     ? { credits: [credit('c-2')], next: null, timeZone: 'Europe/Berlin' }
                     : { credits: [credit('c-1')], next: 'c-1', timeZone: 'Europe/Berlin' },
@@ -155,7 +155,7 @@ describe('useOpenItems', () => {
     test('a page of invoices for a filter left while it was on its way is dropped', async () => {
         let release;
         const { openItems, subscribers } = anInstallation({
-            invoicePages: ({ after }) =>
+            invoicePages: async ({ after }) =>
                 after
                     ? new Promise((resolve) => {
                           release = () => resolve({ invoices: [invoice('late')], next: null });
@@ -177,7 +177,7 @@ describe('useOpenItems', () => {
 
     test('a page asked for twice before the first answer is added once', async () => {
         const { asked, openItems, subscribers } = anInstallation({
-            invoicePages: ({ after }) =>
+            invoicePages: async ({ after }) =>
                 after
                     ? { invoices: [invoice('2')], next: null }
                     : { invoices: [invoice('1')], next: '1' },
@@ -196,7 +196,7 @@ describe('useOpenItems', () => {
 
     test('a page that fails is the list’s failure, for the list on screen', async () => {
         const { openItems, subscribers } = anInstallation({
-            creditPages: ({ after }) => {
+            creditPages: async ({ after }) => {
                 if (after) throw new Error('the next page failed');
                 return { credits: [credit('c-1')], next: 'c-1', timeZone: 'Europe/Berlin' };
             },
