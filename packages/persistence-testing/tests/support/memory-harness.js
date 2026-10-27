@@ -94,6 +94,7 @@ import {
     subscriptionBundleAlreadyCancelled,
     subscriptionBundleGone,
     subscriptionContractGone,
+    contractInsideWindow,
     subscriptionGone,
     keepsVatIdCheck,
     taxOriginWrite,
@@ -893,6 +894,18 @@ export function createMemoryHarness() {
                 )
                 .sort(byNewestFirst)
                 .map(withLines);
+        },
+        async listRegister({ window, limit, after }) {
+            const latestFirst = (a, b) =>
+                b.effectiveFrom - a.effectiveFrom ||
+                b.createdAt - a.createdAt ||
+                (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
+            const ordered = state.contracts
+                .filter((row) => contractInsideWindow(row, window))
+                .sort(latestFirst);
+            const cursor = state.contracts.find((row) => row.id === after);
+            const rest = cursor ? ordered.filter((row) => latestFirst(row, cursor) > 0) : ordered;
+            return { contracts: rest.slice(0, limit).map(withLines), hasMore: rest.length > limit };
         },
         async listRunningIssuers(limit, asOf = FIXED_NOW) {
             const running = state.contracts

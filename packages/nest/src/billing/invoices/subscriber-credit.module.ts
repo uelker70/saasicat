@@ -24,7 +24,12 @@ import {
     MaxLength,
     ValidateIf,
 } from 'class-validator';
-import type { AdminSubscriberCredits, CalendarDay, RlsBypassPort } from '@saasicat/core';
+import {
+    CALENDAR_DAY_PATTERN,
+    type AdminSubscriberCredits,
+    type CalendarDay,
+    type RlsBypassPort,
+} from '@saasicat/core';
 
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { EnforceMfa } from '../../admin/enforce-mfa.decorator.js';
@@ -38,8 +43,6 @@ const MAX_REFERENCE_LENGTH = 200;
 const MAX_NOTE_LENGTH = 500;
 /** The largest amount the credit columns hold, `numeric(12, 2)`. */
 const MAX_AMOUNT = 9_999_999_999.99;
-/** A day as `YYYY-MM-DD`, and nothing else: a payout left on a day, not at a moment. */
-const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 /** Something besides blanks. */
 const NOT_BLANK = /\S/;
 
@@ -56,8 +59,9 @@ export class RecordSubscriberPayoutDto {
     @MaxLength(MAX_REFERENCE_LENGTH)
     reference!: string;
 
+    // A day, and nothing else: a payout left on a day, not at a moment.
     @IsString()
-    @Matches(DAY_PATTERN, { message: 'paidOn must be a day, YYYY-MM-DD' })
+    @Matches(CALENDAR_DAY_PATTERN, { message: 'paidOn must be a day, YYYY-MM-DD' })
     @IsISO8601({ strict: true })
     paidOn!: CalendarDay;
 

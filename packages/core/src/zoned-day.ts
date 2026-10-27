@@ -13,6 +13,18 @@
 /** A calendar day, `YYYY-MM-DD`. */
 export type CalendarDay = string;
 
+/** The shape of a calendar day, `YYYY-MM-DD`; whether the calendar has it is a second question. */
+export const CALENDAR_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const MS_PER_HOUR = 3_600_000;
+/**
+ * How far before its UTC midnight a day may begin somewhere, and how far after:
+ * zones run from fourteen hours ahead of UTC to twelve behind it, so the first
+ * moment of any day lies inside this margin around its UTC midnight.
+ */
+const EARLIEST_START_MS = 15 * MS_PER_HOUR;
+const LATEST_START_MS = 13 * MS_PER_HOUR;
+
 /**
  * The day `at` falls on in `timeZone`. Throws a `RangeError` for a zone the
  * runtime does not know, and for no zone at all — without one `Intl` would
@@ -42,6 +54,30 @@ export function lastDayInZone(period: { from: Date; until: Date }, timeZone: str
         throw new RangeError('A period ends after it begins.');
     }
     return dayInZone(new Date(period.until.getTime() - 1), timeZone);
+}
+
+/**
+ * The first moment of `day` in `timeZone`: its midnight there, or, in a zone
+ * whose clocks skip midnight for daylight saving time, the first moment the
+ * day has. A day is the moments from this one to the next day's, so whether a
+ * moment falls on it is two comparisons a store can make.
+ */
+export function startOfDayInZone(day: CalendarDay, timeZone: string): Date {
+    const [year, month, date] = day.split('-').map(Number);
+    const midnight = Date.UTC(year ?? NaN, (month ?? NaN) - 1, date ?? NaN);
+    if (!Number.isFinite(midnight) || new Date(midnight).toISOString().slice(0, 10) !== day) {
+        throw new RangeError(`${day} is not a day.`);
+    }
+    // The moments before `low` fall on an earlier day and those from `high`
+    // on this one or a later; the first of this day is found between them.
+    let low = midnight - EARLIEST_START_MS;
+    let high = midnight + LATEST_START_MS;
+    while (high - low > 1) {
+        const middle = Math.floor((low + high) / 2);
+        if (dayInZone(new Date(middle), timeZone) < day) low = middle;
+        else high = middle;
+    }
+    return new Date(high);
 }
 
 /** The day `days` calendar days after `day`; months and years roll over as the calendar does. */

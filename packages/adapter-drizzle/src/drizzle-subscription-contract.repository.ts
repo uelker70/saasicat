@@ -1,7 +1,27 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, count, desc, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm';
+import {
+    and,
+    asc,
+    count,
+    desc,
+    eq,
+    gt,
+    gte,
+    inArray,
+    isNull,
+    lt,
+    lte,
+    not,
+    notExists,
+    or,
+    sql,
+    type SQL,
+} from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type {
+    ContractRegisterRecordPage,
+    ContractRegisterWindow,
     NewContractLineItemData,
     NewSubscriptionContractData,
     RunningContractIssuers,
@@ -24,6 +44,34 @@ import { contractLineItems, subscriptionContracts } from './schema.js';
 
 type ContractTableRow = typeof subscriptionContracts.$inferSelect;
 type LineItemTableRow = typeof contractLineItems.$inferSelect;
+
+/** The contract a page of the register continues after. */
+const afterContract = alias(subscriptionContracts, 'after_contract');
+
+/** Whether the contract a query reads never came into force: it ends no later than it starts. */
+const neverInForce: SQL = sql`(${subscriptionContracts.effectiveUntil} IS NOT NULL
+    AND ${subscriptionContracts.effectiveUntil} <= ${subscriptionContracts.effectiveFrom})`;
+
+/** The contracts `window` holds, as `ContractRegisterWindow` defines them; `undefined` for all. */
+function insideWindow(window: ContractRegisterWindow): SQL | undefined {
+    const contract = subscriptionContracts;
+    switch (window.kind) {
+        case 'all':
+            return undefined;
+        case 'never-in-force':
+            return neverInForce;
+        case 'overlapping':
+            return and(
+                not(neverInForce),
+                lt(contract.effectiveFrom, window.until),
+                or(isNull(contract.effectiveUntil), gt(contract.effectiveUntil, window.from)),
+            );
+        case 'ended-by':
+            return and(not(neverInForce), lte(contract.effectiveUntil, window.by));
+        case 'starting-from':
+            return and(not(neverInForce), gte(contract.effectiveFrom, window.from));
+    }
+}
 
 /**
  * `SubscriptionContractRepository` against `subscription_contracts` and
@@ -65,6 +113,42 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
                 desc(subscriptionContracts.createdAt),
             );
         return this.withLineItems(this.db, rows);
+    }
+
+    async listRegister(page: {
+        window: ContractRegisterWindow;
+        limit: number;
+        after?: string;
+    }): Promise<ContractRegisterRecordPage> {
+        const contract = subscriptionContracts;
+        const rows = await this.db
+            .select()
+            .from(contract)
+            .where(
+                and(
+                    insideWindow(page.window),
+                    page.after
+                        ? notExists(
+                              this.db
+                                  .select({ id: afterContract.id })
+                                  .from(afterContract)
+                                  .where(
+                                      and(
+                                          eq(afterContract.id, page.after),
+                                          sql`(${contract.effectiveFrom}, ${contract.createdAt}, ${contract.id})
+                                              >= (${afterContract.effectiveFrom}, ${afterContract.createdAt}, ${afterContract.id})`,
+                                      ),
+                                  ),
+                          )
+                        : undefined,
+                ),
+            )
+            .orderBy(desc(contract.effectiveFrom), desc(contract.createdAt), desc(contract.id))
+            .limit(page.limit + 1);
+        return {
+            contracts: await this.withLineItems(this.db, rows.slice(0, page.limit)),
+            hasMore: rows.length > page.limit,
+        };
     }
 
     async findById(contractId: string): Promise<SubscriptionContractRecord | null> {

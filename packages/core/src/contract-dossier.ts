@@ -42,7 +42,9 @@ const KIND_ORDER: Readonly<Record<ContractLineItemKind, number>> = {
  * scheduled change is when another change replaces it first. It stays in the
  * subscriber's history, and is not what the contract after it changed.
  */
-export function neverInForce(contract: SubscriptionContractRecord): boolean {
+export function neverInForce(
+    contract: Pick<SubscriptionContractRecord, 'effectiveFrom' | 'effectiveUntil'>,
+): boolean {
     return (
         contract.effectiveUntil !== null &&
         contract.effectiveUntil.getTime() <= contract.effectiveFrom.getTime()
@@ -165,8 +167,6 @@ export function adminSubscriberContractOf(
     // moment later, which is no confirmation either.
     const known = standing ?? { contractId: contract.id, due: false, confirmation: null };
     const { confirmation } = known;
-    const plan = planLineOf(contract);
-    const never = neverInForce(contract);
     return {
         id: contract.id,
         tenantId: contract.tenantId,
@@ -174,6 +174,35 @@ export function adminSubscriberContractOf(
         concludedAt: contract.createdAt.toISOString(),
         effectiveFrom: contract.effectiveFrom.toISOString(),
         effectiveUntil: contract.effectiveUntil?.toISOString() ?? null,
+        ...contractDaysOf(contract, timeZone),
+        billingCycle: contract.priceSnapshot.billingCycle,
+        currency: contract.priceSnapshot.currency,
+        totalGross: contract.priceSnapshot.totalGross,
+        termsVersion: contract.termsVersion,
+        cancellationNoticeDays: contract.cancellationNoticeDays,
+        ...contractSourcesOf(contract),
+        minimumTermUntil: latestMinimumTermOf(contract)?.toISOString() ?? null,
+        change,
+        confirmation: {
+            state: confirmationStateOf(known),
+            archivedAt: confirmation?.archivedAt?.toISOString() ?? null,
+            deliveredAt: confirmation?.deliveredAt?.toISOString() ?? null,
+            deliveredTo: confirmation?.deliveredTo ?? null,
+        },
+    };
+}
+
+/**
+ * The days a contract is in force, in the installation's zone: from its first
+ * to its last, the last `null` while it runs open-ended and for one never in
+ * force.
+ */
+export function contractDaysOf(
+    contract: Pick<SubscriptionContractRecord, 'effectiveFrom' | 'effectiveUntil'>,
+    timeZone: string,
+): Pick<AdminSubscriberContract, 'firstDay' | 'lastDay' | 'neverInForce'> {
+    const never = neverInForce(contract);
+    return {
         firstDay: dayInZone(contract.effectiveFrom, timeZone),
         lastDay:
             contract.effectiveUntil && !never
@@ -183,21 +212,17 @@ export function adminSubscriberContractOf(
                   )
                 : null,
         neverInForce: never,
-        billingCycle: contract.priceSnapshot.billingCycle,
-        currency: contract.priceSnapshot.currency,
-        totalGross: contract.priceSnapshot.totalGross,
-        termsVersion: contract.termsVersion,
-        cancellationNoticeDays: contract.cancellationNoticeDays,
+    };
+}
+
+/** The plan and the add-ons a contract was concluded on, as it froze them. */
+export function contractSourcesOf(
+    contract: SubscriptionContractRecord,
+): Pick<AdminSubscriberContract, 'plan' | 'bundles'> {
+    const plan = planLineOf(contract);
+    return {
         plan: plan ? sourceOf(plan) : null,
         bundles: bundleLinesOf(contract).map(sourceOf),
-        minimumTermUntil: latestMinimumTermOf(contract)?.toISOString() ?? null,
-        change,
-        confirmation: {
-            state: confirmationStateOf(known),
-            archivedAt: confirmation?.archivedAt?.toISOString() ?? null,
-            deliveredAt: confirmation?.deliveredAt?.toISOString() ?? null,
-            deliveredTo: confirmation?.deliveredTo ?? null,
-        },
     };
 }
 

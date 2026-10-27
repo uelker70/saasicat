@@ -11,23 +11,32 @@ import {
     StreamableFile,
     type Type,
 } from '@nestjs/common';
-import { IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsIn, IsISO8601, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 import { AllowDuringMaintenance } from '../../maintenance/allow-during-maintenance.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
+import { AdminResourcesService } from '../../admin/admin-resources.module.js';
 import { UseRouteGuards } from '../../admin/use-route-guards.decorator.js';
 import {
+    CALENDAR_DAY_PATTERN,
     CALENDAR_MONTH_PATTERN,
+    CONTRACT_REGISTER_STATES,
+    type AdminContractRegisterPage,
     type AdminInvoiceRegisterPage,
     type AdminInvoiceRegisterTotals,
     type AdminSubscriberContractDossier,
     type AdminSubscriberContracts,
+    type ContractRegisterState,
     type InvoiceDocument,
     type InvoiceRegisterQuery,
     type RlsBypassPort,
 } from '@saasicat/core';
 import { ContractConfirmationService } from '../confirmations/contract-confirmation.service.js';
 import { CatalogContractSourceLookup } from '../confirmations/contract-source-lookup.js';
+import {
+    ContractRegisterService,
+    type ContractRegisterQuery,
+} from '../confirmations/contract-register.service.js';
 import { InvoiceDocumentService } from './invoice-document.service.js';
 import { InvoiceRegisterService } from './invoice-register.service.js';
 
@@ -50,6 +59,24 @@ export class InvoiceRegisterTotalsQueryDto implements InvoiceRegisterQuery {
 
 /** `GET admin/invoices` — the months, and the invoice the page goes on after. */
 export class InvoiceRegisterQueryDto extends InvoiceRegisterTotalsQueryDto {
+    @IsOptional()
+    @IsString()
+    @MaxLength(MAX_ID_LENGTH)
+    after?: string;
+}
+
+/** `GET admin/contracts` — the standing, the day it is read on, and the contract the page goes on after (`SC-ADM-045`). */
+export class ContractRegisterQueryDto implements ContractRegisterQuery {
+    @IsOptional()
+    @IsIn(CONTRACT_REGISTER_STATES)
+    state?: ContractRegisterState;
+
+    @IsOptional()
+    @IsString()
+    @Matches(CALENDAR_DAY_PATTERN, { message: 'day must be a day, YYYY-MM-DD' })
+    @IsISO8601({ strict: true })
+    day?: string;
+
     @IsOptional()
     @IsString()
     @MaxLength(MAX_ID_LENGTH)
@@ -169,7 +196,23 @@ function buildContractConfirmationController(guards: Array<Type<CanActivate>>): 
             private readonly rlsBypass: RlsBypassPort,
             @Inject(CatalogContractSourceLookup)
             private readonly sources: CatalogContractSourceLookup,
+            @Inject(ContractRegisterService)
+            private readonly register: ContractRegisterService,
+            @Inject(AdminResourcesService)
+            private readonly tenants: AdminResourcesService,
         ) {}
+
+        /**
+         * One page of every contract of the installation, a former
+         * subscriber's and a deleted tenant's included, the latest start
+         * first, narrowed to where they stand on a day (`SC-ADM-045`).
+         */
+        @Get('contracts')
+        contracts(@Query() query: ContractRegisterQueryDto): Promise<AdminContractRegisterPage> {
+            return this.rlsBypass.runWithBypass(() =>
+                this.register.page(query, (ids) => this.tenants.findTenantsByIds(ids)),
+            );
+        }
 
         /**
          * The subscriber's contracts, the newest first, each with what it

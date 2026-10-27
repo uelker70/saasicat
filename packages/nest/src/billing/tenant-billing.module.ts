@@ -94,6 +94,7 @@ import { InvoicePaymentService } from './invoices/invoice-payment.service.js';
 import { SubscriberCreditService } from './invoices/subscriber-credit.service.js';
 import { SubscriberReconciliationService } from './invoices/subscriber-reconciliation.service.js';
 import { OpenItemsService } from './invoices/open-items.service.js';
+import { ContractRegisterService } from './confirmations/contract-register.service.js';
 import { ContractConfirmationService } from './confirmations/contract-confirmation.service.js';
 import {
     CONTRACT_CONFIRMATION_ARCHIVE_TOKEN,
@@ -205,6 +206,7 @@ function confirmationProviders(invoices: InvoicesOptions): Provider[] {
         asProvider(CONTRACT_CONFIRMATION_REPOSITORY_TOKEN, confirmations.repository),
         asProvider(CONTRACT_CONFIRMATION_ARCHIVE_TOKEN, confirmations.archive),
         ContractConfirmationService,
+        ContractRegisterService,
     ];
 }
 
@@ -901,7 +903,9 @@ export class TenantBillingModule {
                 ...(invoices?.renderer && invoices.archive && invoices.mail
                     ? [InvoiceDocumentService]
                     : []),
-                ...(invoices && wiredConfirmations(invoices) ? [ContractConfirmationService] : []),
+                ...(invoices && wiredConfirmations(invoices)
+                    ? [ContractConfirmationService, ContractRegisterService]
+                    : []),
                 ...(invoices?.collections ? [InvoiceCollectionService] : []),
                 ...(invoices?.collections && invoices.payments
                     ? [
