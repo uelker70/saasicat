@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 45      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 46      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 27      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 668 entries: 🟢 570 stand today, 🟡 50 decided but not yet delivered, ⚪ 0 drafts,
+Of 669 entries: 🟢 572 stand today, 🟡 49 decided but not yet delivered, ⚪ 0 drafts,
 🔵 43 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -169,7 +169,6 @@ Of 668 entries: 🟢 570 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-ADM-026](#sc-adm-026--the-administrator-changes-what-the-tenant-pays-billing-needs-the-billing-permission),
 [SC-ADM-027](#sc-adm-027--an-operator-joins-a-returning-customers-new-tenant-to-the-subscriber-it-had),
 [SC-ADM-043](#sc-adm-043--an-operator-exports-the-invoice-register-for-a-tax-advisor),
-[SC-ADM-045](#sc-adm-045--an-operator-lists-every-contract-a-former-subscribers-included),
 [SC-UI-022](#sc-ui-022--a-tenant-downloads-its-subscriptions-invoices-and-tells-them-from-the-applications),
 [SC-UI-023](#sc-ui-023--a-tenants-invoices-payment-method-and-billing-details-need-the-billing-permission),
 [SC-UI-024](#sc-ui-024--a-tenants-invoice-list-says-what-each-invoice-stands-for),
@@ -236,7 +235,7 @@ Of 668 entries: 🟢 570 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 668 requirements. Do not edit by hand:
+Generated from `requirements/` — 669 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -15803,6 +15802,12 @@ _Tested by:_
           confirmation stands
         - marks the contracts in force on a day picked, and says so when none was
         - a contract superseded before it began says it was never in force, and is marked on no day
+        - opens the contract its address names, and brings it into view
+        - brings the contract its address names into view when the record answers after the
+          contracts
+        - brings the contract its address names into view once, however often the record and its
+          contracts are read again
+        - brings the contract into view where it shows only on a later read
         - opens a contract into what it froze: its lines with where each came from, its invoices and
           its ids
         - leads to the catalogue, and back to the list, where the shell put those pages
@@ -16908,6 +16913,12 @@ _Tested by:_
           confirmation stands
         - marks the contracts in force on a day picked, and says so when none was
         - a contract superseded before it began says it was never in force, and is marked on no day
+        - opens the contract its address names, and brings it into view
+        - brings the contract its address names into view when the record answers after the
+          contracts
+        - brings the contract its address names into view once, however often the record and its
+          contracts are read again
+        - brings the contract into view where it shows only on a later read
         - opens a contract into what it froze: its lines with where each came from, its invoices and
           its ids
         - leads to the catalogue, and back to the list, where the shell put those pages
@@ -17166,12 +17177,130 @@ _Tested by:_
 
 ### SC-ADM-045 — An operator lists every contract, a former subscriber's included
 
-🟡 _(Decided, not yet delivered.)_ 💰 The contract register lists every contract of the installation,
+🟢 💰 The contract register lists every contract of the installation,
 a former subscriber's and a deleted tenant's included: a register that forgets a subscriber once its
 tenant is gone answers the one question it exists for wrongly. It stands beside the open items
 (`SC-ADM-044`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #335
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-reads-the-contract-register.test.js`
+    - the contract register
+        - is the contracts in force today in the installation’s zone, the latest start first, each
+          with its subscriber as the record names it now and its tenant
+        - narrowed to one standing on a day asked for, reads every standing on that day
+        - is read ${CONTRACT_REGISTER_PAGE_SIZE} to a page, the next one named by the last on it
+        - runs outside the tenants' row-level policy, a page in three reads
+        - is read on the last day a day has a day after, and on the first of the year 1000
+        - fails a page with a contract whose subscriber the store cannot read, rather than leave it
+          off
+        - is not read without the installation’s time zone, which invoicing requires
+    - the register as the route takes it
+        - a standing it knows, a day the calendar has from the year 1000 to the day before the last,
+          and an id of a length one can have
+    - where the contract register is served
+        - beside a subscriber’s contracts, and nowhere they are not
+        - its page announced under contracts.read where it is served
+
+<!-- END proof -->
+
+### SC-ADM-046 — The contract register reads where each contract stands on a day of the installation
+
+🟢 💰 The contract register (`SC-ADM-045`) lists the contracts the latest start first, fifty to a
+page, narrowed to where they stand on a day — today in the installation's time zone unless the
+operator picks another: in force on it, ended before it, starting after it, never in force, or all.
+A contract is in force on a day the way the subscriber's record marks it (`SC-ADM-041`), so one that
+ends during a day and its successor that begins then are both in force on that day. Each names its
+subscriber as the record names it now, its tenant or that the application no longer has it or
+deleted it, the plan and the add-ons it was concluded on, its first and last day, its standing on
+that day and its price per period, and leads into the subscriber's record with that contract open.
+The subscriptions page says that it shows the current state per tenant and, where the register is
+offered, points to it. The register is offered where a subscriber's contracts are (`SC-AUD-016`),
+only the platform administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level
+policy the way the administration does (`SC-SEC-003`).
+
+_Source:_ #335 (decided 2026-10-26) · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-contract-stands-where-its-days-put-it.test.js`
+    - the first moment of a day
+        - of ${day} in ${zone} is ${first}
+        - of ${day} is refused as no day
+        - after the last day a day names is refused, and is no day that sorts before it
+        - a year below 1000 is written with four digits, so it sorts before the year 1000
+        - in a zone the runtime does not know is refused
+    - where a contract stands on a day
+        - from ${from} until ${until ?? 'open-ended'}: ${expected}
+        - is read on the installation’s day, not the UTC one
+    - the moments the register asks a store for
+        - for ${state} on 2026-02-17 in Berlin are ${window.kind}
+    - a window of the register
+        - holds a contract on ${day} exactly where its days give it the window's standing
+    - a contract as the register lists it
+        - names its subscriber, its tenant, what it was concluded on, its days and where it stands
+          today
+        - says so where the application no longer has the tenant, and where it soft-deleted it
+- `packages/nest/tests/an-operator-reads-the-contract-register.test.js`
+    - the contract register
+        - is the contracts in force today in the installation’s zone, the latest start first, each
+          with its subscriber as the record names it now and its tenant
+        - narrowed to one standing on a day asked for, reads every standing on that day
+        - is read ${CONTRACT_REGISTER_PAGE_SIZE} to a page, the next one named by the last on it
+        - runs outside the tenants' row-level policy, a page in three reads
+        - is read on the last day a day has a day after, and on the first of the year 1000
+        - fails a page with a contract whose subscriber the store cannot read, rather than leave it
+          off
+        - is not read without the installation’s time zone, which invoicing requires
+    - the register as the route takes it
+        - a standing it knows, a day the calendar has from the year 1000 to the day before the last,
+          and an id of a length one can have
+    - where the contract register is served
+        - beside a subscriber’s contracts, and nowhere they are not
+        - its page announced under contracts.read where it is served
+- `packages/ui-vue/tests/component/an-operator-reads-the-contract-register.test.ts`
+    - the contract register
+        - reads the contracts in force today once, and says the day it read them on
+        - lists each contract with its subscriber, its tenant, what it was concluded on, its term,
+          its standing and its price
+        - leads into the subscriber’s record with the contract open, wherever the shell put the
+          subscribers
+        - a standing or a day picked asks for those, from the first page
+        - loads the next page after the last row read
+        - says so where no contract stands so
+- `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
+    - the subscriber's record shows its contracts
+        - opens the contract its address names, and brings it into view
+        - brings the contract its address names into view when the record answers after the
+          contracts
+        - brings the contract its address names into view once, however often the record and its
+          contracts are read again
+        - brings the contract into view where it shows only on a later read
+- `packages/ui-vue/tests/component/the-subscriptions-page-says-what-it-shows.test.ts`
+    - the subscriptions page
+        - points to the contract register where that is served
+        - says only what it shows where the register is not served
+        - shows an application’s own subtitle instead
+- `packages/ui-vue/tests/contract-register-resource.test.js`
+    - the contract register’s requests
+        - every operation the descriptor declares is pinned here
+        - a page for ${JSON.stringify(request)} asks ${url}
+- `packages/ui-vue/tests/use-contract-register.test.js`
+    - useContractRegister
+        - reads the contracts in force today at once, and says the day the platform read them on
+        - a standing or a day picked reads the register anew from its first page, and a cleared day
+          asks for today
+        - a day still being typed is not asked for, and the last whole day stays
+        - a later page is read on the day the first one was, across midnight too
+        - a page for a standing left while it was on its way is dropped
+
+<!-- END proof -->
 
 ## 15. Working in the interface
 
@@ -22837,6 +22966,12 @@ _Tested by:_
           confirmation stands
         - marks the contracts in force on a day picked, and says so when none was
         - a contract superseded before it began says it was never in force, and is marked on no day
+        - opens the contract its address names, and brings it into view
+        - brings the contract its address names into view when the record answers after the
+          contracts
+        - brings the contract its address names into view once, however often the record and its
+          contracts are read again
+        - brings the contract into view where it shows only on a later read
         - opens a contract into what it froze: its lines with where each came from, its invoices and
           its ids
         - leads to the catalogue, and back to the list, where the shell put those pages

@@ -45,6 +45,9 @@ export const tenantsMessages = defineMessages(
         },
         subscriptions: {
             title: 'Abonnements',
+            subtitle: 'Der aktuelle Stand je Mandant, wie die Anwendung ihn führt.',
+            subtitleWithRegister:
+                'Der aktuelle Stand je Mandant, wie die Anwendung ihn führt. Jeden abgeschlossenen Vertrag, auch früherer Vertragspartner und gelöschter Mandanten, zeigt die Seite „Verträge“.',
             columnEndsAt: 'Endet',
         },
         draft: {
@@ -94,6 +97,9 @@ export const tenantsMessages = defineMessages(
         },
         subscriptions: {
             title: 'Subscriptions',
+            subtitle: 'The current state per tenant, as the application keeps it.',
+            subtitleWithRegister:
+                "The current state per tenant, as the application keeps it. Every contract concluded, former subscribers' and deleted tenants' included, is on the Contracts page.",
             columnEndsAt: 'Ends',
         },
         draft: {

@@ -1,6 +1,6 @@
 <template>
     <AdminPage class="sa-subscriptions">
-        <AdminHero :title="msg.subscriptions.title" :subtitle="subtitle">
+        <AdminHero :title="msg.subscriptions.title" :subtitle="heroSubtitle">
             <template #actions>
                 <slot name="head-actions" />
             </template>
@@ -44,6 +44,7 @@ import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { subscriptionsResource } from '../client/resources/subscriptions.resource.js';
 import { computed, onMounted, ref } from 'vue';
 import { heldBackPill, type HeldBackPill } from '../internal/tenants/held-back.js';
+import { servesStandardPage } from '../client/nav-builder.js';
 import { useSubscriberAttention } from '../vue/use-subscriber-attention.js';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
 import AdminBody from '../ui/page/AdminBody.vue';
@@ -108,6 +109,16 @@ const attention = useSubscriberAttention(
     computed(() => rows.value.flatMap((row) => (row.tenant?.id ? [row.tenant.id] : []))),
     computed(() => shellManifest),
     useResource('tenants'),
+);
+
+// What this page shows against the contract register, where that is served:
+// the current state per tenant here, every contract concluded there.
+const heroSubtitle = computed(
+    () =>
+        props.subtitle ??
+        (shellManifest && servesStandardPage(shellManifest, 'contracts')
+            ? msg.value.subscriptions.subtitleWithRegister
+            : msg.value.subscriptions.subtitle),
 );
 
 /** The pill for a row whose subscriber is held back: one, or none. */

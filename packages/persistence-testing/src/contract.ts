@@ -28,6 +28,7 @@ import type {
     SubscriberPaymentMethodRecord,
     SubscriberPaymentMethodReference,
     SubscriptionContractParties,
+    SubscriptionContractRecord,
     NewBundleVersionRetirement,
     NewSubscriptionInvoice,
     SubscriberChargeRecord,
@@ -64,11 +65,14 @@ import {
     BILLING_ERROR_CODES,
     CATALOG_ERROR_CODES,
     CONTRACT_ERROR_CODES,
+    CONTRACT_REGISTER_STATES,
     INVOICE_ERROR_CODES,
     PROMO_ERROR_CODES,
     SETTINGS_ERROR_CODES,
     TERMS_MEDIA_TYPE,
     collectionAttemptKey,
+    contractRegisterWindowOf,
+    contractStandingOn,
     counterEntryOf,
     draftCancellationInvoice,
     draftCorrectedReplacementInvoice,
@@ -179,6 +183,10 @@ const OFFER: CreateCheckoutOfferData = {
         effectiveGross: 58.31,
     },
 };
+
+/** The day and the zone the register invariant reads every scenario's contracts on. */
+const REGISTER_DAY = '2026-02-17';
+const REGISTER_ZONE = 'Europe/Berlin';
 
 /** The parties of a contract with the subscriber `subscriberId`, as copied at conclusion. */
 function partiesWith(subscriberId: string, legalName: string): SubscriptionContractParties {
@@ -760,6 +768,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         // settlements or credit entries checks the SQL sums without knowing.
         afterEach(async () => {
             await theOpenItemsAreWhatTheRuleFinds();
+        });
+        // Likewise the contract register: whatever contracts a scenario wrote,
+        // superseded, ended or scheduled, each state lists exactly those its
+        // days put there.
+        afterEach(async () => {
+            await theRegisterIsWhatTheStandingsSay();
         });
 
         test('the declared gaps are exactly the parts the harness does not provide', () => {
@@ -6044,6 +6058,154 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual((await contracts.findById(domestic.id))?.taxTreatment, standard);
             assert.equal(undecided.taxTreatment, null);
             assert.equal((await contracts.findById(undecided.id))?.taxTreatment, null);
+        });
+
+        /**
+         * Every page of the contract register under `state` on `day` in
+         * Berlin, read `limit` at a time.
+         */
+        async function wholeRegister(
+            state: (typeof CONTRACT_REGISTER_STATES)[number],
+            day: string,
+            limit = 100,
+        ): Promise<SubscriptionContractRecord[]> {
+            const contracts = harness.adapter.subscriptionContractRepository!;
+            const window = contractRegisterWindowOf(state, day, REGISTER_ZONE);
+            const listed: SubscriptionContractRecord[] = [];
+            for (let after: string | undefined, more = true; more;) {
+                const page = await contracts.listRegister(
+                    after ? { window, limit, after } : { window, limit },
+                );
+                listed.push(...page.contracts);
+                after = page.contracts.at(-1)?.id;
+                more = page.hasMore;
+            }
+            return listed;
+        }
+
+        async function theRegisterIsWhatTheStandingsSay() {
+            const contracts = harness.adapter.subscriptionContractRepository;
+            if (!contracts || !CONTRACT_GAPS.subscriptionContracts.present(harness)) return;
+            const every = await contracts.list({});
+            const ids = (rows: SubscriptionContractRecord[]) => rows.map(({ id }) => id).sort();
+            for (const state of CONTRACT_REGISTER_STATES) {
+                const listed = await wholeRegister(state, REGISTER_DAY, 7);
+                assert.deepEqual(
+                    ids(listed),
+                    ids(
+                        every.filter(
+                            (contract) =>
+                                state === 'all' ||
+                                contractStandingOn(contract, REGISTER_DAY, REGISTER_ZONE) === state,
+                        ),
+                    ),
+                    `the register's ${state} contracts are not the ones their days put there`,
+                );
+                listed.slice(1).forEach((contract, index) => {
+                    const before = listed[index]!;
+                    assert.ok(
+                        before.effectiveFrom > contract.effectiveFrom ||
+                            (before.effectiveFrom.getTime() === contract.effectiveFrom.getTime() &&
+                                before.createdAt >= contract.createdAt),
+                        `the register's ${state} contracts are not the latest start first`,
+                    );
+                });
+            }
+        }
+
+        // @requirement SC-ADM-045
+        // @requirement SC-ADM-046
+        test('the contract register holds each contract under the standing its days give it on the day asked, in the installation’s zone', async (t) => {
+            const contracts = harness.adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
+            if (!contracts || !createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Register GmbH' });
+            const parties = partiesWith(subscriberId, 'Register GmbH');
+            // 17 February 2026 in Berlin runs from 23:00 UTC on the 16th to 23:00 UTC on the 17th.
+            const written = (offerId: string, from: string, until: string | null) =>
+                contracts.create({
+                    ...contractFromOffer(offerId, parties),
+                    effectiveFrom: new Date(from),
+                    effectiveUntil: until === null ? null : new Date(until),
+                });
+            const endedAtItsStart = await written(
+                'register-ended',
+                '2026-01-01T00:00:00.000Z',
+                '2026-02-16T23:00:00.000Z',
+            );
+            const endingInIt = await written(
+                'register-ending',
+                '2026-01-01T00:00:00.000Z',
+                '2026-02-16T23:00:00.001Z',
+            );
+            const running = await written('register-running', '2025-06-01T00:00:00.000Z', null);
+            const startingLast = await written('register-last', '2026-02-17T22:59:59.999Z', null);
+            const startingNext = await written('register-next', '2026-02-17T23:00:00.000Z', null);
+            const never = await written(
+                'register-never',
+                '2026-03-01T00:00:00.000Z',
+                '2026-03-01T00:00:00.000Z',
+            );
+            const ids = (rows: SubscriptionContractRecord[]) => rows.map(({ id }) => id).sort();
+
+            assert.deepEqual(
+                ids(await wholeRegister('in-force', '2026-02-17')),
+                ids([endingInIt, running, startingLast]),
+            );
+            assert.deepEqual(ids(await wholeRegister('ended', '2026-02-17')), [endedAtItsStart.id]);
+            assert.deepEqual(ids(await wholeRegister('scheduled', '2026-02-17')), [
+                startingNext.id,
+            ]);
+            assert.deepEqual(ids(await wholeRegister('never-in-force', '2026-02-17')), [never.id]);
+            assert.deepEqual(
+                ids(await wholeRegister('all', '2026-02-17')),
+                ids([endedAtItsStart, endingInIt, running, startingLast, startingNext, never]),
+            );
+            // A day later the one starting next is in force, and the one ending in it has ended.
+            assert.deepEqual(
+                ids(await wholeRegister('in-force', '2026-02-18')),
+                ids([running, startingLast, startingNext]),
+            );
+            const [listed] = await wholeRegister('never-in-force', '2026-02-17');
+            assert.deepEqual(listed, await contracts.findById(never.id), 'each with its lines');
+        });
+
+        // @requirement SC-ADM-046
+        test('a page of the contract register holds at most its limit, the latest start first, and goes on after the contract it names; one it does not know starts from the first', async (t) => {
+            const contracts = harness.adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
+            if (!contracts || !createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Seiten GmbH' });
+            const parties = partiesWith(subscriberId, 'Seiten GmbH');
+            const startingOn = (offerId: string, from: string) =>
+                contracts.create({
+                    ...contractFromOffer(offerId, parties),
+                    effectiveFrom: new Date(from),
+                });
+            const january = await startingOn('pages-january', '2026-01-01T00:00:00.000Z');
+            const march = await startingOn('pages-march', '2026-03-01T00:00:00.000Z');
+            const february = await startingOn('pages-february', '2026-02-01T00:00:00.000Z');
+            const window = { kind: 'all' } as const;
+            const page = (limit: number, after?: string) =>
+                contracts.listRegister(after ? { window, limit, after } : { window, limit });
+            const of = (listed: { contracts: SubscriptionContractRecord[]; hasMore: boolean }) => [
+                listed.contracts.map(({ id }) => id),
+                listed.hasMore,
+            ];
+
+            assert.deepEqual(of(await page(2)), [[march.id, february.id], true]);
+            assert.deepEqual(of(await page(2, february.id)), [[january.id], false]);
+            assert.deepEqual(of(await page(3)), [[march.id, february.id, january.id], false]);
+            assert.deepEqual(of(await page(2, 'no-such-contract')), [
+                [march.id, february.id],
+                true,
+            ]);
         });
 
         test('the contracts still running say which issuer each names', async (t) => {

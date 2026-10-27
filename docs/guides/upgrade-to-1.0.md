@@ -2703,6 +2703,26 @@ contract holds them:
 An admin shell that lists its pages by hand adds the page. A persistence contract harness of your
 own is held, after every scenario, to open items that agree with the rule.
 
+### An operator reads the contract register
+
+The administration gains a standard page `contracts` (`/admin/contracts`): every contract of the
+installation, a former subscriber's and a deleted tenant's included, the latest start first,
+narrowed to where the contracts stand on a day (`SC-ADM-045`, `SC-ADM-046`). It is served and
+announced where a subscriber's contracts are, under `contracts.read`, at `GET admin/contracts`.
+Nothing is stored for it, so there is no migration.
+
+- **`SubscriptionContractRepository`**: `listRegister({ window, limit, after })`, the contracts a
+  `ContractRegisterWindow` holds, the latest start first. A repository of your own adds it; one that
+  extends a shipped repository inherits it, and so does `FakeSubscriptionContractRepository`.
+  `contractInsideWindow` says what a window holds, for a store that keeps its contracts in memory.
+- **A link into the record** opens a contract: `/admin/subscribers/:id?contract=<id>`.
+  `useContractDossier` gains `open(contractId)`.
+- **The subscriptions page** shows a subtitle of its own where you pass none: the current state per
+  tenant, and where the register is served a pointer to it. A `subtitle` you pass still wins.
+
+An admin shell that lists its pages by hand adds the page. A persistence contract harness of your
+own is held, after every scenario, to a register that agrees with the rule.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

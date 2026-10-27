@@ -162,6 +162,7 @@ export {
     type InvoiceDocumentRun,
 } from './invoices/invoice-document.service.js';
 export {
+    ContractRegisterQueryDto,
     InvoiceDocumentModule,
     type InvoiceDocumentModuleOptions,
 } from './invoices/invoice-document.module.js';
@@ -225,6 +226,11 @@ export {
     INVOICE_RENDERER_TOKEN,
 } from './invoices/invoice-document.tokens.js';
 export { ContractConfirmationService } from './confirmations/contract-confirmation.service.js';
+export {
+    ContractRegisterService,
+    type ContractRegisterQuery,
+    type ContractRegisterTenantLookup,
+} from './confirmations/contract-register.service.js';
 export {
     CONTRACT_CONFIRMATION_ARCHIVE_TOKEN,
     CONTRACT_CONFIRMATION_RENDERER_TOKEN,

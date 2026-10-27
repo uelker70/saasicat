@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type {
+    ContractRegisterRecordPage,
+    ContractRegisterWindow,
     NewContractLineItemData,
     NewSubscriptionContractData,
     RunningContractIssuers,
@@ -27,6 +29,7 @@ import {
     type PrismaModelDelegateLike,
 } from './prisma-client-token.js';
 import { isRecordNotFound } from './prisma-record-not-found.js';
+import { idsOf } from './raw-ids.js';
 
 /** The `where` of a contract list, each part only where the filter names it. */
 interface ContractListWhere {
@@ -71,6 +74,33 @@ interface SubscriptionContractRepositoryClient {
 /** Narrow view of the injected client used by this repository. */
 interface SubscriptionContractPrisma {
     subscriptionContract: PrismaModelDelegateLike<SubscriptionContractDbRow>;
+    $queryRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<unknown>;
+}
+
+/**
+ * A register window as the parameters of one statement: its kind, and the
+ * moments it compares with as ISO text, `null` where it compares with none.
+ */
+function windowParametersOf(window: ContractRegisterWindow): {
+    kind: ContractRegisterWindow['kind'];
+    from: string | null;
+    until: string | null;
+} {
+    switch (window.kind) {
+        case 'overlapping':
+            return {
+                kind: window.kind,
+                from: window.from.toISOString(),
+                until: window.until.toISOString(),
+            };
+        case 'ended-by':
+            return { kind: window.kind, from: window.by.toISOString(), until: null };
+        case 'starting-from':
+            return { kind: window.kind, from: window.from.toISOString(), until: null };
+        case 'all':
+        case 'never-in-force':
+            return { kind: window.kind, from: null, until: null };
+    }
 }
 
 /**
@@ -116,6 +146,67 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
             orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
         });
         return rows.map((row) => toSubscriptionContractRecord(row, row.lineItems));
+    }
+
+    async listRegister(page: {
+        window: ContractRegisterWindow;
+        limit: number;
+        after?: string;
+    }): Promise<ContractRegisterRecordPage> {
+        const db = this.db();
+        const { kind, from, until } = windowParametersOf(page.window);
+        // A contract never in force ends no later than it starts; every window
+        // but `all` and `never-in-force` leaves it out.
+        const rows = await db.$queryRaw`
+            WITH after_it AS (
+                SELECT "effectiveFrom", "createdAt", "id"
+                  FROM "subscription_contracts" WHERE "id" = ${page.after ?? null}
+            )
+            SELECT c."id"
+              FROM "subscription_contracts" c
+             WHERE (
+                       ${kind}::text = 'all'
+                    OR (${kind}::text = 'never-in-force'
+                        AND c."effectiveUntil" IS NOT NULL AND c."effectiveUntil" <= c."effectiveFrom")
+                    OR (NOT (c."effectiveUntil" IS NOT NULL AND c."effectiveUntil" <= c."effectiveFrom")
+                        AND (
+                               (${kind}::text = 'overlapping'
+                                AND c."effectiveFrom" < (${until}::timestamptz AT TIME ZONE 'UTC')
+                                AND (c."effectiveUntil" IS NULL
+                                     OR c."effectiveUntil" > (${from}::timestamptz AT TIME ZONE 'UTC')))
+                            OR (${kind}::text = 'ended-by'
+                                AND c."effectiveUntil" <= (${from}::timestamptz AT TIME ZONE 'UTC'))
+                            OR (${kind}::text = 'starting-from'
+                                AND c."effectiveFrom" >= (${from}::timestamptz AT TIME ZONE 'UTC'))
+                        ))
+                   )
+               AND NOT EXISTS (
+                       SELECT 1 FROM after_it a
+                        WHERE (c."effectiveFrom", c."createdAt", c."id")
+                           >= (a."effectiveFrom", a."createdAt", a."id")
+                   )
+             ORDER BY c."effectiveFrom" DESC, c."createdAt" DESC, c."id" DESC
+             LIMIT ${page.limit + 1}`;
+        const ids = idsOf(rows);
+        const listed = ids.slice(0, page.limit);
+        const byId = new Map(
+            (
+                await db.subscriptionContract.findMany({
+                    where: { id: { in: listed } },
+                    include: { lineItems: true },
+                })
+            ).map((row) => [row.id, row]),
+        );
+        return {
+            contracts: listed.map((id) => {
+                const row = byId.get(id);
+                // No port deletes a contract, so the one the query above listed
+                // is there; a contract is not left off the register unnoticed.
+                if (!row) throw new Error(`The contract ${id} cannot be read.`);
+                return toSubscriptionContractRecord(row, row.lineItems);
+            }),
+            hasMore: ids.length > page.limit,
+        };
     }
 
     async findById(contractId: string): Promise<SubscriptionContractRecord | null> {

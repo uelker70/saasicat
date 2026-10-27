@@ -476,6 +476,44 @@ paths:
                 '404':
                     description: No subscriber under this id (`SUBSCRIBER_NOT_FOUND`)
 
+    /contracts:
+        get:
+            tags: [subscriptions]
+            summary: One page of every contract of the installation, the latest start first
+            description: >-
+                Served and announced as `/subscribers/{id}/contracts` is, under `contracts.read`.
+                Every contract, a former subscriber's and a deleted tenant's included, narrowed to
+                where the contracts stand on a day in the installation's time zone: in force on it,
+                ended before it, starting after it, never in force, or all. Each names its
+                subscriber as the record names it now and its tenant as the application still knows
+                it or not (`SC-ADM-045`).
+            parameters:
+                - name: state
+                  in: query
+                  required: false
+                  description: The standing to list; `in-force` where none is named.
+                  schema:
+                      type: string
+                      enum: [in-force, ended, scheduled, never-in-force, all]
+                - name: day
+                  in: query
+                  required: false
+                  description: The day every standing is read on; today where none is named.
+                  schema: { type: string, format: date }
+                - name: after
+                  in: query
+                  required: false
+                  description: The contract the page before ended with, as `next` named it.
+                  schema: { type: string, maxLength: 200 }
+            responses:
+                '200':
+                    description: One page of the contract register
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminContractRegisterPage' }
+                '400':
+                    description: A standing it does not know, a day the calendar does not have, or an `after` longer than any id
+
     /subscribers/{id}/contracts:
         parameters:
             - $ref: '#/components/parameters/SubscriberId'
@@ -4393,6 +4431,87 @@ components:
             properties:
                 key: { type: string, description: Its key in the catalogue. }
                 title: { type: string, description: The title it bore. }
+
+        AdminRegisterContract:
+            type: object
+            description: One contract as the contract register lists it.
+            required:
+                [
+                    id,
+                    subscriber,
+                    tenant,
+                    plan,
+                    bundles,
+                    firstDay,
+                    lastDay,
+                    standing,
+                    billingCycle,
+                    currency,
+                    totalGross,
+                ]
+            properties:
+                id: { type: string }
+                subscriber:
+                    type: object
+                    description: The subscriber as its record names it now.
+                    required: [id, customerNumber, legalName]
+                    properties:
+                        id: { type: string }
+                        customerNumber: { type: string }
+                        legalName: { type: string }
+                tenant:
+                    type: object
+                    description: >-
+                        The tenant it was concluded for; `known` is false where the application no
+                        longer has it.
+                    required: [id, known, name, slug, deletedAt]
+                    properties:
+                        id: { type: string }
+                        known: { type: boolean }
+                        name: { type: string, nullable: true }
+                        slug: { type: string, nullable: true }
+                        deletedAt: { type: string, format: date-time, nullable: true }
+                plan:
+                    allOf: [{ $ref: '#/components/schemas/AdminContractSource' }]
+                    nullable: true
+                bundles:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminContractSource' }
+                firstDay: { type: string, format: date }
+                lastDay:
+                    type: string
+                    format: date
+                    nullable: true
+                    description: Null while it runs open-ended, and for one never in force.
+                standing:
+                    type: string
+                    enum: [in-force, ended, scheduled, never-in-force]
+                    description: Where it stands on the day the register was read on.
+                billingCycle: { type: string, enum: [monthly, yearly] }
+                currency: { type: string }
+                totalGross:
+                    { type: number, description: What it costs per billing period, tax included. }
+
+        AdminContractRegisterPage:
+            type: object
+            required: [today, state, day, contracts, next]
+            properties:
+                today: { type: string, format: date }
+                state:
+                    type: string
+                    enum: [in-force, ended, scheduled, never-in-force, all]
+                day:
+                    type: string
+                    format: date
+                    description: The day every standing is read on.
+                contracts:
+                    type: array
+                    description: The latest start first.
+                    items: { $ref: '#/components/schemas/AdminRegisterContract' }
+                next:
+                    type: string
+                    nullable: true
+                    description: The contract the next page continues after; null on the last page.
 
         AdminContractChange:
             type: object

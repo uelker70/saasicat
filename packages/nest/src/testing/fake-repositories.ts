@@ -7,6 +7,8 @@
 import type {
     BundleListFilter,
     BundleRepository,
+    ContractRegisterRecordPage,
+    ContractRegisterWindow,
     BundleRow,
     BundleVersionRow,
     CreateBundleData,
@@ -74,6 +76,7 @@ import {
     subscriptionBundleAlreadyCancelled,
     subscriptionBundleGone,
     subscriptionContractGone,
+    contractInsideWindow,
     formatCustomerNumber,
     identityCorrectionDelta,
     keepsVatIdCheck,
@@ -402,6 +405,26 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
         };
         this.byId.set(contractId, updated);
         return this.cloneRecord(updated);
+    }
+
+    async listRegister(page: {
+        window: ContractRegisterWindow;
+        limit: number;
+        after?: string;
+    }): Promise<ContractRegisterRecordPage> {
+        const latestFirst = (a: SubscriptionContractRecord, b: SubscriptionContractRecord) =>
+            b.effectiveFrom.getTime() - a.effectiveFrom.getTime() ||
+            b.createdAt.getTime() - a.createdAt.getTime() ||
+            (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
+        const ordered = [...this.byId.values()]
+            .filter((row) => contractInsideWindow(row, page.window))
+            .sort(latestFirst);
+        const cursor = page.after === undefined ? undefined : this.byId.get(page.after);
+        const rest = cursor ? ordered.filter((row) => latestFirst(row, cursor) > 0) : ordered;
+        return {
+            contracts: rest.slice(0, page.limit).map((row) => this.cloneRecord(row)),
+            hasMore: rest.length > page.limit,
+        };
     }
 
     async listRunningIssuers(

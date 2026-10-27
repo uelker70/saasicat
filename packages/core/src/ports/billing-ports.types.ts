@@ -40,6 +40,10 @@ import type {
     SubscriberWithCurrentCheck,
 } from '../subscriber.types.js';
 import type { VatIdCheck } from '../tax.types.js';
+import type {
+    ContractRegisterRecordPage,
+    ContractRegisterWindow,
+} from '../contract-register.types.js';
 import type { NewSubscriberCharge, SubscriberChargeRecord } from '../subscriber-ledger.types.js';
 import type {
     AbandonPaidOutcome,
@@ -456,6 +460,20 @@ export interface SubscriptionContractRepository {
      * The executable contract asks for `0`.
      */
     listRunningIssuers(limit: number, asOf?: Date): Promise<RunningContractIssuers>;
+
+    /**
+     * One page of every contract of the installation inside `window`, a former
+     * subscriber's and a deleted tenant's included (`SC-ADM-045`): the latest
+     * start first, then the latest written, then the larger id; the page after
+     * the contract `after` names where it is given, and from the first where no
+     * contract has that id. `limit` long, each with its lines. Platform-wide:
+     * the platform wraps the call in the RLS bypass.
+     */
+    listRegister(page: {
+        window: ContractRegisterWindow;
+        limit: number;
+        after?: string;
+    }): Promise<ContractRegisterRecordPage>;
 }
 
 /**

@@ -63,6 +63,8 @@ export interface MountedRecordOptions {
     subscribers?: ResourceStubs[string];
     /** Which record the route opens. */
     id?: string;
+    /** The query the route carries, such as the contract a link opens. */
+    query?: Record<string, string>;
     /** Where the notify port puts what it is told. */
     notices?: Array<[string, string]>;
     /** Mounted into the document, for a dialog teleported out of the wrapper. */
@@ -77,6 +79,7 @@ export async function mountRecord({
     standardPages = {},
     subscribers = {},
     id = 's-1',
+    query = {},
     notices = [],
     attach = false,
     standardPageRoute = standardPageRouteOf(undefined),
@@ -88,7 +91,7 @@ export async function mountRecord({
             { path: '/:rest(.*)', component: { template: '<div />' } },
         ],
     });
-    await router.push(`/admin/subscribers/${id}`);
+    await router.push({ path: `/admin/subscribers/${id}`, query });
     await router.isReady();
     const manifest = {
         capabilities: { 'subscribers.read': true, ...capabilities },

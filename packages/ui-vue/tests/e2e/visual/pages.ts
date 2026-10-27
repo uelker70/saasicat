@@ -339,6 +339,12 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         id: 'open-items',
         load: () => import('../../../src/pages/OpenItemsPage.vue'),
     }),
+    // The contract register with a contract of each standing, a tenant gone and
+    // one soft-deleted, and a further page, so its button renders.
+    visualCase({
+        id: 'contracts',
+        load: () => import('../../../src/pages/ContractsPage.vue'),
+    }),
     visualCase({
         id: 'promo-code-detail',
         load: () => import('../../../src/pages/PromoCodeDetailPage.vue'),

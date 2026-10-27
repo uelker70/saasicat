@@ -79,6 +79,7 @@ export interface AdminManifest {
             subscribers?: StandardPageDef;
             invoices?: StandardPageDef;
             openItems?: StandardPageDef;
+            contracts?: StandardPageDef;
             subscriptions?: StandardPageDef;
             promoCodes?: StandardPageDef;
             plans?: StandardPageDef;

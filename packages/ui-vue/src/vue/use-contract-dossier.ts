@@ -21,6 +21,13 @@ export interface ContractDossier extends AsyncData<AdminSubscriberContractDossie
     openId: ComputedRef<string | null>;
     /** Opens `contractId`, or closes it where it is the one open. */
     toggle(contractId: string): void;
+    /** Opens `contractId`, the one a link into the record names. */
+    open(contractId: string): void;
+}
+
+/** The element a contract's entry in the record's timeline is found by. */
+export function contractAnchorOf(contractId: string): string {
+    return `sa-contract-${contractId}`;
 }
 
 export function useContractDossier(
@@ -48,6 +55,9 @@ export function useContractDossier(
                 openId.value === contractId
                     ? null
                     : { subscriberId: subscriberId.value, contractId };
+        },
+        open(contractId) {
+            opened.value = { subscriberId: subscriberId.value, contractId };
         },
     };
 }

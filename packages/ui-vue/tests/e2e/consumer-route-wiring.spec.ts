@@ -203,13 +203,13 @@ test.describe('an assembled consumer app resolves every one of its routes', () =
             //
             // `/settings`, `/maintenance`, `/reconciliation`, the list of
             // subscribers, a subscriber's record, the register of invoices with
-            // its totals and the open items answer an object that `null` cannot
-            // stand for — each page's resource refuses it — so those routes are
-            // swept in their failure state on purpose: it proves the page
-            // mounts and shows its error banner, no more. The visual suite
-            // renders them with data.
+            // its totals, the open items and the contract register answer an
+            // object that `null` cannot stand for — each page's resource refuses
+            // it — so those routes are swept in their failure state on purpose:
+            // it proves the page mounts and shows its error banner, no more. The
+            // visual suite renders them with data.
             const OBJECT_VALUED =
-                /\/discovery(\/rescan)?$|\/manifest$|\/setup\/status$|\/settings$|\/maintenance$|\/reconciliation$|\/subscribers(\/[^/]+)?$|\/invoices$|\/invoice-totals$|\/open-items$|\/open-credits$|\/open-item-totals$/;
+                /\/discovery(\/rescan)?$|\/manifest$|\/setup\/status$|\/settings$|\/maintenance$|\/reconciliation$|\/subscribers(\/[^/]+)?$|\/invoices$|\/invoice-totals$|\/open-items$|\/open-credits$|\/open-item-totals$|\/admin\/contracts$/;
             await page.route('**/api/**', (route) =>
                 route.fulfill({
                     status: 200,

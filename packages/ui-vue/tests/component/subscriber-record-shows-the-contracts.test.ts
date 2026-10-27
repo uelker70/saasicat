@@ -26,6 +26,16 @@ import type { StandardPageRoute } from '../../src/vue/standard-page-routes.js';
 import { RECORD, mountRecord } from './support/subscriber-record.js';
 const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
 
+// jsdom lays nothing out and has no `scrollIntoView`; what matters is which
+// element the page asks to bring into view. Each test file has its own window.
+const scrolled: string[] = [];
+Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    configurable: true,
+    value(this: HTMLElement) {
+        scrolled.push(this.id);
+    },
+});
+
 const UNCHANGED: AdminContractChange = {
     concluded: false,
     plan: null,
@@ -275,26 +285,38 @@ async function mountPage({
         mediaType: 'application/pdf',
         fileName: 'contract-confirmation-c-2.pdf',
     }),
+    query = {},
+    recordAnswered = Promise.resolve(),
 }: {
     manifest?: { capabilities: Record<string, boolean> };
     standardPages?: Record<string, { enabled: boolean }>;
     standardPageRoute?: StandardPageRoute;
-    contracts?: { contracts: AdminSubscriberContract[] };
+    /** The contracts every record answers, or those of each subscriber. */
+    contracts?:
+        | { contracts: AdminSubscriberContract[] }
+        | ((id: string) => { contracts: AdminSubscriberContract[] });
     dossier?: (contractId: string) => Promise<unknown>;
     confirmation?: () => Promise<unknown>;
+    query?: Record<string, string>;
+    /** Settled when the record may answer; the record answers at once unless given. */
+    recordAnswered?: Promise<void>;
 } = {}) {
     const asked: string[] = [];
     const page = await mountRecord({
         capabilities: manifest.capabilities,
         standardPages,
         standardPageRoute,
+        query,
         attach: true,
         subscribers: {
-            record: async () => TENANTS_RECORD,
+            record: async () => {
+                await recordAnswered;
+                return TENANTS_RECORD;
+            },
             payments: async () => PAYMENTS,
             contracts: async (id: string) => {
                 asked.push(`contracts ${id}`);
-                return contracts;
+                return typeof contracts === 'function' ? contracts(id) : contracts;
             },
             contract: async (id: string, contractId: string) => {
                 asked.push(`contract ${id} ${contractId}`);
@@ -419,6 +441,63 @@ describe("the subscriber's record shows its contracts", () => {
         const [entry] = timelinesOf(wrapper)[0].entries;
         expect(entry).toContain('Never in force — superseded before it began');
         expect(entry).not.toContain('In force on');
+    });
+
+    // @requirement SC-ADM-046 — The contract register reads where each contract stands on a day of the installation
+    test('opens the contract its address names, and brings it into view', async () => {
+        scrolled.length = 0;
+        const { wrapper, asked } = await mountPage({ query: { contract: 'c-2' } });
+
+        expect(asked).toContain('contract s-1 c-2');
+        expect(
+            wrapper.find('#sa-contract-c-2 button[aria-expanded]').attributes('aria-expanded'),
+        ).toBe('true');
+        expect(dossierIn(wrapper).exists()).toBe(true);
+        expect(scrolled).toEqual(['sa-contract-c-2']);
+    });
+
+    // @requirement SC-ADM-046 — The contract register reads where each contract stands on a day of the installation
+    test('brings the contract its address names into view when the record answers after the contracts', async () => {
+        scrolled.length = 0;
+        let answer = () => {};
+        const recordAnswered = new Promise<void>((resolve) => {
+            answer = resolve;
+        });
+        const { wrapper } = await mountPage({ query: { contract: 'c-2' }, recordAnswered });
+        expect(scrolled, 'nothing to scroll to before the record is there').toEqual([]);
+
+        answer();
+        await settle();
+
+        expect(wrapper.find('#sa-contract-c-2').exists()).toBe(true);
+        expect(scrolled).toEqual(['sa-contract-c-2']);
+    });
+
+    // @requirement SC-ADM-046 — The contract register reads where each contract stands on a day of the installation
+    test('brings the contract its address names into view once, however often the record and its contracts are read again', async () => {
+        scrolled.length = 0;
+        const { router } = await mountPage({ query: { contract: 'c-2' } });
+        expect(scrolled).toEqual(['sa-contract-c-2']);
+
+        await router.push({ path: '/admin/subscribers/s-2', query: { contract: 'c-2' } });
+        await settle();
+
+        expect(scrolled).toEqual(['sa-contract-c-2']);
+    });
+
+    // @requirement SC-ADM-046 — The contract register reads where each contract stands on a day of the installation
+    test('brings the contract into view where it shows only on a later read', async () => {
+        scrolled.length = 0;
+        const { router } = await mountPage({
+            query: { contract: 'c-2' },
+            contracts: (id) => (id === 's-1' ? { contracts: [] } : CONTRACTS),
+        });
+        expect(scrolled, 'no such contract on the first record').toEqual([]);
+
+        await router.push({ path: '/admin/subscribers/s-2', query: { contract: 'c-2' } });
+        await settle();
+
+        expect(scrolled).toEqual(['sa-contract-c-2']);
     });
 
     test('opens a contract into what it froze: its lines with where each came from, its invoices and its ids', async () => {

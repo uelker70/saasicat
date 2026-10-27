@@ -187,6 +187,7 @@ screens in `src/auth/` and the primitives in `src/ui/`.
 | `SubscribersPage` / `SubscriberRecordPage` | Subscribers, and everything about one in its record        |
 | `InvoicesPage`                             | Every invoice of a span of months, with its sums           |
 | `OpenItemsPage`                            | What subscribers still owe and are still owed              |
+| `ContractsPage`                            | Every contract, by where it stands on a day                |
 | `PlansPage`                                | Plan lifecycle, editor, version timeline and diff          |
 | `BundlesPage`                              | Bundle/BundleVersion CRUD                                  |
 | `DiscoveryPage`                            | Capability/feature/quota review with lifecycle transitions |
