@@ -382,8 +382,14 @@ export function invoiceExportManifestOf(
     };
 }
 
-/** The archive's file name: the period and the moment it is as of, with nothing a file system refuses. */
-export function invoiceExportFileNameOf(exported: InvoiceExport): string {
+/**
+ * The archive's file name: the period, the moment it is as of and the language,
+ * which together decide its bytes, with nothing a file system refuses.
+ */
+export function invoiceExportFileNameOf(
+    exported: InvoiceExport,
+    locale: InvoiceExportLocale,
+): string {
     const moment = exported.asOfLocal.replaceAll(':', '-');
-    return `invoices-${exported.period.from}-${exported.period.until}-as-of-${moment}.zip`;
+    return `invoices-${exported.period.from}-${exported.period.until}-as-of-${moment}-${locale}.zip`;
 }

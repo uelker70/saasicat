@@ -60,7 +60,7 @@ export interface InvoiceExportRequest extends InvoiceRegisterQuery {
 
 /** The archive an export is handed over as. */
 export interface InvoiceExportArchive {
-    /** The period and the moment it is as of, as a file name. */
+    /** The period, the moment it is as of and the language, as a file name. */
     fileName: string;
     content: Buffer;
     /** Of `content`: what two hand-overs are compared by. */
@@ -113,7 +113,7 @@ function archiveOf(exported: InvoiceExport, locale: InvoiceExportLocale): Invoic
         zipTimeOf(exported.asOfLocal),
     );
     return {
-        fileName: invoiceExportFileNameOf(exported),
+        fileName: invoiceExportFileNameOf(exported, locale),
         content,
         sha256: sha256Of(content),
         manifest,

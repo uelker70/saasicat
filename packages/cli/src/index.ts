@@ -16,6 +16,7 @@
 //   - maintenance-cli-flow: MaintenanceCliFlow for `<app> maintenance …`
 //   - contract-refresh-cli-flow: ContractRefreshCliFlow for `<app> contracts refresh`
 //   - invoice-cancel-cli-flow: InvoiceCancelCliFlow for `<app> invoices cancel`
+//   - invoice-export-cli-flow: InvoiceExportCliFlow for `<app> invoices export`
 //   - manifest-cli-flow:   ManifestCliFlow + ManifestCheck interface
 //   - manifest-checks:     DEFAULT_MANIFEST_CHECKS (10 platform defaults)
 //   - migration-constraints: where the non-DSL constraints go in a migration
@@ -66,6 +67,7 @@ export * from './maintenance.command.js';
 export * from './contract-refresh-cli-flow.js';
 export * from './contracts.command.js';
 export * from './invoice-cancel-cli-flow.js';
+export * from './invoice-export-cli-flow.js';
 export * from './invoices.command.js';
 export * from './discovery.command.js';
 export * from './user.command.js';

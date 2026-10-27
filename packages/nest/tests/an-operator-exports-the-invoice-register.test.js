@@ -228,7 +228,7 @@ describe('the archive an export is handed over as', () => {
         await exporter.moduleRef.close();
     });
 
-    test('is downloaded as a ZIP under the months and the moment', async () => {
+    test('is downloaded as a ZIP under the months, the moment and the language', async () => {
         const { installation, payments } = await aFebruary();
         const exporter = await anExporter(installation, { payments });
 
@@ -237,7 +237,7 @@ describe('the archive an export is handed over as', () => {
         assert.deepEqual(headers, {
             type: 'application/zip',
             disposition:
-                'attachment; filename="invoices-2026-02-2026-02-as-of-2026-02-20T12-34-59.zip"',
+                'attachment; filename="invoices-2026-02-2026-02-as-of-2026-02-20T12-34-59-en.zip"',
             length: bytes.byteLength,
         });
         await exporter.moduleRef.close();
@@ -361,7 +361,7 @@ describe('the audit log', () => {
                     asOfLocal: FEBRUARY.asOf,
                     timeZone: ZONE,
                     locale: 'de',
-                    fileName: 'invoices-2026-02-2026-02-as-of-2026-02-20T12-34-59.zip',
+                    fileName: 'invoices-2026-02-2026-02-as-of-2026-02-20T12-34-59-de.zip',
                     bytes: bytes.byteLength,
                     sha256: sha256Of(bytes),
                     invoices: 3,

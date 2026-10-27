@@ -620,10 +620,13 @@ describe('the files an export is written to', () => {
         });
     });
 
-    test('are archived under the period and the moment, with nothing a file system refuses', () => {
-        assert.equal(
-            invoiceExportFileNameOf(exported),
-            'invoices-2026-07-2026-09-as-of-2026-10-27T13-00-00.zip',
+    test('are archived under the period, the moment and the language, with nothing a file system refuses', () => {
+        assert.deepEqual(
+            ['de', 'en'].map((locale) => invoiceExportFileNameOf(exported, locale)),
+            [
+                'invoices-2026-07-2026-09-as-of-2026-10-27T13-00-00-de.zip',
+                'invoices-2026-07-2026-09-as-of-2026-10-27T13-00-00-en.zip',
+            ],
         );
     });
 });
