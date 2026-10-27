@@ -1278,7 +1278,44 @@ issued: the figures a tax advisor asks for, without opening one record after ano
 Both are served and announced as the invoices' documents are, under `invoices.read`, and read past
 the tenants' row-level policy like every operator route. They read the invoice repository's
 `listIssued` and `listIssuedAmounts`, which the shipped adapters implement and the persistence
-contract holds. The export a tax advisor imports follows (`SC-ADM-043`).
+contract holds.
+
+### The export for a tax advisor
+
+The same months are handed to a tax advisor as one ZIP, as of a moment (`SC-ADM-043`,
+`SC-ADM-047`): the invoices issued by then, their lines with tax treatment and rate, and the
+settlements recorded against each by then, after the months ended too, each with the moment it was
+recorded. A later moment shows what was recorded since beside it — a payment confirmed or an invoice
+cancelled after the months ended —, and the same moment shows the same rows every time.
+
+- **From the invoices page**, the "Export" button asks for the moment, a day and time on the
+  installation's clock, and the language of the tables, and downloads the archive.
+- **Over HTTP**, `GET admin/invoice-export?from=YYYY-MM&until=YYYY-MM&asOf=…&locale=de|en`.
+- **From the command line**, `<app> invoices export --from 2026-01 --until 2026-12 --as-of
+2027-01-15T10:00 --locale de --out ./handover` (see
+  [Extend your CLI](extend-your-cli.md)).
+
+The moment is at most five minutes before the request, and that where none is given: a store stamps
+what it records when its transaction began, so a moment any later could still gain a row from a
+transaction under way, and the export would not repeat. A later one is refused with `422` and
+`SUBSCRIPTION_INVOICE_EXPORT_AS_OF_TOO_LATE`, naming the latest one it may be; the months are
+refused as the register refuses them.
+
+The archive holds `invoices.csv`, `lines.csv` and `settlements.csv`, `export.json` with the same
+rows, and last `manifest.json`, which names the months, the moment, the time zone, the language and
+the size and SHA-256 of every file before it. `export.json` and the manifest follow
+`invoice-export.schema.json` in `@saasicat/spec`. The CSV is UTF-8 with a byte order mark and CRLF
+line endings; `de` separates by `;` with a decimal comma, `en` by `,` with a decimal point, and a
+text cell a spreadsheet would read as a formula is prefixed with `'`. The files are stored, not
+compressed, and dated the moment the export is as of, so the same months as of the same moment in
+the same language are the same bytes: two hand-overs are compared by the archive's SHA-256. The
+audit log records each export under the operator with the months, the moment and that SHA-256
+(`SUBSCRIPTION_INVOICES_EXPORTED`). It is a read, so it asks for no second factor.
+
+It is served and announced as the register is, and reads past the tenants' row-level policy. It
+reads the invoice repository's `listIssued`, `listCancellations` and `findDocuments` and the payment
+repository's `listSettlements`, which the shipped adapters implement and the persistence contract
+holds.
 
 ### The open items
 
