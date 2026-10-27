@@ -99,6 +99,20 @@ const settlementOf = (id, invoiceId, kind, amount, recordedAt, extra = {}) => ({
     ...extra,
 });
 
+/** The document of `invoiceId`, archived at `archivedAt` or awaiting its archive. */
+const documentOf = (invoiceId, archivedAt) => ({
+    invoiceId,
+    checksum: `sha-${invoiceId}`,
+    mediaType: 'application/pdf',
+    fileName: `${invoiceId}.pdf`,
+    size: 1,
+    renderedAt: at('2026-07-01T05:00:00.000Z'),
+    archivedAt: archivedAt && at(archivedAt),
+    deliveryClaimedAt: null,
+    deliveredAt: null,
+    deliveredTo: null,
+});
+
 const exportOf = (source, asOf = '2026-10-27T12:00:00.000Z') =>
     invoiceExportOf({ span: SPAN, asOf: at(asOf), timeZone: BERLIN, source });
 
@@ -401,19 +415,6 @@ describe('an export as of a moment', () => {
     });
 
     test('names a document’s checksum where the archive confirmed it by then, and none where later or never', () => {
-        const document = (invoiceId, archivedAt) => ({
-            invoiceId,
-            checksum: `sha-${invoiceId}`,
-            mediaType: 'application/pdf',
-            fileName: `${invoiceId}.pdf`,
-            size: 1,
-            renderedAt: at('2026-07-01T05:00:00.000Z'),
-            archivedAt: archivedAt && at(archivedAt),
-            deliveryClaimedAt: null,
-            deliveredAt: null,
-            deliveredTo: null,
-        });
-
         const exported = exportOf({
             invoices: [
                 { invoice: july, cancelledBy: null },
@@ -422,8 +423,8 @@ describe('an export as of a moment', () => {
             cancellations: [],
             settlements: [],
             documents: [
-                document('i-1', '2026-07-01T05:01:00.000Z'),
-                document('i-2', '2026-10-27T12:00:00.001Z'),
+                documentOf('i-1', '2026-07-01T05:01:00.000Z'),
+                documentOf('i-2', '2026-10-27T12:00:00.001Z'),
             ],
         });
 
@@ -478,6 +479,52 @@ describe('an export as of a moment', () => {
             ],
         );
         assert.deepEqual(exported.settlements, []);
+    });
+
+    test('holds what was recorded at the moment itself, and nothing a millisecond after it', () => {
+        const moment = '2026-09-30T04:59:59.000Z';
+        const exported = exportOf(
+            {
+                invoices: [
+                    { invoice: invoiceOf('i-7', 'AHP-2026-000007', moment), cancelledBy: null },
+                    {
+                        invoice: invoiceOf('i-8', 'AHP-2026-000008', '2026-09-30T04:59:59.001Z'),
+                        cancelledBy: null,
+                    },
+                ],
+                cancellations: [],
+                settlements: [],
+                documents: [documentOf('i-7', moment)],
+            },
+            moment,
+        );
+
+        assert.deepEqual(
+            exported.invoices.map(({ number, documentChecksum }) => [number, documentChecksum]),
+            [['AHP-2026-000007', 'sha-i-7']],
+        );
+    });
+
+    test('lists the settlements by invoice, then by when each was recorded, then by id', () => {
+        const exported = exportOf({
+            invoices: [
+                { invoice: july, cancelledBy: null },
+                { invoice: august, cancelledBy: null },
+            ],
+            cancellations: [],
+            settlements: [
+                settlementOf('st-1', 'i-2', 'PAYMENT', 50, '2026-08-02T08:00:00.000Z'),
+                settlementOf('st-2', 'i-1', 'PAYMENT', 50, '2026-09-03T08:00:00.000Z'),
+                settlementOf('st-3', 'i-1', 'PAYMENT', 50, '2026-07-02T08:00:00.000Z'),
+            ],
+            documents: [],
+        });
+
+        // By when alone it would be 3, 1, 2; by invoice and id alone 2, 3, 1.
+        assert.deepEqual(
+            exported.settlements.map(({ settlementId }) => settlementId),
+            ['st-3', 'st-2', 'st-1'],
+        );
     });
 
     test('is the same however the store happened to hand the settlements', () => {

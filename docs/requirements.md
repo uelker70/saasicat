@@ -17113,7 +17113,12 @@ _Tested by:_
           or never
         - lists each invoice’s lines by position with the invoice’s treatment, and a settlement for
           no listed invoice not at all
+        - holds what was recorded at the moment itself, and nothing a millisecond after it
+        - lists the settlements by invoice, then by when each was recorded, then by id
         - is the same however the store happened to hand the settlements
+    - the settlements a store reads for an export
+        - carry the payment each settles from and the reversal it records
+        - stop the read where the store did not bring a settlement’s payment or reversal
     - the files an export is written to
         - are the three tables and export.json, in that order
         - in ${locale}: separated by ${delimiter}, amounts as ${amount}, a byte order mark first and
