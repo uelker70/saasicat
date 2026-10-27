@@ -7,15 +7,23 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
+    CALENDAR_DAY_PATTERN,
+    CALENDAR_MONTH_PATTERN,
     INVOICE_ERROR_CODES,
+    INVOICE_EXPORT_FORMAT_VERSION,
+    INVOICE_EXPORT_LOCALES,
     INVOICE_EXPORT_SETTLE_MS,
+    INVOICE_SETTLEMENT_KINDS,
+    TAX_TREATMENT_KINDS,
     invoiceExportAsOfOf,
     invoiceExportFileNameOf,
     invoiceExportFilesOf,
     invoiceExportManifestOf,
     invoiceExportOf,
+    isLocalMoment,
 } from '../dist/index.js';
 
 const BERLIN = 'Europe/Berlin';
@@ -127,6 +135,72 @@ describe('the moment an export is as of', () => {
     test('that is no day and time is refused rather than guessed', () => {
         assert.throws(() => invoiceExportAsOfOf('2026-10-27', now, BERLIN), RangeError);
         assert.throws(() => invoiceExportAsOfOf('2026-02-30T10:00', now, BERLIN), RangeError);
+    });
+
+    test('that a clock shows twice is the first of the two, and one it skips the moment it jumps to', () => {
+        const later = at('2027-01-01T00:00:00.000Z');
+        assert.equal(
+            invoiceExportAsOfOf('2026-10-25T02:30:00', later, BERLIN).asOf.toISOString(),
+            '2026-10-25T00:30:00.000Z',
+        );
+        assert.equal(
+            invoiceExportAsOfOf('2026-03-29T02:30:00', later, BERLIN).asOf.toISOString(),
+            '2026-03-29T01:00:00.000Z',
+        );
+    });
+
+    for (const [text, is] of [
+        ['2026-10-27T00:00', true],
+        ['2026-10-27T23:59:59', true],
+        ['2026-10-27T24:00', false],
+        ['2026-10-27T23:60', false],
+        ['2026-10-27T23:59:60', false],
+        ['2024-02-29T10:00', true],
+        ['2026-02-29T10:00', false],
+        ['1000-01-01T00:00', true],
+        ['0999-12-31T23:59', false],
+        ['2026-10-27T10', false],
+        ['2026-10-27 10:00', false],
+    ]) {
+        test(`${text} is ${is ? '' : 'not '}a day and a time`, () => {
+            assert.equal(isLocalMoment(text), is);
+        });
+    }
+});
+
+// The types are generated from the schema, so a kind the schema lacks fails the
+// build; one it has beyond what core writes would pass it and let a reader's
+// validation accept a value no export holds.
+describe('the schema an export is published under', () => {
+    const schema = JSON.parse(
+        readFileSync(
+            new URL('../../spec/schemas/invoice-export.schema.json', import.meta.url),
+            'utf8',
+        ),
+    );
+    const manifest = schema.$defs.InvoiceExportManifest;
+
+    test('names the tax treatments, settlement kinds and languages core writes, no more', () => {
+        assert.deepEqual(schema.$defs.InvoiceExportTaxTreatment.enum, [...TAX_TREATMENT_KINDS]);
+        assert.deepEqual(schema.$defs.InvoiceExportSettlementKind.enum, [
+            ...INVOICE_SETTLEMENT_KINDS,
+        ]);
+        assert.deepEqual(manifest.properties.locale.enum, [...INVOICE_EXPORT_LOCALES]);
+    });
+
+    test('names the format version core writes, in the export and in its manifest', () => {
+        assert.equal(schema.properties.formatVersion.const, INVOICE_EXPORT_FORMAT_VERSION);
+        assert.equal(manifest.properties.formatVersion.const, INVOICE_EXPORT_FORMAT_VERSION);
+    });
+
+    test('takes a day and a month in the shapes core reads them', () => {
+        assert.equal(schema.$defs.InvoiceExportDay.pattern, CALENDAR_DAY_PATTERN.source);
+        for (const bound of ['from', 'until']) {
+            assert.equal(
+                schema.$defs.InvoiceExportPeriod.properties[bound].pattern,
+                CALENDAR_MONTH_PATTERN.source,
+            );
+        }
     });
 });
 

@@ -69,8 +69,24 @@ export function lastDayInZone(period: { from: Date; until: Date }, timeZone: str
  */
 export type LocalMoment = string;
 
-/** The shape of a local moment from the year 1000 on; the seconds may be left out. */
-export const LOCAL_MOMENT_PATTERN = /^[1-9]\d{3}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/;
+/**
+ * The shape of a local moment from the year 1000 on, from 00:00 to 23:59:59; the
+ * seconds may be left out. Whether the calendar has its day is `isLocalMoment`'s
+ * second question.
+ */
+export const LOCAL_MOMENT_PATTERN =
+    /^[1-9]\d{3}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+
+/** `local` with its seconds, where it left them out. */
+const withSeconds = (local: LocalMoment): string => (local.length === 16 ? `${local}:00` : local);
+
+/** Whether `text` is a local moment whose day the calendar has: 30 February is none. */
+export function isLocalMoment(text: string): boolean {
+    if (!LOCAL_MOMENT_PATTERN.test(text)) return false;
+    const stamp = withSeconds(text);
+    const naive = Date.parse(`${stamp}Z`);
+    return Number.isFinite(naive) && new Date(naive).toISOString().slice(0, 19) === stamp;
+}
 
 /** What a clock in `timeZone` shows at `at`, to the second. */
 export function localMomentInZone(at: Date, timeZone: string): LocalMoment {
@@ -98,15 +114,9 @@ export function localMomentInZone(at: Date, timeZone: string): LocalMoment {
  * time shows it twice, and the moment the clock jumps to where it skips it.
  */
 export function firstMomentInZone(local: LocalMoment, timeZone: string): Date {
-    const stamp = local.length === 16 ? `${local}:00` : local;
+    if (!isLocalMoment(local)) throw new RangeError(`${local} is not a day and a time.`);
+    const stamp = withSeconds(local);
     const naive = Date.parse(`${stamp}Z`);
-    if (
-        !LOCAL_MOMENT_PATTERN.test(local) ||
-        !Number.isFinite(naive) ||
-        new Date(naive).toISOString().slice(0, 19) !== stamp
-    ) {
-        throw new RangeError(`${local} is not a day and a time.`);
-    }
     // The moments before `low` show an earlier time in any zone and those from
     // `high` this one or a later; the first that shows it is found between.
     let low = naive - EARLIEST_START_MS;

@@ -5,6 +5,7 @@ export declare const planCatalogSchema: Record<string, unknown>;
 export declare const promoCodeSchema: Record<string, unknown>;
 export declare const auditEventSchema: Record<string, unknown>;
 export declare const subscriberLedgerSchema: Record<string, unknown>;
+export declare const invoiceExportSchema: Record<string, unknown>;
 
 export declare const SCHEMAS: {
     readonly adminManifest: Record<string, unknown>;
@@ -12,4 +13,5 @@ export declare const SCHEMAS: {
     readonly promoCode: Record<string, unknown>;
     readonly auditEvent: Record<string, unknown>;
     readonly subscriberLedger: Record<string, unknown>;
+    readonly invoiceExport: Record<string, unknown>;
 };
