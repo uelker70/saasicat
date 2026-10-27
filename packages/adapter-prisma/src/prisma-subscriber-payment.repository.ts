@@ -67,7 +67,7 @@ import {
     type PaymentPrisma,
 } from './prisma-subscriber-payment-rows.js';
 import { recordReversalIn } from './prisma-subscriber-reversal.js';
-import { idsOf, textsOf } from './raw-ids.js';
+import { columnOf, idsOf, textsOf } from './raw-ids.js';
 
 /** The root client's interactive transaction. */
 interface PaymentRepositoryClient {
@@ -80,9 +80,22 @@ const GIVING_BACK = [...GIVING_BACK_CREDIT_ENTRY_KINDS];
 /** The settlement kinds that add back to what an invoice owes, as a parameter of the sums below. */
 const REOPENING = [...REOPENING_SETTLEMENT_KINDS];
 
-/** An amount a raw query selected as text, checked as a column read is. */
-function amountsOf(rows: unknown, column: string, table: string): number[] {
-    return textsOf(rows, column).map((text) => columnAmountOf(text, { table, column, id: column }));
+/**
+ * The amounts a raw query selected as text, row by row, each checked as a
+ * column read is: one that is missing or not an amount fails the read naming
+ * its row, as `key` names it, rather than leave the amounts after it on the
+ * wrong rows.
+ */
+function amountsOf(rows: unknown, column: string, table: string, key: string): number[] {
+    if (!Array.isArray(rows)) return [];
+    return rows.map((row: unknown) => {
+        const id = columnOf(row, key);
+        return columnAmountOf(columnOf(row, column), {
+            table,
+            column,
+            id: typeof id === 'string' ? id : `a row without ${key}`,
+        });
+    });
 }
 
 /**
@@ -600,7 +613,7 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
              ORDER BY o."dueDate", o."numberYear", o."numberSequence"
              LIMIT ${page.limit + 1}`;
         const ids = idsOf(rows);
-        const owed = amountsOf(rows, 'owed', 'subscription_invoices');
+        const owed = amountsOf(rows, 'owed', 'subscription_invoices', 'id');
         return {
             invoices: ids
                 .slice(0, page.limit)
@@ -633,7 +646,7 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
              ORDER BY o."createdAt", o."id"
              LIMIT ${page.limit + 1}`;
         const ids = idsOf(rows).slice(0, page.limit);
-        const open = amountsOf(rows, 'open', 'subscriber_credits');
+        const open = amountsOf(rows, 'open', 'subscriber_credits', 'id');
         const credits = new Map(
             (await db.subscriberCredit.findMany({ where: { id: { in: ids } } })).map((row) => [
                 row.id,
@@ -688,9 +701,9 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
             SELECT "currency", SUM("open")::text AS "open"
               FROM open_credits WHERE "open" > 0
              GROUP BY "currency" ORDER BY "currency"`;
-        const owed = amountsOf(invoiceRows, 'owed', 'subscription_invoices');
-        const overdue = amountsOf(invoiceRows, 'overdue', 'subscription_invoices');
-        const open = amountsOf(creditRows, 'open', 'subscriber_credits');
+        const owed = amountsOf(invoiceRows, 'owed', 'subscription_invoices', 'currency');
+        const overdue = amountsOf(invoiceRows, 'overdue', 'subscription_invoices', 'currency');
+        const open = amountsOf(creditRows, 'open', 'subscriber_credits', 'currency');
         return {
             invoices: textsOf(invoiceRows, 'currency').map((currency, index) => ({
                 currency,
