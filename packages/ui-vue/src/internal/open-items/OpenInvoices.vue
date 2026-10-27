@@ -58,14 +58,14 @@ import AdminEmptyState from '../../ui/feedback/AdminEmptyState.vue';
 import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import AdminFilters from '../../ui/page/AdminFilters.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
-import type { OpenItemList } from '../../vue/use-open-items.js';
+import type { PagedList } from '../../vue/use-paged-list.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // The invoices that still owe something, the oldest due date first: what each
 // owes, how many days it is overdue, how it is paid and how its latest
 // collection attempt ended — the list a dunning run starts from.
 const props = defineProps<{
-    list: OpenItemList<AdminOpenInvoice>;
+    list: PagedList<AdminOpenInvoice>;
     overdueOnly: boolean;
     /** Where a subscriber's record answers. */
     recordRoute: (subscriberId: string) => RouteLocationRaw;

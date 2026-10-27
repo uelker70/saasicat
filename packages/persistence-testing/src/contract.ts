@@ -6114,6 +6114,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         }
 
         // @requirement SC-ADM-045
+        // @requirement SC-ADM-046
         test('the contract register holds each contract under the standing its days give it on the day asked, in the installation’s zone', async (t) => {
             const contracts = harness.adapter.subscriptionContractRepository;
             const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
@@ -6172,7 +6173,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(listed, await contracts.findById(never.id), 'each with its lines');
         });
 
-        // @requirement SC-ADM-045
+        // @requirement SC-ADM-046
         test('a page of the contract register holds at most its limit, the latest start first, and goes on after the contract it names; one it does not know starts from the first', async (t) => {
             const contracts = harness.adapter.subscriptionContractRepository;
             const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);

@@ -33,6 +33,7 @@
                 <h3 class="sa-subscriber-contracts__tenant-name">{{ timeline.name }}</h3>
                 <AdminAccordion
                     v-for="entry in timeline.entries"
+                    :id="contractAnchorOf(entry.contract.id)"
                     :key="entry.contract.id"
                     :open="dossier.openId.value === entry.contract.id"
                     @update:open="dossier.toggle(entry.contract.id)"
@@ -91,7 +92,7 @@ import AdminStatusPill from '../../ui/data/AdminStatusPill.vue';
 import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import AdminAccordion from '../../ui/page/AdminAccordion.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
-import type { ContractDossier } from '../../vue/use-contract-dossier.js';
+import { contractAnchorOf, type ContractDossier } from '../../vue/use-contract-dossier.js';
 import type { CopyText } from '../../vue/use-copy-text.js';
 import type { FileDownload } from '../../vue/use-file-download.js';
 import { CONFIRMATION_STATE_TONE } from '../../vue/use-subscriber-contracts.js';

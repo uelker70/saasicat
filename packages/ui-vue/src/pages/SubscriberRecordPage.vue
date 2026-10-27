@@ -104,7 +104,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, watch } from 'vue';
 import type { StandardPageKey } from '@saasicat/core';
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router';
 
@@ -125,7 +125,7 @@ import AdminBody from '../ui/page/AdminBody.vue';
 import AdminHero from '../ui/page/AdminHero.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
 import { type ResourceOverride, useResource } from '../vue/resource-registry.js';
-import { useContractDossier } from '../vue/use-contract-dossier.js';
+import { contractAnchorOf, useContractDossier } from '../vue/use-contract-dossier.js';
 import { useCopyText } from '../vue/use-copy-text.js';
 import { useStandardPageRoute } from '../vue/standard-page-routes.js';
 import { useInvoiceCancellation } from '../vue/use-invoice-cancellation.js';
@@ -183,6 +183,29 @@ const credits = useSubscriberCredits(subscriberId, servedBy, subscribers, { noti
 const payments = useSubscriberPayments(subscriberId, servedBy, subscribers);
 const contracts = useSubscriberContracts(subscriberId, servedBy, subscribers);
 const dossier = useContractDossier(subscriberId, subscribers);
+// A contract the address names is opened, and brought into view once the
+// timeline shows it.
+const linkedContract = computed(() =>
+    typeof route.query.contract === 'string' && route.query.contract !== ''
+        ? route.query.contract
+        : null,
+);
+watch(
+    linkedContract,
+    (contractId) => {
+        if (contractId) dossier.open(contractId);
+    },
+    { immediate: true },
+);
+watch(
+    () => contracts.data.value,
+    async (loaded) => {
+        const contractId = linkedContract.value;
+        if (!loaded || !contractId) return;
+        await nextTick();
+        document.getElementById(contractAnchorOf(contractId))?.scrollIntoView?.({ block: 'start' });
+    },
+);
 const copy = useCopyText({ notify });
 const downloads = useSubscriberDownloads(servedBy, subscribers, { notify });
 // What was paid for a cancelled invoice moves, so the credits are read again

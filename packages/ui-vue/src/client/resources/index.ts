@@ -46,6 +46,7 @@ export * from './tenants.resource.js';
 export * from './subscribers.resource.js';
 export * from './invoices.resource.js';
 export * from './open-items.resource.js';
+export * from './contracts.resource.js';
 export * from './users.resource.js';
 export * from './subscriptions.resource.js';
 export * from './audit.resource.js';
@@ -78,6 +79,7 @@ import { tenantsResource } from './tenants.resource.js';
 import { subscribersResource } from './subscribers.resource.js';
 import { invoicesResource } from './invoices.resource.js';
 import { openItemsResource } from './open-items.resource.js';
+import { contractsResource } from './contracts.resource.js';
 import { usersResource } from './users.resource.js';
 import { versionRetirementsResource } from './version-retirements.resource.js';
 import { bundleVersionRetirementsResource } from './bundle-version-retirements.resource.js';
@@ -104,6 +106,7 @@ export const platformResources = {
     subscribers: subscribersResource,
     invoices: invoicesResource,
     openItems: openItemsResource,
+    contracts: contractsResource,
     users: usersResource,
     subscriptions: subscriptionsResource,
     audit: auditResource,

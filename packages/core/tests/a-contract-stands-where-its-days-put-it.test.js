@@ -2,7 +2,7 @@
 // day in a zone, the moments the register asks a store for under each state,
 // and one contract as the register lists it.
 
-// @requirement SC-ADM-045
+// @requirement SC-ADM-046 — The contract register reads where each contract stands on a day of the installation
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

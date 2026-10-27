@@ -501,6 +501,7 @@ _Tested by:_
           confirmation stands
         - marks the contracts in force on a day picked, and says so when none was
         - a contract superseded before it began says it was never in force, and is marked on no day
+        - opens the contract its address names, and brings it into view
         - opens a contract into what it froze: its lines with where each came from, its invoices and
           its ids
         - leads to the catalogue, and back to the list, where the shell put those pages

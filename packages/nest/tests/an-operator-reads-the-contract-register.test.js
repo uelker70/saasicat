@@ -6,7 +6,8 @@
 // given the stores as the platform gives them, so what is asserted is what the
 // route serves.
 
-// @requirement SC-ADM-045
+// @requirement SC-ADM-045 — An operator lists every contract, a former subscriber's included
+// @requirement SC-ADM-046 — The contract register reads where each contract stands on a day of the installation
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -43,7 +44,7 @@ const line = (kind, sourceKey, titleSnapshot) => ({
 });
 
 /** What a contract of `subscriberId` for `tenantId` is written with, in force from `from` until `until`. */
-function contractData(subscriberId, tenantId, from, until = null, lineItems = undefined) {
+function contractData(subscriberId, tenantId, from, until = null, lineItems) {
     return {
         tenantId,
         parties: {

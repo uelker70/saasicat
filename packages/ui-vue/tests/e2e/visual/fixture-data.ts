@@ -1515,6 +1515,75 @@ const OPEN_ITEM_TOTALS = {
     credits: [{ currency: 'EUR', open: 20 }],
 };
 
+// The contract register with a contract of each kind it lists: one in force
+// with an add-on, one ended for a tenant the application no longer has, one
+// scheduled, one never in force, and one of a tenant the application
+// soft-deleted; a further page follows, so its button renders.
+const REGISTER_CONTRACT = {
+    subscriber: { id: 's-0001', customerNumber: 'K-10001', legalName: 'Northwind Ltd' },
+    tenant: { id: 't-0001', known: true, name: 'Northwind', slug: 'northwind', deletedAt: null },
+    plan: { key: 'PRO', title: 'Pro' },
+    bundles: [],
+    lastDay: null,
+    billingCycle: 'monthly',
+    currency: 'EUR',
+    totalGross: 117.81,
+};
+const CONTRACT_REGISTER = {
+    today: '2026-02-27',
+    state: 'all',
+    day: '2026-02-27',
+    contracts: [
+        {
+            ...REGISTER_CONTRACT,
+            id: 'c-0005',
+            firstDay: '2026-04-01',
+            standing: 'scheduled',
+        },
+        {
+            ...REGISTER_CONTRACT,
+            id: 'c-0004',
+            firstDay: '2026-03-15',
+            standing: 'never-in-force',
+        },
+        {
+            ...REGISTER_CONTRACT,
+            id: 'c-0003',
+            bundles: [{ key: 'PLUS', title: 'Plus' }],
+            firstDay: '2026-01-01',
+            standing: 'in-force',
+        },
+        {
+            ...REGISTER_CONTRACT,
+            id: 'c-0002',
+            subscriber: { id: 's-0002', customerNumber: 'K-10002', legalName: 'Fabrikam Inc.' },
+            tenant: {
+                id: 't-0002',
+                known: true,
+                name: 'Fabrikam',
+                slug: 'fabrikam',
+                deletedAt: '2026-02-01T00:00:00.000Z',
+            },
+            firstDay: '2025-07-01',
+            lastDay: '2026-01-31',
+            standing: 'ended',
+            billingCycle: 'yearly',
+            totalGross: 1178.1,
+        },
+        {
+            ...REGISTER_CONTRACT,
+            id: 'c-0001',
+            subscriber: { id: 's-0003', customerNumber: 'K-10003', legalName: 'Contoso GmbH' },
+            tenant: { id: 't-0099', known: false, name: null, slug: null, deletedAt: null },
+            plan: null,
+            firstDay: '2025-01-01',
+            lastDay: '2025-06-30',
+            standing: 'ended',
+        },
+    ],
+    next: 'c-0001',
+};
+
 const INVOICE_TO_CANCEL = {
     id: 'inv-124',
     number: 'AHP-2026-000124',
@@ -1841,6 +1910,7 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/open-items', OPEN_INVOICES],
     ['/api/admin/open-credits', OPEN_CREDITS],
     ['/api/admin/open-item-totals', OPEN_ITEM_TOTALS],
+    ['/api/admin/contracts', CONTRACT_REGISTER],
     ['/api/admin/pilots', PILOT_ROWS],
     // The page loads both lists. Deliberately empty and registered as such: an
     // unregistered path is a named gap, and the review strip carries no surface

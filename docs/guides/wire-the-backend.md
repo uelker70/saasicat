@@ -1302,6 +1302,24 @@ All three are served and announced where the credits and the cases to reconcile 
 so nothing is stored beside the settlements and the credit entries; the persistence contract holds
 both adapters to the rule after every scenario it runs.
 
+### The contract register
+
+Wherever a subscriber's contracts are served beside the invoices, the administration's standard
+page `contracts` lists every contract of the installation, a former subscriber's and a deleted
+tenant's included (`SC-ADM-045`, `SC-ADM-046`): the latest start first, narrowed to where the
+contracts stand on a day in the installation's time zone, each leading into its subscriber's record
+with that contract open.
+
+- **The page**, `GET admin/contracts?state=…&day=…&after=…`, answers fifty and `next`. `state` is
+  `in-force` (the default), `ended`, `scheduled`, `never-in-force` or `all`; `day` is the day every
+  standing is read on, today where none is given.
+- **The record** opens the contract a link names: `/admin/subscribers/:id?contract=<id>`.
+
+Served and announced where a subscriber's contracts are, under `contracts.read`. What a standing
+means is `contractStandingOn` in `@saasicat/core`, and a store answers the moments
+`contractRegisterWindowOf` gives it; the persistence contract checks after every scenario it runs
+that each standing lists exactly the contracts their days put there.
+
 ### Cancelling an invoice
 
 An issued invoice is never edited (`SC-PRIC-095`): the operator cancels it, and the platform writes
