@@ -54,6 +54,23 @@ function rowOf(
     };
 }
 
+/**
+ * The months `query` names, the current one where it names none — today read
+ * in `timeZone` —; refused with `422` for months the register does not span:
+ * reversed, or more than a year. What the register and its export both read.
+ */
+export function invoiceRegisterSpanAt(
+    query: InvoiceRegisterQuery,
+    now: Date,
+    timeZone: string,
+): InvoiceRegisterSpan {
+    const { span, refusal } = invoiceRegisterSpanOf(query, dayInZone(now, timeZone));
+    if (refusal) {
+        throw new UnprocessableEntityException(codedError(refusal.code, refusal.params));
+    }
+    return span;
+}
+
 @Injectable()
 export class InvoiceRegisterService {
     constructor(
@@ -116,11 +133,6 @@ export class InvoiceRegisterService {
 
     private spanOf(query: InvoiceRegisterQuery, now: Date): InvoiceRegisterSpan {
         // Required with a tax adapter, which invoicing requires.
-        const today = dayInZone(now, this.settings.timeZone!);
-        const { span, refusal } = invoiceRegisterSpanOf(query, today);
-        if (refusal) {
-            throw new UnprocessableEntityException(codedError(refusal.code, refusal.params));
-        }
-        return span;
+        return invoiceRegisterSpanAt(query, now, this.settings.timeZone!);
     }
 }

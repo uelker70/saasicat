@@ -345,6 +345,11 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 label: 'Invoice cancelled by a cancellation invoice and its replacement, for the reason given',
                 severity: 'high',
             },
+            {
+                key: 'SUBSCRIPTION_INVOICES_EXPORTED',
+                label: 'Invoices of a span of months exported as of a moment, with the SHA-256 of the archive handed over',
+                severity: 'medium',
+            },
             { key: 'SUBSCRIPTION_CANCEL', label: 'Subscription cancelled', severity: 'high' },
             { key: 'FEATURE_WITHDRAW', label: 'Feature withdrawn', severity: 'high' },
             {

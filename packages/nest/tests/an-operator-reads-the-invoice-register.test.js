@@ -11,180 +11,30 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import 'reflect-metadata';
-import { BadRequestException, UnprocessableEntityException, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, UnprocessableEntityException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import {
-    INVOICE_ERROR_CODES,
-    INVOICE_REGISTER_PAGE_SIZE,
-    dayInZone,
-    draftCancellationInvoice,
-    sumToCents,
-} from '@saasicat/core';
+import { INVOICE_ERROR_CODES, INVOICE_REGISTER_PAGE_SIZE, dayInZone } from '@saasicat/core';
 
 import { AdminManifestService, SaaSiCatModule } from '../dist/platform/index.js';
-import { ISSUER, anInvoicingInstallation } from './helpers/invoice-run.js';
-import { invoicingPlatform, wiredInvoices } from './helpers/invoicing-platform.js';
+import {
+    ZONE,
+    aRegisterPlatform,
+    anInstallation,
+    throughThePipe,
+} from './helpers/invoice-register.js';
+import { invoicingPlatform } from './helpers/invoicing-platform.js';
 import { controllersIn, handlersOf } from './helpers/operator-routes.js';
 
 const PAGE_ROUTE = 'GET admin/invoices';
 const TOTALS_ROUTE = 'GET admin/invoice-totals';
-const ZONE = 'Europe/Berlin';
-const STANDARD = {
-    kind: 'standard',
-    rate: 19,
-    note: null,
-    adapter: { name: 'test-tax', version: '1' },
-};
-
-/** The subscriber each tenant's invoices name. */
-const PARTIES = {
-    t1: { subscriberId: 's1', legalName: 'Northwind GmbH', customerNumber: 'K-10001' },
-    t2: { subscriberId: 's2', legalName: 'Fabrikam GmbH', customerNumber: 'K-10002' },
-};
-
-/** An invoice store holding the invoices a test issues, each on a charge of its own. */
-function anInstallation() {
-    const { store } = anInvoicingInstallation();
-    let charges = 0;
-    return {
-        store,
-        /** Issues an invoice of `tenantId` dated `issueDate`, 100.00 net at 19 % unless `taxes` says otherwise. */
-        issue(issueDate, { tenantId = 't1', taxes = [{ rate: 19, net: 100, tax: 19 }] } = {}) {
-            const party = PARTIES[tenantId];
-            const net = sumToCents(...taxes.map((each) => each.net));
-            const tax = sumToCents(...taxes.map((each) => each.tax));
-            charges += 1;
-            return store.issue({
-                numberPrefix: 'AHP',
-                numberYear: Number(issueDate.slice(0, 4)),
-                tenantId,
-                subscriberId: party.subscriberId,
-                subscriptionId: `subscription-${tenantId}`,
-                contractId: `contract-${tenantId}`,
-                issuedAt: new Date(`${issueDate}T09:00:00.000Z`),
-                issueDate,
-                dueDate: issueDate,
-                payment: null,
-                collectionDate: null,
-                servicePeriodFrom: issueDate,
-                servicePeriodUntil: issueDate,
-                currency: 'EUR',
-                issuer: ISSUER,
-                subscriber: {
-                    legalName: party.legalName,
-                    customerNumber: party.customerNumber,
-                    vatId: null,
-                    taxNumber: null,
-                    addressLine1: 'Hafenstraße 1',
-                    addressLine2: null,
-                    postalCode: '20457',
-                    city: 'Hamburg',
-                    country: 'DE',
-                },
-                footer: [],
-                taxTreatment: STANDARD,
-                taxes,
-                totalNet: net,
-                totalTax: tax,
-                totalGross: sumToCents(net, tax),
-                lines: [
-                    {
-                        position: 1,
-                        chargeId: `charge-${charges}`,
-                        contractLineItemId: `line-${tenantId}`,
-                        title: 'Standard, monthly',
-                        origin: 'period',
-                        source: 'plan',
-                        periodFrom: issueDate,
-                        periodUntil: issueDate,
-                        amountNet: net,
-                        taxRate: 19,
-                    },
-                ],
-            });
-        },
-        /** Cancels `invoice` on `day` by a cancellation invoice, and no replacement. */
-        async cancel(invoice, day) {
-            const issue = {
-                issuedAt: new Date(`${day}T09:00:00.000Z`),
-                timeZone: ZONE,
-                numberPrefix: 'AHP',
-            };
-            const { cancellationInvoice } = await store.issueCancellation({
-                cancelledInvoiceId: invoice.id,
-                cancellation: draftCancellationInvoice(invoice, issue),
-                replacement: null,
-                reason: 'The billing address was wrong.',
-                correctedSubscriber: null,
-                deliverTo: null,
-                cancelledBy: 'operator-1',
-                cancelledAt: issue.issuedAt,
-            });
-            return cancellationInvoice;
-        },
-        /** Archives `invoice`'s document, as the run does once the archive confirmed it. */
-        async archive(invoice) {
-            await store.recordRendering(invoice.id, {
-                checksum: 'c'.repeat(64),
-                mediaType: 'application/pdf',
-                fileName: `${invoice.number}.pdf`,
-                size: 1,
-                renderedAt: invoice.issuedAt,
-            });
-            await store.markArchived(invoice.id, invoice.issuedAt, 'c'.repeat(64));
-        },
-    };
-}
-
-/**
- * The platform serving `installation`'s invoices, each read of them recorded
- * with whether it ran inside the bypass frame. `through` binds the bypass the
- * way an adapter without row-level policies does: it calls `fn` and hands back
- * what it returns, as it returns it.
- */
+/** The platform serving `installation`'s register, its page and totals read as the routes serve them. */
 async function aPlatform(installation, options = {}, { through = false } = {}) {
-    const reads = [];
-    let bypassed = 0;
-    const { store } = installation;
-    const recorded = (name) => {
-        const read = store[name].bind(store);
-        return (...args) => {
-            reads.push({ name, bypassed: bypassed > 0 });
-            return read(...args);
-        };
-    };
-    const repository = {
-        ...store,
-        listIssued: recorded('listIssued'),
-        listIssuedAmounts: recorded('listIssuedAmounts'),
-        listArchivedDocuments: recorded('listArchivedDocuments'),
-    };
-    const platform = invoicingPlatform({
-        invoices: wiredInvoices({ invoiceRepository: repository }),
+    const platform = await aRegisterPlatform(installation, {
+        options,
+        through,
+        reads: ['listIssued', 'listIssuedAmounts', 'listArchivedDocuments'],
     });
-    platform.persistence.core.rlsBypass = through
-        ? { runWithBypass: (fn) => fn() }
-        : {
-              async runWithBypass(fn) {
-                  bypassed += 1;
-                  try {
-                      return await fn();
-                  } finally {
-                      bypassed -= 1;
-                  }
-              },
-          };
-    const root = SaaSiCatModule.forRoot({ ...platform, ...options });
-    const moduleRef = await Test.createTestingModule({ imports: [root] }).compile();
-    await moduleRef.init();
-    const handlers = controllersIn(root).flatMap(handlersOf);
-    const served = (route) => handlers.find((handler) => handler.route === route);
-    const call = (route) => {
-        const handler = served(route);
-        return (query = {}) =>
-            moduleRef.get(handler.controller, { strict: false })[handler.name](query);
-    };
-    return { moduleRef, reads, served, page: call(PAGE_ROUTE), totals: call(TOTALS_ROUTE) };
+    return { ...platform, page: platform.call(PAGE_ROUTE), totals: platform.call(TOTALS_ROUTE) };
 }
 
 const numbersOf = (page) => page.invoices.map((row) => row.number);
@@ -398,20 +248,6 @@ describe('the months the register refuses', () => {
     }
 });
 
-/** A query, as the application's global `ValidationPipe` hands it to `route`. */
-async function throughThePipe(route, query) {
-    const platform = await aPlatform(anInstallation());
-    const served = platform.served(route);
-    const [metatype] = Reflect.getMetadata(
-        'design:paramtypes',
-        served.controller.prototype,
-        served.name,
-    );
-    await platform.moduleRef.close();
-    const pipe = new ValidationPipe({ whitelist: true, transform: true });
-    return pipe.transform(query, { type: 'query', metatype });
-}
-
 describe('what the register takes', () => {
     test('two months and an invoice to continue after, and nothing else', async () => {
         const taken = await throughThePipe(PAGE_ROUTE, {
@@ -443,7 +279,7 @@ describe('what the register takes', () => {
 
 // @requirement SC-ADM-015 — The administration only offers what the application actually has
 describe('where the register is served', () => {
-    const REGISTER_ROUTES = [PAGE_ROUTE, TOTALS_ROUTE];
+    const REGISTER_ROUTES = [PAGE_ROUTE, TOTALS_ROUTE, 'GET admin/invoice-export'];
     const servedBy = (options) =>
         controllersIn(SaaSiCatModule.forRoot(options))
             .flatMap(handlersOf)

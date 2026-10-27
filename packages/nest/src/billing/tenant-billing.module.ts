@@ -88,6 +88,7 @@ import { SubscriptionInvoiceCron } from './invoices/subscription-invoice.cron.js
 import { InvoiceCancellationService } from './invoices/invoice-cancellation.service.js';
 import { SubscriptionInvoiceService } from './invoices/subscription-invoice.service.js';
 import { InvoiceDocumentService } from './invoices/invoice-document.service.js';
+import { InvoiceExportService } from './invoices/invoice-export.service.js';
 import { InvoiceRegisterService } from './invoices/invoice-register.service.js';
 import { InvoiceCollectionService } from './invoices/invoice-collection.service.js';
 import { InvoicePaymentService } from './invoices/invoice-payment.service.js';
@@ -709,6 +710,7 @@ export class TenantBillingModule {
                 SubscriptionInvoiceService,
                 InvoiceCancellationService,
                 InvoiceRegisterService,
+                InvoiceExportService,
                 InvoiceNumberPrefixCheck,
                 // Each port only where it is given: the start check below names
                 // what is missing, rather than Nest an unresolved provider.
@@ -898,6 +900,7 @@ export class TenantBillingModule {
                           SubscriptionInvoiceService,
                           InvoiceCancellationService,
                           InvoiceRegisterService,
+                          InvoiceExportService,
                       ]
                     : []),
                 ...(invoices?.renderer && invoices.archive && invoices.mail
