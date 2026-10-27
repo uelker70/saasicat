@@ -264,6 +264,20 @@ describe('the open credits', () => {
                 ['Record of subscriber-2', 'payment', 5, 5],
             ],
         );
+        assert.deepEqual(page.credits[0], {
+            id: earlier.id,
+            currency: 'EUR',
+            amount: 30,
+            open: 20,
+            origin: 'payment',
+            createdAt: earlier.createdAt.toISOString(),
+            subscriber: {
+                id: 'subscriber-1',
+                customerNumber: 'K-1',
+                legalName: 'Record of subscriber-1',
+            },
+            tenantId: 'tenant-of-subscriber-1',
+        });
         assert.deepEqual([page.next, page.timeZone], [null, 'Europe/Berlin']);
     });
 });
