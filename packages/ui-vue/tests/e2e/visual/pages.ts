@@ -333,6 +333,12 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         id: 'invoices',
         load: () => import('../../../src/pages/InvoicesPage.vue'),
     }),
+    // The open items with each kind of row they list, totals with what is
+    // overdue apart, and a further page of invoices, so its button renders.
+    visualCase({
+        id: 'open-items',
+        load: () => import('../../../src/pages/OpenItemsPage.vue'),
+    }),
     visualCase({
         id: 'promo-code-detail',
         load: () => import('../../../src/pages/PromoCodeDetailPage.vue'),

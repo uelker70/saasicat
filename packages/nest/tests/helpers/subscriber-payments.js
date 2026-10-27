@@ -450,6 +450,75 @@ export class MemorySubscriberPayments {
             .map((invoice) => ({ invoiceId: invoice.id, owed: this.#owed(invoice) }));
     }
 
+    // The open items, as the port promises them and the persistence contract
+    // holds both adapters to: by due date and number, by when a credit arose.
+    async listOpenInvoices({ limit, after, overdueOn }) {
+        const byDue = (a, b) =>
+            (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0) ||
+            a.numberYear - b.numberYear ||
+            a.numberSequence - b.numberSequence;
+        const named =
+            after === undefined ? undefined : this.invoices.find((each) => each.id === after);
+        const following = this.invoices
+            .filter((invoice) => this.#owed(invoice) > 0)
+            .filter((invoice) => overdueOn === undefined || invoice.dueDate < overdueOn)
+            .filter((invoice) => !named || byDue(invoice, named) > 0)
+            .sort(byDue);
+        return {
+            invoices: following
+                .slice(0, limit)
+                .map((invoice) => ({ invoiceId: invoice.id, owed: this.#owed(invoice) })),
+            hasMore: following.length > limit,
+        };
+    }
+
+    async listOpenCredits({ limit, after }) {
+        const byCreated = (a, b) =>
+            a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+        const named =
+            after === undefined ? undefined : this.credits.find((each) => each.id === after);
+        const following = this.#openStandings()
+            .filter(({ credit }) => !named || byCreated(credit, named) > 0)
+            .sort((a, b) => byCreated(a.credit, b.credit));
+        return {
+            credits: following.slice(0, limit).map(({ credit, open }) => ({ credit, open })),
+            hasMore: following.length > limit,
+        };
+    }
+
+    async openItemTotals(today) {
+        const invoices = new Map();
+        for (const invoice of this.invoices) {
+            const owed = toCents(this.#owed(invoice));
+            if (owed <= 0) continue;
+            const sum = invoices.get(invoice.currency) ?? { owed: 0, overdue: 0 };
+            sum.owed += owed;
+            if (invoice.dueDate < today) sum.overdue += owed;
+            invoices.set(invoice.currency, sum);
+        }
+        const credits = new Map();
+        for (const { credit, open } of this.#openStandings()) {
+            credits.set(credit.currency, (credits.get(credit.currency) ?? 0) + toCents(open));
+        }
+        const byCurrency = (a, b) => (a[0] < b[0] ? -1 : 1);
+        return {
+            invoices: [...invoices].sort(byCurrency).map(([currency, sum]) => ({
+                currency,
+                owed: sum.owed / 100,
+                overdue: sum.overdue / 100,
+            })),
+            credits: [...credits]
+                .sort(byCurrency)
+                .map(([currency, cents]) => ({ currency, open: cents / 100 })),
+        };
+    }
+
+    #openStandings() {
+        return [...new Set(this.credits.map((each) => each.subscriberId))]
+            .flatMap((subscriberId) => this.#standings(subscriberId))
+            .filter(({ open }) => open > 0);
+    }
+
     async recordReversal(reported) {
         const payment = this.payments.find(
             (each) =>

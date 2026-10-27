@@ -101,6 +101,23 @@ export class DrizzleSubscriberRepository implements SubscriberRepository {
         return rows[0] ? this.withLiveTenant(db, rows[0]) : null;
     }
 
+    async findByIds(ids: readonly string[]): Promise<SubscriberRecord[]> {
+        if (ids.length === 0) return [];
+        const rows = await this.db
+            .select({ subscriber: subscribers, tenantId: subscriberTenants.tenantId })
+            .from(subscribers)
+            // The live link, of which there is one at most: the row stays one row.
+            .leftJoin(
+                subscriberTenants,
+                and(
+                    eq(subscriberTenants.subscriberId, subscribers.id),
+                    isNull(subscriberTenants.unlinkedAt),
+                ),
+            )
+            .where(inArray(subscribers.id, [...ids]));
+        return rows.map((row) => toSubscriberRecord(row.subscriber, row.tenantId ?? null));
+    }
+
     async findByTenantId(
         tenantId: string,
         tx?: TransactionContext,

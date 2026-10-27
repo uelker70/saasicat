@@ -570,6 +570,13 @@ export class FakeSubscriberRepository implements SubscriberRepository {
         return record ? { ...record } : null;
     }
 
+    async findByIds(ids: readonly string[]): Promise<SubscriberRecord[]> {
+        return ids.flatMap((id) => {
+            const record = this.byId.get(id);
+            return record ? [{ ...record }] : [];
+        });
+    }
+
     async findByTenantId(tenantId: string): Promise<SubscriberRecord | null> {
         const record = this.liveFor(tenantId);
         return record ? { ...record } : null;

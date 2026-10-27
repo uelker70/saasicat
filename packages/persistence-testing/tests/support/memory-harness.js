@@ -1048,6 +1048,9 @@ export function createMemoryHarness() {
             const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
             return row ? subscriberRecord(row) : null;
         },
+        async findByIds(ids) {
+            return state.subscribers.filter((row) => ids.includes(row.id)).map(subscriberRecord);
+        },
         async findByTenantId(tenantId) {
             const row = state.subscribers.find((candidate) => candidate.tenantId === tenantId);
             return row ? subscriberRecord(row) : null;
@@ -1471,6 +1474,11 @@ export function createMemoryHarness() {
                     candidate.subscriberId === subscriberId && candidate.status === 'ACTIVE',
             );
             return row ? structuredClone(row) : null;
+        },
+        async findByIds(ids) {
+            return state.paymentMethods
+                .filter((candidate) => ids.includes(candidate.id))
+                .map((candidate) => structuredClone(candidate));
         },
         async findByReference(reference) {
             const row = state.paymentMethods.find(
@@ -2394,6 +2402,9 @@ export function createMemoryHarness() {
             const row = state.invoices.find((candidate) => candidate.number === number);
             return row ? invoiceRead(row) : null;
         },
+        async findByIds(ids) {
+            return state.invoices.filter((row) => ids.includes(row.id)).map(invoiceRead);
+        },
         async listIssuedNumberPrefixes() {
             return [...new Set(state.invoices.map((row) => row.numberPrefix))].sort().slice(0, 2);
         },
@@ -2791,6 +2802,11 @@ export function createMemoryHarness() {
             return state.invoiceCollections
                 .filter((row) => row.invoiceId === invoiceId)
                 .sort((a, b) => a.attempt - b.attempt)
+                .map((row) => toInvoiceCollectionRecord(structuredClone(row)));
+        },
+        async listByInvoices(invoiceIds) {
+            return state.invoiceCollections
+                .filter((row) => invoiceIds.includes(row.invoiceId))
                 .map((row) => toInvoiceCollectionRecord(structuredClone(row)));
         },
     };
@@ -3192,6 +3208,21 @@ export function createMemoryHarness() {
         if (!withdrawal && !reinstatement) return { outcome: 'unchanged', reversal };
         return { outcome: 'recorded', reversal, withdrawal, reinstatement };
     };
+    /** The invoice rows that still owe something, as `owedByInvoice` reads them. */
+    const owingRows = () => state.invoices.filter((row) => owedOnInvoice(row) > 0);
+    /** By due date, then by number within its year. */
+    const byDueOrder = (a, b) =>
+        (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0) ||
+        a.numberYear - b.numberYear ||
+        a.numberSequence - b.numberSequence;
+    /** By when the credit arose, then by id. */
+    const byCreatedOrder = (a, b) =>
+        a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    /** Every credit that still holds something, with what. */
+    const openCreditStandings = () =>
+        [...new Set(state.credits.map((row) => row.subscriberId))]
+            .flatMap((subscriberId) => standingsOf(subscriberId, null))
+            .filter(({ open }) => open > 0);
     const subscriberPaymentRepository = {
         async recordPayment(payment) {
             const invoice = invoiceOf(payment.invoiceId);
@@ -3425,6 +3456,56 @@ export function createMemoryHarness() {
             return state.invoices
                 .filter((invoice) => invoiceIds.includes(invoice.id))
                 .map((invoice) => ({ invoiceId: invoice.id, owed: owedOnInvoice(invoice) }));
+        },
+        async listOpenInvoices({ limit, after, overdueOn }) {
+            const named =
+                after === undefined ? undefined : state.invoices.find((row) => row.id === after);
+            const following = owingRows()
+                .filter((row) => overdueOn === undefined || row.dueDate < overdueOn)
+                .filter((row) => !named || byDueOrder(row, named) > 0)
+                .sort(byDueOrder);
+            return {
+                invoices: following
+                    .slice(0, limit)
+                    .map((row) => ({ invoiceId: row.id, owed: owedOnInvoice(row) })),
+                hasMore: following.length > limit,
+            };
+        },
+        async listOpenCredits({ limit, after }) {
+            const named =
+                after === undefined ? undefined : state.credits.find((row) => row.id === after);
+            const following = openCreditStandings()
+                .filter(({ credit }) => !named || byCreatedOrder(credit, named) > 0)
+                .sort((a, b) => byCreatedOrder(a.credit, b.credit));
+            return {
+                credits: following.slice(0, limit).map(({ credit, open }) => ({ credit, open })),
+                hasMore: following.length > limit,
+            };
+        },
+        async openItemTotals(today) {
+            const sums = new Map();
+            for (const row of owingRows()) {
+                const sum = sums.get(row.currency) ?? { owed: 0, overdue: 0 };
+                const owed = centsOf(owedOnInvoice(row));
+                sum.owed += owed;
+                if (row.dueDate < today) sum.overdue += owed;
+                sums.set(row.currency, sum);
+            }
+            const open = new Map();
+            for (const { credit, open: left } of openCreditStandings()) {
+                open.set(credit.currency, (open.get(credit.currency) ?? 0) + centsOf(left));
+            }
+            const byCurrency = (a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+            return {
+                invoices: [...sums].sort(byCurrency).map(([currency, sum]) => ({
+                    currency,
+                    owed: sum.owed / 100,
+                    overdue: sum.overdue / 100,
+                })),
+                credits: [...open]
+                    .sort(byCurrency)
+                    .map(([currency, cents]) => ({ currency, open: cents / 100 })),
+            };
         },
         async recordReversal(reported) {
             return recordReversal(reported);

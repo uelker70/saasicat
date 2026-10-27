@@ -315,6 +315,9 @@ function invoiceStore(journal) {
         async findByNumber(number) {
             return structuredClone(invoices.find((inv) => inv.number === number) ?? null);
         },
+        async findByIds(ids) {
+            return structuredClone(invoices.filter((inv) => ids.includes(inv.id)));
+        },
         async listIssuedNumberPrefixes() {
             return [...new Set(invoices.map((inv) => inv.numberPrefix))].sort().slice(0, 2);
         },

@@ -9,7 +9,7 @@
 // forgot to wire a port it ships would otherwise pass without checking it.
 
 import assert from 'node:assert/strict';
-import { after, before, beforeEach, describe, test, type TestContext } from 'node:test';
+import { after, afterEach, before, beforeEach, describe, test, type TestContext } from 'node:test';
 import type {
     ContractAgreement,
     NewSubscriberCharge,
@@ -31,6 +31,7 @@ import type {
     NewBundleVersionRetirement,
     NewSubscriptionInvoice,
     SubscriberChargeRecord,
+    SubscriberCreditRecord,
     SubscriptionInvoicePayment,
     SubscriptionInvoiceRecord,
     NewInvoiceCollection,
@@ -38,6 +39,7 @@ import type {
     InvoiceRegisterPage,
     InvoiceRegisterRange,
     IssuedInvoiceAmounts,
+    OwingInvoicePage,
     NewSubscriberPayment,
     NewSubscriberPayout,
     PlannedInvoiceCollection,
@@ -752,6 +754,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
         beforeEach(async () => {
             await harness.reset();
+        });
+        // Whatever a scenario wrote, the open items the store lists are the
+        // ones the rule in `@saasicat/core` finds: a section that writes
+        // settlements or credit entries checks the SQL sums without knowing.
+        afterEach(async () => {
+            await theOpenItemsAreWhatTheRuleFinds();
         });
 
         test('the declared gaps are exactly the parts the harness does not provide', () => {
@@ -6411,6 +6419,44 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const first = await methods.findByReference(reference(subscriberId, 'pm_first'));
             assert.equal(first?.status, 'REPLACED');
             assert.equal(first?.replacedAt?.toISOString(), '2026-09-02T10:00:00.000Z');
+        });
+
+        // @requirement SC-ADM-044
+        test('payment methods are read for many ids at once, a replaced one included, the ones that exist', async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Viele Wege GmbH' });
+            const first = await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_many_first', '2026-09-01T10:00:00.000Z'),
+            );
+            const second = await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_many_second', '2026-09-02T10:00:00.000Z'),
+            );
+            const other = await createSubscriber({ legalName: 'Andere Wege GmbH' });
+            await methods.recordConfirmed(
+                paymentMethodFor(other.subscriberId, 'pm_many_theirs', '2026-09-03T10:00:00.000Z'),
+            );
+            const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : 1);
+
+            const read = await methods.findByIds([
+                second.method.id,
+                'no-such-method',
+                first.method.id,
+            ]);
+
+            assert.deepEqual(
+                read.sort(byId),
+                [
+                    (await methods.findByReference(reference(subscriberId, 'pm_many_first')))!,
+                    (await methods.findActive(subscriberId))!,
+                ].sort(byId),
+            );
+            assert.deepEqual(read.map(({ status }) => status).sort(), ['ACTIVE', 'REPLACED']);
+            assert.deepEqual(await methods.findByIds([]), []);
         });
 
         test('a confirmation recorded again is recognised, and changes nothing', async (t) => {
@@ -12270,6 +12316,345 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
             assert.equal(await invoices.findByNumber('EX-2026-000009'), null);
             assert.equal(await invoices.findByNumber(issued[1]!.number.toLowerCase()), null);
+        });
+
+        // -------------------------------------------------------------
+        // Open items — what still owes, and what is still owed, by the rule
+        // -------------------------------------------------------------
+
+        /** Every day a scenario dates an invoice on. */
+        const EVER: InvoiceRegisterRange = { from: '1000-01-01', until: '9999-12-31' };
+
+        /**
+         * The open invoices and credits as the store lists them, and as the
+         * rule finds them from every invoice and credit there is: each by id
+         * with what it owes or holds, and their totals per currency. The
+         * invariant `afterEach` holds every scenario to.
+         */
+        async function theOpenItemsAreWhatTheRuleFinds() {
+            const payments = harness.adapter.subscriberPaymentRepository;
+            const invoices = harness.adapter.subscriptionInvoiceRepository;
+            const subscribers = harness.adapter.subscriberRepository;
+            if (
+                !payments ||
+                !invoices ||
+                !subscribers ||
+                !CONTRACT_GAPS.subscriberPayments.present(harness) ||
+                !CONTRACT_GAPS.subscriptionInvoices.present(harness)
+            ) {
+                return;
+            }
+            const currencyOf = new Map<string, string>();
+            for (let after: string | undefined, more = true; more;) {
+                const page = await invoices.listIssued(
+                    EVER,
+                    after ? { limit: 200, after } : { limit: 200 },
+                );
+                for (const { invoice } of page.invoices)
+                    currencyOf.set(invoice.id, invoice.currency);
+                after = page.invoices.at(-1)?.invoice.id;
+                more = page.hasMore;
+            }
+            const byId = (a: [string, number], b: [string, number]) => (a[0] < b[0] ? -1 : 1);
+            const owing = (await payments.owedByInvoices([...currencyOf.keys()]))
+                .filter(({ owed }) => owed > 0)
+                .map(({ invoiceId, owed }): [string, number] => [invoiceId, owed])
+                .sort(byId);
+            const listedInvoices: [string, number][] = [];
+            for (let after: string | undefined, more = true; more;) {
+                const page = await payments.listOpenInvoices(
+                    after ? { limit: 7, after } : { limit: 7 },
+                );
+                listedInvoices.push(
+                    ...page.invoices.map(({ invoiceId, owed }): [string, number] => [
+                        invoiceId,
+                        owed,
+                    ]),
+                );
+                after = page.invoices.at(-1)?.invoiceId;
+                more = page.hasMore;
+            }
+            assert.deepEqual(
+                listedInvoices.sort(byId),
+                owing,
+                'the open invoices are not what the rule finds',
+            );
+
+            const everySubscriber = await subscribers.search({
+                terms: null,
+                withoutLiveTenant: false,
+                limit: 1000,
+            });
+            const held: [string, number][] = [];
+            const currencyOfCredit = new Map<string, string>();
+            for (const subscriber of everySubscriber.subscribers) {
+                for (const { credit, open } of await payments.listCredits(subscriber.id)) {
+                    currencyOfCredit.set(credit.id, credit.currency);
+                    if (open > 0) held.push([credit.id, open]);
+                }
+            }
+            const listedCredits: [string, number][] = [];
+            for (let after: string | undefined, more = true; more;) {
+                const page = await payments.listOpenCredits(
+                    after ? { limit: 7, after } : { limit: 7 },
+                );
+                listedCredits.push(
+                    ...page.credits.map(({ credit, open }): [string, number] => [credit.id, open]),
+                );
+                after = page.credits.at(-1)?.credit.id;
+                more = page.hasMore;
+            }
+            assert.deepEqual(
+                listedCredits.sort(byId),
+                held.sort(byId),
+                'the open credits are not what the rule finds',
+            );
+
+            const sumsOf = (items: [string, number][], currency: Map<string, string>) => {
+                const sums = new Map<string, number>();
+                for (const [id, amount] of items) {
+                    const key = currency.get(id)!;
+                    sums.set(key, sumToCents(sums.get(key) ?? 0, amount));
+                }
+                return [...sums].sort((a, b) => (a[0] < b[0] ? -1 : 1));
+            };
+            const totals = await payments.openItemTotals(EVER.until);
+            assert.deepEqual(
+                totals.invoices.map(({ currency, owed, overdue }) => [currency, owed, overdue]),
+                sumsOf(owing, currencyOf).map(([currency, owed]) => [currency, owed, owed]),
+                'the totals of the open invoices do not add them up',
+            );
+            assert.deepEqual(
+                totals.credits.map(({ currency, open }) => [currency, open]),
+                sumsOf(held, currencyOfCredit),
+                'the totals of the open credits do not add them up',
+            );
+        }
+
+        /**
+         * Invoices collected by direct debit from the days given, so each is
+         * due on its day; each started as the run starts an attempt, so a
+         * payment can be recorded against it.
+         */
+        async function dueOn(t: TestContext, tenantId: string, days: readonly string[]) {
+            const payments = harness.adapter.subscriberPaymentRepository;
+            if (!payments || !CONTRACT_GAPS.subscriberPayments.present(harness)) {
+                missing(t, 'subscriberPayments');
+                return null;
+            }
+            const account = await collectable(
+                t,
+                tenantId,
+                days.map((day) => ({ payment: DEBIT, collectionDate: day })),
+            );
+            if (!account) return null;
+            const issued: SubscriptionInvoiceRecord[] = [];
+            const attempts: InvoiceCollectionRecord[] = [];
+            for (const id of account.ids) {
+                const attempt = await account.collections.startAttempt(attemptOf(id));
+                assert.ok(attempt, 'an attempt was not started');
+                attempts.push(attempt);
+                issued.push((await account.invoices.findById(id))!);
+            }
+            /** Records a payment of `amount` against the `index`th invoice, `index` minutes after `PAID_AT`. */
+            const pay = async (index: number, amount: number, ref = `py_open_${index}`) => {
+                const recorded = await payments.recordPayment({
+                    invoiceId: issued[index]!.id,
+                    collectionId: attempts[index]!.id,
+                    gatewayAccount: 'stripe-main',
+                    provider: 'stripe',
+                    gatewayRef: ref,
+                    amount,
+                    currency: 'EUR',
+                    // Apart, so the credits they leave arise one after the
+                    // other rather than at one moment ordered by their ids.
+                    at: new Date(PAID_AT.getTime() + index * 60_000),
+                });
+                assert.ok(recorded, 'a payment was not recorded');
+                return recorded;
+            };
+            return { ...account, payments, issued, attempts, pay };
+        }
+
+        // @requirement SC-ADM-044
+        test('the open invoices are those that still owe, by due date and then number; one paid in full, a cancelled one and its cancellation invoice are not among them', async (t) => {
+            const account = await dueOn(t, 'tenant-open-invoices', [
+                '2026-02-20',
+                '2026-02-10',
+                '2026-02-12',
+                '2026-02-11',
+            ]);
+            if (!account) return;
+            const { payments, issued, pay } = account;
+            const [unpaid, inPart, inFull, cancelled] = issued;
+            await pay(1, 10);
+            await pay(2, inFull!.totalGross);
+            const { cancellationInvoice, replacement } = await cancelInvoice(cancelled!.id);
+
+            const page = await payments.listOpenInvoices({ limit: 10 });
+
+            assert.deepEqual(
+                page.invoices.map(({ invoiceId, owed }) => [invoiceId, owed]),
+                [
+                    [inPart!.id, sumToCents(inPart!.totalGross, -10)],
+                    [unpaid!.id, unpaid!.totalGross],
+                    [replacement!.id, replacement!.totalGross],
+                ],
+            );
+            assert.equal(page.hasMore, false);
+            assert.ok(!page.invoices.some(({ invoiceId }) => invoiceId === cancellationInvoice.id));
+        });
+
+        // @requirement SC-ADM-044
+        test('overdue only, the open invoices are those due before the day asked, that day not among them', async (t) => {
+            const account = await dueOn(t, 'tenant-open-overdue', [
+                '2026-02-11',
+                '2026-02-12',
+                '2026-02-13',
+            ]);
+            if (!account) return;
+            const { payments, issued } = account;
+            const ids = (page: OwingInvoicePage) => page.invoices.map(({ invoiceId }) => invoiceId);
+
+            assert.deepEqual(
+                ids(await payments.listOpenInvoices({ limit: 10, overdueOn: '2026-02-12' })),
+                [issued[0]!.id],
+            );
+            assert.deepEqual(
+                ids(await payments.listOpenInvoices({ limit: 10, overdueOn: '2026-02-13' })),
+                [issued[0]!.id, issued[1]!.id],
+            );
+        });
+
+        // @requirement SC-ADM-044
+        test('a page of open invoices holds at most its limit and goes on after the invoice it names; one it does not know continues after nothing', async (t) => {
+            const account = await dueOn(t, 'tenant-open-pages', [
+                '2026-02-03',
+                '2026-02-04',
+                '2026-02-05',
+            ]);
+            if (!account) return;
+            const { payments, issued } = account;
+            const ids = (page: OwingInvoicePage) => page.invoices.map(({ invoiceId }) => invoiceId);
+
+            const first = await payments.listOpenInvoices({ limit: 2 });
+            const second = await payments.listOpenInvoices({
+                limit: 2,
+                after: first.invoices[1]!.invoiceId,
+            });
+            const whole = await payments.listOpenInvoices({ limit: 3 });
+            const unknown = await payments.listOpenInvoices({ limit: 3, after: 'no-such-invoice' });
+
+            assert.deepEqual([ids(first), first.hasMore], [[issued[0]!.id, issued[1]!.id], true]);
+            assert.deepEqual([ids(second), second.hasMore], [[issued[2]!.id], false]);
+            assert.deepEqual([ids(whole), whole.hasMore], [issued.map((each) => each.id), false]);
+            assert.deepEqual(ids(unknown), ids(whole));
+        });
+
+        // @requirement SC-ADM-044
+        test('the open credits are those that still hold something, the oldest first; one paid out in full is not among them', async (t) => {
+            const account = await dueOn(t, 'tenant-open-credits', [
+                '2026-02-10',
+                '2026-02-11',
+                '2026-02-12',
+            ]);
+            if (!account) return;
+            const { payments, issued, pay } = account;
+            const credits: SubscriberCreditRecord[] = [];
+            for (const index of [0, 1, 2]) {
+                const { credit } = await pay(
+                    index,
+                    sumToCents(issued[index]!.totalGross, 20 + index),
+                );
+                assert.ok(credit, 'an overpayment left no credit');
+                credits.push(credit);
+            }
+            const payout = (creditId: string, amount: number) =>
+                payments.recordPayout({
+                    creditId,
+                    amount,
+                    reference: 'TRANSFER-1',
+                    paidOn: '2026-02-20',
+                    note: null,
+                    recordedBy: 'operator-1',
+                    at: PAID_AT,
+                });
+            await payout(credits[0]!.id, 20);
+            await payout(credits[1]!.id, 5);
+
+            const page = await payments.listOpenCredits({ limit: 10 });
+            const after = await payments.listOpenCredits({ limit: 10, after: credits[1]!.id });
+
+            assert.deepEqual(
+                page.credits.map(({ credit, open }) => [credit.id, open]),
+                [
+                    [credits[1]!.id, 16],
+                    [credits[2]!.id, 22],
+                ],
+            );
+            assert.deepEqual(page.credits[0]!.credit.origin, credits[1]!.origin);
+            assert.deepEqual(
+                after.credits.map(({ credit }) => credit.id),
+                [credits[2]!.id],
+            );
+        });
+
+        // @requirement SC-ADM-044
+        test('the totals of the open items add up what is owed per currency, what was due before the day apart, and what credits hold', async (t) => {
+            const account = await dueOn(t, 'tenant-open-totals', ['2026-02-10', '2026-02-20']);
+            if (!account) return;
+            const { payments, issued, pay } = account;
+            await pay(0, 10);
+
+            // The second is due on the day asked about, so not overdue yet.
+            const totals = await payments.openItemTotals('2026-02-20');
+
+            const owedFirst = sumToCents(issued[0]!.totalGross, -10);
+            assert.deepEqual(totals, {
+                invoices: [
+                    {
+                        currency: 'EUR',
+                        owed: sumToCents(owedFirst, issued[1]!.totalGross),
+                        overdue: owedFirst,
+                    },
+                ],
+                credits: [],
+            });
+        });
+
+        // @requirement SC-ADM-044
+        test('invoices, subscribers and collection attempts are read for many ids at once, the ones that exist', async (t) => {
+            const account = await dueOn(t, 'tenant-open-batch', ['2026-02-10', '2026-02-11']);
+            if (!account) return;
+            const { invoices, collections, issued, attempts, subscriberId } = account;
+            const subscribers = harness.adapter.subscriberRepository!;
+            const sorted = (values: string[]) => [...values].sort();
+
+            assert.deepEqual(
+                sorted(
+                    (
+                        await invoices.findByIds([issued[1]!.id, 'no-such-invoice', issued[0]!.id])
+                    ).map((each) => each.id),
+                ),
+                sorted(issued.map((each) => each.id)),
+            );
+            assert.deepEqual(await invoices.findByIds([]), []);
+            assert.deepEqual(
+                (await subscribers.findByIds([subscriberId, 'no-such-subscriber'])).map(
+                    (each) => each.id,
+                ),
+                [subscriberId],
+            );
+            assert.deepEqual(await subscribers.findByIds([]), []);
+            assert.deepEqual(
+                sorted(
+                    (await collections.listByInvoices([issued[0]!.id, issued[1]!.id])).map(
+                        (each) => each.id,
+                    ),
+                ),
+                sorted(attempts.map((each) => each.id)),
+            );
+            assert.deepEqual(await collections.listByInvoices([]), []);
         });
 
         // -------------------------------------------------------------

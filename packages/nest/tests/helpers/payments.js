@@ -303,6 +303,10 @@ export class MemoryPaymentMethods {
         return row ? structuredClone(row) : null;
     }
 
+    async findByIds(ids) {
+        return this.rows.filter((r) => ids.includes(r.id)).map((r) => structuredClone(r));
+    }
+
     async findByReference(reference) {
         const row = this.rows.find(
             (r) =>

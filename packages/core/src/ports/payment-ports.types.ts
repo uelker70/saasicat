@@ -120,6 +120,12 @@ export interface SubscriberPaymentMethodRepository {
         tx?: TransactionContext,
     ): Promise<SubscriberPaymentMethodRecord | null>;
     /**
+     * Of `ids`, the payment methods that exist, a replaced one included, in
+     * one read and in no order — the methods the latest collection attempts of
+     * a page of open items charged.
+     */
+    findByIds(ids: readonly string[]): Promise<SubscriberPaymentMethodRecord[]>;
+    /**
      * The payment method the reference names, whatever its status — and `null`
      * when that subscriber holds none under it, which includes the case of
      * another subscriber holding the reference.

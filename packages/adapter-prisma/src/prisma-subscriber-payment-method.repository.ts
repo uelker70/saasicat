@@ -189,6 +189,14 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
         return row ? toSubscriberPaymentMethodRecord(row) : null;
     }
 
+    async findByIds(ids: readonly string[]): Promise<SubscriberPaymentMethodRecord[]> {
+        if (ids.length === 0) return [];
+        const rows = await this.db().subscriberPaymentMethod.findMany({
+            where: { id: { in: [...ids] } },
+        });
+        return rows.map(toSubscriberPaymentMethodRecord);
+    }
+
     async findByReference(
         reference: SubscriberPaymentMethodReference,
         tx?: TransactionContext,

@@ -28,6 +28,7 @@ import {
     discoveryResource,
     featureWithdrawalsResource,
     invoicesResource,
+    openItemsResource,
     reconciliationResource,
     emailHistoryResource,
     maintenanceResource,
@@ -795,6 +796,8 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
     subscribers: Object.keys(subscribersResource.ops),
     // The register of every invoice, the same: `tests/invoice-register-resource.test.js`.
     invoices: Object.keys(invoicesResource.ops),
+    // And the open items: `tests/open-items-resource.test.js`.
+    openItems: Object.keys(openItemsResource.ops),
 };
 
 describe('the comparison covers the whole roster', () => {

@@ -1,5 +1,6 @@
 import type { DynamicModule } from '@nestjs/common';
 
+import { OpenItemsModule } from '../../billing/invoices/open-items.module.js';
 import { SubscriberCreditModule } from '../../billing/invoices/subscriber-credit.module.js';
 import { SubscriberReconciliationModule } from '../../billing/invoices/subscriber-reconciliation.module.js';
 import type { SaaSiCatModuleOptions } from '../module-options.js';
@@ -27,7 +28,8 @@ export function servesSubscriberCredits(options: SaaSiCatModuleOptions): boolean
 
 /**
  * The operator's view of a subscriber's credits and the payout recorded
- * against one, and the cases to reconcile with a tenant's invoices beside them.
+ * against one, the cases to reconcile with a tenant's invoices beside them,
+ * and the open items of the installation.
  *
  * Runs after `composeAdminResources` and `composeTenantBilling`, and imports
  * the modules they built rather than building its own: the payments and the
@@ -46,5 +48,9 @@ export function composeSubscriberCredits(ctx: CompositionContext): DynamicModule
             ...(optionsOf(ctx.options.adminResources).imports ?? ctx.options.imports ?? []),
         ],
     };
-    return [SubscriberCreditModule.forRoot(served), SubscriberReconciliationModule.forRoot(served)];
+    return [
+        SubscriberCreditModule.forRoot(served),
+        SubscriberReconciliationModule.forRoot(served),
+        OpenItemsModule.forRoot(served),
+    ];
 }

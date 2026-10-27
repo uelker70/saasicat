@@ -58,6 +58,9 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             // Every invoice the installation issued, with its totals. The
             // capability is set where the invoices' documents are served.
             invoices: { enabled: true, requiredCapability: 'invoices.read' },
+            // The invoices that still owe and the credits still owed, across
+            // the installation. Set where the payments are recorded.
+            openItems: { enabled: true, requiredCapability: 'payments.read' },
             users: { enabled: true, requiredCapability: 'users.read' },
             pilots: { enabled: true, requiredCapability: 'pilots.read' },
             // Audit log deliberately at the end — rarely needed, should

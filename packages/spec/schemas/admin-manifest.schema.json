@@ -132,6 +132,7 @@
                         "tenants": { "$ref": "#/$defs/StandardPageDef" },
                         "subscribers": { "$ref": "#/$defs/StandardPageDef" },
                         "invoices": { "$ref": "#/$defs/StandardPageDef" },
+                        "openItems": { "$ref": "#/$defs/StandardPageDef" },
                         "subscriptions": { "$ref": "#/$defs/StandardPageDef" },
                         "promoCodes": { "$ref": "#/$defs/StandardPageDef" },
                         "plans": { "$ref": "#/$defs/StandardPageDef" },

@@ -75,6 +75,7 @@ import type {
     InvoiceRegisterRange,
     IssuedInvoiceAmounts,
 } from '../invoice-register.types.js';
+import type { OwedCreditPage, OwingInvoicePage, OpenItemTotals } from '../open-items.types.js';
 import type {
     IssuedSubscriptionInvoiceCancellation,
     NewSubscriptionInvoice,
@@ -479,6 +480,8 @@ export interface SubscriberRepository {
     findById(subscriberId: string, tx?: TransactionContext): Promise<SubscriberRecord | null>;
     /** The subscriber live for this tenant, or `null` when it has none. */
     findByTenantId(tenantId: string, tx?: TransactionContext): Promise<SubscriberRecord | null>;
+    /** Of `ids`, the subscribers that exist, in one read and in no order. */
+    findByIds(ids: readonly string[]): Promise<SubscriberRecord[]>;
     /**
      * One page of the subscribers `search` matches, the latest customer number
      * first, each with the tenant it is live for where it has one. A subscriber
@@ -752,6 +755,9 @@ export interface SubscriptionInvoiceRepository {
 
     /** The invoice numbered `number`, as its document names it, or `null`. */
     findByNumber(number: string): Promise<SubscriptionInvoiceRecord | null>;
+
+    /** Of `ids`, the invoices that exist, in one read and in no order. */
+    findByIds(ids: readonly string[]): Promise<SubscriptionInvoiceRecord[]>;
 
     /**
      * The prefixes the issued invoices carry, at most two: one is the range,
@@ -1067,6 +1073,9 @@ export interface InvoiceCollectionRepository {
     /** Every attempt of one invoice, the first first. */
     listByInvoice(invoiceId: string, tx?: TransactionContext): Promise<InvoiceCollectionRecord[]>;
 
+    /** Every attempt of each of `invoiceIds`, in one read and in no order. */
+    listByInvoices(invoiceIds: readonly string[]): Promise<InvoiceCollectionRecord[]>;
+
     /**
      * Every gateway account an attempt that is not settled was sent to, each
      * once — the accounts that have to stay configured until their attempts
@@ -1212,6 +1221,40 @@ export interface SubscriberPaymentRepository {
         invoiceIds: readonly string[],
         tx?: TransactionContext,
     ): Promise<{ invoiceId: string; owed: number }[]>;
+
+    /**
+     * One page of the invoices that still owe something, whichever subscriber
+     * and tenant each was for (`SC-ADM-044`): those whose owed, as
+     * `owedByInvoice` reads it from their settlements, is above zero — a
+     * cancelled invoice and a cancellation invoice never among them. By due
+     * date, then by number within its year, the earliest first; of those due
+     * before `overdueOn` only, where it is given. A page continues after the
+     * invoice `after` names; one it does not know continues after nothing.
+     * Read as the same signed sum in SQL, the sign taken from
+     * `REOPENING_SETTLEMENT_KINDS`. Platform-wide: the platform wraps the call
+     * in `RlsBypassPort`.
+     */
+    listOpenInvoices(page: {
+        limit: number;
+        after?: string;
+        overdueOn?: CalendarDay;
+    }): Promise<OwingInvoicePage>;
+
+    /**
+     * One page of the credits that still hold something the subscriber is
+     * owed, as `openOfCredit` reads it from their entries, whichever subscriber
+     * each is of (`SC-ADM-044`): the oldest first, a page continuing after the
+     * credit `after` names as `listOpenInvoices` does. The sign of an entry is
+     * taken from `GIVING_BACK_CREDIT_ENTRY_KINDS`. Platform-wide, as above.
+     */
+    listOpenCredits(page: { limit: number; after?: string }): Promise<OwedCreditPage>;
+
+    /**
+     * What the open invoices and the open credits add up to per currency, and
+     * of the invoices what was due before `today` — the same invoices and
+     * credits the two lists hold. Platform-wide, as above.
+     */
+    openItemTotals(today: CalendarDay): Promise<OpenItemTotals>;
 
     /**
      * Records a reversal the gateway reported against the payment it takes

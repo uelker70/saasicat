@@ -93,6 +93,7 @@ import { InvoiceCollectionService } from './invoices/invoice-collection.service.
 import { InvoicePaymentService } from './invoices/invoice-payment.service.js';
 import { SubscriberCreditService } from './invoices/subscriber-credit.service.js';
 import { SubscriberReconciliationService } from './invoices/subscriber-reconciliation.service.js';
+import { OpenItemsService } from './invoices/open-items.service.js';
 import { ContractConfirmationService } from './confirmations/contract-confirmation.service.js';
 import {
     CONTRACT_CONFIRMATION_ARCHIVE_TOKEN,
@@ -733,6 +734,7 @@ export class TenantBillingModule {
                           InvoicePaymentService,
                           SubscriberCreditService,
                           SubscriberReconciliationService,
+                          OpenItemsService,
                       ]
                     : []),
                 ...(invoices.includeCron === false ? [] : [SubscriptionInvoiceCron]),
@@ -906,6 +908,7 @@ export class TenantBillingModule {
                           InvoicePaymentService,
                           SubscriberCreditService,
                           SubscriberReconciliationService,
+                          OpenItemsService,
                       ]
                     : []),
                 ...(versionNotices ? [VersionNoticeService] : []),
