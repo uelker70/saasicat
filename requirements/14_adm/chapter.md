@@ -1819,6 +1819,8 @@ _Tested by:_
         - are those that still owe, the oldest due date first, with what each owes and how many days
           it is overdue in the installation’s zone
         - say how each is paid and how its latest collection attempt ended
+        - say the payment method the latest attempt charged, one that replaced the invoice’s since
+          included, and before any attempt the invoice’s
         - overdue alone, are those due before today, today not among them
         - are read ${OPEN_ITEMS_PAGE_SIZE} to a page, the next one named by the last on it
     - the open credits
@@ -1830,6 +1832,10 @@ _Tested by:_
         - runs outside the tenants' row-level policy, a page in a few reads
     - an open item the store lists and cannot read
         - fails the page of invoices rather than leaving the invoice off it
+        - fails the page of invoices rather than show a payment method other than the one its latest
+          attempt charged
+        - fails the page of invoices where the payment methods are not wired, which collecting
+          refuses to start without
         - fails the page of credits rather than leaving the credit off it
     - the requests as the routes take them
         - overdue alone is true or false, and a page goes on after an id of a length one can have

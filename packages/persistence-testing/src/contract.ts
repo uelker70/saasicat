@@ -6421,6 +6421,44 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(first?.replacedAt?.toISOString(), '2026-09-02T10:00:00.000Z');
         });
 
+        // @requirement SC-ADM-044
+        test('payment methods are read for many ids at once, a replaced one included, the ones that exist', async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Viele Wege GmbH' });
+            const first = await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_many_first', '2026-09-01T10:00:00.000Z'),
+            );
+            const second = await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_many_second', '2026-09-02T10:00:00.000Z'),
+            );
+            const other = await createSubscriber({ legalName: 'Andere Wege GmbH' });
+            await methods.recordConfirmed(
+                paymentMethodFor(other.subscriberId, 'pm_many_theirs', '2026-09-03T10:00:00.000Z'),
+            );
+            const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : 1);
+
+            const read = await methods.findByIds([
+                second.method.id,
+                'no-such-method',
+                first.method.id,
+            ]);
+
+            assert.deepEqual(
+                read.sort(byId),
+                [
+                    (await methods.findByReference(reference(subscriberId, 'pm_many_first')))!,
+                    (await methods.findActive(subscriberId))!,
+                ].sort(byId),
+            );
+            assert.deepEqual(read.map(({ status }) => status).sort(), ['ACTIVE', 'REPLACED']);
+            assert.deepEqual(await methods.findByIds([]), []);
+        });
+
         test('a confirmation recorded again is recognised, and changes nothing', async (t) => {
             const methods = harness.adapter.subscriberPaymentMethodRepository;
             const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);

@@ -45,6 +45,14 @@ const DEBIT = {
     last4: '3000',
     mandateReference: 'M-1',
 };
+/**
+ * The payment methods the attempts charge: the debit the invoices are issued
+ * with, and the card subscriber-1 replaced it with since.
+ */
+const METHODS = [
+    { id: 'pm-debit', subscriberId: 'subscriber-1', type: 'sepa_debit', last4: '3000' },
+    { id: 'pm-card', subscriberId: 'subscriber-1', type: 'card', last4: '4242' },
+];
 
 let issued = 0;
 /** An invoice of `subscriberId` totalling `totalGross`, due on `dueDate`. */
@@ -103,6 +111,11 @@ function anInstallation(invoices, attempts = []) {
             })),
         ),
     };
+    const paymentMethods = {
+        findByIds: recorded('payment methods', async (ids) =>
+            METHODS.filter((each) => ids.includes(each.id)),
+        ),
+    };
     const bypass = {
         async runWithBypass(fn) {
             bypassed += 1;
@@ -125,6 +138,7 @@ function anInstallation(invoices, attempts = []) {
         subscribers,
         SETTINGS,
         bypass,
+        paymentMethods,
     );
     /** Records a payment of `amount` against `invoice`, `minutes` after `PAID`. */
     const pay = (invoice, amount, minutes = 0) =>
@@ -141,10 +155,17 @@ function anInstallation(invoices, attempts = []) {
     return { service, payments, reads, pay };
 }
 
-const attemptOf = (invoiceId, attempt, status, failureReason = null) => ({
+const attemptOf = (
+    invoiceId,
+    attempt,
+    status,
+    failureReason = null,
+    paymentMethodId = 'pm-debit',
+) => ({
     id: `${invoiceId}-attempt-${attempt}`,
     invoiceId,
     attempt,
+    paymentMethodId,
     status,
     failureReason,
     submittedAt: new Date(`2026-02-1${attempt}T06:00:00.000Z`),
@@ -203,6 +224,29 @@ describe('the open invoices', () => {
             ],
         );
         assert.deepEqual([second.payment, second.lastAttempt], [null, null]);
+    });
+
+    test('say the payment method the latest attempt charged, one that replaced the invoice’s since included, and before any attempt the invoice’s', async () => {
+        const replaced = invoiceOf('subscriber-1', 119, '2026-02-15', DEBIT);
+        const notYet = invoiceOf('subscriber-1', 119, '2026-02-16', DEBIT);
+        const { service } = anInstallation(
+            [replaced, notYet],
+            [
+                attemptOf(replaced.id, 1, 'FAILED', 'mandate-invalid'),
+                attemptOf(replaced.id, 2, 'FAILED', 'declined', 'pm-card'),
+            ],
+        );
+
+        const [first, second] = (await service.invoicesPage({}, NOW)).invoices;
+
+        assert.deepEqual(
+            [first.payment, first.lastAttempt.failureReason],
+            [{ type: 'card', last4: '4242' }, 'declined'],
+        );
+        assert.deepEqual(
+            [second.payment, second.lastAttempt],
+            [{ type: 'sepa_debit', last4: '3000' }, null],
+        );
     });
 
     test('overdue alone, are those due before today, today not among them', async () => {
@@ -302,7 +346,11 @@ describe('the totals of the open items', () => {
 describe('every read of the open items', () => {
     test("runs outside the tenants' row-level policy, a page in a few reads", async () => {
         const invoice = invoiceOf('subscriber-1', 100, '2026-02-10');
-        const { service, reads, pay } = anInstallation([invoice]);
+        const owing = invoiceOf('subscriber-1', 100, '2026-02-11', DEBIT);
+        const { service, reads, pay } = anInstallation(
+            [invoice, owing],
+            [attemptOf(owing.id, 1, 'FAILED', 'declined')],
+        );
         await pay(invoice, 150);
 
         await service.invoicesPage({}, NOW);
@@ -311,7 +359,15 @@ describe('every read of the open items', () => {
 
         assert.deepEqual(
             reads.map(({ name }) => name),
-            ['open invoices', 'invoices', 'attempts', 'open credits', 'subscribers', 'totals'],
+            [
+                'open invoices',
+                'invoices',
+                'attempts',
+                'payment methods',
+                'open credits',
+                'subscribers',
+                'totals',
+            ],
         );
         assert.ok(reads.every(({ bypassed }) => bypassed));
     });
@@ -335,6 +391,44 @@ describe('an open item the store lists and cannot read', () => {
 
         await assert.rejects(readingNothingBut(payments).invoicesPage({}, NOW), {
             message: `The store lists invoice ${invoice.id} as open and cannot read it.`,
+        });
+    });
+
+    test('fails the page of invoices rather than show a payment method other than the one its latest attempt charged', async () => {
+        const invoice = invoiceOf('subscriber-1', 100, '2026-02-10', DEBIT);
+        const attempt = attemptOf(invoice.id, 1, 'FAILED', 'declined', 'pm-gone');
+        const { payments } = anInstallation([invoice], [attempt]);
+        const service = new OpenItemsService(
+            payments,
+            { findByIds: async () => [invoice] },
+            { listByInvoices: async () => [attempt] },
+            { findByIds: async () => [] },
+            SETTINGS,
+            null,
+            { findByIds: async () => [] },
+        );
+
+        await assert.rejects(service.invoicesPage({}, NOW), {
+            message: `The collection attempt ${attempt.id} charged payment method pm-gone, which the store cannot read.`,
+        });
+    });
+
+    test('fails the page of invoices where the payment methods are not wired, which collecting refuses to start without', async () => {
+        const invoice = invoiceOf('subscriber-1', 100, '2026-02-10', DEBIT);
+        const attempt = attemptOf(invoice.id, 1, 'FAILED', 'declined');
+        const { payments } = anInstallation([invoice], [attempt]);
+        const service = new OpenItemsService(
+            payments,
+            { findByIds: async () => [invoice] },
+            { listByInvoices: async () => [attempt] },
+            { findByIds: async () => [] },
+            SETTINGS,
+            null,
+        );
+
+        await assert.rejects(service.invoicesPage({}, NOW), {
+            message:
+                'Reading the open items needs the payment methods, which collecting invoices needs to start.',
         });
     });
 

@@ -23,6 +23,8 @@ import {
     type OwedCredit,
     type PlanCatalogSettings,
     type RlsBypassPort,
+    type SubscriberPaymentMethodRecord,
+    type SubscriberPaymentMethodRepository,
     type SubscriberPaymentRepository,
     type SubscriberRecord,
     type SubscriberRepository,
@@ -32,6 +34,7 @@ import {
 
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { readAcrossTenants } from '../../admin/read-across-tenants.js';
+import { SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN } from '../../payments/payments.tokens.js';
 import { SUBSCRIBER_REPOSITORY_TOKEN } from '../../subscriber/subscriber.tokens.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
 import {
@@ -47,11 +50,37 @@ function pageOf(after: string | undefined): { limit: number; after?: string } {
         : { limit: OPEN_ITEMS_PAGE_SIZE, after };
 }
 
+/**
+ * How the invoice is collected: with the payment method its latest attempt
+ * charged, which is a replacement where the subscriber gave one since the
+ * invoice was issued; before any attempt, with the one it was issued with.
+ */
+function paymentOf(
+    invoice: SubscriptionInvoiceRecord,
+    attempt: InvoiceCollectionRecord | undefined,
+    methods: ReadonlyMap<string, SubscriberPaymentMethodRecord>,
+): AdminOpenInvoice['payment'] {
+    if (!attempt) {
+        return invoice.payment
+            ? { type: invoice.payment.type, last4: invoice.payment.last4 }
+            : null;
+    }
+    const method = methods.get(attempt.paymentMethodId);
+    // No port deletes a payment method, a replaced one included.
+    if (!method) {
+        throw new Error(
+            `The collection attempt ${attempt.id} charged payment method ${attempt.paymentMethodId}, which the store cannot read.`,
+        );
+    }
+    return { type: method.type, last4: method.last4 };
+}
+
 /** One open invoice as the operator reads it. */
 function openInvoiceOf(
     invoice: SubscriptionInvoiceRecord,
     owed: number,
     attempt: InvoiceCollectionRecord | undefined,
+    methods: ReadonlyMap<string, SubscriberPaymentMethodRecord>,
     today: CalendarDay,
 ): AdminOpenInvoice {
     return {
@@ -69,9 +98,7 @@ function openInvoiceOf(
             legalName: invoice.subscriber.legalName,
         },
         tenantId: invoice.tenantId,
-        payment: invoice.payment
-            ? { type: invoice.payment.type, last4: invoice.payment.last4 }
-            : null,
+        payment: paymentOf(invoice, attempt, methods),
         lastAttempt: attempt
             ? {
                   status: attempt.status,
@@ -116,6 +143,13 @@ export class OpenItemsService {
         @Optional()
         @Inject(RLS_BYPASS_PORT_TOKEN)
         private readonly rlsBypass: RlsBypassPort | null = null,
+        // Optional as the collection service takes it: that service refuses
+        // to start without it and names what is missing, which an unresolved
+        // provider here would pre-empt. The open items are served only where
+        // invoices are collected.
+        @Optional()
+        @Inject(SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN)
+        private readonly paymentMethods: SubscriberPaymentMethodRepository | null = null,
     ) {}
 
     /**
@@ -140,6 +174,7 @@ export class OpenItemsService {
                 (await this.invoices.findByIds(ids)).map((invoice) => [invoice.id, invoice]),
             );
             const attempts = latestAttemptsOf(await this.collections.listByInvoices(ids));
+            const methods = await this.methodsCharged([...attempts.values()]);
             const invoices = page.invoices.map(({ invoiceId, owed }) => {
                 const invoice = records.get(invoiceId);
                 // No port deletes an invoice, so one listed a moment ago is
@@ -150,7 +185,7 @@ export class OpenItemsService {
                         `The store lists invoice ${invoiceId} as open and cannot read it.`,
                     );
                 }
-                return openInvoiceOf(invoice, owed, attempts.get(invoiceId), today);
+                return openInvoiceOf(invoice, owed, attempts.get(invoiceId), methods, today);
             });
             return {
                 today,
@@ -199,6 +234,22 @@ export class OpenItemsService {
             today,
             ...(await this.payments.openItemTotals(today)),
         }));
+    }
+
+    /** The payment methods `attempts` charged, by id, in one read. */
+    private async methodsCharged(
+        attempts: readonly InvoiceCollectionRecord[],
+    ): Promise<Map<string, SubscriberPaymentMethodRecord>> {
+        const ids = [...new Set(attempts.map(({ paymentMethodId }) => paymentMethodId))];
+        if (ids.length === 0) return new Map();
+        if (!this.paymentMethods) {
+            throw new Error(
+                'Reading the open items needs the payment methods, which collecting invoices needs to start.',
+            );
+        }
+        return new Map(
+            (await this.paymentMethods.findByIds(ids)).map((method) => [method.id, method]),
+        );
     }
 
     private todayOf(now: Date): CalendarDay {

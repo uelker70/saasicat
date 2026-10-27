@@ -1475,6 +1475,11 @@ export function createMemoryHarness() {
             );
             return row ? structuredClone(row) : null;
         },
+        async findByIds(ids) {
+            return state.paymentMethods
+                .filter((candidate) => ids.includes(candidate.id))
+                .map((candidate) => structuredClone(candidate));
+        },
         async findByReference(reference) {
             const row = state.paymentMethods.find(
                 (candidate) =>

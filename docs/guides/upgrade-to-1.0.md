@@ -2694,6 +2694,11 @@ contract holds them:
   each reading what is owed by the signed sums `owedByInvoice` and `openOfCredit` compute.
 - **`SubscriptionInvoiceRepository`** and **`SubscriberRepository`**: `findByIds`.
 - **`InvoiceCollectionRepository`**: `listByInvoices`.
+- **`SubscriberPaymentMethodRepository`**: `findByIds`, a replaced payment method included. An
+  invoice is shown as collected with the payment method its latest attempt charged, which is the
+  subscriber's replacement where it gave one after the invoice was issued. The open items read it
+  across tenants, so an implementation with a row-level policy of its own reads it the way it reads
+  the gateway's callbacks.
 
 An admin shell that lists its pages by hand adds the page. A persistence contract harness of your
 own is held, after every scenario, to open items that agree with the rule.

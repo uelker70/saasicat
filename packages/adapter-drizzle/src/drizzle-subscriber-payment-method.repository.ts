@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import type {
     RecordSubscriberPaymentMethodData,
     RecordSubscriberPaymentMethodResult,
@@ -145,6 +145,15 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
             .where(this.activeOf(subscriberId))
             .limit(1);
         return row ? toSubscriberPaymentMethodRecord(row) : null;
+    }
+
+    async findByIds(ids: readonly string[]): Promise<SubscriberPaymentMethodRecord[]> {
+        if (ids.length === 0) return [];
+        const rows = await resolveDb(this.db)
+            .select()
+            .from(subscriberPaymentMethods)
+            .where(inArray(subscriberPaymentMethods.id, [...ids]));
+        return rows.map(toSubscriberPaymentMethodRecord);
     }
 
     async findByReference(

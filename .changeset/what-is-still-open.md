@@ -27,6 +27,10 @@ migrated: what is owed and what is open are read in SQL by the same signed sums
 `@saasicat/core`, and the persistence contract checks after every scenario that
 the lists agree with that rule. `SubscriberPaymentRepository` gains
 `listOpenInvoices`, `listOpenCredits` and `openItemTotals`,
-`SubscriptionInvoiceRepository` and `SubscriberRepository` gain `findByIds`, and
+`SubscriptionInvoiceRepository`, `SubscriberRepository` and
+`SubscriberPaymentMethodRepository` gain `findByIds`, and
 `InvoiceCollectionRepository` gains `listByInvoices`, in both adapters; a
-repository of your own adds them.
+repository of your own adds them. An invoice is shown as collected with the
+payment method its latest attempt charged, a replacement the subscriber gave
+since it was issued included, and before any attempt with the one it was
+issued with.

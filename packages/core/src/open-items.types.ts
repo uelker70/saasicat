@@ -59,7 +59,12 @@ export interface AdminOpenInvoice {
     /** The subscriber as the invoice names it, and the record it leads to. */
     subscriber: { id: string; customerNumber: string; legalName: string };
     tenantId: string;
-    /** The payment method it is collected with; `null` where it is not, and is paid by transfer. */
+    /**
+     * The payment method it is collected with: the one its latest attempt
+     * charged — a replacement the subscriber gave since it was issued
+     * included —, before any attempt the one it was issued with; `null` where
+     * it is not collected, and is paid by transfer.
+     */
     payment: { type: PaymentMethodType; last4: string } | null;
     /** The latest attempt to collect it; `null` where none was made. */
     lastAttempt: {
