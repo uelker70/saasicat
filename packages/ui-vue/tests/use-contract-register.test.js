@@ -69,6 +69,11 @@ describe('useContractRegister', () => {
         await settle();
         register.day.value = '2026-01-15';
         await settle();
+        assert.deepEqual(
+            [register.today.value, register.readOn.value],
+            ['2026-02-17', '2026-01-15'],
+            'the day read on is the one picked',
+        );
         register.day.value = null;
         await settle();
         register.day.value = '';
