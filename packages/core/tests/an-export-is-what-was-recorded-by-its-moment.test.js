@@ -23,6 +23,7 @@ import {
     invoiceExportFilesOf,
     invoiceExportManifestOf,
     invoiceExportOf,
+    invoiceSettlementsOf,
     isLocalMoment,
 } from '../dist/index.js';
 
@@ -498,6 +499,69 @@ describe('an export as of a moment', () => {
         assert.deepEqual(
             exportOf(source(settlements)).settlements.map(({ settlementId }) => settlementId),
             ['st-a', 'st-b'],
+        );
+    });
+});
+
+describe('the settlements a store reads for an export', () => {
+    const reversed = {
+        id: 'settlement-2',
+        invoiceId: 'invoice-1',
+        paymentId: 'payment-1',
+        reversalId: 'reversal-1',
+        cancellationId: null,
+        kind: 'REVERSAL',
+        amount: '10.00',
+        recordedAt: at('2026-02-03T10:00:00.000Z'),
+    };
+    const paid = {
+        ...reversed,
+        id: 'settlement-1',
+        reversalId: null,
+        kind: 'PAYMENT',
+        amount: 119,
+    };
+    const payment = {
+        id: 'payment-1',
+        provider: 'stripe',
+        gatewayAccount: 'stripe-main',
+        gatewayRef: 'pi_1',
+    };
+    const reversal = { id: 'reversal-1', gatewayRef: 'du_1' };
+
+    test('carry the payment each settles from and the reversal it records', () => {
+        assert.deepEqual(invoiceSettlementsOf([paid, reversed], [payment], [reversal]), [
+            {
+                id: 'settlement-1',
+                invoiceId: 'invoice-1',
+                kind: 'PAYMENT',
+                amount: 119,
+                recordedAt: paid.recordedAt,
+                payment,
+                reversal: null,
+                cancellationId: null,
+            },
+            {
+                id: 'settlement-2',
+                invoiceId: 'invoice-1',
+                kind: 'REVERSAL',
+                amount: 10,
+                recordedAt: reversed.recordedAt,
+                payment,
+                reversal,
+                cancellationId: null,
+            },
+        ]);
+    });
+
+    test('stop the read where the store did not bring a settlement’s payment or reversal', () => {
+        assert.throws(
+            () => invoiceSettlementsOf([reversed], [], [reversal]),
+            /names payment payment-1/,
+        );
+        assert.throws(
+            () => invoiceSettlementsOf([reversed], [payment], []),
+            /names reversal reversal-1/,
         );
     });
 });

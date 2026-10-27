@@ -22,8 +22,6 @@ const CENTRAL_HEADER_BYTES = 46;
 const END_OF_CENTRAL_DIRECTORY_BYTES = 22;
 /** Version 2.0 of the format, made on MS-DOS: what reads a stored file with a DOS time. */
 const VERSION = 20;
-/** Bit 11: the name is UTF-8. */
-const UTF8_NAME_FLAG = 0x0800;
 const STORED = 0;
 /** The first year a DOS date can name; its seven bits count from it. */
 const FIRST_DOS_YEAR = 1980;
@@ -78,7 +76,8 @@ export function storedZipOf(entries: readonly StoredZipEntry[], time: StoredZipT
         const local = Buffer.alloc(LOCAL_HEADER_BYTES);
         local.writeUInt32LE(LOCAL_HEADER_SIGNATURE, 0);
         local.writeUInt16LE(VERSION, 4);
-        local.writeUInt16LE(UTF8_NAME_FLAG, 6);
+        // General purpose flags: none — the names are ASCII.
+        local.writeUInt16LE(0, 6);
         local.writeUInt16LE(STORED, 8);
         local.writeUInt16LE(dosTime, 10);
         local.writeUInt16LE(dosDate, 12);
@@ -92,7 +91,7 @@ export function storedZipOf(entries: readonly StoredZipEntry[], time: StoredZipT
         central.writeUInt32LE(CENTRAL_HEADER_SIGNATURE, 0);
         central.writeUInt16LE(VERSION, 4);
         central.writeUInt16LE(VERSION, 6);
-        central.writeUInt16LE(UTF8_NAME_FLAG, 8);
+        central.writeUInt16LE(0, 8);
         central.writeUInt16LE(STORED, 10);
         central.writeUInt16LE(dosTime, 12);
         central.writeUInt16LE(dosDate, 14);

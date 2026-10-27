@@ -12830,11 +12830,18 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 ],
             );
 
+            // Only what the invoices asked for: the replacement's alone, and no
+            // cancellation for an invoice that takes part in none.
+            assert.deepEqual(
+                (await payments.listSettlements([replacement!.id])).map(({ kind }) => kind),
+                ['MOVED_IN'],
+            );
             for (const named of [invoiceId, cancellationInvoice.id, replacement!.id]) {
                 assert.deepEqual(await invoices.listCancellations([named, 'no-such-invoice']), [
                     cancellation,
                 ]);
             }
+            assert.deepEqual(await invoices.listCancellations(['no-such-invoice']), []);
             // The invoice was archived to be collected; the replacement awaits its document.
             const archived = await invoices.findDocument(invoiceId);
             assert.ok(archived?.archivedAt, 'the paid invoice was archived');

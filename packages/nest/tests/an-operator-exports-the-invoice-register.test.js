@@ -79,7 +79,11 @@ function entriesOf(zip) {
         const start = offset + 30 + zip.readUInt16LE(offset + 26) + zip.readUInt16LE(offset + 28);
         const content = zip.subarray(start, start + zip.readUInt32LE(at + 24));
         assert.equal(crc32(content), zip.readUInt32LE(at + 16), `${name} carries its CRC-32`);
-        assert.equal(zip.readUInt32LE(offset + 14), zip.readUInt32LE(at + 16));
+        // The local header repeats the CRC-32 and both sizes, and a reader that
+        // streams the archive goes by those.
+        for (const field of [14, 18, 22]) {
+            assert.equal(zip.readUInt32LE(offset + field), zip.readUInt32LE(at + field + 2));
+        }
         entries.push({
             name,
             method: zip.readUInt16LE(at + 10),
