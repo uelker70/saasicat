@@ -8,13 +8,14 @@
 // while a page is on its way — can be checked with `node --test` against
 // `dist/`.
 
-import { computed, ref, type ComputedRef, type Ref } from 'vue';
-import type {
-    AdminContractRegisterPage,
-    AdminRegisterContract,
-    CalendarDay,
-    ContractRegisterState,
-    ContractStanding,
+import { computed, ref, watch, type ComputedRef, type Ref } from 'vue';
+import {
+    CALENDAR_DAY_PATTERN,
+    type AdminContractRegisterPage,
+    type AdminRegisterContract,
+    type CalendarDay,
+    type ContractRegisterState,
+    type ContractStanding,
 } from '@saasicat/core';
 
 import type { Bound } from '../client/resources/define-resource.js';
@@ -50,15 +51,25 @@ export interface ContractRegister {
 export function useContractRegister(contracts: ContractRegisterResource): ContractRegister {
     const state = ref<ContractRegisterState>('in-force');
     const day = ref<CalendarDay | null>(null);
+    // The day asked for: none for a cleared field, the last whole day while a
+    // date field still shows a year being typed.
+    const asked = ref<CalendarDay | null>(null);
+    watch(day, (value) => {
+        if (!value) asked.value = null;
+        else if (CALENDAR_DAY_PATTERN.test(value)) asked.value = value;
+    });
     const list = usePagedList<AdminContractRegisterPage, AdminRegisterContract>(
-        (after) => {
+        (after, first) => {
             const request: ContractRegisterRequest = { state: state.value };
-            if (day.value) request.day = day.value;
+            // A later page is read on the day the first one was, so a list read
+            // across midnight does not join two days.
+            const on = after === undefined ? asked.value : (first?.day ?? asked.value);
+            if (on) request.day = on;
             if (after !== undefined) request.after = after;
             return contracts.page(request);
         },
         (page) => page.contracts,
-        [state, day],
+        [state, asked],
     );
     return {
         state,

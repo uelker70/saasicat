@@ -79,12 +79,12 @@ describe('useContractRegister', () => {
         register.day.value = '';
         await settle();
 
+        // A field cleared to `null` or to `''` both mean today: one read, not two.
         assert.deepEqual(asked, [
             { state: 'in-force' },
-            { state: 'in-force', after: '1' },
+            { state: 'in-force', day: '2026-02-17', after: '1' },
             { state: 'ended' },
             { state: 'ended', day: '2026-01-15' },
-            { state: 'ended' },
             { state: 'ended' },
         ]);
         assert.deepEqual(
@@ -92,6 +92,50 @@ describe('useContractRegister', () => {
             ['1'],
             'the page read before is gone',
         );
+    });
+
+    test('a day still being typed is not asked for, and the last whole day stays', async () => {
+        const { asked, contracts } = aRegister();
+        const register = useContractRegister(contracts);
+        await settle();
+
+        register.day.value = '2026-01-15';
+        await settle();
+        for (const typing of ['0002-01-15', '0020-01-15', '0202-01-15']) {
+            register.day.value = typing;
+            await settle();
+        }
+        register.day.value = '2025-01-15';
+        await settle();
+
+        assert.deepEqual(asked, [
+            { state: 'in-force' },
+            { state: 'in-force', day: '2026-01-15' },
+            { state: 'in-force', day: '2025-01-15' },
+        ]);
+    });
+
+    test('a later page is read on the day the first one was, across midnight too', async () => {
+        let today = '2026-02-17';
+        const asked = [];
+        const register = useContractRegister({
+            page: async (request) => {
+                asked.push(request);
+                const day = request.day ?? today;
+                return request.after
+                    ? { today, state: request.state, day, contracts: [contract('2')], next: null }
+                    : { today, state: request.state, day, contracts: [contract('1')], next: '1' };
+            },
+        });
+        await settle();
+
+        today = '2026-02-18';
+        await register.contracts.more();
+
+        assert.deepEqual(asked, [
+            { state: 'in-force' },
+            { state: 'in-force', day: '2026-02-17', after: '1' },
+        ]);
     });
 
     test('a page for a standing left while it was on its way is dropped', async () => {

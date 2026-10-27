@@ -43,6 +43,11 @@ import { InvoiceRegisterService } from './invoice-register.service.js';
 /** Longer than any id a store hands out; an `after` beyond it names no invoice. */
 const MAX_ID_LENGTH = 200;
 const MONTH_MESSAGE = 'must be a month, YYYY-MM';
+/**
+ * The last day a calendar day names has no day after it, which a day's window
+ * ends at, so the register is read on any day before it.
+ */
+const NOT_THE_LAST_DAY = /^(?!9999-12-31$)/;
 
 /** `GET admin/invoice-totals` — the months the register's totals are read for (`SC-ADM-042`). */
 export class InvoiceRegisterTotalsQueryDto implements InvoiceRegisterQuery {
@@ -74,6 +79,7 @@ export class ContractRegisterQueryDto implements ContractRegisterQuery {
     @IsOptional()
     @IsString()
     @Matches(CALENDAR_DAY_PATTERN, { message: 'day must be a day, YYYY-MM-DD' })
+    @Matches(NOT_THE_LAST_DAY, { message: 'day must be before 9999-12-31' })
     @IsISO8601({ strict: true })
     day?: string;
 

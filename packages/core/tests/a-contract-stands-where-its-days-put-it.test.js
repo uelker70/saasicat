@@ -9,10 +9,12 @@ import assert from 'node:assert/strict';
 
 import {
     CONTRACT_REGISTER_STATES,
+    addDaysToDay,
     adminRegisterContractOf,
     contractInsideWindow,
     contractRegisterWindowOf,
     contractStandingOn,
+    dayInZone,
     startOfDayInZone,
 } from '../dist/index.js';
 
@@ -31,17 +33,38 @@ describe('the first moment of a day', () => {
         ['2026-01-15', 'Etc/GMT+12', '2026-01-15T12:00:00.000Z'],
         // Cuba's clocks go from midnight to one: the day begins at one.
         ['2026-03-08', 'America/Havana', '2026-03-08T05:00:00.000Z'],
+        // Before 1893 Berlin kept its local mean time, 53 minutes and 28 seconds
+        // ahead of UTC, and the search runs across the end of the year 999.
+        ['1000-01-01', BERLIN, '0999-12-31T23:06:32.000Z'],
+        ['1000-01-01', 'UTC', '1000-01-01T00:00:00.000Z'],
+        ['9999-12-31', BERLIN, '9999-12-30T23:00:00.000Z'],
     ]) {
         test(`of ${day} in ${zone} is ${first}`, () => {
             assert.equal(startOfDayInZone(day, zone).toISOString(), first);
         });
     }
 
-    for (const day of ['2026-02-30', '2026-13-01', '2026-1-5', 'today']) {
+    for (const day of [
+        '2026-02-30',
+        '2026-13-01',
+        '2026-1-5',
+        'today',
+        '0999-12-31',
+        '0050-01-01',
+    ]) {
         test(`of ${day} is refused as no day`, () => {
             assert.throws(() => startOfDayInZone(day, BERLIN), RangeError);
         });
     }
+
+    test('after the last day a day names is refused, and is no day that sorts before it', () => {
+        assert.throws(() => addDaysToDay('9999-12-31', 1), RangeError);
+        assert.equal(addDaysToDay('9999-12-30', 1), '9999-12-31');
+    });
+
+    test('a year below 1000 is written with four digits, so it sorts before the year 1000', () => {
+        assert.equal(dayInZone(new Date('0500-06-01T12:00:00.000Z'), 'UTC'), '0500-06-01');
+    });
 
     test('in a zone the runtime does not know is refused', () => {
         assert.throws(() => startOfDayInZone('2026-01-15', 'Mars/Olympus'), RangeError);

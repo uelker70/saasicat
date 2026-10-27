@@ -13,8 +13,13 @@
 /** A calendar day, `YYYY-MM-DD`. */
 export type CalendarDay = string;
 
-/** The shape of a calendar day, `YYYY-MM-DD`; whether the calendar has it is a second question. */
-export const CALENDAR_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+/**
+ * The shape of a calendar day, `YYYY-MM-DD`, from the year 1000 on, as a month
+ * is (`CALENDAR_MONTH_PATTERN`); whether the calendar has it is a second
+ * question. A year of fewer digits is one a date field shows while it is being
+ * typed, not a day somebody means.
+ */
+export const CALENDAR_DAY_PATTERN = /^[1-9]\d{3}-\d{2}-\d{2}$/;
 
 const MS_PER_HOUR = 3_600_000;
 /**
@@ -41,7 +46,9 @@ export function dayInZone(at: Date, timeZone: string): CalendarDay {
         day: '2-digit',
     }).formatToParts(at);
     const part = (type: string) => parts.find((candidate) => candidate.type === type)?.value;
-    return `${part('year')}-${part('month')}-${part('day')}`;
+    // `Intl` writes a year below 1000 with fewer digits, which would sort a
+    // day of it after one of the year 1000.
+    return `${(part('year') ?? '').padStart(4, '0')}-${part('month')}-${part('day')}`;
 }
 
 /**
@@ -65,7 +72,7 @@ export function lastDayInZone(period: { from: Date; until: Date }, timeZone: str
 export function startOfDayInZone(day: CalendarDay, timeZone: string): Date {
     const [year, month, date] = day.split('-').map(Number);
     const midnight = Date.UTC(year ?? NaN, (month ?? NaN) - 1, date ?? NaN);
-    if (!Number.isFinite(midnight) || new Date(midnight).toISOString().slice(0, 10) !== day) {
+    if (!CALENDAR_DAY_PATTERN.test(day) || new Date(midnight).toISOString().slice(0, 10) !== day) {
         throw new RangeError(`${day} is not a day.`);
     }
     // The moments before `low` fall on an earlier day and those from `high`
@@ -85,8 +92,12 @@ export function addDaysToDay(day: CalendarDay, days: number): CalendarDay {
     if (!Number.isInteger(days)) throw new RangeError('Days are counted in whole days.');
     const [year, month, date] = day.split('-').map(Number);
     if (!year || !month || !date) throw new RangeError(`${day} is not a day.`);
-    const moved = new Date(Date.UTC(year, month - 1, date + days));
-    return moved.toISOString().slice(0, 10);
+    const moved = new Date(Date.UTC(year, month - 1, date + days)).toISOString().slice(0, 10);
+    // Past 9999-12-31 the ISO text grows a sign and a fifth digit; that is no day.
+    if (!CALENDAR_DAY_PATTERN.test(moved)) {
+        throw new RangeError(`${days} days after ${day} is past the days a calendar day names.`);
+    }
+    return moved;
 }
 
 /** The year a day belongs to. */

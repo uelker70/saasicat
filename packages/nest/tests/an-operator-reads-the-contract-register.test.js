@@ -244,6 +244,18 @@ describe('the contract register', () => {
         assert.ok(reads.every(({ bypassed }) => bypassed));
     });
 
+    test('is read on the last day a day has a day after, and on the first of the year 1000', async () => {
+        const { contracts, page } = anInstallation();
+        const always = await contracts.create(
+            contractData('subscriber-1', 'tenant-a', '0999-06-01T00:00:00.000Z'),
+        );
+
+        for (const day of ['9999-12-30', '1000-01-01']) {
+            const register = await page({ day });
+            assert.deepEqual([register.day, ids(register)], [day, [always.id]], day);
+        }
+    });
+
     test('fails a page with a contract whose subscriber the store cannot read, rather than leave it off', async () => {
         const { contracts, page } = anInstallation({ subscriberIds: [] });
         const contract = await contracts.create(
@@ -268,16 +280,24 @@ describe('the register as the route takes it', () => {
             ({ property }) => property,
         );
 
-    test('a standing it knows, a day the calendar has, and an id of a length one can have', async () => {
+    test('a standing it knows, a day the calendar has from the year 1000 to the day before the last, and an id of a length one can have', async () => {
         for (const state of ['in-force', 'ended', 'scheduled', 'never-in-force', 'all']) {
             assert.deepEqual(await problemsOf({ state }), []);
         }
         assert.deepEqual(await problemsOf({ day: '2028-02-29', after: 'x'.repeat(200) }), []);
+        for (const day of ['1000-01-01', '9999-12-30']) {
+            assert.deepEqual(await problemsOf({ day }), [], day);
+        }
         for (const query of [
             { state: 'active' },
             { day: '2026-02-30' },
             { day: '2026-2-1' },
             { day: '2026-02-17T00:00:00Z' },
+            // A date field being typed shows the year digit by digit.
+            { day: '0002-10-27' },
+            { day: '0999-12-31' },
+            // The last day a day names has no day after it for its window to end at.
+            { day: '9999-12-31' },
             { after: 'x'.repeat(201) },
         ]) {
             assert.equal((await problemsOf(query)).length, 1, JSON.stringify(query));

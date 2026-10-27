@@ -1912,11 +1912,13 @@ _Tested by:_
         - narrowed to one standing on a day asked for, reads every standing on that day
         - is read ${CONTRACT_REGISTER_PAGE_SIZE} to a page, the next one named by the last on it
         - runs outside the tenants' row-level policy, a page in three reads
+        - is read on the last day a day has a day after, and on the first of the year 1000
         - fails a page with a contract whose subscriber the store cannot read, rather than leave it
           off
         - is not read without the installation’s time zone, which invoicing requires
     - the register as the route takes it
-        - a standing it knows, a day the calendar has, and an id of a length one can have
+        - a standing it knows, a day the calendar has from the year 1000 to the day before the last,
+          and an id of a length one can have
     - where the contract register is served
         - beside a subscriber’s contracts, and nowhere they are not
         - its page announced under contracts.read where it is served
@@ -1948,6 +1950,8 @@ _Tested by:_
     - the first moment of a day
         - of ${day} in ${zone} is ${first}
         - of ${day} is refused as no day
+        - after the last day a day names is refused, and is no day that sorts before it
+        - a year below 1000 is written with four digits, so it sorts before the year 1000
         - in a zone the runtime does not know is refused
     - where a contract stands on a day
         - from ${from} until ${until ?? 'open-ended'}: ${expected}
@@ -1967,11 +1971,13 @@ _Tested by:_
         - narrowed to one standing on a day asked for, reads every standing on that day
         - is read ${CONTRACT_REGISTER_PAGE_SIZE} to a page, the next one named by the last on it
         - runs outside the tenants' row-level policy, a page in three reads
+        - is read on the last day a day has a day after, and on the first of the year 1000
         - fails a page with a contract whose subscriber the store cannot read, rather than leave it
           off
         - is not read without the installation’s time zone, which invoicing requires
     - the register as the route takes it
-        - a standing it knows, a day the calendar has, and an id of a length one can have
+        - a standing it knows, a day the calendar has from the year 1000 to the day before the last,
+          and an id of a length one can have
     - where the contract register is served
         - beside a subscriber’s contracts, and nowhere they are not
         - its page announced under contracts.read where it is served
@@ -2007,6 +2013,8 @@ _Tested by:_
         - reads the contracts in force today at once, and says the day the platform read them on
         - a standing or a day picked reads the register anew from its first page, and a cleared day
           asks for today
+        - a day still being typed is not asked for, and the last whole day stays
+        - a later page is read on the day the first one was, across midnight too
         - a page for a standing left while it was on its way is dropped
 
 <!-- END proof -->

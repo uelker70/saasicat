@@ -23,9 +23,13 @@ export interface PagedList<Row> {
     more(): Promise<void>;
 }
 
-/** A list read a page at a time, each page naming the row the next one continues after. */
+/**
+ * A list read a page at a time, each page naming the row the next one
+ * continues after. A later page is read with the first one beside it, for a
+ * list whose first page settles something the later ones have to keep.
+ */
 export function usePagedList<Page extends { next: string | null }, Row>(
-    read: (after?: string) => Promise<Page>,
+    read: (after?: string, first?: Page) => Promise<Page>,
     rowsOf: (page: Page) => Row[],
     watchSources: Ref<unknown>[] = [],
 ): PagedList<Row> & { first: AsyncData<Page | null> } {
@@ -53,7 +57,7 @@ export function usePagedList<Page extends { next: string | null }, Row>(
         if (!after) return;
         const asked = firstReads;
         try {
-            const page = await read(after);
+            const page = await read(after, first.data.value ?? undefined);
             if (asked === firstReads && nextAfter() === after) later.value = [...later.value, page];
         } catch (err: unknown) {
             if (asked === firstReads) first.error.value = toAdminError(err);

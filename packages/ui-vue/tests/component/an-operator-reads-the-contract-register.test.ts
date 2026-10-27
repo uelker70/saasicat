@@ -216,7 +216,8 @@ describe('the contract register', () => {
         await more?.trigger('click');
         await settle();
 
-        expect(asked.at(-1)).toEqual({ state: 'in-force', after: 'c-3' });
+        // On the day the first page was read on, so the pages are of one day.
+        expect(asked.at(-1)).toEqual({ state: 'in-force', day: '2026-02-17', after: 'c-3' });
         expect(rowsOf(wrapper)).toHaveLength(4);
     });
 

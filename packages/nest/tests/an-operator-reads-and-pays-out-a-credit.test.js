@@ -300,6 +300,11 @@ describe('a payout as the route takes it', () => {
         ],
         ['a moment instead of a day', payoutOf(1, '2026-03-03T10:00:00Z'), 'paidOn'],
         ['a day no calendar has', payoutOf(1, '2026-02-30'), 'paidOn'],
+        [
+            'a year before 1000, as a date field shows one being typed',
+            payoutOf(1, '0202-03-03'),
+            'paidOn',
+        ],
         ['a note too long', payoutOf(1, '2026-03-03', { note: 'x'.repeat(501) }), 'note'],
     ]) {
         test(`with ${why} is refused`, async () => {

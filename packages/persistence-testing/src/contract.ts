@@ -184,11 +184,11 @@ const OFFER: CreateCheckoutOfferData = {
     },
 };
 
-/** The parties of a contract with the subscriber `subscriberId`, as copied at conclusion. */
 /** The day and the zone the register invariant reads every scenario's contracts on. */
 const REGISTER_DAY = '2026-02-17';
 const REGISTER_ZONE = 'Europe/Berlin';
 
+/** The parties of a contract with the subscriber `subscriberId`, as copied at conclusion. */
 function partiesWith(subscriberId: string, legalName: string): SubscriptionContractParties {
     return {
         subscriberId,
