@@ -34,6 +34,20 @@ export const invoicesMessages = defineMessages(
         documentAwaited: 'ausstehend',
         openRecord: 'Vertragspartnerakte von {customerNumber} öffnen',
         more: 'Weitere laden',
+        export: 'Exportieren',
+        exportTitle: 'Rechnungen für die Steuerberatung exportieren',
+        exportSubtitle:
+            'Die Rechnungen von {from} bis {until} mit ihren Positionen und Zahlungen, so wie sie zum gewählten Stand erfasst waren – als ZIP mit Prüfsummen. Derselbe Stand ergibt dieselbe Datei.',
+        exportAsOf: 'Stand (Tag und Uhrzeit)',
+        exportAsOfHint:
+            'Auf der Uhr der Installation. Leer gelassen: vor fünf Minuten. Später als vor fünf Minuten geht nicht, weil noch laufende Buchungen fehlen könnten.',
+        exportAsOfInvalid: 'Ein Stand wird als Tag und Uhrzeit angegeben.',
+        exportLocale: 'Sprache der Tabellen',
+        exportLocaleDe: 'Deutsch (Semikolon, Dezimalkomma)',
+        exportLocaleEn: 'Englisch (Komma, Dezimalpunkt)',
+        exportSubmit: 'ZIP herunterladen',
+        exported:
+            'Der Export wurde heruntergeladen. Sein Dateiname nennt die Monate, den Stand und die Sprache.',
     },
     {
         title: 'Invoices',
@@ -63,5 +77,19 @@ export const invoicesMessages = defineMessages(
         documentAwaited: 'awaited',
         openRecord: 'Open the record of {customerNumber}',
         more: 'Load more',
+        export: 'Export',
+        exportTitle: 'Export the invoices for a tax advisor',
+        exportSubtitle:
+            'The invoices of {from} to {until} with their lines and payments, as recorded by the moment picked — as a ZIP with checksums. The same moment gives the same file.',
+        exportAsOf: 'As of (day and time)',
+        exportAsOfHint:
+            'On the installation’s clock. Left empty: five minutes ago. A later moment is refused, because postings still under way could be missing.',
+        exportAsOfInvalid: 'A moment is given as a day and a time.',
+        exportLocale: 'Language of the tables',
+        exportLocaleDe: 'German (semicolon, decimal comma)',
+        exportLocaleEn: 'English (comma, decimal point)',
+        exportSubmit: 'Download ZIP',
+        exported:
+            'The export was downloaded. Its file name names the months, the moment and the language.',
     },
 );

@@ -10,13 +10,21 @@
 
 // @requirement SC-ADM-042 — An operator lists the invoices of chosen months, summed per tax treatment and rate
 
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { defineComponent } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
-import type { AdminInvoiceRegisterRow, AdminInvoiceRegisterTotals } from '@saasicat/core';
+import {
+    INVOICE_ERROR_CODES,
+    type AdminInvoiceRegisterRow,
+    type AdminInvoiceRegisterTotals,
+} from '@saasicat/core';
 
+import { AdminError } from '../../src/client/admin-error.js';
 import { standardPageRouteOf } from '../../src/client/nav-builder.js';
-import type { InvoiceRegisterRequest } from '../../src/client/resources/invoices.resource.js';
+import type {
+    InvoiceExportQuery,
+    InvoiceRegisterRequest,
+} from '../../src/client/resources/invoices.resource.js';
 import InvoicesPage from '../../src/pages/InvoicesPage.vue';
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 import {
@@ -25,7 +33,7 @@ import {
 } from '../../src/vue/standard-page-routes.js';
 import { SUPER_ADMIN_MANIFEST_KEY } from '../../src/vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY } from '../../src/vue/ui-notify.js';
-import { dialog, enterTheCode, settle, typeInto } from './support/dialog-flow.js';
+import { dialog, enterTheCode, fieldOf, settle, typeInto } from './support/dialog-flow.js';
 import { provideStubResources } from './support/stub-resources.js';
 import { RECORD } from './support/subscriber-record.js';
 
@@ -94,14 +102,18 @@ afterEach(() => {
 
 type Call = [string, ...unknown[]];
 
+const ARCHIVE_NAME = 'invoices-2026-10-2026-10-as-of-2026-10-27T13-55-00-en.zip';
+
 async function mountRegister({
     capabilities = SERVED,
     rows = ROWS,
     standardPageRoute = standardPageRouteOf(undefined),
+    exportRefusal = null,
 }: {
     capabilities?: Record<string, boolean>;
     rows?: AdminInvoiceRegisterRow[];
     standardPageRoute?: StandardPageRoute;
+    exportRefusal?: AdminError | null;
 } = {}) {
     const calls: Call[] = [];
     const notices: Array<[string, string]> = [];
@@ -141,6 +153,15 @@ async function mountRegister({
                             calls.push(['totals', months]);
                             const from = months.from ?? months.until ?? '2026-10';
                             return totalsOf(from, months.until ?? from);
+                        },
+                        export: async (query: InvoiceExportQuery) => {
+                            calls.push(['export', query]);
+                            if (exportRefusal) throw exportRefusal;
+                            return {
+                                content: Uint8Array.from([0x50, 0x4b]),
+                                mediaType: 'application/zip',
+                                fileName: ARCHIVE_NAME,
+                            };
                         },
                     },
                     subscribers: {
@@ -389,5 +410,131 @@ describe('an invoice cancelled from the register', () => {
             ],
         ]);
         expect(calls.slice(asked).map(([what]) => what)).toEqual(['cancel', 'list', 'totals']);
+    });
+});
+
+// @requirement SC-ADM-043
+describe('the invoices exported for a tax advisor', () => {
+    const saved: Array<{ name: string; type: string }> = [];
+    beforeEach(() => {
+        let made: Blob | null = null;
+        // jsdom has no object URLs, and a followed link would navigate.
+        URL.createObjectURL = vi.fn((blob: Blob) => {
+            made = blob;
+            return 'blob:archive';
+        });
+        URL.revokeObjectURL = vi.fn();
+        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+            this: HTMLAnchorElement,
+        ) {
+            if (made) saved.push({ name: this.download, type: made.type });
+        });
+    });
+    afterEach(() => {
+        saved.length = 0;
+        vi.restoreAllMocks();
+    });
+
+    const exportButton = (wrapper: Mounted) => {
+        // The label stands beside the icon, whose name Quasar renders as text.
+        const button = wrapper
+            .findAll('button')
+            .find(
+                (each) => each.find('.block').exists() && each.find('.block').text() === 'Export',
+            );
+        expect(button, 'no export button').toBeTruthy();
+        return button!;
+    };
+    const exportsAsked = (calls: Call[]) => calls.filter(([name]) => name === 'export');
+    const pickLanguage = async (label: string) => {
+        const choice = [
+            ...(dialog().node?.querySelectorAll<HTMLButtonElement>('[role="group"] button') ?? []),
+        ].find((each) => each.textContent?.includes(label));
+        expect(choice, `no language ${label}`).toBeTruthy();
+        choice?.click();
+        await settle();
+        expect(choice?.getAttribute('aria-pressed')).toBe('true');
+    };
+
+    test('downloads the months the register shows, as of five minutes ago in the screen’s language', async () => {
+        const { wrapper, calls, notices } = await mountRegister();
+
+        await exportButton(wrapper).trigger('click');
+        await settle();
+        expect(dialog().node?.textContent).toContain('The invoices of 2026-10 to 2026-10');
+        dialog().submit?.click();
+        await settle();
+
+        expect(exportsAsked(calls)).toEqual([
+            ['export', { from: '2026-10', until: '2026-10', asOf: undefined, locale: 'en' }],
+        ]);
+        expect(saved).toEqual([{ name: ARCHIVE_NAME, type: 'application/zip' }]);
+        expect(notices).toEqual([
+            [
+                'positive',
+                'The export was downloaded. Its file name names the months, the moment and the language.',
+            ],
+        ]);
+        expect(dialog().node).toBeUndefined();
+    });
+
+    test('as of the moment and in the language picked, and starts again from five minutes ago when opened again', async () => {
+        const { wrapper, calls } = await mountRegister();
+
+        await exportButton(wrapper).trigger('click');
+        await settle();
+        await typeInto('As of (day and time)', '2026-10-20T12:00');
+        await pickLanguage('German');
+        dialog().submit?.click();
+        await settle();
+        await exportButton(wrapper).trigger('click');
+        await settle();
+
+        expect(exportsAsked(calls)).toEqual([
+            [
+                'export',
+                { from: '2026-10', until: '2026-10', asOf: '2026-10-20T12:00', locale: 'de' },
+            ],
+        ]);
+        expect(fieldOf('As of (day and time)').value).toBe('');
+        dialog().submit?.click();
+        await settle();
+        expect(exportsAsked(calls).at(-1)).toEqual([
+            'export',
+            { from: '2026-10', until: '2026-10', asOf: undefined, locale: 'en' },
+        ]);
+    });
+
+    test('refused, says why in the dialog, which stays open, and saves nothing', async () => {
+        const { wrapper, notices } = await mountRegister({
+            exportRefusal: new AdminError({
+                status: 422,
+                code: INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_EXPORT_AS_OF_TOO_LATE,
+                body: {
+                    code: INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_EXPORT_AS_OF_TOO_LATE,
+                    params: { asOf: '2026-10-27T14:00:00', latest: '2026-10-27T13:55:00' },
+                },
+            }),
+        });
+
+        await exportButton(wrapper).trigger('click');
+        await settle();
+        await typeInto('As of (day and time)', '2026-10-27T14:00');
+        dialog().submit?.click();
+        await settle();
+
+        expect(dialog().node?.textContent).toContain(
+            'An export is taken as of 2026-10-27T13:55:00 at the latest',
+        );
+        expect(saved).toEqual([]);
+        expect(notices.filter(([kind]) => kind === 'positive')).toEqual([]);
+    });
+
+    test('is not offered for months the register cannot read', async () => {
+        const { wrapper } = await mountRegister();
+
+        await pick(wrapper, 'From (month)', '2026-12');
+
+        expect(exportButton(wrapper).attributes('disabled')).toBeDefined();
     });
 });
