@@ -384,6 +384,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'The register is read from one month to a later one, and {until} comes before {from}.',
     SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG:
         'The register shows at most {max} months at a time, and {from} to {until} spans {months}. Read a longer stretch a year at a time.',
+    SUBSCRIPTION_INVOICE_EXPORT_AS_OF_TOO_LATE:
+        'An export is taken as of {latest} at the latest, five minutes before now, so that what was still being written is in it; {asOf} is later.',
     SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL:
         'Subscriber {subscriberId} has no invoice email, so its invoice cannot be sent; it is sent once one is entered.',
     SUBSCRIBER_CREDIT_NOT_FOUND: "No credit '{creditId}' of this tenant's subscriber.",

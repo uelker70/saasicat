@@ -388,6 +388,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Das Register wird von einem Monat bis zu einem späteren gelesen, und {until} liegt vor {from}.',
     SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG:
         'Das Register zeigt höchstens {max} Monate auf einmal, und {from} bis {until} umfasst {months}. Einen längeren Zeitraum jahresweise lesen.',
+    SUBSCRIPTION_INVOICE_EXPORT_AS_OF_TOO_LATE:
+        'Ein Export reicht höchstens bis {latest}, fünf Minuten vor jetzt, damit alles darin ist, was noch geschrieben wurde; {asOf} liegt später.',
     SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL:
         'Der Abonnent {subscriberId} hat keine Rechnungs-E-Mail; seine Rechnung wird versendet, sobald eine eingetragen ist.',
     SUBSCRIBER_CREDIT_NOT_FOUND: "Kein Guthaben '{creditId}' des Abonnenten dieses Mandanten.",
