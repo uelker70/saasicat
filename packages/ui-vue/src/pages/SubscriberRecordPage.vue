@@ -197,14 +197,21 @@ watch(
     },
     { immediate: true },
 );
+// The timeline is shown once both the record and its contracts are there,
+// whichever answers last; it is brought into view then, and once per contract
+// named, so reading the contracts again later leaves the page where it is.
+let broughtIntoView: string | null = null;
 watch(
-    () => contracts.data.value,
-    async (loaded) => {
-        const contractId = linkedContract.value;
-        if (!loaded || !contractId) return;
+    [linkedContract, () => record.data.value, () => contracts.data.value],
+    async ([contractId, shown, loaded]) => {
+        if (!contractId || !shown || !loaded || broughtIntoView === contractId) return;
         await nextTick();
-        document.getElementById(contractAnchorOf(contractId))?.scrollIntoView?.({ block: 'start' });
+        const target = document.getElementById(contractAnchorOf(contractId));
+        if (!target) return;
+        broughtIntoView = contractId;
+        target.scrollIntoView?.({ block: 'start' });
     },
+    { immediate: true },
 );
 const copy = useCopyText({ notify });
 const downloads = useSubscriberDownloads(servedBy, subscribers, { notify });

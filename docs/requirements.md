@@ -15803,6 +15803,11 @@ _Tested by:_
         - marks the contracts in force on a day picked, and says so when none was
         - a contract superseded before it began says it was never in force, and is marked on no day
         - opens the contract its address names, and brings it into view
+        - brings the contract its address names into view when the record answers after the
+          contracts
+        - brings the contract its address names into view once, however often the record and its
+          contracts are read again
+        - brings the contract into view where it shows only on a later read
         - opens a contract into what it froze: its lines with where each came from, its invoices and
           its ids
         - leads to the catalogue, and back to the list, where the shell put those pages
@@ -16909,6 +16914,11 @@ _Tested by:_
         - marks the contracts in force on a day picked, and says so when none was
         - a contract superseded before it began says it was never in force, and is marked on no day
         - opens the contract its address names, and brings it into view
+        - brings the contract its address names into view when the record answers after the
+          contracts
+        - brings the contract its address names into view once, however often the record and its
+          contracts are read again
+        - brings the contract into view where it shows only on a later read
         - opens a contract into what it froze: its lines with where each came from, its invoices and
           its ids
         - leads to the catalogue, and back to the list, where the shell put those pages
@@ -17261,6 +17271,11 @@ _Tested by:_
 - `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
     - the subscriber's record shows its contracts
         - opens the contract its address names, and brings it into view
+        - brings the contract its address names into view when the record answers after the
+          contracts
+        - brings the contract its address names into view once, however often the record and its
+          contracts are read again
+        - brings the contract into view where it shows only on a later read
 - `packages/ui-vue/tests/component/the-subscriptions-page-says-what-it-shows.test.ts`
     - the subscriptions page
         - points to the contract register where that is served
@@ -22944,6 +22959,11 @@ _Tested by:_
         - marks the contracts in force on a day picked, and says so when none was
         - a contract superseded before it began says it was never in force, and is marked on no day
         - opens the contract its address names, and brings it into view
+        - brings the contract its address names into view when the record answers after the
+          contracts
+        - brings the contract its address names into view once, however often the record and its
+          contracts are read again
+        - brings the contract into view where it shows only on a later read
         - opens a contract into what it froze: its lines with where each came from, its invoices and
           its ids
         - leads to the catalogue, and back to the list, where the shell put those pages
