@@ -17095,6 +17095,9 @@ _Tested by:_
         - is the one asked for on a clock of the installation’s zone, up to that latest moment
         - is refused a second after that latest moment, naming both
         - that is no day and time is refused rather than guessed
+        - ${asked} in Berlin, where the clock goes back or forward that night, is ${first}
+        - five minutes back in the hour the clock shows twice is the first time it showed it, so the
+          manifest’s moment asked again is the same
         - that a clock shows twice is the first of the two, and one it skips the moment it jumps to
         - ${text} is ${is ? '' : 'not '}a day and a time
     - the schema an export is published under
@@ -17417,6 +17420,9 @@ _Tested by:_
         - is the one asked for on a clock of the installation’s zone, up to that latest moment
         - is refused a second after that latest moment, naming both
         - that is no day and time is refused rather than guessed
+        - ${asked} in Berlin, where the clock goes back or forward that night, is ${first}
+        - five minutes back in the hour the clock shows twice is the first time it showed it, so the
+          manifest’s moment asked again is the same
         - that a clock shows twice is the first of the two, and one it skips the moment it jumps to
         - ${text} is ${is ? '' : 'not '}a day and a time
     - the schema an export is published under

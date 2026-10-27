@@ -1299,7 +1299,9 @@ The moment is at most five minutes before the request, and that where none is gi
 what it records when its transaction began, so a moment any later could still gain a row from a
 transaction under way, and the export would not repeat. A later one is refused with `422` and
 `SUBSCRIPTION_INVOICE_EXPORT_AS_OF_TOO_LATE`, naming the latest one it may be; the months are
-refused as the register refuses them.
+refused as the register refuses them. A time the clock shows twice, the night it goes back, is its
+first showing — the moment asked for and the latest one alike, so the moment the manifest names, asked
+for again, is the same instant; a time the clock skips is the moment it jumps to.
 
 The archive holds `invoices.csv`, `lines.csv` and `settlements.csv`, `export.json` with the same
 rows, and last `manifest.json`, which names the months, the moment, the time zone, the language and

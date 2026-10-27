@@ -25,6 +25,7 @@ import {
     invoiceExportOf,
     invoiceSettlementsOf,
     isLocalMoment,
+    localMomentInZone,
 } from '../dist/index.js';
 
 const BERLIN = 'Europe/Berlin';
@@ -151,6 +152,41 @@ describe('the moment an export is as of', () => {
     test('that is no day and time is refused rather than guessed', () => {
         assert.throws(() => invoiceExportAsOfOf('2026-10-27', now, BERLIN), RangeError);
         assert.throws(() => invoiceExportAsOfOf('2026-02-30T10:00', now, BERLIN), RangeError);
+    });
+
+    for (const [asked, first] of [
+        ['2026-10-25T02:00:00', '2026-10-25T00:00:00.000Z'],
+        ['2026-10-25T02:30:00', '2026-10-25T00:30:00.000Z'],
+        ['2026-10-25T02:59:00', '2026-10-25T00:59:00.000Z'],
+        ['2026-10-25T02:59:59', '2026-10-25T00:59:59.000Z'],
+        ['2026-10-25T03:00:00', '2026-10-25T02:00:00.000Z'],
+        ['2026-03-29T02:00:00', '2026-03-29T01:00:00.000Z'],
+        ['2026-03-29T02:59:59', '2026-03-29T01:00:00.000Z'],
+        ['2026-03-29T03:00:00', '2026-03-29T01:00:00.000Z'],
+    ]) {
+        test(`${asked} in Berlin, where the clock goes back or forward that night, is ${first}`, () => {
+            const later = at('2027-01-01T00:00:00.000Z');
+            assert.equal(invoiceExportAsOfOf(asked, later, BERLIN).asOf.toISOString(), first);
+        });
+    }
+
+    test('five minutes back in the hour the clock shows twice is the first time it showed it, so the manifest’s moment asked again is the same', () => {
+        // 01:35 UTC is 02:35 for the second time in Berlin; five minutes back
+        // reads 02:30, which an asked moment takes as its first showing.
+        const now = at('2026-10-25T01:35:00.000Z');
+
+        const { asOf } = invoiceExportAsOfOf(undefined, now, BERLIN);
+        const local = localMomentInZone(asOf, BERLIN);
+
+        assert.deepEqual(
+            [asOf.toISOString(), local],
+            ['2026-10-25T00:30:00.000Z', '2026-10-25T02:30:00'],
+        );
+        assert.equal(invoiceExportAsOfOf(local, now, BERLIN).asOf.getTime(), asOf.getTime());
+        assert.deepEqual(invoiceExportAsOfOf('2026-10-25T02:30:01', now, BERLIN).refusal?.params, {
+            asOf: '2026-10-25T02:30:01',
+            latest: '2026-10-25T02:30:00',
+        });
     });
 
     test('that a clock shows twice is the first of the two, and one it skips the moment it jumps to', () => {

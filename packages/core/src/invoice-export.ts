@@ -37,8 +37,10 @@ export interface InvoiceExportAsOfRefusal {
 /**
  * The moment an export is as of: the one `asked` names on a clock of the
  * installation's zone, or, where none is asked for, the latest one an export
- * may be as of — `INVOICE_EXPORT_SETTLE_MS` before `now` — to the whole second,
- * so that the moment the manifest names, asked for again, reads the same rows.
+ * may be as of — `INVOICE_EXPORT_SETTLE_MS` before `now` on the installation's
+ * clock, to the whole second, and its first showing where the clock shows that
+ * time twice —, so that the moment the manifest names, asked for again, reads
+ * the same rows.
  * Refused where `asked` lies after that latest moment. Throws a `RangeError`
  * for an `asked` that is no day and time.
  */
@@ -48,7 +50,11 @@ export function invoiceExportAsOfOf(
     timeZone: string,
 ): { asOf: Date; refusal: null } | { asOf: null; refusal: InvoiceExportAsOfRefusal } {
     const settled = now.getTime() - INVOICE_EXPORT_SETTLE_MS;
-    const latest = new Date(Math.floor(settled / MS_PER_SECOND) * MS_PER_SECOND);
+    const second = new Date(Math.floor(settled / MS_PER_SECOND) * MS_PER_SECOND);
+    // A moment is asked for as the clock shows it, and a time the clock shows
+    // twice is asked for as its first showing; the latest one is taken the same
+    // way, or the manifest's moment, asked for again, would be another instant.
+    const latest = firstMomentInZone(localMomentInZone(second, timeZone), timeZone);
     if (asked === undefined) return { asOf: latest, refusal: null };
     const asOf = firstMomentInZone(asked, timeZone);
     if (asOf.getTime() > latest.getTime()) {
