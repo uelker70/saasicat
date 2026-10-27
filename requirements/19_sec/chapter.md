@@ -491,6 +491,9 @@ _Tested by:_
 - `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
     - every subscriber route
         - ${what}: the subscriber is read outside the tenants' row-level policy
+- `packages/nest/tests/an-operator-exports-the-invoice-register.test.js`
+    - an export as of a moment
+        - is read outside the tenants' row-level policy, every read of it
 - `packages/nest/tests/an-operator-finds-a-subscriber.test.js`
     - the list of subscribers
         - is read outside the tenants' row-level policy, the tenants named in one question

@@ -7,7 +7,7 @@
 // for, so that a test can tell what the command asked for, what it passed on,
 // what it wrote and recorded, and what it printed.
 
-// @requirement SC-ADM-043
+// @requirement SC-ADM-047 — The invoice register's export is one archive whose bytes repeat
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

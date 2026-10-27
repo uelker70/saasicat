@@ -3,7 +3,7 @@
 // screen's unless picked —, the archive handed to the browser as it arrived and
 // a refusal left to the dialog that asked.
 
-// @requirement SC-ADM-043
+// @requirement SC-ADM-047 — The invoice register's export is one archive whose bytes repeat
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

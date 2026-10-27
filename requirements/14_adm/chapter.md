@@ -1754,11 +1754,19 @@ _Tested by:_
         - reads the subscriber’s record each time the dialog opens, for the same subscriber too
         - reads its subscriber’s record for the dialog, is confirmed behind the second factor, and
           the register read again
+    - the invoices exported for a tax advisor
+        - downloads the months the register shows, as of five minutes ago in the screen’s language
+        - as of the moment and in the language picked, and starts again from five minutes ago when
+          opened again
+        - refused, says why in the dialog, which stays open, and saves nothing
+        - is not offered for months the register cannot read
 - `packages/ui-vue/tests/invoice-register-resource.test.js`
     - the register’s requests
         - every operation the descriptor declares is pinned here
         - a page of ${JSON.stringify(request)} asks ${url}
         - the totals of ${JSON.stringify(months)} ask ${url}, never after an invoice
+    - the export’s request
+        - of ${JSON.stringify(query)} asks ${url} for its bytes, never after an invoice
 - `packages/ui-vue/tests/use-invoice-register.test.js`
     - useInvoiceRegister
         - reads the platform’s current month at once, page and totals, and shows the months it
@@ -1784,7 +1792,7 @@ _Tested by:_
 
 ### SC-ADM-043 — An operator exports the invoice register for a tax advisor
 
-🟡 _(Decided, not yet delivered.)_ 💰 The export of the register (`SC-ADM-042`) is machine-readable:
+🟢 💰 The export of the register (`SC-ADM-042`) is machine-readable:
 each line with its tax treatment and rate (`SC-PRIC-038`), the payments and reversals against each
 invoice, the cancellation and replacement each names, and each document's checksum (`SC-AUD-019`).
 Every export names the moment it is as of, and every payment, reversal, cancellation and replacement
@@ -1794,6 +1802,57 @@ moment, the export shows what was recorded since, such as a payment confirmed or
 cancelled after a period ended, rather than silently changing a row.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #335
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-export-is-what-was-recorded-by-its-moment.test.js`
+    - the moment an export is as of
+        - is five minutes before the request where none is asked for, to the whole second
+        - is the one asked for on a clock of the installation’s zone, up to that latest moment
+        - is refused a second after that latest moment, naming both
+        - that is no day and time is refused rather than guessed
+        - that a clock shows twice is the first of the two, and one it skips the moment it jumps to
+        - ${text} is ${is ? '' : 'not '}a day and a time
+    - the schema an export is published under
+        - names the tax treatments, settlement kinds and languages core writes, no more
+        - names the format version core writes, in the export and in its manifest
+        - takes a day and a month in the shapes core reads them
+    - an export as of a moment
+        - holds the invoices issued by then, by issue date and number, each with its party and
+          treatment
+        - holds the settlements recorded by then, the period over too, and none recorded later
+        - names a cancellation recorded by then, its invoice issued after the period too, and none
+          recorded later
+        - names what a cancellation invoice and a replacement correct, and the cancellation a moved
+          settlement came from
+        - names a document’s checksum where the archive confirmed it by then, and none where later
+          or never
+        - lists each invoice’s lines by position with the invoice’s treatment, and a settlement for
+          no listed invoice not at all
+        - is the same however the store happened to hand the settlements
+    - the files an export is written to
+        - are the three tables and export.json, in that order
+        - in ${locale}: separated by ${delimiter}, amounts as ${amount}, a byte order mark first and
+          CRLF after each row
+        - defuse a text cell a spreadsheet would read as a formula, and quote what holds a
+          separator, a quote or a line break
+        - write an amount as a number, never defused, and a missing value as an empty cell
+        - write export.json from the same model, the same text every time
+        - are named in a manifest with the period, the moment, the notation, the counts and every
+          file as measured
+        - are archived under the period, the moment and the language, with nothing a file system
+          refuses
+- `packages/nest/tests/an-operator-exports-the-invoice-register.test.js`
+    - an export as of a moment
+        - is the same archive, byte for byte, asked for again after more was recorded
+        - in another language writes other tables from the same export.json
+        - lists the settlements recorded by then, each with the payment the gateway reported
+        - holds every invoice of the months, however many reads they take
+        - is read outside the tenants' row-level policy, every read of it
+
+<!-- END proof -->
 
 ### SC-ADM-044 — An operator lists what subscribers still owe and are still owed, across every tenant
 
@@ -2016,5 +2075,126 @@ _Tested by:_
         - a day still being typed is not asked for, and the last whole day stays
         - a later page is read on the day the first one was, across midnight too
         - a page for a standing left while it was on its way is dropped
+
+<!-- END proof -->
+
+### SC-ADM-047 — The invoice register's export is one archive whose bytes repeat
+
+🟢 💰 The export (`SC-ADM-043`) covers the months the register reads (`SC-ADM-042`), at most
+twelve, as of a moment on the installation's clock: five minutes before it is asked for unless the
+operator names an earlier one. A later one is refused with a sentence naming the latest it may be,
+because a store stamps what it records when the writing begins, and what was still being written
+would otherwise join an export already handed over. It holds the invoices issued by then, a
+cancellation invoice in the month of its date; the settlements recorded against them by then, after
+the months ended too; a cancellation where recorded by then; and a document's checksum where
+archived by then, and otherwise none. It is one ZIP: a table of the invoices, one of their lines and
+one of the settlements — in German with semicolons and decimal commas or in English with commas and
+points, a byte order mark first and CRLF after each row, a text cell a spreadsheet would read as a
+formula defused —, `export.json` with the same rows following a schema `@saasicat/spec` publishes,
+and last a manifest naming the months, the moment, the time zone, the language and the size and
+SHA-256 of each file before it. The files are stored uncompressed, each dated the moment the export
+is as of, so the same months as of the same moment in the same language are the same bytes, and two
+hand-overs are compared by the archive's SHA-256, which the audit log records with who took it,
+when, the months and the moment. It is taken from the invoices page or with
+`saasicat invoices export`, which writes into the directory named or the current one and refuses to
+write over a file of the same name. It is a read, so it asks for no second factor, only the platform
+administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the
+administration does (`SC-SEC-003`).
+
+_Source:_ #335 (decided 2026-10-27) · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/invoice-export-cli-flow.test.js`
+    - an export the command writes
+        - is the archive the export hands, under its name in --out, asking for no second factor or
+          confirmation
+        - passes the months, the moment and the language on as typed, and nothing where none is
+          given
+        - is written into the current directory where no --out is given
+        - is recorded in the audit log under the operator, with the months, the moment and its
+          SHA-256
+    - an export the command refuses
+        - for ${why}, with exit code 1, before it asks who acts
+        - as the route does, with the export’s code and exit code 1, writing nothing
+        - over a file of its name, with exit code 6, leaving the file as it was and recording
+          nothing
+    - the command
+        - prints where it wrote the archive, what it holds and its SHA-256
+        - prints the same as JSON with -o json
+- `packages/core/tests/an-export-is-what-was-recorded-by-its-moment.test.js`
+    - the moment an export is as of
+        - is five minutes before the request where none is asked for, to the whole second
+        - is the one asked for on a clock of the installation’s zone, up to that latest moment
+        - is refused a second after that latest moment, naming both
+        - that is no day and time is refused rather than guessed
+        - that a clock shows twice is the first of the two, and one it skips the moment it jumps to
+        - ${text} is ${is ? '' : 'not '}a day and a time
+    - the schema an export is published under
+        - names the tax treatments, settlement kinds and languages core writes, no more
+        - names the format version core writes, in the export and in its manifest
+        - takes a day and a month in the shapes core reads them
+    - the files an export is written to
+        - are the three tables and export.json, in that order
+        - in ${locale}: separated by ${delimiter}, amounts as ${amount}, a byte order mark first and
+          CRLF after each row
+        - defuse a text cell a spreadsheet would read as a formula, and quote what holds a
+          separator, a quote or a line break
+        - write an amount as a number, never defused, and a missing value as an empty cell
+        - write export.json from the same model, the same text every time
+        - are named in a manifest with the period, the moment, the notation, the counts and every
+          file as measured
+        - are archived under the period, the moment and the language, with nothing a file system
+          refuses
+- `packages/nest/tests/an-operator-exports-the-invoice-register.test.js`
+    - the archive an export is handed over as
+        - holds the three tables, export.json and the manifest last, each stored and named with its
+          size and SHA-256
+        - is written as the schema @saasicat/spec publishes it says, export.json and manifest.json
+          alike
+        - dates every file the moment it is as of, as a clock in the installation’s zone shows it,
+          in two-second steps
+        - dates it 1 January 1980, the earliest a ZIP names, as of a moment before then
+        - is downloaded as a ZIP under the months, the moment and the language
+    - an export as of a moment
+        - is the same archive, byte for byte, asked for again after more was recorded
+        - in another language writes other tables from the same export.json
+        - lists the settlements recorded by then, each with the payment the gateway reported
+        - holds every invoice of the months, however many reads they take
+        - is read outside the tenants' row-level policy, every read of it
+    - the audit log
+        - records who took which archive: the months, the moment, the language, what it holds and
+          its SHA-256
+    - the exports refused
+        - ${why}, with its code, nothing read and nothing recorded
+        - as of a moment too late, naming the latest one it may be as of
+    - what the export takes
+        - two months, a moment and a language, and nothing else
+        - a moment without its seconds
+        - refuses ${why}
+    - the manifest names what the export writes to the audit log
+- `packages/ui-vue/tests/component/an-operator-reads-the-invoice-register.test.ts`
+    - the invoices exported for a tax advisor
+        - downloads the months the register shows, as of five minutes ago in the screen’s language
+        - as of the moment and in the language picked, and starts again from five minutes ago when
+          opened again
+        - refused, says why in the dialog, which stays open, and saves nothing
+        - is not offered for months the register cannot read
+- `packages/ui-vue/tests/invoice-register-resource.test.js`
+    - the export’s request
+        - of ${JSON.stringify(query)} asks ${url} for its bytes, never after an invoice
+- `packages/ui-vue/tests/use-invoice-export.test.js`
+    - what an export starts from
+        - is five minutes ago, in the screen’s language
+        - on a screen in ${screen} writes the tables in ${locale}
+    - the moment an export may be asked as of
+        - ${JSON.stringify(asOf)} is ${valid ? '' : 'not '}one
+    - an export downloaded
+        - asks for the register’s months as of the moment, in the language picked, and saves what
+          came
+        - asks for no month and no moment where the inputs are empty
+        - that is refused throws the refusal and saves nothing
 
 <!-- END proof -->

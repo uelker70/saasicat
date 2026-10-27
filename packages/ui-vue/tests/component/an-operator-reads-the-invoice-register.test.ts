@@ -413,7 +413,7 @@ describe('an invoice cancelled from the register', () => {
     });
 });
 
-// @requirement SC-ADM-043
+// @requirement SC-ADM-047 — The invoice register's export is one archive whose bytes repeat
 describe('the invoices exported for a tax advisor', () => {
     const saved: Array<{ name: string; type: string }> = [];
     beforeEach(() => {

@@ -5,7 +5,7 @@
 // Asked through the platform as an application composes it, so what is asserted
 // is what the route serves, in the frame it runs in.
 
-// @requirement SC-ADM-043
+// @requirement SC-ADM-047 — The invoice register's export is one archive whose bytes repeat
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -244,6 +244,7 @@ describe('the archive an export is handed over as', () => {
     });
 });
 
+// @requirement SC-ADM-043 — An operator exports the invoice register for a tax advisor
 describe('an export as of a moment', () => {
     test('is the same archive, byte for byte, asked for again after more was recorded', async () => {
         const { installation, payments, pay } = await aFebruary();

@@ -74,7 +74,7 @@ describe('the register’s requests', () => {
     }
 });
 
-// @requirement SC-ADM-043
+// @requirement SC-ADM-047 — The invoice register's export is one archive whose bytes repeat
 describe('the export’s request', () => {
     const ZIP = Uint8Array.from([0x50, 0x4b, 0x03, 0x04, 0x00, 0xff]);
     const NAME = 'invoices-2026-01-2026-12-as-of-2027-01-15T10-00-00-de.zip';

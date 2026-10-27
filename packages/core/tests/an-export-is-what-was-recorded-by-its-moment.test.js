@@ -3,7 +3,7 @@
 // cancellations recorded, documents archived by then —, and the files it is
 // written to, in either language, the same bytes every time.
 
-// @requirement SC-ADM-043
+// @requirement SC-ADM-043 — An operator exports the invoice register for a tax advisor
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -101,6 +101,7 @@ const settlementOf = (id, invoiceId, kind, amount, recordedAt, extra = {}) => ({
 const exportOf = (source, asOf = '2026-10-27T12:00:00.000Z') =>
     invoiceExportOf({ span: SPAN, asOf: at(asOf), timeZone: BERLIN, source });
 
+// @requirement SC-ADM-047 — The invoice register's export is one archive whose bytes repeat
 describe('the moment an export is as of', () => {
     const now = at('2026-10-27T13:00:00.700Z');
 
@@ -171,6 +172,7 @@ describe('the moment an export is as of', () => {
 // The types are generated from the schema, so a kind the schema lacks fails the
 // build; one it has beyond what core writes would pass it and let a reader's
 // validation accept a value no export holds.
+// @requirement SC-ADM-047 — The invoice register's export is one archive whose bytes repeat
 describe('the schema an export is published under', () => {
     const schema = JSON.parse(
         readFileSync(
@@ -500,6 +502,7 @@ describe('an export as of a moment', () => {
     });
 });
 
+// @requirement SC-ADM-047 — The invoice register's export is one archive whose bytes repeat
 describe('the files an export is written to', () => {
     const awkward = invoiceOf('i-1', 'AHP-2026-000001', '2026-07-01T05:00:00.000Z', {
         net: 1234.5,
