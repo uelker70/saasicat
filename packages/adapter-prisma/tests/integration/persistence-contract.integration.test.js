@@ -566,7 +566,7 @@ describe('a join says what would let a subscriber joined be given a row', () => 
 
     test('names a model the client was generated without, which it would leave rows in', async () => {
         // The delegates of the generated client, but the charge journal's.
-        const without = { $queryRaw: prisma.$queryRaw.bind(prisma) };
+        const without = { $queryRaw: prisma.$queryRaw.bind(prisma), subscriber: prisma.subscriber };
         for (const delegate of [
             'subscriberJoin',
             'subscriberTenant',

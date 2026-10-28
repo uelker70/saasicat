@@ -1173,6 +1173,97 @@ paths:
                         `SUBSCRIBER_CORRECTION_REASON_REQUIRED`,
                         `SUBSCRIBER_CORRECTION_CHANGES_NOTHING`)
 
+    /subscribers/{id}/join/preview:
+        parameters:
+            - $ref: '#/components/parameters/SubscriberId'
+        post:
+            tags: [subscriptions]
+            summary: What joining this subscriber into an earlier one would do
+            description: >-
+                The subscriber under `id` is the one with the live tenant — a
+                returning customer's, usually the one sign-up created —, the
+                earlier one is named in the body. Both side by side, how many
+                rows of each table move, what the earlier record takes and what
+                is corrected as the same legal entity, and the digest the join
+                names to be held to it. Writes nothing; served where the
+                manifest announces `subscribers.join` (`SC-ADM-049`).
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [intoSubscriberId]
+                            properties:
+                                intoSubscriberId: { type: string, maxLength: 200 }
+            responses:
+                '200':
+                    description: What the join would do
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminSubscriberJoinPreview' }
+                '404':
+                    description: No subscriber under one of the ids (`SUBSCRIBER_NOT_FOUND`)
+                '409':
+                    description: >-
+                        Either was joined already, the subscriber has no live
+                        tenant, or the earlier one still has one
+                        (`SUBSCRIBER_JOIN_ALREADY_JOINED`,
+                        `SUBSCRIBER_JOIN_WITHOUT_LIVE_TENANT`,
+                        `SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT`)
+                '422':
+                    description: Into itself (`SUBSCRIBER_JOIN_SAME_SUBSCRIBER`)
+
+    /subscribers/{id}/join:
+        parameters:
+            - $ref: '#/components/parameters/SubscriberId'
+        post:
+            tags: [subscriptions]
+            summary: Join this subscriber into the earlier one of the same legal entity
+            description: >-
+                Everything the subscriber under `id` holds moves to the earlier
+                one in one transaction; its record stays, names the subscriber
+                everything went to and takes no change. `kind` is the operator's
+                declaration: another legal entity taking over is a transfer and
+                refused. Held to the preview `previewDigest` names. Not undone
+                (`SC-ADM-027`, `SC-ADM-050`).
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [intoSubscriberId, kind, reason]
+                            properties:
+                                intoSubscriberId: { type: string, maxLength: 200 }
+                                kind: { type: string, enum: [same-entity, takeover] }
+                                reason: { type: string, maxLength: 500 }
+                                previewDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+            responses:
+                '200':
+                    description: The subscriber everything moved to
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminSubscriberJoined' }
+                '404':
+                    description: No subscriber under one of the ids (`SUBSCRIBER_NOT_FOUND`)
+                '409':
+                    description: >-
+                        Either was joined already, the subscriber has no live
+                        tenant, the earlier one still has one, or what the join
+                        would do changed since the preview — with the preview as
+                        it now stands (`SUBSCRIBER_JOIN_ALREADY_JOINED`,
+                        `SUBSCRIBER_JOIN_WITHOUT_LIVE_TENANT`,
+                        `SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT`,
+                        `SUBSCRIBER_JOIN_PREVIEW_CHANGED`)
+                '422':
+                    description: >-
+                        No reason, another legal entity declared, or into itself
+                        (`SUBSCRIBER_JOIN_REASON_REQUIRED`,
+                        `SUBSCRIBER_TAKEOVER_IS_A_TRANSFER`,
+                        `SUBSCRIBER_JOIN_SAME_SUBSCRIBER`)
+
     /subscribers/{id}/business-status:
         parameters:
             - $ref: '#/components/parameters/SubscriberId'
@@ -4966,6 +5057,12 @@ components:
                     type: array
                     description: The live link first, then the closed ones, the latest closed first.
                     items: { $ref: '#/components/schemas/AdminSubscriberTenant' }
+                joins:
+                    description: >-
+                        The subscriber it was joined into and those joined into
+                        it; absent where the installation keeps no joins.
+                    allOf:
+                        - $ref: '#/components/schemas/AdminSubscriberJoins'
 
         AdminSubscriberRow:
             type: object
@@ -4988,6 +5085,17 @@ components:
                         id: { type: string }
                         slug: { type: string, nullable: true }
                         name: { type: string, nullable: true }
+                joinedInto:
+                    type: object
+                    nullable: true
+                    description: >-
+                        The subscriber it was joined into, by its customer
+                        number; null where it was joined into none, absent where
+                        the installation keeps no joins.
+                    required: [subscriberId, customerNumber]
+                    properties:
+                        subscriberId: { type: string }
+                        customerNumber: { type: string }
 
         AdminSubscriberList:
             type: object
@@ -5139,6 +5247,97 @@ components:
                   properties:
                       completed: { type: boolean, enum: [false] }
                       reason: { type: string }
+
+        AdminSubscriberJoinSide:
+            type: object
+            required: [subscriber, tenants]
+            properties:
+                subscriber: { $ref: '#/components/schemas/AdminSubscriberDetails' }
+                tenants:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminSubscriberTenant' }
+
+        AdminSubscriberJoinPreview:
+            type: object
+            required:
+                [
+                    from,
+                    into,
+                    moving,
+                    replaced,
+                    corrected,
+                    vatIdCheck,
+                    paymentMethodsOutOfUse,
+                    digest,
+                ]
+            properties:
+                from: { $ref: '#/components/schemas/AdminSubscriberJoinSide' }
+                into: { $ref: '#/components/schemas/AdminSubscriberJoinSide' }
+                moving:
+                    type: object
+                    description: How many rows of each table that names a subscriber move, by table.
+                    additionalProperties: { type: integer, minimum: 0 }
+                replaced:
+                    type: array
+                    description: Each contact and business field the earlier record takes, with both values.
+                    items:
+                        type: object
+                        required: [field, previous, next]
+                        properties:
+                            field:
+                                type: string
+                                enum:
+                                    [
+                                        addressLine1,
+                                        addressLine2,
+                                        postalCode,
+                                        city,
+                                        country,
+                                        invoiceEmail,
+                                        business,
+                                    ]
+                            previous: { nullable: true }
+                            next: { nullable: true }
+                corrected:
+                    type: object
+                    nullable: true
+                    description: The legal identity corrected as the same entity; null where none differs.
+                    required: [previous, corrected]
+                    properties:
+                        previous: { type: object }
+                        corrected: { type: object }
+                vatIdCheck: { type: string, enum: [adopted, ended, kept] }
+                paymentMethodsOutOfUse: { type: integer, minimum: 0 }
+                digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+
+        AdminSubscriberJoinNote:
+            type: object
+            required: [subscriberId, customerNumber, legalName, joinedAt, joinedBy, reason]
+            properties:
+                subscriberId: { type: string }
+                customerNumber: { type: string }
+                legalName: { type: string }
+                joinedAt: { type: string, format: date-time }
+                joinedBy: { type: string }
+                reason: { type: string }
+
+        AdminSubscriberJoins:
+            type: object
+            required: [into, from]
+            properties:
+                into:
+                    nullable: true
+                    allOf:
+                        - $ref: '#/components/schemas/AdminSubscriberJoinNote'
+                from:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminSubscriberJoinNote' }
+
+        AdminSubscriberJoined:
+            type: object
+            required: [joinedInto]
+            properties:
+                joinedInto: { $ref: '#/components/schemas/AdminSubscriberJoinNote' }
 
         AdminSubscriberCorrected:
             type: object

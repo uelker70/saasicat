@@ -7,7 +7,7 @@
 // @requirement SC-ADM-027 — An operator joins a returning customer's new tenant to the subscriber it had
 
 import { afterEach, describe, expect, test } from 'vitest';
-import type { AdminSubscriberJoinPreview } from '@saasicat/core';
+import type { AdminSubscriberJoinPreview, AdminSubscriberRecord } from '@saasicat/core';
 
 import type { SubscriberJoinInput } from '../../src/client/resources/subscribers.resource.js';
 import { dialog, enterTheCode, settle, typeInto } from './support/dialog-flow.js';
@@ -66,7 +66,10 @@ afterEach(() => {
 });
 
 /** The record of the subscriber with the live tenant, every join call recorded. */
-async function mountJoinable(record = RECORD, capabilities: Record<string, boolean> = JOINS) {
+async function mountJoinable(
+    record: AdminSubscriberRecord = RECORD,
+    capabilities: Record<string, boolean> = JOINS,
+) {
     const calls: unknown[][] = [];
     const mounted = await mountRecord({
         attach: true,

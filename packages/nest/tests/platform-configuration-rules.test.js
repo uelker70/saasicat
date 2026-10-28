@@ -307,6 +307,7 @@ describe('every rule can actually fail', () => {
             tenantManifest: true,
             entitlement: {},
             maintenance: true,
+            subscriberJoins: true,
         },
         adapters: {},
     };

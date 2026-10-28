@@ -1222,10 +1222,11 @@ describe('every contract names the subscriber it is concluded with', () => {
      */
     async function beforeTheMigration({ foreignKey = true } = {}) {
         await freshGround();
-        // Payment methods, the charge journal, the tax origin and the invoices
-        // came later still, and point at the subscribers.
+        // Payment methods, the charge journal, the tax origin, the invoices and
+        // the joins came later still, and point at the subscribers.
         await client.query(
-            'DROP TABLE "subscriber_reconciliation_cases", "subscriber_credit_entries", ' +
+            'DROP TABLE "subscriber_joins", "subscriber_reconciliation_cases", ' +
+                '"subscriber_credit_entries", ' +
                 '"subscriber_refunds", "subscriber_credits", "subscriber_reversals", ' +
                 '"subscription_invoice_settlements", "subscriber_payments", ' +
                 '"subscription_invoice_collections", "subscription_invoice_archive", ' +

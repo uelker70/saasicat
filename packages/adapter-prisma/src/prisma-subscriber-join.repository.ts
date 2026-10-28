@@ -74,6 +74,17 @@ interface JoinPrisma extends OwnedDelegates {
 }
 
 /**
+ * What the client must have whatever the schema adopts: the subscribers, which
+ * every schema keeps, and raw queries. The delegates of the other tables are
+ * asked for at the start (`protectionProblem`), because a schema may leave them
+ * out.
+ */
+interface SubscriberJoinClient {
+    subscriber: unknown;
+    $queryRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<unknown>;
+}
+
+/**
  * `SubscriberJoinRepository` against `subscriber_joins` and every table that
  * names a subscriber the schema holds: those of a model `notAdopted` leaves
  * out are neither counted nor moved. Built by `prismaPersistence()`, which
@@ -83,7 +94,7 @@ export class PrismaSubscriberJoinRepository implements SubscriberJoinRepository 
     private readonly tables: SubscriberOwnedTable[];
 
     constructor(
-        private readonly prisma: unknown,
+        private readonly prisma: SubscriberJoinClient,
         notAdopted: readonly string[] = [],
     ) {
         this.tables = subscriberTablesOf(notAdopted);
