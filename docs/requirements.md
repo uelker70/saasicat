@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 48      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 50      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 27      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 671 entries: 🟢 575 stand today, 🟡 48 decided but not yet delivered, ⚪ 0 drafts,
+Of 673 entries: 🟢 578 stand today, 🟡 47 decided but not yet delivered, ⚪ 0 drafts,
 🔵 43 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -167,7 +167,6 @@ Of 671 entries: 🟢 575 stand today, 🟡 48 decided but not yet delivered, ⚪
 [SC-ADM-024](#sc-adm-024--a-suspended-tenants-users-cannot-act-and-a-read-only-tenant-cannot-write),
 [SC-ADM-025](#sc-adm-025--an-operator-gets-a-description-of-the-invoicing-procedure-to-document-its-own-on),
 [SC-ADM-026](#sc-adm-026--the-administrator-changes-what-the-tenant-pays-billing-needs-the-billing-permission),
-[SC-ADM-027](#sc-adm-027--an-operator-joins-a-returning-customers-new-tenant-to-the-subscriber-it-had),
 [SC-UI-022](#sc-ui-022--a-tenant-downloads-its-subscriptions-invoices-and-tells-them-from-the-applications),
 [SC-UI-023](#sc-ui-023--a-tenants-invoices-payment-method-and-billing-details-need-the-billing-permission),
 [SC-UI-024](#sc-ui-024--a-tenants-invoice-list-says-what-each-invoice-stands-for),
@@ -234,7 +233,7 @@ Of 671 entries: 🟢 575 stand today, 🟡 48 decided but not yet delivered, ⚪
 [SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 671 requirements. Do not edit by hand:
+Generated from `requirements/` — 673 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -16087,6 +16086,10 @@ _Tested by:_
     - the preview is the command, and the cancellation the second one
         - with --apply it asks for the second factor and the confirmation, cancels as the operator
           and records it
+- `packages/cli/tests/subscriber-join-cli-flow.test.js`
+    - the preview is the command, and the join the second one
+        - with --apply it asks for the second factor and the confirmation, joins as the operator and
+          records it
 - `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
     - the subscribers descriptor
         - cancels with the second factor and the preview’s digest
@@ -16132,6 +16135,10 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 _Tested by:_
 
+- `packages/cli/tests/subscriber-join-cli-flow.test.js`
+    - the preview is the command, and the join the second one
+        - with --apply it asks for the second factor and the confirmation, joins as the operator and
+          records it
 - `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
     - what an operator gives a cancellation
         - passes with a reason, and with corrections and an address beside it
@@ -16177,6 +16184,7 @@ _Tested by:_
     - the list of subscribers
         - names each subscriber, leads into its record, and says which tenant it is live for
         - asks again for what the operator types, and for those without a tenant
+        - marks a subscriber joined into another with the one it was joined into
         - with nobody matching, says so
         - offers the next page where there is one, and reads it after the last subscriber
         - a list that fails to load says so
@@ -16259,7 +16267,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-ADM-027 — An operator joins a returning customer's new tenant to the subscriber it had
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Self-registration creates a subscriber of its own
+🟢 🔒 Self-registration creates a subscriber of its own
 (`SC-REG-022`): matching a sign-up to an existing subscriber by an email address would hand whoever
 types that address into the form another customer's record. A customer whose earlier tenant is
 deleted and who signs up again is therefore joined by the operator, who declares that the new
@@ -16277,6 +16285,64 @@ sign-up names the subscriber it was joined to, so `SC-ADM-021`'s one record show
 whole history. A subscriber with a live tenant is not joined to a second one.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/subscriber-join-cli-flow.test.js`
+    - the preview is the command, and the join the second one
+        - without --apply it previews the two so numbered, and asks for neither factor nor
+          confirmation
+        - with --apply it asks for the second factor and the confirmation, joins as the operator and
+          records it
+    - the command is refused
+        - for a customer number no subscriber has, before anything is previewed
+        - with --apply and no reason, before it asks for anything
+        - as the platform refuses the join: 6 where the subscribers are not what a join needs, 1 for
+          what was given
+    - subscribers join
+        - prints the preview without --apply, and what was joined with it
+- `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
+    - the operator joins a returning customer's subscriber into the one it had
+        - the preview puts both side by side and says what moves, is replaced and corrected
+        - the join answers the subscriber everything moved to, and both records say so
+        - the list marks a subscriber joined with the one it was joined into
+        - is announced and served only where joins are kept
+    - a join is refused
+        - without a reason, before anything about the subscribers is asked
+        - where the operator declares another legal entity
+        - into itself
+        - into a subscriber that still has a live tenant, naming it
+        - from a subscriber without a live tenant
+        - for a subscriber joined already, either way
+        - for a subscriber nobody keeps
+        - where what it would do changed since the preview, with the preview as it stands
+    - a subscriber joined
+        - takes no correction of its identity or its business status
+    - joining subscribers
+        - refuses to start beside a database that would let a join leave rows behind
+- `packages/ui-vue/tests/component/an-operator-finds-a-subscriber.test.ts`
+    - the list of subscribers
+        - marks a subscriber joined into another with the one it was joined into
+- `packages/ui-vue/tests/component/an-operator-joins-a-returning-customer.test.ts`
+    - joining a returning customer's subscriber into the one it had
+        - is offered on a subscriber with a live tenant where joins are served, and nowhere else
+        - finds the earlier subscriber, shows both with what moves and changes, and joins them as
+          confirmed
+        - a record joined into another says where everything went, leads there, and takes no
+          correction
+        - the earlier record names the subscribers joined into it, leading to each
+- `packages/ui-vue/tests/use-subscriber-join.test.js`
+    - useSubscriberJoin
+        - is offered only where the manifest announces joins
+        - finds the earlier subscriber among those without a live tenant, never itself or one joined
+        - previews joining the subscriber on screen into the one chosen
+        - joins behind the second factor, announces where it went, and hands the result on
+        - writes nothing and announces nothing where the operator steps back from the second factor
+        - joins the subscriber that was on screen when the prompt opened
+
+<!-- END proof -->
 
 ### SC-ADM-028 — An operator reads a subscriber's charges beside its tenant
 
@@ -16534,6 +16600,7 @@ _Tested by:_
     - the list of subscribers
         - names each subscriber, leads into its record, and says which tenant it is live for
         - asks again for what the operator types, and for those without a tenant
+        - marks a subscriber joined into another with the one it was joined into
         - with nobody matching, says so
         - offers the next page where there is one, and reads it after the last subscriber
         - a list that fails to load says so
@@ -17549,6 +17616,95 @@ _Tested by:_
     - the days a page asks for
         - are read in the zone the shell’s manifest names
         - are UTC days without a manifest, and a dash for a value not there
+
+<!-- END proof -->
+
+### SC-ADM-049 — A join is shown before it is made, and held to what was shown
+
+🟢 🔒 The operator joins in the record of the subscriber with the live tenant, choosing the earlier
+one among the subscribers whose every link is closed, by customer number, legal name or VAT number —
+or with `saasicat subscribers join --from <customer number> --into <customer number> --reason …`,
+which shows the same and writes only with `--apply`. Before anything is written both are shown side
+by side, with their tenants, how many rows of each kind move, the address, invoice email and
+business status the earlier record takes from the subscriber joined, the legal identity corrected as
+the same entity, how the check of the VAT number is decided and that the earlier payment method goes
+out of use; a join that names the preview it was shown is refused with
+`SUBSCRIBER_JOIN_PREVIEW_CHANGED`, and the preview as it now stands, where anything of it changed.
+The address replaces the earlier one as a whole where the subscriber joined has one; its invoice
+email, business status and tax identifiers each replace or correct only where it has a value, so an
+empty one does not erase a known one. The country and the business status move as one recorded
+change of the tax origin with the join's reason (`SC-PRIC-043`), and the check of the VAT number
+that counted for the subscriber joined counts for the number taken over. A join is refused, each
+with its code, without a reason, where another legal entity is declared, into itself, for a
+subscriber joined already, from one without a live tenant and into one that still has one — an open
+link whose tenant the application no longer has included. The record of the subscriber joined stays
+findable under its number, names the subscriber everything went to, when, by whom and why, and takes
+no correction; the earlier record names every subscriber joined into it.
+
+_Source:_ #335 (decided 2026-10-25 and 2026-10-28) · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/subscriber-join-cli-flow.test.js`
+    - the preview is the command, and the join the second one
+        - without --apply it previews the two so numbered, and asks for neither factor nor
+          confirmation
+        - with --apply it asks for the second factor and the confirmation, joins as the operator and
+          records it
+- `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
+    - the operator joins a returning customer's subscriber into the one it had
+        - the preview puts both side by side and says what moves, is replaced and corrected
+        - the join answers the subscriber everything moved to, and both records say so
+        - the list marks a subscriber joined with the one it was joined into
+        - is announced and served only where joins are kept
+    - a join is refused
+        - without a reason, before anything about the subscribers is asked
+        - where the operator declares another legal entity
+        - into itself
+        - into a subscriber that still has a live tenant, naming it
+        - from a subscriber without a live tenant
+        - for a subscriber joined already, either way
+        - for a subscriber nobody keeps
+        - where what it would do changed since the preview, with the preview as it stands
+    - a subscriber joined
+        - takes no correction of its identity or its business status
+- `packages/ui-vue/tests/component/an-operator-joins-a-returning-customer.test.ts`
+    - joining a returning customer's subscriber into the one it had
+        - is offered on a subscriber with a live tenant where joins are served, and nowhere else
+        - finds the earlier subscriber, shows both with what moves and changes, and joins them as
+          confirmed
+        - a record joined into another says where everything went, leads there, and takes no
+          correction
+        - the earlier record names the subscribers joined into it, leading to each
+
+<!-- END proof -->
+
+### SC-ADM-050 — A join moves everything in one step, and a subscriber joined is given nothing afterwards
+
+🟢 💰 Every row of every table that names the subscriber joined — its tenant link, contracts, charges,
+invoices, payments, credits, refunds, reversals, cases to reconcile, payment methods, checks of its
+VAT number, corrections and changes of its tax origin — moves to the earlier subscriber in one
+transaction, or nothing does: a table that would move other rows than were counted, as a row-level
+policy hiding rows from the platform would make it, leaves nothing written. The join is recorded,
+with its reason and the digest of what was decided, in the same transaction, and in the audit log
+after it. Both subscribers' rows are held for the whole of it. A charge run, an invoice run or a
+payment that read which subscriber a row belongs to before the join and writes it while the join
+runs waits for the join, is refused, and writes the row at the earlier subscriber on its next
+attempt: the database refuses a row for a subscriber joined
+(`1.0-a-subscriber-is-joined.postgres.sql`), and the platform does not start joining beside a
+database that lacks that guard. A schema that leaves `SubscriberJoin` out offers no join.
+
+_Source:_ #335 (decided 2026-10-25 and 2026-10-28) · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
+    - joining subscribers
+        - refuses to start beside a database that would let a join leave rows behind
 
 <!-- END proof -->
 

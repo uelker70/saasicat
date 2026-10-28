@@ -57,6 +57,10 @@ Optional but strongly recommended integration for ops workflows.
         InvoicesCommands,
         InvoicesCancelCommand,
         InvoicesExportCommand,
+        // Where the persistence keeps joins (`SubscriberJoin`):
+        SubscriberJoinCliFlow,
+        SubscribersCommands,
+        SubscribersJoinCommand,
     ],
 })
 export class CliModule {}
@@ -84,6 +88,8 @@ myapp invoices cancel --invoice AHP-2026-000123 \
     --reason "The billing address was wrong."                # what a cancellation would write
 myapp invoices export --from 2026-01 --until 2026-12 \
     --as-of 2027-01-15T10:00 --locale de --out ./handover    # the year for a tax advisor
+myapp subscribers join --from 10234 --into 10045 \
+    --reason "Returning customer, confirmed by phone"        # what a join would move
 ```
 
 The `maintenance` commands ask for no second factor: a deploy script has nobody to type one. They
@@ -117,6 +123,15 @@ and no second factor; the audit log records the operator, the months, the moment
 SHA-256, which the command prints; where the log cannot record it, the command removes the file it
 wrote and fails. Exit code 1 is every other refusal. See
 [The export for a tax advisor](wire-the-backend.md#the-export-for-a-tax-advisor).
+
+`subscribers join` joins a returning customer's new subscriber — `--from`, the one with the live
+tenant — into the subscriber it had, `--into`, both named by their customer number. It shows what
+moves and what the earlier record takes, and joins them only with `--apply`, which declares both
+one legal entity, asks for the second factor and, against production, `--yes`; the audit log
+records the operator and the reason. A join is not undone. Exit code 6 is a pair a join cannot be
+made on — the earlier subscriber still has a live tenant, either was joined already —, 1 every
+other refusal. See
+[Joining a returning customer's subscriber](wire-the-backend.md#joining-a-returning-customers-subscriber).
 
 **Exit codes** are standardized (see `@saasicat/spec/cli-conventions.md`):
 `0=ok`, `1=user-error`, `2=identity`, `3=mfa`, `4=connectivity`, `5=permission`,

@@ -1,6 +1,8 @@
 import {
+    SUBSCRIBER_JOIN_TABLE,
     subscriberJoinMovedOtherwise,
     subscriberJoinProtectionProblem,
+    subscriberJoinSchemaProblem,
     subscriberTablesOf,
     tenantLinksInOrder,
     toSubscriberJoinRecord,
@@ -245,6 +247,24 @@ export class PrismaSubscriberJoinRepository implements SubscriberJoinRepository 
     }
 
     async protectionProblem(): Promise<string | null> {
+        const client: unknown = this.prisma;
+        const reached = [SUBSCRIBER_JOIN_TABLE.table, ...this.tables];
+        const present: unknown = await this.db().$queryRaw`
+            SELECT owned AS "table" FROM unnest(${reached}::text[]) AS owned
+             WHERE to_regclass(owned) IS NOT NULL`;
+        const inDatabase = Array.isArray(present)
+            ? present.filter(isTableRow).map((row) => row.table)
+            : [];
+        const missing = reached.filter(
+            (table) =>
+                !inDatabase.includes(table) ||
+                !hasDelegate(
+                    client,
+                    table === SUBSCRIBER_JOIN_TABLE.table ? 'subscriberJoin' : DELEGATE_OF[table],
+                ),
+        );
+        const schema = subscriberJoinSchemaProblem(missing);
+        if (schema) return schema;
         // Enabled is `O`, as triggers fire by default, or `A`, always; `D` is
         // disabled, and `R` fires only in a session that replicates.
         const rows: unknown = await this.db().$queryRaw`
@@ -257,6 +277,24 @@ export class PrismaSubscriberJoinRepository implements SubscriberJoinRepository 
             enabled.filter((row) => row.table === table).map((row) => row.name),
         );
     }
+}
+
+/** Whether the client carries a delegate `name` that counts: the schema it was generated from adopts the model. */
+function hasDelegate(client: unknown, name: keyof OwnedDelegates | 'subscriberJoin'): boolean {
+    // The client's delegates are not all own properties of it, so `in` asks.
+    if (typeof client !== 'object' || client === null || !(name in client)) return false;
+    // SAFETY: `name in client` held just above, so the client has the member
+    // the index reads; what it is, the line after asks.
+    const delegate: unknown = (client as Partial<JoinPrisma>)[name];
+    return typeof delegate === 'object' && delegate !== null && 'count' in delegate;
+}
+
+function isTableRow(row: unknown): row is { table: string } {
+    return (
+        typeof row === 'object' &&
+        row !== null &&
+        typeof Object.getOwnPropertyDescriptor(row, 'table')?.value === 'string'
+    );
 }
 
 function isTriggerRow(row: unknown): row is { table: string; name: string } {

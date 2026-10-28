@@ -15027,6 +15027,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-ADM-027
+        // @requirement SC-ADM-050
         test('a join moves every row, writes what was decided, and records itself', async (t) => {
             const customer = await aReturningCustomer(t, 'tenant-join-move');
             if (!customer) return;
@@ -15115,6 +15116,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-ADM-027
+        // @requirement SC-ADM-050
         test('a subscriber joined is given nothing afterwards', async (t) => {
             const customer = await aReturningCustomer(t, 'tenant-join-after');
             if (!customer) return;
@@ -15139,6 +15141,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-ADM-027
+        // @requirement SC-ADM-050
         test('a write that read the subscriber before a join waits for it, and is refused', async (t) => {
             const customer = await aReturningCustomer(t, 'tenant-join-race');
             if (!customer) return;
@@ -15168,6 +15171,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-ADM-027
+        // @requirement SC-ADM-050
         test('a join that would move other rows than it counted writes nothing', async (t) => {
             const customer = await aReturningCustomer(t, 'tenant-join-count');
             if (!customer) return;
@@ -15197,6 +15201,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-ADM-027
+        // @requirement SC-ADM-050
         test('every table that names a subscriber is guarded against a joined one', async (t) => {
             const joins = harness.adapter.subscriberJoinRepository;
             if (!joins || !CONTRACT_GAPS.subscriberJoins.present(harness)) {

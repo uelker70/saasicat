@@ -120,6 +120,7 @@ function buttonInDialog(text: string): HTMLButtonElement {
     return button!;
 }
 
+// @requirement SC-ADM-049 — A join is shown before it is made, and held to what was shown
 describe("joining a returning customer's subscriber into the one it had", () => {
     test('is offered on a subscriber with a live tenant where joins are served, and nowhere else', async () => {
         const served = await mountJoinable();

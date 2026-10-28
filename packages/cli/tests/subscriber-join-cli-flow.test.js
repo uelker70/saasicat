@@ -82,6 +82,7 @@ function setUp({ refusal = null } = {}) {
     return { ctx, calls, flow: new SubscriberJoinCliFlow(ctx, joins) };
 }
 
+// @requirement SC-ADM-049 — A join is shown before it is made, and held to what was shown
 describe('the preview is the command, and the join the second one', () => {
     test('without --apply it previews the two so numbered, and asks for neither factor nor confirmation', async () => {
         const { flow, calls, ctx } = setUp();

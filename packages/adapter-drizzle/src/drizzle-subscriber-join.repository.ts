@@ -12,8 +12,10 @@ import type {
     TransactionContext,
 } from '@saasicat/core';
 import {
+    SUBSCRIBER_JOIN_TABLE,
     subscriberJoinMovedOtherwise,
     subscriberJoinProtectionProblem,
+    subscriberJoinSchemaProblem,
     subscriberTablesOf,
     tenantLinksInOrder,
     toSubscriberJoinRecord,
@@ -227,6 +229,15 @@ export class DrizzleSubscriberJoinRepository implements SubscriberJoinRepository
     }
 
     async protectionProblem(): Promise<string | null> {
+        const missing: string[] = [];
+        for (const table of [SUBSCRIBER_JOIN_TABLE.table, ...this.tables]) {
+            const present: unknown = await this.db.execute(
+                sql`SELECT to_regclass(${table}) IS NOT NULL AS "present"`,
+            );
+            if (!presentIn(present)) missing.push(table);
+        }
+        const schema = subscriberJoinSchemaProblem(missing);
+        if (schema) return schema;
         const enabled = new Map<SubscriberOwnedTable, string[]>();
         for (const table of this.tables) {
             // Enabled is `O`, as triggers fire by default, or `A`, always; `D`
@@ -239,6 +250,18 @@ export class DrizzleSubscriberJoinRepository implements SubscriberJoinRepository
         }
         return subscriberJoinProtectionProblem(this.tables, (table) => enabled.get(table) ?? []);
     }
+}
+
+/**
+ * Whether the one row a raw query answered says `present`, whichever driver
+ * ran it: postgres.js answers the rows themselves, node-postgres a result that
+ * holds them.
+ */
+function presentIn(result: unknown): boolean {
+    const rows: unknown =
+        typeof result === 'object' && result !== null && 'rows' in result ? result.rows : result;
+    const [row]: unknown[] = Array.isArray(rows) ? rows : [];
+    return typeof row === 'object' && row !== null && 'present' in row && row.present === true;
 }
 
 /** A subscriber with every link it has and had, as a join reads it. */

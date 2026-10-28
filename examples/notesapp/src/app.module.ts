@@ -29,11 +29,33 @@ import { germanTaxAdapterFactory } from '@saasicat/tax-de';
                 // Real apps pass their JwtAuthGuard here.
                 controller: { guards: [DemoAuthGuard] },
                 imports: [DemoAuthModule, PrismaModule],
-                // The whole persistence wiring — one line.
+                // The whole persistence wiring: the client, and what the schema leaves out.
                 persistence: prismaPersistence({
                     client: PrismaService,
                     passwordHasher: DemoPasswordHasher,
                     adminResources: { tenantMetrics: ['notes', 'users'] },
+                    // What `saasicat schema check` names as not adopted: the notes app
+                    // issues no invoices, so their tables are not in its schema, and
+                    // the bundle — a join of subscribers among it — leaves them out.
+                    notAdopted: [
+                        'SubscriberLedgerEntry',
+                        'SubscriptionInvoice',
+                        'SubscriptionInvoiceLine',
+                        'SubscriptionInvoiceCancellation',
+                        'SubscriptionInvoiceDocument',
+                        'SubscriptionInvoiceNumber',
+                        'SubscriptionInvoiceArchive',
+                        'SubscriptionInvoiceCollection',
+                        'SubscriberPayment',
+                        'SubscriptionInvoiceSettlement',
+                        'SubscriberCredit',
+                        'SubscriberCreditEntry',
+                        'SubscriberRefund',
+                        'SubscriberReversal',
+                        'SubscriberReconciliationCase',
+                        'ContractConfirmation',
+                        'ContractConfirmationArchive',
+                    ],
                 }),
                 // A platform administrator's second factor is stored sealed, so a
                 // dump or a backup of the database does not carry it along. The

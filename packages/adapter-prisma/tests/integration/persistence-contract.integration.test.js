@@ -537,3 +537,69 @@ describe('canonical schema structure', () => {
         );
     });
 });
+
+// @requirement SC-ADM-050 — A join moves everything in one step, and a subscriber joined is given nothing afterwards
+describe('a join says what would let a subscriber joined be given a row', () => {
+    const GUARD = 'subscriber_payments_names_no_joined_subscriber';
+    const database = new pg.Client({ connectionString: testDatabaseUrl() });
+    before(() => database.connect());
+    after(async () => {
+        await database.query(`ALTER TABLE subscriber_payments ENABLE TRIGGER "${GUARD}"`);
+        await database.end();
+    });
+
+    test('names a table whose trigger does not fire, and none where every one does', async () => {
+        const joins = new PrismaSubscriberJoinRepository(prisma);
+        assert.equal(await joins.protectionProblem(), null);
+
+        await database.query(`ALTER TABLE subscriber_payments DISABLE TRIGGER "${GUARD}"`);
+        try {
+            const problem = await joins.protectionProblem();
+            assert.ok(
+                problem?.startsWith('subscriber_payments lacks its trigger, which refuses'),
+                problem,
+            );
+        } finally {
+            await database.query(`ALTER TABLE subscriber_payments ENABLE TRIGGER "${GUARD}"`);
+        }
+    });
+
+    test('names a model the client was generated without, which it would leave rows in', async () => {
+        // The delegates of the generated client, but the charge journal's.
+        const without = { $queryRaw: prisma.$queryRaw.bind(prisma) };
+        for (const delegate of [
+            'subscriberJoin',
+            'subscriberTenant',
+            'subscriberCorrection',
+            'subscriberTaxOriginChange',
+            'subscriberVatIdCheck',
+            'subscriberPaymentMethod',
+            'subscriberPaymentMethodSetup',
+            'subscriptionContract',
+            'subscriptionInvoice',
+            'subscriberPayment',
+            'subscriberCredit',
+            'subscriberRefund',
+            'subscriberReversal',
+            'subscriberReconciliationCase',
+        ]) {
+            without[delegate] = prisma[delegate];
+        }
+
+        const problem = await new PrismaSubscriberJoinRepository(without).protectionProblem();
+
+        assert.ok(
+            problem?.startsWith(
+                'The schema lacks SubscriberLedgerEntry (subscriber_ledger_entries), which a join',
+            ),
+            problem,
+        );
+        assert.equal(
+            await new PrismaSubscriberJoinRepository(without, [
+                'SubscriberLedgerEntry',
+            ]).protectionProblem(),
+            null,
+            'a model named in notAdopted is not asked for',
+        );
+    });
+});

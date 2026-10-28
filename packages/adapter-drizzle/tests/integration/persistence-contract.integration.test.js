@@ -480,3 +480,25 @@ describe('drizzle-specific schema interop', () => {
         );
     });
 });
+
+// @requirement SC-ADM-050 — A join moves everything in one step, and a subscriber joined is given nothing afterwards
+describe('a join says what would let a subscriber joined be given a row', () => {
+    const GUARD = 'subscriber_payments_names_no_joined_subscriber';
+    after(() => pool.query(`ALTER TABLE subscriber_payments ENABLE TRIGGER "${GUARD}"`));
+
+    test('names a table whose trigger does not fire, and none where every one does', async () => {
+        const joins = new DrizzleSubscriberJoinRepository(db);
+        assert.equal(await joins.protectionProblem(), null);
+
+        await pool.query(`ALTER TABLE subscriber_payments DISABLE TRIGGER "${GUARD}"`);
+        try {
+            const problem = await joins.protectionProblem();
+            assert.ok(
+                problem?.startsWith('subscriber_payments lacks its trigger, which refuses'),
+                problem,
+            );
+        } finally {
+            await pool.query(`ALTER TABLE subscriber_payments ENABLE TRIGGER "${GUARD}"`);
+        }
+    });
+});

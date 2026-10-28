@@ -54,10 +54,37 @@ export function subscriberJoinProtectionProblem(
     );
     if (unguarded.length === 0) return null;
     return (
-        `${unguarded.join(', ')} ${unguarded.length === 1 ? 'lacks its trigger' : 'lack their triggers'} ` +
-        'that refuse a row for a joined subscriber: run ' +
+        `${unguarded.join(', ')} ` +
+        (unguarded.length === 1
+            ? 'lacks its trigger, which refuses'
+            : 'lack their triggers, which refuse') +
+        ' a row for a joined subscriber: run ' +
         '@saasicat/spec/sql/1.0-a-subscriber-is-joined.postgres.sql after db push, and enable the ' +
         'triggers where they were disabled.'
+    );
+}
+
+/** The table a join records itself in, and the model it holds. */
+export const SUBSCRIBER_JOIN_TABLE = {
+    table: 'subscriber_joins',
+    model: 'SubscriberJoin',
+} as const;
+
+/**
+ * Why a join cannot run on this schema — a table it reads or moves, its own
+ * among them, that the client or the database lacks — or `null` where it has
+ * every one. A table a join cannot reach would keep its rows at the subscriber
+ * joined, so the platform does not start joining rather than leave them there.
+ */
+export function subscriberJoinSchemaProblem(missing: readonly string[]): string | null {
+    if (missing.length === 0) return null;
+    const named = [SUBSCRIBER_JOIN_TABLE, ...SUBSCRIBER_OWNED_TABLES]
+        .filter((owned) => missing.includes(owned.table))
+        .map((owned) => `${owned.model} (${owned.table})`);
+    return (
+        `The schema lacks ${named.join(', ')}, which a join of subscribers reads or moves rows in: ` +
+        'adopt each and run db push, or name it in notAdopted. A schema that leaves out ' +
+        'SubscriberJoin offers no join.'
     );
 }
 

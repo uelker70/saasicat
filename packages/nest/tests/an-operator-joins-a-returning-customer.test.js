@@ -63,6 +63,7 @@ const refusedWith = (code, params) => (error) => {
     return true;
 };
 
+// @requirement SC-ADM-049 — A join is shown before it is made, and held to what was shown
 describe("the operator joins a returning customer's subscriber into the one it had", () => {
     test('the preview puts both side by side and says what moves, is replaced and corrected', async () => {
         const admin = await anAdministration();
@@ -178,6 +179,7 @@ describe("the operator joins a returning customer's subscriber into the one it h
     });
 });
 
+// @requirement SC-ADM-049 — A join is shown before it is made, and held to what was shown
 describe('a join is refused', () => {
     test('without a reason, before anything about the subscribers is asked', async () => {
         const admin = await anAdministration();
@@ -283,6 +285,7 @@ describe('a join is refused', () => {
     });
 });
 
+// @requirement SC-ADM-049 — A join is shown before it is made, and held to what was shown
 describe('a subscriber joined', () => {
     test('takes no correction of its identity or its business status', async () => {
         const admin = await anAdministration();
@@ -304,6 +307,7 @@ describe('a subscriber joined', () => {
     });
 });
 
+// @requirement SC-ADM-050 — A join moves everything in one step, and a subscriber joined is given nothing afterwards
 describe('joining subscribers', () => {
     test('refuses to start beside a database that would let a join leave rows behind', async () => {
         const unguarded = {
