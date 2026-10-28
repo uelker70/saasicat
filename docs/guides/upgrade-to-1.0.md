@@ -2778,7 +2778,7 @@ everything the new one holds moves to the earlier one in one transaction (`SC-AD
 
 To offer it:
 
-- **Adopt `SubscriberJoin`**: the model from `prisma-fragments/13-subscriber.prisma` and the two
+- **Adopt `SubscriberJoin`**: the model from `prisma-fragments/27-subscriber-join.prisma` and the two
   relation fields it adds to `Subscriber`. `saasicat schema check` names the model as not adopted
   until you do.
 - **Run `sql/1.0-a-subscriber-is-joined.postgres.sql` after `db push`.**

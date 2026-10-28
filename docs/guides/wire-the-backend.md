@@ -937,7 +937,7 @@ names where everything went, and a join is not undone (`SC-ADM-049`, `SC-ADM-050
 until `SaaSiCatModule.forRoot({ subscriberJoins: true })` turns it on, and that needs two things
 from your schema:
 
-- **`SubscriberJoin`** from `prisma-fragments/13-subscriber.prisma`, with the two relation fields
+- **`SubscriberJoin`** from `prisma-fragments/27-subscriber-join.prisma`, with the two relation fields
   it adds to `Subscriber` (`joinedInto`, `joinedFrom`). A schema that leaves it out passes
   `notAdopted: ['SubscriberJoin']` and offers no join.
 - **`sql/1.0-a-subscriber-is-joined.postgres.sql`, after `db push`.** It adds a trigger to every

@@ -985,11 +985,11 @@ _Tested by:_
         - without the migration, the triggers it lacks
         - once the migration ran, none
         - with the one against an update or a delete disabled, that one
+    - a join says what would let a subscriber joined be given a row
+        - names a table whose trigger does not fire, and none where every one does
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
-    - a join says what would let a subscriber joined be given a row
-        - names a table whose trigger does not fire, and none where every one does
 - `packages/adapter-drizzle/tests/the-query-map-describes-the-real-tables.test.js`
     - every table in the query map
         - there is more than one, so a broken scan cannot pass by finding none
@@ -1199,11 +1199,11 @@ _Tested by:_
         - without the migration, the triggers it lacks
         - once the migration ran, none
         - with the one against an update or a delete disabled, that one
+    - a join says what would let a subscriber joined be given a row
+        - names a table whose trigger does not fire, and none where every one does
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
-    - a join says what would let a subscriber joined be given a row
-        - names a table whose trigger does not fire, and none where every one does
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
     - the database archive says whether it keeps what it holds
         - built from the reference schema alone, it names the triggers it lacks

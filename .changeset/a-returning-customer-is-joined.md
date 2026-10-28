@@ -23,7 +23,7 @@ transaction; its record stays, names where everything went and takes no
 change, and a join is not undone.
 
 It is off until `SaaSiCatModule.forRoot({ subscriberJoins: true })` turns it
-on. `SubscriberJoin` is a new model in `prisma-fragments/13-subscriber.prisma`,
+on. `SubscriberJoin` is a new model in `prisma-fragments/27-subscriber-join.prisma`,
 with two relation fields on `Subscriber`. Run
 `sql/1.0-a-subscriber-is-joined.postgres.sql` after `db push`: its triggers
 refuse a row for a joined subscriber, so a job that read the subscriber before

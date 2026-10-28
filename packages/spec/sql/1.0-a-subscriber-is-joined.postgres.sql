@@ -2,7 +2,7 @@
 -- SaaSiCat 1.0 — a returning customer's new subscriber is joined into the one it had.
 -- =============================================================================
 --
--- The record of every join (`SC-ADM-027`, 13-subscriber.prisma), and the guard
+-- The record of every join (`SC-ADM-027`, 27-subscriber-join.prisma), and the guard
 -- that keeps a joined subscriber from being given anything afterwards. Needed
 -- wherever subscribers are kept. Run it AFTER `db push`:
 --

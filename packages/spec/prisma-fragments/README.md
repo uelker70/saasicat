@@ -56,6 +56,7 @@ regenerated after fragment changes (`tests/reference-sql-drift.test.js`).
 | [`24-subscriber-payments.prisma`](24-subscriber-payments.prisma)                         | `SubscriberPayment`, `SubscriptionInvoiceSettlement`, `SubscriberCredit`, `SubscriberCreditEntry`, `SubscriberRefund`, `SubscriberReversal`, `SubscriberReconciliationCase` |
 | [`25-terms.prisma`](25-terms.prisma)                                                     | `TermsVersion`                                                                                                                                                              |
 | [`26-contract-confirmation.prisma`](26-contract-confirmation.prisma)                     | `ContractConfirmation`, `ContractConfirmationArchive`                                                                                                                       |
+| [`27-subscriber-join.prisma`](27-subscriber-join.prisma)                                 | `SubscriberJoin`                                                                                                                                                            |
 
 ## How the consumer uses the fragments
 

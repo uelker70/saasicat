@@ -111,8 +111,9 @@ const FIRST_CUSTOMER_NUMBER = 10001;
 
 /**
  * The parts this harness deliberately does not provide: it keeps no validity
- * windows and no version lineage per plan. One list for every run against it,
- * so the self-test and the gap tests cannot declare two different harnesses.
+ * windows and no version lineage per plan, and it has no database whose
+ * triggers guard a join of subscribers. One list for every run against it, so
+ * the self-test and the gap tests cannot declare two different harnesses.
  */
 export const MEMORY_HARNESS_GAPS = [
     'planLifecycle',
@@ -120,6 +121,7 @@ export const MEMORY_HARNESS_GAPS = [
     'bundleValidity',
     'planVersionReads',
     'planVersionRetirement',
+    'subscriberJoins',
 ];
 
 export function createMemoryHarness() {

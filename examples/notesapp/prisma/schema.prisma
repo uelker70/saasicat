@@ -16,6 +16,7 @@
 //   14 (the subscriber's payment method and the gateway events)
 //   16 (maintenance windows)
 //   17 (what each subscriber was told)
+//   27 (a returning customer's subscriber joined into the one it had)
 // The platform blocks below are hand-maintained copies of the fragments, with
 // the consumer relations to Tenant/User enabled. `schema apply` seeds them —
 // enums and models — into a fresh schema, but does not update blocks that
@@ -1604,7 +1605,7 @@ model SubscriberVatIdCheck {
 }
 
 // A returning customer's new subscriber joined into the one it had — see
-// 13-subscriber.prisma; sql/1.0-a-subscriber-is-joined.postgres.sql adds the
+// 27-subscriber-join.prisma; sql/1.0-a-subscriber-is-joined.postgres.sql adds the
 // triggers `db push` cannot create.
 model SubscriberJoin {
     id               String   @id @default(uuid())
