@@ -121,6 +121,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
         tax: { adapter: { adapterName: 'test-tax', create: () => invoicingAdapter() } },
         catalog: { featureUiRegistry: {} },
         adminResources: true,
+        subscriberJoins: true,
         tenantBilling: {
             authGuards: guards,
             // Tenant billing resolves its guards from its own scope, where an

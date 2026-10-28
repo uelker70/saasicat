@@ -81,6 +81,7 @@ export async function aPlatform({
     adminResources = true,
     subscribers = true,
     joins = false,
+    keepsJoins = joins,
     checkVatId = validAnswer,
 } = {}) {
     const seen = { lookups: [], reads: [], audited: [], checked: [] };
@@ -158,7 +159,7 @@ export async function aPlatform({
         planVersionRepository: { findById: async () => null },
     };
     if (subscribers) entitlement.subscriberRepository = repo;
-    if (joins) entitlement.subscriberJoinRepository = joinRepo;
+    if (keepsJoins) entitlement.subscriberJoinRepository = joinRepo;
     const root = SaaSiCatModule.forRoot({
         adapters: { secretSealer: storeSecretsInPlainText() },
         planCatalog: adapter ? { ...CATALOG, ...TAX_SETTINGS } : { ...CATALOG, vatRate: 19 },
@@ -188,6 +189,7 @@ export async function aPlatform({
             adminResources: { resources: tenants },
         },
         adminResources,
+        subscriberJoins: joins,
     });
     const moduleRef = await Test.createTestingModule({ imports: [root] }).compile();
     const manifest = await moduleRef.get(AdminManifestService).getManifest();

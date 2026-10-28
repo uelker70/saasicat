@@ -2773,14 +2773,17 @@ A customer whose tenant you deleted and who signs up again got a second subscrib
 customer number and none of its history, and nothing could bring the two together (`SC-ADM-027`).
 The operator now joins them, in the new subscriber's record or with `<app> subscribers join`:
 everything the new one holds moves to the earlier one in one transaction (`SC-ADM-049`,
-`SC-ADM-050`). See
+`SC-ADM-050`). Nothing changes until you turn it on with `subscriberJoins: true`. See
 [Joining a returning customer's subscriber](wire-the-backend.md#joining-a-returning-customers-subscriber).
 
+To offer it:
+
 - **Adopt `SubscriberJoin`**: the model from `prisma-fragments/13-subscriber.prisma` and the two
-  relation fields it adds to `Subscriber`, or `notAdopted: ['SubscriberJoin']` for no join at all.
-  `saasicat schema check` names the model as not adopted until you choose.
-- **Run `sql/1.0-a-subscriber-is-joined.postgres.sql` after `db push`**, where you adopt it. A start
-  without its triggers is refused, naming the tables that lack them.
+  relation fields it adds to `Subscriber`. `saasicat schema check` names the model as not adopted
+  until you do.
+- **Run `sql/1.0-a-subscriber-is-joined.postgres.sql` after `db push`.**
+- **Turn it on** with `subscriberJoins: true`. The start is then refused where a table a join moves
+  is missing from the client or the database — name it in `notAdopted` — or lacks its trigger.
 - **A CLI of your own** registers `SubscriberJoinCliFlow`, `SubscribersCommands` and
   `SubscribersJoinCommand` ([Extend your CLI](extend-your-cli.md)).
 - **A persistence harness of your own** passes `subscriberJoinRepository` and applies the

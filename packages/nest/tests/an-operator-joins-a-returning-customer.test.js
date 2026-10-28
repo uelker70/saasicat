@@ -166,9 +166,9 @@ describe("the operator joins a returning customer's subscriber into the one it h
         assert.equal(subscribers.find((row) => row.id === admin.idOf('contoso'))?.joinedInto, null);
     });
 
-    test('is announced and served only where joins are kept', async () => {
+    test('is announced and served only where joins are on', async () => {
         const kept = await anAdministration();
-        const without = await aPlatform();
+        const without = await aPlatform({ keepsJoins: true });
 
         assert.equal(kept.manifest.capabilities['subscribers.join'], true);
         assert.ok(kept.served(JOIN_ROUTE) && kept.served(PREVIEW_ROUTE));
@@ -309,6 +309,13 @@ describe('a subscriber joined', () => {
 
 // @requirement SC-ADM-050 — A join moves everything in one step, and a subscriber joined is given nothing afterwards
 describe('joining subscribers', () => {
+    test('turned on without anywhere to join them, refuses to start, saying so', async () => {
+        await assert.rejects(
+            aPlatform({ joins: true, keepsJoins: false }),
+            /subscriberJoins is on, but there is nowhere to join subscribers/,
+        );
+    });
+
     test('refuses to start beside a database that would let a join leave rows behind', async () => {
         const unguarded = {
             protectionProblem: async () => 'subscriber_payments lacks its trigger',

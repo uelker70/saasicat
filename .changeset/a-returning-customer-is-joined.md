@@ -22,11 +22,13 @@ Everything the new subscriber holds moves to the earlier one in one
 transaction; its record stays, names where everything went and takes no
 change, and a join is not undone.
 
-`SubscriberJoin` is a new model in `prisma-fragments/13-subscriber.prisma`,
-with two relation fields on `Subscriber`; `notAdopted: ['SubscriberJoin']`
-leaves the join out. Run `sql/1.0-a-subscriber-is-joined.postgres.sql` after
-`db push`: its triggers refuse a row for a joined subscriber, so a job that read
-the subscriber before a join writes at the earlier one when it runs again, and
-the platform does not start joining without them. A CLI registers
+It is off until `SaaSiCatModule.forRoot({ subscriberJoins: true })` turns it
+on. `SubscriberJoin` is a new model in `prisma-fragments/13-subscriber.prisma`,
+with two relation fields on `Subscriber`. Run
+`sql/1.0-a-subscriber-is-joined.postgres.sql` after `db push`: its triggers
+refuse a row for a joined subscriber, so a job that read the subscriber before
+a join writes at the earlier one when it runs again. With joins on, the start is
+refused where a table a join moves is missing — name it in `notAdopted` — or
+lacks its trigger. A CLI registers
 `SubscriberJoinCliFlow`, `SubscribersCommands` and `SubscribersJoinCommand`;
 `FakeSubscriberJoinRepository` joins in tests without a database.

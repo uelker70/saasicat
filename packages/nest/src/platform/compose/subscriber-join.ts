@@ -19,6 +19,7 @@ function subscriberJoinsOf(ctx: Pick<CompositionContext, 'options' | 'persistenc
           transactionRunner: ProviderSpec<TransactionRunner>;
       }
     | undefined {
+    if (ctx.options.subscriberJoins !== true) return undefined;
     const repository = ctx.persistence?.entitlement?.subscriberJoinRepository;
     const transactionRunner = ctx.adapters.transactionRunner;
     const subscriberRepository = subscriberRepositoryOf(ctx);
@@ -35,8 +36,9 @@ function subscriberJoinsOf(ctx: Pick<CompositionContext, 'options' | 'persistenc
 
 /**
  * Whether a returning customer's subscriber can be joined into the one it had:
- * the persistence keeps joins, subscribers and transactions. The command line
- * asks this; the administration asks it beside whether it serves subscribers.
+ * the installation turns joins on (`subscriberJoins: true`), and the
+ * persistence keeps joins, subscribers and transactions. The command line asks
+ * this; the administration asks it beside whether it serves subscribers.
  */
 export function servesSubscriberJoins(
     ctx: Pick<CompositionContext, 'options' | 'persistence' | 'adapters'>,

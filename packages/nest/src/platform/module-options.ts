@@ -626,6 +626,18 @@ export interface SaaSiCatModuleOptions {
      */
     maintenance?: false | true | SaaSiCatMaintenanceOptions;
     /**
+     * Joining a returning customer's subscriber into the one it had
+     * (`SC-ADM-027`): in the subscriber's record, where the administration
+     * shows tenants, and with `<app> subscribers join`. Off unless `true`. Turn
+     * it on once the schema adopts `SubscriberJoin` and
+     * `sql/1.0-a-subscriber-is-joined.postgres.sql` has run after `db push`; it
+     * needs `persistence.entitlement.subscriberJoinRepository`, which both
+     * shipped adapters provide, and the start is refused where that is missing,
+     * where the schema lacks a table a join moves, or where a table lacks the
+     * migration's trigger.
+     */
+    subscriberJoins?: boolean;
+    /**
      * Enable the tenant manifest — the app UI gets a filtered manifest per
      * tenant with features, quotas and visible navigation. Requires that
      * `defaultPlanId`, `adapters.planResolver` or `tenantBilling` is set.

@@ -332,6 +332,19 @@ const RULE_SPECS: readonly RuleSpec[] = [
             '`persistence.core.maintenanceWindows` — both shipped adapters do.',
     },
     {
+        id: 'subscriber-joins.requires-join-repository',
+        when: (c) => c.options.subscriberJoins === true,
+        assert: (c) =>
+            Boolean(
+                bundle(c)?.entitlement?.subscriberJoinRepository &&
+                bundle(c)?.entitlement?.subscriberRepository,
+            ),
+        message:
+            'subscriberJoins is on, but there is nowhere to join subscribers. Use a bundle providing ' +
+            '`persistence.entitlement.subscriberJoinRepository` and `subscriberRepository` — both ' +
+            'shipped adapters do, unless `notAdopted` leaves `SubscriberJoin` out.',
+    },
+    {
         id: 'version-notices.requires-notice-record',
         when: (c) => Boolean(optionsOf(c.options.tenantBilling)?.versionNotices),
         assert: (c) =>

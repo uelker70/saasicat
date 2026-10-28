@@ -933,8 +933,9 @@ Self-registration creates a subscriber of its own, and nothing matches a sign-up
 customer by itself. When a customer whose tenant you deleted signs up again, the operator joins the
 new subscriber — the one with the live tenant — into the one it had (`SC-ADM-027`): everything the
 new one holds moves to the earlier one in one transaction, its record stays as an empty one that
-names where everything went, and a join is not undone (`SC-ADM-049`, `SC-ADM-050`). It needs two
-things from your schema:
+names where everything went, and a join is not undone (`SC-ADM-049`, `SC-ADM-050`). It is off
+until `SaaSiCatModule.forRoot({ subscriberJoins: true })` turns it on, and that needs two things
+from your schema:
 
 - **`SubscriberJoin`** from `prisma-fragments/13-subscriber.prisma`, with the two relation fields
   it adds to `Subscriber` (`joinedInto`, `joinedFrom`). A schema that leaves it out passes
@@ -942,8 +943,11 @@ things from your schema:
 - **`sql/1.0-a-subscriber-is-joined.postgres.sql`, after `db push`.** It adds a trigger to every
   table that names a subscriber: a charge run, an invoice run or a payment that read a subscriber
   before a join and writes while it runs waits for it, is refused, and writes at the earlier
-  subscriber on its next attempt. Without the triggers the platform refuses to start, naming the
-  tables that lack them.
+  subscriber on its next attempt.
+
+With joins on, the start is refused where the bundle has no `subscriberJoinRepository`, where the
+schema lacks a table a join moves — a model the client was generated without, or a table the
+database does not have; name it in `notAdopted` — and where a table lacks its trigger.
 
 The operator joins in the subscriber's record, announced as `subscribers.join`: `POST
 admin/subscribers/:id/join/preview` with `intoSubscriberId` shows both side by side, what moves and

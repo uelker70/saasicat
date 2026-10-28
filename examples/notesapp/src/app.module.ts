@@ -57,6 +57,11 @@ import { germanTaxAdapterFactory } from '@saasicat/tax-de';
                         'ContractConfirmationArchive',
                     ],
                 }),
+                // A returning customer's subscriber joined into the one it had, in
+                // its record and with `subscribers join`: the schema adopts
+                // `SubscriberJoin`, and the entrypoint runs the migration that
+                // guards it.
+                subscriberJoins: true,
                 // A platform administrator's second factor is stored sealed, so a
                 // dump or a backup of the database does not carry it along. The
                 // key is the installation's — 32 random bytes, base64, from the

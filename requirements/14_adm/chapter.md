@@ -1027,7 +1027,7 @@ _Tested by:_
         - the preview puts both side by side and says what moves, is replaced and corrected
         - the join answers the subscriber everything moved to, and both records say so
         - the list marks a subscriber joined with the one it was joined into
-        - is announced and served only where joins are kept
+        - is announced and served only where joins are on
     - a join is refused
         - without a reason, before anything about the subscribers is asked
         - where the operator declares another legal entity
@@ -1040,6 +1040,7 @@ _Tested by:_
     - a subscriber joined
         - takes no correction of its identity or its business status
     - joining subscribers
+        - turned on without anywhere to join them, refuses to start, saying so
         - refuses to start beside a database that would let a join leave rows behind
 - `packages/ui-vue/tests/component/an-operator-finds-a-subscriber.test.ts`
     - the list of subscribers
@@ -2396,7 +2397,7 @@ _Tested by:_
         - the preview puts both side by side and says what moves, is replaced and corrected
         - the join answers the subscriber everything moved to, and both records say so
         - the list marks a subscriber joined with the one it was joined into
-        - is announced and served only where joins are kept
+        - is announced and served only where joins are on
     - a join is refused
         - without a reason, before anything about the subscribers is asked
         - where the operator declares another legal entity
@@ -2449,6 +2450,7 @@ _Tested by:_
         - names a model the client was generated without, which it would leave rows in
 - `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
     - joining subscribers
+        - turned on without anywhere to join them, refuses to start, saying so
         - refuses to start beside a database that would let a join leave rows behind
 
 <!-- END proof -->
