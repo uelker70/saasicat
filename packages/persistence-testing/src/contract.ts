@@ -15160,6 +15160,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 ),
                 refusedAsJoined,
             );
+            // Nor a change of its own row, which no table that names it would see.
+            await assert.rejects(
+                subscribers.updateContact(returning.id, { city: 'Potsdam' }, TENANT_USER),
+                refusedAsJoined,
+            );
+            assert.equal((await subscribers.findById(returning.id))?.city, 'Berlin');
         });
 
         // @requirement SC-ADM-027
@@ -15171,29 +15177,43 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             }
             const customer = await aReturningCustomer(t, 'tenant-join-race');
             if (!customer) return;
-            const { joins, earlier, returning, account, writeOf } = customer;
-            let late: Promise<unknown> | undefined;
-            let ended = false;
+            const { joins, subscribers, earlier, returning, account, writeOf } = customer;
+            const late: Promise<unknown>[] = [];
+            let ended = 0;
 
             await harness.adapter.transactionRunner.run(async (tx) => {
                 const state = await joins.hold(returning.id, earlier.id, tx);
                 assert.ok(state);
-                // A charge run that read the tenant's subscriber before the join.
-                late = account.ledger.recordCharges([account.charge(monthly(5))]);
-                late.then(
-                    () => (ended = true),
-                    () => (ended = true),
+                // A charge run, and the tenant's user changing the address, both
+                // having read the tenant's subscriber before the join.
+                late.push(
+                    account.ledger.recordCharges([account.charge(monthly(5))]),
+                    subscribers.updateContact(returning.id, { city: 'Potsdam' }, TENANT_USER),
                 );
+                for (const write of late) {
+                    write.then(
+                        () => (ended += 1),
+                        () => (ended += 1),
+                    );
+                }
                 await sleep(300);
-                assert.equal(ended, false, 'a charge for the subscriber being joined did not wait');
+                assert.equal(ended, 0, 'a write for the subscriber being joined did not wait');
                 await joins.join(writeOf(state), tx);
             });
 
-            await assert.rejects(late!, refusedAsJoined);
+            for (const write of late) await assert.rejects(write, refusedAsJoined);
             const after = await harness.adapter.transactionRunner.run((tx) =>
                 joins.hold(returning.id, earlier.id, tx),
             );
             assert.equal(after?.moving.subscriber_ledger_entries, 0, 'a charge stayed behind');
+            assert.deepEqual(
+                [
+                    (await subscribers.findById(returning.id))?.city,
+                    (await subscribers.findById(earlier.id))?.city,
+                ],
+                ['Berlin', 'Berlin'],
+                'a change of the address landed on the subscriber joined',
+            );
         });
 
         // @requirement SC-ADM-027

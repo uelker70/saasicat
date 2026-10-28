@@ -13,6 +13,7 @@ import type {
 } from '@saasicat/core';
 import {
     SUBSCRIBER_JOIN_TABLE,
+    subscriberJoinGuardsOf,
     subscriberJoinMovedOtherwise,
     subscriberJoinProtectionProblem,
     subscriberJoinSchemaProblem,
@@ -238,8 +239,8 @@ export class DrizzleSubscriberJoinRepository implements SubscriberJoinRepository
         }
         const schema = subscriberJoinSchemaProblem(missing);
         if (schema) return schema;
-        const enabled = new Map<SubscriberOwnedTable, string[]>();
-        for (const table of this.tables) {
+        const enabled = new Map<string, string[]>();
+        for (const { table } of subscriberJoinGuardsOf(this.tables)) {
             // Enabled is `O`, as triggers fire by default, or `A`, always; `D`
             // is disabled, and `R` fires only in a session that replicates.
             const result: unknown = await this.db.execute(sql`

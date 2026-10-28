@@ -1,5 +1,6 @@
 import {
     SUBSCRIBER_JOIN_TABLE,
+    subscriberJoinGuardsOf,
     subscriberJoinMovedOtherwise,
     subscriberJoinProtectionProblem,
     subscriberJoinSchemaProblem,
@@ -276,11 +277,12 @@ export class PrismaSubscriberJoinRepository implements SubscriberJoinRepository 
         );
         const schema = subscriberJoinSchemaProblem(missing);
         if (schema) return schema;
+        const guarded = subscriberJoinGuardsOf(this.tables).map((guard) => guard.table);
         // Enabled is `O`, as triggers fire by default, or `A`, always; `D` is
         // disabled, and `R` fires only in a session that replicates.
         const rows: unknown = await this.db().$queryRaw`
             SELECT owned AS "table", t.tgname::text AS "name"
-              FROM unnest(${this.tables}::text[]) AS owned
+              FROM unnest(${guarded}::text[]) AS owned
               JOIN pg_trigger t ON t.tgrelid = to_regclass(owned)
              WHERE t.tgenabled IN ('O', 'A')`;
         const enabled = Array.isArray(rows) ? rows.filter(isTriggerRow) : [];

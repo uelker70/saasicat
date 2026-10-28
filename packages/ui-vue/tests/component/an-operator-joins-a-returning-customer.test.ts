@@ -58,6 +58,7 @@ const PREVIEW: AdminSubscriberJoinPreview = {
     },
     vatIdCheck: 'adopted',
     paymentMethodsOutOfUse: 1,
+    paymentMethodsTakenOver: 1,
     digest: 'a'.repeat(64),
 };
 
@@ -69,6 +70,7 @@ afterEach(() => {
 async function mountJoinable(
     record: AdminSubscriberRecord = RECORD,
     capabilities: Record<string, boolean> = JOINS,
+    preview: AdminSubscriberJoinPreview = PREVIEW,
 ) {
     const calls: unknown[][] = [];
     const mounted = await mountRecord({
@@ -89,7 +91,7 @@ async function mountJoinable(
             },
             previewJoin: async (from: string, into: string) => {
                 calls.push(['preview', from, into]);
-                return PREVIEW;
+                return preview;
             },
             join: async (from: string, input: SubscriberJoinInput, code?: string) => {
                 calls.push(['join', from, input, code]);
@@ -168,8 +170,10 @@ describe("joining a returning customer's subscriber into the one it had", () => 
         expect(text).toContain(
             'VAT ID (as a correction of the same legal entity): not stated → DE123456789',
         );
-        expect(text).toContain('The check of the VAT number made at sign-up counts');
-        expect(text).toContain("The earlier subscriber's payment method goes out of use");
+        expect(text).toContain('The check of the VAT number made for this subscriber counts');
+        expect(text).toContain(
+            "The earlier subscriber's payment method goes out of use; this subscriber's is used.",
+        );
 
         // Nothing is sent before a reason and the declaration.
         expect(dialog().submit?.disabled).toBe(true);
@@ -193,6 +197,25 @@ describe("joining a returning customer's subscriber into the one it had", () => 
             CODE,
         ]);
         expect(router.currentRoute.value.path).toBe('/admin/subscribers/s-old');
+    });
+
+    test('says where this subscriber brings no payment method that none is in use afterwards', async () => {
+        const { wrapper } = await mountJoinable(RECORD, JOINS, {
+            ...PREVIEW,
+            paymentMethodsTakenOver: 0,
+        });
+
+        await actionOf(wrapper)!.trigger('click');
+        await settle();
+        await typeInto('Earlier subscriber', 'Northwind');
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        await settle();
+        buttonInDialog('K-10045 · Northwind Handel GmbH').click();
+        await settle();
+
+        expect(dialog().node?.textContent).toContain(
+            "The earlier subscriber's payment method goes out of use, and this subscriber brings none: none is in use until one is given.",
+        );
     });
 
     test('a record joined into another says where everything went, leads there, and takes no correction', async () => {

@@ -25,8 +25,15 @@
 --   the subscriber's row lock the way a foreign key check does — so a write
 --   arriving while a join holds that row waits for it — and then refuses a row
 --   for a subscriber that was joined into another. The write fails, and its
---   next attempt reads the subscriber the row belongs to now. The triggers are
---   the one part of this file a database created from
+--   next attempt reads the subscriber the row belongs to now.
+--
+--   A trigger on `subscribers` that refuses a change of a subscriber joined
+--   into another: a change of its address that read the subscriber before the
+--   join waits for the join's row lock as any update does, and would otherwise
+--   write onto the record the join left empty. The join changes the subscriber
+--   it joins before it records itself, so its own change passes.
+--
+--   The triggers are the one part of this file a database created from
 --   `reference-schema.postgres.sql` does not have yet.
 --
 -- Skipped, with a notice, where `subscribers` is missing; a table that names a
@@ -35,7 +42,7 @@
 --
 -- Safe to run again: the table and its indexes are created only where they are
 -- missing, each constraint only where its name is not taken, and the trigger
--- function is replaced and the triggers created again in the same transaction.
+-- functions are replaced and the triggers created again in the same transaction.
 
 BEGIN;
 
@@ -87,7 +94,7 @@ BEGIN
 END
 $$;
 
--- Outside the blocks around it, because a function body cannot be created
+-- Outside the blocks around them, because a function body cannot be created
 -- inside one.
 CREATE OR REPLACE FUNCTION saasicat_a_joined_subscriber_takes_nothing()
 RETURNS trigger
@@ -98,6 +105,19 @@ BEGIN
     PERFORM 1 FROM "subscribers" WHERE "id" = NEW."subscriberId" FOR KEY SHARE;
     IF EXISTS (SELECT 1 FROM "subscriber_joins" WHERE "fromSubscriberId" = NEW."subscriberId") THEN
         RAISE EXCEPTION 'Subscriber % was joined into another subscriber and takes nothing more: % on % is refused, and belongs to the subscriber it was joined into.', NEW."subscriberId", TG_OP, TG_TABLE_NAME
+            USING ERRCODE = 'restrict_violation';
+    END IF;
+    RETURN NEW;
+END
+$$;
+
+CREATE OR REPLACE FUNCTION saasicat_a_joined_subscriber_changes_nothing()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM "subscriber_joins" WHERE "fromSubscriberId" = OLD."id") THEN
+        RAISE EXCEPTION 'Subscriber % was joined into another subscriber and takes no change: % on subscribers is refused, and belongs to the subscriber it was joined into.', OLD."id", TG_OP
             USING ERRCODE = 'restrict_violation';
     END IF;
     RETURN NEW;
@@ -138,6 +158,9 @@ BEGIN
             owned
         );
     END LOOP;
+    DROP TRIGGER IF EXISTS "subscribers_change_nothing_once_joined" ON "subscribers";
+    CREATE TRIGGER "subscribers_change_nothing_once_joined" BEFORE UPDATE ON "subscribers"
+        FOR EACH ROW EXECUTE FUNCTION saasicat_a_joined_subscriber_changes_nothing();
 END
 $$;
 

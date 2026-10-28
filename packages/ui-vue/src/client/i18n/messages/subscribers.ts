@@ -400,12 +400,16 @@ export const subscribersMessages = defineMessages(
             correctedAs: '{field} (als Korrektur derselben Rechtsperson): {previous} → {next}',
             vatIdCheck: {
                 adopted:
-                    'Die Prüfung der USt-IdNr. aus der Registrierung gilt für die übernommene Nummer.',
+                    'Die Prüfung der USt-IdNr., die für diesen Vertragspartner gemacht wurde, gilt für die übernommene Nummer.',
                 ended: 'Die USt-IdNr. ändert sich ohne Prüfung; bis zur nächsten gilt keine.',
                 kept: 'Die USt-IdNr. bleibt, und mit ihr die Prüfung, die für sie gilt.',
             },
-            paymentMethodOutOfUse:
-                'Das Zahlungsmittel des früheren Vertragspartners wird außer Gebrauch gesetzt; das aus der Registrierung gilt.',
+            paymentMethodOutOfUse: {
+                'taken-over':
+                    'Das Zahlungsmittel des früheren Vertragspartners wird außer Gebrauch gesetzt; das dieses Vertragspartners gilt.',
+                'none-taken-over':
+                    'Das Zahlungsmittel des früheren Vertragspartners wird außer Gebrauch gesetzt, und dieser Vertragspartner bringt keines mit: Bis eines hinterlegt ist, ist keines in Gebrauch.',
+            },
             sameEntity:
                 'Beide sind dieselbe Rechtsperson. Mir ist bewusst, dass die Zusammenführung nicht rückgängig gemacht werden kann.',
             submit: 'Zusammenführen',
@@ -829,12 +833,16 @@ export const subscribersMessages = defineMessages(
             correctedAs: '{field} (as a correction of the same legal entity): {previous} → {next}',
             vatIdCheck: {
                 adopted:
-                    'The check of the VAT number made at sign-up counts for the number taken over.',
+                    'The check of the VAT number made for this subscriber counts for the number taken over.',
                 ended: 'The VAT number changes and no check comes with it; none counts until the next one.',
                 kept: 'The VAT number stays, and so does the check that counts for it.',
             },
-            paymentMethodOutOfUse:
-                "The earlier subscriber's payment method goes out of use; the one given at sign-up is used.",
+            paymentMethodOutOfUse: {
+                'taken-over':
+                    "The earlier subscriber's payment method goes out of use; this subscriber's is used.",
+                'none-taken-over':
+                    "The earlier subscriber's payment method goes out of use, and this subscriber brings none: none is in use until one is given.",
+            },
             sameEntity:
                 'Both are one legal entity. I understand that joining them cannot be undone.',
             submit: 'Join',

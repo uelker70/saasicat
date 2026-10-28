@@ -363,7 +363,9 @@ export class SubscriberService {
         const actor = settleActor(changedBy);
         const settled = settleContactChange(change);
         await this.refuseJoined(subscriberId);
-        return this.writeContact(subscriberId, settled, actor);
+        return this.refusedWhereJoined(subscriberId, () =>
+            this.writeContact(subscriberId, settled, actor),
+        );
     }
 
     /**
@@ -388,7 +390,16 @@ export class SubscriberService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, { field: cleared }),
             );
         }
-        return this.writeContact(subscriber.id, settled, actor);
+        try {
+            return await this.writeContact(subscriber.id, settled, actor);
+        } catch (error) {
+            // A join of the tenant's subscriber committed while this waited for
+            // it, and the database refused the change: the tenant belongs to the
+            // subscriber it was joined into now, and the change is that one's.
+            if ((await this.joinedInto(subscriber.id)) === null) throw error;
+            const joinedInto = await this.requireForTenant(tenantId);
+            return this.writeContact(joinedInto.id, settled, actor);
+        }
     }
 
     /** Writes contact details already settled; settling twice would check one copy and write another. */
@@ -441,11 +452,9 @@ export class SubscriberService {
         }
         const corrected = settleIdentityCorrection(correction);
         await this.refuseJoined(subscriberId);
-        const result = await this.repo.correctIdentity(subscriberId, {
-            corrected,
-            reason,
-            correctedBy,
-        });
+        const result = await this.refusedWhereJoined(subscriberId, () =>
+            this.repo.correctIdentity(subscriberId, { corrected, reason, correctedBy }),
+        );
         if (!result) throw subscriberNotFound(subscriberId);
         if (!result.correction) {
             throw new UnprocessableEntityException(
@@ -519,7 +528,9 @@ export class SubscriberService {
     ): Promise<SubscriberVatIdCheckResult> {
         const outcome = await taxes.checkVatId(vatId);
         if (!outcome.completed) return { completed: false, reason: outcome.reason };
-        const recorded = await this.repo.recordVatIdCheck(subscriberId, outcome.check);
+        const recorded = await this.refusedWhereJoined(subscriberId, () =>
+            this.repo.recordVatIdCheck(subscriberId, outcome.check),
+        );
         if (!recorded) throw subscriberNotFound(subscriberId);
         return {
             completed: true,
@@ -560,11 +571,9 @@ export class SubscriberService {
             );
         }
         await this.refuseJoined(subscriberId);
-        const result = await this.repo.changeBusinessStatus(subscriberId, {
-            business,
-            changedBy,
-            reason,
-        });
+        const result = await this.refusedWhereJoined(subscriberId, () =>
+            this.repo.changeBusinessStatus(subscriberId, { business, changedBy, reason }),
+        );
         if (!result) throw subscriberNotFound(subscriberId);
         return result;
     }
@@ -617,6 +626,22 @@ export class SubscriberService {
                 customerNumber: subscriber?.customerNumber ?? subscriberId,
             }),
         );
+    }
+
+    /**
+     * `write`, answered as `refuseJoined` answers where it failed because the
+     * subscriber was joined into another meanwhile. A check made before the
+     * write cannot see a join that commits while the write waits for the
+     * subscriber's row, and the database refuses the write then — which would
+     * otherwise reach the operator as an error of its own.
+     */
+    private async refusedWhereJoined<T>(subscriberId: string, write: () => Promise<T>): Promise<T> {
+        try {
+            return await write();
+        } catch (error) {
+            await this.refuseJoined(subscriberId);
+            throw error;
+        }
     }
 
     /**

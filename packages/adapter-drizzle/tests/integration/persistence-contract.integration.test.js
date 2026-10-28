@@ -427,22 +427,32 @@ describe('the confirmation archive says whether it keeps the confirmations it ho
 
 // @requirement SC-ADM-050 — A join moves everything in one step, and a subscriber joined is given nothing afterwards
 describe('a join says what would let a subscriber joined be given a row', () => {
-    const GUARD = 'subscriber_payments_names_no_joined_subscriber';
-    after(() => pool.query(`ALTER TABLE subscriber_payments ENABLE TRIGGER "${GUARD}"`));
+    // A table that names a subscriber, and the subscribers' own.
+    const GUARDS = [
+        ['subscriber_payments', 'subscriber_payments_names_no_joined_subscriber'],
+        ['subscribers', 'subscribers_change_nothing_once_joined'],
+    ];
+    after(async () => {
+        for (const [table, guard] of GUARDS) {
+            await pool.query(`ALTER TABLE ${table} ENABLE TRIGGER "${guard}"`);
+        }
+    });
 
     test('names a table whose trigger does not fire, and none where every one does', async () => {
         const joins = new DrizzleSubscriberJoinRepository(db);
         assert.equal(await joins.protectionProblem(), null);
 
-        await pool.query(`ALTER TABLE subscriber_payments DISABLE TRIGGER "${GUARD}"`);
-        try {
-            const problem = await joins.protectionProblem();
-            assert.ok(
-                problem?.startsWith('subscriber_payments lacks its trigger, which refuses'),
-                problem,
-            );
-        } finally {
-            await pool.query(`ALTER TABLE subscriber_payments ENABLE TRIGGER "${GUARD}"`);
+        for (const [table, guard] of GUARDS) {
+            await pool.query(`ALTER TABLE ${table} DISABLE TRIGGER "${guard}"`);
+            try {
+                const problem = await joins.protectionProblem();
+                assert.ok(
+                    problem?.startsWith(`${table} lacks its trigger, which refuses`),
+                    problem,
+                );
+            } finally {
+                await pool.query(`ALTER TABLE ${table} ENABLE TRIGGER "${guard}"`);
+            }
         }
     });
 });

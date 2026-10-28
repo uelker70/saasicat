@@ -40,25 +40,55 @@ export function subscriberJoinGuardOf(table: SubscriberOwnedTable): string {
 }
 
 /**
- * Why a join could leave rows for the subscriber it joined behind, given the
- * enabled triggers of every table that names a subscriber, or `null` where each
- * has its guard. A write that read a subscriber before the join and writes
- * after it would otherwise land at an empty record nobody looks at.
+ * The trigger that keeps the row of a joined subscriber as the join left it:
+ * a change that read the subscriber before the join and writes after it
+ * would otherwise land on the record nobody reads, not the one it was joined
+ * into.
+ */
+export const SUBSCRIBER_JOIN_ROW_GUARD = {
+    table: 'subscribers',
+    trigger: 'subscribers_change_nothing_once_joined',
+} as const;
+
+/** A trigger of `1.0-a-subscriber-is-joined.postgres.sql`, by the table it is on. */
+export interface SubscriberJoinGuard {
+    table: string;
+    trigger: string;
+}
+
+/**
+ * Every trigger that guards a join where the schema holds `tables`: the one on
+ * `subscribers` and one on each table that names a subscriber.
+ */
+export function subscriberJoinGuardsOf(
+    tables: readonly SubscriberOwnedTable[],
+): SubscriberJoinGuard[] {
+    return [
+        SUBSCRIBER_JOIN_ROW_GUARD,
+        ...tables.map((table) => ({ table, trigger: subscriberJoinGuardOf(table) })),
+    ];
+}
+
+/**
+ * Why a join could leave something for the subscriber it joined behind, given
+ * the enabled triggers of each table `subscriberJoinGuardsOf` names, or `null`
+ * where each has its guard. A write that read a subscriber before the join and
+ * writes after it would otherwise land at an empty record nobody looks at.
  */
 export function subscriberJoinProtectionProblem(
     tables: readonly SubscriberOwnedTable[],
-    enabledTriggersOf: (table: SubscriberOwnedTable) => readonly string[],
+    enabledTriggersOf: (table: string) => readonly string[],
 ): string | null {
-    const unguarded = tables.filter(
-        (table) => !enabledTriggersOf(table).includes(subscriberJoinGuardOf(table)),
-    );
+    const unguarded = subscriberJoinGuardsOf(tables)
+        .filter(({ table, trigger }) => !enabledTriggersOf(table).includes(trigger))
+        .map(({ table }) => table);
     if (unguarded.length === 0) return null;
     return (
         `${unguarded.join(', ')} ` +
         (unguarded.length === 1
             ? 'lacks its trigger, which refuses'
             : 'lack their triggers, which refuse') +
-        ' a row for a joined subscriber: run ' +
+        ' a row for a joined subscriber or a change of one: run ' +
         '@saasicat/spec/sql/1.0-a-subscriber-is-joined.postgres.sql after db push, and enable the ' +
         'triggers where they were disabled.'
     );
@@ -212,6 +242,10 @@ export function planSubscriberJoin(state: SubscriberJoinState): SubscriberJoinPl
         taxOrigin: origin.moved ? { previous: origin.previous, changed: origin.changed } : null,
         vatIdCheck: adopts ? 'adopted' : vatId !== into.vatId ? 'ended' : 'kept',
         adoptedVatIdCheckId: adopts ? fromCheck.id : null,
+        // Every one, also where the subscriber joined brings none: a mandate
+        // given for the earlier contracts is not charged for the new ones
+        // without being given again, and the tenant gives one in its billing
+        // area.
         paymentMethodsOutOfUse: state.into.paymentMethodsInUse,
     };
 }

@@ -27,10 +27,12 @@ on. `SubscriberJoin` is a new model in
 `prisma-fragments/27-subscriber-join.prisma`, with two relation fields on
 `Subscriber`. Run
 `sql/1.0-a-subscriber-is-joined.postgres.sql` after `db push`: its triggers
-refuse a row for a joined subscriber, so a job that read the subscriber before
-a join writes at the earlier one when it runs again. A payment method confirmed
-on a gateway form opened before the join is recorded for the earlier one. With
-joins on, the start is refused where a table a join moves is missing — name it
-in `notAdopted` — or lacks its trigger. A CLI registers
+refuse a row for a joined subscriber and a change of one, so a job that read the
+subscriber before a join writes at the earlier one when it runs again, and a
+tenant's change of its details made while the join ran is written there. A
+payment method confirmed on a gateway form opened before the join is recorded
+for the earlier one. With joins on, the start is refused where a table a join
+moves is missing — name it in `notAdopted` — or lacks its trigger. A CLI
+registers
 `SubscriberJoinCliFlow`, `SubscribersCommands` and `SubscribersJoinCommand`;
 `FakeSubscriberJoinRepository` joins in tests without a database.

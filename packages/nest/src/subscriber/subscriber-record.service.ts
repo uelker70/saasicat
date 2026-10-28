@@ -103,6 +103,7 @@ export class SubscriberRecordService {
             corrected: plan.identity,
             vatIdCheck: plan.vatIdCheck,
             paymentMethodsOutOfUse: plan.paymentMethodsOutOfUse,
+            paymentMethodsTakenOver: decision.state.from.paymentMethodsInUse,
             digest: decision.digest,
         };
     }

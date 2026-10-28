@@ -181,6 +181,8 @@ export interface AdminSubscriberJoinPreview {
     corrected: SubscriberIdentityDelta | null;
     vatIdCheck: SubscriberJoinVatIdCheck;
     paymentMethodsOutOfUse: number;
+    /** The payment methods in use at the subscriber joined, which stay in use at the earlier one. */
+    paymentMethodsTakenOver: number;
     digest: string;
 }
 

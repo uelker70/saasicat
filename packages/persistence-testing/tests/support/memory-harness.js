@@ -216,16 +216,26 @@ export function createMemoryHarness() {
         },
     };
 
-    // What the trigger `1.0-a-subscriber-is-joined.postgres.sql` puts on every
-    // table that names a subscriber does in a database: a row for a subscriber
-    // joined into another is refused. Called before every row this harness
-    // writes into one of those tables, which is what makes its
+    // What the triggers of `1.0-a-subscriber-is-joined.postgres.sql` do in a
+    // database: a row for a subscriber joined into another is refused, and so
+    // is a change of one. The first is called before every row this harness
+    // writes into a table that names a subscriber, the second before every
+    // change of a subscriber's row — which is what makes its
     // `protectionProblem` answer nothing.
+    const joinedAlready = (subscriberId) =>
+        state.subscriberJoins.some((join) => join.fromSubscriberId === subscriberId);
     const refuseARowForAJoinedSubscriber = (table, subscriberId) => {
-        if (!state.subscriberJoins.some((join) => join.fromSubscriberId === subscriberId)) return;
+        if (!joinedAlready(subscriberId)) return;
         throw new Error(
             `Subscriber ${subscriberId} was joined into another subscriber and takes nothing ` +
                 `more: INSERT on ${table} is refused, and belongs to the subscriber it was joined into.`,
+        );
+    };
+    const refuseAChangeOfAJoinedSubscriber = (subscriberId) => {
+        if (!joinedAlready(subscriberId)) return;
+        throw new Error(
+            `Subscriber ${subscriberId} was joined into another subscriber and takes no change: ` +
+                'UPDATE on subscribers is refused, and belongs to the subscriber it was joined into.',
         );
     };
 
@@ -1110,6 +1120,7 @@ export function createMemoryHarness() {
         async updateContact(subscriberId, change, changedBy) {
             const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
             if (!row) return null;
+            refuseAChangeOfAJoinedSubscriber(subscriberId);
             const origin = taxOriginWrite(row, { country: change.country });
             Object.assign(row, structuredClone(change));
             recordTaxOriginChange(subscriberId, origin, { changedBy });
@@ -1122,6 +1133,7 @@ export function createMemoryHarness() {
             if (Object.keys(delta.corrected).length === 0) {
                 return { subscriber: subscriberRecord(row), correction: null };
             }
+            refuseAChangeOfAJoinedSubscriber(subscriberId);
             const changedAt = new Date();
             const origin = taxOriginWrite(row, { vatId: delta.corrected.vatId });
             Object.assign(row, delta.corrected);
@@ -1163,6 +1175,7 @@ export function createMemoryHarness() {
                 { business: data.business },
             );
             if (!origin.moved) return { subscriber: subscriberRecord(row), change: null };
+            refuseAChangeOfAJoinedSubscriber(subscriberId);
             row.business = data.business;
             const change = recordTaxOriginChange(subscriberId, origin, {
                 changedBy: data.changedBy,

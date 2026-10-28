@@ -79,8 +79,8 @@
                     <li v-for="change in changes" :key="change">{{ change }}</li>
                 </ul>
                 <p>{{ msg.join.vatIdCheck[preview.vatIdCheck] }}</p>
-                <p v-if="preview.paymentMethodsOutOfUse > 0">
-                    {{ msg.join.paymentMethodOutOfUse }}
+                <p v-if="paymentMethodNote">
+                    {{ msg.join.paymentMethodOutOfUse[paymentMethodNote] }}
                 </p>
             </section>
 
@@ -120,6 +120,7 @@ import {
     joinChangesOf,
     joinInputOf,
     joinMovingOf,
+    joinPaymentMethodNoteOf,
     type JoinChange,
 } from './subscriber-join.js';
 
@@ -262,6 +263,9 @@ function describe(change: JoinChange): string {
 }
 
 const changes = computed(() => (preview.value ? joinChangesOf(preview.value).map(describe) : []));
+const paymentMethodNote = computed(() =>
+    preview.value ? joinPaymentMethodNoteOf(preview.value) : null,
+);
 
 const input = computed(() =>
     joinInputOf(preview.value, { reason: reason.value, sameEntity: sameEntity.value }),

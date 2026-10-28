@@ -29,6 +29,20 @@ export type JoinChange =
     | { kind: 'business'; previous: boolean | null; next: boolean | null }
     | { kind: 'identity'; field: LegalIdentityField; previous: string | null; next: string | null };
 
+/**
+ * What a join does to the payment methods: the earlier subscriber's go out of
+ * use, and this subscriber's takes over — or, where it brings none, none is in
+ * use afterwards. `null` where none goes out of use.
+ */
+export type JoinPaymentMethodNote = 'taken-over' | 'none-taken-over';
+
+export function joinPaymentMethodNoteOf(
+    preview: AdminSubscriberJoinPreview,
+): JoinPaymentMethodNote | null {
+    if (preview.paymentMethodsOutOfUse === 0) return null;
+    return preview.paymentMethodsTakenOver > 0 ? 'taken-over' : 'none-taken-over';
+}
+
 /** What moves, in the order a join moves it, only what holds a row. */
 export function joinMovingOf(preview: AdminSubscriberJoinPreview): JoinMoving[] {
     return SUBSCRIBER_OWNED_TABLES.flatMap(({ table }) => {

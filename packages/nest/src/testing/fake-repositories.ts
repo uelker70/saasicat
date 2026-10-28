@@ -522,6 +522,8 @@ export class FakeSubscriberRepository implements SubscriberRepository {
     /** The number each subscriber was assigned, apart from its prefix, as the schema keeps it. */
     private readonly numbers = new Map<string, { prefix: string; sequence: number }>();
     private readonly links: Array<SubscriberTenantLinkRecord & { subscriberId: string }> = [];
+    /** The subscribers a join emptied, which the database's guard keeps as the join left them. */
+    private readonly joined = new Set<string>();
 
     async createForTenant(data: CreateSubscriberData): Promise<SubscriberRecord | null> {
         if (this.liveFor(data.tenantId)) return null;
@@ -618,6 +620,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
     ): Promise<SubscriberRecord | null> {
         const record = this.byId.get(subscriberId);
         if (!record) return null;
+        this.refuseAJoinedSubscriber(subscriberId);
         const changedAt = new Date();
         const origin = taxOriginWrite(record, { country: change.country });
         const updated = { ...record, ...change, updatedAt: changedAt };
@@ -636,6 +639,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
         if (Object.keys(delta.corrected).length === 0) {
             return { subscriber: { ...record }, correction: null };
         }
+        this.refuseAJoinedSubscriber(subscriberId);
         const changedAt = new Date();
         const origin = taxOriginWrite(record, { vatId: delta.corrected.vatId });
         const updated = {
@@ -677,6 +681,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
         if (!record) return null;
         const origin = taxOriginWrite(record, { business: data.business });
         if (!origin.moved) return { subscriber: { ...record }, change: null };
+        this.refuseAJoinedSubscriber(subscriberId);
         const changedAt = new Date();
         const updated = { ...record, business: data.business, updatedAt: changedAt };
         this.byId.set(subscriberId, updated);
@@ -696,6 +701,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
     ): Promise<RecordedVatIdCheck | null> {
         const record = this.byId.get(subscriberId);
         if (!record) return null;
+        this.refuseAJoinedSubscriber(subscriberId);
         const recorded: SubscriberVatIdCheckRecord = {
             ...check,
             confirmation: { ...check.confirmation },
@@ -745,6 +751,20 @@ export class FakeSubscriberRepository implements SubscriberRepository {
             .filter((change) => change.subscriberId === subscriberId)
             .reverse()
             .map((change) => ({ ...change }));
+    }
+
+    /**
+     * Refused as the triggers of `1.0-a-subscriber-is-joined.postgres.sql`
+     * refuse it in a database: a subscriber joined into another takes no
+     * change and no row. A write that read the subscriber before the join and
+     * writes after it fails here as it would there.
+     */
+    private refuseAJoinedSubscriber(subscriberId: string): void {
+        if (!this.joined.has(subscriberId)) return;
+        throw new Error(
+            `Subscriber ${subscriberId} was joined into another subscriber and takes nothing ` +
+                'more: the write is refused, and belongs to the subscriber it was joined into.',
+        );
     }
 
     private countingCheck(subscriberId: string): SubscriberVatIdCheckRecord | null {
@@ -839,6 +859,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
         if (plan.business !== undefined) updated.business = plan.business;
         this.byId.set(into, updated);
         this.byId.set(from, { ...joined, tenantId: null, updatedAt: joinedAt });
+        this.joined.add(from);
         if (plan.vatIdCheck === 'adopted' && plan.adoptedVatIdCheckId) {
             this.currentVatIdCheck.set(into, plan.adoptedVatIdCheckId);
             const since = this.vatIdSince.get(from);

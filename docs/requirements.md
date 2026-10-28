@@ -16302,6 +16302,7 @@ _Tested by:_
           confirmation
         - with --apply it asks for the second factor and the confirmation, joins as the operator and
           records it
+        - says where the subscriber joined brings no payment method that none is in use afterwards
     - the command is refused
         - for a customer number no subscriber has, before anything is previewed
         - with --apply and no reason, before it asks for anything
@@ -16312,6 +16313,7 @@ _Tested by:_
 - `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
     - the operator joins a returning customer's subscriber into the one it had
         - the preview puts both side by side and says what moves, is replaced and corrected
+        - the preview says which payment methods go out of use, and which take over
         - the join answers the subscriber everything moved to, and both records say so
         - the list marks a subscriber joined with the one it was joined into
         - is announced and served only where joins are on
@@ -16331,6 +16333,10 @@ _Tested by:_
         - is recorded there where the join moved the setup while the confirmation waited for it
         - follows the earlier subscriber where it was joined in turn into one before it
         - is refused where the session is another subscriber's, joined or not
+    - a change of a subscriber that waited for its join
+        - made by the tenant's user, lands at the subscriber it was joined into
+        - made by the operator, is answered as a change of a joined subscriber is
+        - that failed for another reason, is passed on as it failed
     - the subscriber a reference kept outside the installation belongs to
         - names a cycle no join could write, rather than following it
     - joining subscribers
@@ -16344,6 +16350,7 @@ _Tested by:_
         - is offered on a subscriber with a live tenant where joins are served, and nowhere else
         - finds the earlier subscriber, shows both with what moves and changes, and joins them as
           confirmed
+        - says where this subscriber brings no payment method that none is in use afterwards
         - a record joined into another says where everything went, leads there, and takes no
           correction
         - the earlier record names the subscribers joined into it, leading to each
@@ -17667,6 +17674,7 @@ _Tested by:_
           confirmation
         - with --apply it asks for the second factor and the confirmation, joins as the operator and
           records it
+        - says where the subscriber joined brings no payment method that none is in use afterwards
 - `packages/core/tests/a-join-decides-what-the-earlier-record-takes.test.js`
     - the address the earlier record takes
         - replaces it as a whole where the subscriber joined has one, a line it lacks included
@@ -17689,6 +17697,7 @@ _Tested by:_
 - `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
     - the operator joins a returning customer's subscriber into the one it had
         - the preview puts both side by side and says what moves, is replaced and corrected
+        - the preview says which payment methods go out of use, and which take over
         - the join answers the subscriber everything moved to, and both records say so
         - the list marks a subscriber joined with the one it was joined into
         - is announced and served only where joins are on
@@ -17708,6 +17717,7 @@ _Tested by:_
         - is offered on a subscriber with a live tenant where joins are served, and nowhere else
         - finds the earlier subscriber, shows both with what moves and changes, and joins them as
           confirmed
+        - says where this subscriber brings no payment method that none is in use afterwards
         - a record joined into another says where everything went, leads there, and takes no
           correction
         - the earlier record names the subscribers joined into it, leading to each
@@ -17742,12 +17752,20 @@ _Tested by:_
     - a join says what would let a subscriber joined be given a row
         - names a table whose trigger does not fire, and none where every one does
         - names a model the client was generated without, which it would leave rows in
+- `packages/core/tests/a-join-starts-only-where-every-trigger-guards-it.test.js`
+    - nothing is named where every trigger fires
+    - the subscribers' own table is named where its trigger does not fire
+    - every table whose trigger does not fire is named, the subscribers first
 - `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
     - a payment method confirmed on a form opened before the join
         - is recorded for the subscriber it was joined into, and is the one in use there
         - is recorded there where the join moved the setup while the confirmation waited for it
         - follows the earlier subscriber where it was joined in turn into one before it
         - is refused where the session is another subscriber's, joined or not
+    - a change of a subscriber that waited for its join
+        - made by the tenant's user, lands at the subscriber it was joined into
+        - made by the operator, is answered as a change of a joined subscriber is
+        - that failed for another reason, is passed on as it failed
     - joining subscribers
         - turned on without anywhere to join them, refuses to start, saying so
         - refuses to start beside a database that would let a join leave rows behind

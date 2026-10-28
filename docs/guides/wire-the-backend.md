@@ -943,7 +943,9 @@ from your schema:
 - **`sql/1.0-a-subscriber-is-joined.postgres.sql`, after `db push`.** It adds a trigger to every
   table that names a subscriber: a charge run, an invoice run or a payment that read a subscriber
   before a join and writes while it runs waits for it, is refused, and writes at the earlier
-  subscriber on its next attempt.
+  subscriber on its next attempt. A trigger on `subscribers` refuses a change of the subscriber
+  joined in the same way: a tenant's change of its own details that waited for the join is written
+  at the earlier subscriber, and an operator's is answered with `SUBSCRIBER_JOINED`.
 
 With joins on, the start is refused where the bundle has no `subscriberJoinRepository`, where the
 schema lacks a table a join moves — a model the client was generated without, or a table the

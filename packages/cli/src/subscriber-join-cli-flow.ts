@@ -64,9 +64,11 @@ export interface SubscriberJoinOptions {
     apply?: boolean;
 }
 
-/** A join made from the command line: what was recorded, and both subscribers it names. */
+/** A join made from the command line: what was recorded, what it decided, and both subscribers it names. */
 export interface JoinedSubscribers {
     join: SubscriberJoinRecord;
+    /** What the join decided and wrote, as the preview names it. */
+    decision: SubscriberJoinDecision;
     from: SubscriberRecord;
     into: SubscriberRecord;
 }
@@ -120,37 +122,31 @@ export class SubscriberJoinCliFlow {
                 moved: outcome.join.moved,
             },
         });
-        return { join: outcome.join, from, into };
+        return { join: outcome.join, decision: outcome, from, into };
     }
 
     /** What the preview shows, for the terminal. */
     formatPreview(decision: SubscriberJoinDecision): string {
         const { from, into } = decision.state;
-        const lines = [
+        return [
             `${described(from)} would be joined into ${described(into)} — nothing is written yet.`,
             `Moves: ${movedOf(decision.plan)}`,
-            ...replacedOf(decision.plan),
-            ...correctedOf(decision.plan),
-            vatIdCheckOf(decision.plan),
-        ];
-        if (decision.plan.paymentMethodsOutOfUse > 0) {
-            lines.push(
-                `The payment method in use at ${into.subscriber.customerNumber} goes out of use; ` +
-                    'the one given at sign-up is used from now on.',
-            );
-        }
-        lines.push(
+            ...decidedOf(decision),
             'Joining declares that both are one legal entity, and is not undone.',
             'Run again with --apply to join them.',
-        );
-        return lines.join('\n');
+        ].join('\n');
     }
 
-    /** What the join wrote, for the terminal. */
+    /**
+     * What the join wrote, for the terminal: as the preview names it, since
+     * `--apply` is held to no preview and something may have changed between
+     * the two runs.
+     */
     formatJoined(joined: JoinedSubscribers): string {
         return [
             `Joined ${joined.from.customerNumber} into ${joined.into.customerNumber} ` +
                 `(${joined.into.legalName}): ${movedOf({ moving: joined.join.moved })}.`,
+            ...decidedOf(joined.decision),
             `The record of ${joined.from.customerNumber} names ${joined.into.customerNumber} ` +
                 'from now on, and takes no change.',
         ].join('\n');
@@ -197,6 +193,21 @@ function movedOf(plan: Pick<SubscriberJoinPlan, 'moving'>): string {
         return count > 0 ? [`${count} ${MOVING_LABELS[table]}`] : [];
     });
     return counted.length > 0 ? counted.join(', ') : 'nothing';
+}
+
+/** What the earlier record takes, and how the check of the VAT id and the payment methods are decided. */
+function decidedOf({ plan, state }: SubscriberJoinDecision): string[] {
+    const lines = [...replacedOf(plan), ...correctedOf(plan), vatIdCheckOf(plan)];
+    if (plan.paymentMethodsOutOfUse === 0) return lines;
+    const earlier = state.into.subscriber.customerNumber;
+    const joined = state.from.subscriber.customerNumber;
+    lines.push(
+        state.from.paymentMethodsInUse > 0
+            ? `The payment method in use at ${earlier} goes out of use; the one of ${joined} is used from now on.`
+            : `The payment method in use at ${earlier} goes out of use, and ${joined} brings none: ` +
+                  'none is in use until one is given.',
+    );
+    return lines;
 }
 
 function replacedOf(plan: SubscriberJoinPlan): string[] {

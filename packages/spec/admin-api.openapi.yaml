@@ -5268,6 +5268,7 @@ components:
                     corrected,
                     vatIdCheck,
                     paymentMethodsOutOfUse,
+                    paymentMethodsTakenOver,
                     digest,
                 ]
             properties:
@@ -5308,6 +5309,10 @@ components:
                         corrected: { type: object }
                 vatIdCheck: { type: string, enum: [adopted, ended, kept] }
                 paymentMethodsOutOfUse: { type: integer, minimum: 0 }
+                paymentMethodsTakenOver:
+                    type: integer
+                    minimum: 0
+                    description: The payment methods in use at the subscriber joined, which stay in use at the earlier one.
                 digest: { type: string, pattern: '^[0-9a-f]{64}$' }
 
         AdminSubscriberJoinNote:

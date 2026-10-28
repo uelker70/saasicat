@@ -31,10 +31,12 @@ const DECISION = {
         from: {
             subscriber: SUBSCRIBERS[10234],
             links: [{ tenantId: 'muster-neu', linkedAt: new Date(), unlinkedAt: null }],
+            paymentMethodsInUse: 1,
         },
         into: {
             subscriber: SUBSCRIBERS[10045],
             links: [{ tenantId: 'muster-alt', linkedAt: new Date(), unlinkedAt: new Date() }],
+            paymentMethodsInUse: 1,
         },
         moving: {},
     },
@@ -103,7 +105,7 @@ describe('the preview is the command, and the join the second one', () => {
                 'Replaced: city Hamburg → Berlin',
                 'Corrected as the same legal entity: vatId — → DE123456789',
                 'VAT id: the check made for the subscriber joined counts for the number taken over.',
-                'The payment method in use at 10045 goes out of use; the one given at sign-up is used from now on.',
+                'The payment method in use at 10045 goes out of use; the one of 10234 is used from now on.',
                 'Joining declares that both are one legal entity, and is not undone.',
                 'Run again with --apply to join them.',
             ].join('\n'),
@@ -156,8 +158,30 @@ describe('the preview is the command, and the join the second one', () => {
             flow.formatJoined(joined),
             [
                 'Joined 10234 into 10045 (Muster GmbH): 1 tenant links, 1 checks of the VAT id, 2 charges.',
+                'Replaced: city Hamburg → Berlin',
+                'Corrected as the same legal entity: vatId — → DE123456789',
+                'VAT id: the check made for the subscriber joined counts for the number taken over.',
+                'The payment method in use at 10045 goes out of use; the one of 10234 is used from now on.',
                 'The record of 10234 names 10045 from now on, and takes no change.',
             ].join('\n'),
+        );
+    });
+
+    test('says where the subscriber joined brings no payment method that none is in use afterwards', async () => {
+        const { flow } = setUp();
+        const decision = await flow.preview(OPTIONS);
+        const withoutOne = {
+            ...decision,
+            state: { ...decision.state, from: { ...decision.state.from, paymentMethodsInUse: 0 } },
+        };
+
+        assert.ok(
+            flow
+                .formatPreview(withoutOne)
+                .includes(
+                    'The payment method in use at 10045 goes out of use, and 10234 brings none: ' +
+                        'none is in use until one is given.',
+                ),
         );
     });
 });

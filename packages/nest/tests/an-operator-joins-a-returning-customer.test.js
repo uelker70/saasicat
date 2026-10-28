@@ -112,6 +112,24 @@ describe("the operator joins a returning customer's subscriber into the one it h
         );
     });
 
+    test('the preview says which payment methods go out of use, and which take over', async () => {
+        const admin = await anAdministration();
+        // Wien brings one payment method in use, and Fabrikam has two.
+        const hold = admin.joinRepo.hold.bind(admin.joinRepo);
+        admin.joinRepo.hold = async (...args) => {
+            const state = await hold(...args);
+            return {
+                ...state,
+                from: { ...state.from, paymentMethodsInUse: 1 },
+                into: { ...state.into, paymentMethodsInUse: 2 },
+            };
+        };
+
+        const preview = await admin.preview('wien', 'fabrikam');
+
+        assert.deepEqual([preview.paymentMethodsOutOfUse, preview.paymentMethodsTakenOver], [2, 1]);
+    });
+
     test('the join answers the subscriber everything moved to, and both records say so', async () => {
         const admin = await anAdministration();
         const { digest } = await admin.preview('wien', 'fabrikam');
@@ -417,6 +435,94 @@ describe('a payment method confirmed on a form opened before the join', () => {
             [null, null],
         );
         assert.equal(admin.methods.setups[1].completedAt, null, "Northwind's setup was used up");
+    });
+});
+
+/** Who changes the tenant's own details, as its billing area names its user. */
+const TENANT_USER = 'web:owner@wien.example:tenant-self-service';
+
+/**
+ * The operator joining Wien into Fabrikam while the next call of `method`
+ * waits for Wien's row, as the join's row lock makes it wait: the call then
+ * meets the subscriber joined, which the database's guard refuses a change of.
+ */
+const joinedWhileWaiting = (admin, method) => {
+    const write = admin.repo[method].bind(admin.repo);
+    let joined = false;
+    admin.repo[method] = async (...args) => {
+        if (!joined) {
+            joined = true;
+            await admin.join('wien', 'fabrikam');
+        }
+        return write(...args);
+    };
+};
+
+// @requirement SC-ADM-050 — A join moves everything in one step, and a subscriber joined is given nothing afterwards
+describe('a change of a subscriber that waited for its join', () => {
+    test("made by the tenant's user, lands at the subscriber it was joined into", async () => {
+        const admin = await anAdministration();
+        joinedWhileWaiting(admin, 'updateContact');
+        const subscribers = new SubscriberService(admin.repo, {}, null, admin.joinRepo);
+
+        const changed = await subscribers.changeContactOfTenant(
+            't-wien',
+            { city: 'Graz' },
+            TENANT_USER,
+        );
+
+        assert.equal(changed.id, admin.idOf('fabrikam'));
+        assert.deepEqual(
+            [
+                (await admin.repo.findById(admin.idOf('fabrikam'))).city,
+                (await admin.repo.findById(admin.idOf('wien'))).city,
+            ],
+            ['Graz', 'Hamburg'],
+        );
+    });
+
+    test('made by the operator, is answered as a change of a joined subscriber is', async () => {
+        const admin = await anAdministration();
+        joinedWhileWaiting(admin, 'correctIdentity');
+
+        await assert.rejects(
+            admin.call(IDENTITY_ROUTE)(
+                admin.idOf('wien'),
+                { kind: 'correction', legalName: 'Wien Neu GmbH', reason: 'Typo' },
+                REQUEST,
+            ),
+            refusedWith('SUBSCRIBER_JOINED'),
+        );
+        assert.equal((await admin.repo.findById(admin.idOf('wien'))).legalName, 'Wien GmbH');
+    });
+
+    test('that failed for another reason, is passed on as it failed', async () => {
+        const admin = await anAdministration();
+        const failure = new Error('the connection was reset');
+        const attempts = [];
+        admin.repo.updateContact = async () => {
+            attempts.push('updateContact');
+            throw failure;
+        };
+        admin.repo.correctIdentity = async () => {
+            attempts.push('correctIdentity');
+            throw failure;
+        };
+        const subscribers = new SubscriberService(admin.repo, {}, null, admin.joinRepo);
+
+        await assert.rejects(
+            subscribers.changeContactOfTenant('t-wien', { city: 'Graz' }, TENANT_USER),
+            (error) => error === failure,
+        );
+        await assert.rejects(
+            admin.call(IDENTITY_ROUTE)(
+                admin.idOf('wien'),
+                { kind: 'correction', legalName: 'Wien Neu GmbH', reason: 'Typo' },
+                REQUEST,
+            ),
+            (error) => error === failure,
+        );
+        assert.deepEqual(attempts, ['updateContact', 'correctIdentity'], 'a write was tried again');
     });
 });
 
