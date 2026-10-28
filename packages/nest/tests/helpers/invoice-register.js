@@ -122,14 +122,22 @@ export function anInstallation() {
 /**
  * The platform serving `installation`'s invoices, and `payments` where given as
  * what the collections recorded, each of the `reads` recorded with whether it
- * ran inside the bypass frame, and each audit entry written into `written`. `through` binds the bypass the way an adapter
- * without row-level policies does: it calls `fn` and hands back what it
- * returns, as it returns it. `call(route)` answers a route's handler, called
- * with what a test passes it.
+ * ran inside the bypass frame, and each audit entry written into `written`,
+ * or the audit log `audit` where a test gives one. `through` binds the bypass
+ * the way an adapter without row-level policies does: it calls `fn` and hands
+ * back what it returns, as it returns it. `call(route)` answers a route's
+ * handler, called with what a test passes it.
  */
 export async function aRegisterPlatform(
     installation,
-    { options = {}, through = false, reads: named = [], payments = null, written = null } = {},
+    {
+        options = {},
+        through = false,
+        reads: named = [],
+        payments = null,
+        written = null,
+        audit = null,
+    } = {},
 ) {
     const reads = [];
     let bypassed = 0;
@@ -152,6 +160,7 @@ export async function aRegisterPlatform(
         invoices: wiredInvoices({ invoiceRepository: recording(store) }),
     });
     if (written) platform.persistence.core.audit = { write: async (entry) => written.push(entry) };
+    if (audit) platform.persistence.core.audit = audit;
     if (payments) {
         platform.persistence.entitlement.subscriberPaymentRepository = recording(payments);
     }

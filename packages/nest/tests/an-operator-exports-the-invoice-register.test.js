@@ -127,12 +127,13 @@ async function aFebruary() {
 }
 
 /** The platform serving the export of `installation`, recording its reads and the audit log. */
-async function anExporter(installation, { payments = null, through = false } = {}) {
+async function anExporter(installation, { payments = null, through = false, audit = null } = {}) {
     const written = [];
     const platform = await aRegisterPlatform(installation, {
         through,
         payments,
         written,
+        audit,
         reads: ['listIssued', 'listCancellations', 'findDocuments', 'listSettlements'],
     });
     const call = platform.call(EXPORT_ROUTE);
@@ -342,6 +343,21 @@ describe('an export as of a moment', () => {
 });
 
 describe('the audit log', () => {
+    test('that cannot record the export refuses it, and nothing is handed over', async () => {
+        const { installation, payments } = await aFebruary();
+        const exporter = await anExporter(installation, {
+            payments,
+            audit: {
+                write: async () => {
+                    throw new Error('the audit log is down');
+                },
+            },
+        });
+
+        await assert.rejects(exporter.exported(FEBRUARY), /the audit log is down/);
+        await exporter.moduleRef.close();
+    });
+
     test('records who took which archive: the months, the moment, the language, what it holds and its SHA-256', async () => {
         const { installation, payments } = await aFebruary();
         const exporter = await anExporter(installation, { payments });

@@ -25,6 +25,7 @@ import {
 import { WebAuditLogger } from '../../core/web-audit.js';
 import { AllowDuringMaintenance } from '../../maintenance/allow-during-maintenance.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
+import { AdminAuditService } from '../../admin/admin-audit.service.js';
 import { AdminResourcesService } from '../../admin/admin-resources.module.js';
 import { UseRouteGuards } from '../../admin/use-route-guards.decorator.js';
 import {
@@ -141,6 +142,9 @@ export interface InvoiceDocumentModuleOptions {
      * module that already provides it, passed as the very object the
      * application imports, so that no port is built a second time — and,
      * where `confirmations` is set, `ContractConfirmationService`.
+     * `AdminAuditService`, which records every export of the register before
+     * it is handed over, comes from the `AdminModule` `SaaSiCatModule`
+     * composes.
      */
     imports: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /** Whether the contracts' confirmations are offered too. */
@@ -202,6 +206,10 @@ function buildInvoiceRegisterController(guards: Array<Type<CanActivate>>): Type 
             private readonly exports: InvoiceExportService,
             @Inject(WebAuditLogger)
             private readonly audit: WebAuditLogger,
+            // Required, unlike the best-effort log of the platform's other
+            // routes: an export is handed over only once it is recorded.
+            @Inject(AdminAuditService)
+            private readonly auditLog: AdminAuditService,
             // Required rather than optional: without it the invoices would be
             // read in the request's row-level scope, which an operator's
             // request has none of. Missing, the module does not start.
@@ -236,7 +244,9 @@ function buildInvoiceRegisterController(guards: Array<Type<CanActivate>>): Type 
          * CSV tables, `export.json` and the manifest in one ZIP, the same bytes
          * for the same months, moment and language (`SC-ADM-043`). A read, so
          * no second factor; recorded in the audit log under the operator with
-         * the archive's SHA-256. Not under `invoices/`, as `invoice-totals`.
+         * the archive's SHA-256 before it is handed over, and not handed over
+         * where the log cannot record it. Not under `invoices/`, as
+         * `invoice-totals`.
          */
         @Get('invoice-export')
         export(
@@ -246,7 +256,13 @@ function buildInvoiceRegisterController(guards: Array<Type<CanActivate>>): Type 
             return this.rlsBypass.runWithBypass(async () => {
                 const archive = await this.exports.export(query);
                 const { entity, entityId, action, changes } = invoiceExportAudit(archive);
-                await this.audit.logFromRequest(request, entity, entityId, action, changes);
+                await this.auditLog.log({
+                    actor: this.audit.actorFromRequest(request),
+                    entity,
+                    entityId,
+                    action,
+                    changes,
+                });
                 return new StreamableFile(archive.content, {
                     type: 'application/zip',
                     length: archive.content.byteLength,

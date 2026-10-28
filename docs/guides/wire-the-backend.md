@@ -1312,7 +1312,9 @@ text cell a spreadsheet would read as a formula is prefixed with `'`. The files 
 compressed, and dated the moment the export is as of, so the same months as of the same moment in
 the same language are the same bytes: two hand-overs are compared by the archive's SHA-256. The
 audit log records each export under the operator with the months, the moment and that SHA-256
-(`SUBSCRIPTION_INVOICES_EXPORTED`). It is a read, so it asks for no second factor.
+(`SUBSCRIPTION_INVOICES_EXPORTED`) before the archive is handed over, and where the log cannot
+record it the route answers with that failure instead of the archive. It is a read, so it asks for
+no second factor.
 
 It is served and announced as the register is, and reads past the tenants' row-level policy. It
 reads the invoice repository's `listIssued`, `listCancellations` and `findDocuments` and the payment

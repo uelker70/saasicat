@@ -17407,6 +17407,7 @@ _Tested by:_
         - is recorded in the audit log under the operator, with the months, the moment and its
           SHA-256
     - an export the command refuses
+        - where the audit log cannot record it, taking back the file it wrote
         - for ${why}, with exit code 1, before it asks who acts
         - as the route does, with the export’s code and exit code 1, writing nothing
         - over a file of its name, with exit code 6, leaving the file as it was and recording
@@ -17458,6 +17459,7 @@ _Tested by:_
         - holds every invoice of the months, however many reads they take
         - is read outside the tenants' row-level policy, every read of it
     - the audit log
+        - that cannot record the export refuses it, and nothing is handed over
         - records who took which archive: the months, the moment, the language, what it holds and
           its SHA-256
     - the exports refused

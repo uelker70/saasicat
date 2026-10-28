@@ -2738,7 +2738,9 @@ It is served where the register is, and nothing is stored for it, so there is no
 - **The command line**: `<app> invoices export` is new. A CLI module registers
   `InvoiceExportCliFlow` and `InvoicesExportCommand` beside the cancellation's providers, and
   `<app> invoices` alone now names both sub-commands.
-- **The audit log** gains `SUBSCRIPTION_INVOICES_EXPORTED`, labelled in the manifest.
+- **The audit log** gains `SUBSCRIPTION_INVOICES_EXPORTED`, labelled in the manifest. An export is
+  handed over only once it is recorded, so an `InvoiceDocumentModule` wired by hand needs
+  `AdminAuditService` in scope — the `AdminModule` `SaaSiCatModule` composes provides it.
 - **`LOCAL_MOMENT_PATTERN`, `isLocalMoment`, `localMomentInZone` and `firstMomentInZone`** are new in
   `@saasicat/core`, and `@saasicat/spec` exports `invoiceExportSchema`.
 

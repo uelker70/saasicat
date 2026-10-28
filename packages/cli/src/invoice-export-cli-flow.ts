@@ -12,13 +12,14 @@
 // German separators and decimal commas. A read, so the command asks for the
 // operator's identity and neither the second factor nor a confirmation; the
 // audit log records the operator, the months, the moment and the archive's
-// SHA-256, as the route does. The archive is written under the name the route
+// SHA-256, as the route does, and where it cannot, the file is taken back and
+// the command fails. The archive is written under the name the route
 // offers, into `--out` or the current directory, and never over a file that is
 // there already: the same name is the same months as of the same moment in the
 // same language, and a file under it that differs is one to look at, not to
 // replace.
 
-import { writeFile } from 'node:fs/promises';
+import { unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { Inject, Injectable } from '@nestjs/common';
@@ -72,9 +73,10 @@ export class InvoiceExportCliFlow {
     ) {}
 
     /**
-     * Writes the export, then records it in the audit log under the operator.
-     * Refused as the route refuses, with exit code 1; with 6 where a file of
-     * the archive's name is there already.
+     * Writes the export, then records it in the audit log under the operator;
+     * where the log cannot record it, removes the file and throws. Refused as
+     * the route refuses, with exit code 1; with 6 where a file of the
+     * archive's name is there already.
      */
     async export(options: InvoiceExportOptions): Promise<ExportedInvoices> {
         const request = requestOf(options);
@@ -94,7 +96,14 @@ export class InvoiceExportCliFlow {
                 EXIT_CONFLICT,
             );
         }
-        await this.ctx.log({ identity, userId: user.id, ...invoiceExportAudit(archive) });
+        try {
+            await this.ctx.log({ identity, userId: user.id, ...invoiceExportAudit(archive) });
+        } catch (error) {
+            // A hand-over the audit log cannot record is not made: the file this
+            // command just wrote is taken back.
+            await unlink(path);
+            throw error;
+        }
         return {
             path,
             sha256: archive.sha256,

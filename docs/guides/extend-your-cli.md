@@ -114,7 +114,8 @@ English unless `--locale de` asks for German separators and decimal commas. It w
 or the current directory, under a name that carries the months, the moment and the language, and
 never over a file that is there: exit code 6 says one is. It is a read, so it asks for the identity
 and no second factor; the audit log records the operator, the months, the moment and the archive's
-SHA-256, which the command prints. Exit code 1 is every other refusal. See
+SHA-256, which the command prints; where the log cannot record it, the command removes the file it
+wrote and fails. Exit code 1 is every other refusal. See
 [The export for a tax advisor](wire-the-backend.md#the-export-for-a-tax-advisor).
 
 **Exit codes** are standardized (see `@saasicat/spec/cli-conventions.md`):

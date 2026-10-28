@@ -131,6 +131,16 @@ describe('an export the command writes', () => {
 });
 
 describe('an export the command refuses', () => {
+    test('where the audit log cannot record it, taking back the file it wrote', async () => {
+        const { flow, ctx, out } = setUp();
+        ctx.log = async () => {
+            throw new Error('the audit log is down');
+        };
+
+        await assert.rejects(flow.export({ ...OPTIONS, out }), /the audit log is down/);
+        assert.deepEqual(readdirSync(out), []);
+    });
+
     for (const [why, options, code] of [
         ['a month that is none', { from: '2026-13' }, 'INVOICE_EXPORT_MONTH_INVALID'],
         ['a last month that is none', { until: '2026-1' }, 'INVOICE_EXPORT_MONTH_INVALID'],

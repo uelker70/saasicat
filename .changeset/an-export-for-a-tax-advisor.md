@@ -27,7 +27,8 @@ every file's size and SHA-256. `export.json` and the manifest follow
 `invoiceExportSchema`. The files are stored and dated the moment the export is
 as of, so the same months as of the same moment in the same language are the
 same bytes. The audit log records each export with the operator, the months,
-the moment and the archive's SHA-256 (`SUBSCRIPTION_INVOICES_EXPORTED`); the
+the moment and the archive's SHA-256 (`SUBSCRIPTION_INVOICES_EXPORTED`) before
+it is handed over, and an export it cannot record is not handed over; the
 command line never writes over a file already there.
 
 Nothing is stored and nothing is migrated. `SubscriptionInvoiceRepository`
