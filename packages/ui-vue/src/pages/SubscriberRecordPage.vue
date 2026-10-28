@@ -275,13 +275,13 @@ const joinedInto = computed(() => {
 
 /**
  * Whether the subscriber on screen can be joined into an earlier one: joins are
- * served, it has a live tenant, and it was joined into none.
+ * served and it has a live tenant — one joined into another has none, its link
+ * moved with the rest.
  */
 const canJoin = computed(() => {
     const shown = record.data.value;
     return (
         join.available.value &&
-        !shown?.joins?.into &&
         (shown?.tenants.some((tenant) => tenant.unlinkedAt === null) ?? false)
     );
 });
