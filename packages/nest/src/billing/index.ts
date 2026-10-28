@@ -190,6 +190,13 @@ export {
     type InvoiceCancellationModuleOptions,
 } from './invoices/invoice-cancellation.module.js';
 export {
+    INVOICES_EXPORTED_AUDIT_ACTION,
+    InvoiceExportService,
+    invoiceExportAudit,
+    type InvoiceExportArchive,
+    type InvoiceExportRequest,
+} from './invoices/invoice-export.service.js';
+export {
     InvoicePaymentService,
     type RecordedCollectionOutcome,
 } from './invoices/invoice-payment.service.js';

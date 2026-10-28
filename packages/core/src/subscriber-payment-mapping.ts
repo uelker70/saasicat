@@ -11,6 +11,7 @@ import { columnAmountOf } from './column-amount.js';
 import { dayOf } from './column-day.js';
 import { toDecimalString } from './decimal-string.js';
 import { toCents } from './money.js';
+import type { InvoiceSettlementRecord } from './invoice-export.types.js';
 import type {
     NewSubscriberPayment,
     NewSubscriberPayout,
@@ -169,6 +170,75 @@ export function settledAmountOf(row: CanonicalInvoiceSettlementRow): number {
     });
     const amount = columnAmountOf(row.amount, { table: SETTLEMENTS, column: 'amount', id: row.id });
     return REOPENING_SETTLEMENT_KINDS.includes(kind) ? -amount : amount;
+}
+
+/** A `subscription_invoice_settlements` row as either adapter reads it back whole. */
+export interface CanonicalInvoiceSettlementRecordRow {
+    id: string;
+    invoiceId: string;
+    paymentId: string;
+    reversalId: string | null;
+    cancellationId: string | null;
+    kind: string;
+    amount: unknown;
+    recordedAt: Date;
+}
+
+/**
+ * The settlements `rows` with the payment each settles from and the reversal
+ * each records, read from `payments` and `reversals`. A settlement whose payment
+ * or reversal the reads did not bring is a store that does not hold together,
+ * and stops the read rather than being listed without what it came from.
+ */
+export function invoiceSettlementsOf(
+    rows: readonly CanonicalInvoiceSettlementRecordRow[],
+    payments: readonly {
+        id: string;
+        provider: string;
+        gatewayAccount: string;
+        gatewayRef: string;
+    }[],
+    reversals: readonly { id: string; gatewayRef: string }[],
+): InvoiceSettlementRecord[] {
+    const paymentOf = new Map(payments.map((payment) => [payment.id, payment]));
+    const reversalOf = new Map(reversals.map((reversal) => [reversal.id, reversal]));
+    return rows.map((row) => {
+        const payment = paymentOf.get(row.paymentId);
+        if (!payment) {
+            throw new Error(
+                `Settlement ${row.id} names payment ${row.paymentId}, which cannot be read.`,
+            );
+        }
+        const reversal = row.reversalId === null ? null : reversalOf.get(row.reversalId);
+        if (reversal === undefined) {
+            throw new Error(
+                `Settlement ${row.id} names reversal ${row.reversalId}, which cannot be read.`,
+            );
+        }
+        return {
+            id: row.id,
+            invoiceId: row.invoiceId,
+            kind: oneOf(INVOICE_SETTLEMENT_KINDS, row.kind, {
+                table: SETTLEMENTS,
+                column: 'kind',
+                id: row.id,
+            }),
+            amount: columnAmountOf(row.amount, {
+                table: SETTLEMENTS,
+                column: 'amount',
+                id: row.id,
+            }),
+            recordedAt: row.recordedAt,
+            payment: {
+                id: payment.id,
+                provider: payment.provider,
+                gatewayAccount: payment.gatewayAccount,
+                gatewayRef: payment.gatewayRef,
+            },
+            reversal: reversal && { id: reversal.id, gatewayRef: reversal.gatewayRef },
+            cancellationId: row.cancellationId,
+        };
+    });
 }
 
 /** A `subscriber_credits` row as either adapter reads it back. */

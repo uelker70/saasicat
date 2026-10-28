@@ -153,6 +153,8 @@ export * from './open-items.types.js';
 export * from './open-items.js';
 export * from './contract-register.types.js';
 export * from './contract-register.js';
+export * from './invoice-export.types.js';
+export * from './invoice-export.js';
 export * from './subscription-contract-mapping.js';
 export * from './subscription-contract.types.js';
 export * from './subscription.types.js';

@@ -4,6 +4,7 @@ const planCatalogSchema = require('./schemas/plan-catalog.schema.json');
 const promoCodeSchema = require('./schemas/promo-code.schema.json');
 const auditEventSchema = require('./schemas/audit-event.schema.json');
 const subscriberLedgerSchema = require('./schemas/subscriber-ledger.schema.json');
+const invoiceExportSchema = require('./schemas/invoice-export.schema.json');
 
 module.exports = {
     adminManifestSchema,
@@ -11,11 +12,13 @@ module.exports = {
     promoCodeSchema,
     auditEventSchema,
     subscriberLedgerSchema,
+    invoiceExportSchema,
     SCHEMAS: {
         adminManifest: adminManifestSchema,
         planCatalog: planCatalogSchema,
         promoCode: promoCodeSchema,
         auditEvent: auditEventSchema,
         subscriberLedger: subscriberLedgerSchema,
+        invoiceExport: invoiceExportSchema,
     },
 };

@@ -37,6 +37,7 @@ import {
     subscriptionInvoiceColumns,
     subscriptionInvoiceLineColumns,
     toSubscriptionInvoiceCancellationRecord,
+    invoiceSettlementsOf,
     toIssuedInvoiceAmounts,
     toSubscriptionInvoiceRecord,
     toArchivedInvoiceDocument,
@@ -2376,6 +2377,16 @@ export function createMemoryHarness() {
             const row = state.cancellations.find((each) => each.id === cancellationId);
             return row ? toSubscriptionInvoiceCancellationRecord(row) : null;
         },
+        async listCancellations(invoiceIds) {
+            return state.cancellations
+                .filter(
+                    (each) =>
+                        invoiceIds.includes(each.cancelledInvoiceId) ||
+                        invoiceIds.includes(each.cancellationInvoiceId) ||
+                        invoiceIds.includes(each.replacementInvoiceId),
+                )
+                .map(toSubscriptionInvoiceCancellationRecord);
+        },
         async listBySubscriber(subscriberId) {
             return state.invoices
                 .filter((row) => row.subscriberId === subscriberId)
@@ -2429,6 +2440,10 @@ export function createMemoryHarness() {
         },
         ...invoiceDocuments.writes,
         findDocument: invoiceDocuments.find,
+        async findDocuments(invoiceIds) {
+            const found = await Promise.all(invoiceIds.map((id) => invoiceDocuments.find(id)));
+            return found.filter((document) => document !== null);
+        },
         async listAwaitingDocument(page) {
             return invoiceDocuments.awaiting(
                 state.invoices.map((row) => row.id),
@@ -3464,6 +3479,17 @@ export function createMemoryHarness() {
         async owedBy(invoiceId) {
             const invoice = state.invoices.find((row) => row.id === invoiceId);
             return invoice ? owedOnInvoice(invoice) : null;
+        },
+        async listSettlements(invoiceIds) {
+            // Not every write here names what a store's column holds as null.
+            const rows = state.settlements
+                .filter((row) => invoiceIds.includes(row.invoiceId))
+                .map((row) => ({
+                    ...row,
+                    reversalId: row.reversalId ?? null,
+                    cancellationId: row.cancellationId ?? null,
+                }));
+            return invoiceSettlementsOf(rows, state.payments, state.reversals);
         },
         async owedByInvoices(invoiceIds) {
             return state.invoices

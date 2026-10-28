@@ -8,19 +8,32 @@ import {
     Module,
     Param,
     Query,
+    Req,
     StreamableFile,
     type Type,
 } from '@nestjs/common';
-import { IsIn, IsISO8601, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import {
+    IsIn,
+    IsISO8601,
+    IsOptional,
+    IsString,
+    Matches,
+    MaxLength,
+    ValidateBy,
+} from 'class-validator';
 
+import { WebAuditLogger } from '../../core/web-audit.js';
 import { AllowDuringMaintenance } from '../../maintenance/allow-during-maintenance.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
+import { AdminAuditService } from '../../admin/admin-audit.service.js';
 import { AdminResourcesService } from '../../admin/admin-resources.module.js';
 import { UseRouteGuards } from '../../admin/use-route-guards.decorator.js';
 import {
     CALENDAR_DAY_PATTERN,
     CALENDAR_MONTH_PATTERN,
     CONTRACT_REGISTER_STATES,
+    INVOICE_EXPORT_LOCALES,
+    isLocalMoment,
     type AdminContractRegisterPage,
     type AdminInvoiceRegisterPage,
     type AdminInvoiceRegisterTotals,
@@ -28,6 +41,7 @@ import {
     type AdminSubscriberContracts,
     type ContractRegisterState,
     type InvoiceDocument,
+    type InvoiceExportLocale,
     type InvoiceRegisterQuery,
     type RlsBypassPort,
 } from '@saasicat/core';
@@ -38,6 +52,11 @@ import {
     type ContractRegisterQuery,
 } from '../confirmations/contract-register.service.js';
 import { InvoiceDocumentService } from './invoice-document.service.js';
+import {
+    InvoiceExportService,
+    invoiceExportAudit,
+    type InvoiceExportRequest,
+} from './invoice-export.service.js';
 import { InvoiceRegisterService } from './invoice-register.service.js';
 
 /** Longer than any id a store hands out; an `after` beyond it names no invoice. */
@@ -60,6 +79,32 @@ export class InvoiceRegisterTotalsQueryDto implements InvoiceRegisterQuery {
     @IsString()
     @Matches(CALENDAR_MONTH_PATTERN, { message: `until ${MONTH_MESSAGE}` })
     until?: string;
+}
+
+/** A day and a time on a clock, as `isLocalMoment` reads it: 30 February and 24:00 are none. */
+function IsLocalMoment(): PropertyDecorator {
+    return ValidateBy({
+        name: 'isLocalMoment',
+        validator: {
+            validate: (value: unknown) => typeof value === 'string' && isLocalMoment(value),
+            defaultMessage: () => 'asOf must be a day and a time, YYYY-MM-DDTHH:MM[:SS]',
+        },
+    });
+}
+
+/** `GET admin/invoice-export` — the months, the moment the export is as of, and its language (`SC-ADM-043`). */
+export class InvoiceExportQueryDto
+    extends InvoiceRegisterTotalsQueryDto
+    implements InvoiceExportRequest
+{
+    @IsOptional()
+    @IsString()
+    @IsLocalMoment()
+    asOf?: string;
+
+    @IsOptional()
+    @IsIn(INVOICE_EXPORT_LOCALES)
+    locale?: InvoiceExportLocale;
 }
 
 /** `GET admin/invoices` — the months, and the invoice the page goes on after. */
@@ -97,6 +142,9 @@ export interface InvoiceDocumentModuleOptions {
      * module that already provides it, passed as the very object the
      * application imports, so that no port is built a second time — and,
      * where `confirmations` is set, `ContractConfirmationService`.
+     * `AdminAuditService`, which records every export of the register before
+     * it is handed over, comes from the `AdminModule` `SaaSiCatModule`
+     * composes.
      */
     imports: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /** Whether the contracts' confirmations are offered too. */
@@ -154,6 +202,14 @@ function buildInvoiceRegisterController(guards: Array<Type<CanActivate>>): Type 
         constructor(
             @Inject(InvoiceRegisterService)
             private readonly register: InvoiceRegisterService,
+            @Inject(InvoiceExportService)
+            private readonly exports: InvoiceExportService,
+            @Inject(WebAuditLogger)
+            private readonly audit: WebAuditLogger,
+            // Required, unlike the best-effort log of the platform's other
+            // routes: an export is handed over only once it is recorded.
+            @Inject(AdminAuditService)
+            private readonly auditLog: AdminAuditService,
             // Required rather than optional: without it the invoices would be
             // read in the request's row-level scope, which an operator's
             // request has none of. Missing, the module does not start.
@@ -181,6 +237,38 @@ function buildInvoiceRegisterController(guards: Array<Type<CanActivate>>): Type 
         @Get('invoice-totals')
         totals(@Query() query: InvoiceRegisterTotalsQueryDto): Promise<AdminInvoiceRegisterTotals> {
             return this.rlsBypass.runWithBypass(() => this.register.totals(query));
+        }
+
+        /**
+         * The invoices of those months as of a moment, for a tax advisor: the
+         * CSV tables, `export.json` and the manifest in one ZIP, the same bytes
+         * for the same months, moment and language (`SC-ADM-043`). A read, so
+         * no second factor; recorded in the audit log under the operator with
+         * the archive's SHA-256 before it is handed over, and not handed over
+         * where the log cannot record it. Not under `invoices/`, as
+         * `invoice-totals`.
+         */
+        @Get('invoice-export')
+        export(
+            @Query() query: InvoiceExportQueryDto,
+            @Req() request: unknown,
+        ): Promise<StreamableFile> {
+            return this.rlsBypass.runWithBypass(async () => {
+                const archive = await this.exports.export(query);
+                const { entity, entityId, action, changes } = invoiceExportAudit(archive);
+                await this.auditLog.log({
+                    actor: this.audit.actorFromRequest(request),
+                    entity,
+                    entityId,
+                    action,
+                    changes,
+                });
+                return new StreamableFile(archive.content, {
+                    type: 'application/zip',
+                    length: archive.content.byteLength,
+                    disposition: `attachment; filename="${archive.fileName}"`,
+                });
+            });
         }
     }
 
@@ -282,7 +370,10 @@ export class InvoiceDocumentModule {
             // catalogue module. Registered again here, a factory would lose
             // the scope the application gave the catalogue — `catalog.imports`,
             // `catalog.extraProviders` — and the application would not start.
-            providers: options.confirmations ? [CatalogContractSourceLookup] : [],
+            providers: [
+                WebAuditLogger,
+                ...(options.confirmations ? [CatalogContractSourceLookup] : []),
+            ],
         };
     }
 }

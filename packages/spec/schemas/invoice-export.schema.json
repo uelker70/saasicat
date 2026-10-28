@@ -1,0 +1,358 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://saasicat.dev/schemas/invoice-export.schema.json",
+    "title": "InvoiceExport",
+    "description": "The export of the invoice register for a tax advisor, as `export.json` in the archive holds it: the invoices issued in a span of months as of a stated moment, their lines with their tax treatment and rate, and the settlements against each with the moment it was recorded. As of a moment means: the invoices issued by then, the settlements and cancellations recorded by then — after the period ended too — and a document's checksum where the archive had confirmed it by then. The same months as of the same moment give the same rows. The CSV tables of the archive hold the same rows, column for column; `manifest.json` follows `#/$defs/InvoiceExportManifest`.",
+    "type": "object",
+    "required": [
+        "formatVersion",
+        "period",
+        "asOf",
+        "asOfLocal",
+        "timeZone",
+        "invoices",
+        "lines",
+        "settlements"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "formatVersion": {
+            "description": "The shape this file and the CSV tables have; raised when a column changes meaning.",
+            "const": 1
+        },
+        "period": { "$ref": "#/$defs/InvoiceExportPeriod" },
+        "asOf": {
+            "description": "The moment the export is as of, ISO 8601 in UTC, to the second.",
+            "type": "string",
+            "format": "date-time"
+        },
+        "asOfLocal": {
+            "description": "The same moment as a clock in the installation's time zone shows it, `YYYY-MM-DDTHH:MM:SS`.",
+            "type": "string",
+            "pattern": "^[1-9]\\d{3}-\\d{2}-\\d{2}T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+        },
+        "timeZone": {
+            "description": "The installation's time zone, an IANA name; the days of the export are its days.",
+            "type": "string"
+        },
+        "invoices": {
+            "description": "By issue date, then by number.",
+            "type": "array",
+            "items": { "$ref": "#/$defs/InvoiceExportInvoiceRow" }
+        },
+        "lines": {
+            "description": "In the order of their invoices, each invoice's by position.",
+            "type": "array",
+            "items": { "$ref": "#/$defs/InvoiceExportLineRow" }
+        },
+        "settlements": {
+            "description": "In the order of their invoices, each invoice's by when it was recorded.",
+            "type": "array",
+            "items": { "$ref": "#/$defs/InvoiceExportSettlementRow" }
+        }
+    },
+    "$defs": {
+        "InvoiceExportPeriod": {
+            "description": "The months the export covers, both included, `YYYY-MM`: the invoices issued on their days.",
+            "type": "object",
+            "required": ["from", "until"],
+            "additionalProperties": false,
+            "properties": {
+                "from": { "type": "string", "pattern": "^[1-9]\\d{3}-(?:0[1-9]|1[0-2])$" },
+                "until": { "type": "string", "pattern": "^[1-9]\\d{3}-(?:0[1-9]|1[0-2])$" }
+            }
+        },
+        "InvoiceExportTaxTreatment": {
+            "description": "What a tax treatment is, in the words every tax adapter shares. standard and reduced: the issuer's country taxes the charge at a rate. exempt: the charge is exempt there. reverse-charge: the subscriber, a business in another country, owes the tax instead of the issuer. not-taxable: the charge is not taxable in the issuer's country at all. small-business: the issuer charges no tax under a small business scheme.",
+            "type": "string",
+            "enum": [
+                "standard",
+                "reduced",
+                "exempt",
+                "reverse-charge",
+                "not-taxable",
+                "small-business"
+            ]
+        },
+        "InvoiceExportSettlementKind": {
+            "description": "What a settlement does to what its invoice owes. PAYMENT settles it; REVERSAL opens it again for what a reversal took back; REINSTATEMENT settles it again for what a reversal gave back; MOVED_OUT takes a payment's share off an invoice its cancellation cancelled; MOVED_IN puts it on the replacement.",
+            "type": "string",
+            "enum": ["PAYMENT", "REVERSAL", "REINSTATEMENT", "MOVED_OUT", "MOVED_IN"]
+        },
+        "InvoiceExportInvoiceRow": {
+            "description": "One invoice as the export lists it, with the parties as the invoice names them.",
+            "type": "object",
+            "required": [
+                "invoiceId",
+                "number",
+                "kind",
+                "corrects",
+                "issueDate",
+                "issuedAt",
+                "dueDate",
+                "servicePeriodFrom",
+                "servicePeriodUntil",
+                "currency",
+                "totalNet",
+                "totalTax",
+                "totalGross",
+                "taxTreatment",
+                "taxRate",
+                "taxNote",
+                "subscriberId",
+                "tenantId",
+                "customerNumber",
+                "legalName",
+                "vatId",
+                "taxNumber",
+                "addressLine1",
+                "addressLine2",
+                "postalCode",
+                "city",
+                "country",
+                "cancelledBy",
+                "cancelledAt",
+                "documentChecksum",
+                "documentArchivedAt",
+                "documentFileName"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "invoiceId": { "type": "string" },
+                "number": { "description": "The number on the invoice.", "type": "string" },
+                "kind": {
+                    "description": "An invoice, the cancellation invoice that cancels one, or the replacement for one.",
+                    "type": "string",
+                    "enum": ["invoice", "cancellation", "replacement"]
+                },
+                "corrects": {
+                    "description": "The number of the invoice it cancels or replaces; null for an invoice.",
+                    "type": ["string", "null"]
+                },
+                "issueDate": { "$ref": "#/$defs/InvoiceExportDay" },
+                "issuedAt": {
+                    "description": "When it was issued, ISO 8601 in UTC.",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "dueDate": { "$ref": "#/$defs/InvoiceExportDay" },
+                "servicePeriodFrom": { "$ref": "#/$defs/InvoiceExportDay" },
+                "servicePeriodUntil": { "$ref": "#/$defs/InvoiceExportDay" },
+                "currency": { "description": "ISO 4217.", "type": "string" },
+                "totalNet": { "type": "number" },
+                "totalTax": { "type": "number" },
+                "totalGross": { "type": "number" },
+                "taxTreatment": { "$ref": "#/$defs/InvoiceExportTaxTreatment" },
+                "taxRate": {
+                    "description": "The rate the treatment names, in percent.",
+                    "type": "number"
+                },
+                "taxNote": {
+                    "description": "The sentence the document carries for the treatment; null where none.",
+                    "type": ["string", "null"]
+                },
+                "subscriberId": { "type": "string" },
+                "tenantId": { "type": "string" },
+                "customerNumber": { "type": "string" },
+                "legalName": { "type": "string" },
+                "vatId": { "type": ["string", "null"] },
+                "taxNumber": { "type": ["string", "null"] },
+                "addressLine1": { "type": ["string", "null"] },
+                "addressLine2": { "type": ["string", "null"] },
+                "postalCode": { "type": ["string", "null"] },
+                "city": { "type": ["string", "null"] },
+                "country": { "description": "ISO 3166-1 alpha-2.", "type": ["string", "null"] },
+                "cancelledBy": {
+                    "description": "The number of the cancellation invoice that cancelled it by the moment the export is as of; null while none had.",
+                    "type": ["string", "null"]
+                },
+                "cancelledAt": {
+                    "description": "When that cancellation was recorded, ISO 8601 in UTC.",
+                    "type": ["string", "null"],
+                    "format": "date-time"
+                },
+                "documentChecksum": {
+                    "description": "The SHA-256 of the archived document, in hex; null while it awaited its archive at that moment.",
+                    "type": ["string", "null"]
+                },
+                "documentArchivedAt": {
+                    "description": "When the archive confirmed it, ISO 8601 in UTC.",
+                    "type": ["string", "null"],
+                    "format": "date-time"
+                },
+                "documentFileName": { "type": ["string", "null"] }
+            }
+        },
+        "InvoiceExportLineRow": {
+            "description": "One line of an invoice as the export lists it.",
+            "type": "object",
+            "required": [
+                "invoiceId",
+                "invoiceNumber",
+                "position",
+                "title",
+                "origin",
+                "source",
+                "periodFrom",
+                "periodUntil",
+                "amountNet",
+                "taxTreatment",
+                "taxRate",
+                "correctsPosition"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "invoiceId": { "type": "string" },
+                "invoiceNumber": { "type": "string" },
+                "position": {
+                    "description": "From 1, as the document numbers it.",
+                    "type": "integer"
+                },
+                "title": { "type": "string" },
+                "origin": {
+                    "description": "What made the charge behind the line arise, as `subscriber-ledger.schema.json` names it.",
+                    "type": "string"
+                },
+                "source": {
+                    "description": "Which kind of contract line the charge realises, as `subscriber-ledger.schema.json` names it.",
+                    "type": "string"
+                },
+                "periodFrom": { "$ref": "#/$defs/InvoiceExportDay" },
+                "periodUntil": { "$ref": "#/$defs/InvoiceExportDay" },
+                "amountNet": { "type": "number" },
+                "taxTreatment": { "$ref": "#/$defs/InvoiceExportTaxTreatment" },
+                "taxRate": { "description": "In percent.", "type": "number" },
+                "correctsPosition": {
+                    "description": "The position of the line it corrects on the invoice it corrects; null otherwise.",
+                    "type": ["integer", "null"]
+                }
+            }
+        },
+        "InvoiceExportSettlementRow": {
+            "description": "One settlement against an invoice as the export lists it, with the payment and the reversal it came from.",
+            "type": "object",
+            "required": [
+                "settlementId",
+                "invoiceId",
+                "invoiceNumber",
+                "kind",
+                "amount",
+                "currency",
+                "recordedAt",
+                "paymentId",
+                "provider",
+                "gatewayAccount",
+                "paymentReference",
+                "reversalReference",
+                "cancellationOf"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "settlementId": { "type": "string" },
+                "invoiceId": { "type": "string" },
+                "invoiceNumber": { "type": "string" },
+                "kind": { "$ref": "#/$defs/InvoiceExportSettlementKind" },
+                "amount": {
+                    "description": "As recorded, never negative; what it does to what the invoice owes is its kind's.",
+                    "type": "number",
+                    "minimum": 0
+                },
+                "currency": { "description": "The invoice's, ISO 4217.", "type": "string" },
+                "recordedAt": {
+                    "description": "When it was recorded, ISO 8601 in UTC.",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "paymentId": { "type": "string" },
+                "provider": {
+                    "description": "The payment gateway that reported the payment.",
+                    "type": "string"
+                },
+                "gatewayAccount": { "type": "string" },
+                "paymentReference": {
+                    "description": "The gateway's reference of the payment.",
+                    "type": "string"
+                },
+                "reversalReference": {
+                    "description": "The gateway's reference of the reversal; null for a kind that records none.",
+                    "type": ["string", "null"]
+                },
+                "cancellationOf": {
+                    "description": "The number of the invoice whose cancellation moved it; null otherwise.",
+                    "type": ["string", "null"]
+                }
+            }
+        },
+        "InvoiceExportDay": {
+            "description": "A calendar day in the installation's time zone, `YYYY-MM-DD`.",
+            "type": "string",
+            "pattern": "^[1-9]\\d{3}-\\d{2}-\\d{2}$"
+        },
+        "InvoiceExportManifest": {
+            "description": "What `manifest.json`, the archive's last file, holds: the export, how its CSV is written, and the size and SHA-256 of every file before it.",
+            "type": "object",
+            "required": [
+                "formatVersion",
+                "period",
+                "asOf",
+                "asOfLocal",
+                "timeZone",
+                "locale",
+                "csv",
+                "counts",
+                "files"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "formatVersion": { "const": 1 },
+                "period": { "$ref": "#/$defs/InvoiceExportPeriod" },
+                "asOf": { "type": "string", "format": "date-time" },
+                "asOfLocal": {
+                    "type": "string",
+                    "pattern": "^[1-9]\\d{3}-\\d{2}-\\d{2}T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+                },
+                "timeZone": { "type": "string" },
+                "locale": {
+                    "description": "The language the CSV tables are written in: their separators and decimal mark.",
+                    "type": "string",
+                    "enum": ["de", "en"]
+                },
+                "csv": {
+                    "type": "object",
+                    "required": ["delimiter", "decimalSeparator", "encoding", "lineEnding"],
+                    "additionalProperties": false,
+                    "properties": {
+                        "delimiter": { "type": "string" },
+                        "decimalSeparator": { "type": "string" },
+                        "encoding": { "const": "UTF-8, with a byte order mark" },
+                        "lineEnding": { "const": "CRLF" }
+                    }
+                },
+                "counts": {
+                    "type": "object",
+                    "required": ["invoices", "lines", "settlements"],
+                    "additionalProperties": false,
+                    "properties": {
+                        "invoices": { "type": "integer", "minimum": 0 },
+                        "lines": { "type": "integer", "minimum": 0 },
+                        "settlements": { "type": "integer", "minimum": 0 }
+                    }
+                },
+                "files": {
+                    "description": "Every file before the manifest, in the order the archive holds them.",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["name", "bytes", "sha256"],
+                        "additionalProperties": false,
+                        "properties": {
+                            "name": { "type": "string" },
+                            "bytes": { "type": "integer", "minimum": 0 },
+                            "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

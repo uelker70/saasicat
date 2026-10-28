@@ -837,6 +837,13 @@ export const INVOICE_ERROR_CODES = {
      */
     SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG: 'SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG',
     /**
+     * The register's export is asked for as of `asOf`, a clock of the
+     * installation's zone, and is taken as of `latest` at the latest: five
+     * minutes before the request, so that what was still being written then is
+     * in it, and the export repeats (`SC-ADM-043`).
+     */
+    SUBSCRIPTION_INVOICE_EXPORT_AS_OF_TOO_LATE: 'SUBSCRIPTION_INVOICE_EXPORT_AS_OF_TOO_LATE',
+    /**
      * The subscriber's record holds no invoice email (`subscriberId`), so the
      * archived invoice cannot be sent (`SC-PRIC-094`); it is sent once one is
      * entered.

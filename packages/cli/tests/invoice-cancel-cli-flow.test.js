@@ -646,7 +646,7 @@ describe('the commands', () => {
         );
     });
 
-    test('`invoices` alone names its sub-command and exits 2', async () => {
+    test('`invoices` alone names its sub-commands and exits 2', async () => {
         const exit = process.exit;
         const writes = [];
         const write = process.stderr.write;
@@ -665,6 +665,6 @@ describe('the commands', () => {
             process.stderr.write = write;
         }
 
-        assert.deepEqual([code, writes.join('')], [2, 'Specify a sub-command: cancel.\n']);
+        assert.deepEqual([code, writes.join('')], [2, 'Specify a sub-command: cancel, export.\n']);
     });
 });

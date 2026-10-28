@@ -6,6 +6,7 @@ import type {
     CloseReconciliationCase,
     CreditPart,
     InvoicePaymentShare,
+    InvoiceSettlementRecord,
     MovedPaymentPart,
     NewSubscriberPayment,
     NewSubscriberPayout,
@@ -33,6 +34,7 @@ import {
     GIVING_BACK_CREDIT_ENTRY_KINDS,
     REOPENING_SETTLEMENT_KINDS,
     columnAmountOf,
+    invoiceSettlementsOf,
     isEndedRefund,
     openOfCredit,
     owedByInvoice,
@@ -548,6 +550,28 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
                 },
             ),
         }));
+    }
+
+    async listSettlements(invoiceIds: readonly string[]): Promise<InvoiceSettlementRecord[]> {
+        if (invoiceIds.length === 0) return [];
+        const db = this.db();
+        const rows = await db.subscriptionInvoiceSettlement.findMany({
+            where: { invoiceId: { in: [...invoiceIds] } },
+        });
+        if (rows.length === 0) return [];
+        const payments = await db.subscriberPayment.findMany({
+            where: { id: { in: [...new Set(rows.map(({ paymentId }) => paymentId))] } },
+        });
+        const reversalIds = rows.flatMap(({ reversalId }) =>
+            reversalId === null ? [] : [reversalId],
+        );
+        const reversals =
+            reversalIds.length === 0
+                ? []
+                : await db.subscriberReversal.findMany({
+                      where: { id: { in: [...new Set(reversalIds)] } },
+                  });
+        return invoiceSettlementsOf(rows, payments, reversals);
     }
 
     recordReversal(

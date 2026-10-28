@@ -2,6 +2,14 @@
     <AdminPage class="sa-invoices">
         <AdminHero :title="msg.title" :subtitle="msg.subtitle">
             <template #actions>
+                <q-btn
+                    flat
+                    no-caps
+                    icon="download"
+                    :label="msg.export"
+                    :disable="refusal !== null || from === ''"
+                    @click="exporting = true"
+                />
                 <AdminRefreshBtn :loading="loading" @refresh="reload" />
             </template>
         </AdminHero>
@@ -95,6 +103,7 @@
             </AdminSection>
 
             <InvoiceCancellationDialog :flow="cancellation" :record="party.data.value" />
+            <InvoiceExportDialog v-model="exporting" :flow="exports" :from="from" :until="until" />
         </AdminBody>
 
         <MfaPromptDialog
@@ -118,6 +127,7 @@ import { formatMessage } from '../client/i18n/format.js';
 import { invoiceStandingOf } from '../client/invoice-standing.js';
 import type { invoicesResource } from '../client/resources/invoices.resource.js';
 import type { subscribersResource } from '../client/resources/subscribers.resource.js';
+import InvoiceExportDialog from '../internal/invoice-register/InvoiceExportDialog.vue';
 import InvoiceRegisterTotals from '../internal/invoice-register/InvoiceRegisterTotals.vue';
 import InvoiceCancellationDialog from '../internal/subscriber-record/InvoiceCancellationDialog.vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
@@ -135,6 +145,7 @@ import { type ResourceOverride, useResource } from '../vue/resource-registry.js'
 import { useStandardPageRoute } from '../vue/standard-page-routes.js';
 import { useCancellationParty } from '../vue/use-cancellation-party.js';
 import { useInvoiceCancellation } from '../vue/use-invoice-cancellation.js';
+import { useInvoiceExport } from '../vue/use-invoice-export.js';
 import { useInvoiceRegister } from '../vue/use-invoice-register.js';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useSubscriberDownloads } from '../vue/use-subscriber-downloads.js';
@@ -147,7 +158,8 @@ import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js
 // What it answers is the advisor's question for a month or a quarter — which
 // invoices, and how much tax at which rate — without opening every
 // subscriber's record. An invoice is cancelled, and its document downloaded,
-// here as in the record.
+// here as in the record, and the months handed to the advisor as of a moment
+// (`SC-ADM-043`).
 
 const props = defineProps<{
     /** Override the resources for this page only; see AP3 §3.2. */
@@ -163,8 +175,11 @@ const texts = computed(() => subscriberTexts.value.payments);
 const { locale } = useSuperAdminI18n();
 const notify = useSuperAdminNotify();
 const subscribers = useResource('subscribers', props.resources?.subscribers);
+const invoices = useResource('invoices', props.resources?.invoices);
 const { from, until, refusal, rows, totals, loading, error, hasMore, reload, more } =
-    useInvoiceRegister(useResource('invoices', props.resources?.invoices));
+    useInvoiceRegister(invoices);
+const exports = useInvoiceExport(invoices, { from, until }, locale);
+const exporting = ref(false);
 
 // What is served is the manifest's to say.
 const shellManifest = useSuperAdminManifest();

@@ -32,7 +32,7 @@ function recording(body) {
 
 describe('the register’s requests', () => {
     test('every operation the descriptor declares is pinned here', () => {
-        assert.deepEqual(Object.keys(invoicesResource.ops).sort(), ['list', 'totals']);
+        assert.deepEqual(Object.keys(invoicesResource.ops).sort(), ['export', 'list', 'totals']);
     });
 
     for (const [request, url] of [
@@ -70,6 +70,50 @@ describe('the register’s requests', () => {
                 totals,
             );
             assert.deepEqual(calls, [{ url, method: 'GET' }]);
+        });
+    }
+});
+
+// @requirement SC-ADM-047 — The invoice register's export is one archive whose bytes repeat
+describe('the export’s request', () => {
+    const ZIP = Uint8Array.from([0x50, 0x4b, 0x03, 0x04, 0x00, 0xff]);
+    const NAME = 'invoices-2026-01-2026-12-as-of-2027-01-15T10-00-00-de.zip';
+
+    /** Every request with how it was asked, answered with the archive. */
+    function answeringTheArchive() {
+        const calls = [];
+        const http = (url, init) => {
+            calls.push({ url, method: init?.method ?? 'GET', binary: init?.binary === true });
+            const headers = {
+                'content-type': 'application/zip',
+                'content-disposition': `attachment; filename="${NAME}"`,
+            };
+            return Promise.resolve({
+                status: 200,
+                headers: { get: (name) => headers[name] ?? null },
+                bytes: async () => ZIP,
+            });
+        };
+        return { calls, ops: bindResource(invoicesResource, http, CTX) };
+    }
+
+    for (const [query, url] of [
+        [undefined, '/api/v1/admin/invoice-export'],
+        [{ from: '2026-01' }, '/api/v1/admin/invoice-export?from=2026-01'],
+        [
+            { from: '2026-01', until: '2026-12', asOf: '2027-01-15T10:00', locale: 'de' },
+            '/api/v1/admin/invoice-export?from=2026-01&until=2026-12&asOf=2027-01-15T10%3A00&locale=de',
+        ],
+    ]) {
+        test(`of ${JSON.stringify(query)} asks ${url} for its bytes, never after an invoice`, async () => {
+            const { calls, ops } = answeringTheArchive();
+
+            const file = await ops.export(
+                query === undefined ? undefined : { ...query, after: 'x' },
+            );
+
+            assert.deepEqual(file, { content: ZIP, mediaType: 'application/zip', fileName: NAME });
+            assert.deepEqual(calls, [{ url, method: 'GET', binary: true }]);
         });
     }
 });

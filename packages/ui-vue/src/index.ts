@@ -96,6 +96,7 @@ export * from './vue/use-subscriber-record.js';
 export * from './vue/use-subscribers.js';
 export * from './vue/use-file-download.js';
 export * from './vue/use-invoice-cancellation.js';
+export * from './vue/use-invoice-export.js';
 export * from './vue/use-invoice-register.js';
 export * from './vue/use-open-items.js';
 export * from './vue/use-contract-register.js';

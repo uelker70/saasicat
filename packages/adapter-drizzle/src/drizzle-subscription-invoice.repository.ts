@@ -314,6 +314,24 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
         return row ? toSubscriptionInvoiceCancellationRecord(row) : null;
     }
 
+    async listCancellations(
+        invoiceIds: readonly string[],
+    ): Promise<SubscriptionInvoiceCancellationRecord[]> {
+        if (invoiceIds.length === 0) return [];
+        const ids = [...invoiceIds];
+        const rows = await resolveDb(this.db)
+            .select()
+            .from(subscriptionInvoiceCancellations)
+            .where(
+                or(
+                    inArray(subscriptionInvoiceCancellations.cancelledInvoiceId, ids),
+                    inArray(subscriptionInvoiceCancellations.cancellationInvoiceId, ids),
+                    inArray(subscriptionInvoiceCancellations.replacementInvoiceId, ids),
+                ),
+            );
+        return rows.map(toSubscriptionInvoiceCancellationRecord);
+    }
+
     async listBySubscriber(
         subscriberId: string,
         tx?: TransactionContext,
@@ -579,6 +597,17 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
                     eq(subscriptionInvoiceDocuments.deliveryClaimedAt, claimedAt),
                 ),
             );
+    }
+
+    async findDocuments(
+        invoiceIds: readonly string[],
+    ): Promise<SubscriptionInvoiceDocumentRecord[]> {
+        if (invoiceIds.length === 0) return [];
+        const rows = await resolveDb(this.db)
+            .select()
+            .from(subscriptionInvoiceDocuments)
+            .where(inArray(subscriptionInvoiceDocuments.invoiceId, [...invoiceIds]));
+        return rows.map(toSubscriptionInvoiceDocumentRecord);
     }
 
     async findDocument(

@@ -2,13 +2,14 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Command, CommandRunner, Option, SubCommand } from 'nest-commander';
 
 import { InvoiceCancelCliFlow, type InvoiceCancelOptions } from './invoice-cancel-cli-flow.js';
+import { InvoiceExportCliFlow, type InvoiceExportOptions } from './invoice-export-cli-flow.js';
 import { OperatorCommand } from './operator-command.js';
 
-// Shared `<app> invoices …` commands. Binds `InvoiceCancelCliFlow` to the
-// nest-commander CLI; register these classes in the providers of the CLI
-// module of an application that issues invoices
+// Shared `<app> invoices …` commands. Binds `InvoiceCancelCliFlow` and
+// `InvoiceExportCliFlow` to the nest-commander CLI; register these classes in
+// the providers of the CLI module of an application that issues invoices
 // (`tenantBilling.chargeJournal.invoices`) and shows tenants
-// (`adminResources`), beside `InvoiceCancelCliFlow`.
+// (`adminResources`), beside both flows.
 
 interface CancelFlags extends InvoiceCancelOptions {
     output?: string;
@@ -93,15 +94,78 @@ export class InvoicesCancelCommand extends OperatorCommand<CancelFlags> {
     }
 }
 
+interface ExportFlags extends InvoiceExportOptions {
+    yes?: boolean;
+    output?: string;
+}
+
+@Injectable()
+@SubCommand({
+    name: 'export',
+    description: 'Write the invoices of a span of months as of a moment to a ZIP for a tax advisor',
+})
+export class InvoicesExportCommand extends OperatorCommand<ExportFlags> {
+    constructor(@Inject(InvoiceExportCliFlow) private readonly flow: InvoiceExportCliFlow) {
+        super();
+    }
+
+    async run(_args: string[], flags: ExportFlags): Promise<void> {
+        const exported = await this.flow.export(flags);
+        process.stdout.write(
+            (flags.output === 'json'
+                ? JSON.stringify(exported, null, 2)
+                : this.flow.formatExported(exported)) + '\n',
+        );
+    }
+
+    @Option({ flags: '--from <month>', description: 'the first month, YYYY-MM' })
+    parseFrom(value: string): string {
+        return value;
+    }
+    @Option({
+        flags: '--until <month>',
+        description: 'the last month, YYYY-MM; at most twelve from --from',
+    })
+    parseUntil(value: string): string {
+        return value;
+    }
+    @Option({
+        flags: '--as-of <moment>',
+        description:
+            "a day and time in the installation's zone, YYYY-MM-DDTHH:MM; five minutes ago by default",
+    })
+    parseAsOf(value: string): string {
+        return value;
+    }
+    @Option({
+        flags: '--locale <language>',
+        description: 'de or en, the separators and decimal mark of the CSV; en by default',
+    })
+    parseLocale(value: string): string {
+        return value;
+    }
+    @Option({
+        flags: '--out <directory>',
+        description: 'where the ZIP is written; the current directory by default',
+    })
+    parseOut(value: string): string {
+        return value;
+    }
+    @Option({ flags: '-o, --output <format>', description: 'table (default) or json' })
+    parseOutput(v: string): string {
+        return v;
+    }
+}
+
 @Injectable()
 @Command({
     name: 'invoices',
-    description: 'Issued invoices: cancel',
-    subCommands: [InvoicesCancelCommand],
+    description: 'Issued invoices: cancel, export',
+    subCommands: [InvoicesCancelCommand, InvoicesExportCommand],
 })
 export class InvoicesCommands extends CommandRunner {
     async run(): Promise<void> {
-        process.stderr.write('Specify a sub-command: cancel.\n');
+        process.stderr.write('Specify a sub-command: cancel, export.\n');
         process.exit(2);
     }
 }

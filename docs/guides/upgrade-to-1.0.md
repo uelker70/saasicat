@@ -2723,6 +2723,27 @@ Nothing is stored for it, so there is no migration.
 An admin shell that lists its pages by hand adds the page. A persistence contract harness of your
 own is held, after every scenario, to a register that agrees with the rule.
 
+### An operator exports the invoice register for a tax advisor
+
+The invoices page gains an "Export" button, and the platform `GET admin/invoice-export`: the
+invoices of the months picked as of a moment, with their lines and the settlements against them, as
+one ZIP whose bytes repeat for the same months, moment and language (`SC-ADM-043`, `SC-ADM-047`).
+It is served where the register is, and nothing is stored for it, so there is no migration.
+
+- **`SubscriptionInvoiceRepository`**: `listCancellations(invoiceIds)` and
+  `findDocuments(invoiceIds)`. **`SubscriberPaymentRepository`**: `listSettlements(invoiceIds)`,
+  each settlement with the payment it settles from and the reversal it records. A repository of your
+  own adds them; one that extends a shipped repository inherits them, and the persistence contract
+  holds them. The export reads them across tenants, inside `RlsBypassPort`.
+- **The command line**: `<app> invoices export` is new. A CLI module registers
+  `InvoiceExportCliFlow` and `InvoicesExportCommand` beside the cancellation's providers, and
+  `<app> invoices` alone now names both sub-commands.
+- **The audit log** gains `SUBSCRIPTION_INVOICES_EXPORTED`, labelled in the manifest. An export is
+  handed over only once it is recorded, so an `InvoiceDocumentModule` wired by hand needs
+  `AdminAuditService` in scope — the `AdminModule` `SaaSiCatModule` composes provides it.
+- **`LOCAL_MOMENT_PATTERN`, `isLocalMoment`, `localMomentInZone` and `firstMomentInZone`** are new in
+  `@saasicat/core`, and `@saasicat/spec` exports `invoiceExportSchema`.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

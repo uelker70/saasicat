@@ -7,6 +7,7 @@ import planCatalogSchema from './schemas/plan-catalog.schema.json' with { type: 
 import promoCodeSchema from './schemas/promo-code.schema.json' with { type: 'json' };
 import auditEventSchema from './schemas/audit-event.schema.json' with { type: 'json' };
 import subscriberLedgerSchema from './schemas/subscriber-ledger.schema.json' with { type: 'json' };
+import invoiceExportSchema from './schemas/invoice-export.schema.json' with { type: 'json' };
 
 export {
     adminManifestSchema,
@@ -14,6 +15,7 @@ export {
     promoCodeSchema,
     auditEventSchema,
     subscriberLedgerSchema,
+    invoiceExportSchema,
 };
 
 export const SCHEMAS = {
@@ -22,4 +24,5 @@ export const SCHEMAS = {
     promoCode: promoCodeSchema,
     auditEvent: auditEventSchema,
     subscriberLedger: subscriberLedgerSchema,
+    invoiceExport: invoiceExportSchema,
 };

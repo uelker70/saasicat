@@ -823,6 +823,83 @@ paths:
                         more than twelve months
                         (`SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG`)
 
+    /invoice-export:
+        get:
+            tags: [subscriptions]
+            summary: The invoices of a span of months as of a moment, for a tax advisor
+            description: >-
+                Served and announced as `/invoices` is, for the same months: the
+                invoices issued in them by the moment asked for, their lines with
+                tax treatment and rate, and the settlements recorded against each
+                by then — after the months ended too —, as one ZIP (`SC-ADM-043`).
+                It holds `invoices.csv`, `lines.csv`, `settlements.csv`,
+                `export.json` and, last, `manifest.json`, which names every
+                file's size and SHA-256; `export.json` and the manifest follow
+                `invoice-export.schema.json` in `@saasicat/spec`. The files are
+                stored, not compressed, and dated the moment the export is as of,
+                so the same months as of the same moment in the same language are
+                the same bytes. A read, so no second factor; the audit log
+                records the operator, the months, the moment and the archive's
+                SHA-256 (`SUBSCRIPTION_INVOICES_EXPORTED`). Not under
+                `/invoices/`, as `/invoice-totals`.
+            parameters:
+                - name: from
+                  in: query
+                  required: false
+                  description: The first month, `YYYY-MM`.
+                  schema: { type: string, pattern: '^[1-9]\d{3}-(?:0[1-9]|1[0-2])$' }
+                - name: until
+                  in: query
+                  required: false
+                  description: >-
+                      The last month, `YYYY-MM`; the span from `from` to it, both included,
+                      covers at most twelve months.
+                  schema: { type: string, pattern: '^[1-9]\d{3}-(?:0[1-9]|1[0-2])$' }
+                - name: asOf
+                  in: query
+                  required: false
+                  description: >-
+                      The moment the export is as of, a day and a time on a clock of
+                      the installation's time zone, the seconds optional; at most five
+                      minutes before the request, and that where none is given.
+                  schema:
+                      {
+                          type: string,
+                          pattern: '^[1-9]\d{3}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$',
+                      }
+                - name: locale
+                  in: query
+                  required: false
+                  description: >-
+                      The language of the CSV tables: `de` separates by `;` with a
+                      decimal comma, `en` by `,` with a decimal point. English where
+                      none is given.
+                  schema: { type: string, enum: [de, en] }
+            responses:
+                '200':
+                    description: The archive, as an attachment
+                    headers:
+                        Content-Disposition:
+                            description: >-
+                                `attachment; filename="invoices-<from>-<until>-as-of-<moment>-<locale>.zip"`,
+                                the moment with `-` for `:`
+                            schema: { type: string }
+                    content:
+                        application/zip:
+                            schema: { type: string, format: binary }
+                '400':
+                    description: >-
+                        A month that is not one, a moment that is no day and time —
+                        24:00 and 30 February are none —, or another language
+                '422':
+                    description: >-
+                        `until` before `from`
+                        (`SUBSCRIPTION_INVOICE_REGISTER_RANGE_REVERSED`), more than
+                        twelve months (`SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG`),
+                        or a moment later than five minutes before the request
+                        (`SUBSCRIPTION_INVOICE_EXPORT_AS_OF_TOO_LATE`, naming the
+                        latest moment it may be as of)
+
     /contracts/{id}/confirmation:
         parameters:
             - name: id

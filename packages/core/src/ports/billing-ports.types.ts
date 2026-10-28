@@ -44,6 +44,7 @@ import type {
     ContractRegisterRecordPage,
     ContractRegisterWindow,
 } from '../contract-register.types.js';
+import type { InvoiceSettlementRecord } from '../invoice-export.types.js';
 import type { NewSubscriberCharge, SubscriberChargeRecord } from '../subscriber-ledger.types.js';
 import type {
     AbandonPaidOutcome,
@@ -743,6 +744,16 @@ export interface SubscriptionInvoiceRepository {
         tx?: TransactionContext,
     ): Promise<SubscriptionInvoiceCancellationRecord | null>;
 
+    /**
+     * Every cancellation any of `invoiceIds` takes part in — as the invoice it
+     * cancels, the cancellation invoice or the replacement —, whenever it was
+     * recorded, in one read and in no order (`SC-ADM-043`). Platform-wide: the
+     * platform wraps the call in `RlsBypassPort`.
+     */
+    listCancellations(
+        invoiceIds: readonly string[],
+    ): Promise<SubscriptionInvoiceCancellationRecord[]>;
+
     /** Every invoice of one subscriber, the latest number first. */
     listBySubscriber(
         subscriberId: string,
@@ -853,6 +864,12 @@ export interface SubscriptionInvoiceRepository {
      * Does nothing where the invoice is delivered or held by another claim.
      */
     releaseDelivery(invoiceId: string, claimedAt: Date, tx?: TransactionContext): Promise<void>;
+
+    /**
+     * Of `invoiceIds`, the documents the invoices have, archived or not, in one
+     * read and in no order (`SC-ADM-043`). Platform-wide, as `listIssued`.
+     */
+    findDocuments(invoiceIds: readonly string[]): Promise<SubscriptionInvoiceDocumentRecord[]>;
 
     /** Where the invoice's document stands, or `null` before it was rendered. */
     findDocument(
@@ -1239,6 +1256,14 @@ export interface SubscriberPaymentRepository {
         invoiceIds: readonly string[],
         tx?: TransactionContext,
     ): Promise<{ invoiceId: string; owed: number }[]>;
+
+    /**
+     * Every settlement against any of `invoiceIds`, whenever it was recorded,
+     * each with the payment it settles from and the reversal it records or
+     * reinstates, in one read and in no order (`SC-ADM-043`). Platform-wide:
+     * the platform wraps the call in `RlsBypassPort`.
+     */
+    listSettlements(invoiceIds: readonly string[]): Promise<InvoiceSettlementRecord[]>;
 
     /**
      * One page of the invoices that still owe something, whichever subscriber

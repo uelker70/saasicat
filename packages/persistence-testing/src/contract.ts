@@ -12784,6 +12784,83 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
         });
 
+        // @requirement SC-ADM-043
+        test('the settlements, cancellations and documents of many invoices are read at once, each with what it came from and when it was recorded', async (t) => {
+            const account = await paidOnce(t, 'tenant-export-reads');
+            if (!account) return;
+            const { payments, invoiceId } = account;
+            const invoices = harness.adapter.subscriptionInvoiceRepository!;
+            await payments.recordReversal(reversalOf('du_export', 'pi_paid', 10));
+            const { cancellationInvoice, replacement } = await cancelInvoice(invoiceId);
+            const cancellation = await invoices.findCancellation(invoiceId);
+
+            const settlements = await payments.listSettlements([
+                invoiceId,
+                replacement!.id,
+                'no-such-invoice',
+            ]);
+            const byKey = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+            const kinds = settlements.map(({ invoiceId: of, kind }) => `${of}/${kind}`).sort(byKey);
+            assert.deepEqual(
+                kinds,
+                [
+                    `${invoiceId}/MOVED_OUT`,
+                    `${invoiceId}/PAYMENT`,
+                    `${invoiceId}/REVERSAL`,
+                    `${replacement!.id}/MOVED_IN`,
+                ].sort(byKey),
+            );
+            for (const settlement of settlements) {
+                assert.equal(settlement.payment.gatewayRef, 'pi_paid');
+                assert.equal(settlement.payment.gatewayAccount, 'stripe-main');
+                assert.ok(settlement.recordedAt instanceof Date);
+                assert.ok(settlement.amount > 0, `${settlement.kind} is recorded as an amount`);
+            }
+            const reversal = settlements.find(({ kind }) => kind === 'REVERSAL')!;
+            assert.deepEqual(
+                [reversal.reversal?.gatewayRef, reversal.cancellationId],
+                ['du_export', null],
+            );
+            assert.deepEqual(
+                settlements
+                    .filter(({ kind }) => kind.startsWith('MOVED'))
+                    .map(({ cancellationId, reversal: none }) => [cancellationId, none]),
+                [
+                    [cancellation!.id, null],
+                    [cancellation!.id, null],
+                ],
+            );
+
+            // Only what the invoices asked for: the replacement's alone, and no
+            // cancellation for an invoice that takes part in none.
+            assert.deepEqual(
+                (await payments.listSettlements([replacement!.id])).map(({ kind }) => kind),
+                ['MOVED_IN'],
+            );
+            for (const named of [invoiceId, cancellationInvoice.id, replacement!.id]) {
+                assert.deepEqual(await invoices.listCancellations([named, 'no-such-invoice']), [
+                    cancellation,
+                ]);
+            }
+            assert.deepEqual(await invoices.listCancellations(['no-such-invoice']), []);
+            // The invoice was archived to be collected; the replacement awaits its document.
+            const archived = await invoices.findDocument(invoiceId);
+            assert.ok(archived?.archivedAt, 'the paid invoice was archived');
+            assert.deepEqual(
+                await invoices.findDocuments([invoiceId, replacement!.id, 'no-such-invoice']),
+                [archived],
+            );
+            assert.deepEqual(await invoices.findDocuments([replacement!.id]), []);
+            assert.deepEqual(
+                [
+                    await payments.listSettlements([]),
+                    await invoices.listCancellations([]),
+                    await invoices.findDocuments([]),
+                ],
+                [[], [], []],
+            );
+        });
+
         // @requirement SC-ADM-044
         test('invoices, subscribers and collection attempts are read for many ids at once, the ones that exist', async (t) => {
             const account = await dueOn(t, 'tenant-open-batch', ['2026-02-10', '2026-02-11']);

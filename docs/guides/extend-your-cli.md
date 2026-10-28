@@ -53,8 +53,10 @@ Optional but strongly recommended integration for ops workflows.
         ContractsRefreshCommand,
         // Where invoices are issued and the administration shows tenants:
         InvoiceCancelCliFlow,
+        InvoiceExportCliFlow,
         InvoicesCommands,
         InvoicesCancelCommand,
+        InvoicesExportCommand,
     ],
 })
 export class CliModule {}
@@ -80,6 +82,8 @@ myapp maintenance off --yes                                  # after the health 
 myapp contracts refresh --all                                # what a new vocabulary would change
 myapp invoices cancel --invoice AHP-2026-000123 \
     --reason "The billing address was wrong."                # what a cancellation would write
+myapp invoices export --from 2026-01 --until 2026-12 \
+    --as-of 2027-01-15T10:00 --locale de --out ./handover    # the year for a tax advisor
 ```
 
 The `maintenance` commands ask for no second factor: a deploy script has nobody to type one. They
@@ -103,6 +107,16 @@ that moves, from what to what, and the replacement's lines. After `--apply` it s
 replacement took over as paid and what was credited — a payment that arrived since the preview
 counts there. Exit code 6 is an invoice cancelled already, 1 every other refusal. See
 [Cancelling an invoice](wire-the-backend.md#cancelling-an-invoice).
+
+`invoices export` writes the ZIP the invoices page downloads: the invoices of the months as of the
+moment `--as-of` names on the installation's clock — five minutes ago where none is —, the tables in
+English unless `--locale de` asks for German separators and decimal commas. It writes into `--out`
+or the current directory, under a name that carries the months, the moment and the language, and
+never over a file that is there: exit code 6 says one is. It is a read, so it asks for the identity
+and no second factor; the audit log records the operator, the months, the moment and the archive's
+SHA-256, which the command prints; where the log cannot record it, the command removes the file it
+wrote and fails. Exit code 1 is every other refusal. See
+[The export for a tax advisor](wire-the-backend.md#the-export-for-a-tax-advisor).
 
 **Exit codes** are standardized (see `@saasicat/spec/cli-conventions.md`):
 `0=ok`, `1=user-error`, `2=identity`, `3=mfa`, `4=connectivity`, `5=permission`,
