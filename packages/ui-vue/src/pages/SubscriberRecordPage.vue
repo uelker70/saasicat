@@ -23,17 +23,34 @@
                 :retry="record.reload"
             />
             <template v-if="record.data.value">
+                <AdminBanner v-if="joinedInto" tone="info" :title="joinedInto.text" class="q-mb-md">
+                    {{ msg.join.joinedIntoNote }}
+                    <template #actions>
+                        <q-btn
+                            flat
+                            no-caps
+                            :label="joinedInto.openLabel"
+                            :to="recordRoute(joinedInto.subscriberId)"
+                        />
+                    </template>
+                </AdminBanner>
+                <!-- A record joined into another takes no correction: its master data stays as it was. -->
                 <SubscriberMasterData
                     :standing="record.data.value"
                     :pending="record.pending.value"
                     :error="null"
                     :retry="record.reload"
-                    :corrections="corrections"
+                    :corrections="joinedInto ? undefined : corrections"
                 />
                 <SubscriberTenants
                     :tenants="record.data.value.tenants"
                     :tenant-route="tenantRoute"
+                    :joins="record.data.value.joins?.from"
+                    :can-join="canJoin"
+                    :subscriber-route="recordRoute"
+                    @join="joinOpen = true"
                 />
+                <SubscriberJoinDialog v-if="join.available.value" v-model="joinOpen" :join="join" />
                 <SubscriberHistory
                     v-if="corrections.available.value"
                     :history="corrections.history"
@@ -104,21 +121,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import type { StandardPageKey } from '@saasicat/core';
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router';
 
-import { formatMessage } from '../client/i18n/format.js';
+import { formatDay, formatMessage } from '../client/i18n/format.js';
 import { servesStandardPage } from '../client/nav-builder.js';
 import type { subscribersResource } from '../client/resources/subscribers.resource.js';
 import SubscriberCharges from '../internal/subscriber-record/SubscriberCharges.vue';
 import SubscriberContracts from '../internal/subscriber-record/SubscriberContracts.vue';
 import SubscriberCredits from '../internal/subscriber-record/SubscriberCredits.vue';
 import SubscriberHistory from '../internal/subscriber-record/SubscriberHistory.vue';
+import SubscriberJoinDialog from '../internal/subscriber-record/SubscriberJoinDialog.vue';
 import SubscriberMasterData from '../internal/subscriber-record/SubscriberMasterData.vue';
 import SubscriberPayments from '../internal/subscriber-record/SubscriberPayments.vue';
 import SubscriberTenants from '../internal/subscriber-record/SubscriberTenants.vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
+import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
 import AdminBody from '../ui/page/AdminBody.vue';
@@ -135,10 +154,12 @@ import { useSubscriberContracts } from '../vue/use-subscriber-contracts.js';
 import { useSubscriberCorrections } from '../vue/use-subscriber-corrections.js';
 import { useSubscriberCredits } from '../vue/use-subscriber-credits.js';
 import { useSubscriberDownloads } from '../vue/use-subscriber-downloads.js';
+import { useSubscriberJoin } from '../vue/use-subscriber-join.js';
 import { useSubscriberPayments } from '../vue/use-subscriber-payments.js';
 import { useSubscriberRecord } from '../vue/use-subscriber-record.js';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
-import { useSaMessages } from '../vue/use-super-admin-i18n.js';
+import { useInstallationDays } from '../vue/use-installation-days.js';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
 // Platform standard page: everything about one subscriber, in one record
 // (`SC-ADM-021`) — its master data and corrections, every tenant it was linked
@@ -177,6 +198,17 @@ const corrections = useSubscriberCorrections(subscriberId, servedBy, subscribers
     notify,
     mfa,
     onChanged: () => record.reload(),
+});
+// A returning customer's subscriber joined into the one it had; the record
+// of the earlier one is where the operator goes next.
+const joinOpen = ref(false);
+const join = useSubscriberJoin(subscriberId, servedBy, subscribers, {
+    notify,
+    mfa,
+    onJoined: async ({ joinedInto: into }) => {
+        joinOpen.value = false;
+        await router.push(recordRoute(into.subscriberId));
+    },
 });
 const account = useSubscriberAccount(subscriberId, servedBy, subscribers);
 const credits = useSubscriberCredits(subscriberId, servedBy, subscribers, { notify, mfa });
@@ -223,6 +255,37 @@ const cancellation = useInvoiceCancellation(servedBy, subscribers, {
     onCancelled: () => Promise.all([payments.reload(), credits.reload()]),
 });
 
+const { intlLocale } = useSuperAdminI18n();
+const days = useInstallationDays();
+
+/** The subscriber this record was joined into, as the banner names it; `null` where it was not. */
+const joinedInto = computed(() => {
+    const note = record.data.value?.joins?.into;
+    if (!note) return null;
+    return {
+        subscriberId: note.subscriberId,
+        text: formatMessage(msg.value.join.joinedInto, {
+            ...note,
+            date: formatDay(days.ofMoment(note.joinedAt), intlLocale.value),
+            by: note.joinedBy,
+        }),
+        openLabel: formatMessage(msg.value.join.openInto, { customerNumber: note.customerNumber }),
+    };
+});
+
+/**
+ * Whether the subscriber on screen can be joined into an earlier one: joins are
+ * served, it has a live tenant, and it was joined into none.
+ */
+const canJoin = computed(() => {
+    const shown = record.data.value;
+    return (
+        join.available.value &&
+        !shown?.joins?.into &&
+        (shown?.tenants.some((tenant) => tenant.unlinkedAt === null) ?? false)
+    );
+});
+
 const heading = computed(() => {
     const subscriber = record.data.value?.subscriber;
     if (!subscriber) return msg.value.record.title;
@@ -257,6 +320,11 @@ function catalogRoute(kind: 'plan' | 'bundle'): RouteLocationRaw | null {
     const key = CATALOG_PAGES[kind];
     const manifest = servedBy.value;
     return manifest && servesStandardPage(manifest, key) ? standardPageRoute(key) : null;
+}
+
+/** Where a subscriber's record answers — beside its list, wherever the shell put that. */
+function recordRoute(subscriberId: string): RouteLocationRaw {
+    return `${standardPageRoute('subscribers')}/${encodeURIComponent(subscriberId)}`;
 }
 
 /** Where a tenant's page answers — beside this page, under the same base. */

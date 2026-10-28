@@ -2,15 +2,19 @@
 // the fields that changed, never an empty reason. Framework-free, so the rule
 // is one function the two dialogs share and a test calls without mounting them.
 
-import { canonicalVatId, type AdminSubscriberDetails } from '@saasicat/core';
+import {
+    SUBSCRIBER_REASON_MAX_LENGTH,
+    canonicalVatId,
+    type AdminSubscriberDetails,
+} from '@saasicat/core';
 
 import type {
     SubscriberBusinessStatusInput,
     SubscriberIdentityCorrectionInput,
 } from '../../client/resources/subscribers.resource.js';
 
-/** The longest reason the platform takes for a correction. */
-export const REASON_MAX_LENGTH = 500;
+/** The longest reason the platform takes for a correction or a join. */
+export const REASON_MAX_LENGTH = SUBSCRIBER_REASON_MAX_LENGTH;
 
 type Held = Pick<AdminSubscriberDetails, 'legalName' | 'vatId' | 'taxNumber'>;
 

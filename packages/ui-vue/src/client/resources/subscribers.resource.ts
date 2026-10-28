@@ -19,6 +19,8 @@ import type {
     AdminSubscriberCorrected,
     AdminSubscriberCredits,
     AdminSubscriberHistoryEntry,
+    AdminSubscriberJoined,
+    AdminSubscriberJoinPreview,
     AdminSubscriberList,
     AdminSubscriberPayments,
     AdminSubscriberPayout,
@@ -29,6 +31,14 @@ import type {
 import { mfaHeader } from '../mfa-header.js';
 import { defineResource, type ResourceContext } from './define-resource.js';
 import { requestFile, requestJsonBody, type DownloadedFile } from './resource-request.js';
+
+/** A join of the subscriber on screen into the earlier one, as the operator confirmed it. */
+export interface SubscriberJoinInput {
+    intoSubscriberId: string;
+    reason: string;
+    /** The digest of the preview the operator was shown; the join is refused where it changed. */
+    previewDigest: string;
+}
 
 /**
  * A correction of a subscriber's legal identity, as the operator states it:
@@ -139,6 +149,47 @@ export const subscribersResource = defineResource('subscribers', {
             `${subscriberUrl(ctx, id)}/business-status`,
             'The change returned no body',
             { method: 'POST', body: change, headers: mfaHeader(mfaCode) },
+        ),
+
+    /**
+     * What joining this subscriber — the one with the live tenant — into the
+     * earlier one would do (`SC-ADM-027`). Writes nothing. Served only where
+     * the manifest announces `subscribers.join`.
+     */
+    previewJoin: (
+        http,
+        ctx,
+        id: string,
+        intoSubscriberId: string,
+    ): Promise<AdminSubscriberJoinPreview> =>
+        requestJsonBody<AdminSubscriberJoinPreview>(
+            http,
+            `${subscriberUrl(ctx, id)}/join/preview`,
+            'The preview returned no body',
+            { method: 'POST', body: { intoSubscriberId } },
+        ),
+
+    /**
+     * Joins this subscriber into the earlier one, declaring both one legal
+     * entity, held to the preview the operator confirmed. Requires the second
+     * factor; not undone.
+     */
+    join: (
+        http,
+        ctx,
+        id: string,
+        join: SubscriberJoinInput,
+        mfaCode?: string,
+    ): Promise<AdminSubscriberJoined> =>
+        requestJsonBody<AdminSubscriberJoined>(
+            http,
+            `${subscriberUrl(ctx, id)}/join`,
+            'The join returned no body',
+            {
+                method: 'POST',
+                body: { kind: 'same-entity', ...join },
+                headers: mfaHeader(mfaCode),
+            },
         ),
 
     /** Checks the VAT number the subscriber holds again, without changing it. */

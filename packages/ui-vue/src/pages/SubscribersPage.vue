@@ -47,6 +47,12 @@
                             >
                                 {{ row.customerNumber }}
                             </router-link>
+                            <AdminStatusPill
+                                v-if="row.joinedInto"
+                                class="q-ml-sm"
+                                :label="row.joinedInto"
+                                tone="muted"
+                            />
                         </q-td>
                     </template>
                 </AdminTable>
@@ -66,6 +72,7 @@ import type { RouteLocationRaw } from 'vue-router';
 
 import { formatMessage } from '../client/i18n/format.js';
 import type { subscribersResource } from '../client/resources/subscribers.resource.js';
+import AdminStatusPill from '../ui/data/AdminStatusPill.vue';
 import AdminTable from '../ui/data/AdminTable.vue';
 import AdminEmptyState from '../ui/feedback/AdminEmptyState.vue';
 import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
@@ -119,6 +126,9 @@ const tableRows = computed(() =>
         vatId: row.vatId ?? '',
         place: [row.city, row.country].filter(Boolean).join(', '),
         tenant: tenantOf(row),
+        joinedInto: row.joinedInto
+            ? formatMessage(msg.value.join.listMarker, row.joinedInto)
+            : null,
     })),
 );
 

@@ -10,10 +10,11 @@ import {
     type Type,
 } from '@nestjs/common';
 import { IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
-import type {
-    AdminSubscriberJoined,
-    AdminSubscriberJoinPreview,
-    RlsBypassPort,
+import {
+    SUBSCRIBER_REASON_MAX_LENGTH,
+    type AdminSubscriberJoined,
+    type AdminSubscriberJoinPreview,
+    type RlsBypassPort,
 } from '@saasicat/core';
 
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
@@ -21,7 +22,7 @@ import { EnforceMfa } from '../admin/enforce-mfa.decorator.js';
 import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 import { WebAuditLogger } from '../core/web-audit.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
-import { SUBSCRIBER_ID_MAX_LENGTH, SUBSCRIBER_REASON_MAX_LENGTH } from './subscriber-limits.js';
+import { SUBSCRIBER_ID_MAX_LENGTH } from './subscriber-limits.js';
 import { SubscriberJoinService } from './subscriber-join.service.js';
 import { SubscriberRecordService } from './subscriber-record.service.js';
 import { SubscriberService } from './subscriber.service.js';

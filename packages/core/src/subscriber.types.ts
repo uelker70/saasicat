@@ -203,6 +203,9 @@ export interface SubscriberTenantLinkRecord {
     unlinkedAt: Date | null;
 }
 
+/** The longest reason an operator writes for a correction or a join: a sentence or two, not a file. */
+export const SUBSCRIBER_REASON_MAX_LENGTH = 500;
+
 /** How many subscribers one page of the operator's list holds. */
 export const SUBSCRIBER_LIST_PAGE_SIZE = 50;
 

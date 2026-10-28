@@ -81,6 +81,7 @@ export * from './use-cancellation-party.js';
 export * from './use-tenant-subscriber.js';
 export * from './use-subscriber-attention.js';
 export * from './use-subscriber-corrections.js';
+export * from './use-subscriber-join.js';
 export * from './use-platform-tenant-actions.js';
 export * from './use-batch-columns.js';
 export * from './use-row-reorder.js';

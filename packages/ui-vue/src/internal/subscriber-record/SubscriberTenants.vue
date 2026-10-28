@@ -4,6 +4,9 @@
         :subtitle="msg.record.tenants.subtitle"
         class="q-mb-md"
     >
+        <template v-if="canJoin" #actions>
+            <q-btn flat no-caps icon="merge_type" :label="msg.join.action" @click="emit('join')" />
+        </template>
         <p v-if="tenants.length === 0" class="sa-subscriber-tenants__note">
             {{ msg.record.tenants.none }}
         </p>
@@ -28,12 +31,31 @@
                 </div>
             </li>
         </ul>
+        <section
+            v-if="joinedFrom.length > 0"
+            class="sa-subscriber-tenants__joined"
+            :aria-label="msg.join.joinedFromTitle"
+        >
+            <h3 class="sa-subscriber-tenants__heading">{{ msg.join.joinedFromTitle }}</h3>
+            <ul class="sa-subscriber-tenants">
+                <li v-for="note in joinedFrom" :key="note.subscriberId">
+                    <router-link
+                        v-if="subscriberRoute"
+                        :to="subscriberRoute(note.subscriberId)"
+                        class="sa-link"
+                    >
+                        {{ note.text }}
+                    </router-link>
+                    <span v-else>{{ note.text }}</span>
+                </li>
+            </ul>
+        </section>
     </AdminSection>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { AdminSubscriberTenant } from '@saasicat/core';
+import type { AdminSubscriberJoinNote, AdminSubscriberTenant } from '@saasicat/core';
 import type { RouteLocationRaw } from 'vue-router';
 
 import { formatDay, formatMessage } from '../../client/i18n/format.js';
@@ -51,7 +73,15 @@ const props = defineProps<{
     tenants: readonly AdminSubscriberTenant[];
     /** Where a tenant's page answers. */
     tenantRoute: (slug: string) => RouteLocationRaw;
+    /** The subscribers joined into this one (`SC-ADM-027`), the latest first. */
+    joins?: readonly AdminSubscriberJoinNote[];
+    /** Whether this subscriber's live tenant can be joined into an earlier subscriber. */
+    canJoin?: boolean;
+    /** Where another subscriber's record answers. */
+    subscriberRoute?: (subscriberId: string) => RouteLocationRaw;
 }>();
+
+const emit = defineEmits<{ (e: 'join'): void }>();
 
 const msg = useSaMessages('subscribers');
 const common = useSaMessages('common');
@@ -86,6 +116,17 @@ const shown = computed(() => {
         };
     });
 });
+
+const joinedFrom = computed(() =>
+    (props.joins ?? []).map((note) => ({
+        subscriberId: note.subscriberId,
+        text: formatMessage(msg.value.join.joinedFrom, {
+            ...note,
+            date: formatDay(days.ofMoment(note.joinedAt), intlLocale.value),
+            by: note.joinedBy,
+        }),
+    })),
+);
 </script>
 
 <style scoped>
@@ -100,6 +141,16 @@ const shown = computed(() => {
     display: flex;
     align-items: center;
     gap: var(--sa-space-2);
+    font-weight: var(--sa-weight-medium);
+}
+.sa-subscriber-tenants__joined {
+    display: grid;
+    gap: var(--sa-space-2);
+    margin-top: var(--sa-space-3);
+}
+.sa-subscriber-tenants__heading {
+    margin: 0;
+    font-size: var(--sa-text-sm);
     font-weight: var(--sa-weight-medium);
 }
 .sa-subscriber-tenants__when,

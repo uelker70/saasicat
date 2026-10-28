@@ -28,6 +28,7 @@ import {
 } from 'class-validator';
 import {
     SUBSCRIBER_ATTENTION_PAGE_SIZE,
+    SUBSCRIBER_REASON_MAX_LENGTH,
     SUBSCRIBER_SEARCH_MAX_LENGTH,
     type AdminSubscriberAttention,
     type AdminSubscriberCorrected,
@@ -52,7 +53,7 @@ import { buildSubscriberJoinController } from './subscriber-join.controller.js';
 import { SubscriberRecordService } from './subscriber-record.service.js';
 import { SubscriberStandingService } from './subscriber-standing.service.js';
 import { SubscriberService } from './subscriber.service.js';
-import { SUBSCRIBER_ID_MAX_LENGTH, SUBSCRIBER_REASON_MAX_LENGTH } from './subscriber-limits.js';
+import { SUBSCRIBER_ID_MAX_LENGTH } from './subscriber-limits.js';
 import { SUBSCRIBER_REPOSITORY_TOKEN } from './subscriber.tokens.js';
 
 /** `GET admin/subscribers/attention?tenantId=…&tenantId=…` — the tenants of the page shown. */
