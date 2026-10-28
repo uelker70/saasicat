@@ -1509,6 +1509,8 @@ model Subscriber {
     contracts           SubscriptionContract[]
     paymentMethods      SubscriberPaymentMethod[]
     paymentMethodSetups SubscriberPaymentMethodSetup[]
+    joinedInto          SubscriberJoin?  @relation("SubscriberJoinFrom")
+    joinedFrom          SubscriberJoin[] @relation("SubscriberJoinInto")
 
     @@map("subscribers")
 }
@@ -1599,6 +1601,26 @@ model SubscriberVatIdCheck {
 
     @@index([subscriberId, checkedAt])
     @@map("subscriber_vat_id_checks")
+}
+
+// A returning customer's new subscriber joined into the one it had — see
+// 13-subscriber.prisma; sql/1.0-a-subscriber-is-joined.postgres.sql adds the
+// triggers `db push` cannot create.
+model SubscriberJoin {
+    id               String   @id @default(uuid())
+    fromSubscriberId String   @unique
+    intoSubscriberId String
+    reason           String
+    joinedBy         String
+    joinedAt         DateTime
+    digest           String
+    moved            Json
+
+    from Subscriber @relation("SubscriberJoinFrom", fields: [fromSubscriberId], references: [id], onDelete: Restrict)
+    into Subscriber @relation("SubscriberJoinInto", fields: [intoSubscriberId], references: [id], onDelete: Restrict)
+
+    @@index([intoSubscriberId])
+    @@map("subscriber_joins")
 }
 
 // =============================================================================

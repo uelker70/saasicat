@@ -475,6 +475,20 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Eine Korrektur der rechtlichen Identität muss nennen, wer sie vornimmt.',
     SUBSCRIBER_CORRECTION_CHANGES_NOTHING:
         'Die Korrektur ändert nichts: Jeder genannte Wert ist bereits erfasst.',
+    SUBSCRIBER_JOIN_REASON_REQUIRED:
+        'Einen Vertragspartner mit dem früheren zusammenzuführen braucht eine Begründung.',
+    SUBSCRIBER_JOIN_SAME_SUBSCRIBER:
+        'Ein Vertragspartner lässt sich nicht mit sich selbst zusammenführen.',
+    SUBSCRIBER_JOIN_ALREADY_JOINED:
+        'Vertragspartner {customerNumber} wurde bereits mit einem anderen zusammengeführt; seine Akte nennt, mit welchem.',
+    SUBSCRIBER_JOIN_WITHOUT_LIVE_TENANT:
+        'Vertragspartner {customerNumber} hat keinen aktiven Mandanten; zusammengeführt wird der neue Mandant eines zurückkehrenden Kunden mit dem Vertragspartner, den er hatte.',
+    SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT:
+        'Vertragspartner {customerNumber} hat noch einen aktiven Mandanten ({tenantId}), und ein Vertragspartner hat höchstens einen. Hat die Anwendung diesen Mandanten gelöscht, schließt sie zuerst seine Verknüpfung.',
+    SUBSCRIBER_JOIN_PREVIEW_CHANGED:
+        'Was die Zusammenführung bewirken würde, hat sich seit der Anzeige geändert. Bitte vor dem Zusammenführen noch einmal ansehen.',
+    SUBSCRIBER_JOINED:
+        'Vertragspartner {customerNumber} wurde mit einem anderen zusammengeführt; seine Akte bleibt, wie sie ist, und nimmt keine Änderung mehr an.',
     SUBSCRIBER_TAKEOVER_IS_A_TRANSFER:
         'Übernimmt eine andere Rechtsperson, ist das eine Übertragung und keine Korrektur; sie lässt sich nicht als Änderung erfassen.',
     SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT:

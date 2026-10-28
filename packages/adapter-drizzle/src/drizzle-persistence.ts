@@ -39,6 +39,7 @@ import { DrizzleInvoiceCollectionRepository } from './drizzle-invoice-collection
 import { DrizzleSubscriberPaymentRepository } from './drizzle-subscriber-payment.repository.js';
 import { DrizzleSubscriberPaymentMethodRepository } from './drizzle-subscriber-payment-method.repository.js';
 import { DrizzleSubscriberRepository } from './drizzle-subscriber.repository.js';
+import { DrizzleSubscriberJoinRepository } from './drizzle-subscriber-join.repository.js';
 import { DrizzleSubscriptionUsageAdapter } from './drizzle-subscription-usage.adapter.js';
 import { DrizzleTenantSubscriptionWrite } from './drizzle-tenant-subscription-write.adapter.js';
 import { DrizzleSubscriptionBundleRepository } from './drizzle-subscription-bundle.repository.js';
@@ -176,6 +177,14 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             ),
             // The party each of those contracts is concluded with.
             subscriberRepository: provide((client) => new DrizzleSubscriberRepository(client)),
+            // A returning customer's subscriber joined into the one it had,
+            // moving the rows of every table the schema holds.
+            subscriberJoinRepository: unless(
+                'entitlement.subscriberJoinRepository',
+                provide(
+                    (client) => new DrizzleSubscriberJoinRepository(client, options.notAdopted),
+                ),
+            ),
             // The charges those contracts give rise to, written once each.
             subscriberLedgerRepository: unless(
                 'entitlement.subscriberLedgerRepository',

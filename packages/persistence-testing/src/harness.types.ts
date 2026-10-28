@@ -25,6 +25,7 @@ import type {
     PromoSubscriptionLookup,
     SubscriberLedgerRepository,
     SubscriberPaymentMethodRepository,
+    SubscriberJoinRepository,
     SubscriberRepository,
     SubscriptionContractRepository,
     SubscriptionBundleRepository,
@@ -76,6 +77,15 @@ export interface ContractAdapterInstances {
      * through `seed.createSubscriber` rather than through this port.
      */
     subscriberRepository?: SubscriberRepository;
+    /**
+     * Enables the join scenarios: a returning customer's subscriber joined into
+     * the one it had moves every row of every table that names it, in one
+     * transaction or not at all, and is given nothing afterwards — a write that
+     * read it before the join waits for it and is refused. The database needs
+     * `1.0-a-subscriber-is-joined.postgres.sql` applied; the subscribers come
+     * from `subscriberRepository`, the rest from what the payment scenarios need.
+     */
+    subscriberJoinRepository?: SubscriberJoinRepository;
     /**
      * Enables the gateway event scenarios: an event is claimed once per
      * account, a duplicate leaves the caller's transaction usable, and a claim
@@ -403,6 +413,7 @@ export type ContractGap =
     | 'contractConfirmationArchive'
     | 'invoiceCollections'
     | 'subscriberPayments'
+    | 'subscriberJoins'
     | 'checkoutOffers'
     | 'appliedSettings'
     | 'maintenanceWindows'

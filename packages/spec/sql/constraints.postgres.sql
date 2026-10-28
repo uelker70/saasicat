@@ -117,6 +117,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_subscriber
 CREATE UNIQUE INDEX IF NOT EXISTS subscriber_payment_methods_active_per_subscriber
     ON subscriber_payment_methods ("subscriberId") WHERE "status" = 'ACTIVE';
 
+-- A subscriber is never joined into itself: a join moves what one subscriber
+-- holds into another (`SC-ADM-027`). Same two plain statements as above.
+ALTER TABLE subscriber_joins
+    DROP CONSTRAINT IF EXISTS subscriber_joins_not_into_itself;
+ALTER TABLE subscriber_joins
+    ADD CONSTRAINT subscriber_joins_not_into_itself CHECK ("fromSubscriberId" <> "intoSubscriberId");
+
 -- An invoice has at most ONE collection attempt that is open — planned, or
 -- sent and not settled — and none after one succeeded: of two runs that find the
 -- same invoice open, one starts or plans an attempt and the other's insert meets

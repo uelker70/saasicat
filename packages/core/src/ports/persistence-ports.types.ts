@@ -30,6 +30,7 @@ import type {
     SubscriptionInvoiceRepository,
     InvoiceCollectionRepository,
     SubscriberPaymentRepository,
+    SubscriberJoinRepository,
     SubscriberRepository,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
@@ -160,6 +161,13 @@ export interface SaaSiCatPersistenceEntitlement {
     subscriptionContractRepository?: PersistenceProvider<SubscriptionContractRepository>;
     /** The parties contracts are concluded with; required wherever contracts are written. */
     subscriberRepository?: PersistenceProvider<SubscriberRepository>;
+    /**
+     * A returning customer's subscriber joined into the one it had
+     * (`SC-ADM-027`). Optional so an adapter written before it, or a schema
+     * that leaves `SubscriberJoin` out, keeps working; without it, joining is
+     * off — not offered and not served.
+     */
+    subscriberJoinRepository?: PersistenceProvider<SubscriberJoinRepository>;
     /** The charges a subscriber's contracts give rise to (`tenantBilling.chargeJournal`). */
     subscriberLedgerRepository?: PersistenceProvider<SubscriberLedgerRepository>;
     /** The invoices issued from those charges (`tenantBilling.chargeJournal.invoices`). */

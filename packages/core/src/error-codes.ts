@@ -919,6 +919,36 @@ export const SUBSCRIBER_ERROR_CODES = {
     SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED: 'SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED',
     /** A check of the subscriber's VAT identification number was asked for, and it holds none. */
     SUBSCRIBER_VAT_ID_MISSING: 'SUBSCRIBER_VAT_ID_MISSING',
+    /** A join of a returning customer's subscriber gave no reason. */
+    SUBSCRIBER_JOIN_REASON_REQUIRED: 'SUBSCRIBER_JOIN_REASON_REQUIRED',
+    /** A subscriber is not joined into itself. */
+    SUBSCRIBER_JOIN_SAME_SUBSCRIBER: 'SUBSCRIBER_JOIN_SAME_SUBSCRIBER',
+    /**
+     * One of the two was joined into another subscriber already: its record is
+     * empty and names where everything went. Carries `customerNumber`.
+     */
+    SUBSCRIBER_JOIN_ALREADY_JOINED: 'SUBSCRIBER_JOIN_ALREADY_JOINED',
+    /**
+     * The subscriber to join has no live tenant: a join brings a returning
+     * customer's new tenant to the subscriber it had. Carries `customerNumber`.
+     */
+    SUBSCRIBER_JOIN_WITHOUT_LIVE_TENANT: 'SUBSCRIBER_JOIN_WITHOUT_LIVE_TENANT',
+    /**
+     * The subscriber to join into still has a live tenant — open as a link,
+     * whether or not the application still has the tenant (`SC-ADM-036`) — and a
+     * subscriber has at most one. Carries `customerNumber` and `tenantId`.
+     */
+    SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT: 'SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT',
+    /**
+     * What the join would do changed since the preview the operator confirmed.
+     * Carries the new `preview`.
+     */
+    SUBSCRIBER_JOIN_PREVIEW_CHANGED: 'SUBSCRIBER_JOIN_PREVIEW_CHANGED',
+    /**
+     * The subscriber was joined into another: its record stays as it was and
+     * takes no change. Carries `customerNumber`, the subscriber's own.
+     */
+    SUBSCRIBER_JOINED: 'SUBSCRIBER_JOINED',
 } as const;
 
 export type SubscriberErrorCode =

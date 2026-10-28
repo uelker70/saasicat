@@ -52,6 +52,7 @@ import { PrismaInvoiceCollectionRepository } from './prisma-invoice-collection.r
 import { PrismaSubscriberPaymentRepository } from './prisma-subscriber-payment.repository.js';
 import { PrismaSubscriberPaymentMethodRepository } from './prisma-subscriber-payment-method.repository.js';
 import { PrismaSubscriberRepository } from './prisma-subscriber.repository.js';
+import { PrismaSubscriberJoinRepository } from './prisma-subscriber-join.repository.js';
 import { PrismaSubscriptionRepository } from './prisma-subscription.repository.js';
 import { PrismaSubscriptionUsageAdapter } from './prisma-subscription-usage.adapter.js';
 import { PrismaSuperAdminBootstrapAdapter } from './prisma-super-admin-bootstrap.adapter.js';
@@ -255,6 +256,15 @@ export function prismaPersistence<M extends OptionalCanonicalModel = never>(
             ),
             subscriberRepository: provide(
                 (prisma) => new PrismaSubscriberRepository(canonical(prisma)),
+            ),
+            // A returning customer's subscriber joined into the one it had,
+            // moving the rows of every table the schema holds.
+            subscriberJoinRepository: unless(
+                'entitlement.subscriberJoinRepository',
+                provide(
+                    (prisma) =>
+                        new PrismaSubscriberJoinRepository(canonical(prisma), options.notAdopted),
+                ),
             ),
             // The charges those contracts give rise to, written once each.
             subscriberLedgerRepository: unless(

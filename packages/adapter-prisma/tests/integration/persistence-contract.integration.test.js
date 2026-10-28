@@ -57,6 +57,7 @@ import {
     PrismaInvoiceCollectionRepository,
     PrismaSubscriberPaymentRepository,
     PrismaSubscriberRepository,
+    PrismaSubscriberJoinRepository,
     PrismaSubscriptionContractRepository,
     PrismaSubscriptionRepository,
     PrismaTenantSubscriptionWriteAdapter,
@@ -75,8 +76,12 @@ const prisma = new PrismaClient();
 // Disposable-database contract: rebuild the schema from the normative
 // reference DDL on every run.
 await rebuildFromReferenceSchema(prisma);
+// The guard of a join is a set of triggers, which the reference DDL cannot
+// carry: the shipped migration adds them, as it does after `db push`.
+await applyShippedMigration('1.0-a-subscriber-is-joined.postgres.sql');
 
 const PLATFORM_TABLES = [
+    'subscriber_joins',
     'subscriber_credit_entries',
     'subscriber_refunds',
     'subscriber_credits',
@@ -149,6 +154,7 @@ function createHarness() {
             planCatalogReadSink: new PrismaPlanCatalogReadSink(prisma),
             subscriptionContractRepository: new PrismaSubscriptionContractRepository(prisma),
             subscriberRepository: new PrismaSubscriberRepository(prisma),
+            subscriberJoinRepository: new PrismaSubscriberJoinRepository(prisma),
             paymentEventLog: new PrismaPaymentEventLog(prisma),
             subscriberPaymentMethodRepository: new PrismaSubscriberPaymentMethodRepository(prisma),
             subscriberLedgerRepository: new PrismaSubscriberLedgerRepository(prisma),
@@ -280,6 +286,26 @@ persistenceAdapterContract({
     // that port against its own table, and wires it into its own harness.
     gaps: ['checkoutOffers'],
 });
+
+/** Applies the shipped migration `file` whole, over the simple protocol its function bodies need. */
+async function applyShippedMigration(file) {
+    const database = new pg.Client({ connectionString: testDatabaseUrl() });
+    await database.connect();
+    try {
+        await database.query(
+            readFileSync(
+                join(
+                    dirname(createRequire(import.meta.url).resolve('@saasicat/spec/package.json')),
+                    'sql',
+                    file,
+                ),
+                'utf8',
+            ),
+        );
+    } finally {
+        await database.end();
+    }
+}
 
 /**
  * The shipped migration that protects `table` with `triggers`, to apply whole,

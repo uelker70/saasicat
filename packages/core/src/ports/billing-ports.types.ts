@@ -41,6 +41,11 @@ import type {
 } from '../subscriber.types.js';
 import type { VatIdCheck } from '../tax.types.js';
 import type {
+    SubscriberJoinRecord,
+    SubscriberJoinState,
+    SubscriberJoinWrite,
+} from '../subscriber-join.types.js';
+import type {
     ContractRegisterRecordPage,
     ContractRegisterWindow,
 } from '../contract-register.types.js';
@@ -603,6 +608,52 @@ export interface SubscriberRepository {
     ): Promise<SubscriberWithCurrentCheck[]>;
     /** Every recorded change of this subscriber's tax origin, the latest written first. */
     listTaxOriginChanges(subscriberId: string): Promise<SubscriberTaxOriginChangeRecord[]>;
+}
+
+/**
+ * A returning customer's new subscriber joined into the subscriber it had
+ * (`SC-ADM-027`). The platform reads the state under `hold`, decides with
+ * `planSubscriberJoin` from `@saasicat/core`, and writes with `join` in the same
+ * transaction; the repository translates and decides nothing.
+ */
+export interface SubscriberJoinRepository {
+    /**
+     * Locks both subscribers' rows, the lower id first, and reads what a join
+     * is decided from: each with every link, the join that names it as joined,
+     * the check of its VAT id that counts and how many payment methods it has
+     * in use, and how many rows of each table the schema holds name the
+     * subscriber to join. `null` when either is not there. Inside the caller's
+     * transaction only: the locks are held until it ends, and every write that
+     * names either subscriber waits for them (`1.0-a-subscriber-is-joined.postgres.sql`).
+     */
+    hold(
+        fromSubscriberId: string,
+        intoSubscriberId: string,
+        tx: TransactionContext,
+    ): Promise<SubscriberJoinState | null>;
+    /**
+     * Writes the join decided, on the transaction `hold` locked both rows on:
+     * the payment methods in use at the subscriber joined into go out of use at
+     * `joinedAt`; every row of every table that names the subscriber joined
+     * names the other one — each table moving as many rows as `plan.moving`
+     * counted, or the write throws and nothing stands —; the replaced details,
+     * the business status and the legal identity are written, the correction and
+     * the change of the tax origin recorded with the join's reason and date;
+     * the check of the VAT id that counts is the one `plan.vatIdCheck` says —
+     * `adopted` takes the joined subscriber's check and the date it held its
+     * number from, `ended` counts none and holds the number from `joinedAt`;
+     * the joined subscriber's own check no longer counts for it; and the join
+     * is recorded.
+     */
+    join(write: SubscriberJoinWrite, tx: TransactionContext): Promise<SubscriberJoinRecord>;
+    /** Every join that names one of these subscribers, either way, in one read and in no order. */
+    listFor(subscriberIds: readonly string[]): Promise<SubscriberJoinRecord[]>;
+    /**
+     * Why a join could leave rows for the subscriber it joined behind — a
+     * table that names a subscriber without its trigger —, or `null` where
+     * every one has it (`subscriberJoinProtectionProblem` from `@saasicat/core`).
+     */
+    protectionProblem(): Promise<string | null>;
 }
 
 /**

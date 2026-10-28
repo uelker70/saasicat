@@ -38,6 +38,7 @@ export { DrizzleInvoiceCollectionRepository } from './drizzle-invoice-collection
 export { DrizzleSubscriberPaymentRepository } from './drizzle-subscriber-payment.repository.js';
 export { DrizzleSubscriberPaymentMethodRepository } from './drizzle-subscriber-payment-method.repository.js';
 export { DrizzleSubscriberRepository } from './drizzle-subscriber.repository.js';
+export { DrizzleSubscriberJoinRepository } from './drizzle-subscriber-join.repository.js';
 export { DrizzleSubscriptionUsageAdapter } from './drizzle-subscription-usage.adapter.js';
 export { DrizzleTenantSubscriptionWrite } from './drizzle-tenant-subscription-write.adapter.js';
 export { DrizzlePromoCodeRepository } from './drizzle-promo-code.repository.js';

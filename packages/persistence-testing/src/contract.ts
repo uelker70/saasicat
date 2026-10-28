@@ -19,6 +19,8 @@ import type {
     NewMaintenanceWindow,
     CreateSubscriberData,
     SubscriberSearch,
+    SubscriberJoinState,
+    SubscriberJoinWrite,
     ImmediatePlanChangeInput,
     NewContractLineItemData,
     NewSubscriptionContractData,
@@ -81,6 +83,7 @@ import {
     lineCorrectionsOf,
     movedPaymentParts,
     paidByShares,
+    planSubscriberJoin,
     subscriberSearchTermsOf,
     sumToCents,
     taxPerRate,
@@ -583,6 +586,16 @@ const CONTRACT_GAPS: Record<
             Boolean(
                 harness.adapter.subscriberPaymentRepository &&
                 CONTRACT_GAPS.invoiceCollections.present(harness),
+            ),
+    },
+    subscriberJoins: {
+        reason: 'adapter provides no SubscriberJoinRepository, or nothing a subscriber, a closed link, a payment method and a payment need before it',
+        present: (harness) =>
+            Boolean(
+                harness.adapter.subscriberJoinRepository &&
+                harness.adapter.subscriberRepository &&
+                CONTRACT_GAPS.closedTenantLinkSeed.present(harness) &&
+                CONTRACT_GAPS.subscriberPayments.present(harness),
             ),
     },
     checkoutOffers: {
@@ -7015,9 +7028,14 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         /**
          * A subscriber, a contract with a plan line and a discount line, and a
          * charge builder pointing at them — the foreign keys a charge carries
-         * are real. Null where the adapter provides no journal.
+         * are real. The subscriber is the one `given` names, or one of its own.
+         * Null where the adapter provides no journal.
          */
-        async function anAccount(t: TestContext, tenantId: string) {
+        async function anAccount(
+            t: TestContext,
+            tenantId: string,
+            given?: { subscriberId: string },
+        ) {
             const ledger = harness.adapter.subscriberLedgerRepository;
             const contracts = harness.adapter.subscriptionContractRepository;
             const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
@@ -7025,7 +7043,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 missing(t, 'subscriberLedger');
                 return null;
             }
-            const { subscriberId } = await createSubscriber({ legalName: `${tenantId} GmbH` });
+            const { subscriberId } =
+                given ?? (await createSubscriber({ legalName: `${tenantId} GmbH` }));
             const line = (
                 kind: 'plan' | 'discount',
                 sourceKey: string,
@@ -7501,13 +7520,17 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
          * `EX` over the charges it is handed. Null where the adapter provides
          * no invoices.
          */
-        async function anInvoiceAccount(t: TestContext, tenantId: string) {
+        async function anInvoiceAccount(
+            t: TestContext,
+            tenantId: string,
+            given?: { subscriberId: string },
+        ) {
             const invoices = harness.adapter.subscriptionInvoiceRepository;
             if (!invoices || !CONTRACT_GAPS.subscriptionInvoices.present(harness)) {
                 missing(t, 'subscriptionInvoices');
                 return null;
             }
-            const account = await anAccount(t, tenantId);
+            const account = await anAccount(t, tenantId, given);
             if (!account) return null;
             const { ledger, charge } = account;
             const { subscriberId, contractId } = charge();
@@ -8514,13 +8537,14 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 collectionDate?: string | null;
                 delivered?: boolean;
             }> = [{}],
+            given?: { subscriberId: string },
         ) {
             const collections = harness.adapter.invoiceCollectionRepository;
             if (!collections || !CONTRACT_GAPS.invoiceCollections.present(harness)) {
                 missing(t, 'invoiceCollections');
                 return null;
             }
-            const account = await anInvoiceAccount(t, tenantId);
+            const account = await anInvoiceAccount(t, tenantId, given);
             if (!account) return null;
             const charges = await account.record(...invoices.map((_, index) => monthly(index + 1)));
             const ids: string[] = [];
@@ -9699,7 +9723,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
          * started as a run starts it, and what records the payments. Null where
          * the adapter provides no payments.
          */
-        async function payable(t: TestContext, tenantId: string, count = 1) {
+        async function payable(
+            t: TestContext,
+            tenantId: string,
+            count = 1,
+            given?: { subscriberId: string },
+        ) {
             const payments = harness.adapter.subscriberPaymentRepository;
             if (!payments || !CONTRACT_GAPS.subscriberPayments.present(harness)) {
                 missing(t, 'subscriberPayments');
@@ -9709,6 +9738,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 t,
                 tenantId,
                 Array.from({ length: count }, () => ({})),
+                given,
             );
             if (!account) return null;
             const attempts: InvoiceCollectionRecord[] = [];
@@ -14857,6 +14887,323 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 );
                 assert.deepEqual(await usage.listByIds([]), []);
             });
+        });
+
+        // -------------------------------------------------------------
+        // A returning customer's subscriber joined into the one it had
+        // -------------------------------------------------------------
+
+        /**
+         * Whether `error`, or an error it was caused by, is the guard refusing a
+         * row for a joined subscriber: one driver throws the database's error, the
+         * other wraps it in one that names the query.
+         */
+        const refusedAsJoined = (error: unknown): boolean => {
+            for (let at: unknown = error; at instanceof Error; at = at.cause) {
+                if (at.message.includes('joined into another subscriber')) return true;
+            }
+            return false;
+        };
+
+        /** A check of `vatId` the service confirmed at `at`. */
+        const confirmedCheck = (vatId: string, at: string): VatIdCheck => ({
+            vatId,
+            checkedAt: new Date(at),
+            valid: true,
+            service: 'VIES',
+            confirmation: { requestIdentifier: `WAPI-${vatId}` },
+        });
+
+        /**
+         * One legal entity twice: the earlier subscriber, its tenant gone and
+         * its payment method still in use, and the one sign-up created for the
+         * new tenant, with a check of its VAT id, a payment method, a contract
+         * and its charges, an invoice and its payment — rows in most tables that
+         * name a subscriber, each with its foreign keys real. Null where the
+         * adapter lacks a member a join or this fixture needs.
+         */
+        async function aReturningCustomer(t: TestContext, key: string) {
+            const joins = harness.adapter.subscriberJoinRepository;
+            const subscribers = harness.adapter.subscriberRepository;
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const closeTenantLink = harness.seed.closeTenantLink?.bind(harness.seed);
+            if (
+                !joins ||
+                !subscribers ||
+                !methods ||
+                !closeTenantLink ||
+                !CONTRACT_GAPS.subscriberJoins.present(harness)
+            ) {
+                missing(t, 'subscriberJoins');
+                return null;
+            }
+            const earlier = await subscribers.createForTenant(
+                subscriberFor(`${key}-old`, 'Muster GmbH'),
+            );
+            const returning = await subscribers.createForTenant({
+                ...subscriberFor(`${key}-new`, 'Muster GmbH'),
+                vatId: 'DE123456789',
+                addressLine1: 'Neue Straße 1',
+                postalCode: '10115',
+                city: 'Berlin',
+                country: 'DE',
+                invoiceEmail: 'billing@muster.example',
+                business: true,
+            });
+            assert.ok(earlier && returning, 'a subscriber was not created');
+            await closeTenantLink(earlier.id, new Date('2026-03-31T00:00:00.000Z'));
+            await methods.recordConfirmed(
+                paymentMethodFor(earlier.id, `pm_${key}_old`, '2025-06-01T00:00:00.000Z'),
+            );
+            await methods.recordConfirmed(
+                paymentMethodFor(returning.id, `pm_${key}_new`, '2026-11-02T00:00:00.000Z'),
+            );
+            const check = await subscribers.recordVatIdCheck(
+                returning.id,
+                confirmedCheck('DE123456789', '2026-11-02T08:30:00.000Z'),
+            );
+            assert.equal(
+                check?.current?.id,
+                check?.recorded.id,
+                'the check of the VAT id does not count',
+            );
+            const account = await payable(t, `${key}-new`, 1, { subscriberId: returning.id });
+            if (!account) return null;
+            const paid = await account.payments.recordPayment(
+                account.paymentOf(account.attempts[0]!, `pi_${key}`, account.grosses[0]!),
+            );
+            assert.ok(paid, 'the payment was not recorded');
+            /** The join `planSubscriberJoin` decides from `state`, as the platform writes it. */
+            const writeOf = (state: SubscriberJoinState): SubscriberJoinWrite => ({
+                plan: planSubscriberJoin(state),
+                reason: 'Returning customer, confirmed by phone',
+                joinedBy: 'web:operator@example.com:admin',
+                joinedAt: new Date('2026-11-03T09:00:00.000Z'),
+                digest: 'f'.repeat(64),
+            });
+            return { joins, subscribers, methods, earlier, returning, account, writeOf };
+        }
+
+        // @requirement SC-ADM-027
+        test('a join holds both subscribers and reads what the one joined holds', async (t) => {
+            const customer = await aReturningCustomer(t, 'tenant-join-read');
+            if (!customer) return;
+            const { joins, earlier, returning } = customer;
+
+            const state = await harness.adapter.transactionRunner.run((tx) =>
+                joins.hold(returning.id, earlier.id, tx),
+            );
+
+            assert.ok(state, 'a join did not find both subscribers');
+            assert.deepEqual(
+                [state.from.links.map((link) => link.unlinkedAt), state.into.links.length],
+                [[null], 1],
+            );
+            assert.notEqual(
+                state.into.links[0]!.unlinkedAt,
+                null,
+                'the earlier link reads as live',
+            );
+            assert.deepEqual([state.from.joinedIntoId, state.into.joinedIntoId], [null, null]);
+            assert.equal(state.from.countingVatIdCheck?.vatId, 'DE123456789');
+            assert.equal(state.into.countingVatIdCheck, null);
+            assert.deepEqual(
+                [state.from.paymentMethodsInUse, state.into.paymentMethodsInUse],
+                [1, 1],
+            );
+            assert.equal(state.moving.subscriber_tenants, 1);
+            assert.equal(state.moving.subscriber_vat_id_checks, 1);
+            assert.equal(state.moving.subscriber_payment_methods, 1);
+            assert.equal(state.moving.subscription_contracts, 1);
+            assert.equal(state.moving.subscription_invoices, 1);
+            assert.equal(state.moving.subscriber_payments, 1);
+            assert.ok((state.moving.subscriber_ledger_entries ?? 0) > 0, 'no charge counted');
+            assert.equal(
+                await harness.adapter.transactionRunner.run((tx) =>
+                    joins.hold(returning.id, 'no-such-subscriber', tx),
+                ),
+                null,
+            );
+        });
+
+        // @requirement SC-ADM-027
+        test('a join moves every row, writes what was decided, and records itself', async (t) => {
+            const customer = await aReturningCustomer(t, 'tenant-join-move');
+            if (!customer) return;
+            const { joins, subscribers, methods, earlier, returning, account, writeOf } = customer;
+
+            const recorded = await harness.adapter.transactionRunner.run(async (tx) => {
+                const state = await joins.hold(returning.id, earlier.id, tx);
+                assert.ok(state);
+                return { state, join: await joins.join(writeOf(state), tx) };
+            });
+
+            const after = await harness.adapter.transactionRunner.run((tx) =>
+                joins.hold(returning.id, earlier.id, tx),
+            );
+            assert.ok(after);
+            assert.equal(after.from.joinedIntoId, earlier.id);
+            assert.ok(
+                Object.values(after.moving).every((count) => count === 0),
+                `rows stayed at the subscriber joined: ${JSON.stringify(after.moving)}`,
+            );
+            assert.equal(
+                (await subscribers.findByTenantId('tenant-join-move-new'))?.id,
+                earlier.id,
+            );
+            assert.deepEqual(
+                (await subscribers.listTenantLinks(earlier.id)).map((link) => link.tenantId),
+                ['tenant-join-move-new', 'tenant-join-move-old'],
+            );
+            const active = await methods.findActive(earlier.id);
+            assert.equal(active?.paymentMethodRef, 'pm_tenant-join-move_new');
+            assert.equal(after.into.paymentMethodsInUse, 1);
+
+            const into = await subscribers.findById(earlier.id);
+            assert.deepEqual(
+                [into?.addressLine1, into?.city, into?.invoiceEmail, into?.business, into?.vatId],
+                ['Neue Straße 1', 'Berlin', 'billing@muster.example', true, 'DE123456789'],
+            );
+            const [correction] = await subscribers.listCorrections(earlier.id);
+            assert.deepEqual(
+                [correction?.corrected, correction?.reason, correction?.correctedBy],
+                [
+                    { vatId: 'DE123456789' },
+                    'Returning customer, confirmed by phone',
+                    'web:operator@example.com:admin',
+                ],
+            );
+            const [change] = await subscribers.listTaxOriginChanges(earlier.id);
+            assert.deepEqual(
+                [change?.changed, change?.reason],
+                [
+                    { country: 'DE', business: true, vatId: 'DE123456789' },
+                    'Returning customer, confirmed by phone',
+                ],
+            );
+            assert.equal(
+                (await subscribers.findCurrentVatIdCheck(earlier.id))?.vatId,
+                'DE123456789',
+                'the check made at sign-up does not count for the number taken over',
+            );
+            assert.equal(await subscribers.findCurrentVatIdCheck(returning.id), null);
+            const invoice = await account.invoices.findById(account.ids[0]!);
+            assert.equal(invoice?.subscriberId, earlier.id);
+            assert.equal(await account.payments.owedBy(account.ids[0]!), 0);
+
+            assert.deepEqual(
+                (await joins.listFor([returning.id])).map((join) => [
+                    join.fromSubscriberId,
+                    join.intoSubscriberId,
+                    join.reason,
+                    join.joinedAt.toISOString(),
+                ]),
+                [
+                    [
+                        returning.id,
+                        earlier.id,
+                        'Returning customer, confirmed by phone',
+                        '2026-11-03T09:00:00.000Z',
+                    ],
+                ],
+            );
+            assert.deepEqual(recorded.join.moved, recorded.state.moving);
+            assert.deepEqual(
+                (await joins.listFor([earlier.id])).map((join) => join.id),
+                [recorded.join.id],
+            );
+        });
+
+        // @requirement SC-ADM-027
+        test('a subscriber joined is given nothing afterwards', async (t) => {
+            const customer = await aReturningCustomer(t, 'tenant-join-after');
+            if (!customer) return;
+            const { joins, subscribers, earlier, returning, account, writeOf } = customer;
+            await harness.adapter.transactionRunner.run(async (tx) => {
+                const state = await joins.hold(returning.id, earlier.id, tx);
+                assert.ok(state);
+                await joins.join(writeOf(state), tx);
+            });
+
+            await assert.rejects(
+                account.ledger.recordCharges([account.charge(monthly(6))]),
+                refusedAsJoined,
+            );
+            await assert.rejects(
+                subscribers.recordVatIdCheck(
+                    returning.id,
+                    confirmedCheck('DE123456789', '2026-11-04T08:30:00.000Z'),
+                ),
+                refusedAsJoined,
+            );
+        });
+
+        // @requirement SC-ADM-027
+        test('a write that read the subscriber before a join waits for it, and is refused', async (t) => {
+            const customer = await aReturningCustomer(t, 'tenant-join-race');
+            if (!customer) return;
+            const { joins, earlier, returning, account, writeOf } = customer;
+            let late: Promise<unknown> | undefined;
+            let ended = false;
+
+            await harness.adapter.transactionRunner.run(async (tx) => {
+                const state = await joins.hold(returning.id, earlier.id, tx);
+                assert.ok(state);
+                // A charge run that read the tenant's subscriber before the join.
+                late = account.ledger.recordCharges([account.charge(monthly(5))]);
+                late.then(
+                    () => (ended = true),
+                    () => (ended = true),
+                );
+                await sleep(300);
+                assert.equal(ended, false, 'a charge for the subscriber being joined did not wait');
+                await joins.join(writeOf(state), tx);
+            });
+
+            await assert.rejects(late!, refusedAsJoined);
+            const after = await harness.adapter.transactionRunner.run((tx) =>
+                joins.hold(returning.id, earlier.id, tx),
+            );
+            assert.equal(after?.moving.subscriber_ledger_entries, 0, 'a charge stayed behind');
+        });
+
+        // @requirement SC-ADM-027
+        test('a join that would move other rows than it counted writes nothing', async (t) => {
+            const customer = await aReturningCustomer(t, 'tenant-join-count');
+            if (!customer) return;
+            const { joins, subscribers, earlier, returning, writeOf } = customer;
+
+            await assert.rejects(
+                harness.adapter.transactionRunner.run(async (tx) => {
+                    const state = await joins.hold(returning.id, earlier.id, tx);
+                    assert.ok(state);
+                    const write = writeOf(state);
+                    const counted = write.plan.moving.subscriber_vat_id_checks ?? 0;
+                    write.plan.moving.subscriber_vat_id_checks = counted + 1;
+                    await joins.join(write, tx);
+                }),
+                /moved 1 rows of subscriber_vat_id_checks, where it counted 2/,
+            );
+
+            assert.deepEqual(await joins.listFor([returning.id, earlier.id]), []);
+            assert.equal(
+                (await subscribers.findByTenantId('tenant-join-count-new'))?.id,
+                returning.id,
+            );
+            assert.equal(
+                (await subscribers.findCurrentVatIdCheck(returning.id))?.vatId,
+                'DE123456789',
+            );
+        });
+
+        // @requirement SC-ADM-027
+        test('every table that names a subscriber is guarded against a joined one', async (t) => {
+            const joins = harness.adapter.subscriberJoinRepository;
+            if (!joins || !CONTRACT_GAPS.subscriberJoins.present(harness)) {
+                missing(t, 'subscriberJoins');
+                return;
+            }
+            assert.equal(await joins.protectionProblem(), null);
         });
     });
 }
