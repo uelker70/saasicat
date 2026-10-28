@@ -184,6 +184,7 @@ describe("the operator joins a returning customer's subscriber into the one it h
 
 // @requirement SC-ADM-049 — A join is shown before it is made, and held to what was shown
 describe('a join is refused', () => {
+    // @requirement SC-ADM-020 — Six actions require a written reason, cancelling an invoice among them
     test('without a reason, before anything about the subscribers is asked', async () => {
         const admin = await anAdministration();
 

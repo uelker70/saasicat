@@ -100,6 +100,7 @@ describe('useSubscriberJoin', () => {
         assert.deepEqual(calls, [['preview', 's-new', 's-old']]);
     });
 
+    // @requirement SC-ADM-019 — Early deletion, cancelling an invoice and joining a subscriber need a second factor
     test('joins behind the second factor, announces where it went, and hands the result on', async () => {
         const { join, calls, notices, joined } = joinOf();
 

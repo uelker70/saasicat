@@ -16113,6 +16113,9 @@ _Tested by:_
     - useOpenItems
         - a credit is paid out for its subscriber behind the second factor, and the credits and
           totals read again
+- `packages/ui-vue/tests/use-subscriber-join.test.js`
+    - useSubscriberJoin
+        - joins behind the second factor, announces where it went, and hands the result on
 
 <!-- END proof -->
 
@@ -16158,6 +16161,9 @@ _Tested by:_
         - writes the cancellation and records it under the operator, the address not named
         - records each line it moved, from what to what, in the invoice’s currency
         - of an invoice there is not is refused as none, and nothing is recorded
+- `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
+    - a join is refused
+        - without a reason, before anything about the subscribers is asked
 - `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
     - the request what the operator entered makes
         - with nothing but a reason: the reason trimmed, no corrections, no address
