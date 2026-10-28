@@ -48,7 +48,9 @@ const QUASAR = quasarParts();
  * A `ResizeObserver` that reports nothing. jsdom has none, and Quasar's
  * layout, tabs and scroll areas observe their size from the moment they mount,
  * so a page that uses one throws before it renders; a test reads what a page
- * shows, not how large it is.
+ * shows, not how large it is. Installed on `globalThis` by the first mount
+ * and left there, so a later test of the same file or worker that checks how
+ * code behaves without a `ResizeObserver` removes it first.
  */
 class SilentResizeObserver implements ResizeObserver {
     observe(): void {
