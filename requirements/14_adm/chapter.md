@@ -2372,6 +2372,25 @@ _Tested by:_
           confirmation
         - with --apply it asks for the second factor and the confirmation, joins as the operator and
           records it
+- `packages/core/tests/a-join-decides-what-the-earlier-record-takes.test.js`
+    - the address the earlier record takes
+        - replaces it as a whole where the subscriber joined has one, a line it lacks included
+        - is kept where the subscriber joined has none
+    - a detail of the subscriber joined
+        - ${field}: replaces the earlier one where it has a value
+        - ${field}: keeps the earlier one where it has none
+        - ${field}: changes nothing where both are the same
+        - ${field}: is corrected as the same entity where it differs, kept where it has none
+        - the legal name is corrected where it differs: it is always given
+    - the check of the VAT number after a join
+        - is the one of the subscriber joined where the number moves with it
+        - is none where the number changes and no check comes with it
+        - is the later one where the number stays
+    - the payment methods of the earlier subscriber
+        - go out of use, all ${inUse} of them in use
+    - a join is refused, the first that holds in this order
+        - label
+        - none where the two can be joined, and a preview asks nothing of the request
 - `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
     - the operator joins a returning customer's subscriber into the one it had
         - the preview puts both side by side and says what moves, is replaced and corrected
@@ -2421,6 +2440,13 @@ _Source:_ #335 (decided 2026-10-25 and 2026-10-28) · #276
 
 _Tested by:_
 
+- `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - a join says what would let a subscriber joined be given a row
+        - names a table whose trigger does not fire, and none where every one does
+- `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - a join says what would let a subscriber joined be given a row
+        - names a table whose trigger does not fire, and none where every one does
+        - names a model the client was generated without, which it would leave rows in
 - `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
     - joining subscribers
         - refuses to start beside a database that would let a join leave rows behind

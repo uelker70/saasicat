@@ -988,6 +988,8 @@ _Tested by:_
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
+    - a join says what would let a subscriber joined be given a row
+        - names a table whose trigger does not fire, and none where every one does
 - `packages/adapter-drizzle/tests/the-query-map-describes-the-real-tables.test.js`
     - every table in the query map
         - there is more than one, so a broken scan cannot pass by finding none
@@ -1013,6 +1015,9 @@ _Tested by:_
         - partial unique draft indexes exist
         - one draft per plan lineage is enforced by the database
         - subscriptions require planVersionId
+    - a join says what would let a subscriber joined be given a row
+        - names a table whose trigger does not fire, and none where every one does
+        - names a model the client was generated without, which it would leave rows in
 - `packages/adapter-prisma/tests/prisma-adapters.test.js`
     - PrismaMfaAdapter
         - secret roundtrip incl. enabledAt handling
@@ -1197,6 +1202,8 @@ _Tested by:_
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
+    - a join says what would let a subscriber joined be given a row
+        - names a table whose trigger does not fire, and none where every one does
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
     - the database archive says whether it keeps what it holds
         - built from the reference schema alone, it names the triggers it lacks
@@ -1218,6 +1225,9 @@ _Tested by:_
         - partial unique draft indexes exist
         - one draft per plan lineage is enforced by the database
         - subscriptions require planVersionId
+    - a join says what would let a subscriber joined be given a row
+        - names a table whose trigger does not fire, and none where every one does
+        - names a model the client was generated without, which it would leave rows in
 - `packages/nest/tests/an-adapter-without-a-plan-catalogue-can-sell-bundles.test.js`
     - an adapter with bundles but no plan catalogue
         - boots with subscriptionBundles enabled
