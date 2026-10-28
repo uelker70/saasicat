@@ -470,17 +470,7 @@ _Tested by:_
           view alone
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
     - retiring a version in the plan cockpit
-        - is offered on the version no longer on sale, and on no other
-        - says on a version that it was retired, and for which replacement
-        - says how far the retirement has come, and marks a move overdue
-        - marks the subscriptions not told yet for a look
-        - says beside them why they wait, quieter than the count
-        - counts the subscriptions reminded beside the states, unmarked
-        - says so where the announcements could not be read
         - is not offered where the platform does not serve it
-        - shows the replacement, its price, the dates and whom it misses before anything is sent
-        - a blocker is said in words, and nothing can be announced
-        - announcing names the subscriptions shown, and says what was sent
 - `packages/ui-vue/tests/component/an-operator-retires-an-add-on-version.test.ts`
     - retiring an add-on version where the add-on is managed
         - is offered on the version no longer on sale
@@ -2254,6 +2244,9 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-reads-the-open-items.test.ts`
     - the open items’ days
         - are the days of ${timeZone ?? 'UTC, where the manifest names no zone'}: ${day}
+- `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
+    - retiring a version in the plan cockpit
+        - says it was announced on the installation’s day
 - `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
     - the subscriber's record shows its contracts
         - says when a contract was concluded and until when its minimum term runs as the

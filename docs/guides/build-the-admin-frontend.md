@@ -577,11 +577,12 @@ the installation's `timeZone` as `config/saas.yaml` sets it, and the pages read 
   `pilotEndsAt` back as that day's UTC midnight, which is what `new Date(endsAt)` makes of it. An
   end stored at your own zone's midnight shows as the day before east of Greenwich.
 
-Where the file names no zone, the days are UTC days. A moment shown with its time of day is the
-reader's, with the zone named. A page of your own asks for the same days with
-`useInstallationDays()` — `ofMoment`, `lastBefore`, `stored` and `today` — or the framework-free
-`dayOfMoment`, `lastDayBefore`, `storedDayOf` and `todayIn`; `formatDay` writes a calendar day
-(`YYYY-MM-DD`) and no longer reads one off an ISO moment.
+Where the file names no zone, the days are UTC days. The pages read the manifest through
+`manifestGuard.getManifest` (see the setup above); an app that passes none shows UTC days whatever
+the file names. A moment shown with its time of day is the reader's, with the zone named. A page of
+your own asks for the same days with `useInstallationDays()` — `ofMoment`, `lastBefore`, `stored`
+and `today` — or the framework-free `dayOfMoment`, `lastDayBefore`, `storedDayOf` and `todayIn`;
+`formatDay` writes a calendar day (`YYYY-MM-DD`) and no longer reads one off an ISO moment.
 
 ## Promo-Code Days
 

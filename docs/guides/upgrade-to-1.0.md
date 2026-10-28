@@ -2750,6 +2750,7 @@ The administration showed a moment as the UTC day its ISO text begins with on so
 browser's day on others, so an attempt sent at 00:30 in Berlin read as the day before, and two
 operators in two zones read two days (`SC-ADM-048`). It now reads every day in the installation's
 zone, which the manifest names as `timeZone` from `config/saas.yaml`; nothing is stored or migrated.
+The pages read it through `manifestGuard.getManifest`: an app that passes none shows UTC days.
 
 - **What a page shows changes** where a moment falls near midnight, and where an end is shown: a
   period, a trial or a minimum term that ends at midnight is shown with its last day, 30 November

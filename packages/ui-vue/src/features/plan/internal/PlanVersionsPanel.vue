@@ -215,6 +215,7 @@ import AdminSection from '../../../ui/page/AdminSection.vue';
 import RetirementProgressPills from '../../retirement/RetirementProgressPills.vue';
 import type { PlanVersionRow, VersionRetirementView } from '@saasicat/core';
 import { formatMessage } from '../../../client/i18n/format.js';
+import { useInstallationDays } from '../../../vue/use-installation-days.js';
 import { useSaMessages } from '../../../vue/use-super-admin-i18n.js';
 import { useVersionSaleText } from '../../../vue/use-version-sale-text.js';
 import type { EditabilityOf, StatusChipOf, StatusOf } from './plan-detail.types.js';
@@ -231,6 +232,10 @@ const props = defineProps<{
     statusChip: StatusChipOf;
     editabilityOf: EditabilityOf;
     formatMoney: (raw: string | number) => string;
+    /**
+     * The page's way of writing a day somebody picked, or a calendar day. A
+     * moment is turned into its day first (`SC-ADM-048`).
+     */
     formatDate: (iso: string | null | undefined) => string;
     /** Whether `version` is offered for retiring; absent where retiring is not served. */
     canRetire?: (version: PlanVersionRow) => boolean;
@@ -250,6 +255,7 @@ defineEmits<{
 }>();
 
 const msg = useSaMessages('planDetail');
+const days = useInstallationDays();
 const saleText = useVersionSaleText();
 
 const newDraftButtonLabel = computed(() =>
@@ -283,7 +289,7 @@ function retiredChip(record: VersionRetirementView): string {
 
 function retiredTitle(record: VersionRetirementView): string {
     return formatMessage(msg.value.versions.retiredTitle, {
-        date: props.formatDate(String(record.announcedAt)),
+        date: props.formatDate(days.ofMoment(String(record.announcedAt))),
         by: record.announcedBy,
     });
 }

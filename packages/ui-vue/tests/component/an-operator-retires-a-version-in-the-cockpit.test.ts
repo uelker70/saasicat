@@ -7,13 +7,12 @@
 // and handed to the plan detail — against stubbed resources: the test says
 // what the server answers and reads what the operator is shown.
 
-// @requirement SC-ADM-015 — The administration only offers what the application actually has
-
 import { afterEach, describe, expect, test } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 
 import PlanDetail from '../../src/features/plan/PlanDetail.vue';
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
+import { SUPER_ADMIN_MANIFEST_KEY } from '../../src/vue/super-admin-context.js';
 import { useVersionRetirement } from '../../src/vue/use-version-retirement.js';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -94,10 +93,17 @@ async function settle(): Promise<void> {
     for (let i = 0; i < 4; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+/** The cockpit, and the zone the shell's manifest names; no manifest without one. */
 function mountCockpit({
     capability = true,
     preview = PREVIEW,
     list = async (): Promise<unknown[]> => [],
+    timeZone,
+}: {
+    capability?: boolean;
+    preview?: typeof PREVIEW;
+    list?: () => Promise<unknown[]>;
+    timeZone?: string;
 } = {}) {
     const announced: unknown[][] = [];
     const Host = defineComponent({
@@ -127,7 +133,16 @@ function mountCockpit({
                 });
         },
     });
-    const wrapper = mountWithQuasar(Host as never);
+    const wrapper = mountWithQuasar(Host, {
+        global: {
+            provide: {
+                // SAFETY: the key is the symbol the shell provides its manifest
+                // under, typed as Vue's injection key rather than as a symbol.
+                [SUPER_ADMIN_MANIFEST_KEY as symbol]: () =>
+                    timeZone ? { capabilities: {}, timeZone } : null,
+            },
+        },
+    });
     mounted.push(wrapper);
     return { wrapper, announced };
 }
@@ -176,6 +191,37 @@ describe('retiring a version in the plan cockpit', () => {
         await settle();
 
         expect(wrapper.text()).toContain('Retired → STANDARD v2');
+    });
+
+    // @requirement SC-ADM-048 — Every day the administration shows is a day of the installation
+    test('says it was announced on the installation’s day', async () => {
+        // 00:30 on 2 November in Berlin, still 1 November in UTC.
+        const { wrapper } = mountCockpit({
+            timeZone: 'Europe/Berlin',
+            list: async () => [
+                {
+                    id: 'r-1',
+                    retired: { planVersionId: 'pv-1', planKey: 'STANDARD', version: 1 },
+                    replacement: { planVersionId: 'pv-2', planKey: 'STANDARD', version: 2 },
+                    announcedAt: '2026-11-01T23:30:00.000Z',
+                    announcedBy: 'web:operator@example.com:admin',
+                    progress: {
+                        moved: 0,
+                        waiting: 2,
+                        overdue: 0,
+                        ended: 0,
+                        notTold: 0,
+                        reminded: 0,
+                    },
+                },
+            ],
+        });
+        await settle();
+
+        const chip = wrapper
+            .findAll('[title]')
+            .find((each) => each.text() === 'Retired → STANDARD v2');
+        expect(chip?.attributes('title')).toContain('11/02/2026');
     });
 
     // @requirement SC-SUB-033 — The operator sees how far each retirement has come
@@ -324,6 +370,7 @@ describe('retiring a version in the plan cockpit', () => {
         expect(wrapper.text()).toContain('The retirements could not be read');
     });
 
+    // @requirement SC-ADM-015 — The administration only offers what the application actually has
     test('is not offered where the platform does not serve it', () => {
         const { wrapper } = mountCockpit({ capability: false });
 
