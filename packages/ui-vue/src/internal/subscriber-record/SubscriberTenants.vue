@@ -40,6 +40,7 @@ import { formatDay, formatMessage } from '../../client/i18n/format.js';
 import AdminStatusPill from '../../ui/data/AdminStatusPill.vue';
 import AdminBanner from '../../ui/feedback/AdminBanner.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // Every tenant the subscriber is and was linked to, the live one first. A
@@ -55,10 +56,11 @@ const props = defineProps<{
 const msg = useSaMessages('subscribers');
 const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
+const days = useInstallationDays();
 
 const shown = computed(() => {
     const m = msg.value.record.tenants;
-    const day = (iso: string): string => formatDay(iso.slice(0, 10), intlLocale.value);
+    const day = (iso: string): string => formatDay(days.ofMoment(iso), intlLocale.value);
     return props.tenants.map((tenant) => {
         const name = tenant.name ?? tenant.slug ?? tenant.tenantId;
         const live = tenant.unlinkedAt === null;

@@ -261,12 +261,14 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
+import { addDaysToDay } from '@saasicat/core';
 import MfaPromptDialog from '../../ui/overlay/MfaPromptDialog.vue';
 import AdminDialog from '../../ui/overlay/AdminDialog.vue';
 import AdminBanner from '../../ui/feedback/AdminBanner.vue';
 import { IDENTITY_NEUTRAL } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { looksLikeEmail, trimChar } from '../../client/text-shape.js';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { PilotCopy, PilotCreatePayload, PilotCreateResult } from './types.js';
 
@@ -310,6 +312,7 @@ const emit = defineEmits<{
 
 const msg = useSaMessages('pilots');
 const common = useSaMessages('common');
+const days = useInstallationDays();
 
 const presetEnds = computed<ReadonlyArray<{ label: string; days: number }>>(() => [
     { label: msg.value.form.preset30Days, days: 30 },
@@ -394,10 +397,8 @@ const isValid = computed(
         !!form.pilot.plan,
 );
 
-function setEndsAtDays(days: number): void {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    form.pilot.endsAt = d.toISOString().slice(0, 10);
+function setEndsAtDays(count: number): void {
+    form.pilot.endsAt = addDaysToDay(days.today(), count);
 }
 
 watch(

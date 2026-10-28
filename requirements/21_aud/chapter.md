@@ -507,6 +507,8 @@ _Tested by:_
         - brings the contract its address names into view once, however often the record and its
           contracts are read again
         - brings the contract into view where it shows only on a later read
+        - says when a contract was concluded and until when its minimum term runs as the
+          installation’s days
         - opens a contract into what it froze: its lines with where each came from, its invoices and
           its ids
         - leads to the catalogue, and back to the list, where the shell put those pages

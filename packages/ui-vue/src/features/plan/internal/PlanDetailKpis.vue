@@ -34,7 +34,8 @@ import { computed } from 'vue';
 import AdminKpi from '../../../ui/data/AdminKpi.vue';
 import AdminStatistics from '../../../ui/data/AdminStatistics.vue';
 import type { PlanVersionRow } from '@saasicat/core';
-import { formatDay, formatMessage } from '../../../client/i18n/format.js';
+import { formatMessage } from '../../../client/i18n/format.js';
+import { formatStoredDay } from '../../../client/installation-day.js';
 import { useSaMessages, useSuperAdminI18n } from '../../../vue/use-super-admin-i18n.js';
 
 const props = defineProps<{
@@ -54,7 +55,7 @@ const activeVersionSub = computed(() => {
     const validFrom = props.onSaleVersion?.validFrom;
     return validFrom
         ? formatMessage(msg.value.kpis.activeSince, {
-              date: formatDay(validFrom, intlLocale.value),
+              date: formatStoredDay(validFrom, intlLocale.value),
           })
         : msg.value.kpis.noPublishedVersion;
 });

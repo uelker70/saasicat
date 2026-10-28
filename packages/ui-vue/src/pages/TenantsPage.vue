@@ -183,6 +183,8 @@ import AdminHero from '../ui/page/AdminHero.vue';
 import AdminSection from '../ui/page/AdminSection.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
 import type { AdminManifest, TenantDto, TenantListFilter } from '@saasicat/core';
+import { formatShortDay } from '../client/i18n/format.js';
+import { useInstallationDays } from '../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { usePlatformTenantActions } from '../vue/use-platform-tenant-actions.js';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
@@ -190,7 +192,7 @@ import TenantActionConfirmDialog from '../features/tenant/TenantActionConfirmDia
 import AdminStatusPill from '../ui/data/AdminStatusPill.vue';
 import type { PillTone } from '../vue/status.js';
 import { identityChipStyle } from '../client/identity-accents.js';
-import { formatDate, planAccent, tenantInitials } from '../internal/tenants/format.js';
+import { planAccent, tenantInitials } from '../internal/tenants/format.js';
 import { heldBackPill, type HeldBackPill } from '../internal/tenants/held-back.js';
 import { useSubscriberAttention } from '../vue/use-subscriber-attention.js';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
@@ -332,6 +334,7 @@ const subscriberMsg = useSaMessages('subscribers');
 const common = useSaMessages('common');
 const notify = useSuperAdminNotify();
 const { intlLocale } = useSuperAdminI18n();
+const days = useInstallationDays();
 
 const statusSelectOptions = computed(() =>
     resolvedStatusOptions.value.map((o) => ({ label: o.label, value: o.value })),
@@ -533,7 +536,8 @@ function usageStr(row: TenantRow, key: string): string | undefined {
 }
 
 function formatCreatedAt(row: TenantRow): string {
-    return formatDate(usageStr(row, 'createdAt'), intlLocale.value);
+    const createdAt = usageStr(row, 'createdAt');
+    return createdAt ? formatShortDay(days.ofMoment(createdAt), intlLocale.value) : '—';
 }
 
 /**

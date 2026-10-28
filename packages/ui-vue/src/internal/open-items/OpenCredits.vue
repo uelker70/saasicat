@@ -69,6 +69,7 @@ import AdminEmptyState from '../../ui/feedback/AdminEmptyState.vue';
 import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
 import type { PagedList } from '../../vue/use-paged-list.js';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import SubscriberPayoutDialog from '../subscriber-record/SubscriberPayoutDialog.vue';
 
@@ -89,6 +90,7 @@ const msg = useSaMessages('openItems');
 const subscriberTexts = useSaMessages('subscribers');
 const texts = computed(() => subscriberTexts.value.credits);
 const { locale } = useSuperAdminI18n();
+const days = useInstallationDays();
 
 const chosen = ref<AdminOpenCredit | null>(null);
 const payoutOpen = ref(false);
@@ -118,7 +120,7 @@ const rows = computed(() =>
                 customerNumber: credit.subscriber.customerNumber,
             }),
             origin: msg.value.origin[credit.origin],
-            created: credit.createdAt.slice(0, 10),
+            created: days.ofMoment(credit.createdAt),
             amount: money(credit.amount),
             open: money(credit.open),
             credit,

@@ -73,7 +73,7 @@ export const pilotsResource = defineResource('pilots', {
             { method: 'PATCH', body: payload, headers: mfaHeader(mfaCode) },
         ),
 
-    /** Moves the end date. `until` is a date string, not a duration. */
+    /** Moves the end date. `until` is the day picked as the new end, `YYYY-MM-DD`, not a duration. */
     extend: async (http, ctx, slug: string, until: string, mfaCode?: string): Promise<void> => {
         await requestJson(http, `${pilotsUrl(ctx.apiBase)}/${encodeURIComponent(slug)}/extend`, {
             method: 'POST',

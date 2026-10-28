@@ -43,7 +43,8 @@
                         <TenantMasterData
                             :data="data"
                             :labels="labels"
-                            :format-date="formatDateResolved"
+                            :trial-end="days.lastBefore(data.subscription?.trialEndsAt)"
+                            :pilot-end="days.stored(data.subscription?.pilotEndsAt)"
                             :yes="common.yes"
                             :no="common.no"
                         >
@@ -128,6 +129,7 @@ import TenantUsage from '../internal/tenant-detail/TenantUsage.vue';
 import TenantUsers from '../internal/tenant-detail/TenantUsers.vue';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
 import TenantActionConfirmDialog from '../features/tenant/TenantActionConfirmDialog.vue';
+import { useInstallationDays } from '../vue/use-installation-days.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
 import { useTenantSubscriber } from '../vue/use-tenant-subscriber.js';
@@ -189,6 +191,7 @@ const props = defineProps<{
 
 const msg = useSaMessages('tenants');
 const common = useSaMessages('common');
+const days = useInstallationDays();
 
 // Every label stays overridable via props — only the German literals moved
 // into the catalog.
@@ -251,15 +254,6 @@ const subscriber = useTenantSubscriber(tenantSlug, servedBy, tenants);
 /** Where the subscriber's record answers — beside this page, under the same base. */
 function subscriberRecordRoute(subscriberId: string): RouteLocationRaw {
     return `/admin/subscribers/${encodeURIComponent(subscriberId)}`;
-}
-
-function defaultFormatDate(value: string | null | undefined): string {
-    if (!value) return '—';
-    return String(value).slice(0, 10);
-}
-
-function formatDateResolved(value: string | null | undefined): string {
-    return defaultFormatDate(value);
 }
 
 // ── Manifest-driven Action Flow (Suspend/Reactivate, Default) ──────────
@@ -393,7 +387,7 @@ const defaultUserColumns = computed<QTableColumn[]>(() => [
         label: msg.value.detail.userLastLogin,
         field: (r: unknown) => {
             const v = (r as Record<string, unknown>).lastLoginAt;
-            return v ? String(v).slice(0, 10) : '—';
+            return days.ofMoment(typeof v === 'string' ? v : null);
         },
         align: 'left',
     },

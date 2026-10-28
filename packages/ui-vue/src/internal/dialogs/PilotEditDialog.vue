@@ -138,11 +138,13 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
+import { addDaysToDay } from '@saasicat/core';
 import MfaPromptDialog from '../../ui/overlay/MfaPromptDialog.vue';
 import AdminDialog from '../../ui/overlay/AdminDialog.vue';
 import AdminBanner from '../../ui/feedback/AdminBanner.vue';
 import { IDENTITY_NEUTRAL } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { PilotRow } from '../../pages/PilotsPage.vue';
 import type { PilotCopy, PilotEditPayload, PilotEditResult } from './types.js';
@@ -179,6 +181,7 @@ const emit = defineEmits<{
 
 const msg = useSaMessages('pilots');
 const common = useSaMessages('common');
+const days = useInstallationDays();
 
 const presetEnds = computed<ReadonlyArray<{ label: string; days: number }>>(() => [
     { label: msg.value.form.preset30Days, days: 30 },
@@ -224,7 +227,7 @@ interface FormState {
 function fromRow(row: PilotRow | null): FormState {
     return {
         plan: row?.plan ?? '',
-        endsAt: row?.pilotEndsAt ? row.pilotEndsAt.slice(0, 10) : '',
+        endsAt: row?.pilotEndsAt ? days.stored(row.pilotEndsAt) : '',
         note: row?.pilotNote ?? '',
     };
 }
@@ -237,10 +240,8 @@ const showMfa = ref(false);
 const mfaError = ref('');
 const mfaDescription = ref('');
 
-function setEndsAtDays(days: number): void {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    form.endsAt = d.toISOString().slice(0, 10);
+function setEndsAtDays(count: number): void {
+    form.endsAt = addDaysToDay(days.today(), count);
 }
 
 watch(

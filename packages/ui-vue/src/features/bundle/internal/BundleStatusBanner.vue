@@ -59,9 +59,11 @@ import { computed } from 'vue';
 import type { BundleVersionRetirementView, BundleVersionRow } from '@saasicat/core';
 
 import { bundleVersionStatus } from './bundle-version-status';
-import { formatDay, formatMessage } from '../../../client/i18n/format.js';
+import { formatMessage } from '../../../client/i18n/format.js';
+import { formatMomentDay } from '../../../client/installation-day.js';
 import { describeVersionSale, versionSale } from '../../../client/version-sale.js';
 import { injectBundleVersionRetirement } from '../../../vue/use-bundle-version-retirement.js';
+import { useInstallationDays } from '../../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../../vue/use-super-admin-i18n.js';
 import RetirementProgressPills from '../../retirement/RetirementProgressPills.vue';
 
@@ -83,6 +85,7 @@ defineEmits<{
 
 const msg = useSaMessages('bundles');
 const common = useSaMessages('common');
+const days = useInstallationDays();
 const { intlLocale } = useSuperAdminI18n();
 
 const status = computed(() => bundleVersionStatus(props.version, props.now));
@@ -96,7 +99,7 @@ const retirementsUnreadable = computed(() => {
 
 function retiredTitle(record: BundleVersionRetirementView): string {
     return formatMessage(msg.value.statusBanner.retiredTitle, {
-        date: formatDay(String(record.announcedAt), intlLocale.value),
+        date: formatMomentDay(String(record.announcedAt), days.timeZone, intlLocale.value),
         by: record.announcedBy,
     });
 }

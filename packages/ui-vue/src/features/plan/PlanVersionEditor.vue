@@ -99,8 +99,11 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import { CALENDAR_DAY_PATTERN, addDaysToDay } from '@saasicat/core';
 import { formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
+import { storedDayOf } from '../../client/installation-day.js';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import PlanComponentPool from './internal/PlanComponentPool.vue';
 import PlanCatalogPreview from './internal/PlanCatalogPreview.vue';
@@ -182,6 +185,7 @@ const emit = defineEmits<{
 }>();
 
 const msg = useSaMessages('planEditor');
+const days = useInstallationDays();
 const common = useSaMessages('common');
 const { locale, intlLocale } = useSuperAdminI18n();
 
@@ -207,14 +211,14 @@ onMounted(() => {
     activeTab.value = 'features';
     // Always prefill `validFrom`: if missing (e.g. legacy data without a start date)
     // → default start date; if before the predecessor → first permitted day.
-    if (!form.validFrom || form.validFrom.slice(0, 10) <= prevValidFromDay.value) {
+    if (!form.validFrom || storedDayOf(form.validFrom) <= prevValidFromDay.value) {
         form.validFrom = defaultValidFrom.value;
     }
 });
 
 // `validFrom` day of the predecessor version (YYYY-MM-DD) or '' if none.
 const prevValidFromDay = computed(() =>
-    props.predecessorVersion?.validFrom ? props.predecessorVersion.validFrom.slice(0, 10) : '',
+    props.predecessorVersion?.validFrom ? storedDayOf(props.predecessorVersion.validFrom) : '',
 );
 
 function cloneForm(f: DraftForm): DraftForm {
@@ -449,8 +453,8 @@ const yearlySavingsLabel = computed(() => {
 const validFromError = computed<string | null>(() => {
     const prev = props.predecessorVersion;
     if (!prev?.validFrom || !form.validFrom) return null;
-    const draftDay = form.validFrom.slice(0, 10);
-    const prevDay = prev.validFrom.slice(0, 10);
+    const draftDay = storedDayOf(form.validFrom);
+    const prevDay = storedDayOf(prev.validFrom);
     if (draftDay <= prevDay) {
         return formatMessage(msg.value.editor.validFromError, {
             draftDay,
@@ -467,18 +471,15 @@ const validFromError = computed<string | null>(() => {
 const minValidFrom = computed<string | undefined>(() => {
     const prev = props.predecessorVersion;
     if (!prev?.validFrom) return undefined;
-    const d = new Date(prev.validFrom.slice(0, 10) + 'T00:00:00');
-    if (Number.isNaN(d.getTime())) return undefined;
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 10);
+    const day = storedDayOf(prev.validFrom);
+    return CALENDAR_DAY_PATTERN.test(day) ? addDaysToDay(day, 1) : undefined;
 });
 
 // Default start date when `validFrom` is missing or cleared: first
-// permitted day (successor) or today (initial version). This keeps validFrom
-// from ever being NULL — no new legacy-data gap (an invisible plan in the catalog) arises.
-const defaultValidFrom = computed<string>(
-    () => minValidFrom.value ?? new Date().toISOString().slice(0, 10),
-);
+// permitted day (successor) or today in the installation (initial version).
+// This keeps validFrom from ever being NULL — no new legacy-data gap (an
+// invisible plan in the catalog) arises.
+const defaultValidFrom = computed<string>(() => minValidFrom.value ?? days.today());
 
 // Clearing the date field falls back to the default instead of emitting NULL.
 function onValidFromInput(value: string | null): void {
@@ -496,10 +497,8 @@ const canSave = computed(() => {
 const predecessorValidUntilHint = computed(() => {
     const fallback = msg.value.editor.validUntilHintFallback;
     if (!form.validFrom) return fallback;
-    const d = new Date(form.validFrom);
-    if (Number.isNaN(d.getTime())) return fallback;
-    d.setDate(d.getDate() - 1);
-    return d.toISOString().slice(0, 10);
+    const day = storedDayOf(form.validFrom);
+    return CALENDAR_DAY_PATTERN.test(day) ? addDaysToDay(day, -1) : fallback;
 });
 
 const checklist = computed<ChecklistItem[]>(() => {

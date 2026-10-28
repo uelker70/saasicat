@@ -47,8 +47,12 @@
                             {{
                                 formatMessage(texts.dateRow, {
                                     count: date.count,
-                                    date: formatDate(date.effectiveAt),
-                                    lastDay: formatDate(date.lastDayToCancel),
+                                    date: formatMomentDay(
+                                        date.effectiveAt,
+                                        days.timeZone,
+                                        intlLocale,
+                                    ),
+                                    lastDay: formatDay(date.lastDayToCancel, intlLocale),
                                 })
                             }}
                         </li>
@@ -113,9 +117,11 @@ import type { RetirementBlocker, VersionChange } from '@saasicat/core';
 
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { formatDay, formatMessage } from '../../client/i18n/format.js';
+import { formatMomentDay } from '../../client/installation-day.js';
 import { blockerText, retirementDates } from '../../client/version-retirement.js';
 import AdminBanner from '../../ui/feedback/AdminBanner.vue';
 import AdminDialog from '../../ui/overlay/AdminDialog.vue';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 interface Readable<T> {
@@ -181,13 +187,10 @@ const props = defineProps<{
 }>();
 
 const common = useSaMessages('common');
+const days = useInstallationDays();
 const { locale, intlLocale } = useSuperAdminI18n();
 
 const preview = computed(() => props.flow.preview.value);
-
-function formatDate(iso: string): string {
-    return formatDay(iso, intlLocale.value);
-}
 
 const priceRows = computed(() => {
     const shown = preview.value;

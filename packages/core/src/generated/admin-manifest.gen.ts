@@ -41,6 +41,10 @@ export interface AdminManifest {
         appVersion: string;
         manifestHash: string;
     };
+    /**
+     * The installation's time zone, an IANA name, as config/saas.yaml names it: every moment the administration shows as a day is the day it falls on there, and so is today. Absent where the file names none; the administration then reads days in UTC.
+     */
+    timeZone?: string;
     planCatalogSnapshot: {
         /**
          * Where the plans and features were read from: 'database' for the ones an operator publishes, 'given' for a catalogue passed in at start

@@ -359,6 +359,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import {
+    addDaysToDay,
     promoStatus,
     type CreatePromotionData,
     type PromotionBillingCycle,
@@ -369,6 +370,7 @@ import {
 } from '@saasicat/core';
 import AdminAccordion from '../../ui/page/AdminAccordion.vue';
 import { formatMessage } from '../../client/i18n/format.js';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // Promotions tab of the Marketing Catalog. Standalone child
@@ -390,6 +392,9 @@ const props = defineProps<{
 
 const msg = useSaMessages('marketing');
 const common = useSaMessages('common');
+const days = useInstallationDays();
+/** How long a new promotion runs unless the operator says otherwise. */
+const PROMOTION_DEFAULT_DAYS = 30;
 const { intlLocale } = useSuperAdminI18n();
 
 const busy = computed(() => props.busy ?? false);
@@ -507,9 +512,11 @@ function pct(d: Date | string): number {
 }
 const todayX = computed(() => pct(today));
 function tickLabel(d: Date): string {
-    const month = new Date(d.getFullYear(), d.getMonth(), 1).toLocaleDateString(intlLocale.value, {
-        month: 'short',
-    });
+    // The month of the tick as the axis built it, written from its UTC midnight in UTC.
+    const month = new Date(Date.UTC(d.getFullYear(), d.getMonth(), 1)).toLocaleDateString(
+        intlLocale.value,
+        { month: 'short', timeZone: 'UTC' },
+    );
     return `${month} ${d.getFullYear()}`;
 }
 const ticks = computed(() => {
@@ -617,8 +624,8 @@ async function onAdd(): Promise<void> {
         value: 10,
         appliesTo: [],
         billingCycle: 'both',
-        validFrom: new Date().toISOString().slice(0, 10),
-        validTo: new Date(today.getTime() + 30 * 86400000).toISOString().slice(0, 10),
+        validFrom: days.today(),
+        validTo: addDaysToDay(days.today(), PROMOTION_DEFAULT_DAYS),
         priority: 5,
         color: IDENTITY_ACCENT_VALUES[0],
         i18n: { [DEFAULT_LOCALE]: { badge: 'Aktion' } },

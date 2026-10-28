@@ -46,6 +46,7 @@ import { formatMessage } from '../../client/i18n/format.js';
 import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import AdminTable from '../../ui/data/AdminTable.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import SubscriberPayoutDialog from './SubscriberPayoutDialog.vue';
 
@@ -61,7 +62,7 @@ const props = defineProps<{
     pending: boolean;
     error: unknown | null;
     retry: () => void | Promise<void>;
-    /** The page's own date format, so one page shows one. */
+    /** The page's own way of writing a calendar day, so one page shows one. */
     formatDate: (value: string | null | undefined) => string;
     /** Whether the platform takes a payout. */
     canPayOut: boolean;
@@ -70,6 +71,7 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('subscribers');
+const days = useInstallationDays();
 const { locale } = useSuperAdminI18n();
 
 const payoutOpen = ref(false);
@@ -116,7 +118,7 @@ const rows = computed(() =>
         const money = (amount: number) => formatCurrency(amount, locale.value, credit.currency);
         return {
             id: credit.id,
-            created: props.formatDate(credit.createdAt),
+            created: props.formatDate(days.ofMoment(credit.createdAt)),
             origin: originOf(credit),
             amount: money(credit.amount),
             paidOut: money((toCents(credit.amount) - toCents(credit.open)) / 100),

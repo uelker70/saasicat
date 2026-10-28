@@ -51,6 +51,8 @@ import AdminBody from '../ui/page/AdminBody.vue';
 import AdminHero from '../ui/page/AdminHero.vue';
 import AdminSection from '../ui/page/AdminSection.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
+import { formatShortDay } from '../client/i18n/format.js';
+import { useInstallationDays } from '../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
 // Platform standard page: subscriptions (minimal). It reads the platform's
@@ -98,6 +100,7 @@ const msg = useSaMessages('tenants');
 const subscriberMsg = useSaMessages('subscribers');
 const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
+const days = useInstallationDays();
 
 const rows = ref<SubscriptionRow[]>([]);
 const loading = ref(false);
@@ -173,17 +176,9 @@ async function reload() {
 
 onMounted(reload);
 
+/** The last day a period ending at `iso` covers, in the short form the list writes. */
 function formatDate(iso: string | null | undefined): string | null {
-    if (!iso) return null;
-    try {
-        return new Date(iso).toLocaleDateString(intlLocale.value, {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-        });
-    } catch {
-        return String(iso);
-    }
+    return iso ? formatShortDay(days.lastBefore(iso), intlLocale.value) : null;
 }
 </script>
 

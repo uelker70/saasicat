@@ -71,6 +71,8 @@ export interface MountedRecordOptions {
     attach?: boolean;
     /** Where the shell put each standard page; the default routes unless given. */
     standardPageRoute?: StandardPageRoute;
+    /** The installation's zone, as the manifest names it; none where left out. */
+    timeZone?: string;
 }
 
 /** The record page under `/admin/subscribers/:id`, its manifest and notify port provided. */
@@ -83,6 +85,7 @@ export async function mountRecord({
     notices = [],
     attach = false,
     standardPageRoute = standardPageRouteOf(undefined),
+    timeZone,
 }: MountedRecordOptions = {}) {
     const router = createRouter({
         history: createMemoryHistory(),
@@ -96,6 +99,7 @@ export async function mountRecord({
     const manifest = {
         capabilities: { 'subscribers.read': true, ...capabilities },
         navigation: { standardPages, projectPages: [] },
+        timeZone,
     };
     // SAFETY: the two keys are the symbols the page injects its manifest and its
     // notify port under, typed as Vue's injection keys rather than as symbols.

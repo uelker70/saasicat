@@ -140,6 +140,7 @@ import type {
 } from '@saasicat/core';
 
 import { formatMessage } from '../../client/i18n/format.js';
+import { storedDayOf } from '../../client/installation-day.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 // BundleVersionPublishDialog — confirm modal for publishing a draft version.
@@ -225,8 +226,8 @@ watch(
         previewLoaded.value = false;
         forceRegressive.value = false;
         allowZeroPrice.value = false;
-        validFromInput.value = props.draft.validFrom ? props.draft.validFrom.slice(0, 10) : '';
-        validUntilInput.value = props.draft.validUntil ? props.draft.validUntil.slice(0, 10) : '';
+        validFromInput.value = props.draft.validFrom ? storedDayOf(props.draft.validFrom) : '';
+        validUntilInput.value = props.draft.validUntil ? storedDayOf(props.draft.validUntil) : '';
         try {
             const diff = props.previous
                 ? props.classifyDiff(props.previous, props.draft)

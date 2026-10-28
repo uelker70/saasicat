@@ -26,13 +26,3 @@ export function planAccent(
     if (!planId) return IDENTITY_NEUTRAL;
     return identityAccentFor(planId, accents);
 }
-
-/** `locale` is a BCP-47 tag — pages pass `intlLocale.value` of the active UI locale. */
-export function formatDate(iso: string | null | undefined, locale: string): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString(locale, {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-    });
-}

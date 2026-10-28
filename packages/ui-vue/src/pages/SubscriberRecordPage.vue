@@ -232,10 +232,13 @@ const heading = computed(() => {
     });
 });
 
-/** A moment as the day it fell on, the way the tenant's page shows them. */
+/**
+ * A calendar day as the record writes one, `YYYY-MM-DD`, the way the tenant's
+ * page writes it; which day a moment is, each section asks the installation's
+ * days for.
+ */
 function formatDate(value: string | null | undefined): string {
-    if (!value) return '—';
-    return String(value).slice(0, 10);
+    return value || '—';
 }
 
 /** The invoices section, which a contract's invoices lead to. */

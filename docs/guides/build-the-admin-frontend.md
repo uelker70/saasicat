@@ -560,6 +560,30 @@ The German object is the reference structure; the compiler rejects a translation
 with missing or extra keys. For a single app, `additionalLocales` is the shorter
 road.
 
+## Days
+
+Every day the administration shows is a day of the installation (`SC-ADM-048`). The manifest names
+the installation's `timeZone` as `config/saas.yaml` sets it, and the pages read it from there:
+
+- **A moment something happened** — a collection attempt sent, a credit opened, a contract
+  concluded, a login — is shown as the day it falls on in that zone. An attempt sent at 00:30 on
+  2 November in Berlin is on 2 November for an operator in Berlin and one in New York alike.
+- **A moment something ends at** — a period, a trial, a minimum term — is shown as the last day it
+  still covers: a period that ends at midnight before 1 December ends with 30 November.
+- **A day somebody picked** in a date field and stored as that day's UTC midnight — a version's
+  validity, a pilot's end — is that day in every zone, and "today" in a form is the installation's
+  today. The platform stores a version's days itself; a pilot's end is stored by your server,
+  because the pilot routes are yours: they receive the end as a calendar day (`YYYY-MM-DD`) and hand
+  `pilotEndsAt` back as that day's UTC midnight, which is what `new Date(endsAt)` makes of it. An
+  end stored at your own zone's midnight shows as the day before east of Greenwich.
+
+Where the file names no zone, the days are UTC days. The pages read the manifest through
+`manifestGuard.getManifest` (see the setup above); an app that passes none shows UTC days whatever
+the file names. A moment shown with its time of day is the reader's, with the zone named. A page of
+your own asks for the same days with `useInstallationDays()` — `ofMoment`, `lastBefore`, `stored`
+and `today` — or the framework-free `dayOfMoment`, `lastDayBefore`, `storedDayOf` and `todayIn`;
+`formatDay` writes a calendar day (`YYYY-MM-DD`) and no longer reads one off an ISO moment.
+
 ## Promo-Code Days
 
 A promo code's first and last day reach the browser as instants: your server turned the day an
@@ -576,7 +600,9 @@ createSuperAdminApp({
 ```
 
 Name the zone your server converts days in. Leave it out, and the days are read in UTC — the zone the
-platform's own promo-code routes store a day at midnight of — whatever zone the browser is in. A
+platform's own promo-code routes store a day at midnight of — whatever zone the browser is in. This
+is the zone a promo day is stored in, not the installation's day of the section above, and the two
+need not be the same. A
 redemption's moment on the detail page is shown with the zone it is read in. A name the browser
 cannot read stops `createSuperAdminApp` at start.
 

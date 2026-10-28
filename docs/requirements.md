@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 47      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 48      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 27      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 670 entries: 🟢 574 stand today, 🟡 48 decided but not yet delivered, ⚪ 0 drafts,
+Of 671 entries: 🟢 575 stand today, 🟡 48 decided but not yet delivered, ⚪ 0 drafts,
 🔵 43 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -234,7 +234,7 @@ Of 670 entries: 🟢 574 stand today, 🟡 48 decided but not yet delivered, ⚪
 [SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 670 requirements. Do not edit by hand:
+Generated from `requirements/` — 671 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -2403,7 +2403,7 @@ _Tested by:_
     - the words for it
         - names the day where the state has one
         - says it without a day where there is none
-        - formats the UTC day, so a day stored at midnight does not slip back
+        - writes a day picked and stored at its UTC midnight as that day, so it does not slip back
 
 <!-- END proof -->
 
@@ -15752,17 +15752,7 @@ _Tested by:_
           view alone
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
     - retiring a version in the plan cockpit
-        - is offered on the version no longer on sale, and on no other
-        - says on a version that it was retired, and for which replacement
-        - says how far the retirement has come, and marks a move overdue
-        - marks the subscriptions not told yet for a look
-        - says beside them why they wait, quieter than the count
-        - counts the subscriptions reminded beside the states, unmarked
-        - says so where the announcements could not be read
         - is not offered where the platform does not serve it
-        - shows the replacement, its price, the dates and whom it misses before anything is sent
-        - a blocker is said in words, and nothing can be announced
-        - announcing names the subscriptions shown, and says what was sent
 - `packages/ui-vue/tests/component/an-operator-retires-an-add-on-version.test.ts`
     - retiring an add-on version where the add-on is managed
         - is offered on the version no longer on sale
@@ -15807,6 +15797,8 @@ _Tested by:_
         - brings the contract its address names into view once, however often the record and its
           contracts are read again
         - brings the contract into view where it shows only on a later read
+        - says when a contract was concluded and until when its minimum term runs as the
+          installation’s days
         - opens a contract into what it froze: its lines with where each came from, its invoices and
           its ids
         - leads to the catalogue, and back to the list, where the shell put those pages
@@ -16918,6 +16910,8 @@ _Tested by:_
         - brings the contract its address names into view once, however often the record and its
           contracts are read again
         - brings the contract into view where it shows only on a later read
+        - says when a contract was concluded and until when its minimum term runs as the
+          installation’s days
         - opens a contract into what it froze: its lines with where each came from, its invoices and
           its ids
         - leads to the catalogue, and back to the list, where the shell put those pages
@@ -17216,6 +17210,8 @@ _Tested by:_
         - say so where nothing is open
         - list each open credit with its origin, and offer its payout only where the platform takes
           one
+    - the open items’ days
+        - are the days of ${timeZone ?? 'UTC, where the manifest names no zone'}: ${day}
     - a credit paid out from the open items
         - is recorded for its subscriber behind the second factor, and the credits and totals are
           read again
@@ -17491,6 +17487,68 @@ _Tested by:_
           came
         - asks for no month and no moment where the inputs are empty
         - that is refused throws the refusal and saves nothing
+
+<!-- END proof -->
+
+### SC-ADM-048 — Every day the administration shows is a day of the installation
+
+🟢 💰 Every moment the administration shows as a day is the day it falls on in the installation's time
+zone, which `config/saas.yaml` names and the administration reads from its manifest: an attempt sent
+at 00:30 on 2 November in Berlin is on 2 November for an operator in Berlin and one in New York
+alike, beside the days overdue the platform counts in that zone. A moment something ends at — a
+period, a trial, a minimum term — is shown as the last day it still covers there, as a contract's
+last day is (`SC-ADM-046`). A day somebody picked in a date field and stored as that day's UTC
+midnight — a version's validity by the platform, a pilot's end by the application's pilot routes —
+is shown as that day in every zone, and today in a form is the installation's today. Where the file
+names no zone, the days are UTC days. A moment shown with its time of day is the reader's, with the
+zone named; and a promo code's days are read in the zone the application names for them
+(`SC-PROMO-031`), which may be another.
+
+_Source:_ #335 (decided 2026-10-27 and 2026-10-28) · #470
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/the-manifest-names-the-installations-zone.test.js`
+    - names the zone config/saas.yaml names, as the schema takes it
+    - names none where the file names none, and the schema takes no empty one
+- `packages/ui-vue/tests/a-moment-shown-as-a-day-is-the-installations-day.test.js`
+    - no source of the package turns a moment into a day without saying which day
+    - and finds each spelling it refuses
+- `packages/ui-vue/tests/component/a-picked-day-is-that-day-in-every-zone.test.ts`
+    - a pilot’s end, read west of Greenwich
+        - is the day picked in the pilots list
+        - is the day the edit dialog opens on
+    - a plan version’s days, counted east of Greenwich
+        - a successor starts the day after its predecessor at the earliest
+        - the predecessor ends the day before, also when the clocks go back between
+- `packages/ui-vue/tests/component/an-operator-reads-the-open-items.test.ts`
+    - the open items’ days
+        - are the days of ${timeZone ?? 'UTC, where the manifest names no zone'}: ${day}
+- `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
+    - retiring a version in the plan cockpit
+        - says it was announced on the installation’s day
+- `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
+    - the subscriber's record shows its contracts
+        - says when a contract was concluded and until when its minimum term runs as the
+          installation’s days
+- `packages/ui-vue/tests/installation-day.test.js`
+    - the installation’s zone
+        - is the one the manifest names, and UTC where it names none
+    - the day a moment falls on
+        - ${iso} in ${zone} is ${day}
+    - the last day an end covers
+        - at ${iso} in ${zone} is ${day}
+    - a day somebody picked
+        - is the day it was stored as, in every zone, the last moment of it too
+    - today
+        - is the installation’s, which is ahead of UTC east of Greenwich
+    - a day as the reader writes it
+        - is the calendar day it names, and a dash where there is none
+    - the days a page asks for
+        - are read in the zone the shell’s manifest names
+        - are UTC days without a manifest, and a dash for a value not there
 
 <!-- END proof -->
 
@@ -23167,6 +23225,8 @@ _Tested by:_
         - brings the contract its address names into view once, however often the record and its
           contracts are read again
         - brings the contract into view where it shows only on a later read
+        - says when a contract was concluded and until when its minimum term runs as the
+          installation’s days
         - opens a contract into what it froze: its lines with where each came from, its invoices and
           its ids
         - leads to the catalogue, and back to the list, where the shell put those pages

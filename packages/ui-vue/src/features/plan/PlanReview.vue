@@ -66,7 +66,7 @@
                             <div class="pr-label">{{ msg.review.labelValidFrom }}</div>
                             <div class="pr-val">
                                 <template v-if="version.validFrom">{{
-                                    formatDay(version.validFrom, intlLocale)
+                                    formatStoredDay(version.validFrom, intlLocale)
                                 }}</template>
                                 <i v-else class="pr-missing">{{
                                     msg.review.missingRequiredOnPublish
@@ -77,7 +77,7 @@
                             <div class="pr-label">{{ msg.review.labelValidUntil }}</div>
                             <div class="pr-val">
                                 <template v-if="version.validUntil">{{
-                                    formatDay(version.validUntil, intlLocale)
+                                    formatStoredDay(version.validUntil, intlLocale)
                                 }}</template>
                                 <span v-else class="pr-inf">{{ msg.review.unlimited }}</span>
                             </div>
@@ -222,8 +222,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/core';
-import { formatDay, formatMessage } from '../../client/i18n/format.js';
+import { formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
+import { formatStoredDay, storedDayOf } from '../../client/installation-day.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 // This view replaces the page hero while it is open: its actions hang on the
 // publish checklist and the force flags below, which live here.
@@ -371,7 +372,7 @@ const hasMonthly = computed(() => {
 const validFromAfterPredecessor = computed(() => {
     const prev = props.predecessor;
     if (!prev?.validFrom || !props.version.validFrom) return true;
-    return props.version.validFrom.slice(0, 10) > prev.validFrom.slice(0, 10);
+    return storedDayOf(props.version.validFrom) > storedDayOf(prev.validFrom);
 });
 
 function formatMoney(raw: string | number): string {

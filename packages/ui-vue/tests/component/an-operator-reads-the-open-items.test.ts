@@ -96,12 +96,15 @@ async function mountOpenItems({
         credits: [{ currency: 'EUR', open: 20 }],
     },
     standardPageRoute = standardPageRouteOf(undefined),
+    timeZone,
 }: {
     capabilities?: Record<string, boolean>;
     invoices?: AdminOpenInvoice[];
     credits?: AdminOpenCredit[];
     totals?: unknown;
     standardPageRoute?: StandardPageRoute;
+    /** The installation's zone, as the manifest names it; none where left out. */
+    timeZone?: string;
 } = {}) {
     const calls: Call[] = [];
     const notices: Array<[string, string]> = [];
@@ -114,7 +117,11 @@ async function mountOpenItems({
     });
     await router.push('/admin/open-items');
     await router.isReady();
-    const manifest = { capabilities, navigation: { standardPages: {}, projectPages: [] } };
+    const manifest = {
+        capabilities,
+        navigation: { standardPages: {}, projectPages: [] },
+        timeZone,
+    };
     // SAFETY: the two keys are the symbols the page injects its manifest and its
     // notify port under, typed as Vue's injection keys rather than as symbols.
     const manifestKey = SUPER_ADMIN_MANIFEST_KEY as symbol;
@@ -273,6 +280,34 @@ describe('the open items', () => {
             reading.wrapper.find('button[aria-label="Record a payout to K-10002"]').exists(),
         ).toBe(false);
     });
+});
+
+// @requirement SC-ADM-048 — Every day the administration shows is a day of the installation
+describe('the open items’ days', () => {
+    // 00:30 on 2 November in Berlin, still 1 November in UTC.
+    const LATE = '2026-11-01T23:30:00.000Z';
+    const sentLate = (): AdminOpenInvoice[] => [
+        {
+            ...INVOICES[0]!,
+            lastAttempt: { status: 'SUBMITTED', submittedAt: LATE, failureReason: null },
+        },
+    ];
+
+    for (const [timeZone, day] of [
+        ['Europe/Berlin', '2026-11-02'],
+        [undefined, '2026-11-01'],
+    ] as const) {
+        test(`are the days of ${timeZone ?? 'UTC, where the manifest names no zone'}: ${day}`, async () => {
+            const { wrapper } = await mountOpenItems({
+                invoices: sentLate(),
+                credits: [{ ...CREDITS[0]!, createdAt: LATE }],
+                timeZone,
+            });
+
+            expect(tableOf(wrapper, 'Open invoices')[0]?.[7]).toContain(day);
+            expect(tableOf(wrapper, 'Open credits')[0]?.[2]).toBe(day);
+        });
+    }
 });
 
 // @requirement SC-ADM-019 — Early deletion, cancelling an invoice and joining a subscriber need a second factor

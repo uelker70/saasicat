@@ -59,7 +59,7 @@ import {
     bundleVersionsSorted,
     type BundleStatusMeta,
 } from './internal/bundle-version-status';
-import { formatDay } from '../../client/i18n/format.js';
+import { formatStoredDay } from '../../client/installation-day.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // BundleVersionStrip — tab bar across all versions of a bundle, modeled on
@@ -104,7 +104,7 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
 }
 
 function dayOf(iso: string | null): string {
-    return iso ? formatDay(iso, intlLocale.value) : '—';
+    return iso ? formatStoredDay(iso, intlLocale.value) : '—';
 }
 </script>
 

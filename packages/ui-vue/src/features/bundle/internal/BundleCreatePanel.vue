@@ -237,6 +237,7 @@ import { findBundlePlanOverlap } from './bundle-version-status';
 import { formatDay } from '../../../client/i18n/format.js';
 import { formatMessage } from '../../../client/i18n/format.js';
 import { trimChar } from '../../../client/text-shape.js';
+import { useInstallationDays } from '../../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../../vue/use-super-admin-i18n.js';
 
 // BundleCreatePanel — expandable inline panel for creating a new
@@ -285,9 +286,10 @@ const emit = defineEmits<{
 
 const msg = useSaMessages('bundles');
 const common = useSaMessages('common');
+const days = useInstallationDays();
 const { intlLocale } = useSuperAdminI18n();
 
-const todayIso = computed(() => new Date().toISOString().slice(0, 10));
+const todayIso = computed(() => days.today());
 
 const validFromHint = computed(() => {
     if (!form.validFrom) return msg.value.create.validFromHint;
@@ -307,7 +309,7 @@ function emptyForm(): Form {
         description: '',
         monthlyNet: '9.90',
         yearlyNet: '99.00',
-        validFrom: new Date().toISOString().slice(0, 10),
+        validFrom: days.today(),
         features: [],
         quotas: {},
         planIds: [],

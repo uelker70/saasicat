@@ -23,6 +23,7 @@ import { formatMessage } from '../../client/i18n/format.js';
 import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import AdminTable from '../../ui/data/AdminTable.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // The subscriber's charges, newest first as the platform orders them. Read only, and net: a charge's tax is decided when it is invoiced. No
@@ -32,11 +33,12 @@ const props = defineProps<{
     pending: boolean;
     error: unknown | null;
     retry: () => void | Promise<void>;
-    /** The page's own date format, so one page shows one. */
+    /** The page's own way of writing a calendar day, so one page shows one. */
     formatDate: (value: string | null | undefined) => string;
 }>();
 
 const msg = useSaMessages('subscribers');
+const days = useInstallationDays();
 const { locale } = useSuperAdminI18n();
 
 const holderLine = computed(() => {
@@ -51,8 +53,9 @@ const holderLine = computed(() => {
 const rows = computed(() =>
     (props.account?.entries ?? []).map(({ charge, title }) => ({
         id: charge.id,
-        due: props.formatDate(charge.bookedAt),
-        period: `${props.formatDate(charge.periodStart)} – ${props.formatDate(charge.periodEnd)}`,
+        due: props.formatDate(days.ofMoment(charge.bookedAt)),
+        // A period ends at the first moment it no longer covers.
+        period: `${props.formatDate(days.ofMoment(charge.periodStart))} – ${props.formatDate(days.lastBefore(charge.periodEnd))}`,
         item: title ?? msg.value.charges.source[charge.source],
         kind: msg.value.charges.source[charge.source],
         origin: msg.value.charges.origin[charge.origin],

@@ -134,7 +134,9 @@ export interface SuperAdminManifestGuardOptions {
      * Optional: read accessor on the loaded manifest. When set, it is exposed
      * via `provide(SUPER_ADMIN_MANIFEST_KEY)` — the `<ProjectPageHost>`
      * resolves manifest `projectPages` through it against the
-     * `extensions:` map.
+     * `extensions:` map, and every page reads the installation's time zone
+     * from it (`SC-ADM-048`). Without it the pages show UTC days, whatever
+     * zone `config/saas.yaml` names.
      */
     getManifest?: () => AdminManifest | null;
     /**

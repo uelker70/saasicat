@@ -112,16 +112,16 @@ describe("the subscriber's record shows its account", () => {
         expect(asked).toEqual(['s-1']);
         expect(wrapper.text()).toContain('Account of K-10001 · Northwind GmbH');
         expect(chargeRows(wrapper)).toEqual([
-            ['2026-02-01', '2026-02-01 – 2026-03-01', 'Standard', 'Plan', 'Renewal', '€49'],
+            ['2026-02-01', '2026-02-01 – 2026-02-28', 'Standard', 'Plan', 'Renewal', '€49'],
             [
                 '2026-02-01',
-                '2026-02-01 – 2026-03-01',
+                '2026-02-01 – 2026-02-28',
                 'Welcome 20 %',
                 'Discount',
                 'Renewal',
                 '-€9.80',
             ],
-            ['2026-01-01', '2026-01-01 – 2026-02-01', 'Plan', 'Plan', 'Activation', '€49'],
+            ['2026-01-01', '2026-01-01 – 2026-01-31', 'Plan', 'Plan', 'Activation', '€49'],
         ]);
     });
 

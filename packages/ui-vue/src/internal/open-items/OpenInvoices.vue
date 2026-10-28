@@ -59,6 +59,7 @@ import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import AdminFilters from '../../ui/page/AdminFilters.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
 import type { PagedList } from '../../vue/use-paged-list.js';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // The invoices that still owe something, the oldest due date first: what each
@@ -75,6 +76,7 @@ const emit = defineEmits<{ (e: 'update:overdueOnly', value: boolean): void }>();
 
 const msg = useSaMessages('openItems');
 const { locale } = useSuperAdminI18n();
+const days = useInstallationDays();
 
 /** How the invoice is paid, by the payment method it is collected with. */
 function paymentOf(invoice: AdminOpenInvoice): string {
@@ -93,7 +95,7 @@ function attemptOf(invoice: AdminOpenInvoice): string {
         return formatMessage(m.attemptFailed, { status, reason: m.failure[attempt.failureReason] });
     }
     return attempt.submittedAt
-        ? formatMessage(m.attemptOn, { status, day: attempt.submittedAt.slice(0, 10) })
+        ? formatMessage(m.attemptOn, { status, day: days.ofMoment(attempt.submittedAt) })
         : status;
 }
 

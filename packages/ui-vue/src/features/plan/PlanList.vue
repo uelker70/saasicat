@@ -324,7 +324,8 @@ import { resolvePlans, type ResolvedPlan } from '../../client/resolve-plans.js';
 import { computed, ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/core';
 import { identityAccentFor, identityChipStyle } from '../../client/identity-accents.js';
-import { formatDay, formatMessage } from '../../client/i18n/format.js';
+import { formatMessage } from '../../client/i18n/format.js';
+import { formatStoredDay } from '../../client/installation-day.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import { useVersionSaleText } from '../../vue/use-version-sale-text.js';
@@ -401,9 +402,9 @@ const emptyNoMatch = computed(() =>
 );
 
 function validityRange(prefix: string, validFrom: string, validUntil: string | null): string {
-    const range = `${prefix} ${formatDay(validFrom, intlLocale.value)}`;
+    const range = `${prefix} ${formatStoredDay(validFrom, intlLocale.value)}`;
     if (!validUntil) return range;
-    return `${range} ${msg.value.list.until} ${formatDay(validUntil, intlLocale.value)}`;
+    return `${range} ${msg.value.list.until} ${formatStoredDay(validUntil, intlLocale.value)}`;
 }
 
 function tenantCountLabel(count: number): string {
