@@ -1039,6 +1039,13 @@ _Tested by:_
         - where what it would do changed since the preview, with the preview as it stands
     - a subscriber joined
         - takes no correction of its identity or its business status
+    - a payment method confirmed on a form opened before the join
+        - is recorded for the subscriber it was joined into, and is the one in use there
+        - is recorded there where the join moved the setup while the confirmation waited for it
+        - follows the earlier subscriber where it was joined in turn into one before it
+        - is refused where the session is another subscriber's, joined or not
+    - the subscriber a reference kept outside the installation belongs to
+        - names a cycle no join could write, rather than following it
     - joining subscribers
         - turned on without anywhere to join them, refuses to start, saying so
         - refuses to start beside a database that would let a join leave rows behind
@@ -2449,6 +2456,11 @@ _Tested by:_
         - names a table whose trigger does not fire, and none where every one does
         - names a model the client was generated without, which it would leave rows in
 - `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
+    - a payment method confirmed on a form opened before the join
+        - is recorded for the subscriber it was joined into, and is the one in use there
+        - is recorded there where the join moved the setup while the confirmation waited for it
+        - follows the earlier subscriber where it was joined in turn into one before it
+        - is refused where the session is another subscriber's, joined or not
     - joining subscribers
         - turned on without anywhere to join them, refuses to start, saying so
         - refuses to start beside a database that would let a join leave rows behind

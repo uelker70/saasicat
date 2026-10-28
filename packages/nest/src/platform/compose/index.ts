@@ -43,6 +43,8 @@ export const FEATURE_COMPOSERS: readonly Composer[] = [
     // Before the bundles — see the note above.
     composeTenantBilling,
     composeSubscriptionBundles,
+    // Before payments and the subscriber's routes: both import the module it builds.
+    composeSubscriberJoins,
     // After tenant billing too: its tenant routes share the guards.
     composePayments,
     composeSetup,
@@ -55,8 +57,6 @@ export const FEATURE_COMPOSERS: readonly Composer[] = [
     composeInvoiceDocuments,
     // After the admin resources and tenant billing: it imports both.
     composeSubscriberCredits,
-    // Before the subscriber's routes: they import the module it builds.
-    composeSubscriberJoins,
     // After the admin resources: it imports them.
     composeSubscriberAdmin,
     // After tenant billing: it imports it.

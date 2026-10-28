@@ -47,9 +47,9 @@ export function servesSubscriberJoins(
 }
 
 /**
- * `SubscriberJoinModule`, where joins are kept. Runs before
- * `composeSubscriberAdmin`, which imports the module it leaves in
- * `ctx.shared` for the operator's routes.
+ * `SubscriberJoinModule`, where joins are kept. Runs before `composePayments`
+ * and `composeSubscriberAdmin`, which import the module it leaves in
+ * `ctx.shared`: the confirmations of payment methods and the operator's routes.
  */
 export function composeSubscriberJoins(ctx: CompositionContext): DynamicModule[] {
     const joins = subscriberJoinsOf(ctx);

@@ -14917,10 +14917,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         /**
          * One legal entity twice: the earlier subscriber, its tenant gone and
          * its payment method still in use, and the one sign-up created for the
-         * new tenant, with a check of its VAT id, a payment method, a contract
-         * and its charges, an invoice and its payment — rows in most tables that
-         * name a subscriber, each with its foreign keys real. Null where the
-         * adapter lacks a member a join or this fixture needs.
+         * new tenant, with a check of its VAT id, a payment method, the gateway's
+         * form for the next one still open, a contract and its charges, an
+         * invoice and its payment — rows in most tables that name a subscriber,
+         * each with its foreign keys real. Null where the adapter lacks a member
+         * a join or this fixture needs.
          */
         async function aReturningCustomer(t: TestContext, key: string) {
             const joins = harness.adapter.subscriberJoinRepository;
@@ -14958,6 +14959,13 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             await methods.recordConfirmed(
                 paymentMethodFor(returning.id, `pm_${key}_new`, '2026-11-02T00:00:00.000Z'),
             );
+            await methods.recordSetup({
+                subscriberId: returning.id,
+                gatewayAccount: 'stripe-main',
+                sessionRef: `cs_${key}`,
+                customerRef: `cus_${key}`,
+                startedAt: new Date('2026-11-02T12:00:00.000Z'),
+            });
             const check = await subscribers.recordVatIdCheck(
                 returning.id,
                 confirmedCheck('DE123456789', '2026-11-02T08:30:00.000Z'),
@@ -15014,6 +15022,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(state.moving.subscriber_tenants, 1);
             assert.equal(state.moving.subscriber_vat_id_checks, 1);
             assert.equal(state.moving.subscriber_payment_methods, 1);
+            assert.equal(state.moving.subscriber_payment_method_setups, 1);
             assert.equal(state.moving.subscription_contracts, 1);
             assert.equal(state.moving.subscription_invoices, 1);
             assert.equal(state.moving.subscriber_payments, 1);
@@ -15059,6 +15068,19 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const active = await methods.findActive(earlier.id);
             assert.equal(active?.paymentMethodRef, 'pm_tenant-join-move_new');
             assert.equal(after.into.paymentMethodsInUse, 1);
+            // The gateway's form opened before the join is completed for the
+            // subscriber it was joined into, and no longer for the one it was opened for.
+            const setup = { gatewayAccount: 'stripe-main', sessionRef: 'cs_tenant-join-move' };
+            const completedAt = new Date('2026-11-03T10:00:00.000Z');
+            assert.equal(
+                await methods.completeSetup({ ...setup, subscriberId: returning.id }, completedAt),
+                false,
+            );
+            assert.equal(
+                await methods.completeSetup({ ...setup, subscriberId: earlier.id }, completedAt),
+                true,
+                'the open setup did not move with the join',
+            );
 
             const into = await subscribers.findById(earlier.id);
             assert.deepEqual(

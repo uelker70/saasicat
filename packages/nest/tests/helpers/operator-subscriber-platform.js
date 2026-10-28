@@ -13,7 +13,18 @@ import {
     FakeSubscriberRepository,
 } from '../../dist/testing/index.js';
 import { storeSecretsInPlainText } from '../../dist/index.js';
+import {
+    PaymentCallbackService,
+    SubscriberPaymentMethodService,
+} from '../../dist/payments/index.js';
 import { controllersIn, handlersOf } from './operator-routes.js';
+import {
+    MAIN_ACCOUNT,
+    MemoryPaymentEventLog,
+    MemoryPaymentMethods,
+    ScriptedGateway,
+    paymentsCatalog,
+} from './payments.js';
 import { TAX_SETTINGS, TEST_TAX_ADAPTER } from './tax-adapter.js';
 
 export const SUBSCRIBER_ROUTE = 'GET admin/tenants/:slug/subscriber';
@@ -74,7 +85,7 @@ export const validAnswer = (vatId) => ({
 /**
  * The platform with the subscribers above. `checkVatId` is what the VAT number
  * service answers where the adapter is bound; Wien's number holds a valid check
- * from before.
+ * from before. With `payments`, payment methods through one scripted gateway.
  */
 export async function aPlatform({
     adapter = true,
@@ -82,6 +93,7 @@ export async function aPlatform({
     subscribers = true,
     joins = false,
     keepsJoins = joins,
+    payments = false,
     checkVatId = validAnswer,
 } = {}) {
     const seen = { lookups: [], reads: [], audited: [], checked: [] };
@@ -160,7 +172,7 @@ export async function aPlatform({
     };
     if (subscribers) entitlement.subscriberRepository = repo;
     if (keepsJoins) entitlement.subscriberJoinRepository = joinRepo;
-    const root = SaaSiCatModule.forRoot({
+    const options = {
         adapters: { secretSealer: storeSecretsInPlainText() },
         planCatalog: adapter ? { ...CATALOG, ...TAX_SETTINGS } : { ...CATALOG, vatRate: 19 },
         ...(adapter
@@ -190,8 +202,21 @@ export async function aPlatform({
         },
         adminResources,
         subscriberJoins: joins,
-    });
+    };
+    const methods = new MemoryPaymentMethods();
+    const gateway = new ScriptedGateway();
+    if (payments) {
+        options.planCatalog.payments = paymentsCatalog().payments;
+        options.persistence.payments = {
+            paymentEventLog: new MemoryPaymentEventLog(),
+            subscriberPaymentMethodRepository: methods,
+        };
+        options.payments = { gateways: { [MAIN_ACCOUNT]: gateway } };
+    }
+    const root = SaaSiCatModule.forRoot(options);
     const moduleRef = await Test.createTestingModule({ imports: [root] }).compile();
+    // Where the payment methods register what handles a gateway's callbacks.
+    if (payments) await moduleRef.init();
     const manifest = await moduleRef.get(AdminManifestService).getManifest();
     const handlers = controllersIn(root).flatMap(handlersOf);
     const served = (route) => handlers.find((handler) => handler.route === route);
@@ -208,6 +233,15 @@ export async function aPlatform({
         seen,
         repo,
         joinRepo,
+        methods,
+        gateway,
+        /** Where a gateway's callbacks are handled, and the tenant's form opened; with `payments`. */
+        payments: payments
+            ? {
+                  callbacks: moduleRef.get(PaymentCallbackService, { strict: false }),
+                  methods: moduleRef.get(SubscriberPaymentMethodService, { strict: false }),
+              }
+            : null,
         served,
         call,
         /** The id of the subscriber of the tenant `slug`, or one nothing is kept under. */

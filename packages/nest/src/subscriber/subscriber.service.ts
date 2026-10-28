@@ -570,14 +570,47 @@ export class SubscriberService {
     }
 
     /**
+     * The subscriber `subscriberId` belongs to now: itself, or the one it was
+     * joined into (`SC-ADM-027`) — and the one that was joined into in turn.
+     * For a reference a join cannot move, because it is kept outside the
+     * installation: the subscriber a gateway's session was opened for.
+     */
+    async currentIdOf(subscriberId: string): Promise<string> {
+        if (!this.joins) return subscriberId;
+        const followed: string[] = [];
+        let current = subscriberId;
+        for (;;) {
+            followed.push(current);
+            const into = await this.joinedInto(current);
+            if (into === null) return current;
+            // No join can be made into a subscriber joined already, so a
+            // cycle is a row nothing here wrote, and following it would not end.
+            if (followed.includes(into)) {
+                throw new Error(
+                    `Subscriber ${subscriberId} is joined in a cycle, ` +
+                        `${[...followed, into].join(' → ')}: ` +
+                        'subscriber_joins holds a row no join wrote.',
+                );
+            }
+            current = into;
+        }
+    }
+
+    /** The subscriber `subscriberId` was joined into, or `null` where it was not. */
+    private async joinedInto(subscriberId: string): Promise<string | null> {
+        const joins = (await this.joins?.listFor([subscriberId])) ?? [];
+        return (
+            joins.find((join) => join.fromSubscriberId === subscriberId)?.intoSubscriberId ?? null
+        );
+    }
+
+    /**
      * Refused where the subscriber was joined into another (`SC-ADM-027`): its
      * record stays as it was, an empty one naming where everything went, and a
      * change made to it would reach nobody.
      */
     private async refuseJoined(subscriberId: string): Promise<void> {
-        if (!this.joins) return;
-        const joins = await this.joins.listFor([subscriberId]);
-        if (!joins.some((join) => join.fromSubscriberId === subscriberId)) return;
+        if ((await this.joinedInto(subscriberId)) === null) return;
         const subscriber = await this.repo.findById(subscriberId);
         throw new ConflictException(
             codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_JOINED, {

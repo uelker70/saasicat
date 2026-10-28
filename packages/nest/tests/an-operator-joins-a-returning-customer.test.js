@@ -1,7 +1,8 @@
 // The operator joins a returning customer's new subscriber into the one it had,
 // through the platform as an application composes it: what the preview shows,
 // what the join leaves in both records, what it audits and in which frame it
-// reads — and every refusal with its code. That the join asks for the second
+// reads, where a payment method confirmed on a form opened before it lands —
+// and every refusal with its code. That the join asks for the second
 // factor is held by `lasting-operator-actions-require-the-second-factor.test.js`,
 // which walks every route the platform mounts; that every row moves in one
 // transaction, and that a joined subscriber is given nothing afterwards, by the
@@ -15,8 +16,10 @@ import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 
-import { SubscriberJoinModule } from '../dist/subscriber/index.js';
+import { SubscriberJoinModule, SubscriberService } from '../dist/subscriber/index.js';
+import { FakeSubscriberRepository } from '../dist/testing/index.js';
 import { RECORD_ROUTE, LIST_ROUTE, aPlatform } from './helpers/operator-subscriber-platform.js';
+import { APP_ORIGIN, MAIN_ACCOUNT, confirmation, signedCallback } from './helpers/payments.js';
 
 const PREVIEW_ROUTE = 'POST admin/subscribers/:id/join/preview';
 const JOIN_ROUTE = 'POST admin/subscribers/:id/join';
@@ -303,6 +306,155 @@ describe('a subscriber joined', () => {
         await assert.rejects(
             admin.call(BUSINESS_ROUTE)(wien, { business: false, reason: 'Is a consumer' }, REQUEST),
             refusedWith('SUBSCRIBER_JOINED'),
+        );
+    });
+});
+
+/** Where the gateway's form sends the person back to. */
+const FORM = {
+    successUrl: `${APP_ORIGIN}/billing?done`,
+    cancelUrl: `${APP_ORIGIN}/billing`,
+    fallbackEmail: null,
+};
+
+/**
+ * Moves the payment methods and their setups of `from` to `into`, as an
+ * adapter's join moves every table that names a subscriber — which the
+ * persistence contract holds each adapter to. The fake join keeps the
+ * subscribers' own tables only.
+ */
+const movePaymentMethods = (admin, from, into) => {
+    for (const row of [...admin.methods.setups, ...admin.methods.rows]) {
+        if (row.subscriberId === admin.idOf(from)) row.subscriberId = admin.idOf(into);
+    }
+};
+
+/** The administration with payment methods, and Wien's tenant having opened the gateway's form: `cs_1`. */
+async function aFormOpenedByWien() {
+    const admin = await anAdministration({ payments: true });
+    await admin.payments.methods.startChange('t-wien', FORM);
+    return admin;
+}
+
+/** The gateway confirming the card given on the form of `session`, naming the subscriber it was opened for. */
+const confirmed = (admin, session, slug, paymentMethodRef) =>
+    admin.payments.callbacks.handle(
+        MAIN_ACCOUNT,
+        signedCallback(
+            confirmation({
+                eventId: `evt_${paymentMethodRef}`,
+                sessionRef: session,
+                subject: { kind: 'subscriber', subscriberId: admin.idOf(slug) },
+                paymentMethodRef,
+            }),
+        ),
+    );
+
+const inUseAt = async (admin, slug) =>
+    (await admin.methods.findActive(admin.idOf(slug)))?.paymentMethodRef ?? null;
+
+// @requirement SC-ADM-050 — A join moves everything in one step, and a subscriber joined is given nothing afterwards
+describe('a payment method confirmed on a form opened before the join', () => {
+    test('is recorded for the subscriber it was joined into, and is the one in use there', async () => {
+        const admin = await aFormOpenedByWien();
+        await admin.join('wien', 'fabrikam');
+        movePaymentMethods(admin, 'wien', 'fabrikam');
+
+        assert.equal(await confirmed(admin, 'cs_1', 'wien', 'pm_after_join'), 'handled');
+
+        assert.deepEqual(
+            [await inUseAt(admin, 'fabrikam'), await inUseAt(admin, 'wien')],
+            ['pm_after_join', null],
+        );
+        assert.notEqual(admin.methods.setups[0].completedAt, null, 'the setup stayed open');
+    });
+
+    test('is recorded there where the join moved the setup while the confirmation waited for it', async () => {
+        const admin = await aFormOpenedByWien();
+        const complete = admin.methods.completeSetup.bind(admin.methods);
+        let joined = false;
+        // What a database answers a confirmation that waited for the join's
+        // row: the join has committed, and the setup no longer names the
+        // subscriber the confirmation asked for.
+        admin.methods.completeSetup = async (...args) => {
+            if (!joined) {
+                joined = true;
+                await admin.join('wien', 'fabrikam');
+                movePaymentMethods(admin, 'wien', 'fabrikam');
+            }
+            return complete(...args);
+        };
+
+        assert.equal(await confirmed(admin, 'cs_1', 'wien', 'pm_during_join'), 'handled');
+
+        assert.equal(await inUseAt(admin, 'fabrikam'), 'pm_during_join');
+    });
+
+    test('follows the earlier subscriber where it was joined in turn into one before it', async () => {
+        const admin = await aFormOpenedByWien();
+        await admin.join('wien', 'fabrikam');
+        movePaymentMethods(admin, 'wien', 'fabrikam');
+        admin.repo.closeTenantLink(admin.idOf('contoso'), new Date('2026-04-30T00:00:00.000Z'));
+        await admin.join('fabrikam', 'contoso');
+        movePaymentMethods(admin, 'fabrikam', 'contoso');
+
+        assert.equal(await confirmed(admin, 'cs_1', 'wien', 'pm_after_two_joins'), 'handled');
+
+        assert.equal(await inUseAt(admin, 'contoso'), 'pm_after_two_joins');
+    });
+
+    test("is refused where the session is another subscriber's, joined or not", async () => {
+        const admin = await aFormOpenedByWien();
+        await admin.payments.methods.startChange('t-northwind', FORM);
+        await admin.join('wien', 'fabrikam');
+        movePaymentMethods(admin, 'wien', 'fabrikam');
+
+        assert.equal(await confirmed(admin, 'cs_2', 'wien', 'pm_crossed'), 'handled');
+
+        assert.deepEqual(
+            [await inUseAt(admin, 'fabrikam'), await inUseAt(admin, 'northwind')],
+            [null, null],
+        );
+        assert.equal(admin.methods.setups[1].completedAt, null, "Northwind's setup was used up");
+    });
+});
+
+describe('the subscriber a reference kept outside the installation belongs to', () => {
+    test('names a cycle no join could write, rather than following it', async () => {
+        const joinsOf = (pairs) => {
+            let asked = 0;
+            return {
+                async listFor(ids) {
+                    // A cycle followed would ask without end: past this, the
+                    // test fails rather than holds the run.
+                    asked += 1;
+                    if (asked > 10) throw new Error('asked about joins without end');
+                    return pairs
+                        .filter((pair) => pair.some((id) => ids.includes(id)))
+                        .map(([fromSubscriberId, intoSubscriberId]) => ({
+                            fromSubscriberId,
+                            intoSubscriberId,
+                        }));
+                },
+            };
+        };
+        const subscribersOver = (pairs) =>
+            new SubscriberService(new FakeSubscriberRepository(), {}, null, joinsOf(pairs));
+
+        assert.equal(await subscribersOver([]).currentIdOf('a'), 'a');
+        assert.equal(
+            await subscribersOver([
+                ['a', 'b'],
+                ['b', 'c'],
+            ]).currentIdOf('a'),
+            'c',
+        );
+        await assert.rejects(
+            subscribersOver([
+                ['a', 'b'],
+                ['b', 'a'],
+            ]).currentIdOf('a'),
+            /Subscriber a is joined in a cycle, a → b → a/,
         );
     });
 });
