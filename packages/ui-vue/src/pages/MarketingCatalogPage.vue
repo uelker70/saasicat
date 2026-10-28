@@ -163,8 +163,10 @@ import { usePromotions } from '../vue/use-promotions.js';
 import { useCatalogEntries } from '../vue/use-catalog-entries.js';
 import { adminErrorMessage } from '../client/admin-error.js';
 import { formatCurrency } from '../client/i18n/currency.js';
+import { useInstallationDays } from '../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
-import { formatDay, formatMessage } from '../client/i18n/format.js';
+import { formatMessage } from '../client/i18n/format.js';
+import { formatStoredDay } from '../client/installation-day.js';
 import { versionOnSaleOrNext } from '../client/version-sale.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import MarketingPromotionsTab from '../features/marketing/MarketingPromotionsTab.vue';
@@ -201,6 +203,7 @@ const props = defineProps<{
 
 const msg = useSaMessages('marketing');
 const common = useSaMessages('common');
+const days = useInstallationDays();
 const errors = useSaMessages('errors');
 const { locale, intlLocale } = useSuperAdminI18n();
 
@@ -477,16 +480,18 @@ function selectVersion(plan: PlanRow, versionId: string): void {
 }
 
 function formatVersionTab(v: PlanVersionRow): string {
-    const from = v.validFrom ? formatDay(v.validFrom, intlLocale.value) : '?';
-    const until = v.validUntil ? formatDay(v.validUntil, intlLocale.value) : '∞';
+    const from = v.validFrom ? formatStoredDay(v.validFrom, intlLocale.value) : '?';
+    const until = v.validUntil ? formatStoredDay(v.validUntil, intlLocale.value) : '∞';
     return `v${v.version} · ${from}–${until}`;
 }
 
 function formatVersionTitle(v: PlanVersionRow): string {
     const from = v.validFrom
-        ? formatDay(v.validFrom, intlLocale.value)
+        ? formatStoredDay(v.validFrom, intlLocale.value)
         : msg.value.admin.versionValidFromUnknown;
-    const until = v.validUntil ? formatDay(v.validUntil, intlLocale.value) : common.value.unlimited;
+    const until = v.validUntil
+        ? formatStoredDay(v.validUntil, intlLocale.value)
+        : common.value.unlimited;
     const changeNote = v.changeNote ? ` — ${v.changeNote}` : '';
     return formatMessage(msg.value.admin.versionTitle, {
         version: v.version,
@@ -576,8 +581,8 @@ const visibleRows = computed<MarketingRow[]>(() => adminRows.value.filter((r) =>
 
 const catalogVersion = computed<string>(() => {
     const stamps = projectionsApi.projections.value.map((p) => p.updatedAt);
-    if (stamps.length === 0) return new Date().toISOString().slice(0, 10);
-    return stamps.sort().slice(-1)[0].slice(0, 10);
+    if (stamps.length === 0) return days.today();
+    return days.ofMoment(stamps.sort().slice(-1)[0]);
 });
 
 // Decorative browser chrome above the preview. The application names itself

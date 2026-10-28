@@ -16,6 +16,11 @@ export interface PilotRow {
     id: string;
     tenant: { id: string; slug: string; name: string };
     plan: string;
+    /**
+     * The day picked as the pilot's end, as an ISO moment at that day's UTC
+     * midnight — what `new Date(endsAt)` makes of the `YYYY-MM-DD` the dialogs
+     * send. The pages show the day it begins with, in every zone (`SC-ADM-048`).
+     */
     pilotEndsAt: string | null;
     pilotNote: string | null;
     grantedBy: string | null;
@@ -31,6 +36,7 @@ export interface PilotCreatePayload {
         lastName: string;
         initialPassword?: string;
     };
+    /** `endsAt` is the day picked as the pilot's end, `YYYY-MM-DD`. */
     pilot: { plan: string; note?: string; endsAt?: string };
 }
 
@@ -44,7 +50,7 @@ export interface PilotCreateResult {
 export interface PilotEditPayload {
     /** Optional — only the fields that are set get changed. */
     plan?: string;
-    /** `null` clears the end date (open-ended pilot phase). */
+    /** The day picked as the end, `YYYY-MM-DD`; `null` clears it (open-ended pilot phase). */
     endsAt?: string | null;
     /** `null` or empty clears the note. */
     note?: string | null;

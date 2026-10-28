@@ -51,13 +51,21 @@ function auditInitial(a: AuditRow): string {
     return auditWho(a)[0]?.toUpperCase() ?? '?';
 }
 
+/**
+ * A moment with its time of day, as the reader's clock shows it and with the
+ * zone named — today's by its time alone.
+ */
 function formatAuditDate(iso: string): string {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
     const isToday = d.toDateString() === new Date().toDateString();
-    const time = d.toLocaleTimeString(intlLocale.value, { hour: '2-digit', minute: '2-digit' });
-    return isToday
-        ? formatMessage(msg.value.auditLog.today, { time })
-        : `${d.toLocaleDateString(intlLocale.value, { day: '2-digit', month: 'short' })} · ${time}`;
+    const time = d.toLocaleTimeString(intlLocale.value, {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short',
+    });
+    if (isToday) return formatMessage(msg.value.auditLog.today, { time });
+    const day = d.toLocaleString(intlLocale.value, { day: '2-digit', month: 'short' });
+    return `${day} · ${time}`;
 }
 </script>

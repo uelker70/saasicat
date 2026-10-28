@@ -321,7 +321,8 @@ import { computed } from 'vue';
 const NBSP = '\u00A0';
 import type { PlanRow, PlanVersionRow } from '@saasicat/core';
 import { identityAccentFor, identityChipStyle } from '../../client/identity-accents.js';
-import { formatDay, formatMessage } from '../../client/i18n/format.js';
+import { formatMessage } from '../../client/i18n/format.js';
+import { formatStoredDay } from '../../client/installation-day.js';
 import { resolvePlans, type ResolvedPlan as ResolvedPlanOf } from '../../client/resolve-plans.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
@@ -406,7 +407,7 @@ function tenantCountLabel(count: number): string {
 
 function validFromLabel(validFrom: string): string {
     return formatMessage(msg.value.matrix.validFrom, {
-        date: formatDay(validFrom, intlLocale.value),
+        date: formatStoredDay(validFrom, intlLocale.value),
     });
 }
 

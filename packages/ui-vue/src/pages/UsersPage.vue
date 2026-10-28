@@ -134,7 +134,8 @@ import AdminPage from '../ui/page/AdminPage.vue';
 import AdminSection from '../ui/page/AdminSection.vue';
 import AdminStatistics from '../ui/data/AdminStatistics.vue';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
-import { formatMessage } from '../client/i18n/format.js';
+import { formatMessage, formatShortDay } from '../client/i18n/format.js';
+import { useInstallationDays } from '../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
 // Platform standard page: user search. Data-agnostic.
@@ -224,6 +225,7 @@ const errors = useSaMessages('errors');
 const common = useSaMessages('common');
 const shell = useSaMessages('shell');
 const { intlLocale } = useSuperAdminI18n();
+const days = useInstallationDays();
 
 const resolvedTitle = computed(() => props.options?.title ?? msg.value.title);
 const rows = ref<UserRow[]>([]);
@@ -315,13 +317,7 @@ const baseColumns = computed(() => [
         name: 'lastLogin',
         label: msg.value.columns.lastLogin,
         field: (r: UserRow) =>
-            r.lastLoginAt
-                ? new Date(r.lastLoginAt).toLocaleDateString(intlLocale.value, {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                  })
-                : '—',
+            r.lastLoginAt ? formatShortDay(days.ofMoment(r.lastLoginAt), intlLocale.value) : '—',
         align: 'left' as const,
     },
 ]);

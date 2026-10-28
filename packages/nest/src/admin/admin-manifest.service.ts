@@ -98,6 +98,9 @@ export class AdminManifestService {
             tenants: merged.tenants,
             audit: merged.audit,
         };
+        // Absent rather than empty where the file names none, which the
+        // schema refuses as a zone.
+        if (catalog.timeZone) draft.timeZone = catalog.timeZone;
         return { ...draft, build: { ...draft.build, manifestHash: this.computeHash(draft) } };
     }
 

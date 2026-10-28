@@ -74,7 +74,7 @@
 import { computed, ref, watch } from 'vue';
 import { isVersionEditable, type PlanRow, type PlanVersionRow } from '@saasicat/core';
 import { formatCurrency } from '../../client/i18n/currency.js';
-import { formatDay } from '../../client/i18n/format.js';
+import { formatStoredDay, storedDayOf } from '../../client/installation-day.js';
 import { versionOnSale, versionSale } from '../../client/version-sale.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import PlanAuditLog from './internal/PlanAuditLog.vue';
@@ -368,13 +368,13 @@ const terminateError = ref<string | null>(null);
 
 function openTerminateDialog(v: PlanVersionRow): void {
     terminateTarget.value = v;
-    terminateDateInput.value = v.endsAt ? v.endsAt.slice(0, 10) : '';
+    terminateDateInput.value = v.endsAt ? storedDayOf(v.endsAt) : '';
     terminateError.value = null;
     terminateOpen.value = true;
 }
 
 function formatDate(iso: string | null | undefined): string {
-    return iso ? formatDay(iso, intlLocale.value) : '—';
+    return iso ? formatStoredDay(iso, intlLocale.value) : '—';
 }
 
 async function executeTerminate(): Promise<void> {

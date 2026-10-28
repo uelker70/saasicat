@@ -2744,6 +2744,28 @@ It is served where the register is, and nothing is stored for it, so there is no
 - **`LOCAL_MOMENT_PATTERN`, `isLocalMoment`, `localMomentInZone` and `firstMomentInZone`** are new in
   `@saasicat/core`, and `@saasicat/spec` exports `invoiceExportSchema`.
 
+### Every day the administration shows is a day of the installation
+
+The administration showed a moment as the UTC day its ISO text begins with on some pages and as the
+browser's day on others, so an attempt sent at 00:30 in Berlin read as the day before, and two
+operators in two zones read two days (`SC-ADM-048`). It now reads every day in the installation's
+zone, which the manifest names as `timeZone` from `config/saas.yaml`; nothing is stored or migrated.
+
+- **What a page shows changes** where a moment falls near midnight, and where an end is shown: a
+  period, a trial or a minimum term that ends at midnight is shown with its last day, 30 November
+  rather than 1 December.
+- **`formatDay` writes a calendar day only.** Called with an ISO moment it read the UTC day off it;
+  now it answers `Invalid Date`. Say which day is meant: `formatMomentDay`, `formatLastDayBefore` or
+  `formatStoredDay`, or `useInstallationDays()` in a component. `formatShortDay` writes a day in the
+  short form the lists use.
+- **`AdminManifest` gains `timeZone`**, optional; the manifest's hash changes with it, so a pinned
+  `manifest hash` moves once.
+- **Your pilot routes hand `pilotEndsAt` back as the picked day's UTC midnight**, which is what
+  `new Date(endsAt)` makes of the `YYYY-MM-DD` the dialogs send. The pilots list showed that
+  moment as the browser's day, the day before west of Greenwich; it now shows the day it begins
+  with. An end stored at your own zone's midnight shows as the day before east of Greenwich.
+- **`promoCodes.timeZone` stays**: it names the zone a promo day is stored in (`SC-PROMO-031`).
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

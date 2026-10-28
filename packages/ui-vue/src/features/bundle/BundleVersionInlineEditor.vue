@@ -221,6 +221,7 @@ import BundleStatusBanner from './internal/BundleStatusBanner.vue';
 import type { QuotaMeta } from './internal/catalog-i18n.js';
 import { bundleVersionStatus, findBundlePlanOverlap } from './internal/bundle-version-status';
 import { formatDay, formatMessage } from '../../client/i18n/format.js';
+import { storedDayOf } from '../../client/installation-day.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // BundleVersionInlineEditor — orchestrates the five sub-components (status
@@ -290,8 +291,8 @@ function buildForm(v: BundleVersionRow): Form {
         yearlyNet: v.yearlyNet,
         marketed: v.marketed,
         changeNote: v.changeNote,
-        validFrom: v.validFrom ? v.validFrom.slice(0, 10) : null,
-        validUntil: v.validUntil ? v.validUntil.slice(0, 10) : null,
+        validFrom: v.validFrom ? storedDayOf(v.validFrom) : null,
+        validUntil: v.validUntil ? storedDayOf(v.validUntil) : null,
         planIds: [...(v.compatibility?.planIds ?? [])],
     };
 }

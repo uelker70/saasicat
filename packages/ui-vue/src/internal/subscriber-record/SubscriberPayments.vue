@@ -65,6 +65,7 @@ import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
 import type { FileDownload } from '../../vue/use-file-download.js';
 import type { InvoiceCancellationFlow } from '../../vue/use-invoice-cancellation.js';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import InvoiceCancellationDialog from './InvoiceCancellationDialog.vue';
 
@@ -80,7 +81,7 @@ const props = defineProps<{
     pending: boolean;
     error: unknown | null;
     retry: () => void | Promise<void>;
-    /** The page's own date format, so one page shows one. */
+    /** The page's own way of writing a calendar day, so one page shows one. */
     formatDate: (value: string | null | undefined) => string;
     /** Cancelling an invoice, as the page's composable runs it. */
     cancellation: InvoiceCancellationFlow;
@@ -94,6 +95,7 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('subscribers');
+const days = useInstallationDays();
 const kinds = useSaMessages('reconciliation');
 const { locale } = useSuperAdminI18n();
 
@@ -101,7 +103,7 @@ const invoiceRows = computed(() =>
     (props.payments?.invoices ?? []).map((invoice) => ({
         id: invoice.id,
         number: invoice.number,
-        issued: props.formatDate(invoice.issuedAt),
+        issued: props.formatDate(days.ofMoment(invoice.issuedAt)),
         due: props.formatDate(invoice.dueDate),
         total: formatCurrency(invoice.totalGross, locale.value, invoice.currency),
         owed: formatCurrency(invoice.owed, locale.value, invoice.currency),
@@ -115,7 +117,7 @@ const invoiceRows = computed(() =>
 const caseRows = computed(() =>
     (props.payments?.openCases ?? []).map((each) => ({
         id: each.id,
-        recorded: props.formatDate(each.recordedAt),
+        recorded: props.formatDate(days.ofMoment(each.recordedAt)),
         kind: kinds.value.kinds[each.kind],
         reference: each.reference,
         amount: formatCurrency(each.amount, locale.value, each.currency),

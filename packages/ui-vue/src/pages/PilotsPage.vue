@@ -111,7 +111,8 @@ import { adminErrorMessage } from '../client/admin-error.js';
 import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
-import { formatMessage } from '../client/i18n/format.js';
+import { formatMessage, formatShortDay } from '../client/i18n/format.js';
+import { useInstallationDays } from '../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import AdminBody from '../ui/page/AdminBody.vue';
@@ -203,6 +204,7 @@ const msg = useSaMessages('pilots');
 const errors = useSaMessages('errors');
 const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
+const days = useInstallationDays();
 const resolvedCreateLabel = computed(() => props.options?.createLabel ?? msg.value.createAction);
 
 const notify = useSuperAdminNotify();
@@ -481,7 +483,7 @@ async function onExtendClick(row: PilotRow): Promise<void> {
         message: msg.value.list.extendMessage,
         confirmLabel: msg.value.list.actionExtend,
         cancelLabel: common.value.cancel,
-        prompt: { initial: row.pilotEndsAt?.slice(0, 10) ?? '', type: 'date' },
+        prompt: { initial: row.pilotEndsAt ? days.stored(row.pilotEndsAt) : '', type: 'date' },
     });
     if (!ok || !until) return;
 
@@ -511,17 +513,9 @@ async function onRevokeClick(row: PilotRow): Promise<void> {
     );
 }
 
+/** The day picked as a pilot's end, in the short form the list writes. */
 function formatDate(iso: string | null | undefined): string | null {
-    if (!iso) return null;
-    try {
-        return new Date(iso).toLocaleDateString(intlLocale.value, {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-        });
-    } catch {
-        return String(iso);
-    }
+    return iso ? formatShortDay(days.stored(iso), intlLocale.value) : null;
 }
 </script>
 

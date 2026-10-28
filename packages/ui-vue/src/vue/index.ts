@@ -72,6 +72,7 @@ export * from './use-subscriber-record.js';
 export * from './use-subscribers.js';
 export * from './use-file-download.js';
 export * from './use-invoice-cancellation.js';
+export * from './use-installation-days.js';
 export * from './use-invoice-export.js';
 export * from './use-invoice-register.js';
 export * from './use-open-items.js';

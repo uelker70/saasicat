@@ -94,6 +94,7 @@ import { computed, ref, watch } from 'vue';
 import AdminDialog from '../../ui/overlay/AdminDialog.vue';
 import type { TenantActionDef, TenantDto } from '@saasicat/core';
 import { formatMessage } from '../../client/i18n/format.js';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 // Platform-standard confirm dialog for tenant actions. Covers both confirm
@@ -129,6 +130,7 @@ const emit = defineEmits<{
 
 const msg = useSaMessages('tenants');
 const common = useSaMessages('common');
+const days = useInstallationDays();
 
 const slugInput = ref('');
 const reasonInput = ref('');
@@ -162,7 +164,7 @@ const needsTypedSlug = computed(
 );
 const needsDate = computed(() => props.def?.confirmType === 'date');
 
-const dateMin = computed(() => new Date().toISOString().slice(0, 10));
+const dateMin = computed(() => days.today());
 const dateLabel = computed(() => {
     const key = props.def?.actionKey ?? '';
     if (key.endsWith('.extend')) return msg.value.actions.extendUntilLabel;

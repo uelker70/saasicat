@@ -287,6 +287,7 @@ async function mountPage({
     }),
     query = {},
     recordAnswered = Promise.resolve(),
+    timeZone,
 }: {
     manifest?: { capabilities: Record<string, boolean> };
     standardPages?: Record<string, { enabled: boolean }>;
@@ -300,6 +301,8 @@ async function mountPage({
     query?: Record<string, string>;
     /** Settled when the record may answer; the record answers at once unless given. */
     recordAnswered?: Promise<void>;
+    /** The installation's zone, as the manifest names it. */
+    timeZone?: string;
 } = {}) {
     const asked: string[] = [];
     const page = await mountRecord({
@@ -307,6 +310,7 @@ async function mountPage({
         standardPages,
         standardPageRoute,
         query,
+        timeZone,
         attach: true,
         subscribers: {
             record: async () => {
@@ -498,6 +502,33 @@ describe("the subscriber's record shows its contracts", () => {
         await settle();
 
         expect(scrolled).toEqual(['sa-contract-c-2']);
+    });
+
+    // @requirement SC-ADM-048 — Every day the administration shows is a day of the installation
+    test('says when a contract was concluded and until when its minimum term runs as the installation’s days', async () => {
+        // 00:30 on 1 February in Berlin; a term ending at midnight before 1 February 2027 there.
+        const late = {
+            ...CONTRACTS.contracts[1]!,
+            concludedAt: '2026-01-31T23:30:00.000Z',
+            minimumTermUntil: '2027-01-31T23:00:00.000Z',
+        };
+        const { wrapper } = await mountPage({
+            timeZone: 'Europe/Berlin',
+            contracts: { contracts: [late] },
+            dossier: async () => dossierOf(late),
+        });
+
+        await openContract(wrapper, 'Plan upgraded');
+
+        const facts = Object.fromEntries(
+            dossierIn(wrapper)
+                .findAll('.kv')
+                .map((kv) => [kv.find('.kv__label').text(), kv.find('.kv__value').text()]),
+        );
+        expect([facts['Concluded on'], facts['Minimum term until']]).toEqual([
+            '2026-02-01',
+            '2027-01-31',
+        ]);
     });
 
     test('opens a contract into what it froze: its lines with where each came from, its invoices and its ids', async () => {

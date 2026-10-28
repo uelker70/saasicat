@@ -1334,7 +1334,7 @@ _Tested by:_
     - the words for it
         - names the day where the state has one
         - says it without a day where there is none
-        - formats the UTC day, so a day stored at midnight does not slip back
+        - writes a day picked and stored at its UTC midnight as that day, so it does not slip back
 
 <!-- END proof -->
 

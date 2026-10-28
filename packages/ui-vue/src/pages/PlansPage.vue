@@ -263,6 +263,8 @@ import {
 import type { SaMessages } from '../client/i18n/index.js';
 import { formatMessage } from '../client/i18n/format.js';
 import { quotaKeyOfField } from '../client/version-change-fields.js';
+import { storedDayOf } from '../client/installation-day.js';
+import { useInstallationDays } from '../vue/use-installation-days.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import PlanMatrix from '../features/plan/PlanMatrix.vue';
 import PlanDetail from '../features/plan/PlanDetail.vue';
@@ -335,6 +337,7 @@ const router = useRouter();
 const route = useRoute();
 const notify = useSuperAdminNotify();
 const msg = useSaMessages('plans');
+const days = useInstallationDays();
 // The plan detail's own strings: its header moved into this page's hero.
 const planDetailMsg = useSaMessages('planDetail');
 const shell = useSaMessages('shell');
@@ -844,7 +847,7 @@ function describeDraftSaveError(err: unknown): string {
 const draftEditing = ref<PlanDraftEditing | null>(null);
 
 function todayIso(): string {
-    return new Date().toISOString().slice(0, 10);
+    return days.today();
 }
 
 function openCreateDraft(): void {
@@ -890,8 +893,8 @@ function openEditDraft(row: PlanVersionRow): void {
             yearlyNet: row.yearlyNet,
             changeNote: row.changeNote ?? '',
             marketed: row.marketed,
-            validFrom: row.validFrom ? row.validFrom.slice(0, 10) : null,
-            validUntil: row.validUntil ? row.validUntil.slice(0, 10) : null,
+            validFrom: row.validFrom ? storedDayOf(row.validFrom) : null,
+            validUntil: row.validUntil ? storedDayOf(row.validUntil) : null,
         },
     };
     draftSaveError.value = null;

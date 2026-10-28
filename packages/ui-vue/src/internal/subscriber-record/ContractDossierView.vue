@@ -21,9 +21,12 @@
             <div class="sa-contract-dossier__facts">
                 <KvBlock
                     :label="msg.contracts.dossier.concluded"
-                    :value="formatDate(contract.concludedAt)"
+                    :value="formatDate(days.ofMoment(contract.concludedAt))"
                 />
-                <KvBlock :label="msg.contracts.dossier.agreed" :value="formatDate(read.agreedAt)" />
+                <KvBlock
+                    :label="msg.contracts.dossier.agreed"
+                    :value="formatDate(days.ofMoment(read.agreedAt))"
+                />
                 <KvBlock
                     :label="msg.contracts.dossier.terms"
                     :value="contract.termsVersion ?? msg.contracts.noTerms"
@@ -32,7 +35,7 @@
                 <KvBlock
                     v-if="contract.minimumTermUntil"
                     :label="msg.contracts.dossier.minimumTerm"
-                    :value="formatDate(contract.minimumTermUntil)"
+                    :value="formatDate(days.lastBefore(contract.minimumTermUntil))"
                 />
                 <KvBlock :label="msg.contracts.dossier.totals" :value="totals" />
             </div>
@@ -88,7 +91,7 @@
                 :label="msg.contracts.download"
                 :aria-label="
                     formatMessage(msg.contracts.downloadConfirmation, {
-                        date: formatDate(contract.concludedAt),
+                        date: formatDate(days.ofMoment(contract.concludedAt)),
                     })
                 "
                 :loading="downloads.downloading.value === contract.id"
@@ -115,6 +118,7 @@ import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import type { ContractDossier } from '../../vue/use-contract-dossier.js';
 import type { CopyText } from '../../vue/use-copy-text.js';
 import type { FileDownload } from '../../vue/use-file-download.js';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import ContractLines from './ContractLines.vue';
 
@@ -125,6 +129,7 @@ const props = defineProps<{
     /** The contract as the timeline lists it. */
     contract: AdminSubscriberContract;
     dossier: ContractDossier;
+    /** The page's own way of writing a calendar day, so one page shows one. */
     formatDate: (value: string | null | undefined) => string;
     downloads: FileDownload;
     copy: CopyText;
@@ -134,6 +139,7 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('subscribers');
+const days = useInstallationDays();
 const common = useSaMessages('common');
 const { locale } = useSuperAdminI18n();
 
@@ -149,7 +155,7 @@ const confirmationState = computed(() => {
     const label = msg.value.contracts.states[confirmation.state];
     if (confirmation.state !== 'sent') return label;
     return formatMessage(label, {
-        date: props.formatDate(confirmation.deliveredAt),
+        date: props.formatDate(days.ofMoment(confirmation.deliveredAt)),
         address: confirmation.deliveredTo ?? '',
     });
 });

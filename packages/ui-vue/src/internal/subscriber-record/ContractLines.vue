@@ -54,7 +54,7 @@
                 <KvBlock
                     v-if="line.minimumTermUntil"
                     :label="msg.contracts.dossier.minimumTerm"
-                    :value="formatDate(line.minimumTermUntil)"
+                    :value="formatDate(days.lastBefore(line.minimumTermUntil))"
                 />
             </div>
             <h5 class="sa-contract-lines__heading">{{ msg.contracts.dossier.features }}</h5>
@@ -95,6 +95,7 @@ import AdminStatusPill from '../../ui/data/AdminStatusPill.vue';
 import KvBlock from '../../ui/data/KvBlock.vue';
 import AdminAccordion from '../../ui/page/AdminAccordion.vue';
 import type { PillTone } from '../../vue/status.js';
+import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // A contract's lines as it froze them: the plan and each add-on opening on
@@ -103,7 +104,7 @@ import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n
 // tone is never the only sign of it (`SC-ADM-041`).
 const props = defineProps<{
     lines: readonly AdminContractLine[];
-    /** The page's own date format, so one page shows one. */
+    /** The page's own way of writing a calendar day, so one page shows one. */
     formatDate: (value: string | null | undefined) => string;
     /** Where the catalogue shows a plan's or an add-on's kind; `null` where it is not served. */
     catalogRoute: (kind: Exclude<ContractLineItemKind, 'discount'>) => RouteLocationRaw | null;
@@ -117,6 +118,7 @@ const SOURCE_TONE: Readonly<Record<AdminContractSourceState, PillTone>> = {
 };
 
 const msg = useSaMessages('subscribers');
+const days = useInstallationDays();
 const common = useSaMessages('common');
 const { locale } = useSuperAdminI18n();
 

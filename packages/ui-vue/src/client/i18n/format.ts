@@ -15,14 +15,24 @@ export function formatMessage(template: string, params: MessageParams): string {
 }
 
 /**
- * A calendar day (`YYYY-MM-DD`, or an ISO timestamp whose day is meant) as the
- * reader writes it. Formatted as the UTC day, so a day stored at midnight UTC
- * does not show as the day before west of Greenwich.
+ * A calendar day (`YYYY-MM-DD`) as the reader writes it — that day in every
+ * zone, so it is written from its UTC midnight in UTC. A moment is no day: it
+ * becomes one by `client/installation-day.ts`, which says which day is meant.
  */
 export function formatDay(day: string, intlLocale: string): string {
-    return new Date(`${day.slice(0, 10)}T00:00:00Z`).toLocaleDateString(intlLocale, {
+    return new Date(`${day}T00:00:00Z`).toLocaleDateString(intlLocale, {
         day: '2-digit',
         month: '2-digit',
+        year: 'numeric',
+        timeZone: 'UTC',
+    });
+}
+
+/** A calendar day in the short form a list writes, `28 Oct 2026` — that day in every zone. */
+export function formatShortDay(day: string, intlLocale: string): string {
+    return new Date(`${day}T00:00:00Z`).toLocaleDateString(intlLocale, {
+        day: '2-digit',
+        month: 'short',
         year: 'numeric',
         timeZone: 'UTC',
     });

@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { SA_MESSAGES, describeVersionSale, formatDay, versionSale } from '../dist/client/index.js';
+import {
+    SA_MESSAGES,
+    describeVersionSale,
+    formatDay,
+    formatStoredDay,
+    versionSale,
+} from '../dist/client/index.js';
 
 // The words the admin says a version's state in. The state itself is the
 // platform's (`versionSale` in `@saasicat/core`, tested there); the admin reads
@@ -37,8 +43,8 @@ describe('the words for it', () => {
         assert.equal(say({ kind: 'draft' }), 'Draft');
     });
 
-    it('formats the UTC day, so a day stored at midnight does not slip back', () => {
-        assert.equal(formatDay('2026-07-01T00:00:00.000Z', 'en-US'), '07/01/2026');
+    it('writes a day picked and stored at its UTC midnight as that day, so it does not slip back', () => {
+        assert.equal(formatStoredDay('2026-07-01T00:00:00.000Z', 'en-US'), '07/01/2026');
         assert.equal(formatDay('2026-07-01', 'de-DE'), '01.07.2026');
     });
 });
