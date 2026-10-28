@@ -15143,6 +15143,10 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         // @requirement SC-ADM-027
         // @requirement SC-ADM-050
         test('a write that read the subscriber before a join waits for it, and is refused', async (t) => {
+            if (!harness.adapter.capabilities.pessimisticLocking) {
+                t.skip('adapter declares no pessimistic-locking capability');
+                return;
+            }
             const customer = await aReturningCustomer(t, 'tenant-join-race');
             if (!customer) return;
             const { joins, earlier, returning, account, writeOf } = customer;
