@@ -195,6 +195,11 @@ export interface AdminSubscriberJoinNote {
     reason: string;
 }
 
+/** What a join answers: the subscriber everything moved to, as the record of the one joined names it. */
+export interface AdminSubscriberJoined {
+    joinedInto: AdminSubscriberJoinNote;
+}
+
 /** The joins a record names: the one it was joined into, and those joined into it. */
 export interface AdminSubscriberJoins {
     into: AdminSubscriberJoinNote | null;

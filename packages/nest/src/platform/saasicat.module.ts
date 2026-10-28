@@ -73,6 +73,7 @@ import {
 } from './compose/invoice-documents.js';
 import { servesSubscriberCredits } from './compose/subscriber-credits.js';
 import { servesSubscriberAdmin } from './compose/subscriber-admin.js';
+import { servesSubscriberJoins } from './compose/subscriber-join.js';
 import {
     servesBundleVersionRetirements,
     servesVersionRetirements,
@@ -253,6 +254,8 @@ export class SaaSiCatModule {
                             // Only an adapter holds a contract back, so only then
                             // is there anything for the lists to mark.
                             subscriberAttention: subscriberStanding && Boolean(taxes?.adapter),
+                            subscriberJoins:
+                                subscriberStanding && servesSubscriberJoins(composition),
                             versionRetirements:
                                 versionRetirements && retirementTermsConfirmed(settings),
                             bundleVersionRetirements:

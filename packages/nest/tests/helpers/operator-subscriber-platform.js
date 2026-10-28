@@ -8,7 +8,10 @@ import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 
 import { AdminManifestService, SaaSiCatModule } from '../../dist/platform/index.js';
-import { FakeSubscriberRepository } from '../../dist/testing/index.js';
+import {
+    FakeSubscriberJoinRepository,
+    FakeSubscriberRepository,
+} from '../../dist/testing/index.js';
 import { storeSecretsInPlainText } from '../../dist/index.js';
 import { controllersIn, handlersOf } from './operator-routes.js';
 import { TAX_SETTINGS, TEST_TAX_ADAPTER } from './tax-adapter.js';
@@ -77,6 +80,7 @@ export async function aPlatform({
     adapter = true,
     adminResources = true,
     subscribers = true,
+    joins = false,
     checkVatId = validAnswer,
 } = {}) {
     const seen = { lookups: [], reads: [], audited: [], checked: [] };
@@ -92,6 +96,7 @@ export async function aPlatform({
         },
     };
     const repo = new FakeSubscriberRepository();
+    const joinRepo = new FakeSubscriberJoinRepository(repo);
     for (const [tenantId, details] of Object.entries(SUBSCRIBERS)) {
         await repo.createForTenant({ tenantId, ...detailsOf(details) });
     }
@@ -148,6 +153,12 @@ export async function aPlatform({
             return checkVatId(vatId);
         },
     };
+    const entitlement = {
+        subscriptionRepository: { findByTenantId: async () => null },
+        planVersionRepository: { findById: async () => null },
+    };
+    if (subscribers) entitlement.subscriberRepository = repo;
+    if (joins) entitlement.subscriberJoinRepository = joinRepo;
     const root = SaaSiCatModule.forRoot({
         adapters: { secretSealer: storeSecretsInPlainText() },
         planCatalog: adapter ? { ...CATALOG, ...TAX_SETTINGS } : { ...CATALOG, vatRate: 19 },
@@ -173,11 +184,7 @@ export async function aPlatform({
                 rlsBypass,
                 transactionRunner: { run: (fn) => fn({}) },
             },
-            entitlement: {
-                subscriptionRepository: { findByTenantId: async () => null },
-                planVersionRepository: { findById: async () => null },
-                ...(subscribers ? { subscriberRepository: repo } : {}),
-            },
+            entitlement,
             adminResources: { resources: tenants },
         },
         adminResources,
@@ -198,6 +205,7 @@ export async function aPlatform({
         manifest,
         seen,
         repo,
+        joinRepo,
         served,
         call,
         /** The id of the subscriber of the tenant `slug`, or one nothing is kept under. */

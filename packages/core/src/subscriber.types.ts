@@ -10,6 +10,7 @@
 // the rule about correcting them is the same on both sides of the contract.
 
 import type { LegalIdentity, PartyAddress } from './legal-identity.js';
+import type { AdminSubscriberJoins } from './subscriber-join.types.js';
 import type { VatIdCheck } from './tax.types.js';
 
 /** How a subscriber is reached, which may change at any time. */
@@ -126,6 +127,11 @@ export interface AdminSubscriberTenant {
  */
 export interface AdminSubscriberRecord extends AdminSubscriberStanding {
     tenants: AdminSubscriberTenant[];
+    /**
+     * The subscriber it was joined into and those joined into it
+     * (`SC-ADM-027`); absent where the installation keeps no joins.
+     */
+    joins?: AdminSubscriberJoins;
 }
 
 /** One subscriber in the operator's list of subscribers. */
@@ -138,6 +144,11 @@ export interface AdminSubscriberRow {
     country: string | null;
     /** The tenant its live link names, as the application names it; `null` without one. */
     liveTenant: { id: string; slug: string | null; name: string | null } | null;
+    /**
+     * The subscriber it was joined into, by its customer number; `null` where it
+     * was joined into none, absent where the installation keeps no joins.
+     */
+    joinedInto?: { subscriberId: string; customerNumber: string } | null;
 }
 
 /** A page of the operator's list of subscribers, and the subscriber the next one continues after. */

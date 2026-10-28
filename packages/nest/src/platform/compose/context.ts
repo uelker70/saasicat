@@ -57,6 +57,8 @@ export interface SharedTenantBinding {
      */
     adminResourcesModule?: DynamicModule;
     tenantBillingModule?: DynamicModule;
+    /** Where joins are kept, the module that joins subscribers; the operator's routes import it. */
+    subscriberJoinModule?: DynamicModule;
 }
 
 /**

@@ -73,21 +73,22 @@ const liveLinkOf = (side: SubscriberJoinSide) =>
 /**
  * Why this join cannot be made, or `null` where it can. Asked in a fixed
  * order — what the operator gave, then what the subscribers are — and the
- * first that holds is the answer.
+ * first that holds is the answer. Without a request only the subscribers are
+ * asked about: a preview is shown before a reason is given.
  */
 export function subscriberJoinRefusal(
     state: SubscriberJoinState,
-    request: Pick<SubscriberJoinRequest, 'kind' | 'reason'>,
+    request?: Pick<SubscriberJoinRequest, 'kind' | 'reason'>,
 ): SubscriberJoinRefusal | null {
     const { from, into } = state;
     const refused = (
         code: SubscriberJoinRefusal['code'],
         params: Record<string, string> = {},
     ): SubscriberJoinRefusal => ({ code, params });
-    if (request.reason.trim() === '') {
+    if (request && request.reason.trim() === '') {
         return refused(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_JOIN_REASON_REQUIRED);
     }
-    if (request.kind !== 'same-entity') {
+    if (request && request.kind !== 'same-entity') {
         return refused(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_TAKEOVER_IS_A_TRANSFER);
     }
     if (from.subscriber.id === into.subscriber.id) {

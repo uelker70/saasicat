@@ -72,6 +72,8 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             subscriptionBundleRepository: REPO,
             subscriptionContractRepository: REPO,
             subscriberRepository: REPO,
+            // Its start asks whether the database guards a join.
+            subscriberJoinRepository: { protectionProblem: async () => null },
             subscriberLedgerRepository: REPO,
             contractConfirmationRepository: REPO,
             contractConfirmationArchive: REPO,

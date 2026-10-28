@@ -14,6 +14,7 @@ import type {
     SubscriberCorrectionRecord,
     SubscriberIdentityCorrection,
     SubscriberReadiness,
+    SubscriberJoinRepository,
     SubscriberRecord,
     SubscriberRepository,
     SubscriberTaxOrigin,
@@ -45,7 +46,10 @@ import {
     settleNewSubscriberDetails,
 } from './subscriber-details.js';
 
-import { SUBSCRIBER_REPOSITORY_TOKEN } from './subscriber.tokens.js';
+import {
+    SUBSCRIBER_JOIN_REPOSITORY_TOKEN,
+    SUBSCRIBER_REPOSITORY_TOKEN,
+} from './subscriber.tokens.js';
 
 /**
  * What a tenant may change but not clear: the address an invoice names, and
@@ -84,6 +88,11 @@ export class SubscriberService {
         @Optional()
         @Inject(TAX_TREATMENTS_TOKEN)
         private readonly taxes: TaxTreatments | null = null,
+        // Where the installation keeps joins: a subscriber joined into another
+        // takes no change. Without it no subscriber was ever joined.
+        @Optional()
+        @Inject(SUBSCRIBER_JOIN_REPOSITORY_TOKEN)
+        private readonly joins: SubscriberJoinRepository | null = null,
     ) {}
 
     /**
@@ -352,7 +361,9 @@ export class SubscriberService {
         changedBy: string,
     ): Promise<SubscriberRecord> {
         const actor = settleActor(changedBy);
-        return this.writeContact(subscriberId, settleContactChange(change), actor);
+        const settled = settleContactChange(change);
+        await this.refuseJoined(subscriberId);
+        return this.writeContact(subscriberId, settled, actor);
     }
 
     /**
@@ -428,8 +439,10 @@ export class SubscriberService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_CORRECTION_ACTOR_REQUIRED),
             );
         }
+        const corrected = settleIdentityCorrection(correction);
+        await this.refuseJoined(subscriberId);
         const result = await this.repo.correctIdentity(subscriberId, {
-            corrected: settleIdentityCorrection(correction),
+            corrected,
             reason,
             correctedBy,
         });
@@ -485,6 +498,7 @@ export class SubscriberService {
             throw new ConflictException(codedError(TAX_ERROR_CODES.TAX_VAT_ID_CHECK_NOT_AVAILABLE));
         }
         const subscriber = await this.requireOf(subject);
+        await this.refuseJoined(subscriber.id);
         if (subscriber.vatId === null) {
             throw new UnprocessableEntityException(
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_VAT_ID_MISSING),
@@ -545,6 +559,7 @@ export class SubscriberService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED),
             );
         }
+        await this.refuseJoined(subscriberId);
         const result = await this.repo.changeBusinessStatus(subscriberId, {
             business,
             changedBy,
@@ -552,6 +567,23 @@ export class SubscriberService {
         });
         if (!result) throw subscriberNotFound(subscriberId);
         return result;
+    }
+
+    /**
+     * Refused where the subscriber was joined into another (`SC-ADM-027`): its
+     * record stays as it was, an empty one naming where everything went, and a
+     * change made to it would reach nobody.
+     */
+    private async refuseJoined(subscriberId: string): Promise<void> {
+        if (!this.joins) return;
+        const joins = await this.joins.listFor([subscriberId]);
+        if (!joins.some((join) => join.fromSubscriberId === subscriberId)) return;
+        const subscriber = await this.repo.findById(subscriberId);
+        throw new ConflictException(
+            codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_JOINED, {
+                customerNumber: subscriber?.customerNumber ?? subscriberId,
+            }),
+        );
     }
 
     /**

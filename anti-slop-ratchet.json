@@ -6,6 +6,6 @@
     "no-reflect-apply": 0,
     "no-module-mocking": 0,
     "no-unsafe-dictionary-type": 266,
-    "no-conditional-empty-object-spread": 169,
+    "no-conditional-empty-object-spread": 168,
     "disable-directive": 0
 }
