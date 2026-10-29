@@ -60,8 +60,13 @@ that is put right. The runs go every quarter of an hour, by the actor
 - the terms a contract is concluded under, which its confirmation names: `terms.file`,
   `terms.version`;
 - where the subscribers' charges and invoices are kept: the `SubscriptionInvoiceRepository` you wire;
-- whether the platform schedules the runs, or your scheduler calls them (`invoices.includeCron` of
-  the module options).
+- who runs the runs: the platform every quarter of an hour, or, with
+  `tenantBilling.chargeJournal.invoices.includeCron: false`, a scheduler of yours that calls
+  `SubscriptionInvoiceService.issueDue`, then `InvoiceDocumentService.archiveDue` and `deliverDue`,
+  then `ContractConfirmationService.archiveDue` and `deliverDue`, then
+  `InvoiceCollectionService.collectDue` — in that order and every one of them: an invoice is mailed
+  only once its document is archived and collected only once it is mailed, so a step left out stops
+  everything after it.
 
 ## 2. Numbered
 
@@ -89,12 +94,13 @@ entity once the file declares one (`SC-CFG-025`).
 
 **What SaaSiCat does.** An issued invoice is never edited. It is corrected by cancelling it, only
 once its document is archived, by the operator with the second factor and a written reason
-(`SC-PRIC-095`, `SC-ADM-019`, `SC-ADM-020`) — in the administration or with `saasicat invoices
-cancel --invoice <number>`. The cancellation invoice cancels the whole invoice, names it and the
-reason, and keeps everything of the invoice it cancels; where something is still owed, a replacement
-under a new number names the invoice it replaces (`SC-PRIC-089`). The operator may say, line by line,
-what of the cancelled invoice is not owed or owed at less (`SC-ADM-035`), and correct a party detail
-that was wrong, which the replacement carries.
+(`SC-PRIC-095`, `SC-ADM-019`, `SC-ADM-020`) — in the administration, or on your application's
+command line with `<app> invoices cancel --invoice <number> --reason "…"`, which shows what it
+would write and writes with `--apply`. The cancellation invoice cancels the whole invoice, names it
+and the reason, and keeps everything of the invoice it cancels; where something is still owed, a
+replacement under a new number names the invoice it replaces (`SC-PRIC-089`). The operator may
+say, line by line, what of the cancelled invoice is not owed or owed at less (`SC-ADM-035`), and
+correct a party detail that was wrong, which the replacement carries.
 
 What was paid against the cancelled invoice moves to the replacement, and what exceeds it becomes a
 credit the operator pays out; a credit is never offset against a later invoice (`SC-PRIC-083`). The
@@ -149,7 +155,7 @@ installation (`SC-ADM-048`).
 For an auditor's or a tax advisor's access to the data (_Datenzugriff_), the register is exported as
 of a stated moment: one ZIP with the invoices, their lines and what settled each, in CSV and JSON,
 with a manifest naming the period, the moment and the checksum of every file, whose bytes repeat for
-the same period and moment (`SC-ADM-043`, `SC-ADM-047`) — from the administration or with `saasicat
+the same period and moment (`SC-ADM-043`, `SC-ADM-047`) — from the administration or with `<app>
 invoices export`. Each export is recorded as `SUBSCRIPTION_INVOICES_EXPORTED`, and every
 administrative action records who did it, from where and when (`SC-AUD-001`).
 
