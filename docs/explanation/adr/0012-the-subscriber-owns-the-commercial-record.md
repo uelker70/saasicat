@@ -205,6 +205,8 @@ the contract's link to the subscriber breaks the contract model, and 1.0.0 is wh
   it collects from — stays its own and is not touched by any of this.
 - Two installations hand two exports to the tax advisor; the operator's bookkeeping is where they
   meet. A DATEV export and a cash book are not part of this.
+- The operator documents its own invoicing procedure on the description SaaSiCat gives of its part
+  (`SC-ADM-025`): [The invoicing procedure](../invoicing-procedure.md).
 
 ## Migration
 

@@ -972,12 +972,22 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-ADM-025 — An operator gets a description of the invoicing procedure to document its own on
 
-🟡 _(Decided, not yet delivered.)_ 💰 German bookkeeping rules (GoBD) ask an operator to document how
+🟢 💰 German bookkeeping rules (GoBD) ask an operator to document how
 its invoices are produced, numbered, corrected, archived, accessed and kept. SaaSiCat's
 documentation describes each of those steps as SaaSiCat performs them, and names which parts the
 installation's adapters and settings decide, so the operator writes only what is its own.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/the-invoicing-procedure-names-what-an-installation-decides.test.js`
+    - the page names every setting of the file the invoicing reads
+    - the page names every port an application wires into the invoicing chain
+
+<!-- END proof -->
 
 ### SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
 

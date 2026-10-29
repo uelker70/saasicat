@@ -2787,7 +2787,8 @@ To offer it:
 - **A CLI of your own** registers `SubscriberJoinCliFlow`, `SubscribersCommands` and
   `SubscribersJoinCommand` ([Extend your CLI](extend-your-cli.md)).
 - **A persistence harness of your own** passes `subscriberJoinRepository` and applies the
-  migration, or the join scenarios report `subscriberJoins` missing.
+  migration, or declares `subscriberJoins` among its gaps; with neither, the join scenarios fail as
+  a part left out without being declared.
 - **A row for a joined subscriber is refused by the database.** A job of yours that writes one —
   a charge, a payment method, a check of a VAT number — for a subscriber it read before a join
   fails once and writes at the earlier subscriber when it runs again.

@@ -1234,7 +1234,9 @@ of your own — object storage with a retention lock, say — implements `Invoic
 **Keeping the documents is the operator's duty.** In Germany an invoice is kept for 8 years from the
 end of the calendar year it was issued in (§ 14b UStG, § 147 AO), unaltered and readable throughout,
 in Germany or, electronically, in another member state of the European Union, and the operator
-documents how in its procedure documentation (GoBD). The database archive keeps what it is given for
+documents how in its procedure documentation (GoBD) —
+[The invoicing procedure](../explanation/invoicing-procedure.md) describes what SaaSiCat does in each
+step and what is the installation's own. The database archive keeps what it is given for
 as long as the database does: include `subscription_invoice_archive` in every backup, and restore it
 whole.
 
