@@ -64,6 +64,7 @@ import {
     DrizzleContractConfirmationArchive,
     DrizzleInvoiceCollectionRepository,
     DrizzleSubscriberPaymentRepository,
+    DrizzleSubscriberJoinRepository,
     DrizzleSubscriberRepository,
     DrizzleSubscriptionContractRepository,
     DrizzleTenantSubscriptionWrite,
@@ -71,8 +72,21 @@ import {
 import { openDisposableDatabase } from './support/disposable-database.mjs';
 
 const { pool, db } = await openDisposableDatabase();
+// The guard of a join is a set of triggers, which the reference DDL cannot
+// carry: the shipped migration adds them, as it does after `db push`.
+await pool.query(
+    readFileSync(
+        join(
+            dirname(createRequire(import.meta.url).resolve('@saasicat/spec/package.json')),
+            'sql',
+            '1.0-a-subscriber-is-joined.postgres.sql',
+        ),
+        'utf8',
+    ),
+);
 
 const PLATFORM_TABLES = [
+    'subscriber_joins',
     'subscriber_credit_entries',
     'subscriber_refunds',
     'subscriber_credits',
@@ -142,6 +156,7 @@ function createHarness() {
             tenantSubscriptionWrite: new DrizzleTenantSubscriptionWrite(db),
             subscriptionContractRepository: new DrizzleSubscriptionContractRepository(db),
             subscriberRepository: new DrizzleSubscriberRepository(db),
+            subscriberJoinRepository: new DrizzleSubscriberJoinRepository(db),
             paymentEventLog: new DrizzlePaymentEventLog(db),
             subscriberPaymentMethodRepository: new DrizzleSubscriberPaymentMethodRepository(db),
             subscriberLedgerRepository: new DrizzleSubscriberLedgerRepository(db),
@@ -407,6 +422,38 @@ describe('the confirmation archive says whether it keeps the confirmations it ho
         await migration.disable(kept);
 
         assert.ok((await problem()).includes(`lacks ${kept},`));
+    });
+});
+
+// @requirement SC-ADM-050 — A join moves everything in one step, and a subscriber joined is given nothing afterwards
+describe('a join says what would let a subscriber joined be given a row', () => {
+    // A table that names a subscriber, and the subscribers' own.
+    const GUARDS = [
+        ['subscriber_payments', 'subscriber_payments_names_no_joined_subscriber'],
+        ['subscribers', 'subscribers_change_nothing_once_joined'],
+    ];
+    after(async () => {
+        for (const [table, guard] of GUARDS) {
+            await pool.query(`ALTER TABLE ${table} ENABLE TRIGGER "${guard}"`);
+        }
+    });
+
+    test('names a table whose trigger does not fire, and none where every one does', async () => {
+        const joins = new DrizzleSubscriberJoinRepository(db);
+        assert.equal(await joins.protectionProblem(), null);
+
+        for (const [table, guard] of GUARDS) {
+            await pool.query(`ALTER TABLE ${table} DISABLE TRIGGER "${guard}"`);
+            try {
+                const problem = await joins.protectionProblem();
+                assert.ok(
+                    problem?.startsWith(`${table} lacks its trigger, which refuses`),
+                    problem,
+                );
+            } finally {
+                await pool.query(`ALTER TABLE ${table} ENABLE TRIGGER "${guard}"`);
+            }
+        }
     });
 });
 

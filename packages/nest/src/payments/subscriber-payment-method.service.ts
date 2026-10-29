@@ -110,16 +110,12 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
         context: PaymentEventContext,
     ): Promise<PaymentEventEffect> {
         if (event.subject.kind !== 'subscriber') return 'nothing-to-do';
-        const completed = await this.methods.completeSetup(
-            {
-                gatewayAccount: context.gatewayAccount,
-                sessionRef: event.sessionRef,
-                subscriberId: event.subject.subscriberId,
-            },
-            event.occurredAt,
-            context.tx,
+        const subscriberId = await this.completeSetupFor(
+            event.subject.subscriberId,
+            event,
+            context,
         );
-        if (!completed) {
+        if (subscriberId === null) {
             // Nothing opened this session for this subscriber, or its payment
             // method was recorded already: a callback naming someone else's
             // subscriber changes nobody's payment method. At error level
@@ -135,7 +131,7 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
         await this.methods.recordConfirmed(
             {
                 ...event.paymentMethod,
-                subscriberId: event.subject.subscriberId,
+                subscriberId,
                 gatewayAccount: context.gatewayAccount,
                 provider: context.provider,
                 confirmedAt: event.occurredAt,
@@ -143,6 +139,40 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
             context.tx,
         );
         return 'took-effect';
+    }
+
+    /**
+     * Completes the setup the session was opened with, and names the
+     * subscriber it belongs to — or `null` where no open setup matches.
+     *
+     * The session names the subscriber it was opened for, and the gateway
+     * hands that back unchanged. Where that subscriber was joined into another
+     * since, the setup moved with everything it held, and so does the payment
+     * method confirmed on its form.
+     */
+    private async completeSetupFor(
+        named: string,
+        event: PaymentMethodConfirmedEvent,
+        context: PaymentEventContext,
+    ): Promise<string | null> {
+        const complete = (subscriberId: string) =>
+            this.methods.completeSetup(
+                {
+                    gatewayAccount: context.gatewayAccount,
+                    sessionRef: event.sessionRef,
+                    subscriberId,
+                },
+                event.occurredAt,
+                context.tx,
+            );
+        const first = await this.subscribers.currentIdOf(named);
+        if (await complete(first)) return first;
+        // A join that held the setup while this waited for it has moved it by
+        // the time the wait ends: whom the session's subscriber belongs to is
+        // read once more, now that the join is committed.
+        const now = await this.subscribers.currentIdOf(named);
+        if (now !== first && (await complete(now))) return now;
+        return null;
     }
 }
 

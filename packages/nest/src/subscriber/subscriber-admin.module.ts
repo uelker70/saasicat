@@ -28,6 +28,7 @@ import {
 } from 'class-validator';
 import {
     SUBSCRIBER_ATTENTION_PAGE_SIZE,
+    SUBSCRIBER_REASON_MAX_LENGTH,
     SUBSCRIBER_SEARCH_MAX_LENGTH,
     type AdminSubscriberAttention,
     type AdminSubscriberCorrected,
@@ -48,13 +49,12 @@ import { asProvider, type ProviderSpec } from '../core/di.js';
 import { WebAuditLogger } from '../core/web-audit.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 import { vatIdCheckOutcomeOf } from './subscriber-history.js';
+import { buildSubscriberJoinController } from './subscriber-join.controller.js';
 import { SubscriberRecordService } from './subscriber-record.service.js';
 import { SubscriberStandingService } from './subscriber-standing.service.js';
 import { SubscriberService } from './subscriber.service.js';
+import { SUBSCRIBER_ID_MAX_LENGTH } from './subscriber-limits.js';
 import { SUBSCRIBER_REPOSITORY_TOKEN } from './subscriber.tokens.js';
-
-/** The longest reason an operator writes for a correction: a sentence or two, not a file. */
-const MAX_REASON_LENGTH = 500;
 
 /** `GET admin/subscribers/attention?tenantId=…&tenantId=…` — the tenants of the page shown. */
 export class SubscriberAttentionQueryDto {
@@ -66,9 +66,6 @@ export class SubscriberAttentionQueryDto {
     @MinLength(1, { each: true })
     tenantId: string[] = [];
 }
-
-/** The longest subscriber id a page of the list is continued after. */
-const MAX_ID_LENGTH = 200;
 
 /** `GET admin/subscribers?q=…&withoutLiveTenant=true&after=…` — one page of the list. */
 export class SubscriberListQueryDto {
@@ -83,7 +80,7 @@ export class SubscriberListQueryDto {
 
     @IsOptional()
     @IsString()
-    @MaxLength(MAX_ID_LENGTH)
+    @MaxLength(SUBSCRIBER_ID_MAX_LENGTH)
     after?: string;
 }
 
@@ -112,7 +109,7 @@ export class CorrectSubscriberIdentityDto {
     taxNumber?: string | null;
 
     @IsString()
-    @MaxLength(MAX_REASON_LENGTH)
+    @MaxLength(SUBSCRIBER_REASON_MAX_LENGTH)
     reason!: string;
 }
 
@@ -123,7 +120,7 @@ export class ChangeSubscriberBusinessStatusDto {
     business!: boolean | null;
 
     @IsString()
-    @MaxLength(MAX_REASON_LENGTH)
+    @MaxLength(SUBSCRIBER_REASON_MAX_LENGTH)
     reason!: string;
 }
 
@@ -139,6 +136,12 @@ export interface SubscriberAdminModuleOptions {
      * globally.
      */
     imports: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
+    /**
+     * Where the installation keeps joins, the module that joins subscribers
+     * (`SubscriberJoinModule`), as the very object the platform imports: the
+     * join routes are served and the record names its joins.
+     */
+    joins?: DynamicModule;
 }
 
 function buildSubscriberAdminController(guards: Array<Type<CanActivate>>): Type {
@@ -349,9 +352,15 @@ function buildSubscriberAdminController(guards: Array<Type<CanActivate>>): Type 
 @Module({})
 export class SubscriberAdminModule {
     static forRoot(options: SubscriberAdminModuleOptions): DynamicModule {
+        const imports = [...options.imports];
+        const controllers = [buildSubscriberAdminController(options.guards)];
+        if (options.joins) {
+            imports.push(options.joins);
+            controllers.push(buildSubscriberJoinController(options.guards));
+        }
         return {
             module: SubscriberAdminModule,
-            imports: options.imports,
+            imports,
             providers: [
                 asProvider(SUBSCRIBER_REPOSITORY_TOKEN, options.subscriberRepository),
                 SubscriberStandingService,
@@ -359,7 +368,7 @@ export class SubscriberAdminModule {
                 SubscriberService,
                 WebAuditLogger,
             ],
-            controllers: [buildSubscriberAdminController(options.guards)],
+            controllers,
         };
     }
 }

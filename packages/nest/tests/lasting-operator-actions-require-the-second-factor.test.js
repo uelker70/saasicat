@@ -49,6 +49,8 @@ const LASTING = [
     'POST admin/subscribers/:id/credits/:creditId/payouts',
     // Whom the next invoice names (`SC-SUB-017`).
     'POST admin/subscribers/:id/identity',
+    // A returning customer's subscriber joined into the one it had, not undone (`SC-ADM-027`).
+    'POST admin/subscribers/:id/join',
     'POST admin/tenants/:slug/reactivate',
     'POST admin/tenants/:slug/suspend',
 ];

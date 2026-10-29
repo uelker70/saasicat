@@ -118,6 +118,7 @@ persistenceAdapterContract({
         'invoiceArchive',
         'invoiceCollections',
         'subscriberPayments',
+        'subscriberJoins',
         'checkoutOffers',
         'appliedSettings',
         'termsArchive',

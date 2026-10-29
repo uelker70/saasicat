@@ -84,6 +84,7 @@ export { PrismaInvoiceCollectionRepository } from './prisma-invoice-collection.r
 export { PrismaSubscriberPaymentRepository } from './prisma-subscriber-payment.repository.js';
 export { PrismaSubscriberPaymentMethodRepository } from './prisma-subscriber-payment-method.repository.js';
 export { PrismaSubscriberRepository } from './prisma-subscriber.repository.js';
+export { PrismaSubscriberJoinRepository } from './prisma-subscriber-join.repository.js';
 export { PrismaAppliedSettingsRepository } from './prisma-applied-settings.repository.js';
 export { PrismaMaintenanceWindowRepository } from './prisma-maintenance-window.repository.js';
 export { PrismaSubscriptionNoticeRepository } from './prisma-subscription-notice.repository.js';

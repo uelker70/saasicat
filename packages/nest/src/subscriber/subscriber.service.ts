@@ -14,6 +14,7 @@ import type {
     SubscriberCorrectionRecord,
     SubscriberIdentityCorrection,
     SubscriberReadiness,
+    SubscriberJoinRepository,
     SubscriberRecord,
     SubscriberRepository,
     SubscriberTaxOrigin,
@@ -45,7 +46,10 @@ import {
     settleNewSubscriberDetails,
 } from './subscriber-details.js';
 
-import { SUBSCRIBER_REPOSITORY_TOKEN } from './subscriber.tokens.js';
+import {
+    SUBSCRIBER_JOIN_REPOSITORY_TOKEN,
+    SUBSCRIBER_REPOSITORY_TOKEN,
+} from './subscriber.tokens.js';
 
 /**
  * What a tenant may change but not clear: the address an invoice names, and
@@ -84,6 +88,11 @@ export class SubscriberService {
         @Optional()
         @Inject(TAX_TREATMENTS_TOKEN)
         private readonly taxes: TaxTreatments | null = null,
+        // Where the installation keeps joins: a subscriber joined into another
+        // takes no change. Without it no subscriber was ever joined.
+        @Optional()
+        @Inject(SUBSCRIBER_JOIN_REPOSITORY_TOKEN)
+        private readonly joins: SubscriberJoinRepository | null = null,
     ) {}
 
     /**
@@ -352,7 +361,11 @@ export class SubscriberService {
         changedBy: string,
     ): Promise<SubscriberRecord> {
         const actor = settleActor(changedBy);
-        return this.writeContact(subscriberId, settleContactChange(change), actor);
+        const settled = settleContactChange(change);
+        await this.refuseJoined(subscriberId);
+        return this.refusedWhereJoined(subscriberId, () =>
+            this.writeContact(subscriberId, settled, actor),
+        );
     }
 
     /**
@@ -377,7 +390,16 @@ export class SubscriberService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, { field: cleared }),
             );
         }
-        return this.writeContact(subscriber.id, settled, actor);
+        try {
+            return await this.writeContact(subscriber.id, settled, actor);
+        } catch (error) {
+            // A join of the tenant's subscriber committed while this waited for
+            // it, and the database refused the change: the tenant belongs to the
+            // subscriber it was joined into now, and the change is that one's.
+            if ((await this.joinedInto(subscriber.id)) === null) throw error;
+            const joinedInto = await this.requireForTenant(tenantId);
+            return this.writeContact(joinedInto.id, settled, actor);
+        }
     }
 
     /** Writes contact details already settled; settling twice would check one copy and write another. */
@@ -428,11 +450,11 @@ export class SubscriberService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_CORRECTION_ACTOR_REQUIRED),
             );
         }
-        const result = await this.repo.correctIdentity(subscriberId, {
-            corrected: settleIdentityCorrection(correction),
-            reason,
-            correctedBy,
-        });
+        const corrected = settleIdentityCorrection(correction);
+        await this.refuseJoined(subscriberId);
+        const result = await this.refusedWhereJoined(subscriberId, () =>
+            this.repo.correctIdentity(subscriberId, { corrected, reason, correctedBy }),
+        );
         if (!result) throw subscriberNotFound(subscriberId);
         if (!result.correction) {
             throw new UnprocessableEntityException(
@@ -485,6 +507,7 @@ export class SubscriberService {
             throw new ConflictException(codedError(TAX_ERROR_CODES.TAX_VAT_ID_CHECK_NOT_AVAILABLE));
         }
         const subscriber = await this.requireOf(subject);
+        await this.refuseJoined(subscriber.id);
         if (subscriber.vatId === null) {
             throw new UnprocessableEntityException(
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_VAT_ID_MISSING),
@@ -505,7 +528,9 @@ export class SubscriberService {
     ): Promise<SubscriberVatIdCheckResult> {
         const outcome = await taxes.checkVatId(vatId);
         if (!outcome.completed) return { completed: false, reason: outcome.reason };
-        const recorded = await this.repo.recordVatIdCheck(subscriberId, outcome.check);
+        const recorded = await this.refusedWhereJoined(subscriberId, () =>
+            this.repo.recordVatIdCheck(subscriberId, outcome.check),
+        );
         if (!recorded) throw subscriberNotFound(subscriberId);
         return {
             completed: true,
@@ -545,13 +570,78 @@ export class SubscriberService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED),
             );
         }
-        const result = await this.repo.changeBusinessStatus(subscriberId, {
-            business,
-            changedBy,
-            reason,
-        });
+        await this.refuseJoined(subscriberId);
+        const result = await this.refusedWhereJoined(subscriberId, () =>
+            this.repo.changeBusinessStatus(subscriberId, { business, changedBy, reason }),
+        );
         if (!result) throw subscriberNotFound(subscriberId);
         return result;
+    }
+
+    /**
+     * The subscriber `subscriberId` belongs to now: itself, or the one it was
+     * joined into (`SC-ADM-027`) — and the one that was joined into in turn.
+     * For a reference a join cannot move, because it is kept outside the
+     * installation: the subscriber a gateway's session was opened for.
+     */
+    async currentIdOf(subscriberId: string): Promise<string> {
+        if (!this.joins) return subscriberId;
+        const followed: string[] = [];
+        let current = subscriberId;
+        for (;;) {
+            followed.push(current);
+            const into = await this.joinedInto(current);
+            if (into === null) return current;
+            // No join can be made into a subscriber joined already, so a
+            // cycle is a row nothing here wrote, and following it would not end.
+            if (followed.includes(into)) {
+                throw new Error(
+                    `Subscriber ${subscriberId} is joined in a cycle, ` +
+                        `${[...followed, into].join(' → ')}: ` +
+                        'subscriber_joins holds a row no join wrote.',
+                );
+            }
+            current = into;
+        }
+    }
+
+    /** The subscriber `subscriberId` was joined into, or `null` where it was not. */
+    private async joinedInto(subscriberId: string): Promise<string | null> {
+        const joins = (await this.joins?.listFor([subscriberId])) ?? [];
+        return (
+            joins.find((join) => join.fromSubscriberId === subscriberId)?.intoSubscriberId ?? null
+        );
+    }
+
+    /**
+     * Refused where the subscriber was joined into another (`SC-ADM-027`): its
+     * record stays as it was, an empty one naming where everything went, and a
+     * change made to it would reach nobody.
+     */
+    private async refuseJoined(subscriberId: string): Promise<void> {
+        if ((await this.joinedInto(subscriberId)) === null) return;
+        const subscriber = await this.repo.findById(subscriberId);
+        throw new ConflictException(
+            codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_JOINED, {
+                customerNumber: subscriber?.customerNumber ?? subscriberId,
+            }),
+        );
+    }
+
+    /**
+     * `write`, answered as `refuseJoined` answers where it failed because the
+     * subscriber was joined into another meanwhile. A check made before the
+     * write cannot see a join that commits while the write waits for the
+     * subscriber's row, and the database refuses the write then — which would
+     * otherwise reach the operator as an error of its own.
+     */
+    private async refusedWhereJoined<T>(subscriberId: string, write: () => Promise<T>): Promise<T> {
+        try {
+            return await write();
+        } catch (error) {
+            await this.refuseJoined(subscriberId);
+            throw error;
+        }
     }
 
     /**

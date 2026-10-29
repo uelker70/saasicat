@@ -121,6 +121,21 @@ describe('the list of subscribers', () => {
         expect(asked.at(-1)).toEqual({ query: 'Muster', withoutLiveTenant: true });
     });
 
+    // @requirement SC-ADM-027 — An operator joins a returning customer's new tenant to the subscriber it had
+    test('marks a subscriber joined into another with the one it was joined into', async () => {
+        const { wrapper } = await mountList(async () => ({
+            subscribers: [
+                { ...ROWS[0], joinedInto: { subscriberId: 's-1', customerNumber: 'K-10001' } },
+                { ...ROWS[1], joinedInto: null },
+            ],
+            next: null,
+        }));
+
+        const [joined, live] = wrapper.findAll('tbody tr');
+        expect(joined?.text()).toContain('joined into K-10001');
+        expect(live?.text()).not.toContain('joined into');
+    });
+
     test('with nobody matching, says so', async () => {
         const { wrapper } = await mountList(async () => ({ subscribers: [], next: null }));
 

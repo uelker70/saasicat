@@ -23,17 +23,29 @@ set -e
 # The reference schema is the ground rather than a step, and the constraints go
 # after the push because they constrain tables the push creates — so both are
 # skipped here.
+apply_platform_migrations() {
+    for migration in node_modules/@saasicat/spec/sql/*.sql; do
+        case "$(basename "$migration")" in
+            reference-schema.postgres.sql | constraints.postgres.sql) continue ;;
+        esac
+        echo "notesapp:   $(basename "$migration")"
+        pnpm exec prisma db execute --file "$migration" --schema prisma/schema.prisma
+    done
+}
+
 echo "notesapp: applying pending platform migrations…"
-for migration in node_modules/@saasicat/spec/sql/*.sql; do
-    case "$(basename "$migration")" in
-        reference-schema.postgres.sql | constraints.postgres.sql) continue ;;
-    esac
-    echo "notesapp:   $(basename "$migration")"
-    pnpm exec prisma db execute --file "$migration" --schema prisma/schema.prisma
-done
+apply_platform_migrations
 
 echo "notesapp: applying prisma schema…"
 pnpm exec prisma db push --skip-generate
+
+# Once more after the push, from the same directory: a file that adds a trigger
+# to a table `db push` creates — the guard of a join of subscribers — finds the
+# table only now, and on a fresh database the platform refuses to start
+# without it. Every other file does nothing on its second run, as each is
+# written to.
+echo "notesapp: applying what needs the pushed schema…"
+apply_platform_migrations
 
 # After the push, because `db push` is what creates the tables these constrain,
 # and from the shipped file rather than a copy. The copy that used to live in

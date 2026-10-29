@@ -37,6 +37,12 @@ import type {
     SubscriberCorrectionData,
     SubscriberCorrectionRecord,
     SubscriberCorrectionResult,
+    SubscriberJoinMoves,
+    SubscriberJoinRecord,
+    SubscriberJoinRepository,
+    SubscriberJoinSide,
+    SubscriberJoinState,
+    SubscriberJoinWrite,
     SubscriberRecord,
     SubscriberRepository,
     SubscriberSearch,
@@ -516,6 +522,8 @@ export class FakeSubscriberRepository implements SubscriberRepository {
     /** The number each subscriber was assigned, apart from its prefix, as the schema keeps it. */
     private readonly numbers = new Map<string, { prefix: string; sequence: number }>();
     private readonly links: Array<SubscriberTenantLinkRecord & { subscriberId: string }> = [];
+    /** The subscribers a join emptied, which the database's guard keeps as the join left them. */
+    private readonly joined = new Set<string>();
 
     async createForTenant(data: CreateSubscriberData): Promise<SubscriberRecord | null> {
         if (this.liveFor(data.tenantId)) return null;
@@ -612,6 +620,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
     ): Promise<SubscriberRecord | null> {
         const record = this.byId.get(subscriberId);
         if (!record) return null;
+        this.refuseAJoinedSubscriber(subscriberId);
         const changedAt = new Date();
         const origin = taxOriginWrite(record, { country: change.country });
         const updated = { ...record, ...change, updatedAt: changedAt };
@@ -630,6 +639,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
         if (Object.keys(delta.corrected).length === 0) {
             return { subscriber: { ...record }, correction: null };
         }
+        this.refuseAJoinedSubscriber(subscriberId);
         const changedAt = new Date();
         const origin = taxOriginWrite(record, { vatId: delta.corrected.vatId });
         const updated = {
@@ -671,6 +681,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
         if (!record) return null;
         const origin = taxOriginWrite(record, { business: data.business });
         if (!origin.moved) return { subscriber: { ...record }, change: null };
+        this.refuseAJoinedSubscriber(subscriberId);
         const changedAt = new Date();
         const updated = { ...record, business: data.business, updatedAt: changedAt };
         this.byId.set(subscriberId, updated);
@@ -690,6 +701,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
     ): Promise<RecordedVatIdCheck | null> {
         const record = this.byId.get(subscriberId);
         if (!record) return null;
+        this.refuseAJoinedSubscriber(subscriberId);
         const recorded: SubscriberVatIdCheckRecord = {
             ...check,
             confirmation: { ...check.confirmation },
@@ -741,6 +753,20 @@ export class FakeSubscriberRepository implements SubscriberRepository {
             .map((change) => ({ ...change }));
     }
 
+    /**
+     * Refused as the triggers of `1.0-a-subscriber-is-joined.postgres.sql`
+     * refuse it in a database: a subscriber joined into another takes no
+     * change and no row. A write that read the subscriber before the join and
+     * writes after it fails here as it would there.
+     */
+    private refuseAJoinedSubscriber(subscriberId: string): void {
+        if (!this.joined.has(subscriberId)) return;
+        throw new Error(
+            `Subscriber ${subscriberId} was joined into another subscriber and takes nothing ` +
+                'more: the write is refused, and belongs to the subscriber it was joined into.',
+        );
+    }
+
     private countingCheck(subscriberId: string): SubscriberVatIdCheckRecord | null {
         const id = this.currentVatIdCheck.get(subscriberId);
         return this.vatIdChecks.find((check) => check.id === id) ?? null;
@@ -769,6 +795,169 @@ export class FakeSubscriberRepository implements SubscriberRepository {
 
     private liveFor(tenantId: string): SubscriberRecord | undefined {
         return [...this.byId.values()].find((record) => record.tenantId === tenantId);
+    }
+
+    /** A subscriber as a join reads it, without what only the join repository knows. */
+    joinSideOf(
+        subscriberId: string,
+    ): Pick<SubscriberJoinSide, 'subscriber' | 'links' | 'countingVatIdCheck'> | null {
+        const record = this.byId.get(subscriberId);
+        if (!record) return null;
+        return {
+            subscriber: { ...record },
+            links: tenantLinksInOrder(
+                this.links
+                    .filter((link) => link.subscriberId === subscriberId)
+                    .map(({ tenantId, linkedAt, unlinkedAt }) => ({
+                        tenantId,
+                        linkedAt,
+                        unlinkedAt,
+                    })),
+            ),
+            countingVatIdCheck: this.countingCheck(subscriberId),
+        };
+    }
+
+    /** How many rows of the tables this fake keeps name the subscriber. */
+    ownedBy(subscriberId: string): SubscriberJoinMoves {
+        const of = (rows: ReadonlyArray<{ subscriberId: string }>) =>
+            rows.filter((row) => row.subscriberId === subscriberId).length;
+        return {
+            subscriber_tenants: of(this.links),
+            subscriber_corrections: of(this.corrections),
+            subscriber_tax_origin_changes: of(this.taxOriginChanges),
+            subscriber_vat_id_checks: of(this.vatIdChecks),
+        };
+    }
+
+    /** Applies a join `planSubscriberJoin` decided, as an adapter writes it. */
+    applyJoin(write: SubscriberJoinWrite): void {
+        const { plan, joinedAt, joinedBy, reason } = write;
+        const from = plan.fromSubscriberId;
+        const into = plan.intoSubscriberId;
+        const record = this.byId.get(into);
+        const joined = this.byId.get(from);
+        if (!record || !joined) throw new Error(`Joining ${from} into ${into}: one is not kept.`);
+        for (const rows of [
+            this.links,
+            this.corrections,
+            this.taxOriginChanges,
+            this.vatIdChecks,
+        ]) {
+            for (const row of rows) if (row.subscriberId === from) row.subscriberId = into;
+        }
+        const live = this.links.find(
+            (link) => link.subscriberId === into && link.unlinkedAt === null,
+        );
+        const updated: SubscriberRecord = {
+            ...record,
+            ...plan.contact,
+            ...plan.identity?.corrected,
+            tenantId: live?.tenantId ?? null,
+            updatedAt: joinedAt,
+        };
+        if (plan.business !== undefined) updated.business = plan.business;
+        this.byId.set(into, updated);
+        this.byId.set(from, { ...joined, tenantId: null, updatedAt: joinedAt });
+        this.joined.add(from);
+        if (plan.vatIdCheck === 'adopted' && plan.adoptedVatIdCheckId) {
+            this.currentVatIdCheck.set(into, plan.adoptedVatIdCheckId);
+            const since = this.vatIdSince.get(from);
+            if (since) this.vatIdSince.set(into, since);
+            else this.vatIdSince.delete(into);
+        } else if (plan.vatIdCheck === 'ended') {
+            this.currentVatIdCheck.delete(into);
+            this.vatIdSince.set(into, joinedAt);
+        }
+        this.currentVatIdCheck.delete(from);
+        if (plan.identity) {
+            this.corrections.push({
+                id: `correction-${this.nextCorrectionId++}`,
+                subscriberId: into,
+                previous: plan.identity.previous,
+                corrected: plan.identity.corrected,
+                reason,
+                correctedBy: joinedBy,
+                correctedAt: joinedAt,
+            });
+        }
+        if (plan.taxOrigin) {
+            this.taxOriginChanges.push({
+                id: `tax-origin-change-${this.nextTaxOriginChangeId++}`,
+                subscriberId: into,
+                previous: plan.taxOrigin.previous,
+                changed: plan.taxOrigin.changed,
+                changedBy: joinedBy,
+                changedAt: joinedAt,
+                reason,
+            });
+        }
+    }
+}
+
+/**
+ * In-memory FakeSubscriberJoinRepository over a `FakeSubscriberRepository`:
+ * the links, corrections, changes of the tax origin and checks of the VAT id
+ * it keeps move with a join, and the join is recorded. The other tables that
+ * name a subscriber live in no fake here, so a join counts none of them, and no
+ * payment method is in use. No database, so nothing to guard: a write after a
+ * join is refused by the database's triggers (`SC-ADM-027`), which only the
+ * persistence contract reaches.
+ */
+export class FakeSubscriberJoinRepository implements SubscriberJoinRepository {
+    private readonly joins: SubscriberJoinRecord[] = [];
+    private nextJoinId = 1;
+
+    constructor(private readonly subscribers: FakeSubscriberRepository) {}
+
+    async hold(
+        fromSubscriberId: string,
+        intoSubscriberId: string,
+    ): Promise<SubscriberJoinState | null> {
+        const side = (subscriberId: string): SubscriberJoinSide | null => {
+            const kept = this.subscribers.joinSideOf(subscriberId);
+            if (!kept) return null;
+            const joined = this.joins.find((join) => join.fromSubscriberId === subscriberId);
+            return {
+                ...kept,
+                joinedIntoId: joined?.intoSubscriberId ?? null,
+                paymentMethodsInUse: 0,
+            };
+        };
+        const from = side(fromSubscriberId);
+        const into = side(intoSubscriberId);
+        if (!from || !into) return null;
+        return { from, into, moving: this.subscribers.ownedBy(fromSubscriberId) };
+    }
+
+    async join(write: SubscriberJoinWrite): Promise<SubscriberJoinRecord> {
+        this.subscribers.applyJoin(write);
+        const join: SubscriberJoinRecord = {
+            id: `join-${this.nextJoinId++}`,
+            fromSubscriberId: write.plan.fromSubscriberId,
+            intoSubscriberId: write.plan.intoSubscriberId,
+            reason: write.reason,
+            joinedBy: write.joinedBy,
+            joinedAt: write.joinedAt,
+            digest: write.digest,
+            moved: { ...write.plan.moving },
+        };
+        this.joins.push(join);
+        return { ...join };
+    }
+
+    async listFor(subscriberIds: readonly string[]): Promise<SubscriberJoinRecord[]> {
+        return this.joins
+            .filter(
+                (join) =>
+                    subscriberIds.includes(join.fromSubscriberId) ||
+                    subscriberIds.includes(join.intoSubscriberId),
+            )
+            .map((join) => ({ ...join }));
+    }
+
+    async protectionProblem(): Promise<string | null> {
+        return null;
     }
 }
 

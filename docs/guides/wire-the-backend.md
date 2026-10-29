@@ -927,6 +927,52 @@ the correction, then `checkCorrectedVatId(correction)` outside any transaction �
 number held with `checkVatIdOf`. `SubscriberRecordPage` offers all of it; `TenantDetailPage` names
 the tenant's subscriber and leads into its record.
 
+### Joining a returning customer's subscriber
+
+Self-registration creates a subscriber of its own, and nothing matches a sign-up to an earlier
+customer by itself. When a customer whose tenant you deleted signs up again, the operator joins the
+new subscriber — the one with the live tenant — into the one it had (`SC-ADM-027`): everything the
+new one holds moves to the earlier one in one transaction, its record stays as an empty one that
+names where everything went, and a join is not undone (`SC-ADM-049`, `SC-ADM-050`). It is off
+until `SaaSiCatModule.forRoot({ subscriberJoins: true })` turns it on, and that needs two things
+from your schema:
+
+- **`SubscriberJoin`** from `prisma-fragments/27-subscriber-join.prisma`, with the two relation fields
+  it adds to `Subscriber` (`joinedInto`, `joinedFrom`). A schema that leaves it out passes
+  `notAdopted: ['SubscriberJoin']` and offers no join.
+- **`sql/1.0-a-subscriber-is-joined.postgres.sql`, after `db push`.** It adds a trigger to every
+  table that names a subscriber: a charge run, an invoice run or a payment that read a subscriber
+  before a join and writes while it runs waits for it, is refused, and writes at the earlier
+  subscriber on its next attempt. A trigger on `subscribers` refuses a change of the subscriber
+  joined in the same way: a tenant's change of its own details that waited for the join is written
+  at the earlier subscriber, and an operator's is answered with `SUBSCRIBER_JOINED`. Where such a
+  write holds a row the join moves, the database aborts one of the two; a join it aborts is tried
+  once more, and reads everything anew.
+
+With joins on, the start is refused where the bundle has no `subscriberJoinRepository`, where the
+schema lacks a table a join moves — a model the client was generated without, or a table the
+database does not have; name it in `notAdopted` — and where a table lacks its trigger.
+
+The operator joins in the subscriber's record, announced as `subscribers.join`: `POST
+admin/subscribers/:id/join/preview` with `intoSubscriberId` shows both side by side, what moves and
+what the earlier record takes, and `POST admin/subscribers/:id/join` with `kind: 'same-entity'`, a
+`reason` and the preview's `previewDigest` joins them, behind the second factor — refused with
+`SUBSCRIBER_JOIN_PREVIEW_CHANGED` and the new preview where anything changed since. The audit log
+records `SUBSCRIBER_JOINED`. Each other refusal has its code in the
+[error codes](../reference/error-codes.md): no reason, another legal entity declared, the same
+subscriber, either joined already, a subscriber without a live tenant to join, an earlier one that
+still has one. A deletion of a tenant in your application closes its subscriber's link, as above —
+an earlier subscriber whose link is still open cannot be joined into. From the command line,
+`<app> subscribers join --from <customer number> --into <customer number> --reason "…"` does the
+same ([Extend your CLI](extend-your-cli.md)); it runs where your persistence keeps joins, also
+without `adminResources`.
+
+The join moves the rows of the canonical tables, inside `RlsBypassPort`; a row-level policy that
+hides a row from the platform there makes the join refuse rather than move fewer. A table of your
+own that names a subscriber is not one of them, and is not moved. A persistence harness of your own
+passes `subscriberJoinRepository` and applies the migration, or the join scenarios report
+`subscriberJoins` missing.
+
 ## The Subscriber's Account
 
 The journal of what each subscriber owes: one charge per contract line and period — the plan, each

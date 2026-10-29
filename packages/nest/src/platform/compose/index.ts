@@ -28,6 +28,7 @@ import { composeSubscriberAccount } from './subscriber-account.js';
 import { composeSubscriberCredits } from './subscriber-credits.js';
 import { composeInvoiceDocuments } from './invoice-documents.js';
 import { composeSubscriberAdmin } from './subscriber-admin.js';
+import { composeSubscriberJoins } from './subscriber-join.js';
 import { composeSubscriptionBundles, composeTenantBilling } from './tenant-billing.js';
 import { composeVersionRetirement } from './version-retirement.js';
 
@@ -42,6 +43,8 @@ export const FEATURE_COMPOSERS: readonly Composer[] = [
     // Before the bundles — see the note above.
     composeTenantBilling,
     composeSubscriptionBundles,
+    // Before payments and the subscriber's routes: both import the module it builds.
+    composeSubscriberJoins,
     // After tenant billing too: its tenant routes share the guards.
     composePayments,
     composeSetup,

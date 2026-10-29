@@ -66,6 +66,7 @@ export const OPTIONAL_CANONICAL_MODELS = {
         'entitlement.subscriberPaymentRepository',
         'entitlement.invoiceCollectionRepository',
     ],
+    SubscriberJoin: ['entitlement.subscriberJoinRepository'],
     PromoCodeHold: ['promo.holdRepository'],
     TermsVersion: ['core.termsArchive'],
 } as const;

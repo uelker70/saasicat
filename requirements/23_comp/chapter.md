@@ -985,6 +985,8 @@ _Tested by:_
         - without the migration, the triggers it lacks
         - once the migration ran, none
         - with the one against an update or a delete disabled, that one
+    - a join says what would let a subscriber joined be given a row
+        - names a table whose trigger does not fire, and none where every one does
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -1013,6 +1015,9 @@ _Tested by:_
         - partial unique draft indexes exist
         - one draft per plan lineage is enforced by the database
         - subscriptions require planVersionId
+    - a join says what would let a subscriber joined be given a row
+        - names a table whose trigger does not fire, and none where every one does
+        - names a model the client was generated without, which it would leave rows in
 - `packages/adapter-prisma/tests/prisma-adapters.test.js`
     - PrismaMfaAdapter
         - secret roundtrip incl. enabledAt handling
@@ -1194,6 +1199,8 @@ _Tested by:_
         - without the migration, the triggers it lacks
         - once the migration ran, none
         - with the one against an update or a delete disabled, that one
+    - a join says what would let a subscriber joined be given a row
+        - names a table whose trigger does not fire, and none where every one does
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -1218,6 +1225,9 @@ _Tested by:_
         - partial unique draft indexes exist
         - one draft per plan lineage is enforced by the database
         - subscriptions require planVersionId
+    - a join says what would let a subscriber joined be given a row
+        - names a table whose trigger does not fire, and none where every one does
+        - names a model the client was generated without, which it would leave rows in
 - `packages/nest/tests/an-adapter-without-a-plan-catalogue-can-sell-bundles.test.js`
     - an adapter with bundles but no plan catalogue
         - boots with subscriptionBundles enabled

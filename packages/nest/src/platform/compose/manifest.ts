@@ -20,6 +20,7 @@ import {
     SUBSCRIBER_ACCOUNT_CAPABILITY,
     SUBSCRIBER_ATTENTION_CAPABILITY,
     SUBSCRIBER_CORRECTION_CAPABILITY,
+    SUBSCRIBER_JOIN_CAPABILITY,
     SUBSCRIBER_STANDING_CAPABILITY,
     BUNDLE_VERSION_RETIREMENT_CAPABILITY,
     FEATURE_WITHDRAWAL_CAPABILITY,
@@ -62,6 +63,8 @@ export function buildStandardManifestContribution(
         subscriberCredits?: boolean;
         subscriberStanding?: boolean;
         subscriberAttention?: boolean;
+        /** Joining a returning customer's subscriber into the one it had, beside the record. */
+        subscriberJoins?: boolean;
         versionRetirements: boolean;
         bundleVersionRetirements?: boolean;
         featureWithdrawals?: boolean;
@@ -128,6 +131,7 @@ export function buildStandardManifestContribution(
         capabilities[SUBSCRIBER_CORRECTION_CAPABILITY] = true;
     }
     if (served.subscriberAttention) capabilities[SUBSCRIBER_ATTENTION_CAPABILITY] = true;
+    if (served.subscriberJoins) capabilities[SUBSCRIBER_JOIN_CAPABILITY] = true;
     if (served.versionRetirements) capabilities[VERSION_RETIREMENT_CAPABILITY] = true;
     if (served.bundleVersionRetirements) {
         capabilities[BUNDLE_VERSION_RETIREMENT_CAPABILITY] = true;

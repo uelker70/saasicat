@@ -9,7 +9,7 @@ import { adminResourceGuards } from './admin-resources.js';
 import { optionsOf, type CompositionContext } from './context.js';
 
 /** The subscriber repository the platform reads subscribers from, where it has one. */
-function subscriberRepositoryOf(
+export function subscriberRepositoryOf(
     ctx: Pick<CompositionContext, 'options' | 'persistence'>,
 ): SubscriberAdminModuleOptions['subscriberRepository'] | undefined {
     return (optionsOf(ctx.options.subscriptionContract).subscriberRepository ??
@@ -46,6 +46,7 @@ export function composeSubscriberAdmin(ctx: CompositionContext): DynamicModule[]
         SubscriberAdminModule.forRoot({
             guards: adminResourceGuards(ctx.options),
             subscriberRepository,
+            joins: ctx.shared.subscriberJoinModule,
             imports: [
                 adminResourcesModule,
                 ...(optionsOf(ctx.options.adminResources).imports ?? ctx.options.imports ?? []),

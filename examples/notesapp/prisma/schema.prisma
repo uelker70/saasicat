@@ -16,6 +16,7 @@
 //   14 (the subscriber's payment method and the gateway events)
 //   16 (maintenance windows)
 //   17 (what each subscriber was told)
+//   27 (a returning customer's subscriber joined into the one it had)
 // The platform blocks below are hand-maintained copies of the fragments, with
 // the consumer relations to Tenant/User enabled. `schema apply` seeds them —
 // enums and models — into a fresh schema, but does not update blocks that
@@ -1509,6 +1510,8 @@ model Subscriber {
     contracts           SubscriptionContract[]
     paymentMethods      SubscriberPaymentMethod[]
     paymentMethodSetups SubscriberPaymentMethodSetup[]
+    joinedInto          SubscriberJoin?  @relation("SubscriberJoinFrom")
+    joinedFrom          SubscriberJoin[] @relation("SubscriberJoinInto")
 
     @@map("subscribers")
 }
@@ -1599,6 +1602,26 @@ model SubscriberVatIdCheck {
 
     @@index([subscriberId, checkedAt])
     @@map("subscriber_vat_id_checks")
+}
+
+// A returning customer's new subscriber joined into the one it had — see
+// 27-subscriber-join.prisma; sql/1.0-a-subscriber-is-joined.postgres.sql adds the
+// triggers `db push` cannot create.
+model SubscriberJoin {
+    id               String   @id @default(uuid())
+    fromSubscriberId String   @unique
+    intoSubscriberId String
+    reason           String
+    joinedBy         String
+    joinedAt         DateTime
+    digest           String
+    moved            Json
+
+    from Subscriber @relation("SubscriberJoinFrom", fields: [fromSubscriberId], references: [id], onDelete: Restrict)
+    into Subscriber @relation("SubscriberJoinInto", fields: [intoSubscriberId], references: [id], onDelete: Restrict)
+
+    @@index([intoSubscriberId])
+    @@map("subscriber_joins")
 }
 
 // =============================================================================

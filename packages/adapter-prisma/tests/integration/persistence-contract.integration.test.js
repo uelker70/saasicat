@@ -57,6 +57,7 @@ import {
     PrismaInvoiceCollectionRepository,
     PrismaSubscriberPaymentRepository,
     PrismaSubscriberRepository,
+    PrismaSubscriberJoinRepository,
     PrismaSubscriptionContractRepository,
     PrismaSubscriptionRepository,
     PrismaTenantSubscriptionWriteAdapter,
@@ -75,8 +76,12 @@ const prisma = new PrismaClient();
 // Disposable-database contract: rebuild the schema from the normative
 // reference DDL on every run.
 await rebuildFromReferenceSchema(prisma);
+// The guard of a join is a set of triggers, which the reference DDL cannot
+// carry: the shipped migration adds them, as it does after `db push`.
+await applyShippedMigration('1.0-a-subscriber-is-joined.postgres.sql');
 
 const PLATFORM_TABLES = [
+    'subscriber_joins',
     'subscriber_credit_entries',
     'subscriber_refunds',
     'subscriber_credits',
@@ -149,6 +154,7 @@ function createHarness() {
             planCatalogReadSink: new PrismaPlanCatalogReadSink(prisma),
             subscriptionContractRepository: new PrismaSubscriptionContractRepository(prisma),
             subscriberRepository: new PrismaSubscriberRepository(prisma),
+            subscriberJoinRepository: new PrismaSubscriberJoinRepository(prisma),
             paymentEventLog: new PrismaPaymentEventLog(prisma),
             subscriberPaymentMethodRepository: new PrismaSubscriberPaymentMethodRepository(prisma),
             subscriberLedgerRepository: new PrismaSubscriberLedgerRepository(prisma),
@@ -280,6 +286,26 @@ persistenceAdapterContract({
     // that port against its own table, and wires it into its own harness.
     gaps: ['checkoutOffers'],
 });
+
+/** Applies the shipped migration `file` whole, over the simple protocol its function bodies need. */
+async function applyShippedMigration(file) {
+    const database = new pg.Client({ connectionString: testDatabaseUrl() });
+    await database.connect();
+    try {
+        await database.query(
+            readFileSync(
+                join(
+                    dirname(createRequire(import.meta.url).resolve('@saasicat/spec/package.json')),
+                    'sql',
+                    file,
+                ),
+                'utf8',
+            ),
+        );
+    } finally {
+        await database.end();
+    }
+}
 
 /**
  * The shipped migration that protects `table` with `triggers`, to apply whole,
@@ -508,6 +534,84 @@ describe('canonical schema structure', () => {
                 data: { tenantId: 'tenant-check', plan: 'STARTER' },
             }),
             'required planVersionId must reject',
+        );
+    });
+});
+
+// @requirement SC-ADM-050 — A join moves everything in one step, and a subscriber joined is given nothing afterwards
+describe('a join says what would let a subscriber joined be given a row', () => {
+    // A table that names a subscriber, and the subscribers' own.
+    const GUARDS = [
+        ['subscriber_payments', 'subscriber_payments_names_no_joined_subscriber'],
+        ['subscribers', 'subscribers_change_nothing_once_joined'],
+    ];
+    const database = new pg.Client({ connectionString: testDatabaseUrl() });
+    before(() => database.connect());
+    after(async () => {
+        // Ended whatever the triggers' state, or the open client keeps the run going.
+        try {
+            for (const [table, guard] of GUARDS) {
+                await database.query(`ALTER TABLE ${table} ENABLE TRIGGER "${guard}"`);
+            }
+        } finally {
+            await database.end();
+        }
+    });
+
+    test('names a table whose trigger does not fire, and none where every one does', async () => {
+        const joins = new PrismaSubscriberJoinRepository(prisma);
+        assert.equal(await joins.protectionProblem(), null);
+
+        for (const [table, guard] of GUARDS) {
+            await database.query(`ALTER TABLE ${table} DISABLE TRIGGER "${guard}"`);
+            try {
+                const problem = await joins.protectionProblem();
+                assert.ok(
+                    problem?.startsWith(`${table} lacks its trigger, which refuses`),
+                    problem,
+                );
+            } finally {
+                await database.query(`ALTER TABLE ${table} ENABLE TRIGGER "${guard}"`);
+            }
+        }
+    });
+
+    test('names a model the client was generated without, which it would leave rows in', async () => {
+        // The delegates of the generated client, but the charge journal's.
+        const without = { $queryRaw: prisma.$queryRaw.bind(prisma), subscriber: prisma.subscriber };
+        for (const delegate of [
+            'subscriberJoin',
+            'subscriberTenant',
+            'subscriberCorrection',
+            'subscriberTaxOriginChange',
+            'subscriberVatIdCheck',
+            'subscriberPaymentMethod',
+            'subscriberPaymentMethodSetup',
+            'subscriptionContract',
+            'subscriptionInvoice',
+            'subscriberPayment',
+            'subscriberCredit',
+            'subscriberRefund',
+            'subscriberReversal',
+            'subscriberReconciliationCase',
+        ]) {
+            without[delegate] = prisma[delegate];
+        }
+
+        const problem = await new PrismaSubscriberJoinRepository(without).protectionProblem();
+
+        assert.ok(
+            problem?.startsWith(
+                'The schema lacks SubscriberLedgerEntry (subscriber_ledger_entries), which a join',
+            ),
+            problem,
+        );
+        assert.equal(
+            await new PrismaSubscriberJoinRepository(without, [
+                'SubscriberLedgerEntry',
+            ]).protectionProblem(),
+            null,
+            'a model named in notAdopted is not asked for',
         );
     });
 });

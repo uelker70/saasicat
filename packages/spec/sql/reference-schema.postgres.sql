@@ -29,6 +29,7 @@
 --   prisma-fragments/24-subscriber-payments.prisma
 --   prisma-fragments/25-terms.prisma
 --   prisma-fragments/26-contract-confirmation.prisma
+--   prisma-fragments/27-subscriber-join.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -1139,6 +1140,20 @@ CREATE TABLE "contract_confirmation_archive" (
     CONSTRAINT "contract_confirmation_archive_pkey" PRIMARY KEY ("contractId")
 );
 
+-- CreateTable
+CREATE TABLE "subscriber_joins" (
+    "id" TEXT NOT NULL,
+    "fromSubscriberId" TEXT NOT NULL,
+    "intoSubscriberId" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "joinedBy" TEXT NOT NULL,
+    "joinedAt" TIMESTAMP(3) NOT NULL,
+    "digest" TEXT NOT NULL,
+    "moved" JSONB NOT NULL,
+
+    CONSTRAINT "subscriber_joins_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -1526,6 +1541,12 @@ CREATE UNIQUE INDEX "subscriber_reconciliation_cases_refundId_key" ON "subscribe
 -- CreateIndex
 CREATE INDEX "contract_confirmations_archivedAt_idx" ON "contract_confirmations"("archivedAt");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriber_joins_fromSubscriberId_key" ON "subscriber_joins"("fromSubscriberId");
+
+-- CreateIndex
+CREATE INDEX "subscriber_joins_intoSubscriberId_idx" ON "subscriber_joins"("intoSubscriberId");
+
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -1712,6 +1733,12 @@ ALTER TABLE "contract_confirmations" ADD CONSTRAINT "contract_confirmations_cont
 -- AddForeignKey
 ALTER TABLE "contract_confirmation_archive" ADD CONSTRAINT "contract_confirmation_archive_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "subscription_contracts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "subscriber_joins" ADD CONSTRAINT "subscriber_joins_fromSubscriberId_fkey" FOREIGN KEY ("fromSubscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_joins" ADD CONSTRAINT "subscriber_joins_intoSubscriberId_fkey" FOREIGN KEY ("intoSubscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
 -- =============================================================================
 -- SaaSiCat — normative PostgreSQL constraints the Prisma DSL cannot express.
 -- =============================================================================
@@ -1830,6 +1857,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_subscriber
 -- method replaced keeps its row as `REPLACED`, so it does not count here.
 CREATE UNIQUE INDEX IF NOT EXISTS subscriber_payment_methods_active_per_subscriber
     ON subscriber_payment_methods ("subscriberId") WHERE "status" = 'ACTIVE';
+
+-- A subscriber is never joined into itself: a join moves what one subscriber
+-- holds into another (`SC-ADM-027`). Same two plain statements as above.
+ALTER TABLE subscriber_joins
+    DROP CONSTRAINT IF EXISTS subscriber_joins_not_into_itself;
+ALTER TABLE subscriber_joins
+    ADD CONSTRAINT subscriber_joins_not_into_itself CHECK ("fromSubscriberId" <> "intoSubscriberId");
 
 -- An invoice has at most ONE collection attempt that is open — planned, or
 -- sent and not settled — and none after one succeeded: of two runs that find the

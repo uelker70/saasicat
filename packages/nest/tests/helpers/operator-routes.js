@@ -72,6 +72,8 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             subscriptionBundleRepository: REPO,
             subscriptionContractRepository: REPO,
             subscriberRepository: REPO,
+            // Its start asks whether the database guards a join.
+            subscriberJoinRepository: { protectionProblem: async () => null },
             subscriberLedgerRepository: REPO,
             contractConfirmationRepository: REPO,
             contractConfirmationArchive: REPO,
@@ -119,6 +121,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
         tax: { adapter: { adapterName: 'test-tax', create: () => invoicingAdapter() } },
         catalog: { featureUiRegistry: {} },
         adminResources: true,
+        subscriberJoins: true,
         tenantBilling: {
             authGuards: guards,
             // Tenant billing resolves its guards from its own scope, where an

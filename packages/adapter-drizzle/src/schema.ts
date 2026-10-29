@@ -589,6 +589,18 @@ export const subscriberVatIdChecks = pgTable('subscriber_vat_id_checks', {
     recordedAt: writtenAt('recordedAt'),
 });
 
+// A returning customer's new subscriber joined into the one it had, never rewritten.
+export const subscriberJoins = pgTable('subscriber_joins', {
+    id: text('id').primaryKey(),
+    fromSubscriberId: text('fromSubscriberId').notNull(),
+    intoSubscriberId: text('intoSubscriberId').notNull(),
+    reason: text('reason').notNull(),
+    joinedBy: text('joinedBy').notNull(),
+    joinedAt: ts('joinedAt').notNull(),
+    digest: text('digest').notNull(),
+    moved: jsonb('moved').notNull(),
+});
+
 // ---------------------------------------------------------------------------
 // Payments — gateway events and the payment methods they confirm
 // ---------------------------------------------------------------------------

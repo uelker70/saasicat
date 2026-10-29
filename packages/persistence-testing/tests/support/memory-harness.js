@@ -19,6 +19,8 @@ import {
     planKeyTaken,
     promoCodeTaken,
     readCustomLimits,
+    subscriberJoinMovedOtherwise,
+    subscriberTablesOf,
     tenantLinksInOrder,
     refuseForeignPaymentMethodReference,
     scheduledChangeAfterWrite,
@@ -122,6 +124,27 @@ export const MEMORY_HARNESS_GAPS = [
     'planVersionRetirement',
 ];
 
+/**
+ * Where this harness keeps the rows of each table that names a subscriber —
+ * the tables a join moves and the database's guard protects.
+ */
+export const MEMORY_ROWS_OF_TABLE = {
+    subscriber_tenants: 'subscriberTenants',
+    subscriber_corrections: 'subscriberCorrections',
+    subscriber_tax_origin_changes: 'subscriberTaxOriginChanges',
+    subscriber_vat_id_checks: 'subscriberVatIdChecks',
+    subscriber_payment_methods: 'paymentMethods',
+    subscriber_payment_method_setups: 'paymentMethodSetups',
+    subscriber_ledger_entries: 'ledgerEntries',
+    subscription_contracts: 'contracts',
+    subscription_invoices: 'invoices',
+    subscriber_payments: 'payments',
+    subscriber_credits: 'credits',
+    subscriber_refunds: 'refunds',
+    subscriber_reversals: 'reversals',
+    subscriber_reconciliation_cases: 'cases',
+};
+
 export function createMemoryHarness() {
     let idCounter = 0;
     const nextId = (prefix) => `${prefix}-${++idCounter}`;
@@ -165,6 +188,7 @@ export function createMemoryHarness() {
         subscriberCorrections: [],
         subscriberTaxOriginChanges: [],
         subscriberVatIdChecks: [],
+        subscriberJoins: [],
         paymentEvents: [],
         paymentMethods: [],
         paymentMethodSetups: [],
@@ -190,6 +214,29 @@ export function createMemoryHarness() {
                 throw err;
             }
         },
+    };
+
+    // What the triggers of `1.0-a-subscriber-is-joined.postgres.sql` do in a
+    // database: a row for a subscriber joined into another is refused, and so
+    // is a change of one. The first is called before every row this harness
+    // writes into a table that names a subscriber, the second before every
+    // change of a subscriber's row — which is what makes its
+    // `protectionProblem` answer nothing.
+    const joinedAlready = (subscriberId) =>
+        state.subscriberJoins.some((join) => join.fromSubscriberId === subscriberId);
+    const refuseARowForAJoinedSubscriber = (table, subscriberId) => {
+        if (!joinedAlready(subscriberId)) return;
+        throw new Error(
+            `Subscriber ${subscriberId} was joined into another subscriber and takes nothing ` +
+                `more: INSERT on ${table} is refused, and belongs to the subscriber it was joined into.`,
+        );
+    };
+    const refuseAChangeOfAJoinedSubscriber = (subscriberId) => {
+        if (!joinedAlready(subscriberId)) return;
+        throw new Error(
+            `Subscriber ${subscriberId} was joined into another subscriber and takes no change: ` +
+                'UPDATE on subscribers is refused, and belongs to the subscriber it was joined into.',
+        );
     };
 
     const subscriptionRepository = {
@@ -830,6 +877,7 @@ export function createMemoryHarness() {
     const subscriptionContractRepository = {
         async create(data) {
             const contractId = nextId('contract');
+            refuseARowForAJoinedSubscriber('subscription_contracts', data.parties.subscriberId);
             state.contracts.push({
                 id: contractId,
                 tenantId: data.tenantId,
@@ -993,6 +1041,7 @@ export function createMemoryHarness() {
             changedAt,
             reason,
         };
+        refuseARowForAJoinedSubscriber('subscriber_tax_origin_changes', subscriberId);
         state.subscriberTaxOriginChanges.push(change);
         return structuredClone(change);
     };
@@ -1000,6 +1049,12 @@ export function createMemoryHarness() {
         const check = state.subscriberVatIdChecks.find((candidate) => candidate.id === checkId);
         return check ? structuredClone(check) : null;
     };
+    const tenantLinksOf = (subscriberId) =>
+        tenantLinksInOrder(
+            state.subscriberTenants
+                .filter((link) => link.subscriberId === subscriberId)
+                .map(({ tenantId, linkedAt, unlinkedAt }) => ({ tenantId, linkedAt, unlinkedAt })),
+        );
     const subscriberRepository = {
         async createForTenant(data) {
             if (state.subscribers.some((row) => row.tenantId === data.tenantId)) return null;
@@ -1014,6 +1069,7 @@ export function createMemoryHarness() {
                 updatedAt: FIXED_NOW,
             };
             state.subscribers.push(row);
+            refuseARowForAJoinedSubscriber('subscriber_tenants', row.id);
             state.subscriberTenants.push({
                 subscriberId: row.id,
                 tenantId: data.tenantId,
@@ -1048,15 +1104,7 @@ export function createMemoryHarness() {
             };
         },
         async listTenantLinks(subscriberId) {
-            return tenantLinksInOrder(
-                state.subscriberTenants
-                    .filter((link) => link.subscriberId === subscriberId)
-                    .map(({ tenantId, linkedAt, unlinkedAt }) => ({
-                        tenantId,
-                        linkedAt,
-                        unlinkedAt,
-                    })),
-            );
+            return tenantLinksOf(subscriberId);
         },
         async findById(subscriberId) {
             const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
@@ -1072,6 +1120,7 @@ export function createMemoryHarness() {
         async updateContact(subscriberId, change, changedBy) {
             const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
             if (!row) return null;
+            refuseAChangeOfAJoinedSubscriber(subscriberId);
             const origin = taxOriginWrite(row, { country: change.country });
             Object.assign(row, structuredClone(change));
             recordTaxOriginChange(subscriberId, origin, { changedBy });
@@ -1084,6 +1133,7 @@ export function createMemoryHarness() {
             if (Object.keys(delta.corrected).length === 0) {
                 return { subscriber: subscriberRecord(row), correction: null };
             }
+            refuseAChangeOfAJoinedSubscriber(subscriberId);
             const changedAt = new Date();
             const origin = taxOriginWrite(row, { vatId: delta.corrected.vatId });
             Object.assign(row, delta.corrected);
@@ -1105,6 +1155,7 @@ export function createMemoryHarness() {
                 correctedBy: data.correctedBy,
                 correctedAt: changedAt,
             };
+            refuseARowForAJoinedSubscriber('subscriber_corrections', subscriberId);
             state.subscriberCorrections.push(correction);
             return { subscriber: subscriberRecord(row), correction: structuredClone(correction) };
         },
@@ -1124,6 +1175,7 @@ export function createMemoryHarness() {
                 { business: data.business },
             );
             if (!origin.moved) return { subscriber: subscriberRecord(row), change: null };
+            refuseAChangeOfAJoinedSubscriber(subscriberId);
             row.business = data.business;
             const change = recordTaxOriginChange(subscriberId, origin, {
                 changedBy: data.changedBy,
@@ -1140,6 +1192,7 @@ export function createMemoryHarness() {
                 subscriberId,
                 recordedAt: new Date(),
             };
+            refuseARowForAJoinedSubscriber('subscriber_vat_id_checks', subscriberId);
             state.subscriberVatIdChecks.push(recorded);
             const counting = vatIdCheckById(row.currentVatIdCheckId);
             if (!keepsVatIdCheck(row, counting, recorded)) {
@@ -1183,6 +1236,133 @@ export function createMemoryHarness() {
                 .filter((change) => change.subscriberId === subscriberId)
                 .reverse()
                 .map((change) => structuredClone(change));
+        },
+    };
+
+    const ownedRowsOf = (table, subscriberId) =>
+        state[MEMORY_ROWS_OF_TABLE[table]].filter((row) => row.subscriberId === subscriberId);
+    const paymentMethodsInUseOf = (subscriberId) =>
+        state.paymentMethods.filter(
+            (method) => method.subscriberId === subscriberId && method.status === 'ACTIVE',
+        );
+    const joinSideOf = (subscriberId) => {
+        const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
+        if (!row) return null;
+        const joined = state.subscriberJoins.find((join) => join.fromSubscriberId === subscriberId);
+        return {
+            subscriber: subscriberRecord(row),
+            links: tenantLinksOf(subscriberId),
+            joinedIntoId: joined?.intoSubscriberId ?? null,
+            countingVatIdCheck: vatIdCheckById(row.currentVatIdCheckId),
+            paymentMethodsInUse: paymentMethodsInUseOf(subscriberId).length,
+        };
+    };
+    // A join as the adapters write it, the tables in the same order and the
+    // counts checked after each, so a join that would move other rows than it
+    // counted leaves what the transaction's snapshot restores.
+    const subscriberJoinRepository = {
+        async hold(fromSubscriberId, intoSubscriberId) {
+            const from = joinSideOf(fromSubscriberId);
+            const into = joinSideOf(intoSubscriberId);
+            if (!from || !into) return null;
+            const moving = {};
+            for (const table of subscriberTablesOf()) {
+                moving[table] = ownedRowsOf(table, fromSubscriberId).length;
+            }
+            return { from, into, moving };
+        },
+        async join(write) {
+            const { plan, joinedAt, joinedBy, reason } = write;
+            const from = plan.fromSubscriberId;
+            const into = plan.intoSubscriberId;
+            if (plan.paymentMethodsOutOfUse > 0) {
+                const outOfUse = paymentMethodsInUseOf(into);
+                for (const method of outOfUse) {
+                    method.status = 'REPLACED';
+                    method.replacedAt = joinedAt;
+                }
+                if (outOfUse.length !== plan.paymentMethodsOutOfUse) {
+                    throw subscriberJoinMovedOtherwise(
+                        'subscriber_payment_methods in use',
+                        plan.paymentMethodsOutOfUse,
+                        outOfUse.length,
+                    );
+                }
+            }
+            for (const table of subscriberTablesOf()) {
+                const moved = ownedRowsOf(table, from);
+                for (const row of moved) row.subscriberId = into;
+                const counted = plan.moving[table] ?? 0;
+                if (moved.length !== counted) {
+                    throw subscriberJoinMovedOtherwise(table, counted, moved.length);
+                }
+            }
+
+            const joined = state.subscribers.find((candidate) => candidate.id === from);
+            const earlier = state.subscribers.find((candidate) => candidate.id === into);
+            // The live link is kept on the row as well.
+            earlier.tenantId = joined.tenantId;
+            joined.tenantId = null;
+            Object.assign(earlier, structuredClone(plan.contact));
+            if (plan.identity) Object.assign(earlier, structuredClone(plan.identity.corrected));
+            if (plan.business !== undefined) earlier.business = plan.business;
+            if (plan.vatIdCheck === 'adopted') {
+                earlier.currentVatIdCheckId = plan.adoptedVatIdCheckId;
+                earlier.vatIdSince = joined.vatIdSince;
+            } else if (plan.vatIdCheck === 'ended') {
+                earlier.currentVatIdCheckId = null;
+                earlier.vatIdSince = joinedAt;
+            }
+            // Its check went with the rest, and counts for the other subscriber now.
+            joined.currentVatIdCheckId = null;
+            if (plan.identity) {
+                refuseARowForAJoinedSubscriber('subscriber_corrections', into);
+                state.subscriberCorrections.push({
+                    id: nextId('correction'),
+                    subscriberId: into,
+                    previous: structuredClone(plan.identity.previous),
+                    corrected: structuredClone(plan.identity.corrected),
+                    reason,
+                    correctedBy: joinedBy,
+                    correctedAt: joinedAt,
+                });
+            }
+            if (plan.taxOrigin) {
+                refuseARowForAJoinedSubscriber('subscriber_tax_origin_changes', into);
+                state.subscriberTaxOriginChanges.push({
+                    id: nextId('tax-origin-change'),
+                    subscriberId: into,
+                    previous: structuredClone(plan.taxOrigin.previous),
+                    changed: structuredClone(plan.taxOrigin.changed),
+                    changedBy: joinedBy,
+                    changedAt: joinedAt,
+                    reason,
+                });
+            }
+            const join = {
+                id: nextId('subscriber-join'),
+                fromSubscriberId: from,
+                intoSubscriberId: into,
+                reason,
+                joinedBy,
+                joinedAt,
+                digest: write.digest,
+                moved: structuredClone(plan.moving),
+            };
+            state.subscriberJoins.push(join);
+            return structuredClone(join);
+        },
+        async listFor(subscriberIds) {
+            return state.subscriberJoins
+                .filter(
+                    (join) =>
+                        subscriberIds.includes(join.fromSubscriberId) ||
+                        subscriberIds.includes(join.intoSubscriberId),
+                )
+                .map((join) => structuredClone(join));
+        },
+        async protectionProblem() {
+            return null;
         },
     };
 
@@ -1465,6 +1645,7 @@ export function createMemoryHarness() {
                 createdAt: FIXED_NOW,
             };
             if (active && active.confirmedAt.getTime() > data.confirmedAt.getTime()) {
+                refuseARowForAJoinedSubscriber('subscriber_payment_methods', data.subscriberId);
                 state.paymentMethods.push({
                     ...row,
                     status: 'REPLACED',
@@ -1479,6 +1660,7 @@ export function createMemoryHarness() {
                 active.status = 'REPLACED';
                 active.replacedAt = data.confirmedAt;
             }
+            refuseARowForAJoinedSubscriber('subscriber_payment_methods', data.subscriberId);
             state.paymentMethods.push({ ...row, status: 'ACTIVE', replacedAt: null });
             return { method: structuredClone(state.paymentMethods.at(-1)), outcome: 'activated' };
         },
@@ -1510,6 +1692,7 @@ export function createMemoryHarness() {
                     setup.sessionRef === data.sessionRef,
             );
             if (taken) throw new Error(`Session '${data.sessionRef}' already has a setup.`);
+            refuseARowForAJoinedSubscriber('subscriber_payment_method_setups', data.subscriberId);
             state.paymentMethodSetups.push({ ...data, completedAt: null });
         },
         async completeSetup(match, completedAt) {
@@ -2063,6 +2246,7 @@ export function createMemoryHarness() {
             for (const [charge, columns] of shaped) {
                 if (state.ledgerEntries.some((entry) => keyOf(entry) === keyOf(charge))) continue;
                 const row = { id: nextId('charge'), ...columns, createdAt: FIXED_NOW };
+                refuseARowForAJoinedSubscriber('subscriber_ledger_entries', row.subscriberId);
                 state.ledgerEntries.push(row);
                 written.push(toSubscriberChargeRecord(row));
             }
@@ -2178,6 +2362,7 @@ export function createMemoryHarness() {
             ...subscriptionInvoiceColumns(invoice, { ...placed, number, numberSequence }),
             createdAt: FIXED_NOW,
         };
+        refuseARowForAJoinedSubscriber('subscription_invoices', row.subscriberId);
         state.invoices.push(row);
         for (const line of invoice.lines) {
             state.invoiceLines.push({
@@ -2876,6 +3061,7 @@ export function createMemoryHarness() {
             originCancellationId: cancellationId,
             createdAt: at,
         };
+        refuseARowForAJoinedSubscriber('subscriber_credits', row.subscriberId);
         state.credits.push(row);
         return toSubscriberCreditRecord(structuredClone(row));
     };
@@ -2920,6 +3106,7 @@ export function createMemoryHarness() {
             return null;
         }
         const row = { id: nextId('case'), ...reconciliationCaseColumns(opened) };
+        refuseARowForAJoinedSubscriber('subscriber_reconciliation_cases', row.subscriberId);
         state.cases.push(row);
         return toSubscriberReconciliationCaseRecord(structuredClone(row));
     };
@@ -3192,6 +3379,7 @@ export function createMemoryHarness() {
         );
         if (!row) {
             row = { id: nextId('reversal'), ...subscriberReversalColumns(reported, payment) };
+            refuseARowForAJoinedSubscriber('subscriber_reversals', row.subscriberId);
             state.reversals.push(row);
         }
         let reversal = toSubscriberReversalRecord(structuredClone(row));
@@ -3272,6 +3460,7 @@ export function createMemoryHarness() {
             const standingId = standingInvoiceIdOf(invoice.id);
             const standing = standingId === null ? null : invoiceOf(standingId);
             const owed = standing ? owedOnInvoice(standing) : 0;
+            refuseARowForAJoinedSubscriber('subscriber_payments', row.subscriberId);
             state.payments.push(row);
             const recorded = toSubscriberPaymentRecord(structuredClone(row));
             const { settles, credits } = paymentSettlement(recorded.amount, owed);
@@ -3375,6 +3564,7 @@ export function createMemoryHarness() {
             );
             if (!existing) {
                 const row = { id: nextId('refund'), ...subscriberRefundColumns(refund, payment) };
+                refuseARowForAJoinedSubscriber('subscriber_refunds', row.subscriberId);
                 state.refunds.push(row);
                 const recorded = toSubscriberRefundRecord(structuredClone(row));
                 if (isEndedRefund(recorded.status)) {
@@ -3630,6 +3820,7 @@ export function createMemoryHarness() {
             bundleRepository,
             subscriptionContractRepository,
             subscriberRepository,
+            subscriberJoinRepository,
             checkoutOfferRepository,
             appliedSettings,
             maintenanceWindows,

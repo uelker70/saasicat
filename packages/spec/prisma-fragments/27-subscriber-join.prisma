@@ -1,0 +1,35 @@
+// =============================================================================
+// SaaS platform Prisma fragment: a returning customer's subscriber joined into
+// the subscriber it had
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// Optional: an installation that does not offer joins leaves `SubscriberJoin`
+// out (`notAdopted`) and the two relation fields it adds to `Subscriber` in
+// 13-subscriber.prisma with it. Written by `SubscriberJoinRepository`, not by
+// the subscriber repository.
+// A returning customer's new subscriber joined into the subscriber it had, by
+// the operator (`SC-ADM-027`): who into whom, by whom, when, why, the digest of
+// the preview the operator confirmed and what moved. Written in the same
+// transaction as the join and never rewritten; a join is not undone. At most
+// one per subscriber joined, and never into itself (sql/constraints.postgres.sql).
+// sql/1.0-a-subscriber-is-joined.postgres.sql adds the triggers that refuse a
+// row for a joined subscriber afterwards, which `db push` cannot create.
+model SubscriberJoin {
+    id               String   @id @default(uuid())
+    fromSubscriberId String   @unique
+    intoSubscriberId String
+    reason           String
+    joinedBy         String
+    joinedAt         DateTime
+    digest           String
+    // How many rows of each kind moved, by table.
+    moved            Json
+
+    from Subscriber @relation("SubscriberJoinFrom", fields: [fromSubscriberId], references: [id], onDelete: Restrict)
+    into Subscriber @relation("SubscriberJoinInto", fields: [intoSubscriberId], references: [id], onDelete: Restrict)
+
+    @@index([intoSubscriberId])
+    @@map("subscriber_joins")
+}
