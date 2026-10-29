@@ -342,7 +342,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-AUD-019 — An archived invoice is checked against the checksum of the file it was issued as
 
-🟡 _(Decided, not yet delivered.)_ 💰 The document is rendered from what the invoice records and
+🟢 💰 The document is rendered from what the invoice records and
 nothing else, never the current time or today's settings, and its checksum is recorded with the
 invoice before it is archived. Once the archive holds a file for the invoice, that file is the one
 the invoice was issued as, and the record follows it. Until then nothing has been handed out, so an

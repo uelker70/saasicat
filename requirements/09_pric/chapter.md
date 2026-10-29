@@ -2316,7 +2316,7 @@ _Tested by:_
 
 ### SC-PRIC-033 — An invoice interrupted in archiving keeps its number and is never issued twice
 
-🟡 _(Decided, not yet delivered.)_ 💰 Its content has passed the tax adapter's check before the
+🟢 💰 Its content has passed the tax adapter's check before the
 number is drawn (`SC-PRIC-027`), so what can still fail afterwards is rendering or archiving the
 document rather than the invoice itself. The invoice and its number are written in one transaction,
 and the rendered document is then archived under that number, which makes a repeated attempt the
@@ -3070,7 +3070,7 @@ _Tested by:_
 
 ### SC-PRIC-078 — The shipped renderer issues an invoice the format's own validators accept
 
-🟡 _(Decided, not yet delivered.)_ 💰 SaaSiCat ships a renderer for ZUGFeRD in the EN 16931 profile,
+🟢 💰 SaaSiCat ships a renderer for ZUGFeRD in the EN 16931 profile,
 so an installation invoices without writing one: a PDF/A-3 with embedded fonts that a person reads,
 labelled in German with English beside it, carrying the CII XML a program reads (`SC-PRIC-042`). Its
 fonts set Latin, Greek and Cyrillic script; a character they have no glyph for is shown on the page
@@ -3207,7 +3207,7 @@ _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 
 ### SC-PRIC-045 — Invoice dates and tax periods count in the installation's time zone
 
-🟡 _(Decided, not yet delivered.)_ 💰 `config/saas.yaml` names it. The issue date, the period a charge
+🟢 💰 `config/saas.yaml` names it. The issue date, the period a charge
 covers, the due date and the periods the invoice register exports (`SC-ADM-043`) are days in that
 zone, so an invoice issued half an hour after midnight on the first of January belongs to the new
 year whatever the server's clock says (`SC-OPS-011`).

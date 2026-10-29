@@ -972,12 +972,22 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-ADM-025 — An operator gets a description of the invoicing procedure to document its own on
 
-🟡 _(Decided, not yet delivered.)_ 💰 German bookkeeping rules (GoBD) ask an operator to document how
+🟢 💰 German bookkeeping rules (GoBD) ask an operator to document how
 its invoices are produced, numbered, corrected, archived, accessed and kept. SaaSiCat's
 documentation describes each of those steps as SaaSiCat performs them, and names which parts the
 installation's adapters and settings decide, so the operator writes only what is its own.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/the-invoicing-procedure-names-what-an-installation-decides.test.js`
+    - the page names every setting of the file the invoicing reads
+    - the page names every port an application wires into the invoicing chain
+
+<!-- END proof -->
 
 ### SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
 
@@ -2193,7 +2203,7 @@ SHA-256 of each file before it. The files are stored uncompressed, each dated th
 is as of, so the same months as of the same moment in the same language are the same bytes, and two
 hand-overs are compared by the archive's SHA-256, which the audit log records with who took it,
 when, the months and the moment. It is taken from the invoices page or with
-`saasicat invoices export`, which writes into the directory named or the current one and refuses to
+`<app> invoices export`, which writes into the directory named or the current one and refuses to
 write over a file of the same name. It is a read, so it asks for no second factor, only the platform
 administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the
 administration does (`SC-SEC-003`).
@@ -2367,7 +2377,7 @@ _Tested by:_
 
 🟢 🔒 The operator joins in the record of the subscriber with the live tenant, choosing the earlier
 one among the subscribers whose every link is closed, by customer number, legal name or VAT number —
-or with `saasicat subscribers join --from <customer number> --into <customer number> --reason …`,
+or with `<app> subscribers join --from <customer number> --into <customer number> --reason …`,
 which shows the same and writes only with `--apply`. Before anything is written both are shown side
 by side, with their tenants, how many rows of each kind move, the address, invoice email and
 business status the earlier record takes from the subscriber joined, the legal identity corrected as
