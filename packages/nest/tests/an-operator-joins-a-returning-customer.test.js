@@ -200,6 +200,64 @@ describe("the operator joins a returning customer's subscriber into the one it h
     });
 });
 
+/**
+ * The join's write aborted by the database the first `times` it is asked, as
+ * a deadlock with a write holding one of the rows it moves aborts it: nothing
+ * written, and the error the driver throws.
+ */
+const abortedBy = (admin, times) => {
+    const join = admin.joinRepo.join.bind(admin.joinRepo);
+    const asked = { times: 0 };
+    admin.joinRepo.join = async (...args) => {
+        asked.times += 1;
+        if (asked.times <= times) throw new Error('deadlock detected');
+        return join(...args);
+    };
+    return asked;
+};
+
+// @requirement SC-ADM-050 — A join moves everything in one step, and a subscriber joined is given nothing afterwards
+describe('a join the database aborts', () => {
+    test('is tried once more, and recorded once', async () => {
+        const admin = await anAdministration();
+        const asked = abortedBy(admin, 1);
+
+        const joined = await admin.join('wien', 'fabrikam');
+
+        assert.equal(joined.joinedInto.subscriberId, admin.idOf('fabrikam'));
+        assert.equal(asked.times, 2);
+        assert.deepEqual(admin.auditedActions(), ['SUBSCRIBER_JOINED']);
+    });
+
+    test('a second time, is answered with what aborted it, and nothing is recorded', async () => {
+        const admin = await anAdministration();
+        const asked = abortedBy(admin, 2);
+
+        await assert.rejects(admin.join('wien', 'fabrikam'), /deadlock detected/);
+
+        assert.equal(asked.times, 2);
+        assert.deepEqual(admin.auditedActions(), []);
+        assert.deepEqual(await admin.joinRepo.listFor([admin.idOf('wien')]), []);
+    });
+
+    test('is not tried again where the platform refuses it', async () => {
+        const admin = await anAdministration();
+        await admin.join('wien', 'fabrikam');
+        const hold = admin.joinRepo.hold.bind(admin.joinRepo);
+        let held = 0;
+        admin.joinRepo.hold = async (...args) => {
+            held += 1;
+            return hold(...args);
+        };
+
+        await assert.rejects(
+            admin.join('wien', 'fabrikam'),
+            refusedWith('SUBSCRIBER_JOIN_ALREADY_JOINED'),
+        );
+        assert.equal(held, 1);
+    });
+});
+
 // @requirement SC-ADM-049 — A join is shown before it is made, and held to what was shown
 describe('a join is refused', () => {
     // @requirement SC-ADM-020 — Six actions require a written reason, cancelling an invoice among them

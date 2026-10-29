@@ -16317,6 +16317,10 @@ _Tested by:_
         - the join answers the subscriber everything moved to, and both records say so
         - the list marks a subscriber joined with the one it was joined into
         - is announced and served only where joins are on
+    - a join the database aborts
+        - is tried once more, and recorded once
+        - a second time, is answered with what aborted it, and nothing is recorded
+        - is not tried again where the platform refuses it
     - a join is refused
         - without a reason, before anything about the subscribers is asked
         - where the operator declares another legal entity
@@ -17757,6 +17761,10 @@ _Tested by:_
     - the subscribers' own table is named where its trigger does not fire
     - every table whose trigger does not fire is named, the subscribers first
 - `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
+    - a join the database aborts
+        - is tried once more, and recorded once
+        - a second time, is answered with what aborted it, and nothing is recorded
+        - is not tried again where the platform refuses it
     - a payment method confirmed on a form opened before the join
         - is recorded for the subscriber it was joined into, and is the one in use there
         - is recorded there where the join moved the setup while the confirmation waited for it

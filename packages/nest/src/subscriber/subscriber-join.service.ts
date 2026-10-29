@@ -5,6 +5,7 @@ import {
     HttpException,
     Inject,
     Injectable,
+    Logger,
     NotFoundException,
     Optional,
     UnprocessableEntityException,
@@ -73,6 +74,8 @@ const REFUSED_AS_INVALID: ReadonlySet<string> = new Set([
  */
 @Injectable()
 export class SubscriberJoinService implements OnModuleInit {
+    private readonly logger = new Logger(SubscriberJoinService.name);
+
     constructor(
         @Inject(SUBSCRIBER_JOIN_REPOSITORY_TOKEN)
         private readonly joins: SubscriberJoinRepository,
@@ -124,34 +127,64 @@ export class SubscriberJoinService implements OnModuleInit {
         present?: (decision: SubscriberJoinDecision) => Promise<unknown>,
     ): Promise<SubscriberJoinOutcome> {
         return readAcrossTenants(this.rlsBypass, () =>
-            this.runner.run(async (tx) => {
-                const state = await this.held(fromSubscriberId, intoSubscriberId, tx);
-                refuse(subscriberJoinRefusal(state, request));
-                const decision = decisionOf(state);
-                if (
-                    request.previewDigest !== undefined &&
-                    request.previewDigest !== decision.digest
-                ) {
-                    throw new ConflictException(
-                        codedError(
-                            SUBSCRIBER_ERROR_CODES.SUBSCRIBER_JOIN_PREVIEW_CHANGED,
-                            present ? { preview: await present(decision) } : undefined,
-                        ),
-                    );
-                }
-                const join = await this.joins.join(
-                    {
-                        plan: decision.plan,
-                        reason: request.reason.trim(),
-                        joinedBy,
-                        joinedAt: new Date(),
-                        digest: decision.digest,
-                    },
-                    tx,
-                );
-                return { ...decision, join };
-            }),
+            this.triedOnceMore(() =>
+                this.joined(fromSubscriberId, intoSubscriberId, request, joinedBy, present),
+            ),
         );
+    }
+
+    /**
+     * `attempt`, tried once more where the database aborted it rather than the
+     * platform refusing it. A join holds both subscribers' rows and then
+     * changes rows in every table that names one, while a write — a refund
+     * holding credits, an invoice run holding an invoice — may hold one of
+     * those rows and then wait for the subscriber's: the database ends that by
+     * aborting one side, and the side aborted has written nothing. Tried again,
+     * the join reads everything anew, its preview included. A refusal is the
+     * platform's own answer, and a second failure is thrown as it came.
+     */
+    private async triedOnceMore<T>(attempt: () => Promise<T>): Promise<T> {
+        try {
+            return await attempt();
+        } catch (error) {
+            if (error instanceof HttpException) throw error;
+            const reason = error instanceof Error ? error.message : String(error);
+            this.logger.warn(`Joining subscribers was aborted (${reason}); tried once more.`);
+            return attempt();
+        }
+    }
+
+    private joined(
+        fromSubscriberId: string,
+        intoSubscriberId: string,
+        request: SubscriberJoinRequest,
+        joinedBy: string,
+        present?: (decision: SubscriberJoinDecision) => Promise<unknown>,
+    ): Promise<SubscriberJoinOutcome> {
+        return this.runner.run(async (tx) => {
+            const state = await this.held(fromSubscriberId, intoSubscriberId, tx);
+            refuse(subscriberJoinRefusal(state, request));
+            const decision = decisionOf(state);
+            if (request.previewDigest !== undefined && request.previewDigest !== decision.digest) {
+                throw new ConflictException(
+                    codedError(
+                        SUBSCRIBER_ERROR_CODES.SUBSCRIBER_JOIN_PREVIEW_CHANGED,
+                        present ? { preview: await present(decision) } : undefined,
+                    ),
+                );
+            }
+            const join = await this.joins.join(
+                {
+                    plan: decision.plan,
+                    reason: request.reason.trim(),
+                    joinedBy,
+                    joinedAt: new Date(),
+                    digest: decision.digest,
+                },
+                tx,
+            );
+            return { ...decision, join };
+        });
     }
 
     /**

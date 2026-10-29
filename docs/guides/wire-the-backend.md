@@ -945,7 +945,9 @@ from your schema:
   before a join and writes while it runs waits for it, is refused, and writes at the earlier
   subscriber on its next attempt. A trigger on `subscribers` refuses a change of the subscriber
   joined in the same way: a tenant's change of its own details that waited for the join is written
-  at the earlier subscriber, and an operator's is answered with `SUBSCRIBER_JOINED`.
+  at the earlier subscriber, and an operator's is answered with `SUBSCRIBER_JOINED`. Where such a
+  write holds a row the join moves, the database aborts one of the two; a join it aborts is tried
+  once more, and reads everything anew.
 
 With joins on, the start is refused where the bundle has no `subscriberJoinRepository`, where the
 schema lacks a table a join moves — a model the client was generated without, or a table the
