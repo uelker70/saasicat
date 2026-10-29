@@ -1,5 +1,147 @@
 # @saasicat/cli
 
+## 1.0.0-rc.29
+
+### Minor Changes
+
+- c5e92a8: A returning customer's subscriber is joined into the one it had
+
+    A customer whose tenant was deleted and who signs up again is joined by the
+    operator: in the record of the new subscriber, "Belongs to an earlier
+    subscriber …" finds the earlier one among those without a live tenant, shows
+    both side by side with what moves and what the earlier record takes, and joins
+    them behind the second factor once a reason is given and both are declared one
+    legal entity, held to the preview shown — or with `<app> subscribers join
+--from <customer number> --into <customer number> --reason … [--apply]`.
+    Everything the new subscriber holds moves to the earlier one in one
+    transaction; its record stays, names where everything went and takes no
+    change, and a join is not undone.
+
+    It is off until `SaaSiCatModule.forRoot({ subscriberJoins: true })` turns it
+    on. `SubscriberJoin` is a new model in
+    `prisma-fragments/27-subscriber-join.prisma`, with two relation fields on
+    `Subscriber`. Run
+    `sql/1.0-a-subscriber-is-joined.postgres.sql` after `db push`: its triggers
+    refuse a row for a joined subscriber and a change of one, so a job that read the
+    subscriber before a join writes at the earlier one when it runs again, and a
+    tenant's change of its details made while the join ran is written there. A
+    payment method confirmed on a gateway form opened before the join is recorded
+    for the earlier one. With joins on, the start is refused where a table a join
+    moves is missing — name it in `notAdopted` — or lacks its trigger. A CLI
+    registers
+    `SubscriberJoinCliFlow`, `SubscribersCommands` and `SubscribersJoinCommand`;
+    `FakeSubscriberJoinRepository` joins in tests without a database.
+
+- 307168c: A subscriber has a record of its own, reached without its tenant
+
+    The administration gains a page of subscribers (`SubscribersPage`, at
+    `subscribers`) — searched by a customer number, a legal name or a VAT number,
+    and narrowed to those without a live tenant — and each subscriber's record
+    (`SubscriberRecordPage`, at `subscribers/:id`): its master data and
+    corrections, every tenant it was linked to, its charges, credits, invoices
+    with their cancellation, and contracts. A subscriber whose tenant is gone stays
+    reachable there. The tenant's page keeps a card naming its subscriber and
+    leading into the record. Both pages appear where the manifest announces
+    `subscribers.read`. The theme gains `.sa-link`, the accent for a link in a
+    page's content that leads to another record, readable in both themes.
+
+    **Breaking:** the routes that read a subscriber through its tenant's slug are
+    gone. `admin/subscribers/:id/charges`, `…/credits`,
+    `…/credits/:creditId/payouts`, `…/payments`, `…/contracts`, `…/history`,
+    `…/identity`, `…/business-status` and `…/vat-id-check` take their place, and an
+    invoice is read and cancelled at `admin/invoices/:invoiceId`,
+    `…/cancellation/preview` and `…/cancellation`. `GET admin/subscribers` and
+    `GET admin/subscribers/:id` are new. The `@saasicat/ui-vue` names follow:
+    `subscribersResource` holds the subscriber's operations, `useTenantAccount`,
+    `useTenantCredits`, `useTenantPayments`, `useTenantContracts` and
+    `useTenantDownloads` are `useSubscriber…`, and `AdminTenantPayments`,
+    `AdminTenantInvoice` and `AdminTenantContract(s)` are `AdminSubscriber…`.
+
+    A subscriber has no live tenant only once its link is closed: an application
+    that deletes a tenant closes its subscriber's link, and the record names a
+    tenant the application no longer has as such. `AdminResourcesPort` gains
+    `findTenantsByIds`, `SubscriberRepository` `search` and `listTenantLinks`,
+    `SubscriberLedgerRepository` `listBySubscriber`, and the contracts' `list`
+    filter `subscriberId`; the shipped adapters implement all of them, and the
+    persistence contract holds them. A harness of your own adds the
+    `closeTenantLink` seed or declares `closedTenantLinkSeed` among its gaps. A
+    payout's audit entry names the subscriber beside its tenant.
+
+- 3cec45b: The invoice register is exported for a tax advisor, as of a moment
+
+    The invoices page gains an "Export" button, the platform
+    `GET admin/invoice-export`, and the command line `<app> invoices export`:
+    the invoices of the months picked, at most twelve, as of a moment on the
+    installation's clock, with their lines, tax treatment and rate, and the
+    settlements recorded against each by then, each with the moment it was
+    recorded. The moment is at most five minutes before the request, and that
+    where none is given; a later one is refused with
+    `SUBSCRIPTION_INVOICE_EXPORT_AS_OF_TOO_LATE`.
+
+    It is one ZIP: `invoices.csv`, `lines.csv`, `settlements.csv` in German or
+    English notation, `export.json` with the same rows, and last a manifest with
+    every file's size and SHA-256. `export.json` and the manifest follow
+    `invoice-export.schema.json`, which `@saasicat/spec` exports as
+    `invoiceExportSchema`. The files are stored and dated the moment the export is
+    as of, so the same months as of the same moment in the same language are the
+    same bytes. The audit log records each export with the operator, the months,
+    the moment and the archive's SHA-256 (`SUBSCRIPTION_INVOICES_EXPORTED`) before
+    it is handed over, and an export it cannot record is not handed over; the
+    command line never writes over a file already there.
+
+    Nothing is stored and nothing is migrated. `SubscriptionInvoiceRepository`
+    gains `listCancellations` and `findDocuments`, `SubscriberPaymentRepository`
+    gains `listSettlements`, in both adapters; a repository of your own adds them.
+    A CLI module registers `InvoiceExportCliFlow` and `InvoicesExportCommand`.
+    `isLocalMoment`, `LOCAL_MOMENT_PATTERN`, `localMomentInZone`,
+    `firstMomentInZone` and the export's model and writers are new in
+    `@saasicat/core`; `invoicesResource` gains `export`, and `useInvoiceExport`
+    is new in `@saasicat/ui-vue`.
+
+- 3853724: The administration lists every invoice of a span of months, with its sums
+
+    A new standard page, `invoices`, lists every invoice issued in the months
+    picked — the current month in the installation's time zone where none is, at
+    most twelve at a time — whichever subscriber and tenant it was for, by issue
+    date and then number, fifty to a page. Each row names what the invoice
+    corrects, the cancellation invoice that cancelled it, the subscriber with the
+    way into its record, its net, tax and gross, and whether its document is
+    archived or still awaited; an invoice that stands is cancelled from its row as
+    from the record. Beside the list stand the sums per month, currency, tax
+    treatment and rate, and over the whole span: 0 % exempt and 0 % under the
+    reverse charge are two sums, and a cancellation invoice counts with its own
+    sign in the month it was issued.
+
+    `GET admin/invoices` and `GET admin/invoice-totals` are new, under
+    `invoices.read`, and refuse months reversed or more than twelve with
+    `SUBSCRIPTION_INVOICE_REGISTER_RANGE_REVERSED` and
+    `SUBSCRIPTION_INVOICE_REGISTER_RANGE_TOO_LONG`. `SubscriptionInvoiceRepository`
+    gains `listIssued`, `listIssuedAmounts` and `findByNumber`, implemented by both
+    adapters and held by the persistence contract; a repository of your own adds
+    them.
+
+    `<app> invoices cancel` names the invoice by its number alone, so an invoice of
+    a tenant deleted since is cancelled too; `--tenant` stays and refuses an invoice
+    issued for another tenant with `INVOICE_TENANT_MISMATCH`.
+    `InvoiceCancellationService.invoiceIdNumbered(tenantId, number)` is
+    `invoiceNumbered(number)`. The texts of a tax treatment moved from
+    `subscribers.payments.cancelDialog.taxTreatment` to
+    `subscribers.payments.taxTreatment`.
+
+### Patch Changes
+
+- Updated dependencies [42bcd7e]
+- Updated dependencies [22a1ee7]
+- Updated dependencies [c5e92a8]
+- Updated dependencies [307168c]
+- Updated dependencies [3cec45b]
+- Updated dependencies [ae442f2]
+- Updated dependencies [3853724]
+- Updated dependencies [7ee72d2]
+    - @saasicat/core@1.0.0-rc.29
+    - @saasicat/nest@1.0.0-rc.29
+    - @saasicat/spec@1.0.0-rc.29
+
 ## 1.0.0-rc.28
 
 ### Minor Changes

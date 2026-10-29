@@ -1,5 +1,21 @@
 # @saasicat/ui-vue-tenant
 
+## 1.0.0-rc.29
+
+### Patch Changes
+
+- Updated dependencies [42bcd7e]
+- Updated dependencies [22a1ee7]
+- Updated dependencies [c5e92a8]
+- Updated dependencies [307168c]
+- Updated dependencies [3cec45b]
+- Updated dependencies [ae442f2]
+- Updated dependencies [3853724]
+- Updated dependencies [5741bd5]
+- Updated dependencies [7ee72d2]
+    - @saasicat/core@1.0.0-rc.29
+    - @saasicat/ui-vue@1.0.0-rc.29
+
 ## 1.0.0-rc.28
 
 ### Patch Changes
