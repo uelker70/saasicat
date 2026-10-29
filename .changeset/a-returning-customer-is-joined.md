@@ -16,7 +16,7 @@ operator: in the record of the new subscriber, "Belongs to an earlier
 subscriber …" finds the earlier one among those without a live tenant, shows
 both side by side with what moves and what the earlier record takes, and joins
 them behind the second factor once a reason is given and both are declared one
-legal entity, held to the preview shown — or with `saasicat subscribers join
+legal entity, held to the preview shown — or with `<app> subscribers join
 --from <customer number> --into <customer number> --reason … [--apply]`.
 Everything the new subscriber holds moves to the earlier one in one
 transaction; its record stays, names where everything went and takes no

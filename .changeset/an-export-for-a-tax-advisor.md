@@ -12,7 +12,7 @@
 The invoice register is exported for a tax advisor, as of a moment
 
 The invoices page gains an "Export" button, the platform
-`GET admin/invoice-export`, and the command line `saasicat invoices export`:
+`GET admin/invoice-export`, and the command line `<app> invoices export`:
 the invoices of the months picked, at most twelve, as of a moment on the
 installation's clock, with their lines, tax treatment and rate, and the
 settlements recorded against each by then, each with the moment it was
