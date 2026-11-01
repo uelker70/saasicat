@@ -368,7 +368,11 @@ interface Props {
 
     /** EUR/CHF/USD formatter. */
     formatCurrency: (n: number) => string;
-    /** ISO date string → localized date. */
+    /**
+     * A day as the page writes it. It is handed noon of a day the server named
+     * (`SC-UI-028`) as an instant, so it has to read that instant in the
+     * viewer's zone — `toLocaleDateString` without a `timeZone` does.
+     */
     formatDate: (iso: string | Date) => string;
     /** Freely selectable format for quota cards in the wizard. */
     formatQuotaLabel?: (key: string, value: number) => string;
@@ -827,7 +831,7 @@ async function onTakeBundleOffer(subscriptionBundleId: string, bundleVersionId: 
             ? words.bundleRetiredSwitched
             : words.bundleOfferSwitchScheduled.replace(
                   '{date}',
-                  writeDay(props.formatDate, result.takesEffectDays.from),
+                  writeDay(props.formatDate, result.takesEffectDays?.from),
               );
         bundleNote.value = said.replace('{bundle}', label).replace('{version}', version);
     } catch (err) {
@@ -967,7 +971,7 @@ async function onTakeVersionOffer(planVersionId: string): Promise<void> {
             ? effectiveI18n.value.versionOfferSwitchedNow.replace('{version}', version)
             : effectiveI18n.value.versionOfferSwitchScheduled
                   .replace('{version}', version)
-                  .replace('{date}', writeDay(props.formatDate, result.takesEffectDays.from));
+                  .replace('{date}', writeDay(props.formatDate, result.takesEffectDays?.from));
     } catch (err) {
         // The offer as it now stands travels with this refusal, so the card
         // shows it at once rather than the one that was refused.

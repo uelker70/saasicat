@@ -131,7 +131,7 @@ const lead = computed(() => {
 });
 
 const takesEffectDate = computed(() =>
-    writeDay(props.formatDate, props.offer.takesEffectDays.from),
+    writeDay(props.formatDate, props.offer.takesEffectDays?.from),
 );
 
 const effectiveText = computed(() =>

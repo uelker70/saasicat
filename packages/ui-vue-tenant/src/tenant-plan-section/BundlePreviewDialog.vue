@@ -125,7 +125,7 @@
             <section v-if="cancelPreview" class="sp-bundle-preview__price">
                 <div class="sp-bundle-preview__price-row">
                     <span>{{ i18n.bundlePreviewEffectiveAt }}</span>
-                    <strong>{{ writeDay(formatDate, cancelPreview.effectiveDays.until) }}</strong>
+                    <strong>{{ writeDay(formatDate, cancelPreview.effectiveDays?.until) }}</strong>
                 </div>
                 <div
                     v-if="cancelPreview.nextPeriodSavingsNet !== null"

@@ -14,7 +14,10 @@ export function dayAsInstant(day: CalendarDay): string {
     return new Date(year, month - 1, date, 12).toISOString();
 }
 
-/** `day` as the application's formatter writes days; a dash where there is none. */
+/**
+ * `day` as the application's formatter writes days; a dash where there is
+ * none — as where a server older than the days answers without them.
+ */
 export function writeDay(
     formatDate: (iso: string) => string,
     day: CalendarDay | null | undefined,

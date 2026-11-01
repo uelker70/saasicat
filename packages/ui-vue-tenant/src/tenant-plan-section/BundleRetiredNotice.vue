@@ -102,7 +102,7 @@ const confirming = ref(false);
 
 const retiredVersion = computed(() => String(props.notice.retired.version));
 const replacementVersion = computed(() => String(props.notice.replacement.version));
-const effectiveDate = computed(() => writeDay(props.formatDate, props.notice.effectiveDays.from));
+const effectiveDate = computed(() => writeDay(props.formatDate, props.notice.effectiveDays?.from));
 
 const title = computed(() =>
     i18n.value.bundleRetiredTitle

@@ -60,7 +60,7 @@
                         </div>
                         <div class="msb-card-meta">
                             {{ effectiveI18n.myBundlesBookedSince }}
-                            {{ writeDay(formatDate, b.startedDays.from) }}
+                            {{ writeDay(formatDate, b.startedDays?.from) }}
                             <template v-if="b.minimumTermEndsAt">
                                 · {{ effectiveI18n.bundleMinimumTermUntil }}
                                 {{ writeDay(formatDate, b.minimumTermEndsDays?.until) }}
@@ -481,7 +481,7 @@ async function onTakeOffer(b: TenantSubscriptionBundle, bundleVersionId: string)
             ? words.bundleRetiredSwitched
             : words.bundleOfferSwitchScheduled.replace(
                   '{date}',
-                  writeDay(formatDate, result.takesEffectDays.from),
+                  writeDay(formatDate, result.takesEffectDays?.from),
               );
         switchNote.value = said.replace('{bundle}', label).replace('{version}', version);
     } catch (err) {

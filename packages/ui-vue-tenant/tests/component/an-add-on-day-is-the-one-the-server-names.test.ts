@@ -18,9 +18,15 @@ import {
 
 import BundlePreviewDialog from '../../src/tenant-plan-section/BundlePreviewDialog.vue';
 import MySubscriptionBundlesPage from '../../src/MySubscriptionBundlesPage.vue';
+import TenantPlanSection from '../../src/TenantPlanSection.vue';
 import { defaultTenantPlanSectionI18n } from '../../src/default-i18n';
 import { TENANT_I18N_KEY } from '../../src/tenant-i18n';
-import { seatsV1, storeWith as storeKeptIn } from './support/add-on-bookings.js';
+import {
+    aServer,
+    confirmation,
+    seatsV1,
+    storeWith as storeKeptIn,
+} from './support/add-on-bookings.js';
 
 // Every day the add-on pages write is a day the server named beside the
 // moment, and the side of it the sentence means: what ends shows the last day
@@ -85,6 +91,16 @@ describe('a booking in the add-on store', () => {
         showsOnly(text(wrapper), FROM);
     });
 });
+
+/** An add-on version's side of an offer or a retirement, priced and with its seats. */
+const SEATS_SIDE = {
+    bundleKey: 'SEATS',
+    label: 'Seats',
+    features: ['SEATS'],
+    quotas: { seats: 5 },
+    monthlyNet: 9,
+    yearlyNet: 90,
+};
 
 describe('beside a booking in the add-on store', () => {
     const side = (bundleVersionId: string, version: number) => ({
@@ -278,5 +294,58 @@ describe('a booking on the page of the tenant’s add-ons', () => {
         });
         expect(shown).toContain(written('2026-07-02'));
         showsOnly(shown, UNTIL, written);
+    });
+});
+
+describe('an answer from a server that names no days yet', () => {
+    test('a switch it took is said as taken, with a dash for the day it does not name', async () => {
+        const offer: BundleVersionOfferWithDays = {
+            subscriptionBundleId: 'sb-1',
+            planKey: 'STANDARD',
+            billingCycle: 'MONTHLY',
+            bound: { ...SEATS_SIDE, bundleVersionId: 'bv-1', version: 1 },
+            offered: { ...SEATS_SIDE, bundleVersionId: 'bv-2', version: 2 },
+            class: 'takes-something-away',
+            changes: [],
+            takesEffectAt: MOMENT,
+            takesEffectDays: DAYS,
+        };
+        // What a server from before the days answers once the switch is written.
+        const http = aServer(
+            () => [seatsV1({ minimumTermEndsAt: null, offer })],
+            '/sb-1/version-offer/accept',
+            () => ({
+                status: 200,
+                body: {
+                    class: 'takes-something-away',
+                    subscriptionBundleId: 'sb-1',
+                    fromBundleVersionId: 'bv-1',
+                    bundleVersionId: 'bv-2',
+                    immediate: false,
+                    takesEffectAt: MOMENT,
+                },
+            }),
+        );
+        const wrapper = mount(TenantPlanSection, {
+            attachTo: document.body,
+            props: {
+                http,
+                formatCurrency: (value: number) => `€ ${value.toFixed(2)}`,
+                formatDate: (value: string | Date) => String(value).slice(0, 10),
+                showBundleStore: true,
+            },
+        });
+        mounted.push(wrapper);
+        await flushPromises();
+
+        const take = wrapper
+            .findAll('.sp-version-offer button')
+            .find((button) => button.text() === 'Switch to version 2');
+        await take!.trigger('click');
+        await flushPromises();
+        confirmation().button('Confirm the switch')!.click();
+        await flushPromises();
+
+        expect(wrapper.text()).toContain('Seats switches to version 2 on —.');
     });
 });
