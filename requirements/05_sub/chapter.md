@@ -504,6 +504,7 @@ _Tested by:_
         - taken where the cancellation lands after the term end
     - the switch goes ahead only while the version shown is still the offer
         - another version named is refused, carrying the offer as it stands
+        - the offer it carries names the days of when it takes effect
         - no offer at all is refused the same way, carrying none
         - a subscription that moved before an immediate switch was written is told to reload
         - a version no longer offered when the write came is answered with the offer as it stands

@@ -59,8 +59,9 @@ export function withDays<T extends object, Keys extends keyof T & string>(
 
 function daysOfMoment(moment: unknown, key: string, timeZone: string): DaysAround | null {
     if (moment === null || moment === undefined) return null;
-    const at = moment instanceof Date ? moment : new Date(String(moment));
-    if (Number.isNaN(at.getTime())) {
+    const at =
+        moment instanceof Date ? moment : typeof moment === 'string' ? new Date(moment) : null;
+    if (!at || Number.isNaN(at.getTime())) {
         throw new TypeError(`${key} is not a moment, so it has no days.`);
     }
     return daysAround(at, timeZone);

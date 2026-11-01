@@ -304,7 +304,7 @@ export class TenantBillingController {
     ) {}
 
     /** The installation's zone, which every day handed out here is read in. */
-    private get zone(): string {
+    private zone(): string {
         return installationZoneOf(this.settings);
     }
 
@@ -436,7 +436,7 @@ export class TenantBillingController {
                 takesEffectAt: result.takesEffectAt,
             },
         );
-        return withDays(result, ['takesEffectAt'], this.zone);
+        return withDays(result, ['takesEffectAt'], this.zone());
     }
 
     /**

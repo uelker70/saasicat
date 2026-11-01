@@ -54,7 +54,7 @@ function aSwitch({
         charged: [],
     };
     const subscriptions = { findForTenant: async (id) => (id === 't1' ? sub : null) };
-    const offers = new VersionOfferService(subscriptions, plans, null);
+    const offers = new VersionOfferService(subscriptions, plans, null, null, settings);
     const write = {
         changePlanImmediate: async (tenantId, input) => {
             calls.immediate.push(input);
@@ -357,6 +357,18 @@ describe('the switch goes ahead only while the version shown is still the offer'
             return true;
         });
         assert.equal(calls.immediate.length + calls.scheduled.length, 0);
+    });
+
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('the offer it carries names the days of when it takes effect', async () => {
+        const { take } = aSwitch({ settings: { timeZone: 'Europe/Berlin' } });
+        await assert.rejects(take('pv-3'), (error) => {
+            assert.deepEqual(error.response.offer.takesEffectDays, {
+                until: '2026-10-15',
+                from: '2026-10-15',
+            });
+            return true;
+        });
     });
 
     test('no offer at all is refused the same way, carrying none', async () => {

@@ -4751,6 +4751,7 @@ _Tested by:_
         - asks the party about the contract that runs from then
     - the switch goes ahead only while the version shown is still the offer
         - another version named is refused, carrying the offer as it stands
+        - the offer it carries names the days of when it takes effect
         - no offer at all is refused the same way, carrying none
         - a booking that moved before the switch was written is answered with the offer as it stands
         - a switch scheduled meanwhile is answered the same way
@@ -5472,6 +5473,7 @@ _Tested by:_
         - taken where the cancellation lands after the term end
     - the switch goes ahead only while the version shown is still the offer
         - another version named is refused, carrying the offer as it stands
+        - the offer it carries names the days of when it takes effect
         - no offer at all is refused the same way, carrying none
         - a subscription that moved before an immediate switch was written is told to reload
         - a version no longer offered when the write came is answered with the offer as it stands
@@ -19756,6 +19758,9 @@ _Tested by:_
 - `packages/nest/tests/a-newer-add-on-version-is-offered.test.js`
     - an offer beside a booking
         - names the days around when it takes effect, in the installation’s zone
+- `packages/nest/tests/a-newer-add-on-version-is-taken.test.js`
+    - the switch goes ahead only while the version shown is still the offer
+        - the offer it carries names the days of when it takes effect
 - `packages/nest/tests/a-newer-version-is-offered.test.js`
     - an offer
         - names the days around when it takes effect, in the installation’s zone
@@ -19769,6 +19774,9 @@ _Tested by:_
         - a booking’s preview names the days of its first period, its term and its end
         - a cancellation’s preview names the days of when it takes effect
         - a newer version taken names the days of when it takes effect
+- `packages/nest/tests/a-version-offer-is-taken.test.js`
+    - the switch goes ahead only while the version shown is still the offer
+        - the offer it carries names the days of when it takes effect
 - `packages/ui-vue-tenant/tests/component/a-day-is-written-as-that-day-in-every-zone.test.ts`
     - a day handed to the application’s formatter
         - is that day for a viewer in ${zone}

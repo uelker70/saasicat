@@ -226,7 +226,7 @@ export function buildTenantSubscriptionBundlesController(
         ) {}
 
         /** The installation's zone, which every day handed out here is read in. */
-        private get zone(): string {
+        private zone(): string {
             return installationZoneOf(this.settings);
         }
 
@@ -268,8 +268,9 @@ export function buildTenantSubscriptionBundlesController(
                         : null;
                     const offer = (await this.versionOffers?.offerFor(sub, view, now)) ?? null;
                     return {
-                        ...withDays(view, SUBSCRIPTION_BUNDLE_MOMENTS, this.zone),
-                        retirement: retirement && withDays(retirement, ['effectiveAt'], this.zone),
+                        ...withDays(view, SUBSCRIPTION_BUNDLE_MOMENTS, this.zone()),
+                        retirement:
+                            retirement && withDays(retirement, ['effectiveAt'], this.zone()),
                         retirementSwitch,
                         offer,
                     };
@@ -323,7 +324,7 @@ export function buildTenantSubscriptionBundlesController(
             });
             await this.refreezeContract(tenantId, sub);
             await recordChargesAfter(this.charges, tenantId, 'an add-on booking', this.logger);
-            return withDays(result, SUBSCRIPTION_BUNDLE_MOMENTS, this.zone);
+            return withDays(result, SUBSCRIPTION_BUNDLE_MOMENTS, this.zone());
         }
 
         @Post('preview')
@@ -370,7 +371,7 @@ export function buildTenantSubscriptionBundlesController(
                           billingCycle: dto.billingCycle,
                       }),
                       ['minimumTermEndsAt', 'firstPeriodEnd', 'endsWithPlanAt'],
-                      this.zone,
+                      this.zone(),
                   )
                 : withDays(
                       await this.previewService.previewCancel(ctx, {
@@ -382,7 +383,7 @@ export function buildTenantSubscriptionBundlesController(
                           ),
                       }),
                       ['effectiveAt'],
-                      this.zone,
+                      this.zone(),
                   );
         }
 
@@ -415,7 +416,7 @@ export function buildTenantSubscriptionBundlesController(
                 currentPeriodEnd: sub.currentPeriodEnd ?? undefined,
             });
             await this.refreezeContract(tenantId, sub);
-            return withDays(result, SUBSCRIPTION_BUNDLE_MOMENTS, this.zone);
+            return withDays(result, SUBSCRIPTION_BUNDLE_MOMENTS, this.zone());
         }
 
         /**
@@ -505,7 +506,7 @@ export function buildTenantSubscriptionBundlesController(
                     takesEffectAt: result.takesEffectAt,
                 },
             );
-            return withDays(result, ['takesEffectAt'], this.zone);
+            return withDays(result, ['takesEffectAt'], this.zone());
         }
 
         @Post(':id/reactivate')
@@ -536,7 +537,7 @@ export function buildTenantSubscriptionBundlesController(
                 plansAhead: await this.plansAheadOf(sub),
             });
             await this.refreezeContract(tenantId, sub);
-            return withDays(result, SUBSCRIPTION_BUNDLE_MOMENTS, this.zone);
+            return withDays(result, SUBSCRIPTION_BUNDLE_MOMENTS, this.zone());
         }
 
         private requireUserId(req: RequestLike): string {

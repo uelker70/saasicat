@@ -23,8 +23,11 @@ import type {
     PlanRow,
     PlanVersionRow,
     QuotaCatalogEntryRow,
+    SubscriptionBundleDays,
     VersionOfferView,
+    VersionOfferWithDays,
 } from '@saasicat/core';
+import { SUBSCRIPTION_BUNDLE_MOMENTS, withDays } from '@saasicat/core';
 
 import type {
     SubscriptionBundleShape,
@@ -688,7 +691,13 @@ const TENANT_USAGE_WITH_AN_OFFER: UsageSnapshotShape = {
  * the card shows its warning badge, what is removed, and the date the switch
  * would take effect, besides the comparison every offer has.
  */
-const TENANT_VERSION_OFFER: VersionOfferView = {
+/**
+ * The zone the server reads the tenant's days in here. Berlin, where every
+ * fixture moment at UTC midnight is the same calendar day on both sides of it.
+ */
+const FIXTURE_ZONE = 'Europe/Berlin';
+
+const TENANT_VERSION_OFFER_AS_DECIDED: VersionOfferView = {
     plan: 'PRO',
     bound: {
         planVersionId: 'pv-1',
@@ -715,7 +724,15 @@ const TENANT_VERSION_OFFER: VersionOfferView = {
     takesEffectAt: '2026-12-31T00:00:00.000Z',
 };
 
-const TENANT_BUNDLES: SubscriptionBundleShape[] = [
+/** The offer as the server answers it: with the days of when it takes effect. */
+const TENANT_VERSION_OFFER: VersionOfferWithDays = withDays(
+    TENANT_VERSION_OFFER_AS_DECIDED,
+    ['takesEffectAt'],
+    FIXTURE_ZONE,
+);
+
+/** The bookings as the store holds them; the server adds their days (`TENANT_BUNDLES`). */
+const TENANT_BOOKINGS: Omit<SubscriptionBundleShape, keyof SubscriptionBundleDays>[] = [
     {
         id: 'sb-1',
         subscriptionId: 'sub-1',
@@ -748,6 +765,10 @@ const TENANT_BUNDLES: SubscriptionBundleShape[] = [
         canceledEffectiveAt: '2026-02-01T00:00:00.000Z',
     },
 ];
+
+const TENANT_BUNDLES: SubscriptionBundleShape[] = TENANT_BOOKINGS.map((booking) =>
+    withDays(booking, SUBSCRIPTION_BUNDLE_MOMENTS, FIXTURE_ZONE),
+);
 
 export const TENANT_CATALOG_PLANS: CatalogPlan[] = [
     {
@@ -1818,7 +1839,7 @@ const TENANT_WITHDRAWN = {
 function tenantRoutes(
     prefix: string,
     usage: UsageSnapshotShape,
-    offer: VersionOfferView | null,
+    offer: VersionOfferWithDays | null,
     withdrawn: { withdrawals: readonly unknown[]; registry: unknown } = {
         withdrawals: [],
         registry: { features: {}, quotas: {} },

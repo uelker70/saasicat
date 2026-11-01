@@ -2321,6 +2321,7 @@ _Tested by:_
         - asks the party about the contract that runs from then
     - the switch goes ahead only while the version shown is still the offer
         - another version named is refused, carrying the offer as it stands
+        - the offer it carries names the days of when it takes effect
         - no offer at all is refused the same way, carrying none
         - a booking that moved before the switch was written is answered with the offer as it stands
         - a switch scheduled meanwhile is answered the same way

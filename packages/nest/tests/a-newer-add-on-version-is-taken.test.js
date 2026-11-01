@@ -241,6 +241,18 @@ describe('the switch goes ahead only while the version shown is still the offer'
         assert.equal(bookingIn(world, 'sb-t1').bundleVersionId, BOOKED.id);
     });
 
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('the offer it carries names the days of when it takes effect', async () => {
+        const world = offering({ settings: { timeZone: 'Europe/Berlin' } });
+
+        const refused = await refusedWith(world.switches.take('t1', 'sb-t1', 'bv-3', NOW));
+
+        assert.deepEqual(refused.offer.takesEffectDays, {
+            until: '2026-10-15',
+            from: '2026-10-15',
+        });
+    });
+
     test('no offer at all is refused the same way, carrying none', async () => {
         const world = offering({ bookings: [bookedOf('t1', { bundleVersionId: IMPROVEMENT.id })] });
 
