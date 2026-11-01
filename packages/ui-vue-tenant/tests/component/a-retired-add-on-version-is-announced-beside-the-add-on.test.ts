@@ -161,6 +161,9 @@ describe('a retired add-on version, on the page of the tenant’s add-ons', () =
     });
 });
 
+/** A moment `days` from now: a cancellation is reinstated only before it takes effect. */
+const daysFromNow = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+
 /**
  * The plan section of a subscription holding a cancelled booking of Seats
  * version 1, whose reinstatement the server refuses with `refusal`.
@@ -169,8 +172,8 @@ function aRefusingServer(refusal: { code: string; message: string; params: objec
     return aServer(
         () => [
             seatsV1({
-                canceledAt: '2026-10-01T00:00:00.000Z',
-                canceledEffectiveAt: '2026-11-01T00:00:00.000Z',
+                canceledAt: daysFromNow(-30),
+                canceledEffectiveAt: daysFromNow(30),
             }),
         ],
         '/reactivate',
