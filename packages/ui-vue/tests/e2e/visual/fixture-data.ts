@@ -702,6 +702,9 @@ const TENANT_USAGE_READ: UsageRead = {
 
 const TENANT_USAGE: UsageSnapshotShape = withUsageDays(TENANT_USAGE_READ, FIXTURE_ZONE);
 
+/** The days of the trial's end, as the account names them — what the plan section hands its wizard. */
+export const FIXTURE_TRIAL_ENDS_DAYS = TENANT_USAGE.trialEndsDays;
+
 /** The same subscription running, with nothing outstanding — an offer is made only then. */
 const TENANT_USAGE_WITH_AN_OFFER: UsageSnapshotShape = withUsageDays(
     { ...TENANT_USAGE_READ, status: 'ACTIVE', trialEndsAt: null, planPriceNet: 49 },

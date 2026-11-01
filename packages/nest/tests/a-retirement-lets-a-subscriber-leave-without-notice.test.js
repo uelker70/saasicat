@@ -109,7 +109,10 @@ describe('a subscription a retirement reaches', () => {
 
         const usage = await controller.getUsage(request);
 
-        assert.deepEqual(usage.retirement, told(effectiveAt));
+        // The notice as it was told; the days of its date stand beside it.
+        const { effectiveDays, ...notice } = usage.retirement;
+        assert.deepEqual(notice, told(effectiveAt));
+        assert.notEqual(effectiveDays, null);
         assert.deepEqual(asked, [{ id: 'sub-1', planVersion: subscription().planVersion }]);
     });
 

@@ -8,10 +8,8 @@ import PlanChangeWizard from '../../src/PlanChangeWizard.vue';
 import { defaultTenantPlanSectionI18n, planChangeWizardI18n } from '../../src/default-i18n';
 import { DEFAULT_SA_LOCALE } from '@saasicat/ui-vue';
 import type { BillingCycleStr, CatalogPlan, PlanChangePreviewShape } from '@saasicat/ui-vue';
-
 import type { DaysAround } from '@saasicat/core';
-
-import { answered } from './support/server-days.js';
+import { DEFERRED_UPGRADE } from './support/plan-change-previews.js';
 
 // A yearly customer choosing a monthly higher plan gets everything later.
 //
@@ -48,23 +46,7 @@ const PLANS = [
     },
 ] as unknown as CatalogPlan[];
 
-const DEFERRED: PlanChangePreviewShape = {
-    changeType: 'UPGRADE',
-    planDirection: 'UP',
-    cycleDirection: 'SHORTER',
-    isImmediate: false,
-    ...answered({ effectiveAt: '2027-01-01T00:00:00.000Z', projectedTrialEndsAt: null }, [
-        'effectiveAt',
-        'projectedTrialEndsAt',
-    ]),
-    proration: null,
-    limitsCheck: {},
-    featuresGained: [],
-    featuresLost: [],
-    blockers: [],
-    warnings: [],
-    target: { plan: { monthlyNet: 20, yearlyNet: 200 } },
-} as unknown as PlanChangePreviewShape;
+const DEFERRED: PlanChangePreviewShape = DEFERRED_UPGRADE;
 
 /** A downgrade that costs features — the other thing a reader must acknowledge. */
 const DOWNGRADE: PlanChangePreviewShape = {
@@ -87,7 +69,6 @@ const IMMEDIATE: PlanChangePreviewShape = {
     cycleDirection: 'SAME',
     isImmediate: true,
     effectiveAt: null,
-    effectiveDays: null,
 } as unknown as PlanChangePreviewShape;
 
 /** Same plan, different rhythm: nothing lost, nothing gained, still not today. */

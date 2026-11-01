@@ -42,6 +42,7 @@ const usage = (overrides: Partial<UsageSnapshotShape> = {}): UsageSnapshotShape 
             supersededAt: null,
             changeNote: null,
         },
+        planPriceNet: 100,
         limits: { plan: 'PRO', quotas: { notes: 100 }, features: [] },
         usage: { notes: 1 },
         packageSnapshot: null,
@@ -57,7 +58,7 @@ const usage = (overrides: Partial<UsageSnapshotShape> = {}): UsageSnapshotShape 
         retirementSwitch: null,
         checkoutOfferId: null,
         ...overrides,
-    }) as UsageSnapshotShape;
+    });
 
 function mountHeader(overrides: Partial<UsageSnapshotShape> = {}) {
     return mount(TenantPlanCardHeader, {

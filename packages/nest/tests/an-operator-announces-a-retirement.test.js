@@ -1105,7 +1105,7 @@ describe('the run that sends what an announcement could not', () => {
             if (!sending) throw new Error('mail server down');
             return { recipients: [`${notice.tenantId}@example.com`], channel: 'email' };
         });
-        const retired = retiring({ port, timeZone, ...(bound ? { bound } : {}) });
+        const retired = retiring({ port, timeZone, bound });
         await retired.service.announce(
             RETIRED.id,
             REPLACEMENT.id,
