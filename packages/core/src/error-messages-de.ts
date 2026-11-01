@@ -335,7 +335,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     CONTRACT_CONFIRMATION_PARTIES_UNCONFIRMED:
         'Der Vertrag {contractId} sagt nicht, wer seine Parteien beim Schreiben waren – eine Migration hat sie übernommen, oder er nennt keinen Aussteller –, deshalb wird er nicht bestätigt.',
     CONTRACT_CONFIRMATION_NO_INVOICE_EMAIL:
-        'Der Abonnent {subscriberId} hat keine Rechnungs-E-Mail; seine Vertragsbestätigung wird versendet, sobald eine eingetragen ist.',
+        'Der Vertragspartner {subscriberId} hat keine Rechnungs-E-Mail; seine Vertragsbestätigung wird versendet, sobald eine eingetragen ist.',
     CONTRACT_CONFIRMATION_TERMS_NOT_ARCHIVED:
         'Die AGB der Version {version}, die der Vertrag {contractId} festhält, liegen nicht im Archiv; seine Bestätigung wird ohne sie nicht versendet.',
     SUBSCRIPTION_INVOICE_CHARGE_INVOICED:
@@ -372,9 +372,9 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_INVOICE_MANDATE_MISSING:
         'Die Lastschrift {paymentMethodId} nennt keine Mandatsreferenz, die vor dem Einzug angekündigt werden muss. Die Rechnung wartet, bis die Zahlungsart ersetzt ist.',
     SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD:
-        'Der Abonnent {subscriberId} hat keine Zahlungsart in Gebrauch. Die Rechnung wird eingezogen, sobald er eine hat.',
+        'Der Vertragspartner {subscriberId} hat keine Zahlungsart in Gebrauch. Die Rechnung wird eingezogen, sobald er eine hat.',
     SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD:
-        'Die Lastschrift wird angekündigt, sobald dem Abonnenten mitgeteilt ist, dass der Einzug {attemptKey} gescheitert ist.',
+        'Die Lastschrift wird angekündigt, sobald dem Vertragspartner mitgeteilt ist, dass der Einzug {attemptKey} gescheitert ist.',
     SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED:
         'Das Dokument der Rechnung {invoiceId} weicht vom festgehaltenen oder archivierten ab ({rendered} statt {recorded}); das erste bleibt, und der nächste Lauf klärt, welches die Rechnung behält.',
     SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED:
@@ -391,8 +391,9 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_INVOICE_EXPORT_AS_OF_TOO_LATE:
         'Ein Export reicht höchstens bis {latest}, fünf Minuten vor jetzt, damit alles darin ist, was noch geschrieben wurde; {asOf} liegt später.',
     SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL:
-        'Der Abonnent {subscriberId} hat keine Rechnungs-E-Mail; seine Rechnung wird versendet, sobald eine eingetragen ist.',
-    SUBSCRIBER_CREDIT_NOT_FOUND: "Kein Guthaben '{creditId}' des Abonnenten dieses Mandanten.",
+        'Der Vertragspartner {subscriberId} hat keine Rechnungs-E-Mail; seine Rechnung wird versendet, sobald eine eingetragen ist.',
+    SUBSCRIBER_CREDIT_NOT_FOUND:
+        "Kein Guthaben '{creditId}' des Vertragspartners dieses Mandanten.",
     SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT:
         'Vom Guthaben {creditId} sind noch {open} offen; mehr wird nicht ausgezahlt, und nichts wurde erfasst.',
     SUBSCRIBER_PAYOUT_NOT_MADE_YET:
