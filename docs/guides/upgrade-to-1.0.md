@@ -2797,6 +2797,10 @@ features follow.
 - **The plan-change wizard's sentences take both sides.** Where a sentence says what stays unchanged
   until the change, it takes `{lastDay}`, the last day before it; `{date}` stays the first day it
   applies. A catalogue override that still writes `{date}` there goes on getting the first day.
+- **English names an ending day as the last one that runs.** "Cancel at the end of …", "takes
+  effect only at the end of …", "Cancellation takes effect at the end of" and "Canceled, runs
+  until" replace the "as of" and "effective" wordings, and an ended subscription "has been over
+  since" the first day it no longer ran. An override of these keys is unaffected.
 - **Four components take a day instead of a moment.** `TenantPlanCardHeader` takes `billsAgain` in
   place of `nextBillingDate`, `VersionRetiredCard` `nextPeriodStartDay` in place of
   `nextPeriodStart`, `PlanChangeWizard` `trialEndsDays` in place of `trialEndsAt`, and

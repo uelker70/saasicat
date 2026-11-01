@@ -42,6 +42,12 @@ getting the first day. `TenantPlanCardHeader` takes `billsAgain` in place of
 `nextPeriodStart`, `PlanChangeWizard` `trialEndsDays` in place of
 `trialEndsAt`, and `PackageSnapshotPanel` an optional `capturedDays`.
 
+In English, a sentence that names the last day something still runs now says
+it ends with that day rather than "as of" it: "Cancel at the end of …", "takes
+effect only at the end of …", "Cancellation takes effect at the end of" and
+"Canceled, runs until" for an add-on; an ended subscription "has been over
+since" the first day it no longer ran. An override of these keys is unaffected.
+
 `@saasicat/core` gains `withUsageDays`, `pickedDayOf`,
 `SUBSCRIPTION_USAGE_MOMENTS`, `CANCELLATION_MOMENTS` and
 `CANCELLATION_RESULT_MOMENTS`, and the types `SubscriptionUsageDays`,

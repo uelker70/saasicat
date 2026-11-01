@@ -810,13 +810,13 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     canceledUntil: 'Your subscription runs unchanged until',
     canceledUnchanged: 'Nothing about your access changes before then.',
     endedHeading: 'Ended.',
-    endedOn: 'Your subscription ended on',
+    endedOn: 'Your subscription has been over since',
     cancelConfirmTitle: 'Cancel subscription?',
     cancelConfirmBody:
         'Your subscription then runs unchanged until {date} — features, quotas and billing stay the same until then.',
     cancelConfirmLate:
-        'The notice period for the running term ended on {deadline}, so the cancellation takes effect on {date} instead.',
-    cancelConfirmAction: 'Cancel as of {date}',
+        'The notice period for the running term ended on {deadline}, so the cancellation takes effect only at the end of {date}.',
+    cancelConfirmAction: 'Cancel at the end of {date}',
     cancelConfirmRetirement:
         'Because version {version} of your plan is being retired, no notice period applies up to and including {date}.',
     usageTitle: 'Usage',
@@ -869,7 +869,7 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     bundleReactivateConfirmTitle: 'Reactivate bundle',
     bundleReactivateConfirmBody:
         'The cancellation will be reverted. The bundle stays booked, continues to run normally and will be billed again.',
-    bundleCanceledAt: 'Canceled effective',
+    bundleCanceledAt: 'Canceled, runs until',
     bundleMinimumTermUntil: 'Minimum term until',
     bundleIncludesLabel: 'Includes',
     bundleAlreadyBooked: 'Already booked',
@@ -898,7 +898,7 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     bundlePreviewMissingRequiresTitle: 'Missing prerequisites',
     bundlePreviewBlockersTitle: 'Booking not possible',
     bundlePreviewWarningsTitle: 'Notes',
-    bundlePreviewEffectiveAt: 'Cancellation effective as of',
+    bundlePreviewEffectiveAt: 'Cancellation takes effect at the end of',
     bundlePreviewSavings: 'Savings per period once effective',
     bundlePreviewConfirmAdd: 'Book (chargeable)',
     bundlePreviewConfirmCancel: 'Confirm cancellation',

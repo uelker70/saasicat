@@ -173,6 +173,7 @@ describe('the plan card', () => {
     test('says an ended subscription has ended since the first day it no longer ran', () => {
         const wrapper = header({ canceledEffectiveAt: PAST, canceledEffectiveDays: DAYS });
         showsOnly(wrapper.find('.sp-plan-section__canceled').text(), FROM, PAST);
+        expect(wrapper.text()).toContain(`Your subscription has been over since ${FROM}.`);
     });
 });
 
@@ -227,7 +228,9 @@ describe('the confirmation of a cancellation', () => {
         showsOnly(dialog, UNTIL, AHEAD);
         expect(dialog).toContain('ended on 2026-11-29');
         expect(dialog).not.toContain('2026-11-30');
-        expect(dialog).toContain(i18n.cancelConfirmAction.replace('{date}', UNTIL));
+        // The last day it runs, so the button cancels at its end rather than "as of" it.
+        expect(dialog).toContain(`Cancel at the end of ${UNTIL}`);
+        expect(dialog).toContain(`takes effect only at the end of ${UNTIL}`);
     });
 });
 
