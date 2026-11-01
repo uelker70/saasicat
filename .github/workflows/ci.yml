@@ -4,11 +4,62 @@ on:
     push:
         branches: [main]
     pull_request:
+    # Runs every job on the branch it is started on, whatever was tested before.
+    workflow_dispatch:
 
 permissions:
     contents: read
 
+# A newer push to a pull request makes the run for the older one moot. A run on
+# main is never cancelled: each commit there is judged on its own.
+concurrency:
+    group: ci-${{ github.event.pull_request.number || github.sha }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+    # Decides whether a push to main needs any of the jobs below. A pull
+    # request's run tests the merge of its branch into main as main stood then,
+    # and a squash merge lands that very tree unless main moved in between, so
+    # running every job again on main would test code already tested. Every
+    # pull request run therefore records the tree it tested, and a push to main whose
+    # tree a successful run recorded skips the rest. Anything else — a direct
+    # push, main having moved, a failed lookup — runs every job; the jobs ask
+    # `!cancelled()` so that a failure here runs them rather than skips them.
+    tested-before:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            actions: read
+            pull-requests: read
+        outputs:
+            tested: ${{ steps.lookup.outputs.tested }}
+        steps:
+            - uses: actions/checkout@v5
+            - name: Read the tree under test
+              id: tree
+              run: echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+            # On a pull request the checkout is the merge into main, which is
+            # what a squash merge lands. Uploaded before the other jobs finish;
+            # only a run that succeeded as a whole counts as having tested it.
+            - name: Record the tree this run tests
+              if: github.event_name == 'pull_request'
+              run: echo '${{ steps.tree.outputs.tree }}' > tested-tree.txt
+            - name: Upload the record
+              if: github.event_name == 'pull_request'
+              uses: actions/upload-artifact@v7
+              with:
+                  name: tested-tree-${{ steps.tree.outputs.tree }}
+                  path: tested-tree.txt
+            - name: Look for a pull request run that tested this tree
+              id: lookup
+              if: github.event_name == 'push'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  REPO: ${{ github.repository }}
+                  SHA: ${{ github.sha }}
+                  TREE: ${{ steps.tree.outputs.tree }}
+              run: .github/scripts/tree-tested-by-a-pull-request.sh
+
     # Pure source analysis — needs neither install nor build, so it runs
     # separately and in parallel. The configuration lives in .jscpd.json and
     # .jscpd.tests.json so a local run measures exactly what CI does. maxLines is
@@ -36,6 +87,8 @@ jobs:
     # that way. Setting the threshold to the measured value with no headroom was
     # the mistake; it still only moves down from here.
     duplication:
+        needs: tested-before
+        if: ${{ !cancelled() && needs.tested-before.outputs.tested != 'true' }}
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v5
@@ -69,6 +122,8 @@ jobs:
                   if-no-files-found: ignore
 
     build-and-test:
+        needs: tested-before
+        if: ${{ !cancelled() && needs.tested-before.outputs.tested != 'true' }}
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
@@ -193,6 +248,8 @@ jobs:
                   --prisma-schema=examples/notesapp/prisma/schema.prisma
 
     persistence-contract:
+        needs: tested-before
+        if: ${{ !cancelled() && needs.tested-before.outputs.tested != 'true' }}
         runs-on: ubuntu-latest
         services:
             postgres:
@@ -268,6 +325,8 @@ jobs:
     # one — each of them `valid`; a verdict gone missing or written another way
     # fails it as well. The jar is pinned by version and checksum.
     invoice-format:
+        needs: tested-before
+        if: ${{ !cancelled() && needs.tested-before.outputs.tested != 'true' }}
         runs-on: ubuntu-latest
         env:
             MUSTANG_VERSION: 2.26.0
@@ -323,6 +382,8 @@ jobs:
                   path: samples/
 
     e2e:
+        needs: tested-before
+        if: ${{ !cancelled() && needs.tested-before.outputs.tested != 'true' }}
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
