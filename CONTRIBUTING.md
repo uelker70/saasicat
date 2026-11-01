@@ -389,6 +389,15 @@ the codemod it names is `saasicat codemod v1`.
 - A PR is mergeable when `build`, `test`, `lint`, and `typecheck` are green.
 - Reference related issues in the PR description.
 
+CI runs on every pull request and again on the push its merge makes to `main`. That second run
+skips its checks where a successful run of the pull request already tested exactly the same files:
+each pull request run records the tree it tested — the merge of its branch into `main` as `main`
+stood then, which is what a squash merge lands — and the run on `main` looks for its own tree among
+them (`.github/scripts/tree-tested-by-a-pull-request.sh`). Where `main` moved after the pull
+request's last run, the tree differs and every check runs; so does every check where the lookup
+fails. Starting the workflow by hand (`workflow_dispatch`) runs every check regardless. A newer push
+to a pull request cancels the run for the older one.
+
 **Do not stack pull requests.** A stack is a branch cut from another branch that
 has not been merged — whatever the pull requests are based on. Retargeting a PR
 at `main` changes what GitHub compares; it does not remove the parent's commits
