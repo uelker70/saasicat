@@ -19796,6 +19796,8 @@ _Tested by:_
         - is booked since the first day the server named
         - runs its minimum term until the last day the server named
         - a cancelled one was cancelled on its day, and runs until the last day of it
+    - an answer from a server that names no days yet
+        - a switch it took is said as taken, with a dash for the day it does not name
 
 <!-- END proof -->
 
