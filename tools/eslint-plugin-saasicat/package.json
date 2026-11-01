@@ -13,7 +13,7 @@
     },
     "devDependencies": {
         "@typescript-eslint/parser": "^8.0.0",
-        "eslint": "^9.0.0",
+        "eslint": "^10.2.0",
         "vue-eslint-parser": "^10.0.0"
     }
 }

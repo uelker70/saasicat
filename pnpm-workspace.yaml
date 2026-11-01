@@ -13,12 +13,18 @@ overrides:
     # patched release — is lifted to minimatch@10 instead of patched in place.
     # GHSA-rgw5-rvv9-x895: the same class of input still grew unbounded
     # intermediate arrays past that fix; 5.0.9 closes it.
-    # GHSA-q2hr-2g5m-vwhr: quadratic time rewriting `{a},b}`, fixed in 5.0.12 and
-    # on the 1.x line in 1.1.21. The 1.x copy is minimatch@3's, reached only
-    # through ESLint's configuration loader.
+    # GHSA-q2hr-2g5m-vwhr: quadratic time rewriting `{a},b}`, fixed in 5.0.12.
+    # GHSA-g3hv-75wg-m249: denial of service through amplified glob parts, fixed
+    # only on the 11.x line, so the 9.x and 10.x copies are lifted to it; both
+    # take it through the same named exports. Reached through ESLint and glob,
+    # both tooling: the patterns they match are this repository's own.
     'brace-expansion@^5.0.0': '^5.0.12'
-    'brace-expansion@^1.0.0': '^1.1.21'
-    'minimatch@^9.0.0': '^10.2.5'
+    'minimatch@^9.0.0': '^11.0.1'
+    'minimatch@^10.0.0': '^11.0.1'
+    # GHSA-3g3m-2fjr-6pw4: a cancelled glob goes on reading the file system,
+    # fixed only on the 14.x line. Reached only through js-beautify, which
+    # @vue/test-utils formats the component tests' markup with.
+    'glob@^10.0.0': '^14.0.2'
     # GHSA-g7r4-m6w7-qqqr: path traversal in the esbuild dev server. Pulled in
     # transitively by tsup, which still pins ^0.27.0.
     esbuild: '^0.28.1'
@@ -41,8 +47,15 @@ overrides:
     nanoid: '^3.3.17'
     # GHSA-x5fp-wj9c-mxmx: array-limit bypass in qs query-string parsing.
     # GHSA-4mjr-xmp4-gh2g: denial of service through an attacker-controlled
-    # `isBuffer`. Reached through express and body-parser.
-    qs: '^6.16.0'
+    # `isBuffer`. GHSA-6pq8-jhm2-2vcw: `stringify` with `arrayFormat: 'comma'`
+    # throws on an array element, fixed in 6.16.1. Reached through express and
+    # body-parser.
+    qs: '^6.16.1'
+    # GHSA-mrwp-f3q8-3g9p: credentials and sensitive headers kept across a
+    # redirect to another origin, fixed in 1.16.2. Reached through axios, which
+    # @saasicat/ui-vue's tests and examples/notesapp's apps bring; axios admits
+    # 1.16.2, so an application's own install resolves it anyway.
+    follow-redirects: '^1.16.2'
     # GHSA-27r3-jxmh-p828: denial of service through trailing bytes after a
     # compressed request body, fixed in 2.4.0. Reached through express, which
     # @nestjs/platform-express brings to the test harness and examples/notesapp;
