@@ -50,9 +50,13 @@ jobs:
               with:
                   name: tested-tree-${{ steps.tree.outputs.tree }}
                   path: tested-tree.txt
+            # A lookup that fails answers nothing, and every job runs; the
+            # failure stays in this step's log instead of turning a run red
+            # whose checks all passed.
             - name: Look for a pull request run that tested this tree
               id: lookup
               if: github.event_name == 'push'
+              continue-on-error: true
               env:
                   GH_TOKEN: ${{ github.token }}
                   REPO: ${{ github.repository }}

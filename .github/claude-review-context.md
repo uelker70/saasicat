@@ -49,13 +49,18 @@ not in this repository?**
 
 ## What CI covers — and what it does not
 
-`ci.yml` runs four jobs and is thorough: `duplication`, `build-and-test`
-(build, unit tests, `test:repo`, component tests, ESLint, Prettier, typecheck,
-the coverage ratchet, schema drift against the NotesApp example),
+`ci.yml` is thorough. Its checks are `duplication`, `build-and-test` (build,
+unit tests, `test:repo`, component tests, ESLint, Prettier, typecheck, the
+coverage ratchet, schema drift against the NotesApp example),
 `persistence-contract` (the Prisma and Drizzle adapters against real
-PostgreSQL) and `e2e` (Playwright).
+PostgreSQL), `invoice-format` (sample invoices rendered and validated with
+Mustang) and `e2e` (Playwright). A sixth job, `tested-before`, decides whether
+they run: on a push to `main` they are skipped where a successful run of the
+pull request tested the same tree, so the run that counts is the pull
+request's.
 
-A green CI therefore means noticeably more here than in many repositories.
+A green pull request run therefore means noticeably more here than in many
+repositories.
 Use that: do not put into the review what CI checks anyway. Look instead for
 what no test can see — wrong domain logic, a contract that breaks silently, a
 security problem that passes green.

@@ -38,6 +38,12 @@ describe('the CI workflow', () => {
         assert.ok(Object.keys(jobs).length > 1);
     });
 
+    test('lets a lookup that fails run every job without failing the run', () => {
+        const lookup = jobs[DECIDING_JOB].steps.find((step) => step.id === 'lookup');
+        assert.ok(lookup, 'the lookup step is missing');
+        assert.equal(lookup['continue-on-error'], true);
+    });
+
     test('hangs every other job on that decision, run unless it says the tree was tested', () => {
         const loose = Object.entries(jobs)
             .filter(([name]) => name !== DECIDING_JOB)
