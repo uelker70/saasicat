@@ -33,7 +33,7 @@ export const featureWithdrawalsMessages = defineMessages(
             feature: 'Feature',
             effectiveFrom: 'Zurückgezogen ab',
             effectiveFromHint: 'Leer lassen, um es sofort zurückzuziehen. Zeiten in {zone}.',
-            reason: 'Grund — so lesen ihn die Abonnenten',
+            reason: 'Grund — so lesen ihn die Vertragspartner',
             reachedTitle: 'Erreicht {count} Abonnements',
             nothingReached:
                 'Gerade hat niemand dieses Feature. Wer während des Rückzugs abschließt, sieht es vorher als nicht verfügbar gekennzeichnet.',

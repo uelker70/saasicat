@@ -390,5 +390,7 @@ _Tested by:_
         - platform/ may import its own neighbours
     - the boundaries hold on the tree as it stands
         - no file in the package violates either rule
+- `tests/the-subscriber-has-one-german-name.test.js`
+    - no shipped text calls the subscriber an Abonnent
 
 <!-- END proof -->
