@@ -65,6 +65,42 @@ export function lastDayInZone(period: { from: Date; until: Date }, timeZone: str
 }
 
 /**
+ * The zone an installation reads its days in where `config/saas.yaml` names
+ * none.
+ */
+export const DEFAULT_INSTALLATION_ZONE = 'UTC';
+
+/** The zone `source` names — `config/saas.yaml`'s settings, a manifest — or the default. */
+export function installationZoneOf(source: { timeZone?: string } | null | undefined): string {
+    return source?.timeZone ?? DEFAULT_INSTALLATION_ZONE;
+}
+
+/**
+ * A moment something changes at, as the two days a sentence about it can mean:
+ * `until`, the last day of what the moment ends, and `from`, the day it falls
+ * on and so the first of what it begins. A change at midnight before
+ * 1 December is "unchanged until 30 November" and "from 1 December"; one at
+ * noon on 1 December has 1 December on both sides.
+ *
+ * Handed out beside a moment wherever a reader is shown it as a day, so the
+ * day is decided once, by the side that knows the installation's zone, and a
+ * page or an application's own screen writes it rather than working it out
+ * in whatever zone the browser happens to be in.
+ */
+export interface DaysAround {
+    until: CalendarDay;
+    from: CalendarDay;
+}
+
+/** The days on either side of `at` in `timeZone`. */
+export function daysAround(at: Date, timeZone: string): DaysAround {
+    return {
+        until: dayInZone(new Date(at.getTime() - 1), timeZone),
+        from: dayInZone(at, timeZone),
+    };
+}
+
+/**
  * A day and a time of day as a clock in some zone shows them,
  * `YYYY-MM-DDTHH:MM:SS`; it sorts as it reads, as a day does.
  */

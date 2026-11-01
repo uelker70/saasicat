@@ -72,22 +72,22 @@
                         <small>{{ cycleUnit }}</small>
                     </strong>
                 </div>
-                <div v-if="addPreview.firstPeriodEnd" class="sp-bundle-preview__price-row">
+                <div v-if="addPreview.firstPeriodEndDays" class="sp-bundle-preview__price-row">
                     <span>{{ i18n.bundlePreviewFirstPeriodLabel }}</span>
-                    <strong>{{ formatDate(addPreview.firstPeriodEnd) }}</strong>
+                    <strong>{{ writeDay(formatDate, addPreview.firstPeriodEndDays.until) }}</strong>
                 </div>
                 <div class="sp-bundle-preview__price-row">
                     <span>{{ i18n.bundlePreviewMinimumTermLabel }}</span>
-                    <span v-if="addPreview.minimumTermMonths > 0 && addPreview.minimumTermEndsAt">
+                    <span v-if="addPreview.minimumTermMonths > 0 && addPreview.minimumTermEndsDays">
                         {{ addPreview.minimumTermMonths }}
                         {{ i18n.bundlePreviewMinimumTermMonths }}
-                        {{ formatDate(addPreview.minimumTermEndsAt) }}
+                        {{ writeDay(formatDate, addPreview.minimumTermEndsDays.until) }}
                     </span>
                     <span v-else>{{ i18n.bundlePreviewMinimumTermNone }}</span>
                 </div>
-                <div v-if="addPreview.endsWithPlanAt" class="sp-bundle-preview__price-row">
+                <div v-if="addPreview.endsWithPlanDays" class="sp-bundle-preview__price-row">
                     <span>{{ i18n.bundlePreviewEndsWithPlanLabel }}</span>
-                    <strong>{{ formatDate(addPreview.endsWithPlanAt) }}</strong>
+                    <strong>{{ writeDay(formatDate, addPreview.endsWithPlanDays.until) }}</strong>
                 </div>
                 <!--
                     A term of the booking rather than a warning: it holds for
@@ -125,7 +125,7 @@
             <section v-if="cancelPreview" class="sp-bundle-preview__price">
                 <div class="sp-bundle-preview__price-row">
                     <span>{{ i18n.bundlePreviewEffectiveAt }}</span>
-                    <strong>{{ formatDate(cancelPreview.effectiveAt) }}</strong>
+                    <strong>{{ writeDay(formatDate, cancelPreview.effectiveDays.until) }}</strong>
                 </div>
                 <div
                     v-if="cancelPreview.nextPeriodSavingsNet !== null"
@@ -179,6 +179,7 @@ import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantDialog from '../ui/TenantDialog.vue';
 import WithdrawnFeatureMark from '../WithdrawnFeatureMark.vue';
+import { writeDay } from '../day-as-instant.js';
 import '../ui/tenant-ui.css';
 import type {
     BundleAddPreviewShape,

@@ -14,6 +14,7 @@
 import type { RetirementSwitchTerms } from './retirement-switch.js';
 import type { RetirementBlocker, RetirementProgress } from './version-retirement.types.js';
 import type { VersionChange } from './subscription.types.js';
+import type { WithDays } from './days-beside-moments.js';
 
 /** An add-on version, as an announcement names it. */
 export interface RetiredBundleVersionRef {
@@ -85,6 +86,12 @@ export interface BundleVersionRetiredNotice {
     /** ISO date (`YYYY-MM-DD`), UTC: the last day it may be cancelled without its minimum term. */
     readonly lastDayToCancel: string;
 }
+
+/** A retirement notice as the tenant reads it: with the days of when it takes effect. */
+export type BundleVersionRetiredNoticeWithDays = WithDays<
+    BundleVersionRetiredNotice,
+    'effectiveAt'
+>;
 
 /**
  * Why an add-on retirement does not reach a booking of the version:

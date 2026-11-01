@@ -68,17 +68,18 @@
 // the request and says how it went.
 
 import { computed, ref, useId } from 'vue';
-import type { BundleVersionOfferView, VersionOfferView } from '@saasicat/core';
+import type { BundleVersionOfferWithDays, VersionOfferWithDays } from '@saasicat/core';
 
 import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantDialog from '../ui/TenantDialog.vue';
 import VersionComparison from './VersionComparison.vue';
 import { offerAsksFirst, offerTone } from './version-offer-comparison.js';
+import { writeDay } from '../day-as-instant.js';
 
 const props = defineProps<{
     /** A newer version of the plan, or — with `bundleLabel` — of a booked add-on. */
-    offer: VersionOfferView | BundleVersionOfferView;
+    offer: VersionOfferWithDays | BundleVersionOfferWithDays;
     /** The add-on's display name, where the offer is one of an add-on booked. */
     bundleLabel?: string;
     /** While the switch is being written. */
@@ -129,7 +130,9 @@ const lead = computed(() => {
     return worded(words.bundleOfferLeadTakesAway, words.versionOfferLeadTakesAway);
 });
 
-const takesEffectDate = computed(() => props.formatDate(props.offer.takesEffectAt));
+const takesEffectDate = computed(() =>
+    writeDay(props.formatDate, props.offer.takesEffectDays.from),
+);
 
 const effectiveText = computed(() =>
     props.offer.class === 'takes-something-away'

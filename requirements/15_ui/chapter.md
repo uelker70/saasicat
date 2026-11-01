@@ -1935,6 +1935,74 @@ recipient writes: Guthaben, not Gutschrift.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+### SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+
+🟡 _(Decided, not yet delivered.)_ A moment a tenant's page shows as a day — when a booking started,
+the last day of a minimum term, when a change takes effect — is the day it falls on in the
+installation's zone (`config/saas.yaml#timeZone`, UTC where the file names none), as the
+administration's days are (`SC-ADM-048`). Every answer that carries such a moment also carries its
+days, the last day of what it ends and the first of what it begins, so a page of the platform's and
+a screen an application builds from the same answer write the same day, whatever zone the browser
+is in. The application decides how a day is written; the platform decides which day it is.
+
+_Source:_ #336
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-moment-is-handed-out-with-its-days.test.js`
+    - the days around a moment
+        - ${what}: ${until} until, ${from} from
+        - are refused for a zone the runtime does not know
+    - the name the days stand under
+        - ${moment} gains ${days}
+    - a value handed out with the days of its moments
+        - keeps every field and adds the days of each moment it names, a date or its text
+        - names no days beside a moment that is absent
+        - adds nothing it was not asked for
+        - refuses a field that is not a moment, rather than name a day for it
+    - the installation’s zone
+        - is the one the settings name
+        - is UTC for ${what}
+- `packages/nest/tests/a-newer-add-on-version-is-offered.test.js`
+    - an offer beside a booking
+        - names the days around when it takes effect, in the installation’s zone
+- `packages/nest/tests/a-newer-version-is-offered.test.js`
+    - an offer
+        - names the days around when it takes effect, in the installation’s zone
+- `packages/nest/tests/a-tenant-is-handed-the-days-of-its-add-ons.test.js`
+    - the days of an add-on booking
+        - are read in the zone the settings name
+        - in UTC where the settings name none
+        - are named for every moment of a booking, beside the moment itself
+        - come with a booking added, cancelled or reinstated
+    - the days of what a tenant is about to agree to
+        - a booking’s preview names the days of its first period, its term and its end
+        - a cancellation’s preview names the days of when it takes effect
+        - a newer version taken names the days of when it takes effect
+- `packages/ui-vue-tenant/tests/component/a-day-is-written-as-that-day-in-every-zone.test.ts`
+    - a day handed to the application’s formatter
+        - is that day for a viewer in ${zone}
+        - is written by the application’s formatter, and a dash stands for none
+- `packages/ui-vue-tenant/tests/component/an-add-on-day-is-the-one-the-server-names.test.ts`
+    - a booking in the add-on store
+        - runs its minimum term until the last day the server named
+        - a cancelled one runs until the last day of its cancellation
+        - a switch taken for the end of its term is said from the first day it applies
+    - beside a booking in the add-on store
+        - a retirement says from the first day the server named that the booking moves on
+        - a newer version that takes something away takes effect from the first day named
+    - the preview of a booking and of its cancellation
+        - names the last day of ${what}
+        - names the last day before a cancellation takes effect
+    - a booking on the page of the tenant’s add-ons
+        - is booked since the first day the server named
+        - runs its minimum term until the last day the server named
+        - a cancelled one was cancelled on its day, and runs until the last day of it
+
+<!-- END proof -->
+
 ### SC-UI-026 — A tenant locked out for maintenance sees one page that says so, and carries on afterwards
 
 🟢 Instead of each action failing on its own, the application shows a maintenance page with the

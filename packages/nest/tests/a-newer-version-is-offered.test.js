@@ -39,12 +39,14 @@ function serviceFor({
     plans,
     blocked = null,
     told = [],
+    settings,
 } = {}) {
     return new VersionOfferService(
         { findForTenant: async (tenantId) => (tenantId === 't1' ? sub : null) },
         plans ?? repositoryWith(rows, live),
         blocked,
         { toldRetirementsOf: async () => told },
+        settings,
     );
 }
 
@@ -91,6 +93,18 @@ describe('an offer', () => {
         const offer = await offerOf({ live: V2({ features: ['DASHBOARD'], monthlyNet: '39.00' }) });
         assert.equal(offer.class, 'takes-something-away');
         assert.equal(offer.takesEffectAt, PERIOD_END.toISOString());
+    });
+
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('names the days around when it takes effect, in the installation’s zone', async () => {
+        const takesAway = { live: V2({ features: ['DASHBOARD'], monthlyNet: '39.00' }) };
+        // The term ends at midnight UTC before 1 January: still 1 January in
+        // Berlin, so nothing ends there on 31 December.
+        const inBerlin = await offerOf({ ...takesAway, settings: { timeZone: 'Europe/Berlin' } });
+        const named = await offerOf({ ...takesAway, settings: {} });
+
+        assert.deepEqual(inBerlin.takesEffectDays, { until: '2027-01-01', from: '2027-01-01' });
+        assert.deepEqual(named.takesEffectDays, { until: '2026-12-31', from: '2027-01-01' });
     });
 
     test('that takes something away waits for a minimum term that outlasts the period', async () => {

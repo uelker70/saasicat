@@ -7,10 +7,11 @@ import { ref, type Ref } from 'vue';
 import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
 import type {
     BundleRetirementSwitchResult,
-    BundleVersionOfferView,
-    BundleVersionRetiredNotice,
+    BundleVersionOfferWithDays,
+    BundleVersionRetiredNoticeWithDays,
     BundleRetirementSwitchTerms,
-    BundleVersionSwitchResult,
+    BundleVersionSwitchWithDays,
+    SubscriptionBundleDays,
     SubscriptionBundleRecord,
 } from '@saasicat/core';
 import { requireServerAnswer } from '../client/http-json.js';
@@ -30,15 +31,18 @@ export interface UseTenantSubscriptionBundlesOptions {
  * switching to its replacement now would cost, where the booking may, and a
  * newer version offered beside it, where there is one it could take. A
  * platform without add-on retirements answers without the first two, and one
- * that does not read bookings in tenant billing without the third.
+ * that does not read bookings in tenant billing without the third. Beside each
+ * moment shown as a day stand its days in the installation's zone, which the
+ * page writes as they are.
  */
-export type TenantSubscriptionBundle = SubscriptionBundleRecord & {
-    readonly retirement?: BundleVersionRetiredNotice | null;
-    readonly retirementSwitch?: BundleRetirementSwitchTerms | null;
-    readonly offer?: BundleVersionOfferView | null;
-    /** The number of the version a switch scheduled for the end of its term moves it to. */
-    readonly pendingVersion?: number | null;
-};
+export type TenantSubscriptionBundle = SubscriptionBundleRecord &
+    SubscriptionBundleDays & {
+        readonly retirement?: BundleVersionRetiredNoticeWithDays | null;
+        readonly retirementSwitch?: BundleRetirementSwitchTerms | null;
+        readonly offer?: BundleVersionOfferWithDays | null;
+        /** The number of the version a switch scheduled for the end of its term moves it to. */
+        readonly pendingVersion?: number | null;
+    };
 
 export interface UseTenantSubscriptionBundlesResult {
     bundles: Ref<TenantSubscriptionBundle[]>;
@@ -54,11 +58,11 @@ export interface UseTenantSubscriptionBundlesResult {
          * it. A monthly bundle beside a yearly plan is what this is for.
          */
         billingCycle?: 'MONTHLY' | 'YEARLY';
-    }) => Promise<SubscriptionBundleRecord>;
+    }) => Promise<TenantSubscriptionBundle>;
     cancel: (
         subscriptionBundleId: string,
         opts?: { canceledAt?: string },
-    ) => Promise<SubscriptionBundleRecord>;
+    ) => Promise<TenantSubscriptionBundle>;
     /**
      * Switches the booking to the replacement its retirement names —
      * `bundleVersionId`, the version the page showed — before the date, and
@@ -78,7 +82,7 @@ export interface UseTenantSubscriptionBundlesResult {
     acceptVersionOffer: (
         subscriptionBundleId: string,
         bundleVersionId: string,
-    ) => Promise<BundleVersionSwitchResult>;
+    ) => Promise<BundleVersionSwitchWithDays>;
 }
 
 export class TenantSubscriptionBundlesApiError extends Error {
@@ -159,8 +163,8 @@ export function useTenantSubscriptionBundles(
         bundleVersionId: string;
         minimumTermMonths?: number;
         billingCycle?: 'MONTHLY' | 'YEARLY';
-    }): Promise<SubscriptionBundleRecord> {
-        const result = await fetchJson<SubscriptionBundleRecord>(baseUrl, {
+    }): Promise<TenantSubscriptionBundle> {
+        const result = await fetchJson<TenantSubscriptionBundle>(baseUrl, {
             method: 'POST',
             body: JSON.stringify(data),
         });
@@ -177,8 +181,8 @@ export function useTenantSubscriptionBundles(
     async function cancel(
         subscriptionBundleId: string,
         opts: { canceledAt?: string } = {},
-    ): Promise<SubscriptionBundleRecord> {
-        const result = await fetchJson<SubscriptionBundleRecord>(
+    ): Promise<TenantSubscriptionBundle> {
+        const result = await fetchJson<TenantSubscriptionBundle>(
             `${baseUrl}/${subscriptionBundleId}`,
             { method: 'DELETE', body: JSON.stringify(opts) },
         );
@@ -213,8 +217,8 @@ export function useTenantSubscriptionBundles(
     async function acceptVersionOffer(
         subscriptionBundleId: string,
         bundleVersionId: string,
-    ): Promise<BundleVersionSwitchResult> {
-        const result = await fetchJson<BundleVersionSwitchResult>(
+    ): Promise<BundleVersionSwitchWithDays> {
+        const result = await fetchJson<BundleVersionSwitchWithDays>(
             `${baseUrl}/${subscriptionBundleId}/version-offer/accept`,
             { method: 'POST', body: JSON.stringify({ bundleVersionId }) },
         );

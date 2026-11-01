@@ -36,7 +36,9 @@ export {
     type VersionOfferFields,
     type VersionOfferSide,
     type VersionOfferView,
+    type VersionOfferWithDays,
     type VersionSwitchResult,
+    type VersionSwitchWithDays,
 } from './version-offer.js';
 export type {
     BundleVersionFields,
@@ -65,6 +67,7 @@ export * from './maintenance-window-mapping.js';
 export * from './maintenance-window-views.js';
 export * from './zoned-instant.js';
 export * from './zoned-day.js';
+export * from './days-beside-moments.js';
 export {
     CATALOGUE_KEYS,
     canonicalJson,

@@ -51,8 +51,19 @@ import {
     UnprocessableEntityException,
     UseGuards,
 } from '@nestjs/common';
-import type { BillingCycle, SubscriptionUsagePort, SubscriptionUsageRecord } from '@saasicat/core';
-import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/core';
+import type {
+    BillingCycle,
+    PlanCatalogSettings,
+    SubscriptionUsagePort,
+    SubscriptionUsageRecord,
+} from '@saasicat/core';
+import {
+    AUTH_ERROR_CODES,
+    BILLING_ERROR_CODES,
+    SUBSCRIPTION_BUNDLE_MOMENTS,
+    installationZoneOf,
+    withDays,
+} from '@saasicat/core';
 
 import { cancellationHasLanded, cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { codedError } from '../errors/coded-error.js';
@@ -98,6 +109,7 @@ import type { PlanAhead } from './add-on-fits-plan.js';
 import type { PlansAhead } from './plans-ahead.js';
 import { resolvePlanAnchorDay } from './bundle-period.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 
 interface RequestLike {
     user?: { tenantId?: string | null } | null;
@@ -206,7 +218,17 @@ export function buildTenantSubscriptionBundlesController(
             @Optional()
             @Inject(AUDIT_CONTEXT_RESOLVER_TOKEN)
             private readonly auditContextResolver: AuditContextResolver | null = null,
+            // The zone the days beside each moment are read in; UTC where the
+            // file names none, or where a test builds the controller without it.
+            @Optional()
+            @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+            private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
         ) {}
+
+        /** The installation's zone, which every day handed out here is read in. */
+        private get zone(): string {
+            return installationZoneOf(this.settings);
+        }
 
         @Get()
         async list(@Req() req: RequestLike) {
@@ -245,7 +267,12 @@ export function buildTenantSubscriptionBundlesController(
                         ? ((await this.bundleSwitches?.openFor(sub, view, now)) ?? null)
                         : null;
                     const offer = (await this.versionOffers?.offerFor(sub, view, now)) ?? null;
-                    return { ...view, retirement, retirementSwitch, offer };
+                    return {
+                        ...withDays(view, SUBSCRIPTION_BUNDLE_MOMENTS, this.zone),
+                        retirement: retirement && withDays(retirement, ['effectiveAt'], this.zone),
+                        retirementSwitch,
+                        offer,
+                    };
                 }),
             );
         }
@@ -296,7 +323,7 @@ export function buildTenantSubscriptionBundlesController(
             });
             await this.refreezeContract(tenantId, sub);
             await recordChargesAfter(this.charges, tenantId, 'an add-on booking', this.logger);
-            return result;
+            return withDays(result, SUBSCRIPTION_BUNDLE_MOMENTS, this.zone);
         }
 
         @Post('preview')
@@ -336,19 +363,27 @@ export function buildTenantSubscriptionBundlesController(
                 plansAhead: hasAdd ? await this.plansAheadOf(sub) : [],
             };
             return hasAdd
-                ? this.previewService.previewAdd(ctx, {
-                      bundleVersionId: dto.bundleVersionId!,
-                      minimumTermMonths: dto.minimumTermMonths,
-                      billingCycle: dto.billingCycle as BillingCycle | undefined,
-                  })
-                : this.previewService.previewCancel(ctx, {
-                      subscriptionBundleId: dto.subscriptionBundleId!,
-                      minimumTermLapses: await this.minimumTermLapses(
-                          ctx.subscriptionId,
-                          dto.subscriptionBundleId!,
-                          new Date(),
-                      ),
-                  });
+                ? withDays(
+                      await this.previewService.previewAdd(ctx, {
+                          bundleVersionId: dto.bundleVersionId!,
+                          minimumTermMonths: dto.minimumTermMonths,
+                          billingCycle: dto.billingCycle,
+                      }),
+                      ['minimumTermEndsAt', 'firstPeriodEnd', 'endsWithPlanAt'],
+                      this.zone,
+                  )
+                : withDays(
+                      await this.previewService.previewCancel(ctx, {
+                          subscriptionBundleId: dto.subscriptionBundleId!,
+                          minimumTermLapses: await this.minimumTermLapses(
+                              ctx.subscriptionId,
+                              dto.subscriptionBundleId!,
+                              new Date(),
+                          ),
+                      }),
+                      ['effectiveAt'],
+                      this.zone,
+                  );
         }
 
         @Delete(':id')
@@ -380,7 +415,7 @@ export function buildTenantSubscriptionBundlesController(
                 currentPeriodEnd: sub.currentPeriodEnd ?? undefined,
             });
             await this.refreezeContract(tenantId, sub);
-            return result;
+            return withDays(result, SUBSCRIPTION_BUNDLE_MOMENTS, this.zone);
         }
 
         /**
@@ -470,7 +505,7 @@ export function buildTenantSubscriptionBundlesController(
                     takesEffectAt: result.takesEffectAt,
                 },
             );
-            return result;
+            return withDays(result, ['takesEffectAt'], this.zone);
         }
 
         @Post(':id/reactivate')
@@ -501,7 +536,7 @@ export function buildTenantSubscriptionBundlesController(
                 plansAhead: await this.plansAheadOf(sub),
             });
             await this.refreezeContract(tenantId, sub);
-            return result;
+            return withDays(result, SUBSCRIPTION_BUNDLE_MOMENTS, this.zone);
         }
 
         private requireUserId(req: RequestLike): string {

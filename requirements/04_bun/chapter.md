@@ -2220,6 +2220,7 @@ _Tested by:_
         - that improves takes effect at once
         - that costs more for more takes effect at once
         - that takes something away takes effect at the end of the booking’s period
+        - names the days around when it takes effect, in the installation’s zone
         - that takes something away waits for a minimum term that outlasts the period
         - that takes something away from a booking billed with the plan waits for the plan’s term
         - that takes something away in a trial waits for the trial to end

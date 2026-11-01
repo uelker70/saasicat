@@ -121,7 +121,7 @@ properties it has while doing it.
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 50      |
-| 15  | Working in the interface                     | `SC-UI-…`    | 27      |
+| 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 673 entries: 🟢 583 stand today, 🟡 42 decided but not yet delivered, ⚪ 0 drafts,
+Of 674 entries: 🟢 583 stand today, 🟡 43 decided but not yet delivered, ⚪ 0 drafts,
 🔵 43 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -166,6 +166,7 @@ Of 673 entries: 🟢 583 stand today, 🟡 42 decided but not yet delivered, ⚪
 [SC-UI-022](#sc-ui-022--a-tenant-downloads-its-subscriptions-invoices-and-tells-them-from-the-applications),
 [SC-UI-023](#sc-ui-023--a-tenants-invoices-payment-method-and-billing-details-need-the-billing-permission),
 [SC-UI-024](#sc-ui-024--a-tenants-invoice-list-says-what-each-invoice-stands-for),
+[SC-UI-028](#sc-ui-028--every-day-a-tenant-is-shown-is-the-installations-day-named-by-the-server),
 [SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
 [SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
@@ -228,7 +229,7 @@ Of 673 entries: 🟢 583 stand today, 🟡 42 decided but not yet delivered, ⚪
 [SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 673 requirements. Do not edit by hand:
+Generated from `requirements/` — 674 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -4649,6 +4650,7 @@ _Tested by:_
         - that improves takes effect at once
         - that costs more for more takes effect at once
         - that takes something away takes effect at the end of the booking’s period
+        - names the days around when it takes effect, in the installation’s zone
         - that takes something away waits for a minimum term that outlasts the period
         - that takes something away from a booking billed with the plan waits for the plan’s term
         - that takes something away in a trial waits for the trial to end
@@ -6299,6 +6301,7 @@ _Tested by:_
         - that improves takes effect at once
         - that costs more for more takes effect at once
         - that takes something away takes effect at the end of the running term
+        - names the days around when it takes effect, in the installation’s zone
         - that takes something away waits for a minimum term that outlasts the period
         - that takes something away from a trial waits for its end
         - is made to a subscription whose cancellation has not landed yet
@@ -19719,6 +19722,74 @@ and a credit on the account is never called by the name German VAT law reserves 
 recipient writes: Guthaben, not Gutschrift.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+
+🟡 _(Decided, not yet delivered.)_ A moment a tenant's page shows as a day — when a booking started,
+the last day of a minimum term, when a change takes effect — is the day it falls on in the
+installation's zone (`config/saas.yaml#timeZone`, UTC where the file names none), as the
+administration's days are (`SC-ADM-048`). Every answer that carries such a moment also carries its
+days, the last day of what it ends and the first of what it begins, so a page of the platform's and
+a screen an application builds from the same answer write the same day, whatever zone the browser
+is in. The application decides how a day is written; the platform decides which day it is.
+
+_Source:_ #336
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-moment-is-handed-out-with-its-days.test.js`
+    - the days around a moment
+        - ${what}: ${until} until, ${from} from
+        - are refused for a zone the runtime does not know
+    - the name the days stand under
+        - ${moment} gains ${days}
+    - a value handed out with the days of its moments
+        - keeps every field and adds the days of each moment it names, a date or its text
+        - names no days beside a moment that is absent
+        - adds nothing it was not asked for
+        - refuses a field that is not a moment, rather than name a day for it
+    - the installation’s zone
+        - is the one the settings name
+        - is UTC for ${what}
+- `packages/nest/tests/a-newer-add-on-version-is-offered.test.js`
+    - an offer beside a booking
+        - names the days around when it takes effect, in the installation’s zone
+- `packages/nest/tests/a-newer-version-is-offered.test.js`
+    - an offer
+        - names the days around when it takes effect, in the installation’s zone
+- `packages/nest/tests/a-tenant-is-handed-the-days-of-its-add-ons.test.js`
+    - the days of an add-on booking
+        - are read in the zone the settings name
+        - in UTC where the settings name none
+        - are named for every moment of a booking, beside the moment itself
+        - come with a booking added, cancelled or reinstated
+    - the days of what a tenant is about to agree to
+        - a booking’s preview names the days of its first period, its term and its end
+        - a cancellation’s preview names the days of when it takes effect
+        - a newer version taken names the days of when it takes effect
+- `packages/ui-vue-tenant/tests/component/a-day-is-written-as-that-day-in-every-zone.test.ts`
+    - a day handed to the application’s formatter
+        - is that day for a viewer in ${zone}
+        - is written by the application’s formatter, and a dash stands for none
+- `packages/ui-vue-tenant/tests/component/an-add-on-day-is-the-one-the-server-names.test.ts`
+    - a booking in the add-on store
+        - runs its minimum term until the last day the server named
+        - a cancelled one runs until the last day of its cancellation
+        - a switch taken for the end of its term is said from the first day it applies
+    - beside a booking in the add-on store
+        - a retirement says from the first day the server named that the booking moves on
+        - a newer version that takes something away takes effect from the first day named
+    - the preview of a booking and of its cancellation
+        - names the last day of ${what}
+        - names the last day before a cancellation takes effect
+    - a booking on the page of the tenant’s add-ons
+        - is booked since the first day the server named
+        - runs its minimum term until the last day the server named
+        - a cancelled one was cancelled on its day, and runs until the last day of it
+
+<!-- END proof -->
 
 ### SC-UI-026 — A tenant locked out for maintenance sees one page that says so, and carries on afterwards
 

@@ -204,6 +204,7 @@ export function offering({
         blocked,
         run,
         { of: async () => told },
+        settings,
     );
     const switches = new BundleVersionSwitchService(
         offers,

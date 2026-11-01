@@ -5,6 +5,9 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 
 import TenantBundleStore from '../../src/tenant-plan-section/TenantBundleStore.vue';
 import type { CatalogBundle, SubscriptionBundleShape } from '@saasicat/ui-vue';
+import { SUBSCRIPTION_BUNDLE_MOMENTS, type SubscriptionBundleDays } from '@saasicat/core';
+
+import { answered } from './support/server-days.js';
 
 // A tenant holds version 1 of Reports, and the catalogue now sells version 2.
 // The server refuses a second booking of an add-on while the first one runs,
@@ -35,9 +38,11 @@ const EXPORTS_V1: CatalogBundle = {
 const PAST = '2026-01-31T00:00:00.000Z';
 const TO_COME = '2099-01-01T00:00:00.000Z';
 
-/** A booking of Reports version 1, running unless `fields` say otherwise. */
-function reportsV1(fields: Partial<SubscriptionBundleShape> = {}): SubscriptionBundleShape {
-    return {
+/** A booking of Reports version 1 as the server answers it, running unless `fields` say otherwise. */
+function reportsV1(
+    fields: Partial<Omit<SubscriptionBundleShape, keyof SubscriptionBundleDays>> = {},
+): SubscriptionBundleShape {
+    const booking: Omit<SubscriptionBundleShape, keyof SubscriptionBundleDays> = {
         id: 'sb-1',
         subscriptionId: 'sub-1',
         bundleVersionId: 'bv-r1',
@@ -51,6 +56,7 @@ function reportsV1(fields: Partial<SubscriptionBundleShape> = {}): SubscriptionB
         canceledEffectiveAt: null,
         ...fields,
     };
+    return answered(booking, SUBSCRIPTION_BUNDLE_MOMENTS);
 }
 
 const mounted: VueWrapper[] = [];

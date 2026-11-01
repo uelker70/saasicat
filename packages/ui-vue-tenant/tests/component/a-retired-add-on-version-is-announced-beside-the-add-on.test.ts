@@ -19,6 +19,7 @@ import {
     seatsV1,
     storeWith as storeKeptIn,
 } from './support/add-on-bookings.js';
+import { answered } from './support/server-days.js';
 
 const side = (bundleVersionId: string, version: number, monthlyNet: number, seats: number) => ({
     bundleVersionId,
@@ -31,20 +32,23 @@ const side = (bundleVersionId: string, version: number, monthlyNet: number, seat
     yearlyNet: 90,
 });
 
-const RETIREMENT = {
-    kind: 'bundle-version-retired' as const,
-    tenantId: 't-1',
-    subscriptionId: 'sub-1',
-    subscriptionBundleId: 'sb-1',
-    retirementId: 'r-1',
-    planKey: 'STANDARD',
-    retired: side('bv-1', 1, 9, 5),
-    replacement: side('bv-2', 2, 11, 10),
-    changes: [],
-    billingCycle: 'MONTHLY',
-    effectiveAt: '2027-02-01T00:00:00.000Z',
-    lastDayToCancel: '2027-01-31',
-};
+const RETIREMENT = answered(
+    {
+        kind: 'bundle-version-retired' as const,
+        tenantId: 't-1',
+        subscriptionId: 'sub-1',
+        subscriptionBundleId: 'sb-1',
+        retirementId: 'r-1',
+        planKey: 'STANDARD',
+        retired: side('bv-1', 1, 9, 5),
+        replacement: side('bv-2', 2, 11, 10),
+        changes: [],
+        billingCycle: 'MONTHLY',
+        effectiveAt: '2027-02-01T00:00:00.000Z',
+        lastDayToCancel: '2027-01-31',
+    },
+    ['effectiveAt'],
+);
 
 const mounted: VueWrapper[] = [];
 afterEach(() => {

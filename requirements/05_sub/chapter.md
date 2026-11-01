@@ -1333,6 +1333,7 @@ _Tested by:_
         - that improves takes effect at once
         - that costs more for more takes effect at once
         - that takes something away takes effect at the end of the running term
+        - names the days around when it takes effect, in the installation’s zone
         - that takes something away waits for a minimum term that outlasts the period
         - that takes something away from a trial waits for its end
         - is made to a subscription whose cancellation has not landed yet

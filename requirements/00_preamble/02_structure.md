@@ -89,7 +89,7 @@ properties it has while doing it.
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 50      |
-| 15  | Working in the interface                     | `SC-UI-…`    | 27      |
+| 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 673 entries: 🟢 583 stand today, 🟡 42 decided but not yet delivered, ⚪ 0 drafts,
+Of 674 entries: 🟢 583 stand today, 🟡 43 decided but not yet delivered, ⚪ 0 drafts,
 🔵 43 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -134,6 +134,7 @@ Of 673 entries: 🟢 583 stand today, 🟡 42 decided but not yet delivered, ⚪
 [SC-UI-022](#sc-ui-022--a-tenant-downloads-its-subscriptions-invoices-and-tells-them-from-the-applications),
 [SC-UI-023](#sc-ui-023--a-tenants-invoices-payment-method-and-billing-details-need-the-billing-permission),
 [SC-UI-024](#sc-ui-024--a-tenants-invoice-list-says-what-each-invoice-stands-for),
+[SC-UI-028](#sc-ui-028--every-day-a-tenant-is-shown-is-the-installations-day-named-by-the-server),
 [SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
 [SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
