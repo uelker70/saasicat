@@ -56,9 +56,9 @@ function header(usage: Partial<UsageSnapshotShape>) {
             cycleLabel: i18n.cycleMonthly,
             currentPriceEur: 29,
             currentPriceUnit: '/ mo',
-            // The parent stops offering one once the subscription has ended; the
-            // header is asked here with the value it would still receive.
-            nextBillingDate: iso(30),
+            // The parent stops billing once the subscription has ended; the
+            // header is asked here as though it still did.
+            billsAgain: true,
             formatCurrency: (v: number) => `€ ${v.toFixed(2)}`,
             formatDate: (v: string | Date) => String(v).slice(0, 10),
         },
@@ -349,7 +349,7 @@ describe('a cancellation that arrives after the page did', () => {
                     setup: () => ({ usage }),
                     template: `<TenantPlanCardHeader :usage="usage" current-plan-name="Pro"
                         status-tone="positive" :status-label="'Active'" cycle-label="monthly"
-                        :current-price-eur="29" current-price-unit="/ mo" :next-billing-date="null"
+                        :current-price-eur="29" current-price-unit="/ mo" :bills-again="false"
                         :format-currency="(v) => String(v)" :format-date="(v) => String(v)" />`,
                 },
                 { attachTo: document.body },

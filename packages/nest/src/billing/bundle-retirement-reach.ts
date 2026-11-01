@@ -16,6 +16,7 @@
 import type {
     BillingCycle,
     BundleRetirementSkipReason,
+    CalendarDay,
     SubscriptionBundleRecord,
 } from '@saasicat/core';
 
@@ -38,8 +39,11 @@ export type BundleRetirementReach =
           readonly reached: true;
           /** When it continues on the replacement: an end of its period, at least the lead after `toldAt`. */
           readonly effectiveAt: Date;
-          /** The last whole UTC day before it takes effect: the last day to cancel without the minimum term. */
-          readonly lastDayToCancel: string;
+          /**
+           * The last whole day before it takes effect in the installation's zone:
+           * the last day to cancel without the minimum term.
+           */
+          readonly lastDayToCancel: CalendarDay;
           /** The plan the add-on runs beside on that day, and the rhythm that plan is billed in. */
           readonly plan: PlanBeside;
           /** The plans the subscription is set to move to after that day, before it ends. */
@@ -61,13 +65,15 @@ export type RetiringBooking = Pick<
 
 /**
  * Whether an add-on retirement whose notice reaches the subscription of
- * `booking` at `toldAt` reaches the booking, and when it takes effect.
- * `ahead` are the plans the subscription is set to move to (`plansAheadOf`).
+ * `booking` at `toldAt` reaches the booking, and when it takes effect; its
+ * last day to cancel is a day in `timeZone`, the installation's. `ahead` are
+ * the plans the subscription is set to move to (`plansAheadOf`).
  */
 export function bundleRetirementReach(
     booking: RetiringBooking,
     sub: RetiringSubscription,
     toldAt: Date,
+    timeZone: string,
     ahead: readonly PlanAhead[] = [],
 ): BundleRetirementReach {
     // A booking whose cancellation has landed is over, like a subscription
@@ -93,7 +99,7 @@ export function bundleRetirementReach(
     return {
         reached: true,
         effectiveAt: at,
-        lastDayToCancel: lastDayBefore(at),
+        lastDayToCancel: lastDayBefore(at, timeZone),
         plan,
         plansAfter: plansMetAfter(ahead, at, sub),
         billingCycle: (booking.billingCycle as BillingCycle | null) ?? plan.billingCycle,

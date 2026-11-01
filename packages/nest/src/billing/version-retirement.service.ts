@@ -24,6 +24,7 @@ import {
 import {
     BILLING_ERROR_CODES,
     CATALOG_ERROR_CODES,
+    installationZoneOf,
     type AdminActor,
     type BillingCycle,
     type BundleRepository,
@@ -168,6 +169,11 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         // A retirement counts from its notice reaching somebody, so one the
         // application tells nobody of is tried again.
         this.sender = new NoticeSender(notices, port, { retriesNobody: true });
+    }
+
+    /** The installation's zone, which a notice's last day to cancel is a day in. */
+    private zone(): string {
+        return installationZoneOf(this.settings);
     }
 
     /** Refuses a wiring that could never find the subscriptions a retirement reaches. */
@@ -716,7 +722,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         sub: SubscriptionUsageRecord | undefined,
         at: Date,
     ): Promise<NoticeReadiness<Extract<RetirementReach, { reached: true }>>> {
-        const reach = sub ? retirementReach(sub, at) : null;
+        const reach = sub ? retirementReach(sub, at, this.zone()) : null;
         if (!sub || !reach?.reached) return { waits: 'noLongerReached' };
         if (
             await this.holdsWhatThePlanCannotCarry(
@@ -814,7 +820,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
                 skipped.push({ tenantId, subscriptionId: subscription.id, reason: 'already-told' });
                 continue;
             }
-            const reach = retirementReach(subscription, now);
+            const reach = retirementReach(subscription, now, this.zone());
             if (!reach.reached) {
                 skipped.push({ tenantId, subscriptionId: subscription.id, reason: reach.reason });
                 continue;

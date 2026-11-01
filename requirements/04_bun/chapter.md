@@ -1556,12 +1556,24 @@ _Tested by:_
 
 ### SC-BUN-040 — An add-on retirement's date is an end of the booking's own period, three months on
 
+🔵 _(Superseded on 2026-11-01 by `SC-BUN-066`.)_ For each booking, the first end of its own period —
+in the rhythm the booking is billed in — that lies at least three calendar months after its notice
+reached an administrator of the tenant; a booking without a rhythm or a period of its own counts the
+plan's. The last day it may be cancelled without its minimum term is the last whole UTC day before
+that date.
+
+_Source:_ #357
+
+### SC-BUN-066 — An add-on retirement's last day to cancel is the installation's day
+
 🟢 💰 For each booking, the first end of its own period — in the rhythm the booking is billed in —
 that lies at least three calendar months after its notice reached an administrator of the tenant; a
 booking without a rhythm or a period of its own counts the plan's. The last day it may be cancelled
-without its minimum term is the last whole UTC day before that date.
+without its minimum term is the last whole day before that date in the installation's zone
+(`config/saas.yaml#timeZone`, UTC where the file names none), as for a plan's retirement
+(`SC-SUB-046`). A notice keeps the day it named.
 
-_Source:_ #357
+_Source:_ #336
 
 <!-- BEGIN proof -->
 
@@ -1570,6 +1582,7 @@ _Tested by:_
 - `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
     - the date an add-on retirement reaches a booking on
         - is the first end of its own monthly period three calendar months after the notice
+        - names its last day to cancel in the installation’s zone
         - and of its own yearly period for a yearly booking
         - a booking billed with the plan ends with the plan’s terms
         - a booking cancelled to end by the date is not reached, one ending a day later is
@@ -1578,6 +1591,9 @@ _Tested by:_
           after it is
         - names the plan the add-on runs beside at the date, a change landing by then included
         - the preview lists whom it reaches and whom not, and why
+    - a notice that has reached nobody yet
+        - a notice sent late names the day before its date in the installation’s zone
+        - the preview names the last day to cancel in the installation’s zone
 
 <!-- END proof -->
 
@@ -1660,6 +1676,8 @@ _Tested by:_
 - `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
     - a notice that has reached nobody yet
         - sets no date: the booking is not pending, and the next run tells it from then
+        - a notice sent late names the day before its date in the installation’s zone
+        - the preview names the last day to cancel in the installation’s zone
         - is not told once the booking no longer runs to the date
     - a notice that waited, and the plan the add-on runs beside by then
         - is not sent while the replacement could not run beside it, and is once it can

@@ -104,7 +104,7 @@ export class VersionNoticeCron {
         this.running = true;
         try {
             // Each step reads the clock as it starts: a retirement's notice
-            // counts from the moment it is sent (`SC-SUB-035`), which the steps
+            // counts from the moment it is sent (`SC-SUB-046`), which the steps
             // before it may have pushed back.
             const sent = await this.step('Version notices', () => this.notices.sendDue(new Date()));
             if (sent && (sent.told > 0 || sent.failed > 0)) {

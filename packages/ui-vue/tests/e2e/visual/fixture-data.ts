@@ -27,7 +27,14 @@ import type {
     VersionOfferView,
     VersionOfferWithDays,
 } from '@saasicat/core';
-import { SUBSCRIPTION_BUNDLE_MOMENTS, withDays } from '@saasicat/core';
+import {
+    SUBSCRIPTION_BUNDLE_MOMENTS,
+    withDays,
+    withUsageDays,
+    type CancellationDays,
+    type SubscriptionUsageDays,
+    type VersionRetiredNotice,
+} from '@saasicat/core';
 
 import type {
     SubscriptionBundleShape,
@@ -635,7 +642,22 @@ export const FIXTURE_MARKETING_PROJECTIONS: MarketingProjectionRow[] = [
 // inverted flag needs `currentPlanId`), a PENDING version (the banner is behind
 // a `v-if`), a booked bundle AND a cancelled one, and a trial.
 
-const TENANT_USAGE: UsageSnapshotShape = {
+/**
+ * The zone the server reads the tenant's days in here. Berlin, where every
+ * fixture moment at UTC midnight is the same calendar day on both sides of it.
+ */
+const FIXTURE_ZONE = 'Europe/Berlin';
+
+/** The account as the server reads it, before it names the days of its moments. */
+type UsageRead = Omit<
+    UsageSnapshotShape,
+    keyof SubscriptionUsageDays | 'packageSnapshotCapturedDays' | 'cancellation' | 'retirement'
+> & {
+    cancellation: Omit<UsageSnapshotShape['cancellation'], keyof CancellationDays>;
+    retirement: VersionRetiredNotice | null;
+};
+
+const TENANT_USAGE_READ: UsageRead = {
     plan: 'PRO',
     effectivePlan: 'PRO',
     billingCycle: 'MONTHLY',
@@ -678,25 +700,19 @@ const TENANT_USAGE: UsageSnapshotShape = {
     checkoutOfferId: null,
 };
 
+const TENANT_USAGE: UsageSnapshotShape = withUsageDays(TENANT_USAGE_READ, FIXTURE_ZONE);
+
 /** The same subscription running, with nothing outstanding — an offer is made only then. */
-const TENANT_USAGE_WITH_AN_OFFER: UsageSnapshotShape = {
-    ...TENANT_USAGE,
-    status: 'ACTIVE',
-    trialEndsAt: null,
-    planPriceNet: 49,
-};
+const TENANT_USAGE_WITH_AN_OFFER: UsageSnapshotShape = withUsageDays(
+    { ...TENANT_USAGE_READ, status: 'ACTIVE', trialEndsAt: null, planPriceNet: 49 },
+    FIXTURE_ZONE,
+);
 
 /**
  * A newer version that takes something away — one feature and some users — so
  * the card shows its warning badge, what is removed, and the date the switch
  * would take effect, besides the comparison every offer has.
  */
-/**
- * The zone the server reads the tenant's days in here. Berlin, where every
- * fixture moment at UTC midnight is the same calendar day on both sides of it.
- */
-const FIXTURE_ZONE = 'Europe/Berlin';
-
 const TENANT_VERSION_OFFER_AS_DECIDED: VersionOfferView = {
     plan: 'PRO',
     bound: {
@@ -829,7 +845,11 @@ const TENANT_RESOLVED_BUNDLE_PRICES = {
  * prorated delta and the blocking-limit row are three separate branches, and a
  * NOOP preview would render none of them.
  */
-export const FIXTURE_PLAN_CHANGE_PREVIEW: PlanChangePreviewShape = {
+/** A plan change's preview as the server reads it, before it names the days of its moments. */
+const PLAN_CHANGE_PREVIEW_READ: Omit<
+    PlanChangePreviewShape,
+    'effectiveDays' | 'projectedTrialEndsDays'
+> = {
     changeType: 'UPGRADE',
     planDirection: 'UP',
     cycleDirection: 'SAME',
@@ -879,6 +899,12 @@ export const FIXTURE_PLAN_CHANGE_PREVIEW: PlanChangePreviewShape = {
     blockers: [],
     warnings: [{ code: 'LIMIT_EXCEEDED', message: 'Projects over the target limit' }],
 };
+
+export const FIXTURE_PLAN_CHANGE_PREVIEW: PlanChangePreviewShape = withDays(
+    PLAN_CHANGE_PREVIEW_READ,
+    ['effectiveAt', 'projectedTrialEndsAt'],
+    FIXTURE_ZONE,
+);
 
 // ─── Rows the PAGES fetch ────────────────────────────────────────────────────
 //

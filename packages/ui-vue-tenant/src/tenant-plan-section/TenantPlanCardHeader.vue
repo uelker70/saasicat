@@ -15,14 +15,15 @@
                     {{ currentPriceUnit }}
                 </span>
             </div>
-            <p v-if="nextBillingDate" class="sp-plan-section__sub">
-                {{ i18n.nextBillingDate }}: {{ formatDate(nextBillingDate) }}
+            <p v-if="billsAgain" class="sp-plan-section__sub">
+                {{ i18n.nextBillingDate }}:
+                {{ writeDay(formatDate, usage.currentPeriodEndDays?.from) }}
             </p>
             <p v-if="usage.status === 'TRIAL' && usage.trialEndsAt" class="sp-plan-section__sub">
-                {{ i18n.trialEndsAt }}: {{ formatDate(usage.trialEndsAt) }}
+                {{ i18n.trialEndsAt }}: {{ writeDay(formatDate, usage.trialEndsDays?.until) }}
             </p>
             <p v-if="usage.isPilot && usage.pilotEndsAt" class="sp-plan-section__sub">
-                {{ i18n.pilotEndsAt }}: {{ formatDate(usage.pilotEndsAt) }}
+                {{ i18n.pilotEndsAt }}: {{ writeDay(formatDate, usage.pilotEndsDay) }}
             </p>
             <!--
                 A change scheduled on the plan and the rhythm the subscription
@@ -34,7 +35,7 @@
                 {{ i18n.pendingVersionSwitch }}
                 <template v-if="usage.pendingEffectiveAt">
                     — {{ i18n.changeEffectiveAt }}
-                    {{ formatDate(usage.pendingEffectiveAt) }}
+                    {{ writeDay(formatDate, usage.pendingEffectiveDays?.from) }}
                 </template>
             </p>
             <p v-else-if="usage.pendingPlan" class="sp-plan-section__sub">
@@ -43,7 +44,7 @@
                 <strong>{{ usage.pendingPlan }}</strong>
                 <template v-if="usage.pendingEffectiveAt">
                     — {{ i18n.changeEffectiveAt }}
-                    {{ formatDate(usage.pendingEffectiveAt) }}
+                    {{ writeDay(formatDate, usage.pendingEffectiveDays?.from) }}
                 </template>
             </p>
         </div>
@@ -55,11 +56,11 @@
         -->
         <p v-if="hasEnded" class="sp-plan-section__canceled">
             <strong>{{ i18n.endedHeading }}</strong>
-            {{ i18n.endedOn }} {{ formatDate(landsAt!) }}.
+            {{ i18n.endedOn }} {{ writeDay(formatDate, landsDays?.from) }}.
         </p>
         <p v-else-if="landsAt" class="sp-plan-section__canceled">
             <strong>{{ i18n.canceledHeading }}</strong>
-            {{ i18n.canceledUntil }} {{ formatDate(landsAt) }}.
+            {{ i18n.canceledUntil }} {{ writeDay(formatDate, landsDays?.until) }}.
             {{ i18n.canceledUnchanged }}
         </p>
         <div class="sp-plan-section__actions">
@@ -96,6 +97,7 @@ import { useTenantI18n } from '../tenant-i18n.js';
 import type { BadgeTone } from '../ui/badge-tone.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantCardSection from '../ui/TenantCardSection.vue';
+import { writeDay } from '../day-as-instant.js';
 import { cancellationLandsAt } from '../subscription-ended.js';
 import { useSubscriptionHasEnded } from '../use-subscription-ended.js';
 import '../ui/tenant-ui.css';
@@ -110,8 +112,10 @@ const props = defineProps<{
     cycleLabel: string;
     currentPriceEur: number | null;
     currentPriceUnit: string;
-    nextBillingDate: string | null;
+    /** Whether the subscription is billed again, on the day its period ends. */
+    billsAgain: boolean;
     formatCurrency: (value: number) => string;
+    /** Handed noon of a day the server named, which it writes in the viewer's zone. */
     formatDate: (value: string | Date) => string;
 }>();
 
@@ -122,6 +126,9 @@ const emit = defineEmits<{
 
 /** When the cancellation lands, or null while none was declared. */
 const landsAt = computed(() => cancellationLandsAt(props.usage));
+
+/** The days of that moment, read off the same field it is. */
+const landsDays = computed(() => props.usage.canceledEffectiveDays ?? props.usage.canceledDays);
 
 /**
  * Whether that date has passed. Not `usage.status`: nothing transitions the

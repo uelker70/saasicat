@@ -6,6 +6,8 @@ import type { CustomLimits } from './custom-limits.js';
 import type { BundleVersionRetiredNotice } from './bundle-version-retirement.types.js';
 import type { ContractAgreement } from './subscription-contract.types.js';
 import type { WithDays } from './days-beside-moments.js';
+import type { SubscriptionUsageRecord } from './ports/billing-ports.types.js';
+import type { CalendarDay } from './zoned-day.js';
 
 export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'PENDING_SALES';
 
@@ -197,6 +199,34 @@ export const SUBSCRIPTION_BUNDLE_MOMENTS = [
     'currentPeriodEnd',
     'pendingVersionEffectiveAt',
 ] as const satisfies ReadonlyArray<keyof SubscriptionBundleRecord>;
+
+/**
+ * The moments of a subscription a tenant is shown as days. `GET /billing/usage`
+ * hands out the days of each beside it (`withDays`), in the installation's
+ * zone, as it does for a booking's.
+ */
+export const SUBSCRIPTION_USAGE_MOMENTS = [
+    'trialEndsAt',
+    'startedAt',
+    'currentPeriodStart',
+    'currentPeriodEnd',
+    'pendingEffectiveAt',
+    'canceledAt',
+    'canceledEffectiveAt',
+] as const satisfies ReadonlyArray<keyof SubscriptionUsageRecord>;
+
+/** The days `GET /billing/usage` hands out beside a subscription's moments. */
+export type SubscriptionUsageDays = Omit<
+    WithDays<SubscriptionUsageRecord, (typeof SUBSCRIPTION_USAGE_MOMENTS)[number]>,
+    keyof SubscriptionUsageRecord
+> & {
+    /**
+     * The day a pilot ends on. It is picked in a date field and stored as that
+     * day's UTC midnight, so it is the same day in every zone and has no
+     * `until` and `from` of its own. Null without a pilot end.
+     */
+    pilotEndsDay: CalendarDay | null;
+};
 
 /** The days `GET /billing/subscription-bundles` hands out beside a booking's moments. */
 export type SubscriptionBundleDays = Omit<

@@ -83,7 +83,11 @@ export interface BundleVersionRetiredNotice {
     readonly billingCycle: string;
     /** ISO 8601. */
     readonly effectiveAt: string;
-    /** ISO date (`YYYY-MM-DD`), UTC: the last day it may be cancelled without its minimum term. */
+    /**
+     * The last day it may be cancelled without its minimum term, `YYYY-MM-DD`:
+     * the last whole day before `effectiveAt` in the installation's zone, as the
+     * notice named it.
+     */
     readonly lastDayToCancel: string;
 }
 
@@ -152,7 +156,10 @@ export interface BundleRetirementReachedRow {
     readonly billingCycle: string;
     /** ISO 8601. */
     readonly effectiveAt: string;
-    /** ISO date, UTC. */
+    /**
+     * The last day it may be cancelled without its minimum term, `YYYY-MM-DD`:
+     * the last whole day before `effectiveAt` in the installation's zone.
+     */
     readonly lastDayToCancel: string;
     /** Its subscription was reached by a retirement within the last twelve months: the announcement waits. */
     readonly reachedRecently: boolean;

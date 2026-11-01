@@ -7,10 +7,15 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import type { CatalogPlan, HttpClient } from '@saasicat/ui-vue';
-import { ERROR_MESSAGES_DE } from '@saasicat/core';
+import {
+    ERROR_MESSAGES_DE,
+    type RetirementSwitchTerms,
+    type VersionRetiredNotice,
+} from '@saasicat/core';
 
 import TenantPlanSection from '../../src/TenantPlanSection.vue';
 import { DEFAULT_I18N_DE } from '../../src/default-i18n.js';
+import { answeredUsage } from './support/server-days.js';
 
 const i18n = DEFAULT_I18N_DE;
 
@@ -37,7 +42,7 @@ const side = (planKey: string, planVersionId: string, version: number, monthlyNe
     endsAt: null,
 });
 
-const RETIREMENT = {
+const RETIREMENT: VersionRetiredNotice = {
     kind: 'version-retired',
     tenantId: 't-1',
     subscriptionId: 'sub-1',
@@ -52,8 +57,11 @@ const RETIREMENT = {
     lastDayToCancel: '2027-01-31',
 };
 
-function aSubscription(retirement: unknown, retirementSwitch: unknown = null) {
-    return {
+function aSubscription(
+    retirement: VersionRetiredNotice | null,
+    retirementSwitch: RetirementSwitchTerms | null = null,
+) {
+    return answeredUsage({
         plan: 'STANDARD',
         effectivePlan: 'STANDARD',
         billingCycle: 'MONTHLY',
@@ -90,7 +98,7 @@ function aSubscription(retirement: unknown, retirementSwitch: unknown = null) {
         retirement,
         retirementSwitch,
         checkoutOfferId: null,
-    };
+    });
 }
 
 /** Every switch the page asked for, by the body it sent. */
@@ -98,7 +106,10 @@ const switches: unknown[] = [];
 /** What the switch answers instead of switching, where the server refuses it. */
 let switchRefusal: { status: number; body: unknown } | null = null;
 
-function aServer(retirement: unknown, retirementSwitch: unknown = null): HttpClient {
+function aServer(
+    retirement: VersionRetiredNotice | null,
+    retirementSwitch: RetirementSwitchTerms | null = null,
+): HttpClient {
     const reply = (body: unknown, status = 200) => ({
         status,
         headers: { get: () => 'application/json' },
@@ -130,7 +141,10 @@ afterEach(() => {
     switchRefusal = null;
 });
 
-async function aSection(retirement: unknown, retirementSwitch: unknown = null) {
+async function aSection(
+    retirement: VersionRetiredNotice | null,
+    retirementSwitch: RetirementSwitchTerms | null = null,
+) {
     const wrapper = mount(TenantPlanSection, {
         attachTo: document.body,
         props: {
@@ -189,12 +203,15 @@ describe('a retired version, beside the plan', () => {
 });
 
 /** The replacement costs ten more; the subscriber keeps paying 49 until the date. */
-const HELD = { priceNet: 59, held: { priceNet: 49, amountNet: 10, lastDay: '2027-01-31' } };
+const HELD: RetirementSwitchTerms = {
+    priceNet: 59,
+    held: { priceNet: 49, amountNet: 10, lastDay: '2027-01-31' },
+};
 
 const buttonNamed = (wrapper: VueWrapper, label: string) =>
     wrapper.findAll('button').find((button) => button.text() === label);
 
-async function confirmingTheSwitch(retirementSwitch: unknown) {
+async function confirmingTheSwitch(retirementSwitch: RetirementSwitchTerms | null) {
     const wrapper = await aSection(RETIREMENT, retirementSwitch);
     await buttonNamed(wrapper, i18n.versionRetiredSwitch)!.trigger('click');
     await flushPromises();

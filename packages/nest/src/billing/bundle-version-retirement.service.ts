@@ -26,6 +26,7 @@ import {
 import {
     BILLING_ERROR_CODES,
     CATALOG_ERROR_CODES,
+    installationZoneOf,
     type AdminActor,
     type BillingCycle,
     type BundleRepository,
@@ -176,6 +177,11 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
         // A retirement counts from its notice reaching somebody, so one the
         // application tells nobody of is tried again.
         this.sender = new NoticeSender(notices, port, { retriesNobody: true });
+    }
+
+    /** The installation's zone, which a notice's last day to cancel is a day in. */
+    private zone(): string {
+        return installationZoneOf(this.settings);
     }
 
     /** Refuses a wiring that could never find the bookings a retirement reaches. */
@@ -620,7 +626,13 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
     ): Promise<NoticeReadiness<Extract<BundleRetirementReach, { reached: true }>>> {
         const reach =
             booking && sub
-                ? bundleRetirementReach(booking, sub, at, await this.plansAheadFor(sub))
+                ? bundleRetirementReach(
+                      booking,
+                      sub,
+                      at,
+                      this.zone(),
+                      await this.plansAheadFor(sub),
+                  )
                 : null;
         if (!reach?.reached) return { waits: 'noLongerReached' };
         const replacement = await versions.findVersionById(stored.replacement.bundleVersionId);
@@ -881,7 +893,13 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
                     owner.subscription,
                 ),
             );
-            const reach = bundleRetirementReach(booking, owner.subscription, now, ahead);
+            const reach = bundleRetirementReach(
+                booking,
+                owner.subscription,
+                now,
+                this.zone(),
+                ahead,
+            );
             if (!reach.reached) {
                 skipped.push({ ...row, reason: reach.reason });
                 continue;

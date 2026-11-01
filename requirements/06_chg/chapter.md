@@ -214,6 +214,12 @@ _Tested by:_
         - the confirmation is locked until it is acknowledged
     - the dates stand out from the sentence around them
         - the effective date is set in bold, the rest is not
+    - the day a change takes effect, from either side of it
+        - what falls away does so from the first day, and what stays runs until the last
+        - the preview names the first day the change applies
+        - the confirmation names the first day the change applies, and the price is due from it
+        - a trial pays regularly from its end, named by the last day the trial covers
+        - and from the trial the change projects, where it projects one
     - keeping the yearly cycle re-asks rather than reusing the answer
         - the block disappears once the preview describes the new choice
 - `packages/ui-vue-tenant/tests/component/plan-change-wizard.test.ts`

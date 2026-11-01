@@ -11,6 +11,8 @@ import { DEFAULT_SA_LOCALE } from '@saasicat/ui-vue';
 import type { UsageSnapshotShape } from '@saasicat/ui-vue';
 import { mount } from '@vue/test-utils';
 
+import { answeredUsage } from './support/server-days.js';
+
 // Six children read the tenant catalog. They used to receive it as a prop from
 // TenantPlanSection, four levels of pass-through in places; now they inject it.
 //
@@ -23,7 +25,7 @@ import { mount } from '@vue/test-utils';
 // Written out rather than cast: the grid reads `limits.quotas` and `usage`, and
 // a cast would let a later field rename pass this file while the component
 // renders nothing — which is the state this test exists to rule out.
-const usage: UsageSnapshotShape = {
+const usage: UsageSnapshotShape = answeredUsage({
     plan: 'PRO',
     effectivePlan: 'PRO',
     billingCycle: 'MONTHLY',
@@ -60,7 +62,7 @@ const usage: UsageSnapshotShape = {
     retirement: null,
     retirementSwitch: null,
     checkoutOfferId: null,
-};
+});
 
 const gridProps = {
     usage,

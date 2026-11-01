@@ -20,10 +20,11 @@ import {
     type BundleVersionSwitchWithDays,
     type DaysAround,
     type SubscriptionBundleDays,
+    type SubscriptionUsageDays,
     type VersionOfferWithDays,
     type RetirementSwitchResult,
     type RetirementSwitchTerms,
-    type VersionRetiredNotice,
+    type VersionRetiredNoticeWithDays,
     type VersionSwitchWithDays,
 } from '@saasicat/core';
 import { ref, type Ref } from 'vue';
@@ -32,7 +33,12 @@ import { trimTrailingSlashes } from '../client/http-json.js';
 
 export type BillingCycleStr = 'MONTHLY' | 'YEARLY';
 
-export interface UsageSnapshotShape {
+/**
+ * The subscription as `GET /billing/usage` answers it. Beside each moment it
+ * is shown as a day stand that moment's days in the installation's zone
+ * (`SubscriptionUsageDays`), which the page writes as they are.
+ */
+export interface UsageSnapshotShape extends SubscriptionUsageDays {
     plan: string;
     effectivePlan: string;
     billingCycle: BillingCycleStr;
@@ -77,13 +83,17 @@ export interface UsageSnapshotShape {
         termEndsAt: string;
         noticeDeadline: string | null;
         afterNoticeDeadline: boolean;
+        /** The days of the three moments above, in the installation's zone. */
+        effectiveDays: DaysAround;
+        termEndsDays: DaysAround;
+        noticeDeadlineDays: DaysAround | null;
     };
     /**
      * The retirement announced for the version the subscription is on, while
      * it has not taken effect — what the subscriber was told. Until then
      * `cancellation` needs no notice. Null where none is pending.
      */
-    retirement: VersionRetiredNotice | null;
+    retirement: VersionRetiredNoticeWithDays | null;
     /**
      * What switching to the retirement's replacement now would cost, where the
      * subscription could. Null where it could not: no retirement pending, a
@@ -104,6 +114,8 @@ export interface UsageSnapshotShape {
      * `priceTotal` and more from it.
      */
     packageSnapshot: PackageSnapshotShape | null;
+    /** The days of when the snapshot was captured, in the installation's zone; null without one. */
+    packageSnapshotCapturedDays: DaysAround | null;
     /** P11.4: Optional reference to the original CheckoutOffer. */
     checkoutOfferId: string | null;
 }
@@ -167,6 +179,9 @@ export interface PlanChangePreviewShape {
     isImmediate: boolean;
     /** Projected new trial end (ISO) after the change, otherwise null. */
     projectedTrialEndsAt: string | null;
+    /** The days of the two moments above, in the installation's zone. */
+    effectiveDays: DaysAround | null;
+    projectedTrialEndsDays: DaysAround | null;
     proration: {
         /**
          * `difference`: the new plan runs inside the period already paid, and
@@ -335,6 +350,11 @@ export interface CancellationResultShape {
     noticeDeadline: string | null;
     /** True when the declaration arrived after that moment. */
     afterNoticeDeadline: boolean | null;
+    /** The days of the four moments above, in the installation's zone. */
+    canceledDays: DaysAround | null;
+    canceledEffectiveDays: DaysAround | null;
+    termEndsDays: DaysAround | null;
+    noticeDeadlineDays: DaysAround | null;
 }
 
 export interface BundlePreviewIssueShape {

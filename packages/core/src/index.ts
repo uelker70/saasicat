@@ -68,6 +68,7 @@ export * from './maintenance-window-views.js';
 export * from './zoned-instant.js';
 export * from './zoned-day.js';
 export * from './days-beside-moments.js';
+export * from './usage-days.js';
 export {
     CATALOGUE_KEYS,
     canonicalJson,

@@ -80,7 +80,8 @@
                             {{ changeTypeLabel }}
                         </span>
                         <span v-if="preview.effectiveAt && !preview.isImmediate">
-                            {{ i18n.effectiveAtLabel }}: {{ formatDate(preview.effectiveAt) }}
+                            {{ i18n.effectiveAtLabel }}:
+                            {{ writeDay(formatDate, preview.effectiveDays?.from) }}
                         </span>
                         <span v-else-if="preview.isImmediate">
                             {{ i18n.effectiveImmediate }}
@@ -206,7 +207,8 @@
                     {{ i18n.confirmImmediate }}
                 </p>
                 <p v-else-if="preview?.effectiveAt" class="sp-wizard__confirm-line">
-                    {{ i18n.confirmScheduled }} {{ formatDate(preview.effectiveAt) }}.
+                    {{ i18n.confirmScheduled }}
+                    {{ writeDay(formatDate, preview.effectiveDays?.from) }}.
                 </p>
 
                 <!--
@@ -318,6 +320,7 @@
 import { computed, ref, watch } from 'vue';
 import LimitsRow from './LimitsRow.vue';
 import { messageParts, type MessagePart } from './message-parts.js';
+import { writeDay } from './day-as-instant.js';
 import PlanCycleToggle from './plan/PlanCycleToggle.vue';
 import PlanGrid from './plan/PlanGrid.vue';
 import TenantButton from './ui/TenantButton.vue';
@@ -333,6 +336,7 @@ import type {
     PlanChangePreviewShape,
 } from '@saasicat/ui-vue';
 import type { CatalogPlan } from '@saasicat/ui-vue';
+import type { DaysAround } from '@saasicat/core';
 import type { PlanChangeWizardI18n } from './default-i18n.js';
 
 // PlanChangeWizard — 3-step dialog for plan changes.
@@ -350,8 +354,11 @@ interface Props {
     currentCycle: BillingCycleStr;
     /** Subscription status (e.g. 'TRIAL'/'ACTIVE') — for the trial note in confirm. */
     currentStatus?: string;
-    /** Trial-end ISO, if status is TRIAL — for "regular from the end of the trial". */
-    trialEndsAt?: string | null;
+    /**
+     * The days of the trial's end, if status is TRIAL — for "regular from the
+     * end of the trial".
+     */
+    trialEndsDays?: DaysAround | null;
     /** Catalog quota keys in declared order. */
     catalogQuotaKeys: string[];
     /** Consumer hooks. */
@@ -435,13 +442,18 @@ const acknowledgement = computed<'downgrade' | 'cycle' | 'cycleOnly' | null>(() 
     return null;
 });
 
-const effectiveDate = computed(() =>
-    preview.value?.effectiveAt ? props.formatDate(preview.value.effectiveAt) : '',
-);
+/**
+ * The day the change takes effect on, and the last one before it: a sentence
+ * saying what stays until then names the second, one saying what applies from
+ * then names the first — the same day for a change at the time of day the term
+ * was booked, the day before for one at midnight.
+ */
+const effectiveDays = computed(() => preview.value?.effectiveDays);
 
 /** The values every acknowledgement sentence draws on. */
 const acknowledgementValues = computed(() => ({
-    date: effectiveDate.value,
+    date: writeDay(props.formatDate, effectiveDays.value?.from),
+    lastDay: writeDay(props.formatDate, effectiveDays.value?.until),
     plan: targetPlanName.value,
     cycle: targetCycle.value === 'YEARLY' ? props.i18n.cycleYearly : props.i18n.cycleMonthly,
     count: String(preview.value?.featuresLost.length ?? 0),
@@ -539,19 +551,19 @@ const recurringFromLabel = computed(() => {
     // Prefers the projected NEW trial end (carry-over), otherwise the current one.
     if (isTrial.value) {
         const end =
-            preview.value?.projectedTrialEndsAt ??
-            props.trialEndsAt ??
-            preview.value?.effectiveAt ??
+            preview.value?.projectedTrialEndsDays ??
+            props.trialEndsDays ??
+            preview.value?.effectiveDays ??
             null;
         return end
-            ? `${props.i18n.confirmRecurringTrialEnd} (${props.formatDate(end)})`
+            ? `${props.i18n.confirmRecurringTrialEnd} (${writeDay(props.formatDate, end.until)})`
             : props.i18n.confirmRecurringTrialEnd;
     }
     // Immediately effective (upgrade without trial): regular from the next period.
     if (preview.value?.proration) return props.i18n.confirmRecurringNext;
     // Scheduled (downgrade/cycle): regular from the effective date.
     if (preview.value?.effectiveAt) {
-        return `${props.i18n.confirmRecurringFrom} ${props.formatDate(preview.value.effectiveAt)}`;
+        return `${props.i18n.confirmRecurringFrom} ${writeDay(props.formatDate, preview.value.effectiveDays?.from)}`;
     }
     return props.i18n.confirmRecurringNext;
 });
