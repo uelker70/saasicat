@@ -59,10 +59,11 @@
                             </span>
                         </div>
                         <div class="msb-card-meta">
-                            {{ effectiveI18n.myBundlesBookedSince }} {{ formatDate(b.startedAt) }}
+                            {{ effectiveI18n.myBundlesBookedSince }}
+                            {{ writeDay(formatDate, b.startedDays?.from) }}
                             <template v-if="b.minimumTermEndsAt">
                                 · {{ effectiveI18n.bundleMinimumTermUntil }}
-                                {{ formatDate(b.minimumTermEndsAt) }}
+                                {{ writeDay(formatDate, b.minimumTermEndsDays?.until) }}
                             </template>
                         </div>
                     </div>
@@ -80,9 +81,10 @@
                     </TenantButton>
                 </header>
                 <div v-if="b.canceledAt !== null" class="msb-cancel-info">
-                    {{ effectiveI18n.myBundlesCanceledAt }} {{ formatDate(b.canceledAt) }} ·
+                    {{ effectiveI18n.myBundlesCanceledAt }}
+                    {{ writeDay(formatDate, b.canceledDays?.from) }} ·
                     {{ effectiveI18n.myBundlesRunsUntil }}
-                    <strong>{{ formatDate(b.canceledEffectiveAt) }}</strong>
+                    <strong>{{ writeDay(formatDate, lastDayOf(b)) }}</strong>
                 </div>
                 <BundleRetiredNotice
                     v-if="b.retirement"
@@ -91,7 +93,7 @@
                     :label="resolveBundleKey(b)"
                     :switch-terms="b.retirementSwitch ?? null"
                     :busy="switchingId === b.id"
-                    :next-period-start="b.currentPeriodEnd"
+                    :next-period-start-day="b.currentPeriodEndDays?.from ?? null"
                     :format-currency="formatAmount"
                     :format-date="formatDate"
                     :quota-label="quotaLabelOf"
@@ -107,7 +109,10 @@
                         effectiveI18n.bundleOfferSwitchScheduled
                             .replace('{bundle}', resolveBundleKey(b))
                             .replace('{version}', String(b.pendingVersion))
-                            .replace('{date}', formatDate(b.pendingVersionEffectiveAt))
+                            .replace(
+                                '{date}',
+                                writeDay(formatDate, b.pendingVersionEffectiveDays?.from),
+                            )
                     }}
                 </p>
                 <VersionOfferCard
@@ -227,6 +232,7 @@ import type { HttpClient } from '@saasicat/ui-vue';
 
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
 import { useTenantSubscriptionBundles, type TenantSubscriptionBundle } from '@saasicat/ui-vue';
+import { writeDay } from './day-as-instant.js';
 import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from './default-i18n.js';
 import { defaultQuotaValue } from './plan/quota-value.js';
 import { refusalMessage } from './refusal-of.js';
@@ -473,7 +479,10 @@ async function onTakeOffer(b: TenantSubscriptionBundle, bundleVersionId: string)
         const words = effectiveI18n.value;
         const said = result.immediate
             ? words.bundleRetiredSwitched
-            : words.bundleOfferSwitchScheduled.replace('{date}', formatDate(result.takesEffectAt));
+            : words.bundleOfferSwitchScheduled.replace(
+                  '{date}',
+                  writeDay(formatDate, result.takesEffectDays?.from),
+              );
         switchNote.value = said.replace('{bundle}', label).replace('{version}', version);
     } catch (err) {
         switchError.value = refusalMessage(err, effectiveI18n.value.issueMessages);
@@ -504,10 +513,22 @@ function statusLabel(b: SubscriptionBundleRecord): string {
     return effectiveI18n.value.myBundlesStatusEnded;
 }
 
+/**
+ * The last day a cancelled booking runs. A booking written before the two
+ * fields separated carries the effective date in `canceledAt` alone.
+ */
+function lastDayOf(b: TenantSubscriptionBundle): string | undefined {
+    return (b.canceledEffectiveDays ?? b.canceledDays)?.until;
+}
+
 function cardStatusClass(b: SubscriptionBundleRecord): string {
     return `msb-card--${statusOf(b)}`;
 }
 
+/**
+ * How this page writes a day: it is handed the instants `dayAsInstant` makes
+ * of the days the server named, which the viewer's zone reads as those days.
+ */
 function formatDate(date: Date | string | null | undefined): string {
     if (!date) return '—';
     const d = typeof date === 'string' ? new Date(date) : date;

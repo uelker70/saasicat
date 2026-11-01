@@ -2,14 +2,20 @@
 // version 1, the add-on store and a server that lists bookings and answers one
 // request, and the confirmation dialog a switch opens.
 
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
+import { SUBSCRIPTION_BUNDLE_MOMENTS, type SubscriptionBundleDays } from '@saasicat/core';
 import type { CatalogBundle, HttpClient, SubscriptionBundleShape } from '@saasicat/ui-vue';
+
+import { answered } from './server-days.js';
 
 import TenantBundleStore from '../../../src/tenant-plan-section/TenantBundleStore.vue';
 
-/** A booking of Seats version 1; `fields` say what else holds. */
-export function seatsV1(fields: Partial<SubscriptionBundleShape> = {}): SubscriptionBundleShape {
-    return {
+/** What a booking says beside its days: the days are the server's to add. */
+type BookingFields = Omit<SubscriptionBundleShape, keyof SubscriptionBundleDays>;
+
+/** A booking of Seats version 1 as the server answers it; `fields` say what else holds. */
+export function seatsV1(fields: Partial<BookingFields> = {}): SubscriptionBundleShape {
+    const booking: BookingFields = {
         id: 'sb-1',
         subscriptionId: 'sub-1',
         bundleVersionId: 'bv-1',
@@ -23,6 +29,7 @@ export function seatsV1(fields: Partial<SubscriptionBundleShape> = {}): Subscrip
         canceledEffectiveAt: null,
         ...fields,
     };
+    return answered(booking, SUBSCRIPTION_BUNDLE_MOMENTS);
 }
 
 /** An add-on the catalogue sells beside Seats. */
@@ -43,7 +50,7 @@ export const REPORTS: CatalogBundle = {
 export const day = (iso: string): string => iso.slice(0, 10);
 
 /** The add-on store over `booked`, kept in `mounted` for the test to unmount. */
-export function storeWith(booked: SubscriptionBundleShape[], mounted: VueWrapper[]) {
+export function storeWith(booked: SubscriptionBundleShape[], mounted: Array<{ unmount(): void }>) {
     const wrapper = mount(TenantBundleStore, {
         props: {
             booked,
@@ -61,7 +68,7 @@ export function storeWith(booked: SubscriptionBundleShape[], mounted: VueWrapper
             error: null,
         },
     });
-    mounted.push(wrapper as VueWrapper);
+    mounted.push(wrapper);
     return wrapper;
 }
 

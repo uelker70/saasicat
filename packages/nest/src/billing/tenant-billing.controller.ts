@@ -18,13 +18,22 @@ import {
 } from '@nestjs/common';
 import type {
     BillingCycle,
+    PlanCatalogSettings,
     SubscriptionContractRepository,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
     TenantSubscriptionWritePort,
     UsageSnapshotPort,
+    VersionOfferWithDays,
+    VersionSwitchWithDays,
 } from '@saasicat/core';
-import { AUTH_ERROR_CODES, BILLING_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
+import {
+    AUTH_ERROR_CODES,
+    BILLING_ERROR_CODES,
+    installationZoneOf,
+    isPersistenceRefusal,
+    withDays,
+} from '@saasicat/core';
 import { toEffectiveLimitsSnapshot } from '../entitlement/aggregation.js';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
@@ -70,9 +79,7 @@ import type {
     OnboardingSelectionResponse,
     RetirementSwitchResult,
     RetirementSwitchTerms,
-    VersionOfferView,
     VersionRetiredNotice,
-    VersionSwitchResult,
 } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { decideCancellationFor, type CancellationDecision } from './cancellation.js';
@@ -292,8 +299,14 @@ export class TenantBillingController {
         // directly.
         @Optional()
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
-        private readonly settings: AgreementSettings | null = null,
+        private readonly settings:
+            (AgreementSettings & Pick<PlanCatalogSettings, 'timeZone'>) | null = null,
     ) {}
+
+    /** The installation's zone, which every day handed out here is read in. */
+    private zone(): string {
+        return installationZoneOf(this.settings);
+    }
 
     private readonly logger = new Logger(TenantBillingController.name);
 
@@ -387,7 +400,9 @@ export class TenantBillingController {
      * administrator to take it.
      */
     @Get('version-offer')
-    async getVersionOffer(@Req() req: RequestLike): Promise<{ offer: VersionOfferView | null }> {
+    async getVersionOffer(
+        @Req() req: RequestLike,
+    ): Promise<{ offer: VersionOfferWithDays | null }> {
         const tenantId = this.requireTenantId(req);
         return { offer: await this.versionOffers.offerFor(tenantId) };
     }
@@ -404,7 +419,7 @@ export class TenantBillingController {
     async acceptVersionOffer(
         @Req() req: RequestLike,
         @Body() dto: AcceptVersionOfferDto,
-    ): Promise<VersionSwitchResult> {
+    ): Promise<VersionSwitchWithDays> {
         const tenantId = this.requireTenantId(req);
         const userId = this.requireUserId(req);
         const result = await this.versionSwitches.take(tenantId, dto.planVersionId);
@@ -421,7 +436,7 @@ export class TenantBillingController {
                 takesEffectAt: result.takesEffectAt,
             },
         );
-        return result;
+        return withDays(result, ['takesEffectAt'], this.zone());
     }
 
     /**

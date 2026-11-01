@@ -8,7 +8,11 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import type { SubscriptionBundleShape } from '@saasicat/ui-vue';
-import { ERROR_MESSAGES_DE, type BundleVersionOfferView } from '@saasicat/core';
+import {
+    ERROR_MESSAGES_DE,
+    type BundleVersionOfferView,
+    type BundleVersionOfferWithDays,
+} from '@saasicat/core';
 
 import MySubscriptionBundlesPage from '../../src/MySubscriptionBundlesPage.vue';
 import TenantPlanSection from '../../src/TenantPlanSection.vue';
@@ -19,6 +23,7 @@ import {
     seatsV1,
     storeWith as storeKeptIn,
 } from './support/add-on-bookings.js';
+import { answered } from './support/server-days.js';
 
 const sideOf = (bundleVersionId: string, version: number, monthlyNet: number, seats: number) => ({
     bundleVersionId,
@@ -35,8 +40,8 @@ function anOffer(
     kind: BundleVersionOfferView['class'],
     offered: { monthlyNet: number; seats: number },
     takesEffectAt = '2026-10-15T09:00:00.000Z',
-): BundleVersionOfferView {
-    return {
+): BundleVersionOfferWithDays {
+    const offer: BundleVersionOfferView = {
         subscriptionBundleId: 'sb-1',
         planKey: 'STANDARD',
         billingCycle: 'MONTHLY',
@@ -46,6 +51,7 @@ function anOffer(
         changes: [],
         takesEffectAt,
     };
+    return answered(offer, ['takesEffectAt']);
 }
 
 const IMPROVEMENT = anOffer('improvement', { monthlyNet: 9, seats: 10 });
@@ -110,20 +116,23 @@ describe('a newer add-on version, in the add-on store', () => {
     });
 
     test('sits beside the booking it is about, after its retirement where one is told', () => {
-        const retirement = {
-            kind: 'bundle-version-retired' as const,
-            tenantId: 't-1',
-            subscriptionId: 'sub-1',
-            subscriptionBundleId: 'sb-1',
-            retirementId: 'r-1',
-            planKey: 'STANDARD',
-            retired: sideOf('bv-1', 1, 9, 5),
-            replacement: sideOf('bv-2', 2, 11, 10),
-            changes: [],
-            billingCycle: 'MONTHLY',
-            effectiveAt: '2027-02-01T00:00:00.000Z',
-            lastDayToCancel: '2027-01-31',
-        };
+        const retirement = answered(
+            {
+                kind: 'bundle-version-retired' as const,
+                tenantId: 't-1',
+                subscriptionId: 'sub-1',
+                subscriptionBundleId: 'sb-1',
+                retirementId: 'r-1',
+                planKey: 'STANDARD',
+                retired: sideOf('bv-1', 1, 9, 5),
+                replacement: sideOf('bv-2', 2, 11, 10),
+                changes: [],
+                billingCycle: 'MONTHLY',
+                effectiveAt: '2027-02-01T00:00:00.000Z',
+                lastDayToCancel: '2027-01-31',
+            },
+            ['effectiveAt'],
+        );
         // The replacement is the early switch's to offer; a version newer
         // than it, on sale since, stands beside the notice.
         const newerThanTheReplacement = { ...IMPROVEMENT, offered: sideOf('bv-3', 3, 9, 12) };
@@ -212,14 +221,17 @@ describe('taking a newer add-on version', () => {
                 taken = true;
                 return {
                     status: 200,
-                    body: {
-                        class: 'improvement',
-                        subscriptionBundleId: 'sb-1',
-                        fromBundleVersionId: 'bv-1',
-                        bundleVersionId: 'bv-2',
-                        immediate: true,
-                        takesEffectAt: '2026-10-15T09:00:00.000Z',
-                    },
+                    body: answered(
+                        {
+                            class: 'improvement',
+                            subscriptionBundleId: 'sb-1',
+                            fromBundleVersionId: 'bv-1',
+                            bundleVersionId: 'bv-2',
+                            immediate: true,
+                            takesEffectAt: '2026-10-15T09:00:00.000Z',
+                        },
+                        ['takesEffectAt'],
+                    ),
                 };
             },
         );
@@ -251,14 +263,17 @@ describe('taking a newer add-on version', () => {
             '/sb-1/version-offer/accept',
             () => ({
                 status: 200,
-                body: {
-                    class: 'takes-something-away',
-                    subscriptionBundleId: 'sb-1',
-                    fromBundleVersionId: 'bv-1',
-                    bundleVersionId: 'bv-2',
-                    immediate: false,
-                    takesEffectAt: '2026-11-01T00:00:00.000Z',
-                },
+                body: answered(
+                    {
+                        class: 'takes-something-away',
+                        subscriptionBundleId: 'sb-1',
+                        fromBundleVersionId: 'bv-1',
+                        bundleVersionId: 'bv-2',
+                        immediate: false,
+                        takesEffectAt: '2026-11-01T00:00:00.000Z',
+                    },
+                    ['takesEffectAt'],
+                ),
             }),
         );
         const wrapper = mount(TenantPlanSection, {
@@ -322,14 +337,17 @@ describe('taking a newer add-on version', () => {
                 taken = true;
                 return {
                     status: 200,
-                    body: {
-                        class: 'improvement',
-                        subscriptionBundleId: 'sb-1',
-                        fromBundleVersionId: 'bv-1',
-                        bundleVersionId: 'bv-2',
-                        immediate: true,
-                        takesEffectAt: '2026-10-15T09:00:00.000Z',
-                    },
+                    body: answered(
+                        {
+                            class: 'improvement',
+                            subscriptionBundleId: 'sb-1',
+                            fromBundleVersionId: 'bv-1',
+                            bundleVersionId: 'bv-2',
+                            immediate: true,
+                            takesEffectAt: '2026-10-15T09:00:00.000Z',
+                        },
+                        ['takesEffectAt'],
+                    ),
                 };
             },
         );

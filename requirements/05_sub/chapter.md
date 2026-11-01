@@ -504,6 +504,7 @@ _Tested by:_
         - taken where the cancellation lands after the term end
     - the switch goes ahead only while the version shown is still the offer
         - another version named is refused, carrying the offer as it stands
+        - the offer it carries names the days of when it takes effect
         - no offer at all is refused the same way, carrying none
         - a subscription that moved before an immediate switch was written is told to reload
         - a version no longer offered when the write came is answered with the offer as it stands
@@ -1333,6 +1334,7 @@ _Tested by:_
         - that improves takes effect at once
         - that costs more for more takes effect at once
         - that takes something away takes effect at the end of the running term
+        - names the days around when it takes effect, in the installation’s zone
         - that takes something away waits for a minimum term that outlasts the period
         - that takes something away from a trial waits for its end
         - is made to a subscription whose cancellation has not landed yet

@@ -68,7 +68,7 @@ import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantDialog from '../ui/TenantDialog.vue';
 import VersionComparison from './VersionComparison.vue';
-import { dayAsInstant } from './version-retirement-day.js';
+import { dayAsInstant } from '../day-as-instant.js';
 
 const props = defineProps<{
     retirement: VersionRetiredNotice;

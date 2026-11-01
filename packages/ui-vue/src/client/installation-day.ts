@@ -23,20 +23,18 @@
 //
 // Framework-free, so it is tested without a browser.
 
-import { dayInZone, type AdminManifest, type CalendarDay } from '@saasicat/core';
+import { dayInZone, type CalendarDay } from '@saasicat/core';
 
 import { formatDay } from './i18n/format.js';
 
-/** The zone days are read in where the manifest names none, as the platform reads them then. */
-export const DEFAULT_INSTALLATION_ZONE = 'UTC';
+/**
+ * The zone days are read in where the manifest names none, as the platform
+ * reads them then, and the installation's zone as the manifest names it.
+ */
+export { DEFAULT_INSTALLATION_ZONE, installationZoneOf } from '@saasicat/core';
 
 /** `YYYY-MM-DD` — the length of the day an ISO moment begins with. */
 const ISO_DAY_LENGTH = 10;
-
-/** The installation's time zone as `manifest` names it, UTC where it names none. */
-export function installationZoneOf(manifest: Pick<AdminManifest, 'timeZone'> | null): string {
-    return manifest?.timeZone ?? DEFAULT_INSTALLATION_ZONE;
-}
 
 /** The day the moment `iso` falls on in `timeZone`. */
 export function dayOfMoment(iso: string, timeZone: string): CalendarDay {

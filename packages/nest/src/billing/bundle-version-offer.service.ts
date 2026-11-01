@@ -35,8 +35,11 @@ import {
     type BillingCycle,
     type BundleRepository,
     type BundleRow,
-    type BundleVersionOfferView,
+    installationZoneOf,
+    withDays,
+    type BundleVersionOfferWithDays,
     type BundleVersionRow,
+    type PlanCatalogSettings,
     type SubscriptionBundleRecord,
     type SubscriptionBundleRepository,
     type SubscriptionUsageRecord,
@@ -58,6 +61,7 @@ import {
 import { resolveBundleCancelEffectiveAt } from './subscription-bundles.service.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { ADD_ONS_AHEAD_TOKEN, PLANS_AHEAD_TOKEN } from './tenant-billing.tokens.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 
 @Injectable()
 export class BundleVersionOfferService {
@@ -83,6 +87,13 @@ export class BundleVersionOfferService {
         @Optional()
         @Inject(ADD_ONS_AHEAD_TOKEN)
         private readonly addOnsAhead: AddOnsAhead | null = null,
+        // The zone the days beside `takesEffectAt` are read in, so every
+        // answer that carries an offer — a refusal included — carries its
+        // days; UTC where the file names none, or where a test builds the
+        // service without it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
     ) {}
 
     /** The offer beside `booking`, or null where there is none it could take. */
@@ -90,7 +101,7 @@ export class BundleVersionOfferService {
         sub: SubscriptionUsageRecord,
         booking: SubscriptionBundleRecord,
         now: Date,
-    ): Promise<BundleVersionOfferView | null> {
+    ): Promise<BundleVersionOfferWithDays | null> {
         if (!this.couldSwitch(sub, booking, now) || (await this.planChangesAhead(sub))) {
             return null;
         }
@@ -135,16 +146,20 @@ export class BundleVersionOfferService {
                 : now;
         if (!takesEffectAt) return null;
 
-        return {
-            subscriptionBundleId: booking.id,
-            planKey: plan.planKey,
-            billingCycle: rhythm,
-            bound: boundSide,
-            offered: offeredSide,
-            class: verdict.class,
-            changes: [...verdict.changes],
-            takesEffectAt: takesEffectAt.toISOString(),
-        };
+        return withDays(
+            {
+                subscriptionBundleId: booking.id,
+                planKey: plan.planKey,
+                billingCycle: rhythm,
+                bound: boundSide,
+                offered: offeredSide,
+                class: verdict.class,
+                changes: [...verdict.changes],
+                takesEffectAt: takesEffectAt.toISOString(),
+            },
+            ['takesEffectAt'],
+            installationZoneOf(this.settings),
+        );
     }
 
     /**

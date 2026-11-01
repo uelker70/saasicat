@@ -2767,6 +2767,32 @@ The pages read it through `manifestGuard.getManifest`: an app that passes none s
   with. An end stored at your own zone's midnight shows as the day before east of Greenwich.
 - **`promoCodes.timeZone` stays**: it names the zone a promo day is stored in (`SC-PROMO-031`).
 
+### Every day a tenant is shown is a day of the installation
+
+The tenant's pages wrote a moment as the browser's day, so a booking made at 00:30 in Berlin read as
+the day before in New York, and an end at midnight read as the day after the last one it covers
+(`SC-UI-028`). The server now hands out, beside each moment a tenant is shown as a day, its days in
+the installation's zone — `until`, the last day of what the moment ends, and `from`, the first of
+what it begins — and the pages write those. This covers the add-on bookings (every answer of
+`billing/subscription-bundles` that carries one), an add-on's preview, and the version offers of a
+plan and of an add-on together with what taking one answers; the plan's other answers follow.
+
+- **What a page shows changes** where a moment falls near midnight, and where an end is shown: an
+  add-on's minimum term, its cancellation and a preview's first period name the last day they cover,
+  30 November rather than 1 December.
+- **The answers gain fields; nothing is removed.** A booking carries `startedDays`,
+  `minimumTermEndsDays`, `canceledDays`, `canceledEffectiveDays`, `currentPeriodEndDays` and
+  `pendingVersionEffectiveDays`, its retirement notice `effectiveDays`; a booking's preview
+  `firstPeriodEndDays`, `minimumTermEndsDays` and `endsWithPlanDays`, a cancellation's
+  `effectiveDays`; an offer and what taking it answers `takesEffectDays`. A screen of your own reads
+  `from` where it says "since" or "from", and `until` where it says "until" or "ends".
+- **Your `formatDate` is handed noon of the named day in the viewer's zone**, so a formatter that
+  reads an instant in the viewer's zone — `toLocaleDateString` without a `timeZone` — writes the
+  named day wherever the viewer is. A formatter that names a zone of its own can write the day
+  beside it; drop the zone.
+- **The zone is `config/saas.yaml#timeZone`**, UTC where the file names none, as for the
+  administration's days.
+
 ### A returning customer's subscriber is joined into the one it had
 
 A customer whose tenant you deleted and who signs up again got a second subscriber, with a second

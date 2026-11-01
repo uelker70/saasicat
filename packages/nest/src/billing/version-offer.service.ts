@@ -27,13 +27,19 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type {
     BillingCycle,
+    PlanCatalogSettings,
     PlanRepository,
     PlanVersionRow,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
-    VersionOfferView,
+    VersionOfferWithDays,
 } from '@saasicat/core';
-import { classifyVersionOffer, isVersionActiveAt } from '@saasicat/core';
+import {
+    classifyVersionOffer,
+    installationZoneOf,
+    isVersionActiveAt,
+    withDays,
+} from '@saasicat/core';
 
 import { PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
@@ -49,6 +55,7 @@ import { versionOnSale } from './version-on-sale.js';
 import { VersionRetirementService } from './version-retirement.service.js';
 import { comparedFieldsOf, planOfVersion, versionSideOf } from './version-sides.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 
 /**
  * A scheduled change that has not landed yet. A change of rhythm alone is
@@ -81,10 +88,17 @@ export class VersionOfferService {
             VersionRetirementService,
             'toldRetirementsOf'
         > | null = null,
+        // The zone the days beside `takesEffectAt` are read in, so every
+        // answer that carries an offer — a refusal included — carries its
+        // days; UTC where the file names none, or where a test builds the
+        // service without it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
     ) {}
 
     /** The offer for the tenant's subscription, or null where there is none it could take. */
-    async offerFor(tenantId: string, now = new Date()): Promise<VersionOfferView | null> {
+    async offerFor(tenantId: string, now = new Date()): Promise<VersionOfferWithDays | null> {
         const sub = await this.subscriptions.findForTenant(tenantId);
         if (!sub) {
             throw subscriptionNotFound(tenantId);
@@ -96,7 +110,7 @@ export class VersionOfferService {
     async offerForSubscription(
         sub: SubscriptionUsageRecord,
         now: Date,
-    ): Promise<VersionOfferView | null> {
+    ): Promise<VersionOfferWithDays | null> {
         if (!this.couldSwitch(sub, now)) return null;
 
         const read = await this.readVersions(sub, now);
@@ -144,14 +158,18 @@ export class VersionOfferService {
                   )
                 : now;
 
-        return {
-            plan: sub.plan,
-            bound,
-            offered,
-            class: verdict.class,
-            changes: [...verdict.changes],
-            takesEffectAt: takesEffectAt.toISOString(),
-        };
+        return withDays(
+            {
+                plan: sub.plan,
+                bound,
+                offered,
+                class: verdict.class,
+                changes: [...verdict.changes],
+                takesEffectAt: takesEffectAt.toISOString(),
+            },
+            ['takesEffectAt'],
+            installationZoneOf(this.settings),
+        );
     }
 
     /**

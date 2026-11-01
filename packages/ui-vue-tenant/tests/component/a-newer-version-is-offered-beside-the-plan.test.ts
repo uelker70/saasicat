@@ -7,10 +7,15 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import type { CatalogPlan, HttpClient } from '@saasicat/ui-vue';
-import { ERROR_MESSAGES_DE, type VersionOfferView } from '@saasicat/core';
+import {
+    ERROR_MESSAGES_DE,
+    type VersionOfferView,
+    type VersionOfferWithDays,
+} from '@saasicat/core';
 
 import TenantPlanSection from '../../src/TenantPlanSection.vue';
 import { DEFAULT_I18N_DE } from '../../src/default-i18n.js';
+import { answered } from './support/server-days.js';
 
 const CATALOGUE_STANDARD: CatalogPlan = {
     id: 'STANDARD',
@@ -38,8 +43,8 @@ function anOffer(
     kind: VersionOfferView['class'],
     offered: Partial<VersionOfferView['offered']> = {},
     takesEffectAt = '2026-10-15T09:00:00.000Z',
-): VersionOfferView {
-    return {
+): VersionOfferWithDays {
+    const offer: VersionOfferView = {
         plan: 'STANDARD',
         bound: BOUND_SIDE,
         offered: { ...BOUND_SIDE, planVersionId: 'pv-2', version: 2, ...offered },
@@ -47,6 +52,7 @@ function anOffer(
         changes: [],
         takesEffectAt,
     };
+    return answered(offer, ['takesEffectAt']);
 }
 
 const IMPROVEMENT = anOffer('improvement', {
@@ -108,7 +114,7 @@ type Answer = { status: number; body: unknown };
  * the change scheduled — and the offer read afterwards answers accordingly.
  */
 function aServer(options: {
-    offer: VersionOfferView | null;
+    offer: VersionOfferWithDays | null;
     /** What the offer read answers instead of the offer, where it fails. */
     offerRead?: Answer;
     accept?: Answer;
@@ -156,13 +162,16 @@ function aServer(options: {
             state.offer = null;
             return reply({
                 status: 201,
-                body: {
-                    class: taken.class,
-                    fromPlanVersionId: 'pv-1',
-                    planVersionId: 'pv-2',
-                    immediate,
-                    takesEffectAt: immediate ? '2026-10-15T09:00:00.000Z' : taken.takesEffectAt,
-                },
+                body: answered(
+                    {
+                        class: taken.class,
+                        fromPlanVersionId: 'pv-1',
+                        planVersionId: 'pv-2',
+                        immediate,
+                        takesEffectAt: immediate ? '2026-10-15T09:00:00.000Z' : taken.takesEffectAt,
+                    },
+                    ['takesEffectAt'],
+                ),
             });
         }
         if (url.endsWith('/version-offer')) {

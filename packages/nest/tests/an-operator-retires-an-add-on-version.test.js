@@ -1224,6 +1224,8 @@ describe('the tenant’s add-on route and a retirement told', () => {
         retired: { bundleVersionId: 'bv-1' },
         effectiveAt: '2027-02-01T00:00:00.000Z',
     };
+    /** The notice as the tenant reads it: with the days of its date, in UTC where no zone is named. */
+    const listedAs = { ...told, effectiveDays: { until: '2027-01-31', from: '2027-02-01' } };
 
     // @requirement SC-BUN-046 — A tenant sees the retirement of an add-on's version beside the add-on
     test('lists each booking with the retirement of the version it is on', async () => {
@@ -1234,7 +1236,7 @@ describe('the tenant’s add-on route and a retirement told', () => {
         assert.deepEqual(
             listed.map((view) => [view.id, view.retirement]),
             [
-                ['sb-t1', told],
+                ['sb-t1', listedAs],
                 ['sb-other', null],
             ],
         );
@@ -1255,7 +1257,7 @@ describe('the tenant’s add-on route and a retirement told', () => {
         const endingAfter = await cancelled('2027-03-01T00:00:00.000Z');
 
         assert.equal(endingBefore[0].retirement, null);
-        assert.equal(endingAfter[0].retirement, told);
+        assert.deepEqual(endingAfter[0].retirement, listedAs);
     });
 
     // @requirement SC-BUN-046 — A tenant sees the retirement of an add-on's version beside the add-on
@@ -1270,7 +1272,7 @@ describe('the tenant’s add-on route and a retirement told', () => {
         const endingAfter = await subscriptionEnding('2027-03-01T00:00:00.000Z');
 
         assert.equal(endingBy[0].retirement, null);
-        assert.equal(endingAfter[0].retirement, told);
+        assert.deepEqual(endingAfter[0].retirement, listedAs);
     });
 
     // @requirement SC-BUN-054 — A booking may switch to the replacement before its date, at no more than it paid

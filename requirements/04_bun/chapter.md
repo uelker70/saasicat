@@ -2220,6 +2220,7 @@ _Tested by:_
         - that improves takes effect at once
         - that costs more for more takes effect at once
         - that takes something away takes effect at the end of the booking’s period
+        - names the days around when it takes effect, in the installation’s zone
         - that takes something away waits for a minimum term that outlasts the period
         - that takes something away from a booking billed with the plan waits for the plan’s term
         - that takes something away in a trial waits for the trial to end
@@ -2320,6 +2321,7 @@ _Tested by:_
         - asks the party about the contract that runs from then
     - the switch goes ahead only while the version shown is still the offer
         - another version named is refused, carrying the offer as it stands
+        - the offer it carries names the days of when it takes effect
         - no offer at all is refused the same way, carrying none
         - a booking that moved before the switch was written is answered with the offer as it stands
         - a switch scheduled meanwhile is answered the same way

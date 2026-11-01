@@ -65,24 +65,28 @@
 // and says what it costs; taking it is the parent's, which owns the request.
 
 import { computed, ref, useId } from 'vue';
-import type { BundleRetirementSwitchTerms, BundleVersionRetiredNotice } from '@saasicat/core';
+import type {
+    BundleRetirementSwitchTerms,
+    BundleVersionRetiredNoticeWithDays,
+    CalendarDay,
+} from '@saasicat/core';
 
 import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantDialog from '../ui/TenantDialog.vue';
 import VersionComparison from './VersionComparison.vue';
-import { dayAsInstant } from './version-retirement-day.js';
+import { writeDay } from '../day-as-instant.js';
 
 const props = defineProps<{
-    notice: BundleVersionRetiredNotice;
+    notice: BundleVersionRetiredNoticeWithDays;
     /** The add-on's display name. */
     label: string;
     /** What switching now costs, where the booking may; null or absent where it may not. */
     switchTerms?: BundleRetirementSwitchTerms | null;
     /** While the switch is being written. */
     busy?: boolean;
-    /** When the booking's next period starts, which is when a price that is not held applies. */
-    nextPeriodStart?: string | Date | null;
+    /** The day the booking's next period starts, which is when a price that is not held applies. */
+    nextPeriodStartDay?: CalendarDay | null;
     formatCurrency: (n: number) => string;
     formatDate: (iso: string) => string;
     quotaLabel: (key: string) => string;
@@ -98,7 +102,7 @@ const confirming = ref(false);
 
 const retiredVersion = computed(() => String(props.notice.retired.version));
 const replacementVersion = computed(() => String(props.notice.replacement.version));
-const effectiveDate = computed(() => props.formatDate(props.notice.effectiveAt));
+const effectiveDate = computed(() => writeDay(props.formatDate, props.notice.effectiveDays?.from));
 
 const title = computed(() =>
     i18n.value.bundleRetiredTitle
@@ -118,7 +122,7 @@ const replacementHeading = computed(() =>
 );
 const cancelText = computed(() =>
     i18n.value.bundleRetiredCancel
-        .replace('{date}', props.formatDate(dayAsInstant(props.notice.lastDayToCancel)))
+        .replace('{date}', writeDay(props.formatDate, props.notice.lastDayToCancel))
         .replace('{bundle}', props.label),
 );
 
@@ -138,18 +142,13 @@ const switchText = computed(() => {
     if (terms.held) {
         return named(i18n.value.bundleRetiredSwitchHeld)
             .replace('{held}', priced(terms.held.priceNet))
-            .replace('{day}', props.formatDate(dayAsInstant(terms.held.lastDay)))
+            .replace('{day}', writeDay(props.formatDate, terms.held.lastDay))
             .replace('{date}', effectiveDate.value)
             .replace('{price}', priced(terms.priceNet));
     }
-    const next = props.nextPeriodStart;
+    const next = props.nextPeriodStartDay;
     return named(i18n.value.bundleRetiredSwitchNextPeriod)
-        .replace(
-            '{date}',
-            next
-                ? props.formatDate(next instanceof Date ? next.toISOString() : next)
-                : effectiveDate.value,
-        )
+        .replace('{date}', next ? writeDay(props.formatDate, next) : effectiveDate.value)
         .replace('{price}', priced(terms.priceNet));
 });
 

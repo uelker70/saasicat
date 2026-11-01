@@ -15,14 +15,16 @@ import {
     BUNDLE_PRICE_LOOKUP_LIMIT,
     type BundleRetirementSwitchResult,
     type BundleRetirementSwitchTerms,
-    type BundleVersionOfferView,
-    type BundleVersionRetiredNotice,
-    type BundleVersionSwitchResult,
-    type VersionOfferView,
+    type BundleVersionOfferWithDays,
+    type BundleVersionRetiredNoticeWithDays,
+    type BundleVersionSwitchWithDays,
+    type DaysAround,
+    type SubscriptionBundleDays,
+    type VersionOfferWithDays,
     type RetirementSwitchResult,
     type RetirementSwitchTerms,
     type VersionRetiredNotice,
-    type VersionSwitchResult,
+    type VersionSwitchWithDays,
 } from '@saasicat/core';
 import { ref, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
@@ -229,7 +231,12 @@ export interface ResolvedBundlePrice {
     yearlyNet: number | null;
 }
 
-export interface SubscriptionBundleShape {
+/**
+ * A booking as `GET /billing/subscription-bundles` answers it. Beside each
+ * moment it is shown as a day stand that moment's days in the installation's
+ * zone (`SubscriptionBundleDays`), which the page writes as they are.
+ */
+export interface SubscriptionBundleShape extends SubscriptionBundleDays {
     id: string;
     subscriptionId: string;
     bundleVersionId: string;
@@ -269,7 +276,7 @@ export interface SubscriptionBundleShape {
      * subscriber was told it, while it still stands; null where there is none.
      * Optional because a platform without add-on retirements answers without it.
      */
-    retirement?: BundleVersionRetiredNotice | null;
+    retirement?: BundleVersionRetiredNoticeWithDays | null;
     /**
      * What switching to the replacement now would cost, where the booking may
      * (`retirement` stands, after the trial, nothing changing the plan before
@@ -282,7 +289,7 @@ export interface SubscriptionBundleShape {
      * notice. Optional because a platform that does not read bookings in
      * tenant billing answers without it.
      */
-    offer?: BundleVersionOfferView | null;
+    offer?: BundleVersionOfferWithDays | null;
     /**
      * A switch to a newer version taken for the end of the booking's term: the
      * version it continues on, and from when. Optional because an adapter
@@ -385,6 +392,10 @@ export interface BundleAddPreviewShape {
      * credited — which is what the alignment exists to make rare.
      */
     endsWithPlanAt: string | null;
+    /** The days of the three moments above, in the installation's zone. */
+    minimumTermEndsDays: DaysAround | null;
+    firstPeriodEndDays: DaysAround | null;
+    endsWithPlanDays: DaysAround | null;
     redundantFeatures: RedundantFeatureHintShape[];
     missingRequires: string[];
     blockers: BundlePreviewIssueShape[];
@@ -401,6 +412,8 @@ export interface BundleCancelPreviewShape {
     bundle: BundlePreviewSnapshotShape;
     billingCycle: string;
     effectiveAt: string;
+    /** The days of `effectiveAt`, in the installation's zone. */
+    effectiveDays: DaysAround;
     nextPeriodSavingsNet: number | null;
     blockers: BundlePreviewIssueShape[];
     warnings: BundlePreviewIssueShape[];
@@ -479,13 +492,13 @@ export interface UseTenantBillingResult {
      * bound to, or `null` where there is none it could take. Classified against
      * the version bound, with the moment a switch taken now would take effect.
      */
-    loadVersionOffer: () => Promise<VersionOfferView | null>;
+    loadVersionOffer: () => Promise<VersionOfferWithDays | null>;
     /**
      * Takes the offer of `planVersionId` — the version the page showed — and
      * reloads. Refused with `VERSION_OFFER_CHANGED` when that is no longer the
      * version offered; the refusal carries the current offer.
      */
-    acceptVersionOffer: (planVersionId: string) => Promise<VersionSwitchResult>;
+    acceptVersionOffer: (planVersionId: string) => Promise<VersionSwitchWithDays>;
     /**
      * Switches to the replacement a retirement names — `planVersionId`, the
      * version the page showed — before its date, and reloads. Refused with
@@ -546,7 +559,7 @@ export interface UseTenantBillingResult {
     acceptBundleVersionOffer: (
         subscriptionBundleId: string,
         bundleVersionId: string,
-    ) => Promise<BundleVersionSwitchResult>;
+    ) => Promise<BundleVersionSwitchWithDays>;
     /**
      * Add preview (#37): proration, next-period price, redundancy hint,
      * requires check and blockers — show BEFORE booking.
@@ -718,8 +731,8 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
     async function acceptBundleVersionOffer(
         subscriptionBundleId: string,
         bundleVersionId: string,
-    ): Promise<BundleVersionSwitchResult> {
-        const result = await fetchOrThrow<BundleVersionSwitchResult>(
+    ): Promise<BundleVersionSwitchWithDays> {
+        const result = await fetchOrThrow<BundleVersionSwitchWithDays>(
             `/subscription-bundles/${subscriptionBundleId}/version-offer/accept`,
             { method: 'POST', body: { bundleVersionId } },
         );
@@ -774,13 +787,15 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         await reload();
     }
 
-    async function loadVersionOffer(): Promise<VersionOfferView | null> {
-        const { offer } = await fetchOrThrow<{ offer: VersionOfferView | null }>('/version-offer');
+    async function loadVersionOffer(): Promise<VersionOfferWithDays | null> {
+        const { offer } = await fetchOrThrow<{ offer: VersionOfferWithDays | null }>(
+            '/version-offer',
+        );
         return offer;
     }
 
-    async function acceptVersionOffer(planVersionId: string): Promise<VersionSwitchResult> {
-        const result = await fetchOrThrow<VersionSwitchResult>('/version-offer/accept', {
+    async function acceptVersionOffer(planVersionId: string): Promise<VersionSwitchWithDays> {
+        const result = await fetchOrThrow<VersionSwitchWithDays>('/version-offer/accept', {
             method: 'POST',
             body: { planVersionId },
         });

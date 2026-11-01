@@ -5,6 +5,7 @@ import type { BillingCycle } from './promo-code.types.js';
 import type { CustomLimits } from './custom-limits.js';
 import type { BundleVersionRetiredNotice } from './bundle-version-retirement.types.js';
 import type { ContractAgreement } from './subscription-contract.types.js';
+import type { WithDays } from './days-beside-moments.js';
 
 export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'PENDING_SALES';
 
@@ -181,6 +182,27 @@ export interface SubscriptionBundleRecord {
     createdAt: Date;
     updatedAt: Date;
 }
+
+/**
+ * The moments of a booking a tenant is shown as days. The server hands out the
+ * days of each beside it (`withDays`), in the installation's zone, so a page —
+ * or an application's own screen built from the same answer — writes them as
+ * they are.
+ */
+export const SUBSCRIPTION_BUNDLE_MOMENTS = [
+    'startedAt',
+    'minimumTermEndsAt',
+    'canceledAt',
+    'canceledEffectiveAt',
+    'currentPeriodEnd',
+    'pendingVersionEffectiveAt',
+] as const satisfies ReadonlyArray<keyof SubscriptionBundleRecord>;
+
+/** The days `GET /billing/subscription-bundles` hands out beside a booking's moments. */
+export type SubscriptionBundleDays = Omit<
+    WithDays<SubscriptionBundleRecord, (typeof SUBSCRIPTION_BUNDLE_MOMENTS)[number]>,
+    keyof SubscriptionBundleRecord
+>;
 
 /**
  * API view for `GET /billing/subscription-bundles`: record + denormalized

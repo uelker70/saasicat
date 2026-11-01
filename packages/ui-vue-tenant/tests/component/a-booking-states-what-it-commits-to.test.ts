@@ -7,7 +7,9 @@ import { computed, nextTick } from 'vue';
 import BundlePreviewDialog from '../../src/tenant-plan-section/BundlePreviewDialog.vue';
 import { defaultTenantPlanSectionI18n } from '../../src/default-i18n';
 import { TENANT_I18N_KEY } from '../../src/tenant-i18n';
-import type { BundlePreviewShape } from '@saasicat/ui-vue';
+import type { BundleAddPreviewShape } from '@saasicat/ui-vue';
+
+import { answered } from './support/server-days.js';
 
 // What a tenant is told before they agree to a bundle.
 //
@@ -22,9 +24,19 @@ import type { BundlePreviewShape } from '@saasicat/ui-vue';
 // `wrapper.find` never sees a teleported node and a test looking for it in the
 // wrapper would pass by finding nothing.
 
-const BASE: BundlePreviewShape = {
+/** A booking's preview as the service answers it; the route adds the days (`asAnswered`). */
+const BASE: Omit<
+    BundleAddPreviewShape,
+    'minimumTermEndsDays' | 'firstPeriodEndDays' | 'endsWithPlanDays'
+> = {
     action: 'add',
-    bundle: { bundleVersionId: 'bv-1', bundleKey: 'ANALYTICS', label: 'Analytics' },
+    bundle: {
+        bundleVersionId: 'bv-1',
+        bundleKey: 'ANALYTICS',
+        label: 'Analytics',
+        features: [],
+        quotas: {},
+    },
     billingCycle: 'MONTHLY',
     blockers: [],
     warnings: [],
@@ -36,14 +48,30 @@ const BASE: BundlePreviewShape = {
     endsWithPlanAt: null,
     missingRequires: [],
     redundantFeatures: [],
-} as unknown as BundlePreviewShape;
+};
 
 const mounted: VueWrapper[] = [];
 const panel = () => document.body.querySelector<HTMLElement>('.sp-dialog__panel');
 /** The text of every list entry in the panel. */
 const listed = () => [...panel()!.querySelectorAll('li')].map((item) => item.textContent?.trim());
 
-function mountPreview(preview: unknown, locale?: 'de' | 'en') {
+/** The moments a preview may carry, as ISO text. */
+interface PreviewMoments {
+    action: string;
+    minimumTermEndsAt?: string | null;
+    firstPeriodEnd?: string | null;
+    endsWithPlanAt?: string | null;
+    effectiveAt?: string | null;
+}
+
+/** `preview` as the server answers it: with the days of its moments. */
+function asAnswered<Preview extends PreviewMoments>(preview: Preview) {
+    return preview.action === 'cancel'
+        ? answered(preview, ['effectiveAt'])
+        : answered(preview, ['minimumTermEndsAt', 'firstPeriodEnd', 'endsWithPlanAt']);
+}
+
+function mountPreview<Preview extends PreviewMoments>(preview: Preview, locale?: 'de' | 'en') {
     // `as never` on the component collapses the options type along with it, so
     // the options are built separately and handed over as one value.
     const options: Record<string, unknown> = {
@@ -59,7 +87,7 @@ function mountPreview(preview: unknown, locale?: 'de' | 'en') {
             : {},
         props: {
             modelValue: true,
-            preview,
+            preview: asAnswered(preview),
             loading: false,
             error: null,
             submitting: false,

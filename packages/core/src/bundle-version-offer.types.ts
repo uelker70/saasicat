@@ -9,6 +9,7 @@ import type { BillingCycle } from './promo-code.types.js';
 import type { BundleVersionSide } from './bundle-version-retirement.types.js';
 import type { VersionChange } from './subscription.types.js';
 import type { VersionOfferClass } from './version-offer.js';
+import type { WithDays } from './days-beside-moments.js';
 
 /**
  * A newer version of a booked add-on, offered beside the booking: the version
@@ -45,3 +46,9 @@ export interface BundleVersionSwitchResult {
     /** ISO instant. */
     readonly takesEffectAt: string;
 }
+
+/** An offer as the tenant reads it: with the days of when it would take effect. */
+export type BundleVersionOfferWithDays = WithDays<BundleVersionOfferView, 'takesEffectAt'>;
+
+/** A switch taken, as the tenant reads it: with the days of when it takes effect. */
+export type BundleVersionSwitchWithDays = WithDays<BundleVersionSwitchResult, 'takesEffectAt'>;

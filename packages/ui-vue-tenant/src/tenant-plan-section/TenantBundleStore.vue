@@ -12,14 +12,14 @@
                             <span class="sp-plan-section__item-label">{{ row.label }}</span>
                             <span v-if="row.canceledAt" class="sp-plan-section__item-canceled">
                                 {{ i18n.bundleCanceledAt }}
-                                {{ formatDate(row.canceledEffectiveAt ?? row.canceledAt) }}
+                                {{ writeDay(formatDate, row.canceledUntilDay) }}
                             </span>
                             <span
-                                v-else-if="row.minimumTermEndsAt"
+                                v-else-if="row.minimumTermLastDay"
                                 class="sp-plan-section__item-price"
                             >
                                 {{ i18n.bundleMinimumTermUntil }}
-                                {{ formatDate(row.minimumTermEndsAt) }}
+                                {{ writeDay(formatDate, row.minimumTermLastDay) }}
                             </span>
                         </div>
                         <div class="sp-bundle-store__booked-actions">
@@ -53,7 +53,7 @@
                             :label="row.label"
                             :switch-terms="row.retirementSwitch"
                             :busy="switchingId === row.id"
-                            :next-period-start="row.nextPeriodStart"
+                            :next-period-start-day="row.nextPeriodStartDay"
                             :format-currency="formatCurrency"
                             :format-date="formatDate"
                             :quota-label="quotaLabel"
@@ -64,14 +64,14 @@
                     </li>
                     <!-- A newer version taken for the end of the booking's term. -->
                     <li
-                        v-if="row.pendingVersion !== null && row.pendingVersionEffectiveAt"
+                        v-if="row.pendingVersion !== null && row.pendingVersionDay"
                         class="sp-bundle-store__pending"
                     >
                         {{
                             i18n.bundleOfferSwitchScheduled
                                 .replace('{bundle}', row.label)
                                 .replace('{version}', String(row.pendingVersion))
-                                .replace('{date}', formatDate(row.pendingVersionEffectiveAt))
+                                .replace('{date}', writeDay(formatDate, row.pendingVersionDay))
                         }}
                     </li>
                     <!-- Beside the add-on, and beside its retirement where one stands. -->
@@ -202,9 +202,11 @@ import PlanCycleToggle from '../plan/PlanCycleToggle.vue';
 import type { SubscriptionBundleShape } from '@saasicat/ui-vue';
 import type {
     BundleRetirementSwitchTerms,
-    BundleVersionOfferView,
-    BundleVersionRetiredNotice,
+    BundleVersionOfferWithDays,
+    BundleVersionRetiredNoticeWithDays,
+    CalendarDay,
 } from '@saasicat/core';
+import { writeDay } from '../day-as-instant.js';
 import BundleRetiredNotice from './BundleRetiredNotice.vue';
 import VersionOfferCard from './VersionOfferCard.vue';
 import WithdrawnFeatureMark from '../WithdrawnFeatureMark.vue';
@@ -279,20 +281,22 @@ interface BookedRow {
      */
     priceNet: number | null;
     billingCycle: string | null;
-    minimumTermEndsAt: string | null;
+    /** The last day of the minimum term; null where there is none. */
+    minimumTermLastDay: CalendarDay | null;
     canceledAt: string | null;
-    canceledEffectiveAt: string | null;
+    /** The last day a cancelled booking runs; null while it is not cancelled. */
+    canceledUntilDay: CalendarDay | null;
     /** The retirement of the version booked, as the subscriber was told it; null where none stands. */
-    retirement: BundleVersionRetiredNotice | null;
+    retirement: BundleVersionRetiredNoticeWithDays | null;
     /** What switching to its replacement now costs, where the booking may; null where it may not. */
     retirementSwitch: BundleRetirementSwitchTerms | null;
-    /** Where the booking's running period ends: when a price that is not held applies. */
-    nextPeriodStart: string | null;
+    /** The day the booking's next period starts: when a price that is not held applies. */
+    nextPeriodStartDay: CalendarDay | null;
     /** A newer version offered beside the booking; null where there is none it could take. */
-    offer: BundleVersionOfferView | null;
-    /** The version a switch taken for the end of its term moves it to, and when; null where none. */
+    offer: BundleVersionOfferWithDays | null;
+    /** The version a switch taken for the end of its term moves it to, and from which day; null where none. */
     pendingVersion: number | null;
-    pendingVersionEffectiveAt: string | null;
+    pendingVersionDay: CalendarDay | null;
 }
 
 const bookedRows = computed<BookedRow[]>(() =>
@@ -320,15 +324,17 @@ const bookedRows = computed<BookedRow[]>(() =>
                           ? cat?.yearlyNet
                           : cat?.monthlyNet) ?? null),
             billingCycle: b.billingCycle ?? null,
-            minimumTermEndsAt: b.minimumTermEndsAt,
+            minimumTermLastDay: b.minimumTermEndsDays?.until ?? null,
             canceledAt: b.canceledAt,
-            canceledEffectiveAt: b.canceledEffectiveAt,
+            // A booking written before the two fields separated carries the
+            // effective date in `canceledAt` alone.
+            canceledUntilDay: (b.canceledEffectiveDays ?? b.canceledDays)?.until ?? null,
             retirement: b.retirement ?? null,
             retirementSwitch: b.retirementSwitch ?? null,
-            nextPeriodStart: b.currentPeriodEnd ?? null,
+            nextPeriodStartDay: b.currentPeriodEndDays?.from ?? null,
             offer: b.offer ?? null,
             pendingVersion: b.pendingVersion ?? null,
-            pendingVersionEffectiveAt: b.pendingVersionEffectiveAt ?? null,
+            pendingVersionDay: b.pendingVersionEffectiveDays?.from ?? null,
         };
     }),
 );

@@ -6,6 +6,7 @@
 
 import { classifyBundleVersionDiff, type BundleVersionFields } from './version-diff.js';
 import type { VersionChange } from './subscription.types.js';
+import type { WithDays } from './days-beside-moments.js';
 
 /**
  * - `improvement` — nothing dearer in any rhythm, no feature missing, no quota
@@ -78,6 +79,12 @@ export interface VersionSwitchResult {
     /** ISO instant. */
     readonly takesEffectAt: string;
 }
+
+/** An offer as the tenant reads it: with the days of when it would take effect. */
+export type VersionOfferWithDays = WithDays<VersionOfferView, 'takesEffectAt'>;
+
+/** A switch taken, as the tenant reads it: with the days of when it takes effect. */
+export type VersionSwitchWithDays = WithDays<VersionSwitchResult, 'takesEffectAt'>;
 
 /** A change that takes something the subscriber has away from them: a feature, or quota. */
 export function takesSomethingAway(change: VersionChange): boolean {

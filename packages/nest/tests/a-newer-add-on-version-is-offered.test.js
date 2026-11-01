@@ -74,6 +74,20 @@ describe('an offer beside a booking', () => {
         assert.equal(offer.takesEffectAt, PERIOD_END);
     });
 
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('names the days around when it takes effect, in the installation’s zone', async () => {
+        const takesAway = { versions: [BOOKED, TAKES_AWAY] };
+        // The period ends at midnight UTC before 1 November: already 1 November
+        // in Berlin, so nothing ends there on 31 October.
+        const inBerlin = await offerOf(
+            offering({ ...takesAway, settings: { timeZone: 'Europe/Berlin' } }),
+        );
+        const named = await offerOf(offering(takesAway));
+
+        assert.deepEqual(inBerlin.takesEffectDays, { until: '2026-11-01', from: '2026-11-01' });
+        assert.deepEqual(named.takesEffectDays, { until: '2026-10-31', from: '2026-11-01' });
+    });
+
     test('that takes something away waits for a minimum term that outlasts the period', async () => {
         const offer = await offerOf(
             offering({

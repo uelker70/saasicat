@@ -348,12 +348,12 @@ import {
 } from '@saasicat/ui-vue';
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
 import type { HttpClient } from '@saasicat/ui-vue';
-import type { VersionOfferView } from '@saasicat/core';
+import type { VersionOfferWithDays } from '@saasicat/core';
 import { issueSentence, refusalBlockersOf, refusalMessage, refusalOf } from './refusal-of.js';
 import FeatureWithdrawnNotices from './tenant-plan-section/FeatureWithdrawnNotices.vue';
 import VersionOfferCard from './tenant-plan-section/VersionOfferCard.vue';
 import VersionRetiredCard from './tenant-plan-section/VersionRetiredCard.vue';
-import { dayAsInstant } from './tenant-plan-section/version-retirement-day.js';
+import { dayAsInstant, writeDay } from './day-as-instant.js';
 import { defaultQuotaValue } from './plan/quota-value.js';
 
 // TenantPlanSection — main component for the tenant plan/bundle self-service
@@ -368,7 +368,11 @@ interface Props {
 
     /** EUR/CHF/USD formatter. */
     formatCurrency: (n: number) => string;
-    /** ISO date string → localized date. */
+    /**
+     * A day as the page writes it. It is handed noon of a day the server named
+     * (`SC-UI-028`) as an instant, so it has to read that instant in the
+     * viewer's zone — `toLocaleDateString` without a `timeZone` does.
+     */
     formatDate: (iso: string | Date) => string;
     /** Freely selectable format for quota cards in the wizard. */
     formatQuotaLabel?: (key: string, value: number) => string;
@@ -827,7 +831,7 @@ async function onTakeBundleOffer(subscriptionBundleId: string, bundleVersionId: 
             ? words.bundleRetiredSwitched
             : words.bundleOfferSwitchScheduled.replace(
                   '{date}',
-                  props.formatDate(result.takesEffectAt),
+                  writeDay(props.formatDate, result.takesEffectDays?.from),
               );
         bundleNote.value = said.replace('{bundle}', label).replace('{version}', version);
     } catch (err) {
@@ -891,7 +895,7 @@ function featureLabelResolved(key: string): string {
 
 // ── The version offer (#357) ─────────────────────────────────────────────
 
-const versionOffer = ref<VersionOfferView | null>(null);
+const versionOffer = ref<VersionOfferWithDays | null>(null);
 const takingOffer = ref(false);
 /** Why taking the offer was refused. Stays until the next attempt. */
 const offerError = ref<string | null>(null);
@@ -967,13 +971,15 @@ async function onTakeVersionOffer(planVersionId: string): Promise<void> {
             ? effectiveI18n.value.versionOfferSwitchedNow.replace('{version}', version)
             : effectiveI18n.value.versionOfferSwitchScheduled
                   .replace('{version}', version)
-                  .replace('{date}', props.formatDate(result.takesEffectAt));
+                  .replace('{date}', writeDay(props.formatDate, result.takesEffectDays?.from));
     } catch (err) {
         // The offer as it now stands travels with this refusal, so the card
         // shows it at once rather than the one that was refused.
         const body = refusalOf(err);
         if (body?.code === 'VERSION_OFFER_CHANGED') {
-            versionOffer.value = (body.offer as VersionOfferView | null | undefined) ?? null;
+            // SAFETY: `VERSION_OFFER_CHANGED` carries the offer as the platform's
+            // `VersionOfferService` builds it, the days of `takesEffectAt` included.
+            versionOffer.value = (body.offer as VersionOfferWithDays | null | undefined) ?? null;
         }
         offerError.value = refusalText(err);
         offerBlockers.value = refusalBlockersOf(err);
