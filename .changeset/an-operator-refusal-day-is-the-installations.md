@@ -11,9 +11,10 @@ when a case was closed in the meantime, named the moment it was closed; it now
 names the day it was closed on in the installation's zone
 (`config/saas.yaml#timeZone`, UTC where it names none).
 `PLAN_TERMINATE_DATE_NOT_FUTURE` named the end it refused as
-`2026-11-02T23:59:59.000Z`; it now names the day the operator picked. The
-shipped plan page answers that code with a sentence of its own, so the day
-reaches a page of yours that words it from the catalogue. Both say which of
+`2026-11-02T23:59:59.000Z`; its `endsAt` now names the day the operator
+picked, while the English `message` keeps the moment refused. The shipped plan
+page answers that code with a sentence of its own, so the day reaches a page of
+yours that words it from the catalogue. Both say which of
 their values are days in `dayParams` (`SC-ADM-048`).
 
 The administration writes every day a refusal names that way with the day

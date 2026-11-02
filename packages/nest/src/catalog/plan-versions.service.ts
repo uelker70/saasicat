@@ -464,11 +464,13 @@ export class PlanVersionsService {
         if (endsAt.getTime() <= Date.now()) {
             // The end an operator picks is a day — the administration sends its
             // last second, 23:59:59 UTC — so it is named as that day, for the
-            // page to write as one.
+            // page to write as one. The diagnostic keeps the moment: a caller
+            // of the API may send any time, and an end earlier today is refused
+            // although its day is today.
             const endsOn = pickedDayOf(endsAt);
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.PLAN_TERMINATE_DATE_NOT_FUTURE,
-                message: `endsAt (${endsOn}) must lie strictly in the future.`,
+                message: `endsAt (${endsAt.toISOString()}) must lie strictly in the future.`,
                 params: { endsAt: endsOn },
                 dayParams: ['endsAt'],
             });
