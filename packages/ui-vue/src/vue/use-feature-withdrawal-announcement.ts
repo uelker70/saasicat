@@ -21,7 +21,7 @@ import type {
     FeatureWithdrawalPreview,
 } from '@saasicat/core';
 
-import { adminErrorMessage, toAdminError } from '../client/admin-error.js';
+import { toAdminError } from '../client/admin-error.js';
 import { attachCause } from '../client/attach-cause.js';
 import {
     reductionsOf,
@@ -34,7 +34,7 @@ import type { Bound } from '../client/resources/define-resource.js';
 import type { catalogResource } from '../client/resources/catalog.resource.js';
 import type { FeatureWithdrawalsResource } from './use-feature-withdrawals.js';
 import type { MfaPrompt } from './use-mfa-prompt.js';
-import { useSaMessages } from './use-super-admin-i18n.js';
+import { useAdminErrorText, useSaMessages } from './use-super-admin-i18n.js';
 
 type CatalogOps = Pick<Bound<(typeof catalogResource)['ops']>, 'features'>;
 
@@ -84,7 +84,7 @@ export function useFeatureWithdrawalAnnouncement(options: {
 }): FeatureWithdrawalAnnouncementFlow {
     const msg = useSaMessages('featureWithdrawals');
     const shell = useSaMessages('shell');
-    const errors = useSaMessages('errors');
+    const errorText = useAdminErrorText();
 
     const isOpen = ref(false);
     const features = ref<readonly FeatureCatalogEntryRow[]>([]);
@@ -127,7 +127,7 @@ export function useFeatureWithdrawalAnnouncement(options: {
             const answer = await options.withdrawals.preview(key, from);
             if (ticket === asked) preview.value = answer;
         } catch (err) {
-            if (ticket === asked) error.value = adminErrorMessage(err, errors.value);
+            if (ticket === asked) error.value = errorText(err);
         } finally {
             if (ticket === asked) loading.value = false;
         }
@@ -147,7 +147,7 @@ export function useFeatureWithdrawalAnnouncement(options: {
             const entries = await options.catalog.features();
             features.value = entries.filter((entry) => entry.deletedAt === null);
         } catch (err) {
-            error.value = adminErrorMessage(err, errors.value);
+            error.value = errorText(err);
         } finally {
             loading.value = false;
         }

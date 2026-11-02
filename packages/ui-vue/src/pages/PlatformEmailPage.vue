@@ -197,7 +197,6 @@ import AdminTable from '../ui/data/AdminTable.vue';
 import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { platformEmailResource } from '../client/resources/platform-email.resource.js';
-import { adminErrorMessage } from '../client/admin-error.js';
 import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import AdminDialog from '../ui/overlay/AdminDialog.vue';
 import { computed, reactive, ref } from 'vue';
@@ -211,7 +210,7 @@ import { useSuperAdminNotify } from '../quasar/notify.js';
 import { useSuperAdminConfirm } from '../quasar/confirm.js';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
 import { formatMessage } from '../client/i18n/format.js';
-import { useSaMessages } from '../vue/use-super-admin-i18n.js';
+import { useAdminErrorText, useSaMessages } from '../vue/use-super-admin-i18n.js';
 import type {
     PlatformEmailProvider,
     PlatformEmailWriteInput,
@@ -249,7 +248,7 @@ const providers = useResource('platformEmail', props.resources);
 // `confirm` is taken — `window.confirm` shadows it.
 const askConfirm = useSuperAdminConfirm();
 const msg = useSaMessages('email');
-const errors = useSaMessages('errors');
+const errorText = useAdminErrorText();
 const common = useSaMessages('common');
 const shell = useSaMessages('shell');
 const rows = ref<PlatformEmailProvider[]>([]);
@@ -310,7 +309,7 @@ async function reload(): Promise<void> {
         rows.value = await providers.list();
     } catch (err) {
         rows.value = [];
-        notify('negative', adminErrorMessage(err, errors.value));
+        notify('negative', errorText(err));
     } finally {
         loading.value = false;
     }
@@ -351,14 +350,14 @@ async function runWrite(
             await invoke('');
             return true;
         } catch (err) {
-            notify('negative', adminErrorMessage(err, errors.value));
+            notify('negative', errorText(err));
             return false;
         }
     }
     try {
         return (await mfa.run(label, shell.value.mfa.invalidCode, invoke)).done;
     } catch (err) {
-        notify('negative', adminErrorMessage(err, errors.value));
+        notify('negative', errorText(err));
         return false;
     }
 }
@@ -441,7 +440,7 @@ async function onTest(): Promise<void> {
             subject: testForm.subject || undefined,
         });
     } catch (err) {
-        testResult.value = { success: false, message: adminErrorMessage(err, errors.value) };
+        testResult.value = { success: false, message: errorText(err) };
     } finally {
         testing.value = false;
     }

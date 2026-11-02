@@ -17,7 +17,7 @@ import {
     type VersionRetirementView,
 } from '@saasicat/core';
 
-import { adminErrorMessage, toAdminError } from '../client/admin-error.js';
+import { toAdminError } from '../client/admin-error.js';
 import { formatMessage } from '../client/i18n/format.js';
 import type { Bound } from '../client/resources/define-resource.js';
 import type { planVersionsResource, plansResource } from '../client/resources/plans.resource.js';
@@ -25,7 +25,7 @@ import type { versionRetirementsResource } from '../client/resources/version-ret
 import { isRetirable, retirementOf } from '../client/version-retirement.js';
 import { versionOnSale } from '../client/version-sale.js';
 import type { MfaPrompt } from './use-mfa-prompt.js';
-import { useSaMessages } from './use-super-admin-i18n.js';
+import { useAdminErrorText, useSaMessages } from './use-super-admin-i18n.js';
 
 type PlanOps = Pick<Bound<(typeof plansResource)['ops']>, 'list'>;
 type VersionOps = Pick<Bound<(typeof planVersionsResource)['ops']>, 'listForPlan'>;
@@ -71,7 +71,7 @@ export function useVersionRetirement(options: {
 }): VersionRetirementFlow {
     const msg = useSaMessages('planDetail');
     const shell = useSaMessages('shell');
-    const errors = useSaMessages('errors');
+    const errorText = useAdminErrorText();
 
     const available = computed(
         () => options.manifest.value?.capabilities?.[VERSION_RETIREMENT_CAPABILITY] === true,
@@ -98,7 +98,7 @@ export function useVersionRetirement(options: {
             records.value = await options.retirements.list();
             recordsError.value = null;
         } catch (err) {
-            recordsError.value = adminErrorMessage(err, errors.value);
+            recordsError.value = errorText(err);
         }
     }
     watch([available, () => options.plan.value?.id], () => void loadRecords(), {
@@ -106,7 +106,7 @@ export function useVersionRetirement(options: {
     });
 
     function showError(err: unknown): void {
-        error.value = adminErrorMessage(err, errors.value);
+        error.value = errorText(err);
     }
 
     async function open(version: PlanVersionRow): Promise<void> {

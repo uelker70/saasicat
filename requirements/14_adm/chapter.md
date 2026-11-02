@@ -1565,6 +1565,7 @@ _Tested by:_
         - are read a page at a time, the next one named
         - are closed with the note, trimmed, by the operator who closed it
         - closed once: a second close is refused, and nothing is written
+        - a case closed already is named by the day it was closed on in the installation’s zone
     - a subscriber's payments
         - are its invoices, the latest first, with what each still owes, and its open cases alone
         - of a subscriber there is not are refused, by code
@@ -2331,12 +2332,20 @@ _Source:_ #335 (decided 2026-10-27 and 2026-10-28) · #470
 
 _Tested by:_
 
+- `packages/nest/tests/an-operator-reconciles-what-matched-nothing.test.js`
+    - the cases to reconcile
+        - a case closed already is named by the day it was closed on in the installation’s zone
 - `packages/nest/tests/the-manifest-names-the-installations-zone.test.js`
     - names the zone config/saas.yaml names, as the schema takes it
     - names none where the file names none, and the schema takes no empty one
 - `packages/ui-vue/tests/a-moment-shown-as-a-day-is-the-installations-day.test.js`
     - no source of the package turns a moment into a day without saying which day
     - and finds each spelling it refuses
+- `packages/ui-vue/tests/admin-error.test.js`
+    - a refusal that names a day
+        - writes the day the platform named as the interface writes days
+        - and only the values it names as days
+        - and leaves a refusal that names none as it came
 - `packages/ui-vue/tests/component/a-picked-day-is-that-day-in-every-zone.test.ts`
     - a pilot’s end, read west of Greenwich
         - is the day picked in the pilots list
@@ -2350,6 +2359,9 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
     - retiring a version in the plan cockpit
         - says it was announced on the installation’s day
+- `packages/ui-vue/tests/component/roster-primitives.test.ts`
+    - AdminErrorBanner is bound unconditionally and decides for itself
+        - a refusal’s day is written as the interface writes days, not as the server sent it
 - `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
     - the subscriber's record shows its contracts
         - says when a contract was concluded and until when its minimum term runs as the

@@ -6,12 +6,11 @@
 // @requirement SC-SPEC-007 — Granting, withdrawing or extending a pilot is a deliberate operator act
 
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 
 import PilotCreateDialog from '../../src/internal/dialogs/PilotCreateDialog.vue';
 import PilotEditDialog from '../../src/internal/dialogs/PilotEditDialog.vue';
-import { SA_MESSAGES } from '../../src/client/i18n/messages.js';
-import { SUPER_ADMIN_I18N_KEY } from '../../src/vue/use-super-admin-i18n.js';
+import { createSuperAdminI18n, SUPER_ADMIN_I18N_KEY } from '../../src/vue/use-super-admin-i18n.js';
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 const mounted: { unmount: () => void }[] = [];
@@ -20,11 +19,7 @@ afterEach(() => {
     document.body.innerHTML = '';
 });
 
-const i18n = {
-    locale: ref('de'),
-    messages: computed(() => SA_MESSAGES.de),
-    setLocale: () => {},
-};
+const i18n = createSuperAdminI18n({ locale: ref('de') });
 
 const planOptions = [
     { value: 'BASIC', label: 'Basic', color: '#3f6bff' },

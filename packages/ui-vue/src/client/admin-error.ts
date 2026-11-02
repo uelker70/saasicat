@@ -20,10 +20,10 @@
 // the only place that decides between a code's sentence, `detail` and a
 // translated fallback.
 
-import { catalogueSentenceFor } from '@saasicat/core';
+import { catalogueSentenceFor, writeDayParams } from '@saasicat/core';
 
 import { attachCause } from './attach-cause.js';
-import { formatMessage } from './i18n/format.js';
+import { formatDay, formatMessage } from './i18n/format.js';
 import type { SaMessages } from './i18n/messages.js';
 
 /**
@@ -576,16 +576,27 @@ function statusKey(status: number): Exclude<keyof SaMessages['errors'], 'codes'>
  * dereference in a page. Whoever knows better says so with
  * `markTransportFailure` or `markEmptyResponse`.
  *
+ * Each day a refusal names among its values (`dayParams`) is written as the
+ * interface writes days, in `intlLocale` — the platform named the day, in the
+ * installation's zone (`SC-ADM-048`).
+ *
  * `useAsyncAction` and `AdminErrorBanner` call this for you, and a page that
- * reaches the platform through either should not need it. The five pages that
- * do call it directly still notify from their own catch blocks; each had grown
- * its own copy of this function, and one decision reached from five places
- * beats five decisions.
+ * reaches the platform through either should not need it. The pages that do
+ * call it directly reach it through `useAdminErrorText`; each had grown its own
+ * copy of this function, and one decision reached from many places beats many
+ * decisions.
  */
-export function adminErrorMessage(err: unknown, msgs: SaMessages['errors']): string {
+export function adminErrorMessage(
+    err: unknown,
+    msgs: SaMessages['errors'],
+    intlLocale: string,
+): string {
     const error = toAdminError(err);
-    const body = typeof error.body === 'object' && error.body !== null ? error.body : {};
-    const worded = catalogueSentenceFor({ code: error.code, ...body }, msgs.codes);
+    const body = asRecord(error.body) ?? {};
+    const params = asRecord(body.params);
+    const written =
+        params && writeDayParams(params, body.dayParams, (day) => formatDay(day, intlLocale));
+    const worded = catalogueSentenceFor({ code: error.code, ...body, params: written }, msgs.codes);
     if (worded !== null) return worded;
     if (error.detail) return error.detail;
     if (error.emptyResponse) return msgs.emptyResponse;

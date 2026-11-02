@@ -161,10 +161,13 @@ import { usePlans } from '../vue/use-plans.js';
 import { useMarketingProjections } from '../vue/use-marketing-projections.js';
 import { usePromotions } from '../vue/use-promotions.js';
 import { useCatalogEntries } from '../vue/use-catalog-entries.js';
-import { adminErrorMessage } from '../client/admin-error.js';
 import { formatCurrency } from '../client/i18n/currency.js';
 import { useInstallationDays } from '../vue/use-installation-days.js';
-import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
+import {
+    useAdminErrorText,
+    useSaMessages,
+    useSuperAdminI18n,
+} from '../vue/use-super-admin-i18n.js';
 import { formatMessage } from '../client/i18n/format.js';
 import { formatStoredDay } from '../client/installation-day.js';
 import { versionOnSaleOrNext } from '../client/version-sale.js';
@@ -204,7 +207,7 @@ const props = defineProps<{
 const msg = useSaMessages('marketing');
 const common = useSaMessages('common');
 const days = useInstallationDays();
-const errors = useSaMessages('errors');
+const errorText = useAdminErrorText();
 const { locale, intlLocale } = useSuperAdminI18n();
 
 /**
@@ -213,7 +216,7 @@ const { locale, intlLocale } = useSuperAdminI18n();
  * this page's own composables that is an English diagnostic for the log.
  */
 function bannerText(err: unknown): string {
-    return adminErrorMessage(err, errors.value);
+    return errorText(err);
 }
 
 // The pool this project declares, unless the app narrows it. Read from the

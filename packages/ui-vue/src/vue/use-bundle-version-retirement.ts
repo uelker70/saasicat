@@ -28,14 +28,14 @@ import {
     type BundleVersionRow,
 } from '@saasicat/core';
 
-import { adminErrorMessage, toAdminError } from '../client/admin-error.js';
+import { toAdminError } from '../client/admin-error.js';
 import { formatMessage } from '../client/i18n/format.js';
 import type { Bound } from '../client/resources/define-resource.js';
 import type { bundleVersionRetirementsResource } from '../client/resources/bundle-version-retirements.resource.js';
 import { bundleRetirementOf, isRetirable } from '../client/version-retirement.js';
 import { versionOnSale } from '../client/version-sale.js';
 import type { MfaPrompt } from './use-mfa-prompt.js';
-import { useSaMessages } from './use-super-admin-i18n.js';
+import { useAdminErrorText, useSaMessages } from './use-super-admin-i18n.js';
 
 type RetirementOps = Bound<(typeof bundleVersionRetirementsResource)['ops']>;
 
@@ -77,7 +77,7 @@ export function useBundleVersionRetirement(options: {
 }): BundleVersionRetirementFlow {
     const msg = useSaMessages('bundles');
     const shell = useSaMessages('shell');
-    const errors = useSaMessages('errors');
+    const errorText = useAdminErrorText();
 
     const available = computed(
         () => options.manifest.value?.capabilities?.[BUNDLE_VERSION_RETIREMENT_CAPABILITY] === true,
@@ -101,7 +101,7 @@ export function useBundleVersionRetirement(options: {
             records.value = await options.retirements.list();
             recordsError.value = null;
         } catch (err) {
-            recordsError.value = adminErrorMessage(err, errors.value);
+            recordsError.value = errorText(err);
         }
     }
     watch(available, () => void loadRecords(), { immediate: true });
@@ -118,7 +118,7 @@ export function useBundleVersionRetirement(options: {
         try {
             preview.value = await options.retirements.preview(version.id, onSale.id);
         } catch (err) {
-            error.value = adminErrorMessage(err, errors.value);
+            error.value = errorText(err);
         } finally {
             loading.value = false;
         }
@@ -167,7 +167,7 @@ export function useBundleVersionRetirement(options: {
                 error.value = msg.value.retireDialog.previewChanged;
                 return;
             }
-            error.value = adminErrorMessage(err, errors.value);
+            error.value = errorText(err);
         } finally {
             announcing.value = false;
         }

@@ -120,7 +120,6 @@ import AdminTable from '../ui/data/AdminTable.vue';
 import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { usersResource } from '../client/resources/users.resource.js';
-import { adminErrorMessage } from '../client/admin-error.js';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
@@ -136,7 +135,11 @@ import AdminStatistics from '../ui/data/AdminStatistics.vue';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
 import { formatMessage, formatShortDay } from '../client/i18n/format.js';
 import { useInstallationDays } from '../vue/use-installation-days.js';
-import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
+import {
+    useAdminErrorText,
+    useSaMessages,
+    useSuperAdminI18n,
+} from '../vue/use-super-admin-i18n.js';
 
 // Platform standard page: user search. Data-agnostic.
 //
@@ -221,7 +224,7 @@ const users = useResource('users', props.resources);
 // it, would throw that value away.
 const otpMessage = ref<string | null>(null);
 const msg = useSaMessages('users');
-const errors = useSaMessages('errors');
+const errorText = useAdminErrorText();
 const common = useSaMessages('common');
 const shell = useSaMessages('shell');
 const { intlLocale } = useSuperAdminI18n();
@@ -394,7 +397,7 @@ async function runAction<R>(
             const result = await invoke('');
             onSuccess(result);
         } catch (err) {
-            notify('negative', adminErrorMessage(err, errors.value));
+            notify('negative', errorText(err));
         }
         return;
     }
@@ -402,7 +405,7 @@ async function runAction<R>(
         const outcome = await mfa.run(actionLabel, shell.value.mfa.invalidCode, invoke);
         if (outcome.done) onSuccess(outcome.value);
     } catch (err) {
-        notify('negative', adminErrorMessage(err, errors.value));
+        notify('negative', errorText(err));
     }
 }
 

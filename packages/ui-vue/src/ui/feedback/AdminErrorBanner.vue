@@ -10,8 +10,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import AdminBanner from './AdminBanner.vue';
-import { adminErrorMessage } from '../../client/admin-error.js';
-import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import { useAdminErrorText, useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 // The ninety-percent case of AdminBanner: something failed, say what, offer to
 // try again. It renders nothing at all when `error` is null, so a page binds it
@@ -31,9 +30,9 @@ const props = defineProps<{
 }>();
 
 const common = useSaMessages('common');
-const errors = useSaMessages('errors');
+const errorText = useAdminErrorText();
 
-const message = computed(() => adminErrorMessage(props.error, errors.value));
+const message = computed(() => errorText(props.error));
 
 function onRetry(): void {
     void props.retry?.();

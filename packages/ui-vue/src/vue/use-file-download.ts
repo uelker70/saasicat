@@ -4,12 +4,11 @@
 
 import { readonly, ref, type Ref } from 'vue';
 
-import { adminErrorMessage } from '../client/admin-error.js';
 import type { DownloadedFile } from '../client/resources/resource-request.js';
 import { saveFile } from '../client/save-file.js';
 import type { UiNotify } from './ui-notify.js';
 import { report } from './report.js';
-import { useSaMessages } from './use-super-admin-i18n.js';
+import { useAdminErrorText } from './use-super-admin-i18n.js';
 
 export interface FileDownloadPorts {
     notify: UiNotify;
@@ -28,7 +27,7 @@ export function useFileDownload(
     fetchFile: (id: string) => Promise<DownloadedFile>,
     ports: FileDownloadPorts,
 ): FileDownload {
-    const errors = useSaMessages('errors');
+    const errorText = useAdminErrorText();
     const downloading = ref<string | null>(null);
     const save = ports.save ?? saveFile;
 
@@ -40,7 +39,7 @@ export function useFileDownload(
         try {
             save(await fetchFile(id));
         } catch (err) {
-            report(() => ports.notify('negative', adminErrorMessage(err, errors.value)));
+            report(() => ports.notify('negative', errorText(err)));
         } finally {
             downloading.value = null;
         }

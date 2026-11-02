@@ -687,6 +687,15 @@ describe('PlanVersionsService — Lifecycle', () => {
             (err) => {
                 assert.equal(err.status, 422);
                 assert.equal(err.response.code, 'PLAN_TERMINATE_DATE_NOT_FUTURE');
+                // The end the operator picked, as the day it is, said to be a day.
+                assert.deepEqual(err.response.params, { endsAt: past.toISOString().slice(0, 10) });
+                assert.deepEqual(err.response.dayParams, ['endsAt']);
+                // The diagnostic names the moment refused: its day alone would not
+                // say why an end earlier on the same day is refused.
+                assert.equal(
+                    err.response.message,
+                    `endsAt (${past.toISOString()}) must lie strictly in the future.`,
+                );
                 return true;
             },
         );

@@ -7,12 +7,11 @@
 
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 
 import PromoCodeCreateDialog from '../../src/internal/dialogs/PromoCodeCreateDialog.vue';
 import PromoCodeEditDialog from '../../src/internal/dialogs/PromoCodeEditDialog.vue';
-import { SA_MESSAGES } from '../../src/client/i18n/messages.js';
-import { SUPER_ADMIN_I18N_KEY } from '../../src/vue/use-super-admin-i18n.js';
+import { createSuperAdminI18n, SUPER_ADMIN_I18N_KEY } from '../../src/vue/use-super-admin-i18n.js';
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 // QDialog teleports into `body`; without cleanup the next case reads what the
@@ -23,11 +22,7 @@ afterEach(() => {
     document.body.innerHTML = '';
 });
 
-const i18n = {
-    locale: ref('de'),
-    messages: computed(() => SA_MESSAGES.de),
-    setLocale: () => {},
-};
+const i18n = createSuperAdminI18n({ locale: ref('de') });
 
 function mountDialog(component: typeof PromoCodeCreateDialog, props: Record<string, unknown>) {
     const wrapper = mountWithQuasar(component, {

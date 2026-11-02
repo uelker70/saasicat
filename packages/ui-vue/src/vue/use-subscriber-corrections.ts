@@ -21,7 +21,6 @@ import {
     type AdminVatIdCheckOutcome,
 } from '@saasicat/core';
 
-import { adminErrorMessage } from '../client/admin-error.js';
 import { formatMessage } from '../client/i18n/format.js';
 import type { Bound } from '../client/resources/define-resource.js';
 import type {
@@ -33,7 +32,7 @@ import type { UiNotify, UiNotifyKind } from './ui-notify.js';
 import { report } from './report.js';
 import { useAsyncData, type AsyncData } from './use-async-data.js';
 import type { MfaPrompt } from './use-mfa-prompt.js';
-import { useSaMessages } from './use-super-admin-i18n.js';
+import { useAdminErrorText, useSaMessages } from './use-super-admin-i18n.js';
 
 /** The subscriber operations the corrections call, already bound to the shell's client. */
 export type SubscriberCorrectionsResource = Pick<
@@ -74,7 +73,7 @@ export function useSubscriberCorrections(
 ): SubscriberCorrections {
     const msg = useSaMessages('subscribers');
     const shell = useSaMessages('shell');
-    const errors = useSaMessages('errors');
+    const errorText = useAdminErrorText();
 
     const available = computed(
         () => manifest.value?.capabilities?.[SUBSCRIBER_CORRECTION_CAPABILITY] === true,
@@ -168,7 +167,7 @@ export function useSubscriberCorrections(
             try {
                 result = await subscribers.checkVatId(subscriberId.value);
             } catch (err) {
-                report(() => ports.notify('negative', adminErrorMessage(err, errors.value)));
+                report(() => ports.notify('negative', errorText(err)));
                 return;
             }
             await changed(result, null);
