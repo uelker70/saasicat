@@ -318,13 +318,16 @@ export class EndAtOnceService {
             : typeof this.writes.endNow === 'function';
         const recorded = (booking ?? subscription).canceledEffectiveAt;
         if (canStore && recorded !== null) return declared;
+        // `date` is the day the cancellation lands, as the refusal has always
+        // named it; `lastDay` the last day it still runs.
+        const { until: lastDay, from: date } = daysAround(declared, this.zone());
         throw new UnprocessableEntityException({
             code: BILLING_ERROR_CODES.FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED,
             message:
-                `Your cancellation for ${declared.toISOString().slice(0, 10)} is recorded, and ` +
-                'it cannot be brought forward here. It ends on that date, and until then the ' +
-                'reduction applies.',
-            params: { date: declared.toISOString().slice(0, 10) },
+                'Your cancellation is recorded and cannot be brought forward here: it runs ' +
+                `until ${lastDay}, and until then the reduction applies.`,
+            params: { date, lastDay },
+            dayParams: ['date', 'lastDay'],
         });
     }
 

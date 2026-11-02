@@ -1387,6 +1387,7 @@ _Tested by:_
         - lets the same declaration stay in the file afterwards
     - a start that finds another legal entity
         - does not start, and names the contracts still running under the previous one
+        - names the day each contract took effect as the installation’s day
         - leaves the record exactly as the previous start left it
         - says so even where no contract is running yet
         - names a declaration that covers another change than this one

@@ -417,7 +417,7 @@ async function submitAdd(): Promise<void> {
         });
         addOpen.value = false;
     } catch (err) {
-        addError.value = err instanceof Error ? err.message : String(err);
+        addError.value = refusalMessage(err, effectiveI18n.value.issueMessages, formatDate);
     } finally {
         adding.value = false;
     }
@@ -456,7 +456,7 @@ async function onSwitch(b: TenantSubscriptionBundle, bundleVersionId: string): P
             .replace('{bundle}', label)
             .replace('{version}', version);
     } catch (err) {
-        switchError.value = refusalMessage(err, effectiveI18n.value.issueMessages);
+        switchError.value = refusalMessage(err, effectiveI18n.value.issueMessages, formatDate);
         await load();
     } finally {
         switchingId.value = null;
@@ -485,7 +485,7 @@ async function onTakeOffer(b: TenantSubscriptionBundle, bundleVersionId: string)
               );
         switchNote.value = said.replace('{bundle}', label).replace('{version}', version);
     } catch (err) {
-        switchError.value = refusalMessage(err, effectiveI18n.value.issueMessages);
+        switchError.value = refusalMessage(err, effectiveI18n.value.issueMessages, formatDate);
         await load();
     } finally {
         offeringId.value = null;

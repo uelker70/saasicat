@@ -605,6 +605,7 @@ function aSwitch({
     ended,
     bookings = null,
     addOnsAhead = null,
+    settings = null,
 } = {}) {
     const effects = sideEffects({ party, freeze });
     const subs = [sub];
@@ -628,6 +629,7 @@ function aSwitch({
         bookings,
         bookings && ADD_ONS,
         addOnsAhead,
+        settings,
     );
     return { service, writes, sub, ...effects };
 }
@@ -650,12 +652,17 @@ const ADD_ONS = {
 
 /** The add-ons of the subscription of t1, each booked monthly and running to 1 April. */
 function bookingsOf(...bundleVersionIds) {
+    return bookingsEnding(new Date('2026-04-01T00:00:00.000Z'), ...bundleVersionIds);
+}
+
+/** The add-ons of the subscription of t1, each booked monthly and running to `periodEnd`. */
+function bookingsEnding(periodEnd, ...bundleVersionIds) {
     const rows = bundleVersionIds.map((bundleVersionId, index) => ({
         id: `sb-${index + 1}`,
         subscriptionId: 'sub-t1',
         bundleVersionId,
         billingCycle: 'MONTHLY',
-        currentPeriodEnd: new Date('2026-04-01T00:00:00.000Z'),
+        currentPeriodEnd: periodEnd,
         minimumTermEndsAt: null,
         canceledAt: null,
         canceledEffectiveAt: null,
@@ -829,9 +836,26 @@ describe('the free switch before the date', () => {
             bundleName: 'Reports',
             planName: 'PLUS',
             until: '2026-04-01',
+            lastDay: '2026-03-31',
         });
+        assert.deepEqual(error.getResponse().dayParams, ['until', 'lastDay']);
         assert.equal(writes.calls.length, 0);
         assert.deepEqual(frozen, []);
+    });
+
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('names the add-on’s last day and the first without it in the installation’s zone', async () => {
+        // Midnight before 1 April in Berlin: still 31 March in UTC.
+        const { service } = aSwitch({
+            bookings: bookingsEnding(new Date('2026-03-31T22:00:00.000Z'), 'bv-reports'),
+            settings: { timeZone: 'Europe/Berlin' },
+        });
+
+        const error = await rejection(service.switchNow('t1', 'pv-9', BEFORE));
+
+        assert.equal(error.getResponse().code, 'RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW');
+        assert.equal(error.getResponse().params.lastDay, '2026-03-31');
+        assert.equal(error.getResponse().params.until, '2026-04-01');
     });
 
     // @requirement SC-BUN-044 — An add-on retirement's replacement has to fit every plan a booking meets from its date

@@ -123,6 +123,8 @@ export interface RetirementBlocker {
     readonly code: string;
     readonly message: string;
     readonly params: Record<string, string | number>;
+    /** The names in `params` whose values are days (`writeDayParams`). */
+    readonly dayParams?: readonly string[];
 }
 
 /** A subscription a retirement reaches, with what it means there. */

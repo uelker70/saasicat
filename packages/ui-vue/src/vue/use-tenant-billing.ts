@@ -153,6 +153,8 @@ export interface PlanChangePreviewIssueShape {
     message: string;
     /** The values the sentence names, beside it rather than inside it. */
     params?: Record<string, string | number>;
+    /** The names in `params` whose values are days (`writeDayParams`). */
+    dayParams?: readonly string[];
 }
 
 export interface PlanChangePreviewShape {
@@ -362,6 +364,8 @@ export interface BundlePreviewIssueShape {
     message: string;
     /** The values the sentence names, beside it rather than inside it. */
     params?: Record<string, string | number>;
+    /** The names in `params` whose values are days (`writeDayParams`). */
+    dayParams?: readonly string[];
 }
 
 export interface BundlePreviewSnapshotShape {

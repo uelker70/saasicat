@@ -273,12 +273,22 @@ describe('reinstating a cancelled booking, which books it again', () => {
 /** The preview of booking `bundleVersionId` on a plan billed in `planCycle`, set to move to `plansAhead`. */
 function previewOn(
     bundleVersionId,
-    { planKey = 'BASIC', planCycle = 'MONTHLY', plansAhead = [], billingCycle } = {},
+    {
+        planKey = 'BASIC',
+        planCycle = 'MONTHLY',
+        plansAhead = [],
+        billingCycle,
+        settings = null,
+    } = {},
 ) {
     return new SubscriptionBundlePreviewService(
         new FakeSubscriptionBundleRepository(),
         catalogue(),
         null,
+        null,
+        null,
+        {},
+        settings,
     ).previewAdd(
         {
             subscriptionId: 'sub-1',
@@ -438,5 +448,49 @@ describe('the plans a subscription is set to move to', () => {
         });
         assert.deepEqual(ahead, []);
         assert.deepEqual(retirements.asked, []);
+    });
+});
+
+// @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+describe('the day a refusal about a plan ahead names', () => {
+    const BERLIN = { timeZone: 'Europe/Berlin' };
+    /** Midnight before 1 July in Berlin: still 30 June in UTC. */
+    const MIDNIGHT_IN_BERLIN = new Date('2026-06-30T22:00:00.000Z');
+    const AHEAD = [{ ...MOVE_TO_BASIC, from: MIDNIGHT_IN_BERLIN }];
+
+    test('is the day the plan ahead takes effect in the installation’s zone, named as a day', async () => {
+        const { book } = bookingOn({ plansAhead: AHEAD, settings: BERLIN });
+        await assert.rejects(
+            () => book(REPORTS.id),
+            (error) => {
+                assert.equal(error.getResponse().code, 'BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN');
+                assert.equal(error.getResponse().params.from, '2026-07-01');
+                assert.deepEqual(error.getResponse().dayParams, ['from']);
+                return true;
+            },
+        );
+    });
+
+    test('and the same in the preview of the booking', async () => {
+        const preview = await previewOn(REPORTS.id, {
+            planKey: 'STANDARD',
+            planCycle: 'YEARLY',
+            billingCycle: 'YEARLY',
+            plansAhead: AHEAD,
+            settings: BERLIN,
+        });
+        const blocker = preview.blockers.find(
+            (one) => one.code === 'BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN',
+        );
+        assert.equal(blocker?.params.from, '2026-07-01');
+        assert.deepEqual(blocker?.dayParams, ['from']);
+    });
+
+    test('in UTC where the settings name none', async () => {
+        const { book } = bookingOn({ plansAhead: AHEAD });
+        await assert.rejects(
+            () => book(REPORTS.id),
+            (error) => error.getResponse().params.from === '2026-06-30',
+        );
     });
 });

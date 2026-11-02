@@ -24,6 +24,7 @@ import {
 import {
     CATALOG_ERROR_CODES,
     isVersionEditable,
+    pickedDayOf,
     type BundleCompatibility,
     type BundleRepository,
     type BundleRow,
@@ -692,11 +693,11 @@ export class BundlesService {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_NOT_GAPLESS,
                 message:
-                    `The predecessor has validUntil=${previous.validUntil.slice(0, 10)} — the successor must ` +
-                    `start seamlessly on the next day (${requiredStart.toISOString().slice(0, 10)}). ` +
-                    `Received: ${validFrom.toISOString().slice(0, 10)}.`,
-                params: { received: validFrom.toISOString().slice(0, 10) },
-                requiredValidFrom: requiredStart.toISOString().slice(0, 10),
+                    `The predecessor has validUntil=${pickedDayOf(previousValidUntil)} — the successor must ` +
+                    `start seamlessly on the next day (${pickedDayOf(requiredStart)}). ` +
+                    `Received: ${pickedDayOf(validFrom)}.`,
+                params: { received: pickedDayOf(validFrom) },
+                requiredValidFrom: pickedDayOf(requiredStart),
                 previousValidUntil: previous.validUntil,
             });
         }

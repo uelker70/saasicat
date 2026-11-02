@@ -1170,4 +1170,10 @@ export interface PlatformErrorBody {
      * translated sentence without scraping the ids back out of the text.
      */
     params?: Record<string, unknown>;
+    /**
+     * The names in `params` whose values are days (`YYYY-MM-DD`) the server
+     * named in the installation's zone, which a page writes with its own date
+     * formatter (`writeDayParams`, `SC-UI-028`).
+     */
+    dayParams?: readonly string[];
 }

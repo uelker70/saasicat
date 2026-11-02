@@ -1,4 +1,9 @@
-import { CATALOG_ERROR_CODES, type BundleRow, type BundleVersionRow } from '@saasicat/core';
+import {
+    CATALOG_ERROR_CODES,
+    pickedDayOf,
+    type BundleRow,
+    type BundleVersionRow,
+} from '@saasicat/core';
 
 import { bundleVersionNotBookableReason } from '../checkout-offer/bundle-version-bookable.js';
 
@@ -7,6 +12,8 @@ export interface BundleBookingRefusal {
     code: string;
     message: string;
     params: Record<string, string>;
+    /** The names in `params` whose values are days (`writeDayParams`). */
+    dayParams?: readonly string[];
 }
 
 /**
@@ -40,11 +47,14 @@ export function bundleVersionNotOnSale(
                 params: { bundleVersionId },
             };
         case 'not_yet_valid': {
-            const validFrom = (version.validFrom ?? '').slice(0, 10);
+            // A day the operator picked, stored as its UTC midnight: the same day
+            // in every zone.
+            const validFrom = version.validFrom ? pickedDayOf(new Date(version.validFrom)) : '';
             return {
                 code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_YET_ON_SALE,
                 message: `BundleVersion '${bundleVersionId}' goes on sale on ${validFrom} and cannot be booked before.`,
                 params: { bundleVersionId, validFrom },
+                dayParams: ['validFrom'],
             };
         }
         case 'superseded':

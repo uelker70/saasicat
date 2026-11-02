@@ -341,6 +341,7 @@ describe('a plan change, and the add-ons booked, in a real container', () => {
             bundleName: 'Add-on bv-pro-only',
             planName: 'Basic',
             until: '2027-01-01',
+            lastDay: '2026-12-31',
         });
         await moduleRef.close();
     });

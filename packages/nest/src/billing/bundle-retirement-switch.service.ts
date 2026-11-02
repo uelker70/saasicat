@@ -38,6 +38,8 @@ import {
 } from '@nestjs/common';
 import {
     BILLING_ERROR_CODES,
+    dayInZone,
+    installationZoneOf,
     retirementSwitchTerms,
     type BillingCycle,
     type BundleRepository,
@@ -45,6 +47,7 @@ import {
     type BundleRetirementSwitchTerms,
     type BundleVersionRetiredNotice,
     type BundleVersionRow,
+    type PlanCatalogSettings,
     type SubscriptionBundleRecord,
     type SubscriptionBundleRepository,
     type SubscriptionUsagePort,
@@ -60,6 +63,7 @@ import { decidedAlike, putBookingBack, subscriptionChanged } from './booking-mov
 import { bundleVersionSide } from './bundle-version-sides.js';
 import { bookingOverBy, planAt } from './bundle-retirement-reach.js';
 import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
@@ -97,6 +101,11 @@ export class BundleRetirementSwitchService {
         @Optional()
         @Inject(SubscriberChargeService)
         private readonly charges: SubscriberChargeService | null = null,
+        // The zone the days a refusal names are read in; UTC where the file
+        // names none, or where a test builds the service without it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
     ) {}
 
     /** What switching the booking now would cost, or null where it cannot switch. */
@@ -248,6 +257,7 @@ export class BundleRetirementSwitchService {
         ]);
         const bundleName = replacement.label;
         const date = new Date(notice.effectiveAt);
+        const movesOn = dayInZone(date, installationZoneOf(this.settings));
         const ahead = await this.plansAhead.of(sub);
         // The plan for every moment the price would be held: the last one
         // before the date included, a change landing on the date not.
@@ -258,10 +268,11 @@ export class BundleRetirementSwitchService {
                 refusal: new UnprocessableEntityException({
                     code: BILLING_ERROR_CODES.BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES,
                     message:
-                        `${bundleName} moves to its new version on ${notice.effectiveAt.slice(0, 10)}, ` +
+                        `${bundleName} moves to its new version on ${movesOn}, ` +
                         'and your plan changes before then, so the price a switch would keep is ' +
                         'not known yet. Switch once your plan has changed, or let it move on that date.',
-                    params: { bundleName, date: notice.effectiveAt.slice(0, 10) },
+                    params: { bundleName, date: movesOn },
+                    dayParams: ['date'],
                 }),
             };
         }

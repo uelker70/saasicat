@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 676 entries: 🟢 583 stand today, 🟡 43 decided but not yet delivered, ⚪ 0 drafts,
+Of 676 entries: 🟢 584 stand today, 🟡 42 decided but not yet delivered, ⚪ 0 drafts,
 🔵 45 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -166,7 +166,6 @@ Of 676 entries: 🟢 583 stand today, 🟡 43 decided but not yet delivered, ⚪
 [SC-UI-022](#sc-ui-022--a-tenant-downloads-its-subscriptions-invoices-and-tells-them-from-the-applications),
 [SC-UI-023](#sc-ui-023--a-tenants-invoices-payment-method-and-billing-details-need-the-billing-permission),
 [SC-UI-024](#sc-ui-024--a-tenants-invoice-list-says-what-each-invoice-stands-for),
-[SC-UI-028](#sc-ui-028--every-day-a-tenant-is-shown-is-the-installations-day-named-by-the-server),
 [SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
 [SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
@@ -2959,6 +2958,10 @@ _Tested by:_
         - names the day it can end instead once the date has passed and the move is still to come
         - names the day a booking cancelled already ends, which cancelling again cannot move
         - asks nothing of a retirement told for a version the booking is no longer on
+    - the days a plan change blocked by an add-on names
+        - are the last day the add-on runs and the first without it, in the installation’s zone
+        - in UTC where the settings name none
+        - the day a booking continues on another version is read in that zone too
 - `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
     - a commitment an operator did configure
         - binds inside it, and still cannot outlast the plan
@@ -3632,6 +3635,10 @@ _Tested by:_
         - names the day it can end instead once the date has passed and the move is still to come
         - names the day a booking cancelled already ends, which cancelling again cannot move
         - asks nothing of a retirement told for a version the booking is no longer on
+    - the days a plan change blocked by an add-on names
+        - are the last day the add-on runs and the first without it, in the installation’s zone
+        - in UTC where the settings name none
+        - the day a booking continues on another version is read in that zone too
 - `packages/nest/tests/tenant-subscription-bundles-plan-compat.test.js`
     - add passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID
     - preview passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID
@@ -3802,6 +3809,7 @@ _Tested by:_
     - a tenant booking an add-on
         - takes the predecessor until its successor starts, though it is superseded
         - is refused a version whose start is still to come, and told when it starts
+        - says the day it goes on sale is a day, for the page to write as it writes days
         - takes the successor from its first day
         - is refused the predecessor once its successor has taken over
         - is refused a version superseded without a last day
@@ -4289,11 +4297,13 @@ _Tested by:_
     - reinstating a booking of a version being retired
         - is refused where the announcement did not reach it, naming the replacement
         - names the day after where the booking ends during one
+        - names the first whole day without the booking in the installation’s zone, as a day
         - says the replacement cannot run beside its plan where it cannot, and names no day
         - asks of the plan the subscription is on when the booking ends
         - names the day where the replacement can be booked in the plan’s rhythm only
         - answers nothing once the cancellation has landed: the booking route says so
         - says the subscription ends by then where it does, and names no day
+        - asks what can be booked instead on the day it would name, in the installation’s zone
         - asks the plans the subscription is set to move to after that day
         - is not refused where its notice still waits, and the next run tells it
         - is not refused where it was reached, nor on a version nobody retired
@@ -4524,6 +4534,7 @@ _Tested by:_
         - a replacement that cannot run beside the plan the subscription is on
     - a plan that changes before the date
         - refuses a change of plan landing before the date, naming the add-on and its date
+        - names the date as the installation’s day, and says it is a day
         - and a change of rhythm alone, but not a change landing on the date itself
         - refuses where a retirement moves it to another plan before the date
         - but not where it moves it to another version of the same plan
@@ -5969,6 +5980,7 @@ _Tested by:_
         - opens only after the trial
         - is refused while something is outstanding, as a version offer is
         - is refused while an add-on running today cannot run on the replacement’s plan
+        - names the add-on’s last day and the first without it in the installation’s zone
         - is refused as well where an add-on was told it continues on a version the plan cannot
           carry, naming that version
         - asks nothing of an add-on whose subscription ends by the date it continues from, and asks
@@ -6445,6 +6457,7 @@ _Tested by:_
         - reaches special terms a contract in force records where no line grants the feature
         - names each plan and add-on in a rhythm it reaches, with how many and the lowest price
         - is blocked while a withdrawal of the feature is not lifted, or lifted only after the date
+        - names the day an earlier withdrawal is lifted from as the installation’s day
     - where withdrawing a feature is offered
         - only where everybody a withdrawal reaches can be found
         - and is refused by the routes elsewhere, before anything is read
@@ -6477,6 +6490,7 @@ _Tested by:_
         - tells a lift only to whom the withdrawal itself reached, and the rest after it
         - from now where no date is given; never from a date already past
         - refuses an unknown withdrawal, and one lifted already, naming its date
+        - names the day it was lifted from as the installation’s day, and says it is a day
         - lifted meanwhile by another operator, keeps what they recorded
     - the list of withdrawals
         - says how many it reached, how many were told, and how many ended at once
@@ -9719,6 +9733,7 @@ _Tested by:_
         - lets the same declaration stay in the file afterwards
     - a start that finds another legal entity
         - does not start, and names the contracts still running under the previous one
+        - names the day each contract took effect as the installation’s day
         - leaves the record exactly as the previous start left it
         - says so even where no contract is running yet
         - names a declaration that covers another change than this one
@@ -19779,7 +19794,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
 
-🟡 _(Decided, not yet delivered.)_ A moment a tenant's page shows as a day — when a booking started,
+🟢 A moment a tenant's page shows as a day — when a booking started,
 the last day of a minimum term, when a change takes effect — is the day it falls on in the
 installation's zone (`config/saas.yaml#timeZone`, UTC where the file names none), as the
 administration's days are (`SC-ADM-048`). Every answer that carries such a moment also carries its
@@ -19807,6 +19822,18 @@ _Tested by:_
     - the installation’s zone
         - is the one the settings name
         - is UTC for ${what}
+- `packages/core/tests/a-refusal-names-its-days.test.js`
+    - the days a refusal names
+        - are written by the page, each one it names
+        - and nothing it does not name, though it looks like a day
+        - leave a named value that is not text as it is
+        - are none where the refusal says ${what}
+        - leave the refusal they were read from as it was
+- `packages/nest/tests/a-booking-fits-every-plan-ahead.test.js`
+    - the day a refusal about a plan ahead names
+        - is the day the plan ahead takes effect in the installation’s zone, named as a day
+        - and the same in the preview of the booking
+        - in UTC where the settings name none
 - `packages/nest/tests/a-newer-add-on-version-is-offered.test.js`
     - an offer beside a booking
         - names the days around when it takes effect, in the installation’s zone
@@ -19816,11 +19843,21 @@ _Tested by:_
 - `packages/nest/tests/a-newer-version-is-offered.test.js`
     - an offer
         - names the days around when it takes effect, in the installation’s zone
+- `packages/nest/tests/a-plan-change-cannot-strand-a-bundle.test.js`
+    - the days a plan change blocked by an add-on names
+        - are the last day the add-on runs and the first without it, in the installation’s zone
+        - in UTC where the settings name none
+        - the day a booking continues on another version is read in that zone too
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - the free switch before the date
+        - names the add-on’s last day and the first without it in the installation’s zone
 - `packages/nest/tests/a-subscriber-ends-at-once.test.js`
     - the days a tenant is shown of a withdrawal
         - are read in the zone the settings name, from when it is missing and from when it returns
         - in UTC where the settings name none
         - name the days of when a scheduled change brings a line, in that zone
+        - a refusal for a cancellation on record names the day it lands and the last day it runs
+        - and says it runs until that day, where the cancellation lands in the middle of one
         - of an end at once are the days around the moment it ends, previewed and done
 - `packages/nest/tests/a-tenant-is-handed-the-days-of-its-add-ons.test.js`
     - the days of an add-on booking
@@ -19853,9 +19890,27 @@ _Tested by:_
 - `packages/nest/tests/a-version-offer-is-taken.test.js`
     - the switch goes ahead only while the version shown is still the offer
         - the offer it carries names the days of when it takes effect
+- `packages/nest/tests/an-add-on-booking-switches-before-its-date.test.js`
+    - a plan that changes before the date
+        - names the date as the installation’s day, and says it is a day
+- `packages/nest/tests/an-add-on-is-on-sale-by-its-dates.test.js`
+    - a tenant booking an add-on
+        - says the day it goes on sale is a day, for the page to write as it writes days
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - reinstating a booking of a version being retired
+        - names the first whole day without the booking in the installation’s zone, as a day
+        - asks what can be booked instead on the day it would name, in the installation’s zone
 - `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - the preview of a withdrawal
+        - names the day an earlier withdrawal is lifted from as the installation’s day
+    - lifting a withdrawal
+        - names the day it was lifted from as the installation’s day, and says it is a day
     - the public feature registry
         - names the days of each mark in the zone the settings name
+- `packages/nest/tests/no-plan-on-sale-names-the-installations-day.test.js`
+    - a plan with no version on sale
+        - is refused naming the installation’s day, as a day
+        - in UTC where the settings name none
 - `packages/ui-vue-tenant/tests/component/a-day-is-written-as-that-day-in-every-zone.test.ts`
     - a day handed to the application’s formatter
         - is that day for a viewer in ${zone}
@@ -19883,6 +19938,14 @@ _Tested by:_
         - a switch that costs no more applies its price from the day the next period starts
     - the package the subscription was concluded from
         - was captured on the day the server names
+- `packages/ui-vue-tenant/tests/component/a-refusal-day-is-the-one-the-server-names.test.ts`
+    - a refusal that names a day
+        - writes it as the application writes days
+        - names the last day it runs and the first day without it, in English as well
+        - writes only the values it names as days
+        - from a server that names none, leaves the values as they came
+        - a blocker of a preview writes its days the same way
+        - ending at once, refused for a cancellation on record, names the last day it runs
 - `packages/ui-vue-tenant/tests/component/a-withdrawal-day-is-the-one-the-server-names.test.ts`
     - a withdrawal told beside the plan
         - has been missing since the first day it took the feature away
@@ -19914,6 +19977,12 @@ _Tested by:_
 - `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
     - a withdrawn feature beside an add-on
         - is marked with the first day the server names, written as the configurator writes days
+- `tests/the-server-names-each-day-by-its-kind.test.js`
+    - the server
+        - names every day by its kind rather than cutting it out of a timestamp
+    - the rule, on sources written to break it
+        - refuses each way of cutting a day out of text
+        - leaves the named days, other slices and the prose about them alone
 - `tests/the-tenant-package-writes-the-days-the-server-names.test.js`
     - the tenant package
         - hands the application’s formatter only the days the server named

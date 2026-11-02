@@ -213,7 +213,8 @@ const ending = ref(false);
 const dialogError = ref<string | null>(null);
 const note = ref<string | null>(null);
 
-const refused = (err: unknown): string => refusalMessage(err, i18n.value.issueMessages);
+const refused = (err: unknown): string =>
+    refusalMessage(err, i18n.value.issueMessages, props.formatDate);
 
 // Which question is the open one; an answer to one closed or replaced meanwhile is dropped.
 let question = 0;

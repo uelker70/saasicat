@@ -174,12 +174,12 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { resolveErrorMessage } from '@saasicat/core';
 import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantDialog from '../ui/TenantDialog.vue';
 import WithdrawnFeatureMark from '../WithdrawnFeatureMark.vue';
 import { writeDay } from '../day-as-instant.js';
+import { issueSentence } from '../refusal-of.js';
 import '../ui/tenant-ui.css';
 import type {
     BundleAddPreviewShape,
@@ -259,10 +259,7 @@ function close() {
 // as well as code, since one code can come twice: a booking may meet two plans
 // it is set to move to.
 function issueText(issue: BundlePreviewIssueShape): string {
-    return resolveErrorMessage(
-        { code: issue.code, message: issue.message, params: issue.params },
-        i18n.value.issueMessages,
-    );
+    return issueSentence(issue, i18n.value.issueMessages, props.formatDate);
 }
 </script>
 

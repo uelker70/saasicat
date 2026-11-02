@@ -91,6 +91,7 @@ export function entitlementServiceFor(EntitlementService, subscription, options 
         bundles = null,
         versions = null,
         withdrawals = null,
+        settings = null,
     } = options;
     return new EntitlementService(
         givenPlanCatalogSource(CATALOG),
@@ -109,6 +110,7 @@ export function entitlementServiceFor(EntitlementService, subscription, options 
         null,
         // A list of withdrawals, or a repository of the test's own.
         Array.isArray(withdrawals) ? { list: async () => withdrawals } : withdrawals,
+        settings,
     );
 }
 

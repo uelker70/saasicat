@@ -1085,6 +1085,25 @@ describe('reinstating a booking of a version being retired', () => {
         assert.equal(refusal?.params.bookableFrom, '2026-11-02');
     });
 
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('names the first whole day without the booking in the installation’s zone, as a day', async () => {
+        // 23:30 UTC on 1 November is already half past midnight on 2 November in Berlin.
+        const bookings = [
+            bookingOf('t1'),
+            bookingOf('t2', {
+                canceledAt: new Date('2026-10-01T00:00:00.000Z'),
+                canceledEffectiveAt: new Date('2026-11-01T23:30:00.000Z'),
+            }),
+        ];
+        const inBerlin = retiring({ bookings, timeZone: 'Europe/Berlin' });
+        await inBerlin.service.announce(RETIRED.id, REPLACEMENT.id, ['sb-t1'], ACTOR, NOW);
+
+        const refusal = await inBerlin.service.refusalToReinstate('sub-t2', 'sb-t2', NOW);
+
+        assert.equal(refusal?.params.bookableFrom, '2026-11-03');
+        assert.deepEqual(refusal?.dayParams, ['bookableFrom']);
+    });
+
     /**
      * t1 on Pro unless `t1` says otherwise, reached, its booking as `t1Booking`
      * says; t2 on Standard unless `t2` says otherwise, cancelled to end on 1
@@ -1094,20 +1113,23 @@ describe('reinstating a booking of a version being retired', () => {
         t1 = { plan: 'PRO' },
         t2 = {},
         t1Booking = {},
+        t2BookingEnds = new Date('2026-11-01T00:00:00.000Z'),
         replacement,
         now = NOW,
+        timeZone,
     }) {
         const bookings = [
             bookingOf('t1', t1Booking),
             bookingOf('t2', {
                 canceledAt: new Date('2026-10-01T00:00:00.000Z'),
-                canceledEffectiveAt: new Date('2026-11-01T00:00:00.000Z'),
+                canceledEffectiveAt: t2BookingEnds,
             }),
         ];
         const { service } = retiring({
             subscriptions: [subscriptionOf('t1', t1), subscriptionOf('t2', t2)],
             bookings,
             versions: [RETIRED, replacement],
+            timeZone,
         });
         await service.announce(RETIRED.id, REPLACEMENT.id, ['sb-t1'], ACTOR, NOW);
         return service.refusalToReinstate('sub-t2', 'sb-t2', now);
@@ -1178,6 +1200,24 @@ describe('reinstating a booking of a version being retired', () => {
             replacementVersion: 2,
         });
         assert.equal(aDayLater?.code, 'BUNDLE_RETIREMENT_REINSTATE_REFUSED');
+    });
+
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('asks what can be booked instead on the day it would name, in the installation’s zone', async () => {
+        // The booking ends at 23:30 UTC on 1 November, already 2 November in
+        // Berlin, so the first whole day without it there is 3 November — and
+        // the subscription ends at noon UTC on 2 November, before that day.
+        const refusal = await refusalForT2({
+            replacement: REPLACEMENT,
+            timeZone: 'Europe/Berlin',
+            t2BookingEnds: new Date('2026-11-01T23:30:00.000Z'),
+            t2: {
+                canceledAt: new Date('2026-10-01T00:00:00.000Z'),
+                canceledEffectiveAt: new Date('2026-11-02T12:00:00.000Z'),
+            },
+        });
+
+        assert.equal(refusal?.code, 'BUNDLE_RETIREMENT_REINSTATE_SUBSCRIPTION_ENDS');
     });
 
     test('asks the plans the subscription is set to move to after that day', async () => {

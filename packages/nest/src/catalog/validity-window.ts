@@ -1,6 +1,6 @@
 import { UnprocessableEntityException } from '@nestjs/common';
 
-import { CATALOG_ERROR_CODES, startOfUtcDay } from '@saasicat/core';
+import { CATALOG_ERROR_CODES, pickedDayOf, startOfUtcDay } from '@saasicat/core';
 
 // When is a version of a catalog entity valid, and what makes a succession
 // sound?
@@ -121,11 +121,11 @@ export function resolveValidityWindow(
                 throw new UnprocessableEntityException({
                     code: codes.validFromNotGapless,
                     message:
-                        `The predecessor has validUntil=${previous.validUntil.slice(0, 10)} — the successor must ` +
-                        `start seamlessly on the next day (${requiredStart.toISOString().slice(0, 10)}). ` +
-                        `Received: ${validFrom.toISOString().slice(0, 10)}.`,
-                    params: { received: validFrom.toISOString().slice(0, 10) },
-                    requiredValidFrom: requiredStart.toISOString().slice(0, 10),
+                        `The predecessor has validUntil=${pickedDayOf(new Date(previous.validUntil))} — the successor must ` +
+                        `start seamlessly on the next day (${pickedDayOf(requiredStart)}). ` +
+                        `Received: ${pickedDayOf(validFrom)}.`,
+                    params: { received: pickedDayOf(validFrom) },
+                    requiredValidFrom: pickedDayOf(requiredStart),
                     previousValidUntil: previous.validUntil,
                 });
             }

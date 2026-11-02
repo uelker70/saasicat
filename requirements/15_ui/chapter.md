@@ -1937,7 +1937,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
 
-🟡 _(Decided, not yet delivered.)_ A moment a tenant's page shows as a day — when a booking started,
+🟢 A moment a tenant's page shows as a day — when a booking started,
 the last day of a minimum term, when a change takes effect — is the day it falls on in the
 installation's zone (`config/saas.yaml#timeZone`, UTC where the file names none), as the
 administration's days are (`SC-ADM-048`). Every answer that carries such a moment also carries its
@@ -1965,6 +1965,18 @@ _Tested by:_
     - the installation’s zone
         - is the one the settings name
         - is UTC for ${what}
+- `packages/core/tests/a-refusal-names-its-days.test.js`
+    - the days a refusal names
+        - are written by the page, each one it names
+        - and nothing it does not name, though it looks like a day
+        - leave a named value that is not text as it is
+        - are none where the refusal says ${what}
+        - leave the refusal they were read from as it was
+- `packages/nest/tests/a-booking-fits-every-plan-ahead.test.js`
+    - the day a refusal about a plan ahead names
+        - is the day the plan ahead takes effect in the installation’s zone, named as a day
+        - and the same in the preview of the booking
+        - in UTC where the settings name none
 - `packages/nest/tests/a-newer-add-on-version-is-offered.test.js`
     - an offer beside a booking
         - names the days around when it takes effect, in the installation’s zone
@@ -1974,11 +1986,21 @@ _Tested by:_
 - `packages/nest/tests/a-newer-version-is-offered.test.js`
     - an offer
         - names the days around when it takes effect, in the installation’s zone
+- `packages/nest/tests/a-plan-change-cannot-strand-a-bundle.test.js`
+    - the days a plan change blocked by an add-on names
+        - are the last day the add-on runs and the first without it, in the installation’s zone
+        - in UTC where the settings name none
+        - the day a booking continues on another version is read in that zone too
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - the free switch before the date
+        - names the add-on’s last day and the first without it in the installation’s zone
 - `packages/nest/tests/a-subscriber-ends-at-once.test.js`
     - the days a tenant is shown of a withdrawal
         - are read in the zone the settings name, from when it is missing and from when it returns
         - in UTC where the settings name none
         - name the days of when a scheduled change brings a line, in that zone
+        - a refusal for a cancellation on record names the day it lands and the last day it runs
+        - and says it runs until that day, where the cancellation lands in the middle of one
         - of an end at once are the days around the moment it ends, previewed and done
 - `packages/nest/tests/a-tenant-is-handed-the-days-of-its-add-ons.test.js`
     - the days of an add-on booking
@@ -2011,9 +2033,27 @@ _Tested by:_
 - `packages/nest/tests/a-version-offer-is-taken.test.js`
     - the switch goes ahead only while the version shown is still the offer
         - the offer it carries names the days of when it takes effect
+- `packages/nest/tests/an-add-on-booking-switches-before-its-date.test.js`
+    - a plan that changes before the date
+        - names the date as the installation’s day, and says it is a day
+- `packages/nest/tests/an-add-on-is-on-sale-by-its-dates.test.js`
+    - a tenant booking an add-on
+        - says the day it goes on sale is a day, for the page to write as it writes days
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - reinstating a booking of a version being retired
+        - names the first whole day without the booking in the installation’s zone, as a day
+        - asks what can be booked instead on the day it would name, in the installation’s zone
 - `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - the preview of a withdrawal
+        - names the day an earlier withdrawal is lifted from as the installation’s day
+    - lifting a withdrawal
+        - names the day it was lifted from as the installation’s day, and says it is a day
     - the public feature registry
         - names the days of each mark in the zone the settings name
+- `packages/nest/tests/no-plan-on-sale-names-the-installations-day.test.js`
+    - a plan with no version on sale
+        - is refused naming the installation’s day, as a day
+        - in UTC where the settings name none
 - `packages/ui-vue-tenant/tests/component/a-day-is-written-as-that-day-in-every-zone.test.ts`
     - a day handed to the application’s formatter
         - is that day for a viewer in ${zone}
@@ -2041,6 +2081,14 @@ _Tested by:_
         - a switch that costs no more applies its price from the day the next period starts
     - the package the subscription was concluded from
         - was captured on the day the server names
+- `packages/ui-vue-tenant/tests/component/a-refusal-day-is-the-one-the-server-names.test.ts`
+    - a refusal that names a day
+        - writes it as the application writes days
+        - names the last day it runs and the first day without it, in English as well
+        - writes only the values it names as days
+        - from a server that names none, leaves the values as they came
+        - a blocker of a preview writes its days the same way
+        - ending at once, refused for a cancellation on record, names the last day it runs
 - `packages/ui-vue-tenant/tests/component/a-withdrawal-day-is-the-one-the-server-names.test.ts`
     - a withdrawal told beside the plan
         - has been missing since the first day it took the feature away
@@ -2072,6 +2120,12 @@ _Tested by:_
 - `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
     - a withdrawn feature beside an add-on
         - is marked with the first day the server names, written as the configurator writes days
+- `tests/the-server-names-each-day-by-its-kind.test.js`
+    - the server
+        - names every day by its kind rather than cutting it out of a timestamp
+    - the rule, on sources written to break it
+        - refuses each way of cutting a day out of text
+        - leaves the named days, other slices and the prose about them alone
 - `tests/the-tenant-package-writes-the-days-the-server-names.test.js`
     - the tenant package
         - hands the application’s formatter only the days the server named

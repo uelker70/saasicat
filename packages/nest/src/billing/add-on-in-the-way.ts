@@ -1,4 +1,9 @@
-import type { SubscriptionBundleRecord, SubscriptionUsageRecord } from '@saasicat/core';
+import {
+    dayInZone,
+    daysAround,
+    type SubscriptionBundleRecord,
+    type SubscriptionUsageRecord,
+} from '@saasicat/core';
 
 import type { ContinuesOn, HeldAddOnMisfit } from './add-on-fits-plan.js';
 import { resolveBundleCancelEffectiveAt } from './subscription-bundles.service.js';
@@ -11,7 +16,10 @@ type Parent = Pick<
 
 /**
  * How a refusal names a booking that stands in the way of a move, read at
- * `now`: the add-on's name, and the earliest day the booking can end. Where
+ * `now`: the add-on's name, and the days around the earliest moment the
+ * booking can end, in `timeZone` — `lastDay`, the last day it runs, and
+ * `until`, the first day it no longer does, the day a refusal has always
+ * named under that name. Where
  * the version booked cannot be read, its id stands in for the name. A booking
  * told that its version is being retired may be cancelled without its minimum
  * term until the retirement's date (`SC-BUN-045`), so the term does not count
@@ -27,9 +35,10 @@ export function addOnInTheWay(
     held: HeldAddOnMisfit,
     sub: Parent,
     now: Date,
-): { bundleName: string; until: string; continuesOn: ContinuesOn | null } {
+    timeZone: string,
+): { bundleName: string; until: string; lastDay: string; continuesOn: ContinuesOn | null } {
     const termLapses = Boolean(held.retirement && new Date(held.retirement.effectiveAt) > now);
-    const until = earliestEndOf(
+    const endsAt = earliestEndOf(
         termLapses ? { ...held.booking, minimumTermEndsAt: null } : held.booking,
         {
             now,
@@ -41,11 +50,16 @@ export function addOnInTheWay(
         held.ahead && new Date(held.ahead.effectiveAt) > now && held.booking.canceledAt === null;
     const continuesOn =
         cancellingHelps && held.ahead && held.version
-            ? { version: held.version.version, from: held.ahead.effectiveAt.slice(0, 10) }
+            ? {
+                  version: held.version.version,
+                  from: dayInZone(new Date(held.ahead.effectiveAt), timeZone),
+              }
             : null;
+    const ends = daysAround(endsAt, timeZone);
     return {
         bundleName: held.version?.label ?? held.booking.bundleVersionId,
-        until: until.toISOString().slice(0, 10),
+        until: ends.from,
+        lastDay: ends.until,
         continuesOn,
     };
 }

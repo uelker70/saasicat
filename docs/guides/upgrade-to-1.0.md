@@ -2778,7 +2778,7 @@ what it begins — and the pages write those. This covers the add-on bookings (e
 and of an add-on together with what taking one answers, the plan itself: `billing/usage`, a plan
 change's preview and what scheduling one answers, and a cancellation declared — and the withdrawn
 features: the marks in `billing/feature-registry`, the withdrawals in `billing/feature-withdrawals`
-and ending at once.
+and ending at once. A refusal that names a day names it in the installation's zone as well.
 
 - **What a page shows changes** where a moment falls near midnight, and where an end is shown: an
   add-on's minimum term, a trial, a cancellation and a preview's first period name the last day they
@@ -2814,6 +2814,18 @@ and ending at once.
   like every other tenant formatter (below). A test of your own that builds a mark for
   `WithdrawnFeatureMark` gives it `effectiveFromDays` and `liftedFromDays`; without them the mark
   writes a dash, as it does for a server that names no days yet.
+- **A refusal says which of its values are days** (`dayParams` beside `params`, on a refusal and on
+  each blocker of a plan change or add-on preview), and the tenant pages write exactly those with
+  your `formatDate`. An application that words refusals itself writes the named values the same way
+  — `writeDayParams` from `@saasicat/core` does it — rather than guessing from a value's shape.
+  `refusalMessage` and `issueSentence` from `@saasicat/ui-vue-tenant/refusal-of.js` take your
+  `formatDate` as their third argument.
+- **Where a refusal's sentence means two days, it names both.** `{until}` in
+  `BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE`, `BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN` and
+  `RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW` stays the first day without the add-on, and `{date}` in
+  `FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED` the day the cancellation lands; `{lastDay}`, the last day
+  it still runs, is added, and the shipped sentences name the day they mean. An override keeps reading
+  the day it read before; add `{lastDay}` where it says how long something still runs.
 - **A retirement's last day to cancel without notice is the installation's day** (`SC-SUB-046`,
   `SC-BUN-066`): the last whole day before the date in the installation's zone, not in UTC. East of
   UTC, a term ending at local midnight now names one day later — the day a subscriber there reads as

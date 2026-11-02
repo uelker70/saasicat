@@ -1,5 +1,7 @@
-import { resolveErrorMessage, type ResolvableErrorBody } from '@saasicat/core';
+import { resolveErrorMessage, writeDayParams, type ResolvableErrorBody } from '@saasicat/core';
 import type { PlanChangePreviewIssueShape } from '@saasicat/ui-vue';
+
+import { writeDay } from './day-as-instant.js';
 
 /**
  * The coded body a refused request carried, where it carried one — with the
@@ -14,14 +16,24 @@ export function refusalOf(err: unknown): (ResolvableErrorBody & Record<string, u
 }
 
 /**
- * A refusal in the reader's language, from its code. The thrown text where the
+ * A refusal in the reader's language, from its code, each day it names written
+ * by the application's `formatDate` (`SC-UI-028`). The thrown text where the
  * body says nothing that can be read — a validation pipe answers with a list
  * of messages and no code, and a sentence that resolves to nothing would leave
  * the reader with a refused click and no reason.
  */
-export function refusalMessage(err: unknown, messages: Partial<Record<string, string>>): string {
+export function refusalMessage(
+    err: unknown,
+    messages: Partial<Record<string, string>>,
+    formatDate: (iso: string) => string,
+): string {
     const body = refusalOf(err);
-    const resolved = body ? resolveErrorMessage(body, messages) : '';
+    const resolved = body
+        ? resolveErrorMessage(
+              { ...body, params: daysWritten(body.params, body.dayParams, formatDate) },
+              messages,
+          )
+        : '';
     if (resolved) return resolved;
     return err instanceof Error ? err.message : String(err);
 }
@@ -47,20 +59,41 @@ export function refusalBlockersOf(err: unknown): PlanChangePreviewIssueShape[] {
                 if (typeof value === 'string' || typeof value === 'number') params[name] = value;
             }
         }
-        return [{ code, message, params }];
+        const named = 'dayParams' in entry ? entry.dayParams : undefined;
+        const dayParams = Array.isArray(named)
+            ? named.filter((name): name is string => typeof name === 'string')
+            : [];
+        const reason: PlanChangePreviewIssueShape = { code, message, params };
+        if (dayParams.length > 0) reason.dayParams = dayParams;
+        return [reason];
     });
 }
 
 /**
  * One blocker or warning in the reader's language, from its code and values,
- * the platform's English where the catalogue does not know it.
+ * the platform's English where the catalogue does not know it, each day it
+ * names written by the application's `formatDate`.
  */
 export function issueSentence(
     issue: PlanChangePreviewIssueShape,
     messages: Partial<Record<string, string>>,
+    formatDate: (iso: string) => string,
 ): string {
     return resolveErrorMessage(
-        { code: issue.code, message: issue.message, params: issue.params },
+        {
+            code: issue.code,
+            message: issue.message,
+            params: daysWritten(issue.params, issue.dayParams, formatDate),
+        },
         messages,
     );
+}
+
+/** `params` with each value `dayParams` names written as the application writes a day. */
+function daysWritten<Value>(
+    params: Readonly<Record<string, Value>> | undefined,
+    dayParams: unknown,
+    formatDate: (iso: string) => string,
+): Record<string, Value | string> | undefined {
+    return params && writeDayParams(params, dayParams, (day) => writeDay(formatDate, day));
 }

@@ -26,6 +26,22 @@ describe('the reasons a refusal lists', () => {
         ]);
     });
 
+    test('and which of their values are days, where they name any', () => {
+        const [reason] = refusalBlockersOf(
+            refused({
+                blockers: [
+                    {
+                        code: 'A',
+                        message: 'First.',
+                        params: { until: '2026-12-01', lastDay: '2026-11-30' },
+                        dayParams: ['until', 'lastDay', 7],
+                    },
+                ],
+            }),
+        );
+        expect(reason?.dayParams).toEqual(['until', 'lastDay']);
+    });
+
     test('keep only the values a sentence can name', () => {
         const [reason] = refusalBlockersOf(
             refused({

@@ -10,6 +10,7 @@ import type {
     BillingCycle,
     BundleRepository,
     PlanCatalog,
+    PlanCatalogSettings,
     PlanDef,
     PlanRepository,
     SubscriptionBundleRepository,
@@ -18,12 +19,12 @@ import type {
     SubscriptionUsageRecord,
     UsageSnapshotPort,
 } from '@saasicat/core';
-import { BILLING_ERROR_CODES } from '@saasicat/core';
+import { BILLING_ERROR_CODES, installationZoneOf } from '@saasicat/core';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { BUNDLE_REPOSITORY_TOKEN, PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
-import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN, PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import {
     planDefOfVersion,
@@ -126,6 +127,8 @@ export interface PlanChangePreviewIssue {
      * `preview-issues-are-translatable.test.js` holds that.
      */
     params?: Record<string, string | number>;
+    /** The names in `params` whose values are days (`writeDayParams`). */
+    dayParams?: readonly string[];
 }
 
 export interface PlanChangePreviewDto {
@@ -275,6 +278,11 @@ export class PlanChangePreviewService {
         @Optional()
         @Inject(ADD_ONS_AHEAD_TOKEN)
         private readonly addOnsAhead: AddOnsAhead | null = null,
+        // The zone the days a blocker names are read in; UTC where the file
+        // names none, or where a test builds the service without it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
     ) {}
 
     async preview(
@@ -682,6 +690,7 @@ export class PlanChangePreviewService {
             misfit: AddOnMisfit;
             bundleName: string;
             until: string;
+            lastDay: string;
             continuesOn: ContinuesOn | null;
         }>
     > {
@@ -695,7 +704,8 @@ export class PlanChangePreviewService {
             landsAt,
             (await this.addOnsAhead?.of(subscriptionId)) ?? [],
         );
-        return held.map((one) => ({ misfit: one.misfit, ...addOnInTheWay(one, sub, now) }));
+        const zone = installationZoneOf(this.settings);
+        return held.map((one) => ({ misfit: one.misfit, ...addOnInTheWay(one, sub, now, zone) }));
     }
 
     /**

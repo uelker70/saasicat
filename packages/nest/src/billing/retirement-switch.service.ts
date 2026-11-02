@@ -29,9 +29,11 @@ import {
 } from '@nestjs/common';
 import {
     BILLING_ERROR_CODES,
+    installationZoneOf,
     retirementSwitchTerms,
     type BillingCycle,
     type BundleRepository,
+    type PlanCatalogSettings,
     type RetirementSwitchResult,
     type RetirementSwitchTerms,
     type SelfServiceBlockedPlans,
@@ -50,6 +52,7 @@ import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import { intendedContractOf } from './freeze-contract-after.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import {
     continuationBlocksTheSwitch,
     heldAddOnMisfits,
@@ -110,6 +113,11 @@ export class RetirementSwitchService {
         @Optional()
         @Inject(ADD_ONS_AHEAD_TOKEN)
         private readonly addOnsAhead: AddOnsAhead | null = null,
+        // The zone the days a refusal names are read in; UTC where the file
+        // names none, or where a test builds the service without it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
     ) {}
 
     /** The switch the subscription could take now, or null where it can take none. */
@@ -256,7 +264,7 @@ export class RetirementSwitchService {
             (await this.addOnsAhead?.of(sub.id)) ?? [],
         );
         if (!first) return null;
-        const inTheWay = addOnInTheWay(first, sub, now);
+        const inTheWay = addOnInTheWay(first, sub, now, installationZoneOf(this.settings));
         const { continuesOn } = inTheWay;
         return continuesOn
             ? continuationBlocksTheSwitch(

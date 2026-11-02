@@ -347,6 +347,20 @@ describe('the preview of a withdrawal', () => {
         ).blockers[0];
         assert.deepEqual(overlap.params, { featureKey: 'EXPORT', date: '2026-08-01' });
     });
+
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('names the day an earlier withdrawal is lifted from as the installation’s day', async () => {
+        const { service } = withdrawing({
+            withdrawals: withdrawalStore([withdrawalRecord({ liftedFrom: ms(DATE, 1) })]),
+            // A millisecond past midnight UTC on 1 July is still 30 June in New York.
+            settings: { timeZone: 'America/New_York' },
+        });
+        const preview = await service.preview('EXPORT', DATE, NOW);
+        const [blocker] = preview.blockers;
+        assert.equal(blocker.code, 'FEATURE_WITHDRAWAL_OVERLAPS');
+        assert.equal(blocker.params.date, '2026-06-30');
+        assert.deepEqual(blocker.dayParams, ['date']);
+    });
 });
 
 // @requirement SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
@@ -1170,6 +1184,18 @@ describe('lifting a withdrawal', () => {
             [again.code, again.params],
             ['FEATURE_WITHDRAWAL_ALREADY_LIFTED', { date: '2026-07-01' }],
         );
+    });
+
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('names the day it was lifted from as the installation’s day, and says it is a day', async () => {
+        // Midnight UTC on 1 July is still 30 June in New York.
+        const harness = await announced({ settings: { timeZone: 'America/New_York' } });
+        await harness.service.lift(harness.withdrawal.id, DATE, ACTOR, NOW);
+        const again = await refusalOf(
+            harness.service.lift(harness.withdrawal.id, null, ACTOR, NOW),
+        );
+        assert.deepEqual(again.params, { date: '2026-06-30' });
+        assert.deepEqual(again.dayParams, ['date']);
     });
 
     test('lifted meanwhile by another operator, keeps what they recorded', async () => {

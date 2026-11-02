@@ -256,12 +256,12 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'This withdrawal does not reach your subscription, or no longer this booking.',
     FEATURE_WITHDRAWAL_ALREADY_ENDED: 'This has ended already.',
     FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED:
-        'Your cancellation for {date} is recorded, and it cannot be brought forward here. It ends on that date, and until then the reduction applies.',
+        'Your cancellation is recorded and cannot be brought forward here: it runs until {lastDay}, and until then the reduction applies.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'No retirement of your version is waiting for its date, so there is nothing to switch to.',
     RETIREMENT_SWITCH_IN_TRIAL: 'The switch opens when your trial ends.',
     RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW:
-        '{bundleName} cannot run on {planName} and runs until {until} at the earliest. Once it is cancelled, the switch can be made from that day.',
+        '{bundleName} cannot run on {planName} and runs until {lastDay} at the earliest. Once it is cancelled, the switch can be made from {until}.',
     RETIREMENT_SWITCH_BUNDLE_REPLACEMENT_CANNOT_FOLLOW:
         '{bundleName} continues on version {version} from {from}, which cannot run on {planName}. Once it is cancelled, the switch can be made.',
     RETIREMENT_SWITCH_NOT_OPEN:
@@ -283,9 +283,9 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     CYCLE_SHORTENS_AT_TERM_END:
         'A monthly {planName} cannot start inside the yearly term you are in. The upgrade takes effect when that term ends; to have it today, keep the yearly cycle.',
     BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE:
-        '{bundleName} is billed yearly and runs until {until} at the earliest, which a monthly plan cannot carry. Once it is cancelled, a change that takes effect on or after that day goes through — or keep the yearly cycle.',
+        '{bundleName} is billed yearly and runs until {lastDay} at the earliest, which a monthly plan cannot carry. Once it is cancelled, a change that takes effect on or after {until} goes through — or keep the yearly cycle.',
     BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN:
-        '{bundleName} cannot run on {planName} and runs until {until} at the earliest. Once it is cancelled, a change that takes effect on or after that day goes through — or choose another plan.',
+        '{bundleName} cannot run on {planName} and runs until {lastDay} at the earliest. Once it is cancelled, a change that takes effect on or after {until} goes through — or choose another plan.',
     BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN:
         '{bundleName} continues on version {version} from {from}, which cannot run on {planName}. Cancel it, and the change goes through — or choose another plan.',
     REDUNDANT_FEATURES:

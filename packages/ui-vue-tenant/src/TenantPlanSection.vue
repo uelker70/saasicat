@@ -30,7 +30,7 @@
                 <p>{{ offerError }}</p>
                 <ul v-if="offerBlockers.length > 0">
                     <li v-for="(b, i) in offerBlockers" :key="`${b.code}:${i}`">
-                        {{ issueSentence(b, effectiveI18n.issueMessages) }}
+                        {{ issueSentence(b, effectiveI18n.issueMessages, formatDate) }}
                     </li>
                 </ul>
             </div>
@@ -473,7 +473,7 @@ async function confirmCancelSubscription(): Promise<void> {
         await billing.cancelSubscription(cancellationPlan.value?.effectiveAt);
         showCancelConfirm.value = false;
     } catch (err) {
-        cancelError.value = err instanceof Error ? err.message : String(err);
+        cancelError.value = refusalText(err);
         await billing.reload();
     } finally {
         canceling.value = false;
@@ -855,7 +855,7 @@ async function openBundlePreview(load: () => Promise<BundlePreviewShape>) {
     try {
         bundlePreview.value = await load();
     } catch (err) {
-        bundlePreviewError.value = err instanceof Error ? err.message : String(err);
+        bundlePreviewError.value = refusalText(err);
     } finally {
         bundlePreviewLoading.value = false;
     }
@@ -882,7 +882,7 @@ async function onConfirmBundlePreview() {
         // (re-freeze server-side), not just the bundle list.
         await billing.reload();
     } catch (err) {
-        bundlePreviewError.value = err instanceof Error ? err.message : String(err);
+        bundlePreviewError.value = refusalText(err);
     } finally {
         bundlePreviewSubmitting.value = false;
         buyingBundleId.value = null;
@@ -917,7 +917,7 @@ const versionSwitchNote = ref<string | null>(null);
 
 /** A refusal in the reader's language, from its code; the thrown text only where there is none. */
 function refusalText(err: unknown): string {
-    return refusalMessage(err, effectiveI18n.value.issueMessages);
+    return refusalMessage(err, effectiveI18n.value.issueMessages, props.formatDate);
 }
 
 /**

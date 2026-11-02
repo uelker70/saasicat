@@ -115,6 +115,18 @@ describe('a tenant booking an add-on', () => {
         assert.equal(added.length, 0);
     });
 
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('says the day it goes on sale is a day, for the page to write as it writes days', async () => {
+        const { book } = bookingOf(SUCCESSOR);
+        await assert.rejects(
+            () => book(MAY),
+            (error) => {
+                assert.deepEqual(error.getResponse().dayParams, ['validFrom']);
+                return true;
+            },
+        );
+    });
+
     test('takes the successor from its first day', async () => {
         const { book, added } = bookingOf(SUCCESSOR);
         await book(JUNE);

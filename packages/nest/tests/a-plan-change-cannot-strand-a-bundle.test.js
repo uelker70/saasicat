@@ -99,7 +99,7 @@ const REPORTS = {
 function preview(
     targetCycle,
     bookings,
-    { versions = REPORTS, addOnsAhead = null, subscription = {} } = {},
+    { versions = REPORTS, addOnsAhead = null, subscription = {}, settings = null } = {},
 ) {
     const service = new PlanChangePreviewService(
         givenPlanCatalogSource(CATALOG),
@@ -118,6 +118,7 @@ function preview(
         null,
         versions,
         addOnsAhead,
+        settings,
     );
     return service.preview('t1', 'PRO', targetCycle, NOW);
 }
@@ -163,12 +164,13 @@ describe('moving to a shorter cycle with a longer add-on booked', () => {
 
         assert.equal(
             resolveErrorMessage(blocker, {}, ERROR_MESSAGES_EN),
-            'Reports is billed yearly and runs until 2027-01-01 at the earliest, which a monthly plan cannot carry. Once it is cancelled, a change that takes effect on or after that day goes through — or keep the yearly cycle.',
+            'Reports is billed yearly and runs until 2026-12-31 at the earliest, which a monthly plan cannot carry. Once it is cancelled, a change that takes effect on or after 2027-01-01 goes through — or keep the yearly cycle.',
         );
         assert.equal(
             resolveErrorMessage(blocker, {}, ERROR_MESSAGES_DE),
-            'Reports wird jährlich abgerechnet und läuft frühestens bis 2027-01-01; ein monatlich abgerechnetes Paket kann es nicht tragen. Ist es gekündigt, geht ein Wechsel durch, der an diesem Tag oder später wirksam wird — oder behalten Sie den jährlichen Rhythmus.',
+            'Reports wird jährlich abgerechnet und läuft frühestens bis 2026-12-31; ein monatlich abgerechnetes Paket kann es nicht tragen. Ist es gekündigt, geht ein Wechsel durch, der am 2027-01-01 oder später wirksam wird — oder behalten Sie den jährlichen Rhythmus.',
         );
+        assert.deepEqual(blocker.dayParams, ['until', 'lastDay'], 'and says which values are days');
     });
 
     // The cycle words are part of each locale's sentence rather than values
@@ -582,5 +584,69 @@ describe('a plan change, and an add-on told it continues on another version', ()
         });
 
         assert.deepEqual(fitBlockers(dto), []);
+    });
+});
+
+// @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+describe('the days a plan change blocked by an add-on names', () => {
+    const BERLIN = { timeZone: 'Europe/Berlin' };
+    /** Midnight before 1 January in Berlin: still 31 December in UTC. */
+    const ENDS_AT_MIDNIGHT_IN_BERLIN = {
+        ...YEARLY_BOOKING,
+        currentPeriodEnd: new Date('2026-12-31T23:00:00.000Z'),
+    };
+    const outlasting = (dto) =>
+        dto.blockers.find((b) => b.code === 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE');
+
+    test('are the last day the add-on runs and the first without it, in the installation’s zone', async () => {
+        const blocker = outlasting(
+            await preview('MONTHLY', [ENDS_AT_MIDNIGHT_IN_BERLIN], { settings: BERLIN }),
+        );
+        assert.equal(blocker.params.lastDay, '2026-12-31');
+        assert.equal(blocker.params.until, '2027-01-01');
+        assert.deepEqual(blocker.dayParams, ['until', 'lastDay']);
+    });
+
+    test('in UTC where the settings name none', async () => {
+        const blocker = outlasting(await preview('MONTHLY', [ENDS_AT_MIDNIGHT_IN_BERLIN]));
+        assert.equal(blocker.params.lastDay, '2026-12-31');
+        assert.equal(blocker.params.until, '2026-12-31');
+    });
+
+    test('the day a booking continues on another version is read in that zone too', async () => {
+        const versions = {
+            async findVersionById(id) {
+                const v2 = id === 'bv-reports-2';
+                return {
+                    id,
+                    label: 'Reports',
+                    version: v2 ? 2 : 1,
+                    compatibility: { planIds: v2 ? ['ENTERPRISE'] : [] },
+                    pricingOverrides: [],
+                    monthlyNet: '5.00',
+                    yearlyNet: '50.00',
+                };
+            },
+        };
+        const dto = await preview('MONTHLY', [{ ...YEARLY_BOOKING, billingCycle: 'MONTHLY' }], {
+            versions,
+            settings: BERLIN,
+            addOnsAhead: {
+                of: async () => [
+                    {
+                        subscriptionBundleId: 'sb-1',
+                        retiredBundleVersionId: 'bv-reports',
+                        replacementBundleVersionId: 'bv-reports-2',
+                        // Midnight before 1 October in Berlin: still 30 September in UTC.
+                        effectiveAt: '2026-09-30T22:00:00.000Z',
+                    },
+                ],
+            },
+        });
+        const blocker = dto.blockers.find(
+            (b) => b.code === 'BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN',
+        );
+        assert.equal(blocker.params.from, '2026-10-01');
+        assert.deepEqual(blocker.dayParams, ['from']);
     });
 });
