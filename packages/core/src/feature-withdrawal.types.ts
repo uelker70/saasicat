@@ -10,8 +10,10 @@
 // ending at once. Whoever concludes while it is withdrawn is shown it first and
 // concludes at the price offered.
 
+import { withDays } from './days-beside-moments.js';
 import type { FeatureWithdrawalMark } from './feature-ui-registry.types.js';
 import type { BillingCycle } from './promo-code.types.js';
+import type { DaysAround } from './zoned-day.js';
 
 /** What a reduction is named for: a plan, or an add-on, by its key. */
 export type FeatureWithdrawalLineKind = 'plan' | 'bundle';
@@ -328,9 +330,15 @@ export interface TenantFeatureWithdrawalLine extends FeatureWithdrawalNoticeLine
      * applies. Null otherwise.
      */
     readonly fromChange: string | null;
+    /** The days around `fromChange`; null where no change brings the line. */
+    readonly fromChangeDays: DaysAround | null;
 }
 
-/** A withdrawal reaching the tenant's subscription, beside its plan and its add-ons. */
+/**
+ * A withdrawal reaching the tenant's subscription, beside its plan and its
+ * add-ons: its moments, and the days a page writes them as, read in the
+ * installation's zone (`SC-UI-028`).
+ */
 export interface TenantFeatureWithdrawal {
     readonly withdrawalId: string;
     readonly featureKey: string;
@@ -338,8 +346,11 @@ export interface TenantFeatureWithdrawal {
     readonly reason: string;
     /** ISO 8601. */
     readonly effectiveFrom: string;
+    readonly effectiveFromDays: DaysAround;
     /** ISO 8601, once the operator has lifted it. */
     readonly liftedFrom: string | null;
+    /** Null where it is not lifted. */
+    readonly liftedFromDays: DaysAround | null;
     /** Whether it takes the feature away now. */
     readonly inEffect: boolean;
     readonly lines: readonly TenantFeatureWithdrawalLine[];
@@ -348,6 +359,33 @@ export interface TenantFeatureWithdrawal {
     readonly endable: {
         readonly subscription: boolean;
         readonly subscriptionBundleIds: readonly string[];
+    };
+}
+
+/** The moments of a withdrawal a page shows as days: from when, and from when it is lifted. */
+export const FEATURE_WITHDRAWAL_MOMENTS = ['effectiveFrom', 'liftedFrom'] as const;
+
+/** A withdrawal reaching the tenant's subscription, as read before the days of its moments are named. */
+export type TenantFeatureWithdrawalAsRead = Omit<
+    TenantFeatureWithdrawal,
+    'effectiveFromDays' | 'liftedFromDays' | 'lines'
+> & {
+    readonly lines: readonly Omit<TenantFeatureWithdrawalLine, 'fromChangeDays'>[];
+};
+
+/**
+ * `withdrawal` with the days of its moments and of each line's, read in
+ * `timeZone`. One function, because the server applies it and whatever stands
+ * for the server's answer — a test's fixture — has to name the same days by
+ * the same rule.
+ */
+export function withWithdrawalDays(
+    withdrawal: TenantFeatureWithdrawalAsRead,
+    timeZone: string,
+): TenantFeatureWithdrawal {
+    return {
+        ...withDays(withdrawal, FEATURE_WITHDRAWAL_MOMENTS, timeZone),
+        lines: withdrawal.lines.map((line) => withDays(line, ['fromChange'], timeZone)),
     };
 }
 
@@ -379,8 +417,13 @@ export function withdrawnFeaturesOf(
 /**
  * A feature withdrawn now or from a date ahead, as a catalogue marks it beside
  * every plan and add-on that grants it, so whoever concludes is shown it first.
+ * The days of its moments are named where the mark is handed out, in the
+ * installation's zone.
  */
-export interface WithdrawnFeature extends FeatureWithdrawalMark {
+export interface WithdrawnFeature extends Omit<
+    FeatureWithdrawalMark,
+    'effectiveFromDays' | 'liftedFromDays'
+> {
     readonly featureKey: string;
 }
 
@@ -388,6 +431,8 @@ export interface WithdrawnFeature extends FeatureWithdrawalMark {
 export interface EndAtOncePreview {
     /** ISO 8601: the moment it ends. */
     readonly endsAt: string;
+    /** The days around `endsAt`, in the installation's zone. */
+    readonly endsDays: DaysAround;
     /** The unused rest of what was charged, net, as a positive amount; 0 where nothing was charged. */
     readonly creditNet: number;
     /** ISO 4217, where anything is credited. */

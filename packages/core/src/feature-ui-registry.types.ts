@@ -5,6 +5,8 @@
 // stays domain-agnostic — a car-dealership app supplies automotive terms
 // (icon: 'directions_car'), a club app supplies club terms (icon: 'groups').
 
+import type { DaysAround } from './zoned-day.js';
+
 export interface FeatureUiMeta {
     /** Visible label for plan comparison tables, add-on lists. */
     label: string;
@@ -27,13 +29,20 @@ export interface FeatureUiMeta {
     withdrawn?: readonly FeatureWithdrawalMark[];
 }
 
-/** One withdrawal of a feature, as a catalogue marks it beside the feature. */
+/**
+ * One withdrawal of a feature, as a catalogue marks it beside the feature: its
+ * moments, and the days a page writes them as, read in the installation's zone
+ * (`SC-UI-028`).
+ */
 export interface FeatureWithdrawalMark {
     readonly reason: string;
     /** ISO 8601. */
     readonly effectiveFrom: string;
+    readonly effectiveFromDays: DaysAround;
     /** ISO 8601, where it is lifted from a date ahead. */
     readonly liftedFrom: string | null;
+    /** Null where it is not lifted. */
+    readonly liftedFromDays: DaysAround | null;
 }
 
 /** Map FeatureKey → UI metadata. Consumer apps supply a complete table. */

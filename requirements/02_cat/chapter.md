@@ -560,6 +560,7 @@ _Tested by:_
         - marks both withdrawals of a feature withdrawn again from the day it returns, the earlier
           first
         - marks nothing once the withdrawal is lifted, or where none is kept
+        - names the days of each mark in the zone the settings name
         - fails rather than show a withdrawn feature as available
 - `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
     - a withdrawn feature, where the plan section names it

@@ -219,10 +219,13 @@ const emit = defineEmits<{
 }>();
 
 const { intlLocale } = useSuperAdminI18n();
-provideWithdrawnFeatures(
-    () => props.featureRegistry,
-    (iso) => new Date(iso).toLocaleDateString(intlLocale.value),
-);
+
+/**
+ * How this configurator writes a day: it is handed noon of a day the server
+ * named (`dayAsInstant`), which the viewer's zone reads as that day.
+ */
+const formatDate = (iso: string): string => new Date(iso).toLocaleDateString(intlLocale.value);
+provideWithdrawnFeatures(() => props.featureRegistry, formatDate);
 
 const subscriptionBundleOptions = computed(() => props.availableBundles ?? []);
 

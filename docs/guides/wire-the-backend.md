@@ -2067,8 +2067,10 @@ a plan or an add-on, a withdrawn one is marked with its reason and date rather t
 included or not (`SC-CAT-017`). `OnboardingConfigurator` and `MySubscriptionBundlesPage` mark it
 once you hand them the registry from `/billing/feature-registry` as `featureRegistry`; a marketing
 page of your own reads the same field there, `withdrawn` — a list, because a feature can be
-withdrawn again from the day it returns. Whoever concludes while a feature is withdrawn does so at
-the price offered, without a reduction and without the right to end at once.
+withdrawn again from the day it returns, each entry with `effectiveFromDays` and `liftedFromDays`,
+the days of its dates in the installation's zone (`SC-UI-028`). Whoever concludes while a feature
+is withdrawn does so at the price offered, without a reduction and without the right to end at
+once.
 
 ## Admin Module
 

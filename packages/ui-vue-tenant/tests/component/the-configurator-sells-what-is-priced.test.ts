@@ -2,7 +2,8 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 
 import OnboardingConfigurator from '../../src/OnboardingConfigurator.vue';
-import type { CatalogPlan } from '@saasicat/ui-vue';
+import { dayAsInstant } from '../../src/day-as-instant.js';
+import { createSuperAdminI18n, type CatalogPlan } from '@saasicat/ui-vue';
 import type {
     PromoPreviewRequest,
     PromoPreviewResponse,
@@ -322,5 +323,39 @@ describe('a promo code applied before the plan or rhythm changes', () => {
         await flushPromises();
 
         expect(discountRow(wrapper).exists()).toBe(false);
+    });
+});
+
+// @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+describe('a withdrawn feature beside an add-on', () => {
+    test('is marked with the first day the server names, written as the configurator writes days', () => {
+        const effectiveFrom = '2099-06-15T12:00:00.000Z';
+        const wrapper = mountConfigurator({
+            featureRegistry: {
+                SUPPORT: {
+                    label: 'Support',
+                    description: '',
+                    icon: '',
+                    withdrawn: [
+                        {
+                            reason: 'Law',
+                            effectiveFrom,
+                            effectiveFromDays: { until: '2099-12-30', from: '2099-12-31' },
+                            liftedFrom: null,
+                            liftedFromDays: null,
+                        },
+                    ],
+                },
+            },
+        });
+        // The configurator writes a day in the language the platform's catalogue is in.
+        const { intlLocale } = createSuperAdminI18n({ persist: false });
+        const written = (day: string) =>
+            new Date(dayAsInstant(day)).toLocaleDateString(intlLocale.value);
+
+        const mark = wrapper.find('.sp-withdrawn-mark').text();
+        expect(mark).toContain(written('2099-12-31'));
+        expect(mark).not.toContain(written('2099-12-30'));
+        expect(mark).not.toContain(new Date(effectiveFrom).toLocaleDateString(intlLocale.value));
     });
 });

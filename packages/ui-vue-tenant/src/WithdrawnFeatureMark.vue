@@ -18,6 +18,7 @@
 import type { FeatureWithdrawalMark } from '@saasicat/core';
 import { computed } from 'vue';
 
+import { writeDay } from './day-as-instant.js';
 import { messageText } from './message-parts.js';
 import { useTenantI18n } from './tenant-i18n.js';
 import { useWithdrawnFeatures } from './withdrawn-features.js';
@@ -29,17 +30,18 @@ const i18n = useTenantI18n();
 const features = useWithdrawnFeatures();
 
 const marks = computed(() => features.of(props.featureKey));
-const dateOf = (iso: string): string => features.formatDate(iso);
 
 function badgeOf(mark: FeatureWithdrawalMark): string {
     const ahead = new Date(mark.effectiveFrom).getTime() > Date.now();
     const from = messageText(
         ahead ? i18n.value.featureWithdrawnBadgeAhead : i18n.value.featureWithdrawnBadge,
-        { date: dateOf(mark.effectiveFrom) },
+        { date: writeDay(features.formatDate, mark.effectiveFromDays?.from) },
     );
-    return mark.liftedFrom
-        ? `${from}, ${messageText(i18n.value.featureWithdrawnBack, { date: dateOf(mark.liftedFrom) })}`
-        : from;
+    if (!mark.liftedFrom) return from;
+    const back = messageText(i18n.value.featureWithdrawnBack, {
+        date: writeDay(features.formatDate, mark.liftedFromDays?.from),
+    });
+    return `${from}, ${back}`;
 }
 
 function reasonOf(mark: FeatureWithdrawalMark): string {

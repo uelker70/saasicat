@@ -15,6 +15,10 @@ import { noticeRecord } from './helpers/version-notices.js';
 
 const NOW = new Date('2026-06-15T10:00:00.000Z');
 const later = (ms) => new Date(NOW.getTime() + ms);
+/** The days around `NOW` in UTC, the zone of an installation that names none. */
+const NOW_DAYS = { until: '2026-06-15', from: '2026-06-15' };
+/** The days around midnight before 1 July in UTC. */
+const JULY_DAYS = { until: '2026-06-30', from: '2026-07-01' };
 
 function withdrawal(fields = {}) {
     return {
@@ -93,6 +97,7 @@ async function ending({
     versionGrants = { 'bv-export-1': ['EXPORT'] },
     writes: writeFields = {},
     bookingStore: bookingFields = {},
+    settings = null,
 } = {}) {
     const subscription = usageRecord({
         id: 'sub-t1',
@@ -209,6 +214,7 @@ async function ending({
             },
             recordDueCharges: async (tenantId, at) => calls.push(['charge', at.toISOString()]),
         },
+        settings,
     );
     return { service, subscription, bookings, notices, calls };
 }
@@ -226,11 +232,13 @@ describe('what the tenant sees of a withdrawal', () => {
                 featureLabel: 'Data export',
                 reason: 'The export service has been switched off.',
                 effectiveFrom: '2026-06-01T00:00:00.000Z',
+                effectiveFromDays: { until: '2026-05-31', from: '2026-06-01' },
                 liftedFrom: null,
+                liftedFromDays: null,
                 inEffect: true,
                 lines: [
-                    { ...told().lines[0], reduced: true, fromChange: null },
-                    { ...told().lines[1], reduced: true, fromChange: null },
+                    { ...told().lines[0], reduced: true, fromChange: null, fromChangeDays: null },
+                    { ...told().lines[1], reduced: true, fromChange: null, fromChangeDays: null },
                 ],
                 specialTerms: false,
                 endable: { subscription: true, subscriptionBundleIds: ['sb-t1'] },
@@ -279,7 +287,12 @@ describe('what the tenant sees of a withdrawal', () => {
         });
         const [ahead] = await before.service.withdrawalsOf('t1', NOW);
         assert.deepEqual(ahead.lines, [
-            { ...yearly, reduced: false, fromChange: JULY.toISOString() },
+            {
+                ...yearly,
+                reduced: false,
+                fromChange: JULY.toISOString(),
+                fromChangeDays: JULY_DAYS,
+            },
         ]);
 
         const after = await ending({
@@ -288,7 +301,9 @@ describe('what the tenant sees of a withdrawal', () => {
             bookings: [],
         });
         const [running] = await after.service.withdrawalsOf('t1', later(30 * 86_400_000));
-        assert.deepEqual(running.lines, [{ ...yearly, reduced: true, fromChange: null }]);
+        assert.deepEqual(running.lines, [
+            { ...yearly, reduced: true, fromChange: null, fromChangeDays: null },
+        ]);
     });
 
     // @requirement SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
@@ -307,8 +322,13 @@ describe('what the tenant sees of a withdrawal', () => {
         });
         const [view] = await service.withdrawalsOf('t1', NOW);
         assert.deepEqual(view.lines, [
-            { ...monthly, reduced: true, fromChange: null },
-            { ...yearly, reduced: false, fromChange: JULY.toISOString() },
+            { ...monthly, reduced: true, fromChange: null, fromChangeDays: null },
+            {
+                ...yearly,
+                reduced: false,
+                fromChange: JULY.toISOString(),
+                fromChangeDays: JULY_DAYS,
+            },
         ]);
     });
 
@@ -326,6 +346,7 @@ describe('what the tenant sees of a withdrawal', () => {
             ...told().lines[1],
             reduced: false,
             fromChange: JULY.toISOString(),
+            fromChangeDays: JULY_DAYS,
         });
         assert.deepEqual(view.endable.subscriptionBundleIds, [], 'nothing missing yet to end');
     });
@@ -347,6 +368,7 @@ describe('ending a subscription at once', () => {
             withdrawalId: 'fw-1',
             subscriptionBundleId: null,
             endsAt: NOW.toISOString(),
+            endsDays: NOW_DAYS,
             creditNet: 39.34,
             currency: 'EUR',
         });
@@ -550,6 +572,7 @@ describe('ending a subscription at once', () => {
         const { service, calls } = await ending();
         assert.deepEqual(await service.preview('t1', 'fw-1', null, NOW), {
             endsAt: NOW.toISOString(),
+            endsDays: NOW_DAYS,
             creditNet: 39.34,
             currency: 'EUR',
         });
@@ -622,5 +645,63 @@ describe('ending a booking at once', () => {
             (await refusalOf(service.end('t1', 'fw-1', 'sb-t1', NOW))).code,
             'FEATURE_WITHDRAWAL_ALREADY_ENDED',
         );
+    });
+});
+
+// @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+describe('the days a tenant is shown of a withdrawal', () => {
+    const BERLIN = { timeZone: 'Europe/Berlin' };
+    /** Midnight before 1 July in Berlin: still 30 June in UTC. */
+    const MIDNIGHT_IN_BERLIN = new Date('2026-06-30T22:00:00.000Z');
+    const AROUND_MIDNIGHT = { until: '2026-06-30', from: '2026-07-01' };
+    /** Midnight before 1 September in Berlin. */
+    const RETURNS = new Date('2026-08-31T22:00:00.000Z');
+
+    test('are read in the zone the settings name, from when it is missing and from when it returns', async () => {
+        const { service } = await ending({
+            settings: BERLIN,
+            withdrawals: [withdrawal({ effectiveFrom: MIDNIGHT_IN_BERLIN, liftedFrom: RETURNS })],
+        });
+        const [view] = await service.withdrawalsOf('t1', NOW);
+        assert.deepEqual(view.effectiveFromDays, AROUND_MIDNIGHT);
+        assert.deepEqual(view.liftedFromDays, { until: '2026-08-31', from: '2026-09-01' });
+    });
+
+    test('in UTC where the settings name none', async () => {
+        const { service } = await ending({
+            withdrawals: [withdrawal({ effectiveFrom: MIDNIGHT_IN_BERLIN })],
+        });
+        const [view] = await service.withdrawalsOf('t1', NOW);
+        assert.deepEqual(view.effectiveFromDays, { until: '2026-06-30', from: '2026-06-30' });
+        assert.equal(view.liftedFromDays, null, 'and none for a withdrawal not lifted');
+    });
+
+    // @requirement SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
+    test('name the days of when a scheduled change brings a line, in that zone', async () => {
+        const yearly = { ...told().lines[0], billingCycle: 'YEARLY', reductionNet: 40 };
+        const { service } = await ending({
+            settings: BERLIN,
+            subscription: {
+                plan: 'BASIC',
+                pendingPlan: 'PRO',
+                pendingBillingCycle: 'YEARLY',
+                pendingEffectiveAt: MIDNIGHT_IN_BERLIN,
+            },
+            notice: told({ lines: [yearly] }),
+            bookings: [],
+            planGrants: [],
+        });
+        const [view] = await service.withdrawalsOf('t1', NOW);
+        assert.deepEqual(view.lines[0].fromChangeDays, AROUND_MIDNIGHT);
+    });
+
+    test('of an end at once are the days around the moment it ends, previewed and done', async () => {
+        const previewed = await ending({ settings: BERLIN });
+        const preview = await previewed.service.preview('t1', 'fw-1', null, MIDNIGHT_IN_BERLIN);
+        assert.deepEqual(preview.endsDays, AROUND_MIDNIGHT);
+
+        const done = await ending({ settings: BERLIN });
+        const ended = await done.service.end('t1', 'fw-1', null, MIDNIGHT_IN_BERLIN);
+        assert.deepEqual(ended.endsDays, AROUND_MIDNIGHT);
     });
 });

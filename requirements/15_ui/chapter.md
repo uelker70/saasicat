@@ -1974,6 +1974,12 @@ _Tested by:_
 - `packages/nest/tests/a-newer-version-is-offered.test.js`
     - an offer
         - names the days around when it takes effect, in the installation’s zone
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - the days a tenant is shown of a withdrawal
+        - are read in the zone the settings name, from when it is missing and from when it returns
+        - in UTC where the settings name none
+        - name the days of when a scheduled change brings a line, in that zone
+        - of an end at once are the days around the moment it ends, previewed and done
 - `packages/nest/tests/a-tenant-is-handed-the-days-of-its-add-ons.test.js`
     - the days of an add-on booking
         - are read in the zone the settings name
@@ -2005,6 +2011,9 @@ _Tested by:_
 - `packages/nest/tests/a-version-offer-is-taken.test.js`
     - the switch goes ahead only while the version shown is still the offer
         - the offer it carries names the days of when it takes effect
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - the public feature registry
+        - names the days of each mark in the zone the settings name
 - `packages/ui-vue-tenant/tests/component/a-day-is-written-as-that-day-in-every-zone.test.ts`
     - a day handed to the application’s formatter
         - is that day for a viewer in ${zone}
@@ -2032,6 +2041,17 @@ _Tested by:_
         - a switch that costs no more applies its price from the day the next period starts
     - the package the subscription was concluded from
         - was captured on the day the server names
+- `packages/ui-vue-tenant/tests/component/a-withdrawal-day-is-the-one-the-server-names.test.ts`
+    - a withdrawal told beside the plan
+        - has been missing since the first day it took the feature away
+        - is missing from the first day it takes the feature away, and back from the first day it
+          returns
+        - reduces a line a scheduled change brings from the first day of the change
+        - ending at once ends on the day the end falls on
+        - from a server that names no days yet, writes a dash rather than a day of its own
+    - the mark beside a withdrawn feature
+        - is missing from the first day it takes the feature away, and back from the first day it
+          returns
 - `packages/ui-vue-tenant/tests/component/an-add-on-day-is-the-one-the-server-names.test.ts`
     - a booking in the add-on store
         - runs its minimum term until the last day the server named
@@ -2049,6 +2069,17 @@ _Tested by:_
         - a cancelled one was cancelled on its day, and runs until the last day of it
     - an answer from a server that names no days yet
         - a switch it took is said as taken, with a dash for the day it does not name
+- `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
+    - a withdrawn feature beside an add-on
+        - is marked with the first day the server names, written as the configurator writes days
+- `tests/the-tenant-package-writes-the-days-the-server-names.test.js`
+    - the tenant package
+        - hands the application’s formatter only the days the server named
+    - the rules, on components written to break them
+        - a call in the template is read as one in the script
+        - an arrow may pass its parameter on, and nothing else
+        - only the one place calls the formatter itself
+        - a date is written with toLocaleDateString only inside a formatDate
 
 <!-- END proof -->
 

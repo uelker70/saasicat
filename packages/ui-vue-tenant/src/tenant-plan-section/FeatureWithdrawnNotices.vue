@@ -15,7 +15,7 @@
                 <p v-if="withdrawal.liftedFrom" class="sp-feature-withdrawn__text">
                     {{
                         messageText(i18n.featureWithdrawnLifted, {
-                            date: formatDate(withdrawal.liftedFrom),
+                            date: writeDay(formatDate, withdrawal.liftedFromDays?.from),
                         })
                     }}
                 </p>
@@ -115,6 +115,7 @@ import type {
 } from '@saasicat/core';
 import { useTenantFeatureWithdrawals, type HttpClient } from '@saasicat/ui-vue';
 
+import { writeDay } from '../day-as-instant.js';
 import { messageText } from '../message-parts.js';
 import { refusalMessage } from '../refusal-of.js';
 import { useTenantI18n } from '../tenant-i18n.js';
@@ -127,6 +128,11 @@ const props = defineProps<{
     http?: HttpClient;
     apiPrefix?: string;
     formatCurrency: (n: number) => string;
+    /**
+     * A day as the page writes it. It is handed noon of a day the server named
+     * (`SC-UI-028`) as an instant, so it reads that instant in the viewer's
+     * zone — `toLocaleDateString` without a `timeZone` does.
+     */
     formatDate: (iso: string | Date) => string;
 }>();
 
@@ -151,7 +157,10 @@ function titleOf(withdrawal: TenantFeatureWithdrawal): string {
     const ahead = new Date(withdrawal.effectiveFrom).getTime() > Date.now();
     return messageText(
         ahead ? i18n.value.featureWithdrawnTitleAhead : i18n.value.featureWithdrawnTitle,
-        { feature: withdrawal.featureLabel, date: props.formatDate(withdrawal.effectiveFrom) },
+        {
+            feature: withdrawal.featureLabel,
+            date: writeDay(props.formatDate, withdrawal.effectiveFromDays?.from),
+        },
     );
 }
 
@@ -169,7 +178,7 @@ function lineText(line: TenantFeatureWithdrawalLine): string {
     if (line.fromChange) {
         return messageText(i18n.value.featureWithdrawnReductionFromChange, {
             ...reduction,
-            date: props.formatDate(line.fromChange),
+            date: writeDay(props.formatDate, line.fromChangeDays?.from),
         });
     }
     if (!line.reduced) {
@@ -250,10 +259,10 @@ const dialogTitle = computed(() =>
 );
 
 const dialogBody = computed(() => {
-    const endsAt = preview.value ? props.formatDate(preview.value.endsAt) : '';
+    const endsOn = preview.value ? writeDay(props.formatDate, preview.value.endsDays?.from) : '';
     return askedAddOn.value === null
-        ? messageText(i18n.value.endAtOnceBodySubscription, { date: endsAt })
-        : messageText(i18n.value.endAtOnceBodyAddOn, { addOn: askedAddOn.value, date: endsAt });
+        ? messageText(i18n.value.endAtOnceBodySubscription, { date: endsOn })
+        : messageText(i18n.value.endAtOnceBodyAddOn, { addOn: askedAddOn.value, date: endsOn });
 });
 
 const creditText = computed(() =>
