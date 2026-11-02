@@ -57,6 +57,12 @@ export class PersistenceRefusal extends Error {
         readonly reason: PersistenceRefusalReason,
         message: string,
         readonly params: Readonly<Record<string, unknown>> = {},
+        /**
+         * The moments behind the values in `params` that are days. An adapter
+         * knows no zone, so it names those days in UTC; the platform names them
+         * again in the installation's zone when it answers (`refusalBodyIn`).
+         */
+        readonly dayMoments: Readonly<Record<string, Date>> = {},
     ) {
         super(message);
         this.name = PERSISTENCE_REFUSAL;
