@@ -1975,6 +1975,7 @@ _Tested by:_
     - a refusal an adapter raises, as the platform answers it
         - names its day in the installation’s zone, says it is a day, and says it in English too
         - while the adapter itself names the UTC day, knowing no zone
+        - is answered as it came where another, older copy of core built it without moments
         - is answered as it came where it names no day
 - `packages/nest/tests/a-booking-fits-every-plan-ahead.test.js`
     - the day a refusal about a plan ahead names

@@ -78,6 +78,20 @@ describe('a refusal an adapter raises, as the platform answers it', () => {
         assert.equal(refusalBodyIn(refusal, 'UTC').params.asOf, '2026-06-30');
     });
 
+    test('is answered as it came where another, older copy of core built it without moments', () => {
+        const foreign = Object.assign(new Error('No subscription for tenant t1.'), {
+            name: 'PersistenceRefusal',
+            code: 'SUBSCRIPTION_NOT_FOUND',
+            reason: 'gone',
+            params: { tenantId: 't1' },
+        });
+        assert.deepEqual(refusalBodyIn(foreign, 'Europe/Berlin'), {
+            code: 'SUBSCRIPTION_NOT_FOUND',
+            message: 'No subscription for tenant t1.',
+            params: { tenantId: 't1' },
+        });
+    });
+
     test('is answered as it came where it names no day', () => {
         const refusal = subscriptionGone('t1');
         assert.deepEqual(refusalBodyIn(refusal, 'Europe/Berlin'), {

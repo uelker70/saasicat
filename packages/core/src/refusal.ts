@@ -36,11 +36,15 @@ export type RefusalBody = Pick<PersistenceRefusal, 'code' | 'message' | 'params'
  */
 export function refusalBodyIn(refusal: PersistenceRefusal, timeZone: string): RefusalBody {
     const { code, message } = refusal;
-    const names = Object.keys(refusal.dayMoments);
+    // A refusal built by another copy of core — an adapter that brought an
+    // older one along — carries no moments, and `isPersistenceRefusal` accepts
+    // it all the same: it is answered as it came.
+    const moments = refusal.dayMoments ?? {};
+    const names = Object.keys(moments);
     if (names.length === 0) return { code, message, params: refusal.params };
     const params = { ...refusal.params };
     for (const name of names) {
-        const moment = refusal.dayMoments[name];
+        const moment = moments[name];
         if (moment) params[name] = dayInZone(moment, timeZone);
     }
     return {
