@@ -258,7 +258,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Dieser Rückzug betrifft Ihr Abonnement nicht, oder diese Buchung nicht mehr.',
     FEATURE_WITHDRAWAL_ALREADY_ENDED: 'Das ist bereits beendet.',
     FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED:
-        'Ihre Kündigung ist erfasst und kann hier nicht vorgezogen werden: Sie wird zum Ablauf des {lastDay} wirksam, und bis dahin gilt die Minderung.',
+        'Ihre Kündigung ist erfasst und kann hier nicht vorgezogen werden: Es läuft bis {lastDay}, und bis dahin gilt die Minderung.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'Für Ihre Version steht keine Einstellung mehr bevor. Es gibt nichts, wohin Sie wechseln könnten.',
     RETIREMENT_SWITCH_IN_TRIAL: 'Der Wechsel ist möglich, sobald Ihre Testphase endet.',

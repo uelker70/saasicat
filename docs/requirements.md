@@ -19857,6 +19857,7 @@ _Tested by:_
         - in UTC where the settings name none
         - name the days of when a scheduled change brings a line, in that zone
         - a refusal for a cancellation on record names the day it lands and the last day it runs
+        - and says it runs until that day, where the cancellation lands in the middle of one
         - of an end at once are the days around the moment it ends, previewed and done
 - `packages/nest/tests/a-tenant-is-handed-the-days-of-its-add-ons.test.js`
     - the days of an add-on booking

@@ -2824,8 +2824,8 @@ and ending at once. A refusal that names a day names it in the installation's zo
   `BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE`, `BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN` and
   `RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW` stays the first day without the add-on, and `{date}` in
   `FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED` the day the cancellation lands; `{lastDay}`, the last day
-  it still runs, is added, and the shipped sentences name both. An override keeps reading the day it
-  read before; add `{lastDay}` where it says how long something still runs.
+  it still runs, is added, and the shipped sentences name the day they mean. An override keeps reading
+  the day it read before; add `{lastDay}` where it says how long something still runs.
 - **A retirement's last day to cancel without notice is the installation's day** (`SC-SUB-046`,
   `SC-BUN-066`): the last whole day before the date in the installation's zone, not in UTC. East of
   UTC, a term ending at local midnight now names one day later — the day a subscriber there reads as

@@ -77,8 +77,8 @@ describe('a refusal that names a day', () => {
             dayParams: ['date', 'lastDay'],
         };
         expect(refusalMessage(refused(recorded), ERROR_MESSAGES_DE, formatDate)).toBe(
-            'Ihre Kündigung ist erfasst und kann hier nicht vorgezogen werden: Sie wird zum Ablauf ' +
-                'des 30.11.2026 wirksam, und bis dahin gilt die Minderung.',
+            'Ihre Kündigung ist erfasst und kann hier nicht vorgezogen werden: Es läuft bis ' +
+                '30.11.2026, und bis dahin gilt die Minderung.',
         );
     });
 });

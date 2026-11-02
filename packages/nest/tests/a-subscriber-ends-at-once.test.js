@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN, resolveErrorMessage } from '@saasicat/core';
 import { EndAtOnceService, givenPlanCatalogSource } from '../dist/billing/index.js';
 import { CATALOG, refusalOf } from './helpers/feature-withdrawal-fixtures.js';
 import { usageRecord } from './helpers/subscription-fixtures.js';
@@ -717,6 +718,29 @@ describe('the days a tenant is shown of a withdrawal', () => {
         const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW));
         assert.deepEqual(refusal.params, { date: '2027-01-01', lastDay: '2026-12-31' });
         assert.deepEqual(refusal.dayParams, ['date', 'lastDay']);
+    });
+
+    test('and says it runs until that day, where the cancellation lands in the middle of one', async () => {
+        // A minimum term keeps the time of day the booking was made: this one
+        // lands at 14:37 on 1 December, so 1 December is both days, and the
+        // sentence may not promise the end of it.
+        const { service } = await ending({
+            subscription: {
+                canceledAt: new Date('2026-04-01'),
+                canceledEffectiveAt: new Date('2026-12-01T14:37:00.000Z'),
+            },
+            writes: { endNow: undefined },
+        });
+        const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW));
+        const english =
+            'Your cancellation is recorded and cannot be brought forward here: it runs until 2026-12-01, and until then the reduction applies.';
+        assert.deepEqual(refusal.params, { date: '2026-12-01', lastDay: '2026-12-01' });
+        assert.equal(resolveErrorMessage(refusal, {}, ERROR_MESSAGES_EN), english);
+        assert.equal(
+            resolveErrorMessage(refusal, {}, ERROR_MESSAGES_DE),
+            'Ihre Kündigung ist erfasst und kann hier nicht vorgezogen werden: Es läuft bis 2026-12-01, und bis dahin gilt die Minderung.',
+        );
+        assert.equal(refusal.message, english, 'and the English diagnostic says the same');
     });
 
     test('of an end at once are the days around the moment it ends, previewed and done', async () => {

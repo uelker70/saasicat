@@ -256,7 +256,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'This withdrawal does not reach your subscription, or no longer this booking.',
     FEATURE_WITHDRAWAL_ALREADY_ENDED: 'This has ended already.',
     FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED:
-        'Your cancellation is recorded and cannot be brought forward here: it takes effect at the end of {lastDay}, and until then the reduction applies.',
+        'Your cancellation is recorded and cannot be brought forward here: it runs until {lastDay}, and until then the reduction applies.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'No retirement of your version is waiting for its date, so there is nothing to switch to.',
     RETIREMENT_SWITCH_IN_TRIAL: 'The switch opens when your trial ends.',

@@ -33,11 +33,11 @@ the way is free — it now names both. The existing placeholder keeps its value,
 so a catalogue override goes on reading the same day: `{until}` is the first
 day without the add-on, `{date}` in `FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED` the
 day the cancellation lands. `{lastDay}`, the last day it still runs, is added,
-and the shipped English and German sentences name both: "… runs until
-30.11.2026 at the earliest. Once it is cancelled, a change that takes effect on
-or after 01.12.2026 goes through"; "Your cancellation is recorded and cannot be
-brought forward here: it takes effect at the end of 30.11.2026, and until then
-the reduction applies." The day an add-on can be booked again after a
+and the shipped English and German sentences name the day they mean: "… runs
+until 30.11.2026 at the earliest. Once it is cancelled, a change that takes
+effect on or after 01.12.2026 goes through"; "Your cancellation is recorded and
+cannot be brought forward here: it runs until 30.11.2026, and until then the
+reduction applies." The day an add-on can be booked again after a
 retirement is the first whole day without the old booking in the installation's
 zone, and whether the subscription still runs then is asked on that same day.
 

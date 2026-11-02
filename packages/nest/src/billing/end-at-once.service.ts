@@ -324,8 +324,8 @@ export class EndAtOnceService {
         throw new UnprocessableEntityException({
             code: BILLING_ERROR_CODES.FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED,
             message:
-                'Your cancellation is recorded and cannot be brought forward here: it takes ' +
-                `effect at the end of ${lastDay}, and until then the reduction applies.`,
+                'Your cancellation is recorded and cannot be brought forward here: it runs ' +
+                `until ${lastDay}, and until then the reduction applies.`,
             params: { date, lastDay },
             dayParams: ['date', 'lastDay'],
         });
