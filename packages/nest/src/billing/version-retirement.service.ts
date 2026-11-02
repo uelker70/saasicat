@@ -25,6 +25,7 @@ import {
     BILLING_ERROR_CODES,
     CATALOG_ERROR_CODES,
     installationZoneOf,
+    pickedDayOf,
     type AdminActor,
     type BillingCycle,
     type BundleRepository,
@@ -646,11 +647,11 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
                 message:
                     `Subscriptions still move to version ${replacement.version} of ` +
                     `${replacement.planKey}, so it can end on ` +
-                    `${earliest.toISOString().slice(0, 10)} at the earliest.`,
+                    `${pickedDayOf(earliest)} at the earliest.`,
                 params: {
                     version: replacement.version,
                     planKey: replacement.planKey,
-                    date: earliest.toISOString().slice(0, 10),
+                    date: pickedDayOf(earliest),
                 },
             });
         });

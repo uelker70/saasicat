@@ -526,6 +526,10 @@ _Tested by:_
         - names the day it can end instead once the date has passed and the move is still to come
         - names the day a booking cancelled already ends, which cancelling again cannot move
         - asks nothing of a retirement told for a version the booking is no longer on
+    - the days a plan change blocked by an add-on names
+        - are the last day the add-on runs and the first without it, in the installation’s zone
+        - in UTC where the settings name none
+        - the day a booking continues on another version is read in that zone too
 - `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
     - a commitment an operator did configure
         - binds inside it, and still cannot outlast the plan
@@ -1199,6 +1203,10 @@ _Tested by:_
         - names the day it can end instead once the date has passed and the move is still to come
         - names the day a booking cancelled already ends, which cancelling again cannot move
         - asks nothing of a retirement told for a version the booking is no longer on
+    - the days a plan change blocked by an add-on names
+        - are the last day the add-on runs and the first without it, in the installation’s zone
+        - in UTC where the settings name none
+        - the day a booking continues on another version is read in that zone too
 - `packages/nest/tests/tenant-subscription-bundles-plan-compat.test.js`
     - add passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID
     - preview passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID
@@ -1369,6 +1377,7 @@ _Tested by:_
     - a tenant booking an add-on
         - takes the predecessor until its successor starts, though it is superseded
         - is refused a version whose start is still to come, and told when it starts
+        - says the day it goes on sale is a day, for the page to write as it writes days
         - takes the successor from its first day
         - is refused the predecessor once its successor has taken over
         - is refused a version superseded without a last day
@@ -1856,6 +1865,7 @@ _Tested by:_
     - reinstating a booking of a version being retired
         - is refused where the announcement did not reach it, naming the replacement
         - names the day after where the booking ends during one
+        - names the first whole day without the booking in the installation’s zone, as a day
         - says the replacement cannot run beside its plan where it cannot, and names no day
         - asks of the plan the subscription is on when the booking ends
         - names the day where the replacement can be booked in the plan’s rhythm only
@@ -2091,6 +2101,7 @@ _Tested by:_
         - a replacement that cannot run beside the plan the subscription is on
     - a plan that changes before the date
         - refuses a change of plan landing before the date, naming the add-on and its date
+        - names the date as the installation’s day, and says it is a day
         - and a change of rhythm alone, but not a change landing on the date itself
         - refuses where a retirement moves it to another plan before the date
         - but not where it moves it to another version of the same plan

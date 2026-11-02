@@ -18,6 +18,7 @@ import type {
     FeatureWithdrawalRecord,
     FeatureWithdrawalRepository,
     PlanCatalog,
+    PlanCatalogSettings,
     PlanVersionRepository,
     SubscriptionBundleRepository,
     SubscriptionContractRecord,
@@ -27,9 +28,18 @@ import type {
     TransactionContext,
     TransactionRunner,
 } from '@saasicat/core';
-import { BILLING_ERROR_CODES, featuresWithdrawnAt, nextWithdrawalChange } from '@saasicat/core';
+import {
+    BILLING_ERROR_CODES,
+    dayInZone,
+    featuresWithdrawnAt,
+    installationZoneOf,
+    nextWithdrawalChange,
+} from '@saasicat/core';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
-import { PLAN_CATALOG_SOURCE_TOKEN } from '../billing/plan-catalog.module.js';
+import {
+    PLAN_CATALOG_SETTINGS_TOKEN,
+    PLAN_CATALOG_SOURCE_TOKEN,
+} from '../billing/plan-catalog.module.js';
 import type { PlanCatalogSource } from '../billing/plan-catalog-source.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';
 import { FEATURE_WITHDRAWAL_REPOSITORY_TOKEN } from '../billing/tenant-billing.tokens.js';
@@ -182,6 +192,11 @@ export class EntitlementService {
         @Optional()
         @Inject(FEATURE_WITHDRAWAL_REPOSITORY_TOKEN)
         private readonly featureWithdrawals: FeatureWithdrawalRepository | null = null,
+        // The zone the day a refusal names is read in; UTC where the file
+        // names none, or where a test builds the service without it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
     ) {}
 
     // ---------------------------------------------------------------------
@@ -650,11 +665,12 @@ export class EntitlementService {
     private async findPlanVersionOnSale(planId: string, asOf: Date, tx?: TransactionContext) {
         const v = await this.planVersions.findActive(planId, asOf, tx);
         if (!v) {
-            const asOfDate = asOf.toISOString().slice(0, 10);
+            const asOfDate = dayInZone(asOf, installationZoneOf(this.settings));
             throw new NotFoundException({
                 code: BILLING_ERROR_CODES.NO_ACTIVE_PLAN_VERSION,
                 message: `No version of plan ${planId} is on sale as of ${asOfDate}.`,
                 params: { planId, asOf: asOfDate },
+                dayParams: ['asOf'],
             });
         }
         return v;

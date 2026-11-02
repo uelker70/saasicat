@@ -37,7 +37,7 @@ async function announced(options = {}) {
  * The switch over `world`, with what it freezes, invalidates and records.
  * `ahead` are the plans the subscription is set to move to.
  */
-function switching(world, { noParty = [], freezeFails = false, ahead = [] } = {}) {
+function switching(world, { noParty = [], freezeFails = false, ahead = [], settings = null } = {}) {
     const frozen = [];
     const invalidated = [];
     const recorded = [];
@@ -60,6 +60,7 @@ function switching(world, { noParty = [], freezeFails = false, ahead = [] } = {}
             },
         },
         { recordDueCharges: async (tenantId) => recorded.push(tenantId) },
+        settings,
     );
     return { service, frozen, invalidated, recorded, asked };
 }
@@ -404,6 +405,18 @@ describe('a plan that changes before the date', () => {
             params: { bundleName: 'Reports', date: '2027-02-01' },
         });
         assert.equal(versionOf(world, 'sb-t1'), RETIRED.id);
+    });
+
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('names the date as the installation’s day, and says it is a day', async () => {
+        const world = await changeScheduled('PRO', 'YEARLY', new Date(THE_DATE.getTime() - 1));
+        // Midnight UTC on 1 February is still 31 January in New York.
+        const service = switching(world, { settings: { timeZone: 'America/New_York' } }).service;
+
+        const error = await rejection(service.switchNow('t1', 'sb-t1', REPLACEMENT.id, BEFORE));
+
+        assert.equal(error.getResponse().params.date, '2027-01-31');
+        assert.deepEqual(error.getResponse().dayParams, ['date']);
     });
 
     test('and a change of rhythm alone, but not a change landing on the date itself', async () => {

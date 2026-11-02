@@ -1,5 +1,6 @@
 import {
     BILLING_ERROR_CODES,
+    dayInZone,
     type BillingCycle,
     type BundleRepository,
     type BundleVersionRow,
@@ -130,12 +131,13 @@ export function plansAheadRefusals(
     ahead: readonly PlanAhead[],
     addOnCycle: BillingCycle,
     parentEndsAt: Date | null,
+    timeZone: string,
 ): BundleBookingRefusal[] {
     const refusals: BundleBookingRefusal[] = [];
     for (const plan of ahead) {
         if (parentEndsAt !== null && plan.from >= parentEndsAt) continue;
         const [misfit] = addOnMisfits(version, plan, addOnCycle);
-        if (misfit) refusals.push(upcomingRefusal(misfit, plan));
+        if (misfit) refusals.push(upcomingRefusal(misfit, plan, timeZone));
     }
     return refusals;
 }
@@ -147,10 +149,15 @@ export function plansAheadRefusals(
  * sentence names the rhythm: naming the plan would point at the one the
  * subscription is already on. Its cycle words are part of each locale's
  * sentence rather than values filled into it, because only a yearly bundle
- * beside a monthly plan fails the rhythm.
+ * beside a monthly plan fails the rhythm. The day it names is the day the
+ * plan ahead takes effect in `timeZone`.
  */
-function upcomingRefusal(misfit: AddOnMisfit, plan: PlanAhead): BundleBookingRefusal {
-    const from = plan.from.toISOString().slice(0, 10);
+function upcomingRefusal(
+    misfit: AddOnMisfit,
+    plan: PlanAhead,
+    timeZone: string,
+): BundleBookingRefusal {
+    const from = dayInZone(plan.from, timeZone);
     if (misfit === 'longer-rhythm') {
         return {
             code: BILLING_ERROR_CODES.BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE,
@@ -158,6 +165,7 @@ function upcomingRefusal(misfit: AddOnMisfit, plan: PlanAhead): BundleBookingRef
                 'A yearly bundle cannot run beside the monthly billing the subscription moves ' +
                 `to with effect from ${from}.`,
             params: { planKey: plan.planKey, billingCycle: plan.billingCycle, from },
+            dayParams: ['from'],
         };
     }
     return {
@@ -166,6 +174,7 @@ function upcomingRefusal(misfit: AddOnMisfit, plan: PlanAhead): BundleBookingRef
             `This bundle cannot run on the ${plan.planKey} plan, which the subscription moves ` +
             `to with effect from ${from}.`,
         params: { planKey: plan.planKey, billingCycle: plan.billingCycle, from },
+        dayParams: ['from'],
     };
 }
 
@@ -328,32 +337,35 @@ function versionsAheadOf(
  */
 export function heldMisfitRefusal(
     misfit: AddOnMisfit,
-    held: { bundleName: string; until: string },
+    held: HeldUntil,
     target: { planName: string; billingCycle: BillingCycle },
 ): BundleBookingRefusal {
-    const { bundleName, until } = held;
+    const { bundleName, until, lastDay } = held;
     if (misfit === 'longer-rhythm') {
         return {
             code: BILLING_ERROR_CODES.BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE,
             message:
-                `${bundleName} is billed yearly and runs until ${until} at the earliest, which a ` +
-                'monthly plan cannot carry. Once it is cancelled, a change that takes effect on or ' +
-                'after that day goes through — or keep the yearly cycle.',
+                `${bundleName} is billed yearly and runs until ${lastDay} at the earliest, which ` +
+                'a monthly plan cannot carry. Once it is cancelled, a change that takes effect on ' +
+                `or after ${until} goes through — or keep the yearly cycle.`,
             params: {
                 billingCycle: 'yearly',
                 planCycle: target.billingCycle.toLowerCase(),
                 until,
+                lastDay,
                 bundleName,
             },
+            dayParams: HELD_DAYS,
         };
     }
     return {
         code: BILLING_ERROR_CODES.BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN,
         message:
-            `${bundleName} cannot run on ${target.planName} and runs until ${until} at the ` +
-            'earliest. Once it is cancelled, a change that takes effect on or after that day ' +
+            `${bundleName} cannot run on ${target.planName} and runs until ${lastDay} at the ` +
+            `earliest. Once it is cancelled, a change that takes effect on or after ${until} ` +
             'goes through — or choose another plan.',
-        params: { bundleName, planName: target.planName, until },
+        params: { bundleName, planName: target.planName, until, lastDay },
+        dayParams: HELD_DAYS,
     };
 }
 
@@ -363,23 +375,36 @@ export function heldMisfitRefusal(
  * moves today and has no other plan to offer, so the way past it is the
  * add-on ending: cancelled, the switch can be made from the day it ends.
  */
-export function heldBlocksTheSwitch(
-    held: { bundleName: string; until: string },
-    planName: string,
-): BundleBookingRefusal {
-    const { bundleName, until } = held;
+export function heldBlocksTheSwitch(held: HeldUntil, planName: string): BundleBookingRefusal {
+    const { bundleName, until, lastDay } = held;
     return {
         code: BILLING_ERROR_CODES.RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW,
         message:
-            `${bundleName} cannot run on ${planName} and runs until ${until} at the earliest. ` +
-            'Once it is cancelled, the switch can be made from that day.',
-        params: { bundleName, planName, until },
+            `${bundleName} cannot run on ${planName} and runs until ${lastDay} at the earliest. ` +
+            `Once it is cancelled, the switch can be made from ${until}.`,
+        params: { bundleName, planName, until, lastDay },
+        dayParams: HELD_DAYS,
     };
 }
 
 /**
+ * A booking in the way, by its name and the days around the earliest moment
+ * it can end: `lastDay`, the last day it runs, and `until`, the first day it
+ * no longer does (`addOnInTheWay`).
+ */
+interface HeldUntil {
+    readonly bundleName: string;
+    readonly until: string;
+    readonly lastDay: string;
+}
+
+/** The values of a refusal about a booking in the way that are days. */
+const HELD_DAYS: readonly string[] = ['until', 'lastDay'];
+
+/**
  * A version a booking continues on from a later date — a retirement's, or a
- * switch's it took — and that date (`YYYY-MM-DD`).
+ * switch's it took — and the day it does (`YYYY-MM-DD`), in the installation's
+ * zone.
  */
 export interface ContinuesOn {
     readonly version: number;
@@ -406,6 +431,7 @@ export function continuationMisfitRefusal(
             `${bundleName} continues on version ${version} from ${from}, which cannot run on ` +
             `${planName}. Cancel it, and the change goes through — or choose another plan.`,
         params: { bundleName, version, from, planName },
+        dayParams: ['from'],
     };
 }
 
@@ -427,5 +453,6 @@ export function continuationBlocksTheSwitch(
             `${bundleName} continues on version ${version} from ${from}, which cannot run on ` +
             `${planName}. Once it is cancelled, the switch can be made.`,
         params: { bundleName, version, from, planName },
+        dayParams: ['from'],
     };
 }

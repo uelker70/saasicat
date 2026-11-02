@@ -979,6 +979,7 @@ _Tested by:_
         - opens only after the trial
         - is refused while something is outstanding, as a version offer is
         - is refused while an add-on running today cannot run on the replacement’s plan
+        - names the add-on’s last day and the first without it in the installation’s zone
         - is refused as well where an add-on was told it continues on a version the plan cannot
           carry, naming that version
         - asks nothing of an add-on whose subscription ends by the date it continues from, and asks
@@ -1455,6 +1456,7 @@ _Tested by:_
         - reaches special terms a contract in force records where no line grants the feature
         - names each plan and add-on in a rhythm it reaches, with how many and the lowest price
         - is blocked while a withdrawal of the feature is not lifted, or lifted only after the date
+        - names the day an earlier withdrawal is lifted from as the installation’s day
     - where withdrawing a feature is offered
         - only where everybody a withdrawal reaches can be found
         - and is refused by the routes elsewhere, before anything is read
@@ -1487,6 +1489,7 @@ _Tested by:_
         - tells a lift only to whom the withdrawal itself reached, and the rest after it
         - from now where no date is given; never from a date already past
         - refuses an unknown withdrawal, and one lifted already, naming its date
+        - names the day it was lifted from as the installation’s day, and says it is a day
         - lifted meanwhile by another operator, keeps what they recorded
     - the list of withdrawals
         - says how many it reached, how many were told, and how many ended at once

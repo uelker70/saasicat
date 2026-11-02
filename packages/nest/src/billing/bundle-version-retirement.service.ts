@@ -26,6 +26,8 @@ import {
 import {
     BILLING_ERROR_CODES,
     CATALOG_ERROR_CODES,
+    addDaysToDay,
+    daysAround,
     installationZoneOf,
     type AdminActor,
     type BillingCycle,
@@ -484,13 +486,16 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
                 params,
             };
         }
-        const bookableFrom = bookableAt.toISOString().slice(0, 10);
+        // Said as the first whole day without the booking in the
+        // installation's zone: the day after the last one it runs.
+        const bookableFrom = addDaysToDay(daysAround(ends, this.zone()).until, 1);
         return {
             code: BILLING_ERROR_CODES.BUNDLE_RETIREMENT_REINSTATE_REFUSED,
             message:
                 `${sentence} Book version ${replacement.version} from ${bookableFrom}, when ` +
                 'this booking has ended.',
             params: { ...params, bookableFrom },
+            dayParams: ['bookableFrom'],
         };
     }
 

@@ -34,6 +34,8 @@
 import { Inject, Injectable, Logger, type OnModuleInit, Optional } from '@nestjs/common';
 import {
     classifyIssuerChange,
+    dayInZone,
+    installationZoneOf,
     recordedIssuerIdentity,
     type AppliedSettingsPort,
     type AppliedSettingsValues,
@@ -187,7 +189,13 @@ export class IssuerIdentityInspector {
             kind: 'refused',
             change,
             running: running.known ? running.contracts : null,
-            refusal: refusalFor(change, running, this.source, recorded.settings?.issuer),
+            refusal: refusalFor(
+                change,
+                running,
+                this.source,
+                recorded.settings?.issuer,
+                installationZoneOf(this.fileSettings),
+            ),
         };
     }
 
@@ -320,13 +328,14 @@ function refusalFor(
     running: KnownContracts,
     source: string,
     recordedIssuer: unknown,
+    timeZone: string,
 ): string {
     return [
         `The issuer in ${source} is not the legal entity this installation recorded.`,
         `  recorded: ${describe(change.recorded)}`,
         `  in the file: ${change.current ? describe(change.current) : 'no issuer is named at all'}`,
         faultSentence(change.fault),
-        contractsSentence(running),
+        contractsSentence(running, timeZone),
         ...wayOut(change, source, recordedIssuer),
     ].join('\n');
 }
@@ -403,7 +412,7 @@ function faultSentence(fault: IssuerCorrectionFault): string {
     }
 }
 
-function contractsSentence(running: KnownContracts): string {
+function contractsSentence(running: KnownContracts, timeZone: string): string {
     if (!running.known) return running.why;
     const { total, contracts } = running.contracts;
     // Not "under the recorded identity": the query asks which contracts are
@@ -413,12 +422,13 @@ function contractsSentence(running: KnownContracts): string {
     const rest = total - contracts.length;
     return [
         `${total} contract(s) are still running:`,
-        ...contracts.map(describeContract),
+        ...contracts.map((contract) => describeContract(contract, timeZone)),
         ...(rest > 0 ? [`  … and ${rest} more.`] : []),
     ].join('\n');
 }
 
-function describeContract(contract: RunningContractIssuer): string {
+/** A running contract, the day it took effect read in `timeZone`. */
+function describeContract(contract: RunningContractIssuer, timeZone: string): string {
     const under = contract.issuerLegalName
         ? `concluded under ${quote(contract.issuerLegalName)}`
         : 'names no issuer';
@@ -428,7 +438,7 @@ function describeContract(contract: RunningContractIssuer): string {
     // the line is decorating.
     const from =
         contract.effectiveFrom instanceof Date
-            ? contract.effectiveFrom.toISOString().slice(0, 10)
+            ? dayInZone(contract.effectiveFrom, timeZone)
             : 'an unreadable date';
     return `  ${contract.id} (tenant ${contract.tenantId}, from ${from}, ${under})`;
 }

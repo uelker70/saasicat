@@ -35,6 +35,7 @@ import type {
     BundleRow,
     BundleVersionRow,
     CatalogEntryRepository,
+    PlanCatalogSettings,
     PlanRepository,
     SubscriptionBundleRepository,
 } from '@saasicat/core';
@@ -43,6 +44,7 @@ import {
     CATALOG_ERROR_CODES,
     buildFeatureRequiresIndex,
     collectUnsatisfiedRequires,
+    installationZoneOf,
 } from '@saasicat/core';
 
 import {
@@ -66,6 +68,7 @@ import {
     resolvePlanAnchorDay,
     DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS,
 } from './bundle-period.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import { computeProration, type ProrationDto } from './proration.js';
 import {
     SELF_SERVICE_BLOCKED_BUNDLES_TOKEN,
@@ -91,6 +94,8 @@ export interface SubscriptionBundlePreviewIssue {
      * resolves the issues of both previews.
      */
     params?: Record<string, string | number>;
+    /** The names in `params` whose values are days (`writeDayParams`). */
+    dayParams?: readonly string[];
 }
 
 /** Subscription context — the controller reads it from the SubscriptionUsagePort. */
@@ -227,6 +232,11 @@ export class SubscriptionBundlePreviewService {
         @Optional()
         @Inject(SUBSCRIPTION_BUNDLE_CONFIG_TOKEN)
         config: SubscriptionBundleConfig = {},
+        // The zone a refusal's days are read in; UTC where the file names none,
+        // or where a test builds the service without it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
     ) {
         this.defaultMinTermMonths =
             config.defaultMinimumTermMonths ?? DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS;
@@ -266,7 +276,13 @@ export class SubscriptionBundlePreviewService {
             blockers.push(misfitRefusal(misfit, bundleVersion, plan, billingCycle));
         }
         blockers.push(
-            ...plansAheadRefusals(bundleVersion, ctx.plansAhead, billingCycle, ctx.parentEndsAt),
+            ...plansAheadRefusals(
+                bundleVersion,
+                ctx.plansAhead,
+                billingCycle,
+                ctx.parentEndsAt,
+                installationZoneOf(this.settings),
+            ),
         );
 
         this.collectBookabilityBlockers(

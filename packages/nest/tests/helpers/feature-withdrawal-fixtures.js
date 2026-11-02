@@ -215,6 +215,7 @@ export function withdrawing({
     bookingStore: bookingOverrides = {},
     withBookings = true,
     contractReductions = null,
+    settings = null,
 } = {}) {
     const audited = [];
     let invalidations = 0;
@@ -298,6 +299,7 @@ export function withdrawing({
         null,
         { log: async (entry) => audited.push(entry) },
         contractReductions,
+        settings,
     );
     return {
         service,

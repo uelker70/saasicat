@@ -29,6 +29,7 @@ import type {
     BillingCycle,
     BundleRepository,
     BundleVersionRow,
+    PlanCatalogSettings,
     SubscriptionBundleRecord,
     SubscriptionBundleRepository,
     SubscriptionBundleView,
@@ -47,7 +48,7 @@ import { resolveBundlePriceNet } from './bundle-price.js';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { answeringRefusals } from '../errors/answering-refusals.js';
 import { bundleVersionNotOnSale } from './bundle-version-not-on-sale.js';
-import { BILLING_ERROR_CODES, CATALOG_ERROR_CODES } from '@saasicat/core';
+import { BILLING_ERROR_CODES, CATALOG_ERROR_CODES, installationZoneOf } from '@saasicat/core';
 import {
     SELF_SERVICE_BLOCKED_BUNDLES_TOKEN,
     type SelfServiceBlockedBundles,
@@ -191,10 +192,12 @@ export class SubscriptionBundlesService {
         @Inject(SELF_SERVICE_BLOCKED_BUNDLES_TOKEN)
         private readonly blockedBundles: SelfServiceBlockedBundles | null = null,
         // What a booking records as agreed, for a contract written for it
-        // later. Optional only so a test can build the service directly.
+        // later, and the zone a refusal's days are read in. Optional only so a
+        // test can build the service directly.
         @Optional()
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
-        private readonly settings: AgreementSettings | null = null,
+        private readonly settings:
+            (AgreementSettings & Pick<PlanCatalogSettings, 'timeZone'>) | null = null,
     ) {
         this.defaultMinTermMonths =
             config.defaultMinimumTermMonths ?? DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS;
@@ -325,6 +328,7 @@ export class SubscriptionBundlesService {
             billingCycle,
             { planKey: input.currentPlanKey, billingCycle: input.planCycle },
             input,
+            installationZoneOf(this.settings),
         );
 
         const alreadyBooked = addOnAlreadyBooked(
@@ -440,6 +444,7 @@ export class SubscriptionBundlesService {
             existing.billingCycle ?? input.planCycle,
             { planKey: input.currentPlanKey, billingCycle: input.planCycle },
             input,
+            installationZoneOf(this.settings),
         );
         return this.repo.reactivate(input.subscriptionBundleId);
     }
@@ -471,19 +476,26 @@ export class SubscriptionBundlesService {
  * it cannot run: beside `plan`, or beside a plan the subscription is set to
  * move to while the booking still runs (`ahead`). One question for a booking
  * and for undoing a cancellation, which books the add-on past the day it was
- * going to end.
+ * going to end. A day a refusal names is read in `timeZone`.
  */
 function refuseWhereItCannotRun(
     version: BundleVersionRow,
     addOnCycle: BillingCycle,
     plan: PlanBeside,
     ahead: { readonly plansAhead: readonly PlanAhead[]; readonly parentEndsAt: Date | null },
+    timeZone: string,
 ): void {
     const [misfit] = addOnMisfits(version, plan, addOnCycle);
     if (misfit) {
         throw new UnprocessableEntityException(misfitRefusal(misfit, version, plan, addOnCycle));
     }
-    const [refusal] = plansAheadRefusals(version, ahead.plansAhead, addOnCycle, ahead.parentEndsAt);
+    const [refusal] = plansAheadRefusals(
+        version,
+        ahead.plansAhead,
+        addOnCycle,
+        ahead.parentEndsAt,
+        timeZone,
+    );
     if (refusal) throw new UnprocessableEntityException(refusal);
 }
 

@@ -419,7 +419,10 @@ describe('ending a subscription at once', () => {
         const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW));
         assert.deepEqual(
             [refusal.code, refusal.params],
-            ['FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED', { date: '2027-01-01' }],
+            [
+                'FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED',
+                { date: '2027-01-01', lastDay: '2026-12-31' },
+            ],
         );
         assert.equal(
             [...notices.rows.values()].filter((row) => row.kind === 'ended-at-once').length,
@@ -446,7 +449,10 @@ describe('ending a subscription at once', () => {
         const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW));
         assert.deepEqual(
             [refusal.code, refusal.params],
-            ['FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED', { date: '2027-01-01' }],
+            [
+                'FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED',
+                { date: '2027-01-01', lastDay: '2026-12-31' },
+            ],
         );
         assert.deepEqual(calls, []);
     });
@@ -467,7 +473,10 @@ describe('ending a subscription at once', () => {
             const refusal = await refusalOf(attempt);
             assert.deepEqual(
                 [refusal.code, refusal.params],
-                ['FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED', { date: '2027-01-01' }],
+                [
+                    'FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED',
+                    { date: '2027-01-01', lastDay: '2026-12-31' },
+                ],
             );
         }
         assert.deepEqual(calls, []);
@@ -693,6 +702,21 @@ describe('the days a tenant is shown of a withdrawal', () => {
         });
         const [view] = await service.withdrawalsOf('t1', NOW);
         assert.deepEqual(view.lines[0].fromChangeDays, AROUND_MIDNIGHT);
+    });
+
+    test('a refusal for a cancellation on record names the day it lands and the last day it runs', async () => {
+        const { service } = await ending({
+            settings: BERLIN,
+            subscription: {
+                canceledAt: new Date('2026-04-01'),
+                // Midnight before 1 January in Berlin: still 31 December in UTC.
+                canceledEffectiveAt: new Date('2026-12-31T23:00:00.000Z'),
+            },
+            writes: { endNow: undefined },
+        });
+        const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW));
+        assert.deepEqual(refusal.params, { date: '2027-01-01', lastDay: '2026-12-31' });
+        assert.deepEqual(refusal.dayParams, ['date', 'lastDay']);
     });
 
     test('of an end at once are the days around the moment it ends, previewed and done', async () => {

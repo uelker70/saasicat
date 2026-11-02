@@ -258,12 +258,12 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Dieser Rückzug betrifft Ihr Abonnement nicht, oder diese Buchung nicht mehr.',
     FEATURE_WITHDRAWAL_ALREADY_ENDED: 'Das ist bereits beendet.',
     FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED:
-        'Ihre Kündigung zum {date} ist erfasst und kann hier nicht vorgezogen werden. Sie endet an diesem Tag, und bis dahin gilt die Minderung.',
+        'Ihre Kündigung ist erfasst und kann hier nicht vorgezogen werden: Sie wird zum Ablauf des {lastDay} wirksam, und bis dahin gilt die Minderung.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'Für Ihre Version steht keine Einstellung mehr bevor. Es gibt nichts, wohin Sie wechseln könnten.',
     RETIREMENT_SWITCH_IN_TRIAL: 'Der Wechsel ist möglich, sobald Ihre Testphase endet.',
     RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW:
-        '{bundleName} kann im Paket {planName} nicht laufen und läuft frühestens bis {until}. Ist es gekündigt, ist der Wechsel ab diesem Tag möglich.',
+        '{bundleName} kann im Paket {planName} nicht laufen und läuft frühestens bis {lastDay}. Ist es gekündigt, ist der Wechsel ab dem {until} möglich.',
     RETIREMENT_SWITCH_BUNDLE_REPLACEMENT_CANNOT_FOLLOW:
         '{bundleName} läuft ab dem {from} auf Version {version} weiter, die im Paket {planName} nicht laufen kann. Ist es gekündigt, ist der Wechsel möglich.',
     RETIREMENT_SWITCH_NOT_OPEN:
@@ -285,9 +285,9 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     CYCLE_SHORTENS_AT_TERM_END:
         'Ein monatlich abgerechnetes {planName} kann nicht innerhalb der laufenden Jahreslaufzeit beginnen. Das Upgrade greift zum Ende dieser Laufzeit; wer es sofort möchte, behält den jährlichen Rhythmus.',
     BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE:
-        '{bundleName} wird jährlich abgerechnet und läuft frühestens bis {until}; ein monatlich abgerechnetes Paket kann es nicht tragen. Ist es gekündigt, geht ein Wechsel durch, der an diesem Tag oder später wirksam wird — oder behalten Sie den jährlichen Rhythmus.',
+        '{bundleName} wird jährlich abgerechnet und läuft frühestens bis {lastDay}; ein monatlich abgerechnetes Paket kann es nicht tragen. Ist es gekündigt, geht ein Wechsel durch, der am {until} oder später wirksam wird — oder behalten Sie den jährlichen Rhythmus.',
     BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN:
-        '{bundleName} kann im Paket {planName} nicht laufen und läuft frühestens bis {until}. Ist es gekündigt, geht ein Wechsel durch, der an diesem Tag oder später wirksam wird — oder wählen Sie ein anderes Paket.',
+        '{bundleName} kann im Paket {planName} nicht laufen und läuft frühestens bis {lastDay}. Ist es gekündigt, geht ein Wechsel durch, der am {until} oder später wirksam wird — oder wählen Sie ein anderes Paket.',
     BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN:
         '{bundleName} läuft ab dem {from} auf Version {version} weiter, die im Paket {planName} nicht laufen kann. Kündigen Sie es, dann geht der Wechsel durch — oder wählen Sie ein anderes Paket.',
     REDUNDANT_FEATURES:

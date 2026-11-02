@@ -695,7 +695,7 @@ async function loadPreview(): Promise<void> {
     } catch (err) {
         if (request !== latestPreviewRequest) return;
         preview.value = null;
-        previewError.value = err instanceof Error ? err.message : String(err);
+        previewError.value = refusalMessage(err, props.i18n.issueMessages, props.formatDate);
     } finally {
         if (request === latestPreviewRequest) previewLoading.value = false;
     }
@@ -736,7 +736,7 @@ async function submit() {
         if (body?.code === 'PLAN_CHANGE_QUOTE_CHANGED' && body.preview) {
             preview.value = body.preview as PlanChangePreviewShape;
         }
-        submitError.value = refusalMessage(err, props.i18n.issueMessages);
+        submitError.value = refusalMessage(err, props.i18n.issueMessages, props.formatDate);
         submitBlockers.value = refusalBlockersOf(err);
     } finally {
         submitting.value = false;
@@ -788,7 +788,7 @@ function issueKey(issue: PlanChangePreviewIssueShape, index: number): string {
 // them, with nowhere to say otherwise. Now both come out of one object, so
 // they cannot disagree.
 function issueText(issue: PlanChangePreviewIssueShape): string {
-    return issueSentence(issue, props.i18n.issueMessages);
+    return issueSentence(issue, props.i18n.issueMessages, props.formatDate);
 }
 </script>
 

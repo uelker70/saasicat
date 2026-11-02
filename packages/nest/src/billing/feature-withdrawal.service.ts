@@ -21,6 +21,8 @@ import {
 } from '@nestjs/common';
 import {
     BILLING_ERROR_CODES,
+    dayInZone,
+    installationZoneOf,
     type AdminActor,
     type BundleRepository,
     type BundleVersionRow,
@@ -28,6 +30,7 @@ import {
     type FeatureWithdrawalBlocker,
     type FeatureWithdrawalLifted,
     type FeatureWithdrawalLiftedNotice,
+    type PlanCatalogSettings,
     type FeatureWithdrawalPreview,
     type FeatureWithdrawalRecord,
     type FeatureWithdrawalReduction,
@@ -77,7 +80,7 @@ import {
     NOTICE_DELIVERY_TIMEOUT_MS,
     NoticeSender,
 } from './notice-sender.js';
-import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN, PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { reachedSomebody } from './retirement-notices.js';
 import { sameSet } from './retirement-progress.js';
@@ -170,6 +173,11 @@ export class FeatureWithdrawalService {
         @Optional()
         @Inject(FeatureWithdrawalContractService)
         private readonly contractReductions: FeatureWithdrawalContractService | null = null,
+        // The zone the days a refusal names are read in; UTC where the file
+        // names none, or where a test builds the service without it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
     ) {
         // A notice says what happened; nothing waits for it to arrive, so one
         // the application tells nobody of is recorded as sent to no one.
@@ -804,12 +812,16 @@ export class FeatureWithdrawalService {
             )
             .map((withdrawal) => withdrawal.liftedFrom!.getTime());
         if (overlapping.length === 0) return [];
-        const date = new Date(Math.max(...overlapping)).toISOString().slice(0, 10);
+        const date = dayInZone(
+            new Date(Math.max(...overlapping)),
+            installationZoneOf(this.settings),
+        );
         return [
             {
                 code: BILLING_ERROR_CODES.FEATURE_WITHDRAWAL_OVERLAPS,
                 message: `${featureKey} is withdrawn until ${date}. Another withdrawal can begin on that date at the earliest.`,
                 params: { featureKey, date },
+                dayParams: ['date'],
             },
         ];
     }
@@ -825,7 +837,9 @@ export class FeatureWithdrawalService {
         this.assertAvailable();
         const found = await this.withdrawals.findById(id);
         if (!found) throw withdrawalNotFound(id);
-        if (found.liftedFrom) throw alreadyLifted(found.liftedFrom);
+        if (found.liftedFrom) {
+            throw alreadyLifted(found.liftedFrom, installationZoneOf(this.settings));
+        }
         // Told of the withdrawal before of its end, where its announcement
         // stopped before telling anybody — and not lifted while they cannot be.
         if (found.toldAt === null) {
@@ -871,7 +885,7 @@ export class FeatureWithdrawalService {
             if (!written) {
                 const current = await this.withdrawals.findById(id);
                 throw current?.liftedFrom
-                    ? alreadyLifted(current.liftedFrom)
+                    ? alreadyLifted(current.liftedFrom, installationZoneOf(this.settings))
                     : withdrawalNotFound(id);
             }
             await this.notices.record(
@@ -1097,11 +1111,13 @@ function withdrawalNotFound(withdrawalId: string): NotFoundException {
     });
 }
 
-function alreadyLifted(liftedFrom: Date): ConflictException {
-    const date = liftedFrom.toISOString().slice(0, 10);
+/** The withdrawal was lifted already; the day it returns from, in `timeZone`. */
+function alreadyLifted(liftedFrom: Date, timeZone: string): ConflictException {
+    const date = dayInZone(liftedFrom, timeZone);
     return new ConflictException({
         code: BILLING_ERROR_CODES.FEATURE_WITHDRAWAL_ALREADY_LIFTED,
         message: `This withdrawal is lifted already, from ${date}.`,
         params: { date },
+        dayParams: ['date'],
     });
 }

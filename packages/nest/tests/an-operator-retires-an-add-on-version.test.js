@@ -1085,6 +1085,25 @@ describe('reinstating a booking of a version being retired', () => {
         assert.equal(refusal?.params.bookableFrom, '2026-11-02');
     });
 
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('names the first whole day without the booking in the installation’s zone, as a day', async () => {
+        // 23:30 UTC on 1 November is already half past midnight on 2 November in Berlin.
+        const bookings = [
+            bookingOf('t1'),
+            bookingOf('t2', {
+                canceledAt: new Date('2026-10-01T00:00:00.000Z'),
+                canceledEffectiveAt: new Date('2026-11-01T23:30:00.000Z'),
+            }),
+        ];
+        const inBerlin = retiring({ bookings, timeZone: 'Europe/Berlin' });
+        await inBerlin.service.announce(RETIRED.id, REPLACEMENT.id, ['sb-t1'], ACTOR, NOW);
+
+        const refusal = await inBerlin.service.refusalToReinstate('sub-t2', 'sb-t2', NOW);
+
+        assert.equal(refusal?.params.bookableFrom, '2026-11-03');
+        assert.deepEqual(refusal?.dayParams, ['bookableFrom']);
+    });
+
     /**
      * t1 on Pro unless `t1` says otherwise, reached, its booking as `t1Booking`
      * says; t2 on Standard unless `t2` says otherwise, cancelled to end on 1

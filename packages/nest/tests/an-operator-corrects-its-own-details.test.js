@@ -306,6 +306,18 @@ describe('a start that finds another legal entity', () => {
         assert.match(message, /issuer:\n {4}correctionOf:\n {8}legalName: "Example Software GmbH"/);
     });
 
+    test('names the day each contract took effect as the installation’s day', async () => {
+        // Midnight UTC on 1 January is still 31 December in New York.
+        const inNewYork = (issuer) => ({ ...catalogWith(issuer), timeZone: 'America/New_York' });
+        const port = portRecording(settingsOf(inNewYork(GMBH)));
+        const contracts = await contractsRunning('Example Software GmbH');
+        const message = await refusalOf(inNewYork({ ...GMBH, legalName: 'Other Software AG' }), {
+            port,
+            contracts,
+        });
+        assert.match(message, /tenant tenant-1, from 2025-12-31,/);
+    });
+
     test('leaves the record exactly as the previous start left it', async () => {
         // A refused start writes nothing: the record still says what the last
         // start that got through applied, and the next attempt compares against
