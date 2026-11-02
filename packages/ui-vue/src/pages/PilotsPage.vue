@@ -107,13 +107,16 @@ import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { pilotsResource } from '../client/resources/pilots.resource.js';
 import type { plansResource } from '../client/resources/plans.resource.js';
-import { adminErrorMessage } from '../client/admin-error.js';
 import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { formatMessage, formatShortDay } from '../client/i18n/format.js';
 import { useInstallationDays } from '../vue/use-installation-days.js';
-import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
+import {
+    useAdminErrorText,
+    useSaMessages,
+    useSuperAdminI18n,
+} from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import AdminBody from '../ui/page/AdminBody.vue';
 import AdminHero from '../ui/page/AdminHero.vue';
@@ -201,7 +204,7 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('pilots');
-const errors = useSaMessages('errors');
+const errorText = useAdminErrorText();
 const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
 const days = useInstallationDays();
@@ -463,7 +466,7 @@ async function runAction(
             notify('positive', successMessage);
             await reload();
         } catch (err) {
-            notify('negative', adminErrorMessage(err, errors.value));
+            notify('negative', errorText(err));
         }
         return;
     }
@@ -473,7 +476,7 @@ async function runAction(
         notify('positive', successMessage);
         await reload();
     } catch (err) {
-        notify('negative', adminErrorMessage(err, errors.value));
+        notify('negative', errorText(err));
     }
 }
 

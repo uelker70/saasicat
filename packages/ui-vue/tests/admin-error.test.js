@@ -427,6 +427,37 @@ describe('a refusal the platform knows by its code', () => {
     });
 });
 
+// @requirement SC-ADM-048 — Every day the administration shows is a day of the installation
+describe('a refusal that names a day', () => {
+    const DE = SA_MESSAGES.de.errors;
+    const CLOSED = {
+        code: 'SUBSCRIBER_RECONCILIATION_CASE_CLOSED',
+        message:
+            'The case case-1 was closed on 2026-07-01; its note stands, and nothing was recorded.',
+        params: { caseId: 'case-1', closedAt: '2026-07-01' },
+        dayParams: ['closedAt'],
+    };
+    const refusal = (body) =>
+        new AdminError({ status: 409, code: body.code, body, detail: body.message });
+
+    test('writes the day the platform named as the interface writes days', () => {
+        assert.equal(
+            adminErrorMessage(refusal(CLOSED), DE, 'de-DE'),
+            'Der Fall case-1 wurde am 01.07.2026 geschlossen; seine Notiz bleibt, und nichts wurde erfasst.',
+        );
+    });
+
+    test('and only the values it names as days', () => {
+        const unnamed = { ...CLOSED, params: { caseId: '2026-12-24', closedAt: '2026-07-01' } };
+        assert.match(adminErrorMessage(refusal(unnamed), DE, 'de-DE'), /Der Fall 2026-12-24 wurde/);
+    });
+
+    test('and leaves a refusal that names none as it came', () => {
+        const older = { code: CLOSED.code, message: CLOSED.message, params: CLOSED.params };
+        assert.match(adminErrorMessage(refusal(older), DE, 'de-DE'), /am 2026-07-01 geschlossen/);
+    });
+});
+
 describe('a transport failure is declared by the client, not read off the class', () => {
     // `err instanceof TypeError` stood in for "the request failed in transit"
     // and was the third guess in this file to be wrong about a fact nothing in

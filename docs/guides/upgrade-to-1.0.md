@@ -2766,6 +2766,13 @@ The pages read it through `manifestGuard.getManifest`: an app that passes none s
   moment as the browser's day, the day before west of Greenwich; it now shows the day it begins
   with. An end stored at your own zone's midnight shows as the day before east of Greenwich.
 - **`promoCodes.timeZone` stays**: it names the zone a promo day is stored in (`SC-PROMO-031`).
+- **A refusal names its days as the interface writes days.** A refusal says which of its values are
+  days (`dayParams`), and `adminErrorMessage(err, messages, intlLocale)` writes those with
+  `formatDay`; its third argument is new and required. `useAdminErrorText()` gives a page or a
+  composable the function with the catalogue and the locale bound — what the shipped pages use. A
+  plan's end that lies in the past is named as the day the operator picked rather than a timestamp
+  (`PLAN_TERMINATE_DATE_NOT_FUTURE`), and a case closed already as the day it was closed on in the
+  installation's zone (`SUBSCRIBER_RECONCILIATION_CASE_CLOSED`).
 
 ### Every day a tenant is shown is a day of the installation
 

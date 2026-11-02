@@ -664,6 +664,10 @@ _Tested by:_
         - missing a value its sentence names, reads as the failing side said it, never with a hole
         - of a code named like an inherited property reads as the failing side said it
         - of a code the platform does not know reads as the failing side said it
+    - a refusal that names a day
+        - writes the day the platform named as the interface writes days
+        - and only the values it names as days
+        - and leaves a refusal that names none as it came
     - a transport failure is declared by the client, not read off the class
         - a null dereference is not a connection problem
         - a real fetch failure still says "check your connection"

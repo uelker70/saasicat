@@ -20,6 +20,7 @@ import {
     BILLING_ERROR_CODES,
     CATALOG_ERROR_CODES,
     isVersionEditable,
+    pickedDayOf,
     type CatalogEntryRepository,
     type CreatePlanVersionDraftData,
     type DiscoverySnapshot,
@@ -461,10 +462,15 @@ export class PlanVersionsService {
             });
         }
         if (endsAt.getTime() <= Date.now()) {
+            // The end an operator picks is a day — the administration sends its
+            // last second, 23:59:59 UTC — so it is named as that day, for the
+            // page to write as one.
+            const endsOn = pickedDayOf(endsAt);
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.PLAN_TERMINATE_DATE_NOT_FUTURE,
-                message: `endsAt (${endsAt.toISOString()}) must lie strictly in the future.`,
-                params: { endsAt: endsAt.toISOString() },
+                message: `endsAt (${endsOn}) must lie strictly in the future.`,
+                params: { endsAt: endsOn },
+                dayParams: ['endsAt'],
             });
         }
         if (typeof this.repo.terminate !== 'function') {

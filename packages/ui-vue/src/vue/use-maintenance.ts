@@ -15,7 +15,7 @@
 import { computed, type ComputedRef, type Ref } from 'vue';
 import type { MaintenanceOverview, MaintenanceWindowView } from '@saasicat/core';
 
-import { adminErrorMessage, type AdminError } from '../client/admin-error.js';
+import { type AdminError } from '../client/admin-error.js';
 import { formatMessage } from '../client/i18n/format.js';
 import type { Bound } from '../client/resources/define-resource.js';
 import type {
@@ -28,7 +28,7 @@ import type { UiConfirm } from './ui-confirm.js';
 import type { UiNotify } from './ui-notify.js';
 import type { MfaPrompt } from './use-mfa-prompt.js';
 import { useAsyncData } from './use-async-data.js';
-import { useSaMessages } from './use-super-admin-i18n.js';
+import { useAdminErrorText, useSaMessages } from './use-super-admin-i18n.js';
 
 /** The operations the page calls, already bound to the shell's client. */
 export type MaintenanceResource = Bound<(typeof maintenanceResource)['ops']>;
@@ -62,7 +62,7 @@ export function useMaintenance(
     mfa: MfaPrompt,
 ): MaintenanceState {
     const msg = useSaMessages('maintenance');
-    const errors = useSaMessages('errors');
+    const errorText = useAdminErrorText();
     const shell = useSaMessages('shell');
     const common = useSaMessages('common');
     const {
@@ -103,7 +103,7 @@ export function useMaintenance(
         try {
             await maintenance.cancel(id);
         } catch (err) {
-            notify('negative', adminErrorMessage(err, errors.value));
+            notify('negative', errorText(err));
             return 'failed';
         }
         notify('positive', c.cancelled);
@@ -121,7 +121,7 @@ export function useMaintenance(
             if (!result.done) return { outcome: 'cancelled' };
             return { outcome: 'done', value: result.value };
         } catch (err) {
-            notify('negative', adminErrorMessage(err, errors.value));
+            notify('negative', errorText(err));
             return { outcome: 'failed' };
         }
     }

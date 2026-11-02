@@ -5,12 +5,15 @@
 // The list is platform-wide, and the operator's routes read it inside
 // `RlsBypassPort`, as they read the tenant they are asked about.
 
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import {
     INVOICE_ERROR_CODES,
+    dayInZone,
+    installationZoneOf,
     type AdminReconciliationCase,
     type AdminReconciliationCases,
     type AdminSubscriberPayments,
+    type PlanCatalogSettings,
     type ReconciliationCaseState,
     type SubscriberPaymentRepository,
     type SubscriberReconciliationCaseRecord,
@@ -21,6 +24,7 @@ import {
 import { codedError } from '../../errors/coded-error.js';
 import { subscriberNotFound } from '../../subscriber/subscriber.service.js';
 import { SUBSCRIBER_REPOSITORY_TOKEN } from '../../subscriber/subscriber.tokens.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
 import { SUBSCRIBER_PAYMENT_REPOSITORY_TOKEN } from './invoice-collection.tokens.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.tokens.js';
 
@@ -42,6 +46,11 @@ export class SubscriberReconciliationService {
         private readonly invoices: SubscriptionInvoiceRepository,
         @Inject(SUBSCRIBER_REPOSITORY_TOKEN)
         private readonly subscribers: SubscriberRepository,
+        // The zone the day a refusal names is read in; UTC where the file names
+        // none, or where a test builds the service without it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
     ) {}
 
     /** One page of the cases in `state`, the oldest first, after the case `after` names. */
@@ -77,12 +86,18 @@ export class SubscriberReconciliationService {
             );
         }
         if (closed.outcome === 'already-closed') {
-            throw new ConflictException(
-                codedError(INVOICE_ERROR_CODES.SUBSCRIBER_RECONCILIATION_CASE_CLOSED, {
+            // Named as the day it was closed on in the installation's zone, as
+            // the sentence says "on"; said to be a day, for the page to write.
+            const closedOn = closed.case.closedAt
+                ? dayInZone(closed.case.closedAt, installationZoneOf(this.settings))
+                : '';
+            throw new ConflictException({
+                ...codedError(INVOICE_ERROR_CODES.SUBSCRIBER_RECONCILIATION_CASE_CLOSED, {
                     caseId,
-                    closedAt: closed.case.closedAt?.toISOString() ?? '',
+                    closedAt: closedOn,
                 }),
-            );
+                dayParams: ['closedAt'],
+            });
         }
         const [view] = await this.viewsOf([closed.case]);
         if (!view) throw new Error(`The case ${caseId} was closed and cannot be read.`);

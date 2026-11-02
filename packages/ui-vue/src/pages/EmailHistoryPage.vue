@@ -221,7 +221,6 @@ import AdminTable from '../ui/data/AdminTable.vue';
 import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { emailHistoryResource } from '../client/resources/platform-email.resource.js';
-import { adminErrorMessage } from '../client/admin-error.js';
 import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import AdminDialog from '../ui/overlay/AdminDialog.vue';
 import AdminStatusPill from '../ui/data/AdminStatusPill.vue';
@@ -237,7 +236,11 @@ import AdminPage from '../ui/page/AdminPage.vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
 import { formatMessage } from '../client/i18n/format.js';
-import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
+import {
+    useAdminErrorText,
+    useSaMessages,
+    useSuperAdminI18n,
+} from '../vue/use-super-admin-i18n.js';
 import type {
     EmailHistoryRow,
     EmailHistoryDetail,
@@ -273,7 +276,7 @@ const notify = useSuperAdminNotify();
 // at the path every consumer already calls.
 const history = useResource('emailHistory', props.resources);
 const msg = useSaMessages('email');
-const errors = useSaMessages('errors');
+const errorText = useAdminErrorText();
 const common = useSaMessages('common');
 const shell = useSaMessages('shell');
 const { intlLocale } = useSuperAdminI18n();
@@ -364,7 +367,7 @@ async function reload(): Promise<void> {
         if (seq !== reloadSeq) return;
         rows.value = [];
         pagination.value.rowsNumber = 0;
-        notify('negative', adminErrorMessage(err, errors.value));
+        notify('negative', errorText(err));
     } finally {
         if (seq === reloadSeq) loading.value = false;
     }
@@ -399,7 +402,7 @@ async function openDetail(row: EmailHistoryRow): Promise<void> {
         detail.value = await history.detail(row.id);
     } catch (err) {
         detailOpen.value = false;
-        notify('negative', adminErrorMessage(err, errors.value));
+        notify('negative', errorText(err));
     } finally {
         detailLoading.value = false;
     }
@@ -447,7 +450,7 @@ async function runWrite<T>(
             const result = await invoke('');
             return { ok: true, result };
         } catch (err) {
-            notify('negative', adminErrorMessage(err, errors.value));
+            notify('negative', errorText(err));
             return { ok: false };
         }
     }
@@ -455,7 +458,7 @@ async function runWrite<T>(
         const outcome = await mfa.run(label, shell.value.mfa.invalidCode, invoke);
         return outcome.done ? { ok: true, result: outcome.value } : { ok: false };
     } catch (err) {
-        notify('negative', adminErrorMessage(err, errors.value));
+        notify('negative', errorText(err));
         return { ok: false };
     }
 }

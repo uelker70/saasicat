@@ -112,7 +112,6 @@ import AdminTable from '../ui/data/AdminTable.vue';
 import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { promoCodesResource } from '../client/resources/promo-codes.resource.js';
-import { adminErrorMessage } from '../client/admin-error.js';
 import type { PromoCodePlanOption } from '../internal/dialogs/types.js';
 
 import { IDENTITY_ACCENTS } from '../client/identity-accents.js';
@@ -144,7 +143,11 @@ import AdminKpi from '../ui/data/AdminKpi.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
 import AdminStatistics from '../ui/data/AdminStatistics.vue';
 import { formatMessage } from '../client/i18n/format.js';
-import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
+import {
+    useAdminErrorText,
+    useSaMessages,
+    useSuperAdminI18n,
+} from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminPromoCodes } from '../vue/use-super-admin-context.js';
 import { promoDayOf } from '../client/promo-days.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
@@ -248,7 +251,7 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('promos');
-const errors = useSaMessages('errors');
+const errorText = useAdminErrorText();
 const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
 const promoCodes = useSuperAdminPromoCodes();
@@ -559,7 +562,7 @@ async function onPatch(row: PromoRow, data: PromoCodeUpdatePayload): Promise<voi
         notify('positive', `${row.code} → ${data.status}`);
         await reload();
     } catch (err) {
-        notify('negative', adminErrorMessage(err, errors.value));
+        notify('negative', errorText(err));
     }
 }
 
@@ -577,7 +580,7 @@ async function onDeleteClick(row: PromoRow): Promise<void> {
             notify('positive', formatMessage(msg.value.list.deletedNotice, { code: row.code }));
             await reload();
         } catch (err) {
-            notify('negative', adminErrorMessage(err, errors.value));
+            notify('negative', errorText(err));
         }
     }
 }

@@ -687,6 +687,9 @@ describe('PlanVersionsService — Lifecycle', () => {
             (err) => {
                 assert.equal(err.status, 422);
                 assert.equal(err.response.code, 'PLAN_TERMINATE_DATE_NOT_FUTURE');
+                // The end the operator picked, as the day it is, said to be a day.
+                assert.deepEqual(err.response.params, { endsAt: past.toISOString().slice(0, 10) });
+                assert.deepEqual(err.response.dayParams, ['endsAt']);
                 return true;
             },
         );

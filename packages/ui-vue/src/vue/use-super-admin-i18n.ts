@@ -30,6 +30,7 @@ import {
     type SaMessages,
     type SaMessagesOverrides,
 } from '../client/i18n/index.js';
+import { adminErrorMessage } from '../client/admin-error.js';
 import { defaultKvStore, type KvStore } from '../client/types.js';
 
 export interface SuperAdminI18n {
@@ -176,4 +177,14 @@ export function useSaMessages<K extends keyof SaMessages>(
 ): ComputedRef<SaMessages[K]> {
     const { messages } = useSuperAdminI18n();
     return computed(() => messages.value[namespace]);
+}
+
+/**
+ * How the administration words a failure: `adminErrorMessage` in the
+ * interface's language, each day a refusal names written as the interface
+ * writes days. One seam, so no page words a refusal without its days.
+ */
+export function useAdminErrorText(): (err: unknown) => string {
+    const { messages, intlLocale } = useSuperAdminI18n();
+    return (err) => adminErrorMessage(err, messages.value.errors, intlLocale.value);
 }

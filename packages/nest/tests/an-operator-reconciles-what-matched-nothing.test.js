@@ -210,6 +210,31 @@ describe('the cases to reconcile', () => {
             refusedAs(404, INVOICE_ERROR_CODES.SUBSCRIBER_RECONCILIATION_CASE_NOT_FOUND),
         );
     });
+
+    // @requirement SC-ADM-048 — Every day the administration shows is a day of the installation
+    test('a case closed already is named by the day it was closed on in the installation’s zone', async () => {
+        // Half past midnight on 1 July in Berlin: still 30 June in UTC.
+        const closedAt = new Date('2026-06-30T22:30:00.000Z');
+        const service = new SubscriberReconciliationService(
+            {
+                closeCase: async () => ({
+                    outcome: 'already-closed',
+                    case: { id: 'case-1', closedAt },
+                }),
+            },
+            null,
+            null,
+            { timeZone: 'Europe/Berlin' },
+        );
+
+        const refusal = await service
+            .close('case-1', 'Again.', 'operator:op-1')
+            .catch((error) => error.getResponse());
+
+        assert.equal(refusal.code, INVOICE_ERROR_CODES.SUBSCRIBER_RECONCILIATION_CASE_CLOSED);
+        assert.deepEqual(refusal.params, { caseId: 'case-1', closedAt: '2026-07-01' });
+        assert.deepEqual(refusal.dayParams, ['closedAt']);
+    });
 });
 
 // @requirement SC-ADM-039 — The operator reconciles what no credit matched, and finds each case in the record

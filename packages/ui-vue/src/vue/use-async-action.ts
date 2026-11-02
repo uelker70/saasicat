@@ -22,8 +22,8 @@
 
 import { inject, ref, type Ref } from 'vue';
 
-import { adminErrorMessage, toAdminError, type AdminError } from '../client/admin-error.js';
-import { useSaMessages } from './use-super-admin-i18n.js';
+import { toAdminError, type AdminError } from '../client/admin-error.js';
+import { useAdminErrorText } from './use-super-admin-i18n.js';
 import { SUPER_ADMIN_NOTIFY_KEY, type UiNotify } from './ui-notify.js';
 import { report } from './report.js';
 
@@ -85,7 +85,7 @@ export function useAsyncAction<A extends unknown[], T>(
     const pending = ref(false);
     const error = ref<AdminError | null>(null);
     const notify = options.notify ?? inject(SUPER_ADMIN_NOTIFY_KEY, undefined);
-    const messages = useSaMessages('errors');
+    const errorText = useAdminErrorText();
     const notifyOn = options.notifyOn ?? 'error';
     // How many invocations are in flight. A second `run` before the first
     // settles would otherwise let the first one's `finally` clear `pending`,
@@ -130,8 +130,7 @@ export function useAsyncAction<A extends unknown[], T>(
                 report(() =>
                     notify?.(
                         'negative',
-                        options.errorMessage?.(adminError) ??
-                            adminErrorMessage(adminError, messages.value),
+                        options.errorMessage?.(adminError) ?? errorText(adminError),
                     ),
                 );
             }
