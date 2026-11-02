@@ -6,7 +6,12 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { writeDayParams } from '../dist/index.js';
+import {
+    noActivePlanVersion,
+    refusalBodyIn,
+    subscriptionGone,
+    writeDayParams,
+} from '../dist/index.js';
 
 const write = (day) => `<${day}>`;
 
@@ -48,5 +53,37 @@ describe('the days a refusal names', () => {
         const params = { until: '2026-12-01' };
         writeDayParams(params, ['until'], write);
         assert.deepEqual(params, { until: '2026-12-01' });
+    });
+});
+
+describe('a refusal an adapter raises, as the platform answers it', () => {
+    /** Half past midnight on 1 July in Berlin: still 30 June in UTC. */
+    const AFTER_MIDNIGHT_IN_BERLIN = new Date('2026-06-30T22:30:00.000Z');
+
+    test('names its day in the installation’s zone, says it is a day, and says it in English too', () => {
+        assert.deepEqual(
+            refusalBodyIn(noActivePlanVersion('PRO', AFTER_MIDNIGHT_IN_BERLIN), 'Europe/Berlin'),
+            {
+                code: 'NO_ACTIVE_PLAN_VERSION',
+                message: 'No version of plan PRO is on sale as of 2026-07-01.',
+                params: { planId: 'PRO', asOf: '2026-07-01' },
+                dayParams: ['asOf'],
+            },
+        );
+    });
+
+    test('while the adapter itself names the UTC day, knowing no zone', () => {
+        const refusal = noActivePlanVersion('PRO', AFTER_MIDNIGHT_IN_BERLIN);
+        assert.deepEqual(refusal.params, { planId: 'PRO', asOf: '2026-06-30' });
+        assert.equal(refusalBodyIn(refusal, 'UTC').params.asOf, '2026-06-30');
+    });
+
+    test('is answered as it came where it names no day', () => {
+        const refusal = subscriptionGone('t1');
+        assert.deepEqual(refusalBodyIn(refusal, 'Europe/Berlin'), {
+            code: refusal.code,
+            message: refusal.message,
+            params: refusal.params,
+        });
     });
 });

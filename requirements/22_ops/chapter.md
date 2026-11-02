@@ -602,6 +602,14 @@ _Tested by:_
           path too
         - and any other failure of the atomic onboarding still reads as its own
         - an immediate plan change whose target lost its version answers as not found
+        - and names the day it asked about as the installation’s day, said to be a day
+        - a plan change scheduled for a subscription gone meanwhile answers as the check does
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - the free switch before the date
+        - answers a subscription gone while it was being switched as the check does
+- `packages/nest/tests/a-version-offer-is-taken.test.js`
+    - one that takes something away is taken at the end of the term
+        - answers a subscription gone while it was being scheduled as the check does
 
 <!-- END proof -->
 

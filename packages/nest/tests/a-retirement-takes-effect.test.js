@@ -7,7 +7,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
-import { scheduledChangeAfterWrite } from '@saasicat/core';
+import { scheduledChangeAfterWrite, subscriptionGone } from '@saasicat/core';
 
 import {
     RetirementMoveService,
@@ -841,6 +841,20 @@ describe('the free switch before the date', () => {
         assert.deepEqual(error.getResponse().dayParams, ['until', 'lastDay']);
         assert.equal(writes.calls.length, 0);
         assert.deepEqual(frozen, []);
+    });
+
+    // @requirement SC-OPS-016 — A request that loses a race reads what the check says, not a server error
+    test('answers a subscription gone while it was being switched as the check does', async () => {
+        const { service } = aSwitch({
+            claims: () => {
+                throw subscriptionGone('t1');
+            },
+        });
+
+        const error = await rejection(service.switchNow('t1', 'pv-9', BEFORE));
+
+        assert.equal(error.getStatus?.(), 404, String(error));
+        assert.equal(error.getResponse().code, 'SUBSCRIPTION_NOT_FOUND');
     });
 
     // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server

@@ -108,6 +108,7 @@ export * from './catalog-key-refusals.js';
 export * from './decimal-string.js';
 export * from './promo-code-refusals.js';
 export * from './subscription-refusals.js';
+export { refusalBodyIn, type RefusalBody } from './refusal.js';
 export * from './feature-requires.js';
 export * from './upsell.types.js';
 export * from './payment-gateway.types.js';

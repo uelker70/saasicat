@@ -12,6 +12,7 @@ import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
+import { subscriptionGone } from '@saasicat/core';
 
 import {
     AcceptVersionOfferDto,
@@ -188,6 +189,21 @@ describe('an improvement and more for more are taken at once', () => {
 });
 
 describe('one that takes something away is taken at the end of the term', () => {
+    // @requirement SC-OPS-016 — A request that loses a race reads what the check says, not a server error
+    test('answers a subscription gone while it was being scheduled as the check does', async () => {
+        const { take } = aSwitch({
+            live: TAKES_AWAY,
+            whileWriting: () => {
+                throw subscriptionGone('t1');
+            },
+        });
+        await assert.rejects(take(), (error) => {
+            assert.equal(error.getStatus?.(), 404, String(error));
+            assert.equal(error.getResponse().code, 'SUBSCRIPTION_NOT_FOUND');
+            return true;
+        });
+    });
+
     test('scheduled for the term end and bound to the version offered', async () => {
         const { calls, take } = aSwitch({ live: TAKES_AWAY, usage: { users: 3 } });
 

@@ -5490,6 +5490,7 @@ _Tested by:_
           end
         - in a trial nothing is frozen and nothing charged
     - one that takes something away is taken at the end of the term
+        - answers a subscription gone while it was being scheduled as the check does
         - scheduled for the term end and bound to the version offered
         - with what taking it agrees to: the terms named and the notice of its rhythm, now
         - the party is asked about the contract that runs from the term end
@@ -5980,6 +5981,7 @@ _Tested by:_
         - opens only after the trial
         - is refused while something is outstanding, as a version offer is
         - is refused while an add-on running today cannot run on the replacement’s plan
+        - answers a subscription gone while it was being switched as the check does
         - names the add-on’s last day and the first without it in the installation’s zone
         - is refused as well where an add-on was told it continues on a version the plan cannot
           carry, naming that version
@@ -19829,6 +19831,10 @@ _Tested by:_
         - leave a named value that is not text as it is
         - are none where the refusal says ${what}
         - leave the refusal they were read from as it was
+    - a refusal an adapter raises, as the platform answers it
+        - names its day in the installation’s zone, says it is a day, and says it in English too
+        - while the adapter itself names the UTC day, knowing no zone
+        - is answered as it came where it names no day
 - `packages/nest/tests/a-booking-fits-every-plan-ahead.test.js`
     - the day a refusal about a plan ahead names
         - is the day the plan ahead takes effect in the installation’s zone, named as a day
@@ -19848,6 +19854,9 @@ _Tested by:_
         - are the last day the add-on runs and the first without it, in the installation’s zone
         - in UTC where the settings name none
         - the day a booking continues on another version is read in that zone too
+- `packages/nest/tests/a-request-that-loses-a-race-reads-what-the-check-says.test.js`
+    - a tenant whose subscription moves while the request is decided
+        - and names the day it asked about as the installation’s day, said to be a day
 - `packages/nest/tests/a-retirement-takes-effect.test.js`
     - the free switch before the date
         - names the add-on’s last day and the first without it in the installation’s zone
@@ -24376,6 +24385,14 @@ _Tested by:_
           path too
         - and any other failure of the atomic onboarding still reads as its own
         - an immediate plan change whose target lost its version answers as not found
+        - and names the day it asked about as the installation’s day, said to be a day
+        - a plan change scheduled for a subscription gone meanwhile answers as the check does
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - the free switch before the date
+        - answers a subscription gone while it was being switched as the check does
+- `packages/nest/tests/a-version-offer-is-taken.test.js`
+    - one that takes something away is taken at the end of the term
+        - answers a subscription gone while it was being scheduled as the check does
 
 <!-- END proof -->
 

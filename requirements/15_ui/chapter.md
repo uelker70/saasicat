@@ -1972,6 +1972,10 @@ _Tested by:_
         - leave a named value that is not text as it is
         - are none where the refusal says ${what}
         - leave the refusal they were read from as it was
+    - a refusal an adapter raises, as the platform answers it
+        - names its day in the installation’s zone, says it is a day, and says it in English too
+        - while the adapter itself names the UTC day, knowing no zone
+        - is answered as it came where it names no day
 - `packages/nest/tests/a-booking-fits-every-plan-ahead.test.js`
     - the day a refusal about a plan ahead names
         - is the day the plan ahead takes effect in the installation’s zone, named as a day
@@ -1991,6 +1995,9 @@ _Tested by:_
         - are the last day the add-on runs and the first without it, in the installation’s zone
         - in UTC where the settings name none
         - the day a booking continues on another version is read in that zone too
+- `packages/nest/tests/a-request-that-loses-a-race-reads-what-the-check-says.test.js`
+    - a tenant whose subscription moves while the request is decided
+        - and names the day it asked about as the installation’s day, said to be a day
 - `packages/nest/tests/a-retirement-takes-effect.test.js`
     - the free switch before the date
         - names the add-on’s last day and the first without it in the installation’s zone
