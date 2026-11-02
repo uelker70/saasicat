@@ -63,7 +63,9 @@ export function refusalBlockersOf(err: unknown): PlanChangePreviewIssueShape[] {
         const dayParams = Array.isArray(named)
             ? named.filter((name): name is string => typeof name === 'string')
             : [];
-        return [{ code, message, params, ...(dayParams.length > 0 ? { dayParams } : {}) }];
+        const reason: PlanChangePreviewIssueShape = { code, message, params };
+        if (dayParams.length > 0) reason.dayParams = dayParams;
+        return [reason];
     });
 }
 
@@ -88,10 +90,10 @@ export function issueSentence(
 }
 
 /** `params` with each value `dayParams` names written as the application writes a day. */
-function daysWritten(
-    params: Readonly<Record<string, unknown>> | undefined,
+function daysWritten<Value>(
+    params: Readonly<Record<string, Value>> | undefined,
     dayParams: unknown,
     formatDate: (iso: string) => string,
-): Record<string, unknown> | undefined {
+): Record<string, Value | string> | undefined {
     return params && writeDayParams(params, dayParams, (day) => writeDay(formatDate, day));
 }
