@@ -1345,7 +1345,7 @@ describe('the public feature registry', () => {
         EXPORT: { label: 'Data export', description: '', icon: 'download' },
         REPORTS: { label: 'Reports', description: '', icon: 'bar_chart' },
     };
-    const registryOver = (withdrawals) =>
+    const registryOver = (withdrawals, settings = null) =>
         new PublicCatalogController(
             givenPlanCatalogSource({
                 schemaVersion: 1,
@@ -1359,6 +1359,7 @@ describe('the public feature registry', () => {
             null,
             null,
             withdrawals,
+            settings,
         );
 
     test('marks a feature withdrawn now or ahead with why and from when', async () => {
@@ -1374,6 +1375,8 @@ describe('the public feature registry', () => {
                     reason: 'The export service has been switched off.',
                     effectiveFrom: '2026-06-01T00:00:00.000Z',
                     liftedFrom: '2099-01-01T00:00:00.000Z',
+                    effectiveFromDays: { until: '2026-05-31', from: '2026-06-01' },
+                    liftedFromDays: { until: '2098-12-31', from: '2099-01-01' },
                 },
             ],
         });
@@ -1397,11 +1400,15 @@ describe('the public feature registry', () => {
                 reason: 'The export service has been switched off.',
                 effectiveFrom: '2026-06-01T00:00:00.000Z',
                 liftedFrom: '2099-01-01T00:00:00.000Z',
+                effectiveFromDays: { until: '2026-05-31', from: '2026-06-01' },
+                liftedFromDays: { until: '2098-12-31', from: '2099-01-01' },
             },
             {
                 reason: 'A law ends it.',
                 effectiveFrom: '2099-01-01T00:00:00.000Z',
                 liftedFrom: null,
+                effectiveFromDays: { until: '2098-12-31', from: '2099-01-01' },
+                liftedFromDays: null,
             },
         ]);
     });
@@ -1414,6 +1421,25 @@ describe('the public feature registry', () => {
         }).listFeatureRegistry();
         assert.equal(lifted.EXPORT.withdrawn, undefined);
         assert.deepEqual(await registryOver(null).listFeatureRegistry(), REGISTRY);
+    });
+
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('names the days of each mark in the zone the settings name', async () => {
+        // Midnight before 1 July in Berlin, still 30 June in UTC; and before 1 September.
+        const registry = await registryOver(
+            {
+                list: async () => [
+                    withdrawalRecord({
+                        effectiveFrom: new Date('2099-06-30T22:00:00.000Z'),
+                        liftedFrom: new Date('2099-08-31T22:00:00.000Z'),
+                    }),
+                ],
+            },
+            { timeZone: 'Europe/Berlin' },
+        ).listFeatureRegistry();
+        const [mark] = registry.EXPORT.withdrawn;
+        assert.deepEqual(mark.effectiveFromDays, { until: '2099-06-30', from: '2099-07-01' });
+        assert.deepEqual(mark.liftedFromDays, { until: '2099-08-31', from: '2099-09-01' });
     });
 
     test('fails rather than show a withdrawn feature as available', async () => {

@@ -28,11 +28,14 @@ import type {
     VersionOfferWithDays,
 } from '@saasicat/core';
 import {
+    FEATURE_WITHDRAWAL_MOMENTS,
     SUBSCRIPTION_BUNDLE_MOMENTS,
     withDays,
     withUsageDays,
+    withWithdrawalDays,
     type CancellationDays,
     type SubscriptionUsageDays,
+    type TenantFeatureWithdrawalAsRead,
     type VersionRetiredNotice,
 } from '@saasicat/core';
 
@@ -1810,53 +1813,56 @@ const FEATURE_WITHDRAWALS = [
  */
 const TENANT_WITHDRAWN_REASON =
     'The archive service the audit log is kept in has been switched off.';
-const TENANT_WITHDRAWN = {
-    withdrawals: [
+const TENANT_WITHDRAWAL: TenantFeatureWithdrawalAsRead = {
+    withdrawalId: 'fw-2',
+    featureKey: 'audit',
+    featureLabel: 'Audit log',
+    reason: TENANT_WITHDRAWN_REASON,
+    effectiveFrom: '2026-01-10T00:00:00.000Z',
+    liftedFrom: null,
+    inEffect: true,
+    lines: [
         {
-            withdrawalId: 'fw-2',
-            featureKey: 'audit',
-            featureLabel: 'Audit log',
-            reason: TENANT_WITHDRAWN_REASON,
-            effectiveFrom: '2026-01-10T00:00:00.000Z',
-            liftedFrom: null,
-            inEffect: true,
-            lines: [
-                {
-                    line: 'plan',
-                    key: 'PRO',
-                    label: 'Pro',
-                    subscriptionBundleId: null,
-                    billingCycle: 'MONTHLY',
-                    reductionNet: 5,
-                    reduced: true,
-                    fromChange: null,
-                },
-                {
-                    line: 'bundle',
-                    key: 'ANALYTICS',
-                    label: 'Analytics',
-                    subscriptionBundleId: 'sb-1',
-                    billingCycle: 'MONTHLY',
-                    reductionNet: null,
-                    reduced: true,
-                    fromChange: null,
-                },
-            ],
-            specialTerms: false,
-            endable: { subscription: true, subscriptionBundleIds: ['sb-1'] },
+            line: 'plan',
+            key: 'PRO',
+            label: 'Pro',
+            subscriptionBundleId: null,
+            billingCycle: 'MONTHLY',
+            reductionNet: 5,
+            reduced: true,
+            fromChange: null,
+        },
+        {
+            line: 'bundle',
+            key: 'ANALYTICS',
+            label: 'Analytics',
+            subscriptionBundleId: 'sb-1',
+            billingCycle: 'MONTHLY',
+            reductionNet: null,
+            reduced: true,
+            fromChange: null,
         },
     ],
+    specialTerms: false,
+    endable: { subscription: true, subscriptionBundleIds: ['sb-1'] },
+};
+const TENANT_WITHDRAWN = {
+    withdrawals: [withWithdrawalDays(TENANT_WITHDRAWAL, FIXTURE_ZONE)],
     registry: {
         audit: {
             label: 'Audit log',
             description: 'Every change, who made it and when.',
             icon: 'history',
             withdrawn: [
-                {
-                    reason: TENANT_WITHDRAWN_REASON,
-                    effectiveFrom: '2026-01-10T00:00:00.000Z',
-                    liftedFrom: null,
-                },
+                withDays(
+                    {
+                        reason: TENANT_WITHDRAWN_REASON,
+                        effectiveFrom: TENANT_WITHDRAWAL.effectiveFrom,
+                        liftedFrom: null,
+                    },
+                    FEATURE_WITHDRAWAL_MOMENTS,
+                    FIXTURE_ZONE,
+                ),
             ],
         },
         export: { label: 'Export', description: 'Download every note.', icon: 'download' },

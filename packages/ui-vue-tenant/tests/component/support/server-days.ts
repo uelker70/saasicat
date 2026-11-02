@@ -4,10 +4,15 @@
 // platform would name rather than one the test made up.
 
 import {
+    FEATURE_WITHDRAWAL_MOMENTS,
     withDays,
     withUsageDays,
+    withWithdrawalDays,
     type CancellationDays,
+    type FeatureWithdrawalMark,
     type SubscriptionUsageDays,
+    type TenantFeatureWithdrawal,
+    type TenantFeatureWithdrawalAsRead,
     type VersionRetiredNotice,
     type WithDays,
 } from '@saasicat/core';
@@ -36,4 +41,18 @@ export type UsageAsRead = Omit<
 /** That account as `GET /billing/usage` answers it, with the days of each moment (`withUsageDays`). */
 export function answeredUsage(usage: UsageAsRead): UsageSnapshotShape {
     return withUsageDays(usage, ZONE);
+}
+
+/** A withdrawal as `GET /billing/feature-withdrawals` answers it, with the days of its moments. */
+export function answeredWithdrawal(
+    withdrawal: TenantFeatureWithdrawalAsRead,
+): TenantFeatureWithdrawal {
+    return withWithdrawalDays(withdrawal, ZONE);
+}
+
+/** A withdrawal as `GET /billing/feature-registry` marks it beside a feature. */
+export function answeredMark(
+    mark: Omit<FeatureWithdrawalMark, 'effectiveFromDays' | 'liftedFromDays'>,
+): FeatureWithdrawalMark {
+    return withDays(mark, FEATURE_WITHDRAWAL_MOMENTS, ZONE);
 }

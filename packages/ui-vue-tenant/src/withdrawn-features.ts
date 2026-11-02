@@ -9,14 +9,18 @@
 import { inject, provide, type InjectionKey } from 'vue';
 import type { FeatureUiRegistry, FeatureWithdrawalMark } from '@saasicat/core';
 
-/** What every feature named below can ask: whether it is withdrawn, and how a date is written. */
+/** What every feature named below can ask: whether it is withdrawn, and how a day is written. */
 export interface WithdrawnFeatures {
     /**
      * Each withdrawal of `featureKey` not over yet, the earliest first; empty
      * where it is not withdrawn.
      */
     of(featureKey: string): readonly FeatureWithdrawalMark[];
-    /** An ISO date as the page writes dates. */
+    /**
+     * A day as the page writes it. It is handed noon of a day the server named
+     * (`SC-UI-028`) as an instant, so it reads that instant in the viewer's
+     * zone — `toLocaleDateString` without a `timeZone` does.
+     */
     formatDate(iso: string): string;
 }
 

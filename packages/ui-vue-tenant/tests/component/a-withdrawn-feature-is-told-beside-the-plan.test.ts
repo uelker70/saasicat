@@ -8,6 +8,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { defineComponent, h } from 'vue';
+import type { FeatureWithdrawalMark, TenantFeatureWithdrawalAsRead } from '@saasicat/core';
 import type { HttpClient } from '@saasicat/ui-vue';
 
 import MySubscriptionBundlesPage from '../../src/MySubscriptionBundlesPage.vue';
@@ -15,11 +16,37 @@ import TenantPlanSection from '../../src/TenantPlanSection.vue';
 import WithdrawnFeatureMark from '../../src/WithdrawnFeatureMark.vue';
 import { DEFAULT_I18N_DE, DEFAULT_I18N_EN } from '../../src/default-i18n.js';
 import { provideWithdrawnFeatures } from '../../src/withdrawn-features.js';
+import { answered, answeredMark, answeredWithdrawal } from './support/server-days.js';
 
 const i18n = DEFAULT_I18N_DE;
 const REASON = 'Der Exportdienst wurde abgeschaltet.';
 
-const WITHDRAWAL = {
+type LineAsRead = TenantFeatureWithdrawalAsRead['lines'][number];
+
+const PLAN_LINE: LineAsRead = {
+    line: 'plan',
+    key: 'STANDARD',
+    label: 'Standard',
+    subscriptionBundleId: null,
+    billingCycle: 'MONTHLY',
+    reductionNet: 5,
+    reduced: true,
+    fromChange: null,
+};
+
+const ADD_ON_LINE: LineAsRead = {
+    line: 'bundle',
+    key: 'EXPORT_PLUS',
+    label: 'Export plus',
+    subscriptionBundleId: 'sb-1',
+    billingCycle: 'YEARLY',
+    reductionNet: null,
+    reduced: true,
+    fromChange: null,
+};
+
+/** A withdrawal as the server reads it; it answers with the days of its moments. */
+const WITHDRAWAL: TenantFeatureWithdrawalAsRead = {
     withdrawalId: 'fw-1',
     featureKey: 'EXPORT',
     featureLabel: 'Datenexport',
@@ -27,28 +54,7 @@ const WITHDRAWAL = {
     effectiveFrom: '2026-07-01T00:00:00.000Z',
     liftedFrom: null,
     inEffect: true,
-    lines: [
-        {
-            line: 'plan',
-            key: 'STANDARD',
-            label: 'Standard',
-            subscriptionBundleId: null,
-            billingCycle: 'MONTHLY',
-            reductionNet: 5,
-            reduced: true,
-            fromChange: null,
-        },
-        {
-            line: 'bundle',
-            key: 'EXPORT_PLUS',
-            label: 'Export plus',
-            subscriptionBundleId: 'sb-1',
-            billingCycle: 'YEARLY',
-            reductionNet: null,
-            reduced: true,
-            fromChange: null,
-        },
-    ],
+    lines: [PLAN_LINE, ADD_ON_LINE],
     specialTerms: false,
     endable: { subscription: true, subscriptionBundleIds: ['sb-1'] },
 };
@@ -89,7 +95,13 @@ const REGISTRY = {
         label: 'Datenexport',
         description: '',
         icon: '',
-        withdrawn: [{ reason: REASON, effectiveFrom: WITHDRAWAL.effectiveFrom, liftedFrom: null }],
+        withdrawn: [
+            answeredMark({
+                reason: REASON,
+                effectiveFrom: WITHDRAWAL.effectiveFrom,
+                liftedFrom: null,
+            }),
+        ],
     },
 };
 
@@ -99,11 +111,25 @@ interface Server {
     asked: string[];
 }
 
+/** What an end at once answers, with the days of when it ends. */
+const ENDS = (creditNet: number) =>
+    answered({ endsAt: '2026-07-10T09:00:00.000Z', creditNet, currency: 'EUR' }, ['endsAt']);
+
+interface ServerOptions {
+    /** The withdrawals the subscription was told of; the route answers them with their days. */
+    withdrawals?: readonly TenantFeatureWithdrawalAsRead[];
+    /** What the route answers instead of the withdrawals, where it answers something else. */
+    listAnswer?: unknown;
+    listStatus?: number;
+    previewStatus?: number;
+}
+
 function aServer({
-    withdrawals = [WITHDRAWAL] as unknown,
+    withdrawals = [WITHDRAWAL],
+    listAnswer,
     listStatus = 200,
     previewStatus = 200,
-} = {}): Server {
+}: ServerOptions = {}): Server {
     const asked: string[] = [];
     const reply = (body: unknown, status = 200) => ({
         status,
@@ -122,11 +148,7 @@ function aServer({
                     previewStatus,
                 );
             }
-            const answer = {
-                endsAt: '2026-07-10T09:00:00.000Z',
-                creditNet: booking ? 0 : 33.87,
-                currency: 'EUR',
-            };
+            const answer = ENDS(booking ? 0 : 33.87);
             return reply(
                 method === 'POST'
                     ? {
@@ -137,7 +159,9 @@ function aServer({
                     : answer,
             );
         }
-        if (url.endsWith('/feature-withdrawals')) return reply(withdrawals, listStatus);
+        if (url.endsWith('/feature-withdrawals')) {
+            return reply(listAnswer ?? withdrawals.map(answeredWithdrawal), listStatus);
+        }
         if (url.endsWith('/usage')) return reply(aSubscription());
         if (url.endsWith('/feature-registry')) return reply(REGISTRY);
         if (url.endsWith('/version-offer')) return reply({ offer: null });
@@ -198,15 +222,14 @@ describe('a withdrawn feature, beside the plan', () => {
 
     // @requirement SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
     test('says from when a line a scheduled change brings is reduced, beside the line held', async () => {
-        const [monthly] = WITHDRAWAL.lines;
-        const yearly = {
-            ...monthly,
+        const yearly: LineAsRead = {
+            ...PLAN_LINE,
             billingCycle: 'YEARLY',
             reductionNet: 40,
             reduced: false,
             fromChange: '2026-08-01T00:00:00.000Z',
         };
-        await aSection(aServer({ withdrawals: [{ ...WITHDRAWAL, lines: [monthly, yearly] }] }));
+        await aSection(aServer({ withdrawals: [{ ...WITHDRAWAL, lines: [PLAN_LINE, yearly] }] }));
 
         expect(linesShown()).toEqual([
             'Standard (Monatlich): Sie zahlen € 5.00 netto/Monat weniger, solange es fehlt.',
@@ -223,7 +246,7 @@ describe('a withdrawn feature, beside the plan', () => {
 
     // @requirement SC-UI-020 — A page never takes the whole screen down because data arrived in an unexpected shape
     test('says it could not read them where the route answers something else, and keeps the page', async () => {
-        await aSection(aServer({ withdrawals: [{ id: 'sb-1', label: 'Seats' }] }));
+        await aSection(aServer({ listAnswer: [{ id: 'sb-1', label: 'Seats' }] }));
 
         expect(card()).toBeNull();
         expect(document.body.textContent).toContain(i18n.featureWithdrawnLoadFailed);
@@ -245,7 +268,7 @@ describe('a withdrawn feature, beside the plan', () => {
                         effectiveFrom: '2999-01-01T00:00:00.000Z',
                         liftedFrom: '2999-03-01T00:00:00.000Z',
                         inEffect: false,
-                        lines: [{ ...WITHDRAWAL.lines[0], reduced: false }],
+                        lines: [{ ...PLAN_LINE, reduced: false }],
                         specialTerms: true,
                         endable: { subscription: false, subscriptionBundleIds: [] },
                     },
@@ -330,13 +353,17 @@ describe('ending at once while a feature is withdrawn', () => {
     // @requirement SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
     test('keeps each plan line its own when the list is read again after an end', async () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        const [monthly, addOn] = WITHDRAWAL.lines;
-        const yearly = { ...monthly, billingCycle: 'YEARLY', reductionNet: 40, reduced: false };
-        const withdrawal = { ...WITHDRAWAL, lines: [monthly, yearly, addOn] };
+        const yearly: LineAsRead = {
+            ...PLAN_LINE,
+            billingCycle: 'YEARLY',
+            reductionNet: 40,
+            reduced: false,
+        };
+        const withdrawal = { ...WITHDRAWAL, lines: [PLAN_LINE, yearly, ADD_ON_LINE] };
         const wrapper = await aSection(aServer({ withdrawals: [withdrawal] }));
         // Read again after the add-on ends, the lines come the other way round:
         // telling the two plan lines apart is what lets each keep its own place.
-        withdrawal.lines = [{ ...addOn, reduced: false }, yearly, monthly];
+        withdrawal.lines = [{ ...ADD_ON_LINE, reduced: false }, yearly, PLAN_LINE];
 
         await buttonNamed(wrapper, 'Export plus sofort beenden')!.trigger('click');
         await flushPromises();
@@ -379,15 +406,10 @@ describe('the page of the tenant’s add-ons', () => {
         });
         const http: HttpClient = async (url, init) => {
             asked.push(`${init?.method ?? 'GET'} ${url}`);
-            if (url.endsWith('/feature-withdrawals')) return reply([WITHDRAWAL]);
+            if (url.endsWith('/feature-withdrawals'))
+                return reply([answeredWithdrawal(WITHDRAWAL)]);
             if (url.endsWith('/end')) {
-                return reply({
-                    endsAt: '2026-07-10T09:00:00.000Z',
-                    creditNet: 0,
-                    currency: 'EUR',
-                    withdrawalId: 'fw-1',
-                    subscriptionBundleId: 'sb-1',
-                });
+                return reply({ ...ENDS(0), withdrawalId: 'fw-1', subscriptionBundleId: 'sb-1' });
             }
             return reply([]);
         };
@@ -416,14 +438,21 @@ describe('the page of the tenant’s add-ons', () => {
 
 // @requirement SC-CAT-017 — A withdrawn feature is marked wherever a plan or an add-on is shown with what it includes
 describe('the mark beside a withdrawn feature, mounted on its own and so in the default language', () => {
-    function aMark(withdrawn: unknown) {
+    type MarkAsRead = Omit<FeatureWithdrawalMark, 'effectiveFromDays' | 'liftedFromDays'>;
+
+    /** The text of the mark beside `EXPORT`, withdrawn as `withdrawn` says — the server's days beside it. */
+    function aMark(withdrawn: readonly MarkAsRead[] | undefined) {
         const Host = defineComponent({
             setup() {
                 provideWithdrawnFeatures(
-                    () =>
-                        ({
-                            EXPORT: { label: 'Datenexport', description: '', icon: '', withdrawn },
-                        }) as never,
+                    () => ({
+                        EXPORT: {
+                            label: 'Datenexport',
+                            description: '',
+                            icon: '',
+                            withdrawn: withdrawn?.map(answeredMark),
+                        },
+                    }),
                     (iso) => iso.slice(0, 10),
                 );
                 return () => h(WithdrawnFeatureMark, { featureKey: 'EXPORT' });

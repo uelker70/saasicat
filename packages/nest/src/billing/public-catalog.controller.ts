@@ -1,7 +1,10 @@
 import { Controller, Get, Inject, Optional, Query } from '@nestjs/common';
 import {
+    FEATURE_WITHDRAWAL_MOMENTS,
     buildFeatureRequiresIndex,
     collectUnsatisfiedRequires,
+    installationZoneOf,
+    withDays,
     withdrawnFeaturesOf,
     type BundleRepository,
     type BundleVersionRow,
@@ -13,8 +16,9 @@ import {
     type MarketingProjectionRepository,
     type MarketingProjectionRow,
     type MarketingTopFeature,
+    type PlanCatalogSettings,
 } from '@saasicat/core';
-import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN, PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { BILLING_FEATURE_UI_REGISTRY_TOKEN } from './feature-ui-registry.tokens.js';
 import {
@@ -99,6 +103,11 @@ export class PublicCatalogController {
         @Optional()
         @Inject(FEATURE_WITHDRAWAL_REPOSITORY_TOKEN)
         private readonly featureWithdrawals: FeatureWithdrawalRepository | null = null,
+        // The zone the days of a withdrawal are read in; UTC where the file
+        // names none, or where a test builds the controller without it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
     ) {}
 
     @Get('plans')
@@ -131,9 +140,11 @@ export class PublicCatalogController {
 
     /**
      * The feature registry, each feature withdrawn now or from a date ahead
-     * marked with why and from when. Unlike the icon overlay, a failure to read
-     * the withdrawals is not answered with the registry as it stands: that
-     * would show a withdrawn feature as available to somebody about to buy it.
+     * marked with why, from when and — where it is lifted — until when, each
+     * date with its days in the installation's zone (`SC-UI-028`). Unlike the
+     * icon overlay, a failure to read the withdrawals is not answered with the
+     * registry as it stands: that would show a withdrawn feature as available
+     * to somebody about to buy it.
      */
     @Get('feature-registry')
     async listFeatureRegistry(): Promise<FeatureUiRegistry> {
@@ -141,10 +152,16 @@ export class PublicCatalogController {
         if (!this.featureWithdrawals) return registry;
         const withdrawn = withdrawnFeaturesOf(await this.featureWithdrawals.list(), new Date());
         if (withdrawn.length === 0) return registry;
+        const zone = installationZoneOf(this.settings);
         const byFeature = new Map<string, FeatureWithdrawalMark[]>();
         for (const { featureKey, reason, effectiveFrom, liftedFrom } of withdrawn) {
             const marks = byFeature.get(featureKey) ?? [];
-            byFeature.set(featureKey, [...marks, { reason, effectiveFrom, liftedFrom }]);
+            const mark = withDays(
+                { reason, effectiveFrom, liftedFrom },
+                FEATURE_WITHDRAWAL_MOMENTS,
+                zone,
+            );
+            byFeature.set(featureKey, [...marks, mark]);
         }
         const marked: FeatureUiRegistry = { ...registry };
         for (const [featureKey, marks] of byFeature) {

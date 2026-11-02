@@ -2775,9 +2775,10 @@ the day before in New York, and an end at midnight read as the day after the las
 the installation's zone — `until`, the last day of what the moment ends, and `from`, the first of
 what it begins — and the pages write those. This covers the add-on bookings (every answer of
 `billing/subscription-bundles` that carries one), an add-on's preview, the version offers of a plan
-and of an add-on together with what taking one answers, and the plan itself: `billing/usage`, a plan
-change's preview and what scheduling one answers, and a cancellation declared. The withdrawn
-features follow.
+and of an add-on together with what taking one answers, the plan itself: `billing/usage`, a plan
+change's preview and what scheduling one answers, and a cancellation declared — and the withdrawn
+features: the marks in `billing/feature-registry`, the withdrawals in `billing/feature-withdrawals`
+and ending at once.
 
 - **What a page shows changes** where a moment falls near midnight, and where an end is shown: an
   add-on's minimum term, a trial, a cancellation and a preview's first period name the last day they
@@ -2792,8 +2793,11 @@ features follow.
   `pilotEndsDay` — the day that was picked, the same in every zone — the days of `cancellation`
   (`effectiveDays`, `termEndsDays`, `noticeDeadlineDays`) and `effectiveDays` on a retirement on its
   way; a plan change's preview `effectiveDays` and `projectedTrialEndsDays`, a change scheduled
-  `pendingEffectiveDays`, and a cancellation declared the days of its four moments. A screen of your
-  own reads `from` where it says "since" or "from", and `until` where it says "until" or "ends".
+  `pendingEffectiveDays`, and a cancellation declared the days of its four moments. Each mark in
+  `withdrawn` of `billing/feature-registry` carries `effectiveFromDays` and `liftedFromDays`, a
+  withdrawal in `billing/feature-withdrawals` the same and `fromChangeDays` on each line, and what
+  ending at once previews and answers `endsDays`. A screen of your own reads `from` where it says
+  "since" or "from", and `until` where it says "until" or "ends".
 - **The plan-change wizard's sentences take both sides.** Where a sentence says what stays unchanged
   until the change, it takes `{lastDay}`, the last day before it; `{date}` stays the first day it
   applies. A catalogue override that still writes `{date}` there goes on getting the first day.
@@ -2806,6 +2810,10 @@ features follow.
   `nextPeriodStart`, `PlanChangeWizard` `trialEndsDays` in place of `trialEndsAt`, and
   `PackageSnapshotPanel` an optional `capturedDays`. `TenantPlanSection` passes them; only a page
   that mounts one of them on its own changes.
+- **`provideWithdrawnFeatures` keeps its signature**, and the `formatDate` you hand it is handed a day
+  like every other tenant formatter (below). A test of your own that builds a mark for
+  `WithdrawnFeatureMark` gives it `effectiveFromDays` and `liftedFromDays`; without them the mark
+  writes a dash, as it does for a server that names no days yet.
 - **A retirement's last day to cancel without notice is the installation's day** (`SC-SUB-046`,
   `SC-BUN-066`): the last whole day before the date in the installation's zone, not in UTC. East of
   UTC, a term ending at local midnight now names one day later — the day a subscriber there reads as

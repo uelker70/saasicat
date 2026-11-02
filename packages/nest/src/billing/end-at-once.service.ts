@@ -20,8 +20,11 @@ import {
 } from '@nestjs/common';
 import {
     BILLING_ERROR_CODES,
+    daysAround,
     endedAtOnceSubjectOf,
+    installationZoneOf,
     isFeatureWithdrawnAt,
+    withWithdrawalDays,
     type BillingCycle,
     type BundleRepository,
     type EndAtOncePreview,
@@ -30,12 +33,14 @@ import {
     type FeatureWithdrawalRecord,
     type FeatureWithdrawalRepository,
     type FeatureWithdrawnNotice,
+    type PlanCatalogSettings,
     type SubscriptionBundleRecord,
     type SubscriptionBundleRepository,
     type SubscriptionNoticeRepository,
     type SubscriptionUsagePort,
     type SubscriptionUsageRecord,
     type TenantFeatureWithdrawal,
+    type TenantFeatureWithdrawalAsRead,
     type TenantSubscriptionWritePort,
 } from '@saasicat/core';
 
@@ -47,7 +52,7 @@ import { SubscriberChargeService } from './charges/subscriber-charge.service.js'
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import { FeatureWithdrawalService } from './feature-withdrawal.service.js';
 import { freezeContractAfter } from './freeze-contract-after.js';
-import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN, PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { rhythmTheChangeLandsIn } from './scheduled-change.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
@@ -107,12 +112,23 @@ export class EndAtOnceService {
         @Optional()
         @Inject(SubscriberChargeService)
         private readonly charges: SubscriberChargeService | null = null,
+        // The zone the days of what the tenant is shown are read in; UTC where
+        // the file names none, or where a test builds the service without it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
     ) {}
+
+    /** The installation's zone, which every day handed out here is read in. */
+    private zone(): string {
+        return installationZoneOf(this.settings);
+    }
 
     /**
      * The withdrawals the tenant's subscription was told of that are not over:
      * what each takes away and from when, what each line is reduced by and
-     * whether that still holds, and what may end at once now.
+     * whether that still holds, and what may end at once now — with the days
+     * of each moment, in the installation's zone.
      */
     async withdrawalsOf(tenantId: string, now: Date): Promise<TenantFeatureWithdrawal[]> {
         const situation = await this.situationOf(tenantId);
@@ -121,7 +137,7 @@ export class EndAtOnceService {
             .filter(
                 ({ withdrawal }) => withdrawal.liftedFrom === null || withdrawal.liftedFrom > now,
             )
-            .map((told) => viewOf(told, situation, now));
+            .map((told) => withWithdrawalDays(viewOf(told, situation, now), this.zone()));
     }
 
     /** What ending the subscription — or the booking named — at once now would credit. */
@@ -135,7 +151,7 @@ export class EndAtOnceService {
         const { booking } = this.assertMayEnd(situation, withdrawalId, subscriptionBundleId, now);
         this.declaredEndToBringForward(situation!.subscription, booking);
         const credit = await this.creditOf(tenantId, subscriptionBundleId, now);
-        return { endsAt: now.toISOString(), ...credit };
+        return { endsAt: now.toISOString(), endsDays: daysAround(now, this.zone()), ...credit };
     }
 
     /**
@@ -189,6 +205,7 @@ export class EndAtOnceService {
             withdrawalId,
             subscriptionBundleId: booking?.id ?? null,
             endsAt: at.toISOString(),
+            endsDays: daysAround(at, this.zone()),
             ...credit,
         };
     }
@@ -437,12 +454,12 @@ export class EndAtOnceService {
     }
 }
 
-/** What the tenant sees of one withdrawal its subscription was told of. */
+/** What the tenant sees of one withdrawal its subscription was told of, before its days are named. */
 function viewOf(
     { notice, withdrawal }: Told,
     situation: Situation,
     now: Date,
-): TenantFeatureWithdrawal {
+): TenantFeatureWithdrawalAsRead {
     const inEffect = isFeatureWithdrawnAt(withdrawal, now);
     const { subscription } = situation;
     const running = !cancellationHasLanded(subscription, now);

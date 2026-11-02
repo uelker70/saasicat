@@ -1567,6 +1567,8 @@ _Tested by:_
         - says when a line a scheduled change brings begins, and reduces it once it runs
         - reduces the line held until the change, and the line it brings from then
         - says when the scheduled move of a booking brings the version that grants the feature
+    - the days a tenant is shown of a withdrawal
+        - name the days of when a scheduled change brings a line, in that zone
 - `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
     - the preview of a withdrawal, where a change is scheduled
         - reaches a subscription the change brings onto a version that grants the feature, with that
