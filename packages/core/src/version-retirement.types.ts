@@ -8,6 +8,7 @@
 // replacement, at that version's price, from then on. A price increase is a
 // retirement whose replacement costs more.
 
+import type { WithDays } from './days-beside-moments.js';
 import type { RetirementSwitchTerms } from './retirement-switch.js';
 import type { VersionChange } from './subscription.types.js';
 import type { VersionOfferSide } from './version-offer.js';
@@ -73,9 +74,16 @@ export interface VersionRetiredNotice {
     readonly billingCycle: string;
     /** ISO 8601. */
     readonly effectiveAt: string;
-    /** ISO date (`YYYY-MM-DD`), UTC. */
+    /**
+     * The last day it may be cancelled without notice, `YYYY-MM-DD`: the last
+     * whole day before `effectiveAt` in the installation's zone, as the notice
+     * named it.
+     */
     readonly lastDayToCancel: string;
 }
+
+/** A retirement notice as the tenant reads it: with the days of when it takes effect. */
+export type VersionRetiredNoticeWithDays = WithDays<VersionRetiredNotice, 'effectiveAt'>;
 
 /**
  * The one reminder of a retirement, where staying put costs the subscription
@@ -126,7 +134,10 @@ export interface RetirementReachedRow {
     readonly billingCycle: string;
     /** ISO 8601. */
     readonly effectiveAt: string;
-    /** ISO date, UTC. */
+    /**
+     * The last day it may be cancelled without notice, `YYYY-MM-DD`: the last
+     * whole day before `effectiveAt` in the installation's zone.
+     */
     readonly lastDayToCancel: string;
     /** Reached by another retirement within the last twelve months: the announcement waits. */
     readonly reachedRecently: boolean;

@@ -9,6 +9,7 @@ import PlanChangeWizard from '../../src/PlanChangeWizard.vue';
 import { defaultTenantPlanSectionI18n, planChangeWizardI18n } from '../../src/default-i18n';
 import { DEFAULT_SA_LOCALE } from '@saasicat/ui-vue';
 import type { BillingCycleStr, CatalogPlan, PlanChangePreviewShape } from '@saasicat/ui-vue';
+import { DEFERRED_UPGRADE } from './support/plan-change-previews.js';
 
 // What the confirmation step shows has to be the answer to the question it is
 // asking. Between the two there is a network.
@@ -46,21 +47,7 @@ const PLANS = [
     },
 ] as unknown as CatalogPlan[];
 
-const DEFERRED: PlanChangePreviewShape = {
-    changeType: 'UPGRADE',
-    planDirection: 'UP',
-    cycleDirection: 'SHORTER',
-    isImmediate: false,
-    effectiveAt: '2027-01-01T00:00:00.000Z',
-    proration: null,
-    limitsCheck: {},
-    featuresGained: [],
-    featuresLost: [],
-    blockers: [],
-    warnings: [],
-    target: { plan: { monthlyNet: 20, yearlyNet: 200 } },
-    projectedTrialEndsAt: null,
-} as unknown as PlanChangePreviewShape;
+const DEFERRED: PlanChangePreviewShape = DEFERRED_UPGRADE;
 
 const IMMEDIATE: PlanChangePreviewShape = {
     ...DEFERRED,

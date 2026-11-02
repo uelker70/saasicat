@@ -1984,6 +1984,24 @@ _Tested by:_
         - a booking’s preview names the days of its first period, its term and its end
         - a cancellation’s preview names the days of when it takes effect
         - a newer version taken names the days of when it takes effect
+- `packages/nest/tests/a-tenant-is-handed-the-days-of-its-plan.test.js`
+    - the days of the subscription
+        - are read in the zone the settings name, for every moment it is shown
+        - in UTC where the settings name none
+        - name none beside a moment that is absent
+        - a pilot ends on the day that was picked, whatever the zone
+        - the end of a cancellation declared before the effective date was stored is that date
+    - the days of what the account says is ahead
+        - what cancelling now would do names the days of its date, its term and its deadline
+        - and no deadline where no notice is owed
+        - a retirement on its way names the days of when it takes effect, and keeps its last day
+        - a package snapshot names the days of when it was captured
+        - one that carries no moment it was captured at names none, and the read goes on
+    - the days of a change and of a cancellation
+        - a plan change’s preview names the days of when it would take effect
+        - a scheduled change names the days of when it lands
+        - a cancellation declared names the days of when it was declared and when it lands
+        - and a repeat names the days of the date it already had
 - `packages/nest/tests/a-version-offer-is-taken.test.js`
     - the switch goes ahead only while the version shown is still the offer
         - the offer it carries names the days of when it takes effect
@@ -1991,6 +2009,29 @@ _Tested by:_
     - a day handed to the application’s formatter
         - is that day for a viewer in ${zone}
         - is written by the application’s formatter, and a dash stands for none
+- `packages/ui-vue-tenant/tests/component/a-later-change-is-acknowledged.test.ts`
+    - the day a change takes effect, from either side of it
+        - what falls away does so from the first day, and what stays runs until the last
+        - the preview names the first day the change applies
+        - the confirmation names the first day the change applies, and the price is due from it
+        - a trial pays regularly from its end, named by the last day the trial covers
+        - and from the trial the change projects, where it projects one
+- `packages/ui-vue-tenant/tests/component/a-plan-day-is-the-one-the-server-names.test.ts`
+    - the plan card
+        - is billed again from the first day of the next period
+        - ends a trial on the last day it covers
+        - ends a pilot on the day that was picked
+        - names the first day a scheduled change applies
+        - and the first day a newer version taken for the end of the term applies
+        - runs a cancelled subscription until the last day it covers
+        - says an ended subscription has ended since the first day it no longer ran
+    - the confirmation of a cancellation
+        - names the last day the subscription runs, and the last day notice could be given
+    - the retirement of the version the tenant is on
+        - says the subscription moves on from the first day of the replacement
+        - a switch that costs no more applies its price from the day the next period starts
+    - the package the subscription was concluded from
+        - was captured on the day the server names
 - `packages/ui-vue-tenant/tests/component/an-add-on-day-is-the-one-the-server-names.test.ts`
     - a booking in the add-on store
         - runs its minimum term until the last day the server named

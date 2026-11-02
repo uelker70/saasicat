@@ -46,7 +46,7 @@
                 :switch-terms="usage.retirementSwitch"
                 :busy="takingOffer"
                 :billing-cycle="usage.billingCycle"
-                :next-period-start="usage.currentPeriodEnd"
+                :next-period-start-day="usage.currentPeriodEndDays?.from ?? null"
                 :format-currency="formatCurrency"
                 :format-date="formatDate"
                 :quota-label="quotaLabelResolved"
@@ -88,7 +88,7 @@
                     :cycle-label="cycleLabel"
                     :current-price-eur="currentPriceEur"
                     :current-price-unit="currentPriceUnit"
-                    :next-billing-date="nextBillingDate"
+                    :bills-again="billsAgain"
                     :format-currency="formatCurrency"
                     :format-date="formatDate"
                     @change-plan="showWizard = true"
@@ -226,9 +226,12 @@
                         effectiveI18n.cancelConfirmLate
                             .replace(
                                 '{deadline}',
-                                formatDate(cancellationPlan.noticeDeadline ?? ''),
+                                writeDay(formatDate, cancellationPlan.noticeDeadlineDays?.until),
                             )
-                            .replace('{date}', formatDate(cancellationPlan.effectiveAt))
+                            .replace(
+                                '{date}',
+                                writeDay(formatDate, cancellationPlan.effectiveDays?.until),
+                            )
                     }}
                 </p>
                 <p v-if="usage.retirement">
@@ -237,7 +240,7 @@
                             .replace('{version}', String(usage.retirement.retired.version))
                             .replace(
                                 '{date}',
-                                formatDate(dayAsInstant(usage.retirement.lastDayToCancel)),
+                                writeDay(formatDate, usage.retirement.lastDayToCancel),
                             )
                     }}
                 </p>
@@ -245,7 +248,7 @@
                     {{
                         effectiveI18n.cancelConfirmBody.replace(
                             '{date}',
-                            formatDate(cancellationPlan.effectiveAt),
+                            writeDay(formatDate, cancellationPlan.effectiveDays?.until),
                         )
                     }}
                 </p>
@@ -264,7 +267,7 @@
                             cancellationPlan
                                 ? effectiveI18n.cancelConfirmAction.replace(
                                       '{date}',
-                                      formatDate(cancellationPlan.effectiveAt),
+                                      writeDay(formatDate, cancellationPlan.effectiveDays?.until),
                                   )
                                 : effectiveI18n.cancelSubscriptionButton
                         }}
@@ -280,6 +283,7 @@
                 v-if="usage.packageSnapshot"
                 :snapshot="usage.packageSnapshot"
                 :checkout-offer-id="usage.checkoutOfferId"
+                :captured-days="usage.packageSnapshotCapturedDays ?? null"
                 :format-date="formatDate"
                 :format-currency="formatCurrency"
             />
@@ -292,7 +296,7 @@
                 :current-plan-name="currentPlanName"
                 :current-cycle="usage.billingCycle"
                 :current-status="usage.status"
-                :trial-ends-at="usage.trialEndsAt"
+                :trial-ends-days="usage.trialEndsDays ?? null"
                 :catalog-quota-keys="catalogQuotaKeys"
                 :format-currency="formatCurrency"
                 :format-date="formatDate"
@@ -353,7 +357,7 @@ import { issueSentence, refusalBlockersOf, refusalMessage, refusalOf } from './r
 import FeatureWithdrawnNotices from './tenant-plan-section/FeatureWithdrawnNotices.vue';
 import VersionOfferCard from './tenant-plan-section/VersionOfferCard.vue';
 import VersionRetiredCard from './tenant-plan-section/VersionRetiredCard.vue';
-import { dayAsInstant, writeDay } from './day-as-instant.js';
+import { writeDay } from './day-as-instant.js';
 import { defaultQuotaValue } from './plan/quota-value.js';
 
 // TenantPlanSection — main component for the tenant plan/bundle self-service
@@ -653,15 +657,14 @@ const currentPriceUnit = computed(() =>
 /** Shared by the badge, its tone and the billing date — one timer, one answer. */
 const hasEnded = useSubscriptionHasEnded(() => usage.value);
 
-const nextBillingDate = computed(() => {
+const billsAgain = computed(() => {
     const u = usage.value;
-    if (!u || !u.currentPeriodEnd) return null;
-    if (u.status !== 'ACTIVE') return null;
+    if (!u || !u.currentPeriodEnd) return false;
+    if (u.status !== 'ACTIVE') return false;
     // A subscription that has ended is not billed again, and its period end is
     // in the past. The status column does not say so — nothing transitions it
     // when a cancellation lands — so the date does.
-    if (hasEnded.value) return null;
-    return u.currentPeriodEnd;
+    return !hasEnded.value;
 });
 
 const cycleLabel = computed(() => {

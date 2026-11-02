@@ -29,9 +29,10 @@ function subscription(fields) {
     };
 }
 
-const effective = (sub, announcedAt = ANNOUNCED) => retirementReach(sub, announcedAt);
+const effective = (sub, announcedAt = ANNOUNCED, timeZone = 'UTC') =>
+    retirementReach(sub, announcedAt, timeZone);
 
-// @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
+// @requirement SC-SUB-046 — A retirement's last day to cancel without notice is the installation's day
 describe('the effective date of a retirement', () => {
     test('monthly, periods starting on the 1st: the first period end from 15 June on — 1 July', () => {
         const reach = effective(
@@ -120,7 +121,32 @@ describe('the effective date of a retirement', () => {
     });
 });
 
-// @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
+// @requirement SC-SUB-046 — A retirement's last day to cancel without notice is the installation's day
+describe('the last day to cancel without notice', () => {
+    // A term ending at midnight in Berlin ends at 22:00 UTC the day before in
+    // summer, and one ending at 22:00 in New York ends at 02:00 UTC the day
+    // after: the whole day before it is a different day in UTC either way.
+    const term = (start, end) =>
+        subscription({ currentPeriodStart: at(start), currentPeriodEnd: at(end) });
+
+    test('is the whole day before the effective day in the installation’s zone, ahead of UTC', () => {
+        const sub = term('2026-03-30T22:00:00Z', '2026-04-30T22:00:00Z');
+        const reach = effective(sub, ANNOUNCED, 'Europe/Berlin');
+        assert.equal(reach.effectiveAt.toISOString(), '2026-06-30T22:00:00.000Z');
+        assert.equal(reach.lastDayToCancel, '2026-06-30', '1 July begins at that moment in Berlin');
+        assert.equal(effective(sub).lastDayToCancel, '2026-06-29', 'in UTC it is still 30 June');
+    });
+
+    test('and behind it', () => {
+        const sub = term('2026-03-01T02:00:00Z', '2026-04-01T02:00:00Z');
+        const reach = effective(sub, ANNOUNCED, 'America/New_York');
+        assert.equal(reach.effectiveAt.toISOString(), '2026-07-01T02:00:00.000Z');
+        assert.equal(reach.lastDayToCancel, '2026-06-29', 'it is 22:00 on 30 June in New York');
+        assert.equal(effective(sub).lastDayToCancel, '2026-06-30', 'in UTC it is 1 July');
+    });
+});
+
+// @requirement SC-SUB-046 — A retirement's last day to cancel without notice is the installation's day
 describe('a subscription in its trial', () => {
     test('counts its terms from the end of the trial', () => {
         const reach = effective(
@@ -138,7 +164,7 @@ describe('a subscription in its trial', () => {
 });
 
 // @requirement SC-SUB-026 — A retirement is announced for exactly the subscriptions the operator was shown
-// @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
+// @requirement SC-SUB-046 — A retirement's last day to cancel without notice is the installation's day
 describe('a subscription with a change of rhythm scheduled', () => {
     const running = {
         currentPeriodStart: at('2026-03-01T00:00:00Z'),
@@ -283,7 +309,7 @@ describe('a subscription a retirement does not reach', () => {
     });
 });
 
-// @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
+// @requirement SC-SUB-046 — A retirement's last day to cancel without notice is the installation's day
 describe('three calendar months', () => {
     test('keep the day of the month and the time of day', () => {
         assert.equal(

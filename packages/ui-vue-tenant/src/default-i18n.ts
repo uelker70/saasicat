@@ -29,15 +29,18 @@ export interface TenantPlanSectionI18n {
     changeEffectiveAt: string;
     changePlanButton: string;
     wizardDeferredLead: string;
+    /** `{lastDay}` is the last day before the change takes effect on `{date}`. */
     wizardDeferredBody: string;
     wizardDeferredAlternative: string;
     wizardDeferredKeepYearly: string;
     wizardDeferredAcknowledge: string;
     wizardDowngradeLead: string;
     wizardDowngradeLeadQuotasOnly: string;
+    /** `{lastDay}` is the last day before the change takes effect on `{date}`. */
     wizardDowngradeBody: string;
     wizardDowngradeAcknowledge: string;
     wizardCycleChangeLead: string;
+    /** `{lastDay}` is the last day before the change takes effect on `{date}`. */
     wizardCycleChangeBody: string;
     wizardCycleChangeAcknowledge: string;
     cancelSubscriptionButton: string;
@@ -433,7 +436,7 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     changePlanButton: 'Paket wechseln',
     wizardDeferredLead: 'Sie profitieren erst ab {date} von {plan}.',
     wizardDeferredBody:
-        'Ihr laufender Jahresvertrag bleibt bis zum {date} unverändert. Neue Funktionen und Kontingente stehen Ihnen bis dahin nicht zur Verfügung — der Wechsel wird erst nach Ablauf der Mindestlaufzeit wirksam.',
+        'Ihr laufender Jahresvertrag bleibt bis zum {lastDay} unverändert. Neue Funktionen und Kontingente stehen Ihnen bis dahin nicht zur Verfügung — der Wechsel wird erst nach Ablauf der Mindestlaufzeit wirksam.',
     wizardDeferredAlternative:
         'Wenn Sie sofort profitieren möchten, behalten Sie den Jahresvertrag: Der Wechsel wird dann heute wirksam und anteilig für das laufende Jahr abgerechnet.',
     wizardDeferredKeepYearly: 'Jahresvertrag behalten und sofort wechseln',
@@ -441,11 +444,11 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     wizardDowngradeLead: 'Ab {date} stehen Ihnen {count} Funktion(en) nicht mehr zur Verfügung.',
     wizardDowngradeLeadQuotasOnly: 'Ab {date} gelten die geringeren Kontingente von {plan}.',
     wizardDowngradeBody:
-        'Ihr aktueller Vertrag läuft unverändert bis zum {date} — bis dahin ändert sich nichts. Ihre Daten bleiben erhalten und werden nicht gelöscht; ein späteres Upgrade schaltet sie wieder frei.',
+        'Ihr aktueller Vertrag läuft unverändert bis zum {lastDay} — bis dahin ändert sich nichts. Ihre Daten bleiben erhalten und werden nicht gelöscht; ein späteres Upgrade schaltet sie wieder frei.',
     wizardDowngradeAcknowledge: 'Ich habe verstanden, was ab {date} entfällt.',
     wizardCycleChangeLead: 'Die Umstellung auf {cycle} wird erst zum {date} wirksam.',
     wizardCycleChangeBody:
-        'Bis zum {date} bleibt alles unverändert — gleicher Plan, gleiche Kontingente, gleicher Preis. Ab dann gilt der neue Zahlungsrhythmus, und damit beginnt eine neue Mindestlaufzeit.',
+        'Bis zum {lastDay} bleibt alles unverändert — gleicher Plan, gleiche Kontingente, gleicher Preis. Ab dann gilt der neue Zahlungsrhythmus, und damit beginnt eine neue Mindestlaufzeit.',
     wizardCycleChangeAcknowledge:
         'Ich habe verstanden, dass die Umstellung erst am {date} wirksam wird.',
     cancelSubscriptionButton: 'Abonnement kündigen',
@@ -788,7 +791,7 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     changePlanButton: 'Change plan',
     wizardDeferredLead: 'You benefit from {plan} on {date}, not before.',
     wizardDeferredBody:
-        'Your running yearly contract stays unchanged until {date}. New features and quotas are not available to you before then — the change takes effect once the minimum term ends.',
+        'Your running yearly contract stays unchanged until {lastDay}. New features and quotas are not available to you before then — the change takes effect once the minimum term ends.',
     wizardDeferredAlternative:
         'To benefit immediately, keep the yearly cycle: the change then takes effect today and is billed pro rata for the running year.',
     wizardDeferredKeepYearly: 'Keep yearly and switch today',
@@ -796,24 +799,24 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     wizardDowngradeLead: 'From {date} you no longer have {count} feature(s).',
     wizardDowngradeLeadQuotasOnly: 'From {date} the smaller quotas of {plan} apply.',
     wizardDowngradeBody:
-        'Your current contract runs unchanged until {date} — nothing changes before then. Your data is kept and never deleted; upgrading again unlocks it.',
+        'Your current contract runs unchanged until {lastDay} — nothing changes before then. Your data is kept and never deleted; upgrading again unlocks it.',
     wizardDowngradeAcknowledge: 'I understand what falls away on {date}.',
     wizardCycleChangeLead: 'Switching to {cycle} takes effect on {date}, not before.',
     wizardCycleChangeBody:
-        'Nothing changes until {date} — same plan, same quotas, same price. From then the new billing rhythm applies, and with it a fresh minimum term.',
+        'Nothing changes until {lastDay} — same plan, same quotas, same price. From then the new billing rhythm applies, and with it a fresh minimum term.',
     wizardCycleChangeAcknowledge: 'I understand that the switch takes effect on {date}.',
     cancelSubscriptionButton: 'Cancel subscription',
     canceledHeading: 'Cancelled.',
     canceledUntil: 'Your subscription runs unchanged until',
     canceledUnchanged: 'Nothing about your access changes before then.',
     endedHeading: 'Ended.',
-    endedOn: 'Your subscription ended on',
+    endedOn: 'Your subscription has been over since',
     cancelConfirmTitle: 'Cancel subscription?',
     cancelConfirmBody:
         'Your subscription then runs unchanged until {date} — features, quotas and billing stay the same until then.',
     cancelConfirmLate:
-        'The notice period for the running term ended on {deadline}, so the cancellation takes effect on {date} instead.',
-    cancelConfirmAction: 'Cancel as of {date}',
+        'The notice period for the running term ended on {deadline}, so the cancellation takes effect only at the end of {date}.',
+    cancelConfirmAction: 'Cancel at the end of {date}',
     cancelConfirmRetirement:
         'Because version {version} of your plan is being retired, no notice period applies up to and including {date}.',
     usageTitle: 'Usage',
@@ -866,7 +869,7 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     bundleReactivateConfirmTitle: 'Reactivate bundle',
     bundleReactivateConfirmBody:
         'The cancellation will be reverted. The bundle stays booked, continues to run normally and will be billed again.',
-    bundleCanceledAt: 'Canceled effective',
+    bundleCanceledAt: 'Canceled, runs until',
     bundleMinimumTermUntil: 'Minimum term until',
     bundleIncludesLabel: 'Includes',
     bundleAlreadyBooked: 'Already booked',
@@ -895,7 +898,7 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     bundlePreviewMissingRequiresTitle: 'Missing prerequisites',
     bundlePreviewBlockersTitle: 'Booking not possible',
     bundlePreviewWarningsTitle: 'Notes',
-    bundlePreviewEffectiveAt: 'Cancellation effective as of',
+    bundlePreviewEffectiveAt: 'Cancellation takes effect at the end of',
     bundlePreviewSavings: 'Savings per period once effective',
     bundlePreviewConfirmAdd: 'Book (chargeable)',
     bundlePreviewConfirmCancel: 'Confirm cancellation',

@@ -181,6 +181,7 @@ export function retiring({
     termsConfirmed = true,
     notices = noticeRecord(),
     port = sendingPort(),
+    timeZone,
 } = {}) {
     const retirements = announcementStore();
     const audited = [];
@@ -228,7 +229,7 @@ export function retiring({
         port,
         retirements,
         transactions,
-        { tenantBilling: { orderlyRetirement: { termsConfirmed } } },
+        { timeZone, tenantBilling: { orderlyRetirement: { termsConfirmed } } },
         null,
         { log: async (entry) => audited.push(entry) },
     );

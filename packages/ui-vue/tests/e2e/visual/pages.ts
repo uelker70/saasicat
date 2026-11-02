@@ -2,7 +2,11 @@ import type { Component } from 'vue';
 
 import type { HttpClient } from '../../../src/client/types.js';
 import type { BillingCycleStr } from '../../../src/vue/use-tenant-billing.js';
-import { FIXTURE_PLAN_CHANGE_PREVIEW, TENANT_CATALOG_PLANS } from './fixture-data.js';
+import {
+    FIXTURE_PLAN_CHANGE_PREVIEW,
+    FIXTURE_TRIAL_ENDS_DAYS,
+    TENANT_CATALOG_PLANS,
+} from './fixture-data.js';
 import {
     defaultTenantPlanSectionI18n,
     planChangeWizardI18n,
@@ -464,7 +468,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             currentPlanName: 'Pro',
             currentCycle: 'MONTHLY' as BillingCycleStr,
             currentStatus: 'TRIAL',
-            trialEndsAt: '2026-02-01T00:00:00.000Z',
+            trialEndsDays: FIXTURE_TRIAL_ENDS_DAYS,
             catalogQuotaKeys: ['users', 'storage', 'projects'],
             formatCurrency: (n: number) => `€ ${n.toFixed(2)}`,
             formatDate: (iso: string) => iso.slice(0, 10),

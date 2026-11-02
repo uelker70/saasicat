@@ -78,8 +78,8 @@ properties it has while doing it.
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
-| 4   | Add-on bundles                               | `SC-BUN-…`   | 65      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 45      |
+| 4   | Add-on bundles                               | `SC-BUN-…`   | 66      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 46      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 674 entries: 🟢 583 stand today, 🟡 43 decided but not yet delivered, ⚪ 0 drafts,
-🔵 43 superseded, 🔴 5 withdrawn.
+Of 676 entries: 🟢 583 stand today, 🟡 43 decided but not yet delivered, ⚪ 0 drafts,
+🔵 45 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -151,10 +151,12 @@ Of 674 entries: 🟢 583 stand today, 🟡 43 decided but not yet delivered, ⚪
 [SC-BUN-015](#sc-bun-015--ending-with-the-plan-is-not-a-cancellation),
 [SC-BUN-016](#sc-bun-016--a-tenant-reads-what-a-booking-commits-to-before-confirming-it),
 [SC-BUN-023](#sc-bun-023--only-a-published-current-version-of-an-add-on-can-be-booked),
+[SC-BUN-040](#sc-bun-040--an-add-on-retirements-date-is-an-end-of-the-bookings-own-period-three-months-on),
 [SC-BUN-047](#sc-bun-047--the-operator-sees-how-far-each-add-on-retirement-has-come),
 [SC-SUB-012](#sc-sub-012--a-new-version-of-a-plan-does-not-move-a-customer-who-already-bought-one),
 [SC-SUB-020](#sc-sub-020--a-newer-version-is-offered-classified-against-the-version-bound),
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
+[SC-SUB-035](#sc-sub-035--a-retirements-date-is-a-term-end-at-least-three-months-after-its-notice-arrived),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
 [SC-SUB-041](#sc-sub-041--the-operator-corrects-a-subscribers-identity-and-business-status-with-a-reason),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),

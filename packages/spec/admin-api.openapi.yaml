@@ -3285,7 +3285,10 @@ components:
                             billingCycle: { type: string }
                             effectiveAt: { type: string, description: 'ISO-8601: a term end' }
                             lastDayToCancel:
-                                { type: string, description: 'ISO date, UTC: the day before' }
+                                {
+                                    type: string,
+                                    description: 'ISO date: the last whole day before effectiveAt, in the zone the installation names (UTC where it names none)',
+                                }
                             reachedRecently:
                                 {
                                     type: boolean,
@@ -3586,7 +3589,10 @@ components:
                             effectiveAt:
                                 { type: string, description: 'ISO-8601: an end of its period' }
                             lastDayToCancel:
-                                { type: string, description: 'ISO date, UTC: the day before' }
+                                {
+                                    type: string,
+                                    description: 'ISO date: the last whole day before effectiveAt, in the zone the installation names (UTC where it names none)',
+                                }
                             reachedRecently:
                                 {
                                     type: boolean,

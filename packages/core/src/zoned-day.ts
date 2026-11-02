@@ -92,6 +92,15 @@ export interface DaysAround {
     from: CalendarDay;
 }
 
+/**
+ * The day somebody picked in a date field and stored as that day's UTC
+ * midnight — a pilot's end, a version's validity: the same day in every zone,
+ * so it is read in none.
+ */
+export function pickedDayOf(storedAt: Date): CalendarDay {
+    return storedAt.toISOString().slice(0, 10);
+}
+
 /** The days on either side of `at` in `timeZone`. */
 export function daysAround(at: Date, timeZone: string): DaysAround {
     return {

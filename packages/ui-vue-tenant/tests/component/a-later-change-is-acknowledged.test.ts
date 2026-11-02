@@ -8,6 +8,8 @@ import PlanChangeWizard from '../../src/PlanChangeWizard.vue';
 import { defaultTenantPlanSectionI18n, planChangeWizardI18n } from '../../src/default-i18n';
 import { DEFAULT_SA_LOCALE } from '@saasicat/ui-vue';
 import type { BillingCycleStr, CatalogPlan, PlanChangePreviewShape } from '@saasicat/ui-vue';
+import type { DaysAround } from '@saasicat/core';
+import { DEFERRED_UPGRADE } from './support/plan-change-previews.js';
 
 // A yearly customer choosing a monthly higher plan gets everything later.
 //
@@ -44,21 +46,7 @@ const PLANS = [
     },
 ] as unknown as CatalogPlan[];
 
-const DEFERRED: PlanChangePreviewShape = {
-    changeType: 'UPGRADE',
-    planDirection: 'UP',
-    cycleDirection: 'SHORTER',
-    isImmediate: false,
-    effectiveAt: '2027-01-01T00:00:00.000Z',
-    proration: null,
-    limitsCheck: {},
-    featuresGained: [],
-    featuresLost: [],
-    blockers: [],
-    warnings: [],
-    target: { plan: { monthlyNet: 20, yearlyNet: 200 } },
-    projectedTrialEndsAt: null,
-} as unknown as PlanChangePreviewShape;
+const DEFERRED: PlanChangePreviewShape = DEFERRED_UPGRADE;
 
 /** A downgrade that costs features — the other thing a reader must acknowledge. */
 const DOWNGRADE: PlanChangePreviewShape = {
@@ -104,10 +92,12 @@ afterEach(() => {
 function openWizard(
     preview: PlanChangePreviewShape,
     previewFor?: (plan: string, cycle: BillingCycleStr) => Promise<PlanChangePreviewShape>,
+    subscription: { currentStatus?: string; trialEndsDays?: DaysAround | null } = {},
 ) {
     const wrapper = mount(PlanChangeWizard, {
         attachTo: document.body,
         props: {
+            ...subscription,
             modelValue: true,
             plans: PLANS,
             currentPlanId: 'pl-1',
@@ -297,6 +287,83 @@ describe('the dates stand out from the sentence around them', () => {
         const strong = [...block()!.querySelectorAll('strong')].map((el) => el.textContent);
         expect(strong).toContain('2027-01-01');
         expect(block()!.querySelector('.sp-wizard__deferred-lead strong')).not.toBeNull();
+    });
+});
+
+// @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+describe('the day a change takes effect, from either side of it', () => {
+    // The days are set apart from each other and from the moment's own date: a
+    // sentence that wrote the moment, or the other side, writes a day that
+    // appears nowhere as the right one.
+    const UNTIL = '2026-12-30';
+    const FROM = '2026-12-31';
+    const SPLIT: PlanChangePreviewShape = {
+        ...DOWNGRADE,
+        effectiveDays: { until: UNTIL, from: FROM },
+    };
+
+    test('what falls away does so from the first day, and what stays runs until the last', async () => {
+        const wrapper = openWizard(SPLIT);
+        await reachConfirmation(wrapper);
+
+        const [lead = '', body = ''] = [...block()!.querySelectorAll('p')].map(
+            (paragraph) => paragraph.textContent ?? '',
+        );
+        expect(lead).toContain(FROM);
+        expect(lead).not.toContain(UNTIL);
+        expect(body).toContain(UNTIL);
+        expect(body).not.toContain(FROM);
+        const [, bodyLine] = [...block()!.querySelectorAll('p')];
+        expect(bodyLine?.querySelector('strong')?.textContent).toBe(UNTIL);
+    });
+
+    test('the preview names the first day the change applies', async () => {
+        const wrapper = openWizard(SPLIT);
+        wrapper.findComponent({ name: 'PlanGrid' }).vm.$emit('update:modelValue', 'pl-2');
+        await nextTick();
+        nextButton().click();
+        await nextTick();
+        await Promise.resolve();
+        await nextTick();
+
+        const effective = panel().querySelector('.sp-wizard__type')?.textContent ?? '';
+        expect(effective).toContain(`${i18n.effectiveAtLabel}: ${FROM}`);
+        expect(effective).not.toContain(UNTIL);
+    });
+
+    test('the confirmation names the first day the change applies, and the price is due from it', async () => {
+        const wrapper = openWizard(SPLIT);
+        await reachConfirmation(wrapper);
+
+        const line = panel().querySelector('.sp-wizard__confirm-line')?.textContent ?? '';
+        expect(line).toContain(FROM);
+        expect(line).not.toContain(UNTIL);
+        expect(panel().textContent).toContain(`${i18n.confirmRecurringFrom} ${FROM}`);
+    });
+
+    test('a trial pays regularly from its end, named by the last day the trial covers', async () => {
+        const trial = { until: '2027-03-14', from: '2027-03-15' };
+        const wrapper = openWizard(SPLIT, undefined, {
+            currentStatus: 'TRIAL',
+            trialEndsDays: trial,
+        });
+        await reachConfirmation(wrapper);
+
+        expect(panel().textContent).toContain(`${i18n.confirmRecurringTrialEnd} (2027-03-14)`);
+    });
+
+    test('and from the trial the change projects, where it projects one', async () => {
+        const projected: PlanChangePreviewShape = {
+            ...SPLIT,
+            projectedTrialEndsDays: { until: '2027-04-29', from: '2027-04-30' },
+        };
+        const wrapper = openWizard(projected, undefined, {
+            currentStatus: 'TRIAL',
+            trialEndsDays: { until: '2027-03-14', from: '2027-03-15' },
+        });
+        await reachConfirmation(wrapper);
+
+        expect(panel().textContent).toContain(`${i18n.confirmRecurringTrialEnd} (2027-04-29)`);
     });
 });
 

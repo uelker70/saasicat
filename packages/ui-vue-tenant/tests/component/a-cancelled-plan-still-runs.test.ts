@@ -7,6 +7,7 @@ import type { UsageSnapshotShape } from '@saasicat/ui-vue';
 
 import TenantPlanCardHeader from '../../src/tenant-plan-section/TenantPlanCardHeader.vue';
 import { defaultTenantPlanSectionI18n } from '../../src/default-i18n';
+import { answeredUsage } from './support/server-days.js';
 
 // A cancelled subscription is not a gone subscription.
 //
@@ -19,7 +20,7 @@ import { defaultTenantPlanSectionI18n } from '../../src/default-i18n';
 // done. Both halves are here because either alone reads as correct.
 
 const usage = (overrides: Partial<UsageSnapshotShape> = {}): UsageSnapshotShape =>
-    ({
+    answeredUsage({
         plan: 'PRO',
         effectivePlan: 'PRO',
         billingCycle: 'YEARLY',
@@ -41,6 +42,7 @@ const usage = (overrides: Partial<UsageSnapshotShape> = {}): UsageSnapshotShape 
             supersededAt: null,
             changeNote: null,
         },
+        planPriceNet: 100,
         limits: { plan: 'PRO', quotas: { notes: 100 }, features: [] },
         usage: { notes: 1 },
         packageSnapshot: null,
@@ -56,7 +58,7 @@ const usage = (overrides: Partial<UsageSnapshotShape> = {}): UsageSnapshotShape 
         retirementSwitch: null,
         checkoutOfferId: null,
         ...overrides,
-    }) as UsageSnapshotShape;
+    });
 
 function mountHeader(overrides: Partial<UsageSnapshotShape> = {}) {
     return mount(TenantPlanCardHeader, {
@@ -68,7 +70,7 @@ function mountHeader(overrides: Partial<UsageSnapshotShape> = {}) {
             cycleLabel: 'Yearly',
             currentPriceEur: 100,
             currentPriceUnit: '/year',
-            nextBillingDate: '2027-01-01T00:00:00.000Z',
+            billsAgain: true,
             formatCurrency: (value: number) => `${value} €`,
             formatDate: (value: string | Date) => String(value).slice(0, 10),
         },

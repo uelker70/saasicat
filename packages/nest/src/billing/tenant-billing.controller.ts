@@ -30,9 +30,12 @@ import type {
 import {
     AUTH_ERROR_CODES,
     BILLING_ERROR_CODES,
+    CANCELLATION_RESULT_MOMENTS,
     installationZoneOf,
     isPersistenceRefusal,
     withDays,
+    withUsageDays,
+    type WithUsageDays,
 } from '@saasicat/core';
 import { toEffectiveLimitsSnapshot } from '../entitlement/aggregation.js';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
@@ -126,7 +129,8 @@ interface RequestLike {
     user?: { tenantId?: string; sub?: string; id?: string };
 }
 
-interface UsageResponse {
+/** What `GET /billing/usage` reads, before the days of its moments are put beside them. */
+interface UsageMomentsAnswer {
     plan: string;
     effectivePlan: string;
     billingCycle: string;
@@ -184,6 +188,12 @@ interface UsageResponse {
     /** P11.4: Optional reference to the originating CheckoutOffer. */
     checkoutOfferId: string | null;
 }
+
+/**
+ * What `GET /billing/usage` answers: beside each moment a tenant is shown as a
+ * day, its days in the installation's zone (`withUsageDays`).
+ */
+type UsageResponse = WithUsageDays<UsageMomentsAnswer>;
 
 @Controller('billing')
 @UseGuards(ComposedTenantAuthGuard)
@@ -346,7 +356,7 @@ export class TenantBillingController {
             ? ((await this.retirementSwitches?.openFor(sub, now))?.terms ?? null)
             : null;
 
-        return {
+        const answer: UsageMomentsAnswer = {
             plan: sub.plan,
             effectivePlan: limits.plan,
             billingCycle: sub.billingCycle,
@@ -386,6 +396,7 @@ export class TenantBillingController {
             packageSnapshot: sub.packageSnapshot ?? null,
             checkoutOfferId: sub.checkoutOfferId ?? null,
         };
+        return withUsageDays(answer, this.zone());
     }
 
     // ---------------------------------------------------------------------
@@ -487,7 +498,11 @@ export class TenantBillingController {
     @UseGuards(TenantAdminGuard)
     async previewPlanChange(@Req() req: RequestLike, @Body() dto: PreviewPlanChangeDto) {
         const tenantId = this.requireTenantId(req);
-        return this.planPreview.preview(tenantId, dto.plan, dto.billingCycle);
+        return withDays(
+            await this.planPreview.preview(tenantId, dto.plan, dto.billingCycle),
+            ['effectiveAt', 'projectedTrialEndsAt'],
+            this.zone(),
+        );
     }
 
     // ---------------------------------------------------------------------
@@ -766,14 +781,18 @@ export class TenantBillingController {
             pendingCycle: dto.billingCycle,
             effectiveAt: scheduledAt.toISOString(),
         });
-        return {
-            plan: sub.plan,
-            billingCycle: sub.billingCycle,
-            pendingPlan: dto.plan,
-            pendingBillingCycle: dto.billingCycle,
-            pendingEffectiveAt: scheduledAt,
-            immediate: false,
-        };
+        return withDays(
+            {
+                plan: sub.plan,
+                billingCycle: sub.billingCycle,
+                pendingPlan: dto.plan,
+                pendingBillingCycle: dto.billingCycle,
+                pendingEffectiveAt: scheduledAt,
+                immediate: false,
+            },
+            ['pendingEffectiveAt'],
+            this.zone(),
+        );
     }
 
     // ---------------------------------------------------------------------
@@ -1086,6 +1105,14 @@ export class TenantBillingController {
     @Post('cancel')
     @UseGuards(TenantAdminGuard)
     async cancelSubscription(@Req() req: RequestLike, @Body() dto: CancelSubscriptionDto) {
+        return withDays(
+            await this.declareCancellation(req, dto),
+            CANCELLATION_RESULT_MOMENTS,
+            this.zone(),
+        );
+    }
+
+    private async declareCancellation(req: RequestLike, dto: CancelSubscriptionDto) {
         const tenantId = this.requireTenantId(req);
         const userId = this.requireUserId(req);
         const now = new Date();

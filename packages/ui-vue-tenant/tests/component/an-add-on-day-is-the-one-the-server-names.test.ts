@@ -234,6 +234,9 @@ describe('the preview of a booking and of its cancellation', () => {
         });
         await nextTick();
         showsOnly(panel(), UNTIL);
+        // An ending day is the last one the booking still runs, so the sentence
+        // says it ends with that day rather than "as of" it.
+        expect(panel()).toContain('Cancellation takes effect at the end of');
     });
 });
 

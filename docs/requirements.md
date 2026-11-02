@@ -110,8 +110,8 @@ properties it has while doing it.
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
-| 4   | Add-on bundles                               | `SC-BUN-…`   | 65      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 45      |
+| 4   | Add-on bundles                               | `SC-BUN-…`   | 66      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 46      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 674 entries: 🟢 583 stand today, 🟡 43 decided but not yet delivered, ⚪ 0 drafts,
-🔵 43 superseded, 🔴 5 withdrawn.
+Of 676 entries: 🟢 583 stand today, 🟡 43 decided but not yet delivered, ⚪ 0 drafts,
+🔵 45 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -183,10 +183,12 @@ Of 674 entries: 🟢 583 stand today, 🟡 43 decided but not yet delivered, ⚪
 [SC-BUN-015](#sc-bun-015--ending-with-the-plan-is-not-a-cancellation),
 [SC-BUN-016](#sc-bun-016--a-tenant-reads-what-a-booking-commits-to-before-confirming-it),
 [SC-BUN-023](#sc-bun-023--only-a-published-current-version-of-an-add-on-can-be-booked),
+[SC-BUN-040](#sc-bun-040--an-add-on-retirements-date-is-an-end-of-the-bookings-own-period-three-months-on),
 [SC-BUN-047](#sc-bun-047--the-operator-sees-how-far-each-add-on-retirement-has-come),
 [SC-SUB-012](#sc-sub-012--a-new-version-of-a-plan-does-not-move-a-customer-who-already-bought-one),
 [SC-SUB-020](#sc-sub-020--a-newer-version-is-offered-classified-against-the-version-bound),
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
+[SC-SUB-035](#sc-sub-035--a-retirements-date-is-a-term-end-at-least-three-months-after-its-notice-arrived),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
 [SC-SUB-041](#sc-sub-041--the-operator-corrects-a-subscribers-identity-and-business-status-with-a-reason),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
@@ -229,7 +231,7 @@ Of 674 entries: 🟢 583 stand today, 🟡 43 decided but not yet delivered, ⚪
 [SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 674 requirements. Do not edit by hand:
+Generated from `requirements/` — 676 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -3986,12 +3988,24 @@ _Tested by:_
 
 ### SC-BUN-040 — An add-on retirement's date is an end of the booking's own period, three months on
 
+🔵 _(Superseded on 2026-11-01 by `SC-BUN-066`.)_ For each booking, the first end of its own period —
+in the rhythm the booking is billed in — that lies at least three calendar months after its notice
+reached an administrator of the tenant; a booking without a rhythm or a period of its own counts the
+plan's. The last day it may be cancelled without its minimum term is the last whole UTC day before
+that date.
+
+_Source:_ #357
+
+### SC-BUN-066 — An add-on retirement's last day to cancel is the installation's day
+
 🟢 💰 For each booking, the first end of its own period — in the rhythm the booking is billed in —
 that lies at least three calendar months after its notice reached an administrator of the tenant; a
 booking without a rhythm or a period of its own counts the plan's. The last day it may be cancelled
-without its minimum term is the last whole UTC day before that date.
+without its minimum term is the last whole day before that date in the installation's zone
+(`config/saas.yaml#timeZone`, UTC where the file names none), as for a plan's retirement
+(`SC-SUB-046`). A notice keeps the day it named.
 
-_Source:_ #357
+_Source:_ #336
 
 <!-- BEGIN proof -->
 
@@ -4000,6 +4014,7 @@ _Tested by:_
 - `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
     - the date an add-on retirement reaches a booking on
         - is the first end of its own monthly period three calendar months after the notice
+        - names its last day to cancel in the installation’s zone
         - and of its own yearly period for a yearly booking
         - a booking billed with the plan ends with the plan’s terms
         - a booking cancelled to end by the date is not reached, one ending a day later is
@@ -4008,6 +4023,9 @@ _Tested by:_
           after it is
         - names the plan the add-on runs beside at the date, a change landing by then included
         - the preview lists whom it reaches and whom not, and why
+    - a notice that has reached nobody yet
+        - a notice sent late names the day before its date in the installation’s zone
+        - the preview names the last day to cancel in the installation’s zone
 
 <!-- END proof -->
 
@@ -4090,6 +4108,8 @@ _Tested by:_
 - `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
     - a notice that has reached nobody yet
         - sets no date: the booking is not pending, and the next run tells it from then
+        - a notice sent late names the day before its date in the installation’s zone
+        - the preview names the last day to cancel in the installation’s zone
         - is not told once the booking no longer runs to the date
     - a notice that waited, and the plan the add-on runs beside by then
         - is not sent while the replacement could not run beside it, and is once it can
@@ -5815,6 +5835,7 @@ _Tested by:_
     - the run that sends what an announcement could not
         - sends only retirement notices, and leaves one another run holds
         - a notice sent late names the date counted from its sending, and the day before it
+        - a notice sent late names the day before its date in the installation’s zone
         - a notice sent after the ones before it counts from its own sending, not from the start of
           the run
         - a notice answered too late with nobody to tell is tried again, not recorded as told
@@ -6054,6 +6075,20 @@ _Tested by:_
 
 ### SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
 
+🔵 _(Superseded on 2026-11-01 by `SC-SUB-046`.)_ For each subscription, the first end of one of its
+terms that lies at least three calendar months after its notice of the retirement reached an
+administrator of the tenant — never inside a term the customer has paid for. A notice the
+announcement sends at once counts from the announcement; one that could not be sent then counts from
+the moment it is, and names the date counted from then. Terms are counted in the subscription's own
+rhythm from the end of the period running now; a subscription in its trial counts them from the end
+of the trial, and one with a change of rhythm scheduled counts them in the new rhythm from the day
+it lands. The last day to cancel without notice is the last whole UTC day before the date, since a
+term ends at the moment it was booked.
+
+_Source:_ #357
+
+### SC-SUB-046 — A retirement's last day to cancel without notice is the installation's day
+
 🟢 💰 For each subscription, the first end of one of its terms that lies at least three calendar
 months after its notice of the retirement reached an administrator of the tenant — never inside a
 term the customer has paid for. A notice the announcement sends at once counts from the
@@ -6061,10 +6096,12 @@ announcement; one that could not be sent then counts from the moment it is, and 
 counted from then. Terms are counted in the subscription's own rhythm from the end of the period
 running now; a subscription in its trial counts them from the end of the trial, and one with a
 change of rhythm scheduled counts them in the new rhythm from the day it lands. The last day to
-cancel without notice is the last whole UTC day before the date, since a term ends at the moment it
-was booked.
+cancel without notice is the last whole day before the date in the installation's zone
+(`config/saas.yaml#timeZone`, UTC where the file names none), since a term ends at the moment it was
+booked — the day a subscriber in that zone reads as the day before, wherever the moment falls in
+UTC. A notice keeps the day it named.
 
-_Source:_ #357
+_Source:_ #336
 
 <!-- BEGIN proof -->
 
@@ -6080,6 +6117,9 @@ _Tested by:_
         - and one a millisecond earlier is not
         - periods anchored on the 31st land on the last day of a shorter month
         - a subscription without a period end counts its terms from its start
+    - the last day to cancel without notice
+        - is the whole day before the effective day in the installation’s zone, ahead of UTC
+        - and behind it
     - a subscription in its trial
         - counts its terms from the end of the trial
         - takes effect at the end of the trial where that is far enough away
@@ -6092,8 +6132,11 @@ _Tested by:_
         - end on the last day of a month that has no such day
         - cross into the next year
 - `packages/nest/tests/an-operator-announces-a-retirement.test.js`
+    - the preview of a retirement
+        - names the last day to cancel in the installation’s zone
     - the run that sends what an announcement could not
         - a notice sent late names the date counted from its sending, and the day before it
+        - a notice sent late names the day before its date in the installation’s zone
         - a notice sent after the ones before it counts from its own sending, not from the start of
           the run
         - a notice sent a minute late keeps the date it was announced with
@@ -6868,6 +6911,12 @@ _Tested by:_
         - the confirmation is locked until it is acknowledged
     - the dates stand out from the sentence around them
         - the effective date is set in bold, the rest is not
+    - the day a change takes effect, from either side of it
+        - what falls away does so from the first day, and what stays runs until the last
+        - the preview names the first day the change applies
+        - the confirmation names the first day the change applies, and the price is due from it
+        - a trial pays regularly from its end, named by the last day the trial covers
+        - and from the trial the change projects, where it projects one
     - keeping the yearly cycle re-asks rather than reusing the answer
         - the block disappears once the preview describes the new choice
 - `packages/ui-vue-tenant/tests/component/plan-change-wizard.test.ts`
@@ -19774,6 +19823,24 @@ _Tested by:_
         - a booking’s preview names the days of its first period, its term and its end
         - a cancellation’s preview names the days of when it takes effect
         - a newer version taken names the days of when it takes effect
+- `packages/nest/tests/a-tenant-is-handed-the-days-of-its-plan.test.js`
+    - the days of the subscription
+        - are read in the zone the settings name, for every moment it is shown
+        - in UTC where the settings name none
+        - name none beside a moment that is absent
+        - a pilot ends on the day that was picked, whatever the zone
+        - the end of a cancellation declared before the effective date was stored is that date
+    - the days of what the account says is ahead
+        - what cancelling now would do names the days of its date, its term and its deadline
+        - and no deadline where no notice is owed
+        - a retirement on its way names the days of when it takes effect, and keeps its last day
+        - a package snapshot names the days of when it was captured
+        - one that carries no moment it was captured at names none, and the read goes on
+    - the days of a change and of a cancellation
+        - a plan change’s preview names the days of when it would take effect
+        - a scheduled change names the days of when it lands
+        - a cancellation declared names the days of when it was declared and when it lands
+        - and a repeat names the days of the date it already had
 - `packages/nest/tests/a-version-offer-is-taken.test.js`
     - the switch goes ahead only while the version shown is still the offer
         - the offer it carries names the days of when it takes effect
@@ -19781,6 +19848,29 @@ _Tested by:_
     - a day handed to the application’s formatter
         - is that day for a viewer in ${zone}
         - is written by the application’s formatter, and a dash stands for none
+- `packages/ui-vue-tenant/tests/component/a-later-change-is-acknowledged.test.ts`
+    - the day a change takes effect, from either side of it
+        - what falls away does so from the first day, and what stays runs until the last
+        - the preview names the first day the change applies
+        - the confirmation names the first day the change applies, and the price is due from it
+        - a trial pays regularly from its end, named by the last day the trial covers
+        - and from the trial the change projects, where it projects one
+- `packages/ui-vue-tenant/tests/component/a-plan-day-is-the-one-the-server-names.test.ts`
+    - the plan card
+        - is billed again from the first day of the next period
+        - ends a trial on the last day it covers
+        - ends a pilot on the day that was picked
+        - names the first day a scheduled change applies
+        - and the first day a newer version taken for the end of the term applies
+        - runs a cancelled subscription until the last day it covers
+        - says an ended subscription has ended since the first day it no longer ran
+    - the confirmation of a cancellation
+        - names the last day the subscription runs, and the last day notice could be given
+    - the retirement of the version the tenant is on
+        - says the subscription moves on from the first day of the replacement
+        - a switch that costs no more applies its price from the day the next period starts
+    - the package the subscription was concluded from
+        - was captured on the day the server names
 - `packages/ui-vue-tenant/tests/component/an-add-on-day-is-the-one-the-server-names.test.ts`
     - a booking in the add-on store
         - runs its minimum term until the last day the server named

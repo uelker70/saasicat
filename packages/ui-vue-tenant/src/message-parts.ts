@@ -19,7 +19,7 @@ export interface MessagePart {
 export function messageParts(
     template: string,
     values: Record<string, string>,
-    emphasise: readonly string[] = ['date', 'deadline'],
+    emphasise: readonly string[] = ['date', 'lastDay', 'deadline'],
 ): MessagePart[] {
     const parts: MessagePart[] = [];
     let rest = template;

@@ -6,7 +6,7 @@
                 <p class="sp-package-snapshot__sub">{{ i18n.packageSnapshotSubtitle }}</p>
             </div>
             <span v-if="snapshot && capturedAtIso" class="sp-chip">
-                {{ i18n.packageSnapshotCapturedAt }}: {{ formatDate(capturedAtIso) }}
+                {{ i18n.packageSnapshotCapturedAt }}: {{ writeDay(formatDate, capturedDays?.from) }}
             </span>
         </TenantCardSection>
 
@@ -115,11 +115,13 @@
 
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue';
+import { writeDay } from './day-as-instant.js';
 import { useTenantI18n } from './tenant-i18n.js';
 import TenantButton from './ui/TenantButton.vue';
 import TenantCard from './ui/TenantCard.vue';
 import TenantCardSection from './ui/TenantCardSection.vue';
 import './ui/tenant-ui.css';
+import type { DaysAround } from '@saasicat/core';
 import type { PackageSnapshotShape } from '@saasicat/ui-vue';
 
 // PackageSnapshotPanel — P11.4:
@@ -134,6 +136,9 @@ const i18n = useTenantI18n();
 interface Props {
     snapshot: PackageSnapshotShape | null;
     checkoutOfferId: string | null;
+    /** The days of when the snapshot was captured, as `GET /billing/usage` names them. */
+    capturedDays?: DaysAround | null;
+    /** Handed noon of a day the server named, which it writes in the viewer's zone. */
     formatDate: (iso: string | Date) => string;
     formatCurrency: (n: number) => string;
 }

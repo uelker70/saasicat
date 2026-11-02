@@ -2774,18 +2774,47 @@ the day before in New York, and an end at midnight read as the day after the las
 (`SC-UI-028`). The server now hands out, beside each moment a tenant is shown as a day, its days in
 the installation's zone — `until`, the last day of what the moment ends, and `from`, the first of
 what it begins — and the pages write those. This covers the add-on bookings (every answer of
-`billing/subscription-bundles` that carries one), an add-on's preview, and the version offers of a
-plan and of an add-on together with what taking one answers; the plan's other answers follow.
+`billing/subscription-bundles` that carries one), an add-on's preview, the version offers of a plan
+and of an add-on together with what taking one answers, and the plan itself: `billing/usage`, a plan
+change's preview and what scheduling one answers, and a cancellation declared. The withdrawn
+features follow.
 
 - **What a page shows changes** where a moment falls near midnight, and where an end is shown: an
-  add-on's minimum term, its cancellation and a preview's first period name the last day they cover,
-  30 November rather than 1 December.
+  add-on's minimum term, a trial, a cancellation and a preview's first period name the last day they
+  cover, 30 November rather than 1 December.
 - **The answers gain fields; nothing is removed.** A booking carries `startedDays`,
   `minimumTermEndsDays`, `canceledDays`, `canceledEffectiveDays`, `currentPeriodEndDays` and
   `pendingVersionEffectiveDays`, its retirement notice `effectiveDays`; a booking's preview
   `firstPeriodEndDays`, `minimumTermEndsDays` and `endsWithPlanDays`, a cancellation's
-  `effectiveDays`; an offer and what taking it answers `takesEffectDays`. A screen of your own reads
-  `from` where it says "since" or "from", and `until` where it says "until" or "ends".
+  `effectiveDays`; an offer and what taking it answers `takesEffectDays`. `billing/usage` carries
+  `trialEndsDays`, `startedDays`, `currentPeriodStartDays`, `currentPeriodEndDays`,
+  `pendingEffectiveDays`, `canceledDays`, `canceledEffectiveDays` and `packageSnapshotCapturedDays`,
+  `pilotEndsDay` — the day that was picked, the same in every zone — the days of `cancellation`
+  (`effectiveDays`, `termEndsDays`, `noticeDeadlineDays`) and `effectiveDays` on a retirement on its
+  way; a plan change's preview `effectiveDays` and `projectedTrialEndsDays`, a change scheduled
+  `pendingEffectiveDays`, and a cancellation declared the days of its four moments. A screen of your
+  own reads `from` where it says "since" or "from", and `until` where it says "until" or "ends".
+- **The plan-change wizard's sentences take both sides.** Where a sentence says what stays unchanged
+  until the change, it takes `{lastDay}`, the last day before it; `{date}` stays the first day it
+  applies. A catalogue override that still writes `{date}` there goes on getting the first day.
+- **English names an ending day as the last one that runs.** "Cancel at the end of …", "takes
+  effect only at the end of …", "Cancellation takes effect at the end of" and "Canceled, runs
+  until" replace the "as of" and "effective" wordings, and an ended subscription "has been over
+  since" the first day it no longer ran. An override of these keys is unaffected.
+- **Four components take a day instead of a moment.** `TenantPlanCardHeader` takes `billsAgain` in
+  place of `nextBillingDate`, `VersionRetiredCard` `nextPeriodStartDay` in place of
+  `nextPeriodStart`, `PlanChangeWizard` `trialEndsDays` in place of `trialEndsAt`, and
+  `PackageSnapshotPanel` an optional `capturedDays`. `TenantPlanSection` passes them; only a page
+  that mounts one of them on its own changes.
+- **A retirement's last day to cancel without notice is the installation's day** (`SC-SUB-046`,
+  `SC-BUN-066`): the last whole day before the date in the installation's zone, not in UTC. East of
+  UTC, a term ending at local midnight now names one day later — the day a subscriber there reads as
+  the day before; west of UTC it can name one day earlier — a term ending at UTC midnight on 1 July,
+  20:00 on 30 June in New York, named 30 June and now names 29 June. Either way a cancellation
+  without notice is accepted until the retirement takes effect, and a notice already sent keeps the
+  day it named. If you call `retirementReach` or `bundleRetirementReach` from `@saasicat/nest`
+  yourself, pass the installation's zone: `retirementReach(sub, toldAt, timeZone)`,
+  `bundleRetirementReach(booking, sub, toldAt, timeZone, ahead)`.
 - **Your `formatDate` is handed noon of the named day in the viewer's zone**, so a formatter that
   reads an instant in the viewer's zone — `toLocaleDateString` without a `timeZone` — writes the
   named day wherever the viewer is. A formatter that names a zone of its own can write the day

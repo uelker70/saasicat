@@ -113,6 +113,7 @@ function retiring({
     bookings = null,
     addOns = null,
     addOnsAhead = null,
+    timeZone,
 } = {}) {
     const retirements = retirementStore();
     const audited = [];
@@ -138,7 +139,7 @@ function retiring({
             }
         },
     };
-    const settings = { tenantBilling: { orderlyRetirement: { termsConfirmed } } };
+    const settings = { timeZone, tenantBilling: { orderlyRetirement: { termsConfirmed } } };
     const audit = { log: async (entry) => audited.push(entry) };
     const service = new VersionRetirementService(
         plans,
@@ -228,6 +229,17 @@ describe('the preview of a retirement', () => {
             reachedRecently: false,
         });
         assert.deepEqual(idsOf(preview.reached), ['sub-t1', 'sub-t2']);
+    });
+
+    // @requirement SC-SUB-046 — A retirement's last day to cancel without notice is the installation's day
+    test('names the last day to cancel in the installation’s zone', async () => {
+        // 1 February at midnight UTC is 19:00 on 31 January in New York.
+        const { service } = retiring({ timeZone: 'America/New_York' });
+
+        const preview = await service.preview(RETIRED.id, REPLACEMENT.id, NOW);
+
+        assert.equal(preview.reached[0].effectiveAt, '2027-02-01T00:00:00.000Z');
+        assert.equal(preview.reached[0].lastDayToCancel, '2027-01-30');
     });
 
     // @requirement SC-SUB-026 — A retirement is announced for exactly the subscriptions the operator was shown
@@ -1087,13 +1099,13 @@ describe('announcing a retirement', () => {
 // @requirement SC-SUB-029 — Every subscription a retirement reaches is told, and what it was told is kept
 describe('the run that sends what an announcement could not', () => {
     /** An announcement at NOW whose notices the application could not send; `sends` turns it on. */
-    async function unsent({ bound } = {}) {
+    async function unsent({ bound, timeZone } = {}) {
         let sending = false;
         const port = sendingPort((notice) => {
             if (!sending) throw new Error('mail server down');
             return { recipients: [`${notice.tenantId}@example.com`], channel: 'email' };
         });
-        const retired = retiring({ port, ...(bound ? { bound } : {}) });
+        const retired = retiring({ port, timeZone, bound });
         await retired.service.announce(
             RETIRED.id,
             REPLACEMENT.id,
@@ -1142,7 +1154,7 @@ describe('the run that sends what an announcement could not', () => {
         assert.deepEqual(idsOf(port.sent), ['sub-t1']);
     });
 
-    // @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
+    // @requirement SC-SUB-046 — A retirement's last day to cancel without notice is the installation's day
     test('a notice sent late names the date counted from its sending, and the day before it', async () => {
         const { service, notices, port, sends } = await unsent();
         sends();
@@ -1167,7 +1179,21 @@ describe('the run that sends what an announcement could not', () => {
         assert.deepEqual(kept.content, port.sent[0], 'recorded as it was told, with the new date');
     });
 
-    // @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
+    // @requirement SC-SUB-046 — A retirement's last day to cancel without notice is the installation's day
+    test('a notice sent late names the day before its date in the installation’s zone', async () => {
+        const { service, port, sends } = await unsent({ timeZone: 'America/New_York' });
+        sends();
+
+        await service.sendUndelivered(new Date('2026-12-15T09:00:00.000Z'));
+
+        assert.deepEqual(
+            port.sent.map((notice) => notice.lastDayToCancel),
+            ['2027-03-30', '2027-03-30'],
+            '1 April at midnight UTC is 20:00 on 31 March in New York',
+        );
+    });
+
+    // @requirement SC-SUB-046 — A retirement's last day to cancel without notice is the installation's day
     test('a notice sent after the ones before it counts from its own sending, not from the start of the run', async () => {
         // The run starts 200 ms before midnight on 30 November: three calendar
         // months on is 28 February, 23:59:59.800, so 1 March may be named. The
@@ -1222,7 +1248,7 @@ describe('the run that sends what an announcement could not', () => {
         assert.deepEqual(run, { told: 2, failed: 0 });
     });
 
-    // @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
+    // @requirement SC-SUB-046 — A retirement's last day to cancel without notice is the installation's day
     test('a notice sent a minute late keeps the date it was announced with', async () => {
         const { service, port, sends } = await unsent();
         sends();

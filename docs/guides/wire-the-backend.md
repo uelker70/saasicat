@@ -1705,7 +1705,7 @@ A subscription keeps its version (`SC-SUB-024`). Sometimes an operator cannot ke
 running — it costs more to serve than it brings in, or a whole plan is being phased out. Retiring a
 version is the orderly way out: the subscriptions on it are told that they continue on a
 replacement the operator names, each at the end of one of its terms at least three calendar months
-after its notice reached an administrator (`SC-SUB-035`), and may leave without notice until then
+after its notice reached an administrator (`SC-SUB-046`), and may leave without notice until then
 (`SC-CANC-023`). A price increase is a
 retirement whose replacement costs more: publish the new version first, let it start, then retire
 the old one.
@@ -1752,8 +1752,9 @@ twelve months (`SC-SUB-025`, `SC-SUB-028`). The routes are
 announcement in one transaction and then sent through the same `SubscriptionNoticePort` as an offer
 (`SC-SUB-029`). It carries both versions side by side with their prices, quotas and features
 (`retired`, `replacement`, `changes`), the `billingCycle` it is billed in when the retirement takes
-effect, the `effectiveAt` instant and `lastDayToCancel` — the last whole calendar day, in UTC,
-before that instant, on which it may cancel without notice. A notice your port could not send is
+effect, the `effectiveAt` instant and `lastDayToCancel` — the last whole calendar day before that
+instant in the installation's zone (`config/saas.yaml#timeZone`, UTC where the file names none), on
+which it may cancel without notice. A notice your port could not send is
 sent by the next quarter-hourly run. A subscription hears of a version's retirement once: a second
 announcement of the same version skips the ones the first one told. The tenant's plan section
 shows the same notice beside the plan (`SC-SUB-030`).
@@ -1764,7 +1765,7 @@ shows nothing beside the plan and changes no charge. For a retirement notice, an
 port with no recipients counts as not sent: the run tries again every quarter of an hour and says so
 in the log once a day, so a tenant without an administrator is told once one exists. A notice that
 goes out late names the date counted from then — the first end of a term at least three calendar
-months after its sending (`SC-SUB-035`) — and its last day to cancel with it. A subscription that
+months after its sending (`SC-SUB-046`) — and its last day to cancel with it. A subscription that
 left the version before its notice could go out is not sent one. A subscription is told of one
 retirement in twelve months, of a plan version or of an add-on version, counted from delivery
 (`SC-BUN-041`): a notice still waiting holds no announcement back, and when it can go out at last it
@@ -1869,7 +1870,7 @@ versions: `BUNDLE_DELETE_WHILE_RETIREMENT_MOVES_PENDING` says how many (`SC-BUN-
 
 **When it takes effect.** At the first end of the booking's own period — in the rhythm the booking
 is billed in — at least three calendar months after its notice reached an administrator; a booking
-without a period of its own counts the plan's (`SC-BUN-040`). Until that day the booking may be
+without a period of its own counts the plan's (`SC-BUN-066`). Until that day the booking may be
 cancelled without its minimum term, and the cancellation lands at the end of the period running
 (`SC-BUN-045`). A booking cancelled to end by its date is not reached, and it is not reactivated on
 the retired version: `BUNDLE_RETIREMENT_REINSTATE_REFUSED` names the version to book and the day it

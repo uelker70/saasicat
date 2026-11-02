@@ -846,6 +846,7 @@ _Tested by:_
     - the run that sends what an announcement could not
         - sends only retirement notices, and leaves one another run holds
         - a notice sent late names the date counted from its sending, and the day before it
+        - a notice sent late names the day before its date in the installation’s zone
         - a notice sent after the ones before it counts from its own sending, not from the start of
           the run
         - a notice answered too late with nobody to tell is tried again, not recorded as told
@@ -1085,6 +1086,20 @@ _Tested by:_
 
 ### SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
 
+🔵 _(Superseded on 2026-11-01 by `SC-SUB-046`.)_ For each subscription, the first end of one of its
+terms that lies at least three calendar months after its notice of the retirement reached an
+administrator of the tenant — never inside a term the customer has paid for. A notice the
+announcement sends at once counts from the announcement; one that could not be sent then counts from
+the moment it is, and names the date counted from then. Terms are counted in the subscription's own
+rhythm from the end of the period running now; a subscription in its trial counts them from the end
+of the trial, and one with a change of rhythm scheduled counts them in the new rhythm from the day
+it lands. The last day to cancel without notice is the last whole UTC day before the date, since a
+term ends at the moment it was booked.
+
+_Source:_ #357
+
+### SC-SUB-046 — A retirement's last day to cancel without notice is the installation's day
+
 🟢 💰 For each subscription, the first end of one of its terms that lies at least three calendar
 months after its notice of the retirement reached an administrator of the tenant — never inside a
 term the customer has paid for. A notice the announcement sends at once counts from the
@@ -1092,10 +1107,12 @@ announcement; one that could not be sent then counts from the moment it is, and 
 counted from then. Terms are counted in the subscription's own rhythm from the end of the period
 running now; a subscription in its trial counts them from the end of the trial, and one with a
 change of rhythm scheduled counts them in the new rhythm from the day it lands. The last day to
-cancel without notice is the last whole UTC day before the date, since a term ends at the moment it
-was booked.
+cancel without notice is the last whole day before the date in the installation's zone
+(`config/saas.yaml#timeZone`, UTC where the file names none), since a term ends at the moment it was
+booked — the day a subscriber in that zone reads as the day before, wherever the moment falls in
+UTC. A notice keeps the day it named.
 
-_Source:_ #357
+_Source:_ #336
 
 <!-- BEGIN proof -->
 
@@ -1111,6 +1128,9 @@ _Tested by:_
         - and one a millisecond earlier is not
         - periods anchored on the 31st land on the last day of a shorter month
         - a subscription without a period end counts its terms from its start
+    - the last day to cancel without notice
+        - is the whole day before the effective day in the installation’s zone, ahead of UTC
+        - and behind it
     - a subscription in its trial
         - counts its terms from the end of the trial
         - takes effect at the end of the trial where that is far enough away
@@ -1123,8 +1143,11 @@ _Tested by:_
         - end on the last day of a month that has no such day
         - cross into the next year
 - `packages/nest/tests/an-operator-announces-a-retirement.test.js`
+    - the preview of a retirement
+        - names the last day to cancel in the installation’s zone
     - the run that sends what an announcement could not
         - a notice sent late names the date counted from its sending, and the day before it
+        - a notice sent late names the day before its date in the installation’s zone
         - a notice sent after the ones before it counts from its own sending, not from the start of
           the run
         - a notice sent a minute late keeps the date it was announced with

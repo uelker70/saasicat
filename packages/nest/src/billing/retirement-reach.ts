@@ -4,15 +4,17 @@
 // effect at the first end of one of the subscription's terms that lies at least
 // three calendar months after the notice reached the subscriber — the
 // announcement where it was sent with it, the later moment it was sent where it
-// could not be then (`SC-SUB-035`) — never inside a term, where the customer has
+// could not be then (`SC-SUB-046`) — never inside a term, where the customer has
 // paid for the version they are on. A term is the period of the
 // subscription's rhythm; a subscription still in its trial counts its terms
 // from the end of the trial, and one with a change of rhythm scheduled counts
 // them in the new rhythm from the day it lands.
 
 import {
-    startOfUtcDay,
+    addDaysToDay,
+    dayInZone,
     type BillingCycle,
+    type CalendarDay,
     type RetirementSkipReason,
     type SubscriptionUsageRecord,
 } from '@saasicat/core';
@@ -34,11 +36,12 @@ export type RetirementReach =
           /** When it continues on the replacement: a term end, at least the lead after `toldAt`. */
           readonly effectiveAt: Date;
           /**
-           * The last day it may be cancelled without notice: the last whole UTC
-           * day before it takes effect, which is the day before the effective
-           * day — a term ends at the moment it was booked, not at midnight.
+           * The last day it may be cancelled without notice: the last whole day
+           * before it takes effect in the installation's zone, which is the day
+           * before the effective day — a term ends at the moment it was booked,
+           * not at midnight.
            */
-          readonly lastDayToCancel: string;
+          readonly lastDayToCancel: CalendarDay;
           /** The rhythm it is billed in when the retirement takes effect. */
           readonly billingCycle: BillingCycle;
       }
@@ -82,9 +85,14 @@ export function calendarMonthsAfter(from: Date, months: number): Date {
 /**
  * Whether a retirement whose notice reaches `sub` at `toldAt` reaches it, and
  * when it takes effect: the announcement for the notice sent with it, the
- * moment of sending for one sent later.
+ * moment of sending for one sent later. Its last day to cancel is a day in
+ * `timeZone`, the installation's.
  */
-export function retirementReach(sub: RetiringSubscription, toldAt: Date): RetirementReach {
+export function retirementReach(
+    sub: RetiringSubscription,
+    toldAt: Date,
+    timeZone: string,
+): RetirementReach {
     if (sub.status === 'CANCELED') return { reached: false, reason: 'ended' };
     const effective = effectiveDate(sub, calendarMonthsAfter(toldAt, RETIREMENT_LEAD_MONTHS));
     if (!effective) return { reached: false, reason: 'no-term' };
@@ -99,17 +107,17 @@ export function retirementReach(sub: RetiringSubscription, toldAt: Date): Retire
     return {
         reached: true,
         effectiveAt,
-        lastDayToCancel: lastDayBefore(effectiveAt),
+        lastDayToCancel: lastDayBefore(effectiveAt, timeZone),
         billingCycle: effective.billingCycle,
     };
 }
 
 /**
- * The last whole UTC day before `at`, as an ISO date: the day before the day
- * `at` falls on — a term ends at the moment it was booked, not at midnight.
+ * The last whole day before `at` in `timeZone`: the day before the day `at`
+ * falls on there — a term ends at the moment it was booked, not at midnight.
  */
-export function lastDayBefore(at: Date): string {
-    return new Date(startOfUtcDay(at).getTime() - 1).toISOString().slice(0, 10);
+export function lastDayBefore(at: Date, timeZone: string): CalendarDay {
+    return addDaysToDay(dayInZone(at, timeZone), -1);
 }
 
 /**

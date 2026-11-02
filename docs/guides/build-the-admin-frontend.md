@@ -589,7 +589,8 @@ and `today` — or the framework-free `dayOfMoment`, `lastDayBefore`, `storedDay
 The tenant's components in `@saasicat/ui-vue-tenant` write the days the server names
 (`SC-UI-028`): beside each moment a tenant is shown as a day, an answer carries its days in the
 installation's zone as `<moment>Days` — `until`, the last day of what the moment ends, and `from`,
-the first of what it begins. The components hand your `formatDate` noon of that day in the viewer's
+the first of what it begins. A pilot's end is a day somebody picked, the same in every zone, and comes
+as `pilotEndsDay`. The components hand your `formatDate` noon of that day in the viewer's
 zone, so a formatter that reads an instant in the viewer's zone, as `toLocaleDateString` without a
 `timeZone` does, writes the named day wherever the viewer is. Which answers carry them is listed in
 the [upgrade guide](upgrade-to-1.0.md#every-day-a-tenant-is-shown-is-a-day-of-the-installation).

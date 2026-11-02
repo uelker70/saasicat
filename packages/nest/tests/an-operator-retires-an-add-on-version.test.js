@@ -147,10 +147,11 @@ describe('what an add-on version may be retired onto', () => {
     });
 });
 
-// @requirement SC-BUN-040 — An add-on retirement's date is an end of the booking's own period, three months on
+// @requirement SC-BUN-066 — An add-on retirement's last day to cancel is the installation's day
 describe('the date an add-on retirement reaches a booking on', () => {
     const subscription = subscriptionOf('t1').subscription;
-    const reach = (booking, sub = subscription) => bundleRetirementReach(booking, sub, NOW);
+    const reach = (booking, sub = subscription, timeZone = 'UTC') =>
+        bundleRetirementReach(booking, sub, NOW, timeZone);
     const day = (result) => result.effectiveAt.toISOString().slice(0, 10);
 
     test('is the first end of its own monthly period three calendar months after the notice', () => {
@@ -160,6 +161,19 @@ describe('the date an add-on retirement reaches a booking on', () => {
         assert.equal(day(result), '2027-02-01');
         assert.equal(result.lastDayToCancel, '2027-01-31');
         assert.equal(result.billingCycle, 'MONTHLY');
+    });
+
+    test('names its last day to cancel in the installation’s zone', () => {
+        // The period ends at midnight UTC, which is 01:00 on 1 February in
+        // Berlin and 19:00 on 31 January in New York.
+        assert.equal(
+            reach(bookingOf('t1'), subscription, 'Europe/Berlin').lastDayToCancel,
+            '2027-01-31',
+        );
+        assert.equal(
+            reach(bookingOf('t1'), subscription, 'America/New_York').lastDayToCancel,
+            '2027-01-30',
+        );
     });
 
     test('and of its own yearly period for a yearly booking', () => {
@@ -701,6 +715,39 @@ describe('a notice that has reached nobody yet', () => {
         const pending = await service.pendingForBooking('sub-t1', 'sb-t1', later);
         assert.equal(pending?.effectiveAt, '2027-03-01T00:00:00.000Z');
         assert.equal(pending?.lastDayToCancel, '2027-02-28');
+    });
+
+    // @requirement SC-BUN-066 — An add-on retirement's last day to cancel is the installation's day
+    test('a notice sent late names the day before its date in the installation’s zone', async () => {
+        let up = false;
+        const port = sendingPort(() => {
+            if (!up) throw new Error('mail server down');
+            return { recipients: ['admin@example.com'], channel: 'email' };
+        });
+        const { service } = retiring({ port, timeZone: 'America/New_York' });
+        await service.announce(RETIRED.id, REPLACEMENT.id, ['sb-t1', 'sb-t2'], ACTOR, NOW);
+
+        up = true;
+        const later = new Date('2026-11-15T09:00:00.000Z');
+        await service.sendUndelivered(later);
+
+        const pending = await service.pendingForBooking('sub-t1', 'sb-t1', later);
+        assert.equal(pending?.effectiveAt, '2027-03-01T00:00:00.000Z');
+        assert.equal(
+            pending?.lastDayToCancel,
+            '2027-02-27',
+            'it is 19:00 on 28 February in New York',
+        );
+    });
+
+    // @requirement SC-BUN-066 — An add-on retirement's last day to cancel is the installation's day
+    test('the preview names the last day to cancel in the installation’s zone', async () => {
+        const { service } = retiring({ timeZone: 'America/New_York' });
+
+        const preview = await service.preview(RETIRED.id, REPLACEMENT.id, NOW);
+
+        assert.equal(preview.reached[0].effectiveAt, '2027-02-01T00:00:00.000Z');
+        assert.equal(preview.reached[0].lastDayToCancel, '2027-01-30');
     });
 
     test('is not told once the booking no longer runs to the date', async () => {
