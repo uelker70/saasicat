@@ -2359,6 +2359,9 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
     - retiring a version in the plan cockpit
         - says it was announced on the installation’s day
+- `packages/ui-vue/tests/component/roster-primitives.test.ts`
+    - AdminErrorBanner is bound unconditionally and decides for itself
+        - a refusal’s day is written as the interface writes days, not as the server sent it
 - `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
     - the subscriber's record shows its contracts
         - says when a contract was concluded and until when its minimum term runs as the

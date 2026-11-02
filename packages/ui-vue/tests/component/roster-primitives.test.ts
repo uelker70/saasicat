@@ -13,7 +13,10 @@ import AdminStatusPill from '../../src/ui/data/AdminStatusPill.vue';
 import AdminRowActions from '../../src/ui/data/AdminRowActions.vue';
 import { flushPromises } from '@vue/test-utils';
 
+import { AdminError } from '../../src/client/admin-error.js';
+import { formatDay } from '../../src/client/i18n/format.js';
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
+import { createSuperAdminI18n } from '../../src/vue/use-super-admin-i18n.js';
 import { SUPER_ADMIN_NOTIFY_KEY } from '../../src/vue/ui-notify.js';
 import { raisedWhile } from '../support/raised-out-of-band.mjs';
 
@@ -71,6 +74,24 @@ describe('AdminErrorBanner is bound unconditionally and decides for itself', () 
             props: { error: new Error('Plan is still published') },
         });
         expect(wrapper.text()).toContain('Plan is still published');
+    });
+
+    // @requirement SC-ADM-048 — Every day the administration shows is a day of the installation
+    test('a refusal’s day is written as the interface writes days, not as the server sent it', () => {
+        const error = new AdminError({
+            status: 409,
+            code: 'SUBSCRIBER_RECONCILIATION_CASE_CLOSED',
+            body: {
+                code: 'SUBSCRIBER_RECONCILIATION_CASE_CLOSED',
+                message: 'The case case-1 was closed on 2026-07-01; its note stands.',
+                params: { caseId: 'case-1', closedAt: '2026-07-01' },
+                dayParams: ['closedAt'],
+            },
+        });
+        const { intlLocale } = createSuperAdminI18n({ persist: false });
+        const wrapper = mountWithQuasar(AdminErrorBanner, { props: { error } });
+        expect(wrapper.text()).toContain(formatDay('2026-07-01', intlLocale.value));
+        expect(wrapper.text()).not.toContain('2026-07-01');
     });
 
     test('retry is offered only when there is something to retry', () => {
