@@ -115,13 +115,21 @@ interface Server {
 const ENDS = (creditNet: number) =>
     answered({ endsAt: '2026-07-10T09:00:00.000Z', creditNet, currency: 'EUR' }, ['endsAt']);
 
+interface ServerOptions {
+    /** The withdrawals the subscription was told of; the route answers them with their days. */
+    withdrawals?: readonly TenantFeatureWithdrawalAsRead[];
+    /** What the route answers instead of the withdrawals, where it answers something else. */
+    listAnswer?: unknown;
+    listStatus?: number;
+    previewStatus?: number;
+}
+
 function aServer({
-    withdrawals = [WITHDRAWAL] as readonly TenantFeatureWithdrawalAsRead[],
-    // What the route answers instead of the withdrawals, where it answers something else.
-    listAnswer = undefined as unknown,
+    withdrawals = [WITHDRAWAL],
+    listAnswer,
     listStatus = 200,
     previewStatus = 200,
-} = {}): Server {
+}: ServerOptions = {}): Server {
     const asked: string[] = [];
     const reply = (body: unknown, status = 200) => ({
         status,

@@ -1,7 +1,7 @@
 // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
 
 import { afterEach, describe, expect, test } from 'vitest';
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent, h } from 'vue';
 import type { DaysAround, FeatureWithdrawalMark, TenantFeatureWithdrawal } from '@saasicat/core';
 import type { HttpClient } from '@saasicat/ui-vue';
@@ -70,7 +70,7 @@ const WITHDRAWAL: TenantFeatureWithdrawal = {
     endable: { subscription: true, subscriptionBundleIds: [] },
 };
 
-const mounted: VueWrapper[] = [];
+const mounted: Array<{ unmount(): void }> = [];
 afterEach(() => {
     for (const wrapper of mounted.splice(0)) wrapper.unmount();
     document.body.innerHTML = '';
@@ -94,7 +94,7 @@ async function notices(withdrawals: unknown[]) {
         attachTo: document.body,
         props: { http, formatCurrency: (n: number) => `€ ${n.toFixed(2)}`, formatDate },
     });
-    mounted.push(wrapper as VueWrapper);
+    mounted.push(wrapper);
     await flushPromises();
     return wrapper;
 }
@@ -180,7 +180,7 @@ describe('the mark beside a withdrawn feature', () => {
             },
         });
         const wrapper = mount(Host);
-        mounted.push(wrapper as VueWrapper);
+        mounted.push(wrapper);
         return wrapper.text();
     }
 
