@@ -2041,6 +2041,7 @@ _Tested by:_
 - `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
     - reinstating a booking of a version being retired
         - names the first whole day without the booking in the installation’s zone, as a day
+        - asks what can be booked instead on the day it would name, in the installation’s zone
 - `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
     - the preview of a withdrawal
         - names the day an earlier withdrawal is lifted from as the installation’s day

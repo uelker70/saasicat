@@ -1871,6 +1871,7 @@ _Tested by:_
         - names the day where the replacement can be booked in the plan’s rhythm only
         - answers nothing once the cancellation has landed: the booking route says so
         - says the subscription ends by then where it does, and names no day
+        - asks what can be booked instead on the day it would name, in the installation’s zone
         - asks the plans the subscription is set to move to after that day
         - is not refused where its notice still waits, and the next run tells it
         - is not refused where it was reached, nor on a version nobody retired

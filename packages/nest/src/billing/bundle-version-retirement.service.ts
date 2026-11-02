@@ -29,6 +29,7 @@ import {
     addDaysToDay,
     daysAround,
     installationZoneOf,
+    startOfDayInZone,
     type AdminActor,
     type BillingCycle,
     type BundleRepository,
@@ -122,7 +123,6 @@ import {
 } from './version-retirement.service.js';
 
 const KIND = 'bundle-version-retired';
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Whether `version`, billed in `cycle`, can run beside each of `plans`: the
@@ -453,9 +453,13 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
         const { retired, replacement } = retirement;
         // The booking still runs until its cancellation lands, and an add-on
         // is booked once at a time (`SC-BUN-027`), so the replacement can be
-        // booked once it has: from that day where it lands at midnight UTC,
-        // as a period end does, and from the next where it lands during one.
-        const bookableAt = new Date(Math.ceil(ends.getTime() / DAY_MS) * DAY_MS);
+        // booked once it has: from the first whole day without it in the
+        // installation's zone — the day after the last one it runs — whose
+        // first moment is also where what can be booked instead is asked, so
+        // the day named and the day asked about are one.
+        const zone = this.zone();
+        const bookableFrom = addDaysToDay(daysAround(ends, zone).until, 1);
+        const bookableAt = startOfDayInZone(bookableFrom, zone);
         const params = {
             bundleKey: retired.bundleKey,
             version: retired.version,
@@ -486,9 +490,6 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
                 params,
             };
         }
-        // Said as the first whole day without the booking in the
-        // installation's zone: the day after the last one it runs.
-        const bookableFrom = addDaysToDay(daysAround(ends, this.zone()).until, 1);
         return {
             code: BILLING_ERROR_CODES.BUNDLE_RETIREMENT_REINSTATE_REFUSED,
             message:
