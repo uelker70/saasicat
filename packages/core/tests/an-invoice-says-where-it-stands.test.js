@@ -30,6 +30,8 @@ function credit(invoiceId, amount, open, entries = []) {
         entries: entries.map((entry, index) => ({
             id: `entry-${index}`,
             paidOn: null,
+            refundId: null,
+            reversalId: null,
             ...entry,
             recordedAt: new Date(entry.recordedAt),
         })),
@@ -214,6 +216,26 @@ describe('an invoice cancelled and replaced', () => {
         });
     });
 
+    for (const order of ['as they arrived', 'the other way round']) {
+        test(`moved in two shares at one moment, read ${order}, is paid on the day the second arrived`, () => {
+            // The payment that arrived first sorts last by its id, so only
+            // the order of arrival puts it first.
+            const moved = [
+                settlement('3', 'MOVED_IN', 20, '2026-07-06T08:00:00Z', 'pay-2'),
+                settlement('3', 'MOVED_IN', 19, '2026-07-06T08:00:00Z', 'pay-1'),
+            ];
+            const settlements = [
+                settlement('1', 'PAYMENT', 20, '2026-07-02T08:00:00Z', 'pay-2'),
+                settlement('1', 'PAYMENT', 19, '2026-07-05T08:00:00Z', 'pay-1'),
+                ...(order === 'as they arrived' ? moved : moved.reverse()),
+            ];
+            assert.deepEqual(paymentOf('3', invoices, { settlements }), {
+                kind: 'paid',
+                on: '2026-07-05',
+            });
+        });
+    }
+
     test('the replacement owes what the moved payment did not cover', () => {
         const settlements = [
             settlement('1', 'PAYMENT', 30, '2026-07-02T08:00:00Z'),
@@ -315,6 +337,87 @@ describe('an invoice whose total is negative', () => {
         assert.deepEqual(paymentOf('1', [refund], { credits }), {
             kind: 'refunded',
             on: '2026-07-06',
+        });
+    });
+
+    test('is refunded on the latest day money left, whatever order the payouts were entered in', () => {
+        const credits = [
+            credit('1', 20, 0, [
+                {
+                    kind: 'PAYOUT',
+                    amount: 10,
+                    paidOn: '2026-07-08',
+                    recordedAt: '2026-07-08T08:00:00Z',
+                },
+                {
+                    kind: 'PAYOUT',
+                    amount: 10,
+                    paidOn: '2026-07-03',
+                    recordedAt: '2026-07-09T08:00:00Z',
+                },
+            ]),
+        ];
+        assert.deepEqual(paymentOf('1', [refund], { credits }), {
+            kind: 'refunded',
+            on: '2026-07-08',
+        });
+    });
+
+    test('takes no day from a refund that failed, though it was recorded after the payout', () => {
+        const credits = [
+            credit('1', 20, 0, [
+                {
+                    kind: 'REFUND',
+                    amount: 20,
+                    refundId: 'refund-1',
+                    recordedAt: '2026-07-05T08:00:00Z',
+                },
+                {
+                    kind: 'REFUND_FAILED',
+                    amount: 20,
+                    refundId: 'refund-1',
+                    recordedAt: '2026-07-06T08:00:00Z',
+                },
+                {
+                    kind: 'PAYOUT',
+                    amount: 20,
+                    paidOn: '2026-07-01',
+                    recordedAt: '2026-07-07T08:00:00Z',
+                },
+            ]),
+        ];
+        assert.deepEqual(paymentOf('1', [refund], { credits }), {
+            kind: 'refunded',
+            on: '2026-07-01',
+        });
+    });
+
+    test('takes no day from a reversal the gateway gave back', () => {
+        const credits = [
+            credit('1', 20, 0, [
+                {
+                    kind: 'REVERSAL',
+                    amount: 20,
+                    reversalId: 'reversal-1',
+                    recordedAt: '2026-07-05T08:00:00Z',
+                },
+                {
+                    kind: 'REVERSAL_TAKEN_BACK',
+                    amount: 20,
+                    reversalId: 'reversal-1',
+                    recordedAt: '2026-07-06T08:00:00Z',
+                },
+                {
+                    kind: 'PAYOUT',
+                    amount: 20,
+                    paidOn: '2026-07-02',
+                    recordedAt: '2026-07-07T08:00:00Z',
+                },
+            ]),
+        ];
+        assert.deepEqual(paymentOf('1', [refund], { credits }), {
+            kind: 'refunded',
+            on: '2026-07-02',
         });
     });
 

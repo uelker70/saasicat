@@ -17911,6 +17911,7 @@ _Tested by:_
         - cancelled without a replacement names none
         - the cancellation invoice says nothing of a payment, though its total is negative
         - the replacement is paid on the day the payment moved into it arrived
+        - moved in two shares at one moment, read ${order}, is paid on the day the second arrived
         - the replacement owes what the moved payment did not cover
         - a replacement cancelled in turn names both of its own
     - an invoice whose total is negative
@@ -17920,6 +17921,9 @@ _Tested by:_
         - is refunded on the installation’s day of a refund the gateway reported
         - is to be refunded again where the refund failed
         - is refunded on the day of the payout that followed a failed refund
+        - is refunded on the latest day money left, whatever order the payouts were entered in
+        - takes no day from a refund that failed, though it was recorded after the payout
+        - takes no day from a reversal the gateway gave back
         - takes no credit of another origin for its own
     - the invoices of a subscriber
         - an invoice of nothing says nothing of a payment

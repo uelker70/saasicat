@@ -85,8 +85,8 @@ export function invoiceStandingsOf<I extends StandingInvoice>(
     clock: InvoiceStandingClock,
 ): { invoice: I; standing: InvoiceStanding }[] {
     const corrections = correctionsByInvoice(source.invoices);
-    const settlements = settlementsByInvoice(source.settlements);
     const firstSettled = firstSettledMoments(source.settlements);
+    const settlements = settlementsByInvoice(source.settlements, firstSettled);
     return source.invoices.map((invoice) => {
         const corrected = corrections.get(invoice.id);
         const cancelledBy = corrected?.cancelledBy ?? null;
@@ -128,8 +128,16 @@ function correctionsByInvoice(
 
 type Settlement = InvoiceStandingSource['settlements'][number];
 
-/** Each invoice's settlements, the first recorded first. */
-function settlementsByInvoice(settlements: readonly Settlement[]): Map<string, Settlement[]> {
+/**
+ * Each invoice's settlements, the first recorded first. Those recorded at one
+ * moment — the shares a cancellation moves into a replacement together — come
+ * in the order their money arrived, so the one that completed the payment is
+ * the same whatever order a store reads them in.
+ */
+function settlementsByInvoice(
+    settlements: readonly Settlement[],
+    firstSettled: Map<string, Date>,
+): Map<string, Settlement[]> {
     const byInvoice = new Map<string, Settlement[]>();
     for (const settlement of settlements) {
         const known = byInvoice.get(settlement.invoiceId) ?? [];
@@ -137,7 +145,12 @@ function settlementsByInvoice(settlements: readonly Settlement[]): Map<string, S
         byInvoice.set(settlement.invoiceId, known);
     }
     for (const known of byInvoice.values()) {
-        known.sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
+        known.sort(
+            (a, b) =>
+                a.recordedAt.getTime() - b.recordedAt.getTime() ||
+                arrivalOf(a, firstSettled).getTime() - arrivalOf(b, firstSettled).getTime() ||
+                a.payment.id.localeCompare(b.payment.id),
+        );
     }
     return byInvoice;
 }
@@ -215,10 +228,7 @@ function arrivalOf(settlement: Settlement, firstSettled: Map<string, Date>): Dat
 
 /**
  * An invoice whose total is negative is refunded once the credit it gave rise
- * to is paid out in full, on the day the last of it left: a payout on the day
- * the operator recorded for it, a refund or a reversal on the day it was
- * recorded. A credit paid out in full ends on such an entry, as a failed
- * refund and a reversal taken back open it again.
+ * to is paid out in full, on the day the last of it left.
  */
 function refundStandingOf(
     invoice: StandingInvoice,
@@ -229,12 +239,37 @@ function refundStandingOf(
         ({ credit: { origin } }) => origin.kind === 'invoice' && origin.invoiceId === invoice.id,
     );
     if (!credit) return { kind: 'to-be-refunded', open: -invoice.totalGross };
-    const lastOut = [...credit.entries]
-        .sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime())
-        .at(-1);
-    if (credit.open > 0 || !lastOut) return { kind: 'to-be-refunded', open: credit.open };
-    return {
-        kind: 'refunded',
-        on: lastOut.paidOn ?? dayInZone(lastOut.recordedAt, clock.timeZone),
-    };
+    const lastDay = credit.open > 0 ? null : lastDayPaidOut(credit, clock.timeZone);
+    if (!lastDay) return { kind: 'to-be-refunded', open: credit.open };
+    return { kind: 'refunded', on: lastDay };
+}
+
+/**
+ * The latest day money of `credit` left and stayed out: a payout on the day
+ * the operator recorded it was transferred, which may lie before an earlier
+ * entry's; a refund or a reversal on the day it was recorded, unless the
+ * refund failed or the reversal was given back.
+ */
+function lastDayPaidOut(credit: SubscriberCreditStanding, timeZone: string): CalendarDay | null {
+    const failed = new Set(
+        credit.entries
+            .filter(({ kind }) => kind === 'REFUND_FAILED')
+            .map(({ refundId }) => refundId),
+    );
+    const takenBack = new Set(
+        credit.entries
+            .filter(({ kind }) => kind === 'REVERSAL_TAKEN_BACK')
+            .map(({ reversalId }) => reversalId),
+    );
+    const days = credit.entries.flatMap((entry) => {
+        if (entry.kind === 'PAYOUT') return [entry.paidOn ?? dayInZone(entry.recordedAt, timeZone)];
+        const stayedOut =
+            (entry.kind === 'REFUND' && !failed.has(entry.refundId)) ||
+            (entry.kind === 'REVERSAL' && !takenBack.has(entry.reversalId));
+        return stayedOut ? [dayInZone(entry.recordedAt, timeZone)] : [];
+    });
+    return days.reduce<CalendarDay | null>(
+        (latest, day) => (latest && latest > day ? latest : day),
+        null,
+    );
 }
