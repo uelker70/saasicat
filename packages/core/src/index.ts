@@ -160,6 +160,7 @@ export * from './invoice-register.types.js';
 export * from './invoice-register.js';
 export * from './open-items.types.js';
 export * from './open-items.js';
+export * from './invoice-standing.js';
 export * from './contract-register.types.js';
 export * from './contract-register.js';
 export * from './invoice-export.types.js';

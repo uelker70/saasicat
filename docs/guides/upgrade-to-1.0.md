@@ -2659,6 +2659,21 @@ the subscriber and leads into its record.
   builds one adds them. An application that overrides the `contracts` texts finds the old table's
   `column…` entries gone and the timeline's and the dossier's beside the rest.
 
+### Each invoice in the record says where its payment stands
+
+`GET admin/subscribers/:id/payments` answers each invoice with `replacedBy`, the replacement that
+took the place of an invoice cancelled, and `payment`, where its payment stands (`SC-ADM-051`):
+`open` or `reversed` with what it still owes and whether it is overdue, `paid` and `refunded` with
+the day, `to-be-refunded` with what its credit still holds — every day the installation's. It is
+`null` for an invoice cancelled, a cancellation invoice and an invoice of nothing. The record shows
+it in a column of its own. The rule is `invoiceStandingsOf` in `@saasicat/core`, read from the
+invoices, their settlements and the subscriber's credits.
+
+- **`invoiceStandingOf`** names the replacement as well: its messages take `replacedBy` beside the
+  three they took. `invoicePaymentOf` words the payment, with the page's own way of writing a day
+  and an amount; both read the catalogue's `subscribers.payments`.
+- **A test of your own that builds an `AdminSubscriberInvoice`** adds `replacedBy` and `payment`.
+
 ### An operator reads the register of every invoice
 
 The administration gains a standard page `invoices` (`/admin/invoices`): every invoice issued in the

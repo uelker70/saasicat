@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 50      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 51      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 676 entries: 🟢 584 stand today, 🟡 42 decided but not yet delivered, ⚪ 0 drafts,
+Of 677 entries: 🟢 585 stand today, 🟡 42 decided but not yet delivered, ⚪ 0 drafts,
 🔵 45 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -230,7 +230,7 @@ Of 676 entries: 🟢 584 stand today, 🟡 42 decided but not yet delivered, ⚪
 [SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 676 requirements. Do not edit by hand:
+Generated from `requirements/` — 677 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -17868,6 +17868,79 @@ _Tested by:_
     - joining subscribers
         - turned on without anywhere to join them, refuses to start, saying so
         - refuses to start beside a database that would let a join leave rows behind
+
+<!-- END proof -->
+
+### SC-ADM-051 — An invoice in the record names its replacement and says where its payment stands
+
+🟢 💰 Beside what it corrects and what cancelled it (`SC-ADM-040`), each invoice in the subscriber's
+record names the replacement that took its place, and says where its payment stands: open; overdue
+from the day after its due date; open in part, with what is still owed of its total; paid on the day
+the last of it arrived; its payment reversed on a day, and open again. An invoice whose total is
+negative is to be refunded until the credit it gave rise to is paid out in full, and refunded on the
+day the last of it left. A payment a cancellation moved into the replacement arrived on the day it
+was paid, not on the day it was moved. An invoice cancelled and a cancellation invoice say nothing
+of a payment, as neither is paid. The days are the installation's (`SC-ADM-048`), and the tenant's
+list reads the standing by the same rule (`SC-UI-024`).
+
+_Source:_ #336 (decided 2026-11-02)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-says-where-it-stands.test.js`
+    - an invoice nothing has settled
+        - due ${dueDate} and read on 2026-07-10 is ${overdue ? '' : 'not '}overdue
+    - an invoice settled in part
+        - is open with what it still owes
+        - is overdue in part once its due date has passed
+        - by a cent is still open, in cents
+    - an invoice paid
+        - is paid on the day its payment arrived, the installation’s day
+        - in UTC on the UTC day of the same moment
+        - in two parts, on the day the second arrived, whatever order the store read them in
+        - more than in full, on the day of the payment that brought it there
+    - an invoice whose payment was reversed
+        - is open again, reversed on the day the reversal was recorded
+        - and is overdue once its due date has passed
+        - is paid again on the day the gateway gave the reversal back
+        - is paid again on the day another payment arrived
+    - an invoice cancelled and replaced
+        - names the cancellation invoice and the replacement, and says nothing of a payment
+        - cancelled without a replacement names none
+        - the cancellation invoice says nothing of a payment, though its total is negative
+        - the replacement is paid on the day the payment moved into it arrived
+        - the replacement owes what the moved payment did not cover
+        - a replacement cancelled in turn names both of its own
+    - an invoice whose total is negative
+        - is to be refunded in full while no credit of it is read
+        - is to be refunded with what its credit still holds
+        - is refunded on the day the operator recorded the payout for, not the day it was entered
+        - is refunded on the installation’s day of a refund the gateway reported
+        - is to be refunded again where the refund failed
+        - is refunded on the day of the payout that followed a failed refund
+        - takes no credit of another origin for its own
+    - the invoices of a subscriber
+        - an invoice of nothing says nothing of a payment
+        - are returned in the order given, each with its own settlements only
+- `packages/nest/tests/an-operator-reconciles-what-matched-nothing.test.js`
+    - where each of a subscriber's invoices stands
+        - is paid on the installation’s day its payment arrived, and open and overdue past its due
+          date
+        - names the replacement of an invoice cancelled, which says nothing of a payment
+- `packages/ui-vue/tests/an-invoice-says-where-its-payment-stands.test.js`
+    - an invoice cancelled
+        - names its replacement after the cancellation invoice
+        - names none where no replacement took its place, or the list does not know it
+    - where an invoice's payment stands
+        - reads ${JSON.stringify(en)} where ${why}
+        - its sentences never call a credit a Gutschrift
+- `packages/ui-vue/tests/component/an-operator-reads-where-each-invoice-stands.test.ts`
+    - the invoices in a subscriber’s record
+        - an invoice cancelled names what cancelled it and what replaced it, and no payment
+        - an invoice paid says on which day, written as the record writes days
+        - an invoice paid in part past its due date says what it still owes of its total
 
 <!-- END proof -->
 

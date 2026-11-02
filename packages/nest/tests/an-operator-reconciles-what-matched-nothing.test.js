@@ -271,6 +271,82 @@ describe("a subscriber's payments", () => {
     });
 });
 
+// @requirement SC-ADM-051 — An invoice in the record names its replacement and says where its payment stands
+describe("where each of a subscriber's invoices stands", () => {
+    /** One subscriber's invoices in a store as plain as the payments helper needs. */
+    function recordOf(invoices, settings) {
+        const store = {
+            listBySubscriber: async () => invoices,
+            listArchivedDocuments: async () => [],
+        };
+        const subscribers = { findById: async (id) => ({ id }) };
+        const payments = new MemorySubscriberPayments(invoices);
+        return {
+            payments,
+            service: new SubscriberReconciliationService(payments, store, subscribers, settings),
+        };
+    }
+
+    test('is paid on the installation’s day its payment arrived, and open and overdue past its due date', async () => {
+        const invoices = [
+            invoiceOf('invoice-02', 'subscriber-1', 20, '2026-03-01T05:15:00.000Z'),
+            invoiceOf('invoice-01', 'subscriber-1', 58.31),
+        ];
+        const { payments, service } = recordOf(invoices, { timeZone: 'Europe/Berlin' });
+        // Half past midnight on 1 February in Berlin: still 31 January in UTC.
+        await payments.recordPayment({
+            invoiceId: 'invoice-01',
+            collectionId: 'attempt-1',
+            gatewayAccount: 'stripe-main',
+            provider: 'stripe',
+            gatewayRef: 'pi_1',
+            amount: 58.31,
+            currency: 'EUR',
+            at: new Date('2026-01-31T23:30:00.000Z'),
+        });
+
+        const read = await service.paymentsOf('subscriber-1');
+
+        assert.deepEqual(
+            read.invoices.map((each) => [each.number, each.payment]),
+            [
+                ['AHP-2026-000002', { kind: 'open', owed: 20, overdue: true }],
+                ['AHP-2026-000001', { kind: 'paid', on: '2026-02-01' }],
+            ],
+        );
+    });
+
+    test('names the replacement of an invoice cancelled, which says nothing of a payment', async () => {
+        const of = { invoiceId: 'invoice-01', number: 'AHP-2026-000001', issueDate: '2026-02-01' };
+        const invoices = [
+            {
+                ...invoiceOf('invoice-03', 'subscriber-1', 40),
+                correction: { kind: 'replacement', of, reason: 'Wrong seat count' },
+            },
+            {
+                ...invoiceOf('invoice-02', 'subscriber-1', -58.31),
+                correction: { kind: 'cancellation', of, reason: 'Wrong seat count' },
+            },
+            invoiceOf('invoice-01', 'subscriber-1', 58.31),
+        ];
+        const { service } = recordOf(invoices, null);
+
+        const [replacement, cancellation, cancelled] = (await service.paymentsOf('subscriber-1'))
+            .invoices;
+
+        assert.deepEqual(
+            [cancelled.cancelledBy, cancelled.replacedBy, cancelled.payment],
+            [
+                { invoiceId: 'invoice-02', number: 'AHP-2026-000002' },
+                { invoiceId: 'invoice-03', number: 'AHP-2026-000003' },
+                null,
+            ],
+        );
+        assert.equal(cancellation.payment, null);
+        assert.deepEqual(replacement.payment, { kind: 'open', owed: 40, overdue: true });
+    });
+});
+
 describe('the requests as the routes take them', () => {
     const problemsOf = async (Type, body) =>
         (await validate(plainToInstance(Type, body))).map((error) => error.property);
