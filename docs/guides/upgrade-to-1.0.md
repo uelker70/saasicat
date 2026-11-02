@@ -2807,10 +2807,14 @@ features follow.
   `PackageSnapshotPanel` an optional `capturedDays`. `TenantPlanSection` passes them; only a page
   that mounts one of them on its own changes.
 - **A retirement's last day to cancel without notice is the installation's day** (`SC-SUB-046`,
-  `SC-BUN-066`): the last whole day before the date in the installation's zone, not in UTC. In an
-  installation east of UTC whose terms end at local midnight, a notice now names one day later than
-  it did — the day a subscriber there reads as the day before. A notice already sent keeps the day it
-  named.
+  `SC-BUN-066`): the last whole day before the date in the installation's zone, not in UTC. East of
+  UTC, a term ending at local midnight now names one day later — the day a subscriber there reads as
+  the day before; west of UTC it can name one day earlier — a term ending at UTC midnight on 1 July,
+  20:00 on 30 June in New York, named 30 June and now names 29 June. Either way a cancellation
+  without notice is accepted until the retirement takes effect, and a notice already sent keeps the
+  day it named. If you call `retirementReach` or `bundleRetirementReach` from `@saasicat/nest`
+  yourself, pass the installation's zone: `retirementReach(sub, toldAt, timeZone)`,
+  `bundleRetirementReach(booking, sub, toldAt, timeZone, ahead)`.
 - **Your `formatDate` is handed noon of the named day in the viewer's zone**, so a formatter that
   reads an instant in the viewer's zone — `toLocaleDateString` without a `timeZone` — writes the
   named day wherever the viewer is. A formatter that names a zone of its own can write the day

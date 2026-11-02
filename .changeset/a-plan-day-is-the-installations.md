@@ -1,6 +1,7 @@
 ---
 '@saasicat/core': minor
 '@saasicat/nest': minor
+'@saasicat/spec': minor
 '@saasicat/ui-vue': minor
 '@saasicat/ui-vue-tenant': minor
 ---
@@ -28,9 +29,16 @@ four moments. The fields are added; nothing is removed.
 The last day a subscription, or an add-on booking, may be cancelled without
 notice when its version is retired (`lastDayToCancel`) is the last whole day
 before the date in the installation's zone rather than in UTC (`SC-SUB-046`,
-`SC-BUN-066`). In an installation east of UTC whose terms end at local
-midnight, a notice now names one day later than it did — the day a subscriber
-there reads as the day before. A notice already sent keeps the day it named.
+`SC-BUN-066`). The day can move either way: east of UTC, a term ending at local
+midnight now names one day later — the day a subscriber there reads as the day
+before; west of UTC it can name one day earlier — a term ending at UTC midnight
+on 1 July, 20:00 on 30 June in New York, named 30 June and now names 29 June.
+Either way the platform accepts a cancellation without notice until the
+retirement takes effect. A notice already sent keeps the day it named.
+`retirementReach(sub, toldAt, timeZone)` and
+`bundleRetirementReach(booking, sub, toldAt, timeZone, ahead)`, exported from
+`@saasicat/nest`, take the installation's zone; the second takes it before the
+optional `ahead`, so a call that passed `ahead` fourth passes it fifth.
 
 What the plan section shows changes where a moment falls near midnight and
 where an end is shown: a trial, a cancellation and its confirmation name the
