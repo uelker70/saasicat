@@ -45,6 +45,7 @@ import {
 } from '@saasicat/core';
 
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
+import { answeringRefusals } from '../errors/answering-refusals.js';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { cancellationHasLanded, cancellationLandsAt } from '../entitlement/landed-cancellation.js';
@@ -184,7 +185,13 @@ export class RetirementSwitchService {
         // subscriber: refused here, while nothing has moved.
         await this.contractFreeze?.assertPartyFor(tenantId, intendedContractOf(sub, now));
 
-        const result = await bindReplacement(this.writes, tenantId, sub, notice, false);
+        // A subscription gone since the checks above is refused by the store
+        // with the code those checks give.
+        const result = await answeringRefusals(
+            () => bindReplacement(this.writes, tenantId, sub, notice, false),
+            {},
+            installationZoneOf(this.settings),
+        );
         if (!result.claimed) {
             throw new ConflictException({
                 code: BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED,

@@ -1,5 +1,10 @@
 import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import { isPersistenceRefusal, type PersistenceRefusal } from '@saasicat/core';
+import {
+    DEFAULT_INSTALLATION_ZONE,
+    isPersistenceRefusal,
+    refusalBodyIn,
+    type PersistenceRefusal,
+} from '@saasicat/core';
 
 /** The exception the caller's own check throws for a refusal's case. */
 export type RefusalAnswer = (refusal: PersistenceRefusal) => Error;
@@ -12,17 +17,19 @@ export type RefusalAnswer = (refusal: PersistenceRefusal) => Error;
  * `answers` names that answer by code, wherever the check answers with a
  * status or a body of its own. Any other refusal is answered by what the
  * adapter found: a row that is gone as 404, one that moved as 422 — which is
- * what the catalogue's checks answer.
+ * what the catalogue's checks answer. A day the refusal names is answered as
+ * the day it is in `timeZone`, the installation's — UTC where it names none.
  */
 export async function answeringRefusals<T>(
     write: () => Promise<T>,
     answers: Readonly<Record<string, RefusalAnswer>> = {},
+    timeZone: string = DEFAULT_INSTALLATION_ZONE,
 ): Promise<T> {
     try {
         return await write();
     } catch (error) {
         if (!isPersistenceRefusal(error)) throw error;
-        throw answerRefusal(error, answers);
+        throw answerRefusal(error, answers, timeZone);
     }
 }
 
@@ -30,12 +37,13 @@ export async function answeringRefusals<T>(
 export function answerRefusal(
     refusal: PersistenceRefusal,
     answers: Readonly<Record<string, RefusalAnswer>> = {},
+    timeZone: string = DEFAULT_INSTALLATION_ZONE,
 ): Error {
     const answer = Object.prototype.hasOwnProperty.call(answers, refusal.code)
         ? answers[refusal.code]
         : undefined;
     if (answer) return answer(refusal);
-    const body = { code: refusal.code, message: refusal.message, params: refusal.params };
+    const body = refusalBodyIn(refusal, timeZone);
     return refusal.reason === 'gone'
         ? new NotFoundException(body)
         : new UnprocessableEntityException(body);

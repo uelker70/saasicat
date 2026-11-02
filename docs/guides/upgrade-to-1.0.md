@@ -2820,6 +2820,12 @@ and ending at once. A refusal that names a day names it in the installation's zo
   — `writeDayParams` from `@saasicat/core` does it — rather than guessing from a value's shape.
   `refusalMessage` and `issueSentence` from `@saasicat/ui-vue-tenant/refusal-of.js` take your
   `formatDate` as their third argument.
+- **A store's refusal names the installation's day as well.** A store knows no zone, so
+  `noActivePlanVersion` names its day in UTC and carries the moment behind it (`dayMoments`, the
+  fifth argument of `PersistenceRefusal`); the platform answers it with the installation's day
+  (`refusalBodyIn`). A `TenantSubscriptionWritePort` of your own that builds the refusal with
+  `noActivePlanVersion` gets this as it is; one that constructs a `PersistenceRefusal` naming a day
+  by hand passes the moment.
 - **Where a refusal's sentence means two days, it names both.** `{until}` in
   `BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE`, `BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN` and
   `RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW` stays the first day without the add-on, and `{date}` in
@@ -3473,7 +3479,8 @@ code is deleted between the platform's read and its write, which two operators c
 The platform checks before it writes, and where two requests pass that check together — two
 operators publishing one draft, a double click asking for a second draft, a cancellation arriving
 after another — the store decides. The request that loses now reads the status, code and
-parameters the check gives, not a `500` (`SC-OPS-016`, `SC-PLAN-019`).
+parameters the check gives, not a `500` (`SC-OPS-016`, `SC-PLAN-019`) — scheduling a plan change,
+taking a version offer for the end of the term and the early switch after a retirement included.
 
 - **`PersistenceRefusal`** in `@saasicat/core` is what a store throws there, and `@saasicat/core`
   exports a function that builds each case — `planKeyTaken`, `catalogDraftExists`,

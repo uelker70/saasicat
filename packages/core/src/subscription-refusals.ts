@@ -11,12 +11,17 @@ export function subscriptionGone(tenantId: string): PersistenceRefusal {
     return refusal(BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND, 'gone', { tenantId });
 }
 
-/** The plan to bind has no version in effect at `asOf`. */
+/**
+ * The plan to bind has no version in effect at `asOf`, named here as its UTC
+ * day; the platform names it in the installation's zone when it answers.
+ */
 export function noActivePlanVersion(planId: string, asOf: Date): PersistenceRefusal {
-    return refusal(BILLING_ERROR_CODES.NO_ACTIVE_PLAN_VERSION, 'gone', {
-        planId,
-        asOf: asOf.toISOString().slice(0, 10),
-    });
+    return refusal(
+        BILLING_ERROR_CODES.NO_ACTIVE_PLAN_VERSION,
+        'gone',
+        { planId, asOf: asOf.toISOString().slice(0, 10) },
+        { asOf },
+    );
 }
 
 /** The plan to bind is not in the catalogue, or was retired in the meantime. */

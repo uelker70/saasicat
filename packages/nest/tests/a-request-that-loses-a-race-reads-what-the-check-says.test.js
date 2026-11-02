@@ -231,7 +231,10 @@ const SUBSCRIPTION = {
 
 const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
 
-/** The controller over a subscription the checks accept and a store that refuses. */
+/**
+ * The controller over a subscription the checks accept and a store that
+ * refuses, in an installation `settings` describes.
+ */
 function billingOver(
     port,
     decision = {
@@ -240,6 +243,7 @@ function billingOver(
         blockers: [],
         target: { planVersionId: 'pv-quoted' },
     },
+    settings = null,
 ) {
     return new TenantBillingController(
         {
@@ -252,8 +256,14 @@ function billingOver(
         port,
         () => 't1',
         () => 'u1',
+        // The positions between, left to their defaults, up to the settings of
+        // `config/saas.yaml`.
+        ...Array(15).fill(undefined),
+        settings,
     );
 }
+
+const PLAN_CHANGE = { plan: 'PRO', billingCycle: 'MONTHLY', planVersionId: 'pv-quoted' };
 
 // @requirement SC-OPS-016 — A request that loses a race reads what the check says, not a server error
 describe('a tenant whose subscription moves while the request is decided', () => {
@@ -318,6 +328,43 @@ describe('a tenant whose subscription moves while the request is decided', () =>
                 planVersionId: 'pv-quoted',
             }),
             answeredWith(404, 'NO_ACTIVE_PLAN_VERSION', { planId: 'PRO', asOf: '2026-05-01' }),
+        );
+    });
+
+    // @requirement SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
+    test('and names the day it asked about as the installation’s day, said to be a day', async () => {
+        const port = {
+            changePlanImmediate: async (_tenantId, input) => {
+                // Half past midnight on 1 July in Berlin: still 30 June in UTC.
+                throw noActivePlanVersion(input.planId, new Date('2026-06-30T22:30:00.000Z'));
+            },
+        };
+        const immediate = {
+            isImmediate: true,
+            effectiveAt: new Date(),
+            blockers: [],
+            target: { planVersionId: 'pv-quoted' },
+        };
+        const answer = billingOver(port, immediate, { timeZone: 'Europe/Berlin' });
+        await assert.rejects(answer.changePlan(request, PLAN_CHANGE), (error) => {
+            const body = error.getResponse();
+            assert.equal(error.getStatus(), 404);
+            assert.deepEqual(body.params, { planId: 'PRO', asOf: '2026-07-01' });
+            assert.deepEqual(body.dayParams, ['asOf']);
+            assert.equal(body.message, 'No version of plan PRO is on sale as of 2026-07-01.');
+            return true;
+        });
+    });
+
+    test('a plan change scheduled for a subscription gone meanwhile answers as the check does', async () => {
+        const port = {
+            schedulePlanChange: async () => {
+                throw subscriptionGone('t1');
+            },
+        };
+        await assert.rejects(
+            billingOver(port).changePlan(request, PLAN_CHANGE),
+            answeredWith(404, 'SUBSCRIPTION_NOT_FOUND'),
         );
     });
 });

@@ -33,6 +33,7 @@ import {
 } from '@nestjs/common';
 import type {
     BillingCycle,
+    PlanCatalogSettings,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
     TenantSubscriptionWritePort,
@@ -40,7 +41,7 @@ import type {
     VersionOfferView,
     VersionSwitchResult,
 } from '@saasicat/core';
-import { BILLING_ERROR_CODES, isVersionActiveAt } from '@saasicat/core';
+import { BILLING_ERROR_CODES, installationZoneOf, isVersionActiveAt } from '@saasicat/core';
 
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
@@ -85,11 +86,13 @@ export class VersionSwitchService {
         @Optional()
         @Inject(SubscriberChargeService)
         private readonly charges: SubscriberChargeService | null = null,
-        // What a switch scheduled now records as agreed. Optional only so a
-        // test can build the service directly; the platform always binds it.
+        // What a switch scheduled now records as agreed, and the zone a
+        // refusal's days are read in. Optional only so a test can build the
+        // service directly; the platform always binds it.
         @Optional()
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
-        private readonly settings: AgreementSettings | null = null,
+        private readonly settings:
+            (AgreementSettings & Pick<PlanCatalogSettings, 'timeZone'>) | null = null,
     ) {}
 
     /** Takes the offer of `planVersionId`, provided it is still the one offered. */
@@ -135,20 +138,23 @@ export class VersionSwitchService {
         const cycle = sub.billingCycle as BillingCycle;
         // A version gone since the offer was read is refused by the store with
         // the code the offer would have given.
-        const result = await answeringRefusals(() =>
-            this.subscriptionWrite.changePlanImmediate(tenantId, {
-                planId: sub.plan,
-                cycle,
-                // The term and the period stay as they are: nothing restarts.
-                periodStart: null,
-                periodEnd: null,
-                nextStatus: null,
-                expectedCanceledAt: sub.canceledAt ?? null,
-                expectedPlanVersionId: offer.bound.planVersionId,
-                keepsBoundVersion: false,
-                quotedPlanVersionId: offer.offered.planVersionId,
-                quotedVersionOnly: true,
-            }),
+        const result = await answeringRefusals(
+            () =>
+                this.subscriptionWrite.changePlanImmediate(tenantId, {
+                    planId: sub.plan,
+                    cycle,
+                    // The term and the period stay as they are: nothing restarts.
+                    periodStart: null,
+                    periodEnd: null,
+                    nextStatus: null,
+                    expectedCanceledAt: sub.canceledAt ?? null,
+                    expectedPlanVersionId: offer.bound.planVersionId,
+                    keepsBoundVersion: false,
+                    quotedPlanVersionId: offer.offered.planVersionId,
+                    quotedVersionOnly: true,
+                }),
+            {},
+            installationZoneOf(this.settings),
         );
         if (!result.claimed) throw await this.refusedAfterTheRead(tenantId, offer, now);
         this.entitlements.invalidateTenant(tenantId);
@@ -211,16 +217,23 @@ export class VersionSwitchService {
         }
         await this.refuseWhatWouldNotFit(tenantId, offer);
 
-        const scheduled = await this.subscriptionWrite.schedulePlanChange(tenantId, {
-            pendingPlan: sub.plan,
-            pendingBillingCycle: sub.billingCycle,
-            pendingEffectiveAt: takesEffectAt,
-            expectedCanceledAt: sub.canceledAt ?? null,
-            expectedPlanVersionId: offer.bound.planVersionId,
-            expectedPendingPlan: null,
-            pendingChangeVersionId: offer.offered.planVersionId,
-            pendingAgreement: agreementNamed(this.settings, sub.billingCycle, now),
-        });
+        // A subscription gone since the offer was read is refused by the store
+        // with the code a read would have given.
+        const scheduled = await answeringRefusals(
+            () =>
+                this.subscriptionWrite.schedulePlanChange(tenantId, {
+                    pendingPlan: sub.plan,
+                    pendingBillingCycle: sub.billingCycle,
+                    pendingEffectiveAt: takesEffectAt,
+                    expectedCanceledAt: sub.canceledAt ?? null,
+                    expectedPlanVersionId: offer.bound.planVersionId,
+                    expectedPendingPlan: null,
+                    pendingChangeVersionId: offer.offered.planVersionId,
+                    pendingAgreement: agreementNamed(this.settings, sub.billingCycle, now),
+                }),
+            {},
+            installationZoneOf(this.settings),
+        );
         if (!scheduled.claimed) throw await this.refusedAfterTheRead(tenantId, offer, now);
         this.entitlements.invalidateTenant(tenantId);
         return resultOf(offer, false, takesEffectAt);

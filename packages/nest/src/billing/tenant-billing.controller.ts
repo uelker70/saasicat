@@ -707,29 +707,32 @@ export class TenantBillingController {
                     : undefined;
             // A subscription gone or a plan version retired since the checks
             // above is refused by the store with the code those checks give.
-            const result = await answeringRefusals(() =>
-                this.subscriptionWrite.changePlanImmediate(tenantId, {
-                    planId: dto.plan,
-                    cycle: dto.billingCycle,
-                    periodStart: period?.start ?? null,
-                    periodEnd: period?.end ?? null,
-                    nextStatus: wasTrial ? null : 'ACTIVE',
-                    trialEndsAt,
-                    expectedCanceledAt: sub.canceledAt ?? null,
-                    ...claimsBinding,
-                    // A change that keeps the plan keeps the version bound
-                    // (`SC-SUB-024`): the preview priced it at that version,
-                    // and moving the rhythm is no occasion to move it on to
-                    // the one on sale.
-                    keepsBoundVersion: dto.plan === sub.plan,
-                    // The version checked above, and no other: one that stops
-                    // taking bookings between the check and the write leaves
-                    // the row unclaimed rather than binding its successor.
-                    quotedPlanVersionId: quotedVersionId,
-                    quotedVersionOnly:
-                        quotedVersionId !== null &&
-                        this.subscriptionWrite.bindsPlanVersion !== false,
-                }),
+            const result = await answeringRefusals(
+                () =>
+                    this.subscriptionWrite.changePlanImmediate(tenantId, {
+                        planId: dto.plan,
+                        cycle: dto.billingCycle,
+                        periodStart: period?.start ?? null,
+                        periodEnd: period?.end ?? null,
+                        nextStatus: wasTrial ? null : 'ACTIVE',
+                        trialEndsAt,
+                        expectedCanceledAt: sub.canceledAt ?? null,
+                        ...claimsBinding,
+                        // A change that keeps the plan keeps the version bound
+                        // (`SC-SUB-024`): the preview priced it at that version,
+                        // and moving the rhythm is no occasion to move it on to
+                        // the one on sale.
+                        keepsBoundVersion: dto.plan === sub.plan,
+                        // The version checked above, and no other: one that stops
+                        // taking bookings between the check and the write leaves
+                        // the row unclaimed rather than binding its successor.
+                        quotedPlanVersionId: quotedVersionId,
+                        quotedVersionOnly:
+                            quotedVersionId !== null &&
+                            this.subscriptionWrite.bindsPlanVersion !== false,
+                    }),
+                {},
+                this.zone(),
             );
             if (!result.claimed) {
                 throw new ConflictException(changedUnderneath);
@@ -755,21 +758,28 @@ export class TenantBillingController {
             return { plan: result.plan, billingCycle: result.billingCycle, immediate: true };
         }
 
-        const scheduled = await this.subscriptionWrite.schedulePlanChange(tenantId, {
-            pendingPlan: dto.plan,
-            pendingBillingCycle: dto.billingCycle,
-            pendingEffectiveAt: scheduledAt,
-            expectedCanceledAt: sub.canceledAt ?? null,
-            ...claimsBinding,
-            // The version the preview priced and the caller named, bound when
-            // the change comes due (`SC-CHG-022`). A change that keeps the
-            // version bound records none: it keeps whatever version is bound by
-            // that day.
-            pendingChangeVersionId: quotedVersionId,
-            // What the subscriber agrees to by scheduling it, which the
-            // contract it ends in records unless they agree to newer since.
-            pendingAgreement: agreementNamed(this.settings, dto.billingCycle, new Date()),
-        });
+        // A subscription gone or a plan version retired since the checks above
+        // is refused by the store with the code those checks give.
+        const scheduled = await answeringRefusals(
+            () =>
+                this.subscriptionWrite.schedulePlanChange(tenantId, {
+                    pendingPlan: dto.plan,
+                    pendingBillingCycle: dto.billingCycle,
+                    pendingEffectiveAt: scheduledAt,
+                    expectedCanceledAt: sub.canceledAt ?? null,
+                    ...claimsBinding,
+                    // The version the preview priced and the caller named, bound when
+                    // the change comes due (`SC-CHG-022`). A change that keeps the
+                    // version bound records none: it keeps whatever version is bound by
+                    // that day.
+                    pendingChangeVersionId: quotedVersionId,
+                    // What the subscriber agrees to by scheduling it, which the
+                    // contract it ends in records unless they agree to newer since.
+                    pendingAgreement: agreementNamed(this.settings, dto.billingCycle, new Date()),
+                }),
+            {},
+            this.zone(),
+        );
         if (!scheduled.claimed) {
             throw new ConflictException(changedUnderneath);
         }
@@ -928,7 +938,7 @@ export class TenantBillingController {
                 // A store refusal is a race the checks above answer themselves:
                 // the subscription went, or the plan lost its version. It gets
                 // their answer, as the sequential path below gives it.
-                if (isPersistenceRefusal(err)) throw answerRefusal(err);
+                if (isPersistenceRefusal(err)) throw answerRefusal(err, {}, this.zone());
                 // Atomic path: a failure rolls back EVERYTHING (plan, redeem).
                 // The tenant sees a hard error message, because the
                 // subscription was in fact not modified — no
@@ -959,22 +969,25 @@ export class TenantBillingController {
             // The adapter does not (yet) implement applyOnboardingSelection —
             // we apply plan + promo one after another. Atomicity is not
             // guaranteed; failures may leave a half-state behind.
-            planResult = await answeringRefusals(() =>
-                this.subscriptionWrite.changePlanImmediate(tenantId, {
-                    planId: dto.plan,
-                    cycle: dto.billingCycle,
-                    periodStart: period?.start ?? null,
-                    periodEnd: period?.end ?? null,
-                    nextStatus: wasTrial ? null : 'ACTIVE',
-                    // What this route read, so a cancellation declared since then
-                    // takes the row instead of being written over. A landed one was
-                    // refused above; a pending one is legitimate and claims fine.
-                    expectedCanceledAt: sub.canceledAt ?? null,
-                    // Onboarding sells the chosen plan at the version in effect,
-                    // as the atomic path does.
-                    keepsBoundVersion: false,
-                    quotedPlanVersionId: null,
-                }),
+            planResult = await answeringRefusals(
+                () =>
+                    this.subscriptionWrite.changePlanImmediate(tenantId, {
+                        planId: dto.plan,
+                        cycle: dto.billingCycle,
+                        periodStart: period?.start ?? null,
+                        periodEnd: period?.end ?? null,
+                        nextStatus: wasTrial ? null : 'ACTIVE',
+                        // What this route read, so a cancellation declared since then
+                        // takes the row instead of being written over. A landed one was
+                        // refused above; a pending one is legitimate and claims fine.
+                        expectedCanceledAt: sub.canceledAt ?? null,
+                        // Onboarding sells the chosen plan at the version in effect,
+                        // as the atomic path does.
+                        keepsBoundVersion: false,
+                        quotedPlanVersionId: null,
+                    }),
+                {},
+                this.zone(),
             );
             if (!planResult.claimed) {
                 throw new ConflictException({
@@ -1248,6 +1261,7 @@ export class TenantBillingController {
                         : undefined,
                 }),
             { [BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND]: noSubscription },
+            this.zone(),
         );
         // The check above and this write are two moments, and a second request
         // can arrive between them. The store settles it — the claim either took

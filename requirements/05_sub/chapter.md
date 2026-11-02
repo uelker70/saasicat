@@ -489,6 +489,7 @@ _Tested by:_
           end
         - in a trial nothing is frozen and nothing charged
     - one that takes something away is taken at the end of the term
+        - answers a subscription gone while it was being scheduled as the check does
         - scheduled for the term end and bound to the version offered
         - with what taking it agrees to: the terms named and the notice of its rhythm, now
         - the party is asked about the contract that runs from the term end
@@ -979,6 +980,7 @@ _Tested by:_
         - opens only after the trial
         - is refused while something is outstanding, as a version offer is
         - is refused while an add-on running today cannot run on the replacement’s plan
+        - answers a subscription gone while it was being switched as the check does
         - names the add-on’s last day and the first without it in the installation’s zone
         - is refused as well where an add-on was told it continues on a version the plan cannot
           carry, naming that version
