@@ -162,7 +162,7 @@ test('a scheduled switch to a newer version of the same plan binds that version'
     assert.equal(input.quotedPlanVersionId, 'pv-2');
 });
 
-// @requirement SC-SEC-003 — Reads that legitimately cross tenants are named as the exceptions they are
+// @requirement SC-SEC-018 — Reads that cross tenants are named, and a tenant's reaches only its own subscriber
 test("the run reads and writes every tenant's change inside the bypass", async () => {
     // A forced policy with no frame leaves the run nothing to find and nothing
     // to write, and it reports that as a quiet night.

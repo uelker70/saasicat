@@ -41,6 +41,7 @@ import {
     CONTRACT_TRANSACTION_RUNNER_TOKEN,
     SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN,
 } from '../subscription-contract/subscription-contract.tokens.js';
+import { BillingPermissionGuard } from './billing-permission.guard.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { TenantBillingController } from './tenant-billing.controller.js';
@@ -88,6 +89,8 @@ import { SubscriptionInvoiceCron } from './invoices/subscription-invoice.cron.js
 import { InvoiceCancellationService } from './invoices/invoice-cancellation.service.js';
 import { SubscriptionInvoiceService } from './invoices/subscription-invoice.service.js';
 import { InvoiceDocumentService } from './invoices/invoice-document.service.js';
+import { TenantInvoiceService } from './invoices/tenant-invoice.service.js';
+import { TenantInvoicesController } from './invoices/tenant-invoices.controller.js';
 import { InvoiceExportService } from './invoices/invoice-export.service.js';
 import { InvoiceRegisterService } from './invoices/invoice-register.service.js';
 import { InvoiceCollectionService } from './invoices/invoice-collection.service.js';
@@ -123,6 +126,7 @@ import {
 import { SELF_SERVICE_BLOCKED_PLANS_TOKEN } from './self-service-policy.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
+    BILLING_PERMISSION_GUARDS_TOKEN,
     BUNDLE_VERSION_RETIREMENT_REPOSITORY_TOKEN,
     FEATURE_WITHDRAWAL_REPOSITORY_TOKEN,
     FEATURE_WITHDRAWAL_TRANSACTION_RUNNER_TOKEN,
@@ -350,6 +354,15 @@ export interface TenantBillingModuleOptions {
      * the array.
      */
     authGuards: ProviderSpec<ReadonlyArray<CanActivate>>;
+
+    /**
+     * Who of a tenant's users holds the billing permission, which the whole
+     * billing area requires: the invoices and their downloads, the contract
+     * confirmations, the payment method and the billing details
+     * (`SC-UI-023`). All of them must pass, after `authGuards`. Without them
+     * the tenant's administrator (`TENANT_ADMIN`, `SUPER_ADMIN`) holds it.
+     */
+    billingPermissionGuards?: ProviderSpec<ReadonlyArray<CanActivate>>;
 
     /** Adapter to the subscription display form (`GET /billing/usage`). */
     subscriptionUsagePort: ProviderSpec<SubscriptionUsagePort>;
@@ -720,7 +733,19 @@ export class TenantBillingModule {
                 ...(invoices.archive ? [asProvider(INVOICE_ARCHIVE_TOKEN, invoices.archive)] : []),
                 ...(invoices.mail ? [asProvider(INVOICE_MAIL_PORT_TOKEN, invoices.mail)] : []),
                 ...(invoices.renderer && invoices.archive && invoices.mail
-                    ? [InvoiceDocumentService]
+                    ? [
+                          InvoiceDocumentService,
+                          TenantInvoiceService,
+                          BillingPermissionGuard,
+                          ...(options.billingPermissionGuards
+                              ? [
+                                    asProvider(
+                                        BILLING_PERMISSION_GUARDS_TOKEN,
+                                        options.billingPermissionGuards,
+                                    ),
+                                ]
+                              : []),
+                      ]
                     : []),
                 ...confirmationProviders(invoices),
                 ...(invoices.collections
@@ -882,6 +907,10 @@ export class TenantBillingModule {
             controllers: [
                 TenantBillingController,
                 ...(featureWithdrawals ? [FeatureWithdrawalTenantController] : []),
+                // The tenant reads its invoices where their documents are archived.
+                ...(invoices?.renderer && invoices.archive && invoices.mail
+                    ? [TenantInvoicesController]
+                    : []),
             ],
             providers,
             exports: [

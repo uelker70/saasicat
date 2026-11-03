@@ -1786,7 +1786,7 @@ _Tested by:_
 ### SC-UI-022 — A tenant downloads its subscription's invoices and tells them from the application's
 
 🟡 _(Decided, not yet delivered.)_ 💰 A tenant downloads the invoices of its own subscription
-(`SC-PRIC-096`), served by the tenant routes SaaSiCat already mounts behind the application's tenant
+(`SC-PRIC-097`), served by the tenant routes SaaSiCat already mounts behind the application's tenant
 guards and the billing permission (`SC-UI-023`), so an application wires nothing new for it beyond
 mapping that permission to its roles. Each invoice names who issued it, and an application that
 invoices its own customers labels the subscription's as the operator's.
@@ -1816,6 +1816,8 @@ _Tested by:_
         - the guards passed to the module are the ones the routes ask
         - every route of the payment method is behind authentication and the permission, reading
           included
+    - SaaSiCatModule composes payments
+        - the billing permission named once, under tenantBilling, guards the payment routes too
 - `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
     - every route of the billing details is behind authentication and the permission, reading
       included
@@ -1823,6 +1825,9 @@ _Tested by:_
         - its own subscriber, with the customer number, the legal identity and the contact details
         - the tenant comes from the session: another tenant's session reads its own subscriber
         - a tenant without a subscriber, and a request without a tenant, are refused
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - every route of the invoices and confirmations is behind authentication and the permission,
+      reading included
 - `packages/ui-vue/tests/a-payment-method-is-shown-to-whoever-may-see-it.test.js`
     - loading the payment method
         - a user holding the permission sees the one in use

@@ -9,7 +9,11 @@ import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 
-import { BillingPermissionGuard, ComposedTenantAuthGuard } from '../dist/billing/index.js';
+import {
+    BILLING_PERMISSION_GUARDS_TOKEN,
+    BillingPermissionGuard,
+    ComposedTenantAuthGuard,
+} from '../dist/billing/index.js';
 import {
     RLS_BYPASS_PORT_TOKEN,
     SAASICAT_PUBLIC_ROUTE_KEY,
@@ -944,6 +948,42 @@ describe('SaaSiCatModule composes payments', () => {
             TenantPaymentMethodController,
             TenantBillingDetailsController,
         ]);
+    });
+
+    // @requirement SC-UI-023 — A tenant's invoices, payment method and billing details need the billing permission
+    test('the billing permission named once, under tenantBilling, guards the payment routes too', () => {
+        const accountingOnly = [{ canActivate: () => false }];
+        const dyn = SaaSiCatModule.forRoot({
+            adapters: { secretSealer: storeSecretsInPlainText() },
+            planCatalog: catalog,
+            controller: { guards: [AllowAll] },
+            persistence,
+            tenantBilling: { authGuards: [AllowAll], billingPermissionGuards: accountingOnly },
+            payments: { gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() } },
+        });
+
+        const bound = paymentsModuleOf(dyn).providers.find(
+            (provider) => provider?.provide === BILLING_PERMISSION_GUARDS_TOKEN,
+        );
+        assert.equal(bound?.useValue, accountingOnly);
+    });
+
+    test('the billing permission still named under payments stops the start, saying where it moved', () => {
+        assert.throws(
+            () =>
+                SaaSiCatModule.forRoot({
+                    adapters: { secretSealer: storeSecretsInPlainText() },
+                    planCatalog: catalog,
+                    controller: { guards: [AllowAll] },
+                    persistence,
+                    tenantBilling: { authGuards: [AllowAll] },
+                    payments: {
+                        gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },
+                        billingPermissionGuards: [{ canActivate: () => true }],
+                    },
+                }),
+            /`payments.billingPermissionGuards` moved to `tenantBilling.billingPermissionGuards`/,
+        );
     });
 
     test('without tenant billing: the webhook route alone', () => {

@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 96      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 97      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -125,15 +125,15 @@ properties it has while doing it.
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
-| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 17      |
+| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 18      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 20      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 677 entries: 🟢 585 stand today, 🟡 42 decided but not yet delivered, ⚪ 0 drafts,
-🔵 45 superseded, 🔴 5 withdrawn.
+Of 679 entries: 🟢 585 stand today, 🟡 42 decided but not yet delivered, ⚪ 0 drafts,
+🔵 47 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -144,7 +144,6 @@ Of 677 entries: 🟢 585 stand today, 🟡 42 decided but not yet delivered, ⚪
 [SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
 [SC-PRIC-019](#sc-pric-019--a-tenant-can-see-their-own-account),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
-[SC-PRIC-096](#sc-pric-096--every-charge-is-invoiced-once-a-counter-entry-by-the-cancellation-that-wrote-it),
 [SC-PRIC-095](#sc-pric-095--an-issued-invoice-is-never-edited-its-cancellation-corrects-what-was-not-owed),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
 [SC-PRIC-030](#sc-pric-030--a-payment-method-is-entered-in-the-gateways-own-form-and-saasicat-keeps-a-reference),
@@ -157,6 +156,7 @@ Of 677 entries: 🟢 585 stand today, 🟡 42 decided but not yet delivered, ⚪
 [SC-PRIC-043](#sc-pric-043--a-change-to-a-subscribers-tax-origin-applies-from-its-next-invoice),
 [SC-PRIC-046](#sc-pric-046--an-invoice-states-the-day-it-is-due),
 [SC-PRIC-049](#sc-pric-049--a-subscribers-account-is-shown-to-the-tenants-users-holding-the-billing-permission),
+[SC-PRIC-097](#sc-pric-097--every-charge-is-invoiced-once-and-a-tenant-sees-every-invoice-of-its-subscriber),
 [SC-REG-021](#sc-reg-021--a-payment-confirmation-is-verified-before-anything-is-created-from-it),
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
@@ -197,6 +197,7 @@ Of 677 entries: 🟢 585 stand today, 🟡 42 decided but not yet delivered, ⚪
 [SC-PRIC-009](#sc-pric-009--an-installation-sells-in-one-currency-and-applies-one-tax-rate-both-named-once),
 [SC-PRIC-016](#sc-pric-016--a-tax-rate-has-a-validity-window),
 [SC-PRIC-022](#sc-pric-022--every-charge-of-a-subscription-is-invoiced-once-on-that-subscriptions-invoice),
+[SC-PRIC-096](#sc-pric-096--every-charge-is-invoiced-once-a-counter-entry-by-the-cancellation-that-wrote-it),
 [SC-PRIC-023](#sc-pric-023--invoice-numbers-have-no-gaps-within-an-installation-and-a-prefix-sets-it-apart),
 [SC-PRIC-025](#sc-pric-025--an-issued-invoice-is-never-edited-a-cancellation-invoice-corrects-it),
 [SC-PRIC-091](#sc-pric-091--an-issued-invoice-is-never-edited-a-cancellation-invoice-corrects-it),
@@ -221,6 +222,7 @@ Of 677 entries: 🟢 585 stand today, 🟡 42 decided but not yet delivered, ⚪
 [SC-ADM-034](#sc-adm-034--each-invoice-on-the-tenant-page-says-what-it-corrects-and-what-cancelled-it),
 [SC-CFG-034](#sc-cfg-034--an-installation-whose-plans-live-in-the-database-reads-its-settings-from-the-file),
 [SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source),
+[SC-SEC-003](#sc-sec-003--reads-that-legitimately-cross-tenants-are-named-as-the-exceptions-they-are),
 [SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),
 [SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered)
 
@@ -230,7 +232,7 @@ Of 677 entries: 🟢 585 stand today, 🟡 42 decided but not yet delivered, ⚪
 [SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 677 requirements. Do not edit by hand:
+Generated from `requirements/` — 679 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9231,7 +9233,8 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIC-096 — Every charge is invoiced once, a counter-entry by the cancellation that wrote it
 
-🟡 _(Decided, not yet delivered.)_ 💰 Charges are invoiced when they arise: the charges a billing
+🔵 _(Superseded on 2026-11-03 by `SC-PRIC-097`.)_ 💰 Charges are invoiced when they arise: the
+charges a billing
 period opens with together, and a charge that arises later in the period, such as a bundle booked
 mid-period (`SC-BUN-003`) or the difference of an immediate upgrade (`SC-CHG-020`), on an invoice of
 its own rather than added to one already issued. A counter-entry is the exception: the cancellation
@@ -9244,27 +9247,6 @@ carries its period (`SC-AUD-011`). A subscription belongs to one tenant, so an i
 the tenant it was for and what a tenant downloads never shows another tenant's charges.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #334
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
-    - the charges one invoice issues
-        - are those booked at the same moment under the same contract
-        - come the oldest first, whatever order the journal hands them in
-        - issue nothing where all of them are zero
-        - keep a zero beside an amount, and a discount that brings the total to zero
-- `packages/nest/tests/an-invoice-is-issued.test.js`
-    - an invoice is issued for the charges booked together
-        - the opening of a period is one invoice, its lines in the contract’s order
-        - a charge that arises later in the period is an invoice of its own, numbered after
-        - groups waiting from earlier are issued oldest first, so their numbers follow the charges
-        - a second run issues nothing the first one issued
-        - a charge another instance invoiced first is passed over, neither issued nor failed
-        - a failure of one invoice holds up none of the others, and the next run issues it
-
-<!-- END proof -->
 
 ### SC-PRIC-023 — Invoice numbers have no gaps within an installation, and a prefix sets it apart
 
@@ -9418,7 +9400,7 @@ address, the name or a tax identifier, the operator records the corrected detail
 cancellation and its reason, and the replacement carries it; a correction of the issuer declared in
 `config/saas.yaml` (`SC-PRIC-092`) or of the subscriber's legal identity (`SC-SUB-017`) applies as
 well. The charges on the replacement are then invoiced there, so what was paid settles them like
-the others, and the cancelled invoice no longer counts for them (`SC-PRIC-096`). What a payment for
+the others, and the cancelled invoice no longer counts for them (`SC-PRIC-097`). What a payment for
 the cancelled invoice settles moves with the charges, whether it was paid before the cancellation
 or confirmed by the gateway after it: it is applied to the replacement as a new entry rather than
 collected again, and where there is no replacement, or the payment exceeds it, the rest is a credit
@@ -10671,7 +10653,7 @@ document rather than the invoice itself. The invoice and its number are written 
 and the rendered document is then archived under that number, which makes a repeated attempt the
 same write rather than a second document. Until the archive confirms, the invoice is neither sent
 nor offered for download, the register shows it as awaiting its document (`SC-ADM-042`), and an
-attempt that fails is retried; it never draws a new number for the same charges (`SC-PRIC-096`,
+attempt that fails is retried; it never draws a new number for the same charges (`SC-PRIC-097`,
 `SC-PRIC-072`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
@@ -12471,6 +12453,54 @@ _Tested by:_
         - writes each entry once however often the account is brought up to date
 
 <!-- END proof -->
+
+### SC-PRIC-097 — Every charge is invoiced once, and a tenant sees every invoice of its subscriber
+
+🟡 _(Decided, not yet delivered.)_ 💰 Charges are invoiced when they arise: the charges a billing
+period opens with together, and a charge that arises later in the period, such as a bundle booked
+mid-period (`SC-BUN-003`) or the difference of an immediate upgrade (`SC-CHG-020`), on an invoice of
+its own rather than added to one already issued. A counter-entry is the exception: the cancellation
+that wrote it invoices it, on that invoice's replacement where the charge it corrects is still owed
+in part, and on no invoice where that charge is owed no more, as the charge then stands on none
+either (`SC-PRIC-095`); the invoice run never invoices one. A billing period whose charges are all
+zero is the other: it issues no invoice (`SC-PRIC-048`). Once means on one invoice that stands: a
+cancelled invoice and the replacement that follows it (`SC-PRIC-095`) are not two. Each charge
+carries its period (`SC-AUD-011`). An invoice holds only the charges of the tenant it was issued
+for; a tenant's users see the invoices of their subscriber, an earlier tenant's joined into it
+included (`SC-ADM-027`, `SC-SEC-018`).
+
+_Source:_ #276 · #334 · #336 (decided 2026-11-01) ·
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
+    - the charges one invoice issues
+        - are those booked at the same moment under the same contract
+        - come the oldest first, whatever order the journal hands them in
+        - issue nothing where all of them are zero
+        - keep a zero beside an amount, and a discount that brings the total to zero
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - a tenant's invoices
+        - are its subscriber’s, the newest first, each as the list shows it
+        - include those of an earlier tenant joined into the subscriber, read past the tenant policy
+        - come fifty a page, the next after the last of the one before
+        - after an invoice the subscriber does not have, are none rather than the first page again
+        - of a tenant without a subscriber are none
+        - say which document is not archived yet, and list it all the same
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - an invoice is issued for the charges booked together
+        - the opening of a period is one invoice, its lines in the contract’s order
+        - a charge that arises later in the period is an invoice of its own, numbered after
+        - groups waiting from earlier are issued oldest first, so their numbers follow the charges
+        - a second run issues nothing the first one issued
+        - a charge another instance invoiced first is passed over, neither issued nor failed
+        - a failure of one invoice holds up none of the others, and the next run issues it
+
+<!-- END proof -->
+
+`docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 ## 10. What a tenant may do at runtime
 
@@ -16659,7 +16689,7 @@ is still open and the application no longer has its tenant, the record says so i
 the link as ended: a link ends when the application's deletion of the tenant closes it, and a tenant
 the application soft-deleted can come back. Only the platform administrator reaches the list and the
 record (`SC-ADM-001`), and both read past the tenants' row-level policy the way the administration
-does (`SC-SEC-003`).
+does (`SC-SEC-018`).
 
 _Source:_ #335 (decided 2026-10-25)
 
@@ -16745,7 +16775,7 @@ The section names whose account it is, by customer number and legal name. It is 
 no total: a sum of charges would be read as what is owed (`SC-ADM-044`). It is offered only where
 the installation keeps a journal of charges (`SC-ADM-015`), only the platform administrator reaches
 it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the administration does
-(`SC-SEC-003`).
+(`SC-SEC-018`).
 
 _Source:_ #276 · #318 · #335 (decided 2026-10-25)
 
@@ -17124,7 +17154,7 @@ their own and said before anything is asked. An invoice that stands is cancelled
 from the subscriber's record (`SC-ADM-020`, `SC-ADM-035`), and on the command line by its number
 alone, a tenant named beside it only refusing an invoice issued for another tenant. Only the
 platform administrator reaches the register (`SC-ADM-001`), and it reads past the tenants' row-level
-policy the way the administration does (`SC-SEC-003`).
+policy the way the administration does (`SC-SEC-018`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -17326,7 +17356,7 @@ from the record; and per currency what is owed, of it what is overdue, and what 
 What an invoice owes and what a credit holds are read by the same rule the record reads them by, and
 never kept a second time beside the rows they come from. Only the platform administrator reaches
 them (`SC-ADM-001`), and they read past the tenants' row-level policy the way the administration
-does (`SC-SEC-003`).
+does (`SC-SEC-018`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -17455,7 +17485,7 @@ that day and its price per period, and leads into the subscriber's record with t
 The subscriptions page says that it shows the current state per tenant and, where the register is
 offered, points to it. The register is offered where a subscriber's contracts are (`SC-AUD-016`),
 only the platform administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level
-policy the way the administration does (`SC-SEC-003`).
+policy the way the administration does (`SC-SEC-018`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -17557,7 +17587,7 @@ when, the months and the moment. It is taken from the invoices page or with
 `<app> invoices export`, which writes into the directory named or the current one and refuses to
 write over a file of the same name. It is a read, so it asks for no second factor, only the platform
 administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the
-administration does (`SC-SEC-003`).
+administration does (`SC-SEC-018`).
 
 _Source:_ #335 (decided 2026-10-27) · #276
 
@@ -19734,7 +19764,7 @@ _Tested by:_
 ### SC-UI-022 — A tenant downloads its subscription's invoices and tells them from the application's
 
 🟡 _(Decided, not yet delivered.)_ 💰 A tenant downloads the invoices of its own subscription
-(`SC-PRIC-096`), served by the tenant routes SaaSiCat already mounts behind the application's tenant
+(`SC-PRIC-097`), served by the tenant routes SaaSiCat already mounts behind the application's tenant
 guards and the billing permission (`SC-UI-023`), so an application wires nothing new for it beyond
 mapping that permission to its roles. Each invoice names who issued it, and an application that
 invoices its own customers labels the subscription's as the operator's.
@@ -19764,6 +19794,8 @@ _Tested by:_
         - the guards passed to the module are the ones the routes ask
         - every route of the payment method is behind authentication and the permission, reading
           included
+    - SaaSiCatModule composes payments
+        - the billing permission named once, under tenantBilling, guards the payment routes too
 - `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
     - every route of the billing details is behind authentication and the permission, reading
       included
@@ -19771,6 +19803,9 @@ _Tested by:_
         - its own subscriber, with the customer number, the legal identity and the contact details
         - the tenant comes from the session: another tenant's session reads its own subscriber
         - a tenant without a subscriber, and a request without a tenant, are refused
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - every route of the invoices and confirmations is behind authentication and the permission,
+      reading included
 - `packages/ui-vue/tests/a-payment-method-is-shown-to-whoever-may-see-it.test.js`
     - loading the payment method
         - a user holding the permission sees the one in use
@@ -22607,32 +22642,12 @@ _Tested by:_
 
 ### SC-SEC-003 — Reads that legitimately cross tenants are named as the exceptions they are
 
-🟢 🔒 Platform-wide counts an operator needs are the documented exception; everything else is scoped.
+🔵 _(Superseded on 2026-11-03 by `SC-SEC-018`.)_ 🔒 Platform-wide counts an operator needs are the
+documented exception; everything else is scoped.
 Administration acts on behalf of the platform rather than of a tenant, which is why they are the
 only reads that step outside a tenant's boundary.
 
 _Source:_ `docs/explanation/data-model.md`
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/an-operator-counts-past-the-tenant-policy.test.js`
-    - a plan version subscribers are on, behind a tenant policy
-        - stays locked against editing
-        - is listed with the subscribers the policy hides from the request
-    - an add-on version tenants have booked, behind a tenant policy
-        - stays locked against editing
-    - the operator's figures, behind a tenant policy
-        - the plan list counts the tenants on each plan
-        - the dashboard reads subscriptions, promo codes and the audit trail
-- `packages/nest/tests/maintenance-is-wired-where-it-is-turned-on.test.js`
-    - the platform’s own scheduled jobs
-        - the promotional code sweep runs under the RLS bypass, every step of it
-- `packages/nest/tests/pending-plan-materialization.test.js`
-    - the run reads and writes every tenant's change inside the bypass
-
-<!-- END proof -->
 
 ### SC-SEC-014 — A payment method's reference belongs to exactly one subscriber
 
@@ -22642,7 +22657,7 @@ by its reference is asking whether a named subscriber holds it, and another subs
 that it holds none rather than with the row; a confirmation carrying a reference another subscriber
 holds is refused, rather than recorded or answered as a repeat of a payment method that is not this
 subscriber's. Both are reached on the gateway's callback, which arrives without a session, so an
-installation that keeps its tenants apart with a policy lifts that policy there (`SC-SEC-003`) and
+installation that keeps its tenants apart with a policy lifts that policy there (`SC-SEC-018`) and
 what the question names is all that is left to bound it. Where a provider issues one reference for
 two payers, the second subscriber's confirmation is refused rather than mixed into the first's
 (`SC-PRIC-030`): taking it needs an account of its own.
@@ -22691,6 +22706,9 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
     - every route of the billing details is behind authentication and the permission, reading
       included
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - every route of the invoices and confirmations is behind authentication and the permission,
+      reading included
 - `packages/nest/tests/public-route.test.js`
     - SaaSiCat public route metadata
         - ${controller.name} is recognized by global auth guards
@@ -23022,7 +23040,7 @@ _Tested by:_
 row-level-security bypass, so an operator's lists and counts are not empty under a tenant's policy.
 Every other route — a tenant's, a public one — runs in whatever frame the installation opened for the
 request. The frame follows from the guard chain rather than from a list of routes, and the check that
-the administrator is calling runs before it opens. This is the exception `SC-SEC-003` names. A chain
+the administrator is calling runs before it opens. This is the exception `SC-SEC-018` names. A chain
 an integrator sets for a module the platform mounts frames its routes where it holds `SuperAdminGuard`,
 and a route an integrator builds itself chooses its frame with `AdminBypassRlsInterceptor`.
 
@@ -23128,6 +23146,61 @@ _Tested by:_
         - lands under a name of its own, and a directory named like one is not taken
     - a notice
         - is told by the file’s own name, whatever the directories on the way are called
+
+<!-- END proof -->
+
+### SC-SEC-018 — Reads that cross tenants are named, and a tenant's reaches only its own subscriber
+
+🟢 🔒 Everything is scoped to a tenant except the reads named here. The operator's administration
+acts on behalf of the platform rather than of a tenant, the platform-wide counts it needs included.
+The platform's own work that serves no single tenant reads across them too: a scheduled run, and a
+gateway's callback, which arrives without a session (`SC-SEC-014`). A tenant's own read crosses only
+to the invoices and contract confirmations of its subscriber, which reach the tenants joined into it
+(`SC-ADM-027`), as their invoices keep the tenant they were issued for. That read is by the
+subscriber the session's tenant belongs to, never one the request names; every document it hands
+out is checked against that subscriber first, and another subscriber's invoice or contract is
+answered as one that does not exist.
+
+_Source:_ `docs/explanation/data-model.md` · #336 (decided 2026-11-02)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - a tenant's invoices
+        - are its subscriber’s, the newest first, each as the list shows it
+        - include those of an earlier tenant joined into the subscriber, read past the tenant policy
+        - come fifty a page, the next after the last of the one before
+        - after an invoice the subscriber does not have, are none rather than the first page again
+        - of a tenant without a subscriber are none
+        - say which document is not archived yet, and list it all the same
+    - an invoice's document
+        - of the subscriber’s own invoice is the archived file
+        - of an earlier tenant joined into the subscriber is the archived file too
+        - ${why} is not found, and nothing is read from the archive
+    - a tenant's contract confirmations
+        - are those of its subscriber that are confirmed, with the installation’s day
+        - download as the archived file for the subscriber’s own contract
+        - of another subscriber's contract is not found, and nothing is read from the archive
+    - the routes
+        - serve the tenant of the session, and refuse a request that carries none
+        - hand a document out as an attachment under its archived name
+        - take an invoice to page after only as an id of bounded length
+- `packages/nest/tests/an-operator-counts-past-the-tenant-policy.test.js`
+    - a plan version subscribers are on, behind a tenant policy
+        - stays locked against editing
+        - is listed with the subscribers the policy hides from the request
+    - an add-on version tenants have booked, behind a tenant policy
+        - stays locked against editing
+    - the operator's figures, behind a tenant policy
+        - the plan list counts the tenants on each plan
+        - the dashboard reads subscriptions, promo codes and the audit trail
+- `packages/nest/tests/maintenance-is-wired-where-it-is-turned-on.test.js`
+    - the platform’s own scheduled jobs
+        - the promotional code sweep runs under the RLS bypass, every step of it
+- `packages/nest/tests/pending-plan-materialization.test.js`
+    - the run reads and writes every tenant's change inside the bypass
 
 <!-- END proof -->
 
@@ -23538,7 +23611,7 @@ installation that concludes contracts does not start while the file names no iss
 is concluded with nobody on the operator's side. A copy the migration to subscribers made of an
 existing contract's parties says so and is never presented as what was true at conclusion. Neither
 such a contract nor one concluded before a contract needed an issuer is invoiced: nothing SaaSiCat
-holds says who its parties were that day, so its charges stay held (`SC-PRIC-096`). Every
+holds says who its parties were that day, so its charges stay held (`SC-PRIC-097`). Every
 successor frozen afresh, such as after a change of plan or of its billing rhythm, an add-on booked
 or ended, a move to another version, or a refresh in full, copies both parties as they stand that
 day, and that one is invoiced. One that only carries the contract forward, a refresh of its
@@ -23642,6 +23715,11 @@ _Tested by:_
     - the database archive
         - with both of its triggers enabled keeps what it holds
         - ${what} names what it lacks, and the file that adds it
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - an invoice's document
+        - of the subscriber’s own invoice is the archived file
+        - of an earlier tenant joined into the subscriber is the archived file too
+        - ${why} is not found, and nothing is read from the archive
 - `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
     - an invoice’s document downloaded later
         - is the archived file, not a new rendering

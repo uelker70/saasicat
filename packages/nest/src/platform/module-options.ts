@@ -72,10 +72,7 @@ import { type PromoCodesModuleOptions } from '../promo/promo.module.js';
 import { type SetupModuleOptions } from '../setup/setup.module.js';
 import { type MaintenanceModuleOptions } from '../maintenance/maintenance.module.js';
 import { type CheckoutOfferModuleOptions } from '../checkout-offer/checkout-offer.module.js';
-import {
-    type PaymentsModuleOptions,
-    type PaymentsTenantRoutesOptions,
-} from '../payments/payments.module.js';
+import { type PaymentsModuleOptions } from '../payments/payments.module.js';
 import { type SubscriptionContractModuleOptions } from '../subscription-contract/subscription-contract.module.js';
 import { type PlanResolverPort } from './plan-resolver.port.js';
 
@@ -210,18 +207,12 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
  * Payment methods through a payment gateway. The event log and the payment
  * methods come from `persistence.payments`, the subscribers from
  * `persistence.entitlement`, and the tenant's routes share `tenantBilling`'s
- * authentication and resolvers.
+ * authentication, resolvers and billing permission.
  */
-export interface SaaSiCatPaymentsOptions extends Pick<
+export type SaaSiCatPaymentsOptions = Pick<
     PaymentsModuleOptions,
     'gateways' | 'imports' | 'extraProviders'
-> {
-    /**
-     * Who of a tenant's users holds the billing permission, which the tenant's
-     * payment method routes require. Default: the tenant's administrator.
-     */
-    billingPermissionGuards?: PaymentsTenantRoutesOptions['billingPermissionGuards'];
-}
+>;
 
 export interface SaaSiCatTaxOptions {
     /** The factory of the adapter `config/saas.yaml#tax.adapter` names. */

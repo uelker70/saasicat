@@ -25,6 +25,7 @@ import {
     type UserEmailResolver,
 } from '../billing/tenant-billing.tokens.js';
 import { asProvider, type ProviderSpec } from '../core/di.js';
+import { userTenantIdOf } from '../billing/tenant-id.js';
 import { subscriberProviders } from '../subscriber/subscriber.module.js';
 import { PaymentCallbackService } from './payment-callback.service.js';
 import { PaymentGatewayRegistry } from './payment-gateway-registry.js';
@@ -116,11 +117,7 @@ export class PaymentsModule {
                 BillingPermissionGuard,
                 {
                     provide: TENANT_ID_RESOLVER_TOKEN,
-                    useValue:
-                        tenant.tenantIdResolver ??
-                        ((req: unknown) =>
-                            (req as { user?: { tenantId?: string | null } }).user?.tenantId ??
-                            null),
+                    useValue: tenant.tenantIdResolver ?? userTenantIdOf,
                 },
             );
             if (tenant.billingPermissionGuards) {

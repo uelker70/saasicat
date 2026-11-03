@@ -40,7 +40,6 @@ import {
     type AdminSubscriberContractDossier,
     type AdminSubscriberContracts,
     type ContractRegisterState,
-    type InvoiceDocument,
     type InvoiceExportLocale,
     type InvoiceRegisterQuery,
     type RlsBypassPort,
@@ -51,6 +50,7 @@ import {
     ContractRegisterService,
     type ContractRegisterQuery,
 } from '../confirmations/contract-register.service.js';
+import { downloadOf } from './archived-download.js';
 import { InvoiceDocumentService } from './invoice-document.service.js';
 import {
     InvoiceExportService,
@@ -149,25 +149,6 @@ export interface InvoiceDocumentModuleOptions {
     imports: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /** Whether the contracts' confirmations are offered too. */
     confirmations: boolean;
-}
-
-/**
- * The file name a download offers, kept to characters that cannot end the
- * header it stands in: the name comes from the renderer, and a quote or a line
- * break in it would let it write a header of its own.
- */
-function downloadNameOf(fileName: string, fallback: string): string {
-    const kept = fileName.replace(/[^A-Za-z0-9._-]/g, '_');
-    return kept === '' ? fallback : kept;
-}
-
-/** An archived file as the download hands it out, under the name it was archived with. */
-function downloadOf(file: InvoiceDocument, fallback: string): StreamableFile {
-    return new StreamableFile(file.content, {
-        type: file.mediaType,
-        length: file.content.byteLength,
-        disposition: `attachment; filename="${downloadNameOf(file.fileName, fallback)}"`,
-    });
 }
 
 function buildInvoiceDocumentController(guards: Array<Type<CanActivate>>): Type {

@@ -679,7 +679,13 @@ switched off:
 defineSaaSiCat({
     // … the rest of your wiring …
     persistence, // supplies `payments` and `entitlement.subscriberRepository`
-    tenantBilling: { authGuards: [JwtAuthGuard, TenantGuard] },
+    tenantBilling: {
+        authGuards: [JwtAuthGuard, TenantGuard],
+        // Who holds the billing permission, which the whole billing area needs: the
+        // invoices, the contract confirmations, the payment method and the billing
+        // details. Without it, the tenant's administrator does.
+        // billingPermissionGuards: { useFactory: (role) => [role], inject: [AccountingRoleGuard] },
+    },
     payments: {
         // A factory around the whole map, not around one account, and
         // `gatewayForMain` is the one below.
@@ -688,8 +694,6 @@ defineSaaSiCat({
         // where `tenantBilling.imports` is what you have: `payments` falls back
         // to the TOP-LEVEL `imports`, never to another feature's.
         imports: [AuthModule],
-        // Who holds the billing permission. Without it, the tenant's administrator does.
-        // billingPermissionGuards: [AccountingRoleGuard],
     },
 });
 ```
@@ -1249,6 +1253,21 @@ recorded in the audit log under that action; an invoice still waiting for its do
 `TenantBillingModule` itself mounts the route with
 `InvoiceDocumentModule.forRoot({ guards, imports })` from `@saasicat/nest/billing`, importing the
 tenant billing module it built.
+
+**The tenant reads its invoices** at `GET /billing/invoices`, fifty a page and the newest first,
+`?after=` the last of the page before — every invoice of the subscriber its tenant belongs to, an
+earlier tenant's joined into it included (`SC-PRIC-097`), each with its number, issue date, service
+period, due date, total, issuer, the invoices it is linked to by a cancellation and where its
+payment stands (`SC-ADM-051`'s rule), and whether its document is archived; an invoice is listed
+before its document is, and its download is offered once it is. It downloads one at
+`GET /billing/invoices/:id/document`, the archived file as the operator's route hands it out. Its
+contract confirmations are at `GET /billing/contracts`, and one at
+`GET /billing/contracts/:id/confirmation`. All four sit behind `tenantBilling.authGuards` and the
+billing permission (`tenantBilling.billingPermissionGuards`), and are mounted where invoices are
+issued. The subscriber is the session's tenant's: an invoice or a contract of another subscriber is
+answered `404` like one that does not exist. An earlier tenant's invoices keep that tenant's id
+after a join, so the reads run inside `RlsBypassPort`, by the subscriber's id alone — the one read
+a tenant makes past its own boundary (`SC-SEC-018`).
 
 ### The confirmation of each contract
 

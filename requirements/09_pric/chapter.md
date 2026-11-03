@@ -883,7 +883,8 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIC-096 — Every charge is invoiced once, a counter-entry by the cancellation that wrote it
 
-🟡 _(Decided, not yet delivered.)_ 💰 Charges are invoiced when they arise: the charges a billing
+🔵 _(Superseded on 2026-11-03 by `SC-PRIC-097`.)_ 💰 Charges are invoiced when they arise: the
+charges a billing
 period opens with together, and a charge that arises later in the period, such as a bundle booked
 mid-period (`SC-BUN-003`) or the difference of an immediate upgrade (`SC-CHG-020`), on an invoice of
 its own rather than added to one already issued. A counter-entry is the exception: the cancellation
@@ -896,27 +897,6 @@ carries its period (`SC-AUD-011`). A subscription belongs to one tenant, so an i
 the tenant it was for and what a tenant downloads never shows another tenant's charges.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #334
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
-    - the charges one invoice issues
-        - are those booked at the same moment under the same contract
-        - come the oldest first, whatever order the journal hands them in
-        - issue nothing where all of them are zero
-        - keep a zero beside an amount, and a discount that brings the total to zero
-- `packages/nest/tests/an-invoice-is-issued.test.js`
-    - an invoice is issued for the charges booked together
-        - the opening of a period is one invoice, its lines in the contract’s order
-        - a charge that arises later in the period is an invoice of its own, numbered after
-        - groups waiting from earlier are issued oldest first, so their numbers follow the charges
-        - a second run issues nothing the first one issued
-        - a charge another instance invoiced first is passed over, neither issued nor failed
-        - a failure of one invoice holds up none of the others, and the next run issues it
-
-<!-- END proof -->
 
 ### SC-PRIC-023 — Invoice numbers have no gaps within an installation, and a prefix sets it apart
 
@@ -1070,7 +1050,7 @@ address, the name or a tax identifier, the operator records the corrected detail
 cancellation and its reason, and the replacement carries it; a correction of the issuer declared in
 `config/saas.yaml` (`SC-PRIC-092`) or of the subscriber's legal identity (`SC-SUB-017`) applies as
 well. The charges on the replacement are then invoiced there, so what was paid settles them like
-the others, and the cancelled invoice no longer counts for them (`SC-PRIC-096`). What a payment for
+the others, and the cancelled invoice no longer counts for them (`SC-PRIC-097`). What a payment for
 the cancelled invoice settles moves with the charges, whether it was paid before the cancellation
 or confirmed by the gateway after it: it is applied to the replacement as a new entry rather than
 collected again, and where there is no replacement, or the payment exceeds it, the rest is a credit
@@ -2323,7 +2303,7 @@ document rather than the invoice itself. The invoice and its number are written 
 and the rendered document is then archived under that number, which makes a repeated attempt the
 same write rather than a second document. Until the archive confirms, the invoice is neither sent
 nor offered for download, the register shows it as awaiting its document (`SC-ADM-042`), and an
-attempt that fails is retried; it never draws a new number for the same charges (`SC-PRIC-096`,
+attempt that fails is retried; it never draws a new number for the same charges (`SC-PRIC-097`,
 `SC-PRIC-072`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
@@ -4123,3 +4103,51 @@ _Tested by:_
         - writes each entry once however often the account is brought up to date
 
 <!-- END proof -->
+
+### SC-PRIC-097 — Every charge is invoiced once, and a tenant sees every invoice of its subscriber
+
+🟡 _(Decided, not yet delivered.)_ 💰 Charges are invoiced when they arise: the charges a billing
+period opens with together, and a charge that arises later in the period, such as a bundle booked
+mid-period (`SC-BUN-003`) or the difference of an immediate upgrade (`SC-CHG-020`), on an invoice of
+its own rather than added to one already issued. A counter-entry is the exception: the cancellation
+that wrote it invoices it, on that invoice's replacement where the charge it corrects is still owed
+in part, and on no invoice where that charge is owed no more, as the charge then stands on none
+either (`SC-PRIC-095`); the invoice run never invoices one. A billing period whose charges are all
+zero is the other: it issues no invoice (`SC-PRIC-048`). Once means on one invoice that stands: a
+cancelled invoice and the replacement that follows it (`SC-PRIC-095`) are not two. Each charge
+carries its period (`SC-AUD-011`). An invoice holds only the charges of the tenant it was issued
+for; a tenant's users see the invoices of their subscriber, an earlier tenant's joined into it
+included (`SC-ADM-027`, `SC-SEC-018`).
+
+_Source:_ #276 · #334 · #336 (decided 2026-11-01) ·
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
+    - the charges one invoice issues
+        - are those booked at the same moment under the same contract
+        - come the oldest first, whatever order the journal hands them in
+        - issue nothing where all of them are zero
+        - keep a zero beside an amount, and a discount that brings the total to zero
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - a tenant's invoices
+        - are its subscriber’s, the newest first, each as the list shows it
+        - include those of an earlier tenant joined into the subscriber, read past the tenant policy
+        - come fifty a page, the next after the last of the one before
+        - after an invoice the subscriber does not have, are none rather than the first page again
+        - of a tenant without a subscriber are none
+        - say which document is not archived yet, and list it all the same
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - an invoice is issued for the charges booked together
+        - the opening of a period is one invoice, its lines in the contract’s order
+        - a charge that arises later in the period is an invoice of its own, numbered after
+        - groups waiting from earlier are issued oldest first, so their numbers follow the charges
+        - a second run issues nothing the first one issued
+        - a charge another instance invoiced first is passed over, neither issued nor failed
+        - a failure of one invoice holds up none of the others, and the next run issues it
+
+<!-- END proof -->
+
+`docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`

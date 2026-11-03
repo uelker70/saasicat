@@ -1309,7 +1309,7 @@ is still open and the application no longer has its tenant, the record says so i
 the link as ended: a link ends when the application's deletion of the tenant closes it, and a tenant
 the application soft-deleted can come back. Only the platform administrator reaches the list and the
 record (`SC-ADM-001`), and both read past the tenants' row-level policy the way the administration
-does (`SC-SEC-003`).
+does (`SC-SEC-018`).
 
 _Source:_ #335 (decided 2026-10-25)
 
@@ -1395,7 +1395,7 @@ The section names whose account it is, by customer number and legal name. It is 
 no total: a sum of charges would be read as what is owed (`SC-ADM-044`). It is offered only where
 the installation keeps a journal of charges (`SC-ADM-015`), only the platform administrator reaches
 it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the administration does
-(`SC-SEC-003`).
+(`SC-SEC-018`).
 
 _Source:_ #276 · #318 · #335 (decided 2026-10-25)
 
@@ -1774,7 +1774,7 @@ their own and said before anything is asked. An invoice that stands is cancelled
 from the subscriber's record (`SC-ADM-020`, `SC-ADM-035`), and on the command line by its number
 alone, a tenant named beside it only refusing an invoice issued for another tenant. Only the
 platform administrator reaches the register (`SC-ADM-001`), and it reads past the tenants' row-level
-policy the way the administration does (`SC-SEC-003`).
+policy the way the administration does (`SC-SEC-018`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -1976,7 +1976,7 @@ from the record; and per currency what is owed, of it what is overdue, and what 
 What an invoice owes and what a credit holds are read by the same rule the record reads them by, and
 never kept a second time beside the rows they come from. Only the platform administrator reaches
 them (`SC-ADM-001`), and they read past the tenants' row-level policy the way the administration
-does (`SC-SEC-003`).
+does (`SC-SEC-018`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -2105,7 +2105,7 @@ that day and its price per period, and leads into the subscriber's record with t
 The subscriptions page says that it shows the current state per tenant and, where the register is
 offered, points to it. The register is offered where a subscriber's contracts are (`SC-AUD-016`),
 only the platform administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level
-policy the way the administration does (`SC-SEC-003`).
+policy the way the administration does (`SC-SEC-018`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -2207,7 +2207,7 @@ when, the months and the moment. It is taken from the invoices page or with
 `<app> invoices export`, which writes into the directory named or the current one and refuses to
 write over a file of the same name. It is a read, so it asks for no second factor, only the platform
 administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the
-administration does (`SC-SEC-003`).
+administration does (`SC-SEC-018`).
 
 _Source:_ #335 (decided 2026-10-27) · #276
 

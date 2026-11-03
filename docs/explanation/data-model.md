@@ -212,7 +212,11 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
    implementation of it that needs a request context fails at start. The
    operator's read of one tenant's account (`SubscriberAccountService`) is the
    administration's, not a tenant's, and runs inside `RlsBypassPort` within the
-   operator's request.
+   operator's request. A tenant's read of its subscriber's invoices and contract
+   confirmations (`TenantInvoiceService`) is the one read a tenant makes past its
+   boundary: an earlier tenant's invoices keep that tenant's id after a join, so
+   it runs inside `RlsBypassPort`, by the subscriber of the session's tenant and
+   nothing the request names (`SC-SEC-018`).
 7. **Plan changes keep the concrete contract binding consistent.** Adapters
    that declare atomic plan-binding support update the semantic `plan`, its
    active `planVersionId` and the scheduled change in one transaction.

@@ -4,14 +4,12 @@ import {
     Get,
     HttpCode,
     Inject,
-    NotFoundException,
     Optional,
     Post,
     Req,
     UseGuards,
 } from '@nestjs/common';
 import type { PaymentMethodType, SubscriberPaymentMethodRecord } from '@saasicat/core';
-import { AUTH_ERROR_CODES } from '@saasicat/core';
 
 import { BillingPermissionGuard } from '../billing/billing-permission.guard.js';
 import { ComposedTenantAuthGuard } from '../billing/composed-tenant-auth.guard.js';
@@ -21,7 +19,7 @@ import {
     type TenantIdResolver,
     type UserEmailResolver,
 } from '../billing/tenant-billing.tokens.js';
-import { codedError } from '../errors/coded-error.js';
+import { tenantIdOf } from '../billing/tenant-id.js';
 import { StartPaymentMethodSetupDto } from './dto/start-payment-method-setup.dto.js';
 import { SubscriberPaymentMethodService } from './subscriber-payment-method.service.js';
 
@@ -57,7 +55,9 @@ export class TenantPaymentMethodController {
     async current(
         @Req() request: unknown,
     ): Promise<{ paymentMethod: TenantPaymentMethodView | null }> {
-        const method = await this.paymentMethods.current(this.tenantOf(request));
+        const method = await this.paymentMethods.current(
+            tenantIdOf(this.tenantIdResolver, request),
+        );
         return { paymentMethod: method ? viewOf(method) : null };
     }
 
@@ -67,18 +67,11 @@ export class TenantPaymentMethodController {
         @Req() request: unknown,
         @Body() body: StartPaymentMethodSetupDto,
     ): Promise<{ redirectUrl: string }> {
-        return this.paymentMethods.startChange(this.tenantOf(request), {
+        return this.paymentMethods.startChange(tenantIdOf(this.tenantIdResolver, request), {
             successUrl: body.successUrl,
             cancelUrl: body.cancelUrl,
             fallbackEmail: this.emailOf(request),
         });
-    }
-
-    private tenantOf(request: unknown): string {
-        const tenantId = this.tenantIdResolver(request);
-        if (!tenantId)
-            throw new NotFoundException(codedError(AUTH_ERROR_CODES.TENANT_CONTEXT_MISSING));
-        return tenantId;
     }
 
     private emailOf(request: unknown): string | null {

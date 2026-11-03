@@ -350,7 +350,8 @@ export class ContractConfirmationService implements OnModuleInit {
     }
 }
 
-function contractNotFound(contractId: string): NotFoundException {
+/** No contract `contractId`, or none the reader may see. */
+export function contractNotFound(contractId: string): NotFoundException {
     return new NotFoundException(
         codedError(CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_NOT_FOUND, { contractId }),
     );

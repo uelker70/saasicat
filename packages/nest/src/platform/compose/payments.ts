@@ -16,6 +16,7 @@ import { optionsOf, type CompositionContext } from './context.js';
 export function composePayments(ctx: CompositionContext): DynamicModule[] {
     const config = ctx.options.payments;
     if (!config) return [];
+    assertPermissionNotUnderPayments(config);
     const tenantBilling = optionsOf(ctx.options.tenantBilling);
     const authGuards = ctx.shared.authGuards;
     const imports = [...(config.imports ?? ctx.options.imports ?? [])];
@@ -36,7 +37,7 @@ export function composePayments(ctx: CompositionContext): DynamicModule[] {
             tenantRoutes: authGuards
                 ? {
                       authGuards,
-                      billingPermissionGuards: config.billingPermissionGuards,
+                      billingPermissionGuards: tenantBilling.billingPermissionGuards,
                       tenantIdResolver: tenantBilling.tenantIdResolver,
                       userEmailResolver: tenantBilling.userEmailResolver,
                   }
@@ -45,4 +46,20 @@ export function composePayments(ctx: CompositionContext): DynamicModule[] {
             extraProviders: config.extraProviders,
         }),
     ];
+}
+
+/**
+ * Refuses the boot where the billing permission is still named under
+ * `payments`. It governs the whole billing area — the invoices as well as the
+ * payment method — and invoices exist without a gateway, so it moved to
+ * `tenantBilling`. Ignored silently, the guards the application named would be
+ * dropped and the tenant's administrator alone would hold the permission.
+ */
+function assertPermissionNotUnderPayments(config: object): void {
+    if (!('billingPermissionGuards' in config)) return;
+    throw new Error(
+        '`payments.billingPermissionGuards` moved to `tenantBilling.billingPermissionGuards`: ' +
+            'the billing permission governs the invoices as well as the payment method. Move ' +
+            'the guards there and delete them here. See docs/guides/upgrade-to-1.0.md.',
+    );
 }
