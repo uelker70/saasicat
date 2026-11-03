@@ -94,7 +94,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     BUNDLE_VERSION_REGRESSION:
         'Diese Bundle-Version ist regressiv (Feature entfernt / Quota gesenkt / Preis erhöht). Das Veröffentlichen erfordert ein ausdrückliches `forceRegressive: true` (Bestätigungsdialog in der UI mit MFA).',
     BUNDLE_VERSION_ZERO_PRICE:
-        'Eine Bundle-Version lässt sich nicht mit einem ausdrücklichen Preis von 0,00 veröffentlichen (Schutz vor Seed-Platzhaltern). Kostenlose Bundles lässt du auf null, oder du setzt allowZeroPrice.',
+        'Eine Bundle-Version lässt sich nicht mit einem ausdrücklichen Preis von 0,00 veröffentlichen (Schutz vor Seed-Platzhaltern). Kostenlose Bundles lassen Sie auf null, oder Sie setzen allowZeroPrice.',
     BUNDLE_VERSION_NO_PRICE:
         'Diese Bundle-Version kann ohne Preis nicht veröffentlicht werden: weder ein Grundpreis noch eine Plan-Überschreibung ergibt einen.',
     BUNDLE_VERSION_NOT_PRICED_FOR_PLAN:
@@ -142,7 +142,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Die Freigabe braucht einen Discovery-Snapshot — Discovery ist nicht initialisiert (#25)',
     // ── catalogue import ──
     PLAN_CATALOG_UNREADABLE:
-        'Diese Datei ist kein Plankatalog — sie ließ sich nicht als einer lesen. Prüfe, ob es die YAML-Datei ist, in der deine App ihre Pläne deklariert.',
+        'Diese Datei ist kein Plankatalog — sie ließ sich nicht als einer lesen. Prüfen Sie, ob es die YAML-Datei ist, in der Ihre App ihre Pläne deklariert.',
     PLAN_CATALOG_INVALID: 'Der Plankatalog wurde gelesen und dann abgelehnt: {message}',
     // ── billing ──
     BUNDLE_ALREADY_SUBSCRIBED:
@@ -150,7 +150,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     BUNDLE_INCOMPATIBLE_WITH_PLAN:
         'Dieses Bundle kann im Plan {planKey} nicht gebucht werden. Buchbar ist es in: {allowedPlanKeys}.',
     BUNDLE_NOT_SELF_SERVICE:
-        "Bundle '{bundleKey}' wird nur über einen Sondervertrag freigeschaltet. Bitte wende dich an die Vertragsverwaltung.",
+        "Bundle '{bundleKey}' wird nur über einen Sondervertrag freigeschaltet. Bitte wenden Sie sich an die Vertragsverwaltung.",
     BUNDLE_CYCLE_EXCEEDS_PLAN:
         'Ein jährlich abgerechnetes Bundle passt nicht zu einem monatlich abgerechneten Plan: es wäre an jedem Tag gebunden, an dem der Plan enden kann.',
     BUNDLE_NOT_PRICED_FOR_THIS_PLAN:
@@ -181,11 +181,11 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Dieses Abonnement hat sich geändert, während die Anfrage entschieden wurde. Bitte lade es neu.',
     NO_SUBSCRIPTION: 'Dieser Mandant hat kein Abonnement, das gekündigt werden kann.',
     CANCELLATION_TERMS_CHANGED:
-        'Die Kündigung hat sich seit der Anzeige geändert. Bitte prüfe sie erneut, bevor du sie bestätigst.',
+        'Die Kündigung hat sich seit der Anzeige geändert. Bitte prüfen Sie sie erneut, bevor Sie sie bestätigen.',
     VERSION_OFFER_CHANGED:
-        'Das Angebot hat sich seit der Anzeige geändert. Bitte sieh dir das aktuelle an, bevor du wechselst.',
+        'Das Angebot hat sich seit der Anzeige geändert. Bitte sehen Sie sich das aktuelle an, bevor Sie wechseln.',
     PLAN_CHANGE_QUOTE_CHANGED:
-        'Dieser Plan hat sich seit der Anzeige geändert. Bitte sieh ihn dir noch einmal an, bevor du wechselst.',
+        'Dieser Plan hat sich seit der Anzeige geändert. Bitte sehen Sie ihn sich noch einmal an, bevor Sie wechseln.',
     PLAN_CHANGE_VERSION_NOT_NAMED:
         'Ein Planwechsel muss die Version nennen, die seine Vorschau gezeigt hat.',
     VERSION_SWITCH_AFTER_CANCELLATION:
@@ -193,7 +193,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     VERSION_ENDS_BEFORE_SWITCH:
         'Diese Version wird nicht mehr verkauft, bevor sie wirksam würde. Ein Wechsel dorthin ist nicht möglich.',
     RETIREMENT_TERMS_NOT_CONFIRMED:
-        'Eine Version für laufende Abonnements stillzulegen, braucht eine Klausel in deinen AGB. Setze tenantBilling.orderlyRetirement.termsConfirmed in config/saas.yaml, sobald sie sie enthalten.',
+        'Eine Version für laufende Abonnements stillzulegen, braucht eine Klausel in Ihren AGB. Setzen Sie tenantBilling.orderlyRetirement.termsConfirmed in config/saas.yaml, sobald sie sie enthalten.',
     RETIREMENT_VERSION_ON_SALE:
         'Version {version} von {planKey} wird noch verkauft. Beende zuerst ihren Verkauf, damit sie nach der Ankündigung niemand mehr bucht.',
     RETIREMENT_REPLACEMENT_NOT_ON_SALE:
@@ -208,7 +208,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     RETIREMENT_WITHIN_TWELVE_MONTHS:
         '{count} dieser Abonnements waren in den letzten zwölf Monaten schon von einer Stilllegung betroffen. Ein Abonnement ist höchstens einmal im Jahr betroffen.',
     RETIREMENT_PREVIEW_CHANGED:
-        'Die Abonnements, die diese Stilllegung betrifft, haben sich seit der Anzeige geändert. Sieh sie dir noch einmal an, bevor du sie ankündigst.',
+        'Die Abonnements, die diese Stilllegung betrifft, haben sich seit der Anzeige geändert. Sehen Sie sie sich noch einmal an, bevor Sie sie ankündigen.',
     BUNDLE_RETIREMENT_VERSION_ON_SALE:
         'Version {version} von {bundleKey} wird noch verkauft. Veröffentliche die Version, die sie ersetzt, und lege diese still, sobald ihr Verkauf geendet hat, damit sie nach der Ankündigung niemand mehr bucht.',
     BUNDLE_RETIREMENT_REPLACEMENT_NOT_ON_SALE:
@@ -228,7 +228,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES:
         '{bundleName} zieht am {date} auf seine neue Version um, und Ihr Paket ändert sich vorher. Der Preis, den ein Wechsel halten würde, steht deshalb noch nicht fest. Wechseln Sie, sobald Ihr Paket gewechselt hat, oder lassen Sie es an diesem Tag umziehen.',
     BUNDLE_VERSION_OFFER_CHANGED:
-        'Das Angebot hat sich seit der Anzeige geändert. Bitte sieh dir das aktuelle an, bevor du wechselst.',
+        'Das Angebot hat sich seit der Anzeige geändert. Bitte sehen Sie sich das aktuelle an, bevor Sie wechseln.',
     FEATURE_WITHDRAWAL_UNAVAILABLE:
         'Ein Feature zurückzuziehen ist hier nicht möglich: Die Speicher können nicht alle auflisten, die ein Rückzug erreicht.',
     FEATURE_WITHDRAWAL_FEATURE_UNKNOWN: 'Der Katalog kennt kein Feature {featureKey}.',
@@ -534,7 +534,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     // ── maintenance ──
     MAINTENANCE: 'Die Anwendung wird gerade gewartet.',
     MAINTENANCE_WINDOW_ALREADY_OPEN:
-        'Es ist bereits ein Wartungsfenster offen. Verschiebe oder streiche es, bevor du ein weiteres ankündigst.',
+        'Es ist bereits ein Wartungsfenster offen. Verschieben oder streichen Sie es, bevor Sie ein weiteres ankündigen.',
     MAINTENANCE_WINDOW_NOT_OPEN: 'Kein offenes Wartungsfenster hat diese ID.',
     MAINTENANCE_WINDOW_LOCKED:
         'Dieses Wartungsfenster ist gesperrt. Sein Beginn lässt sich nicht mehr verschieben, und beendet wird es durch Entsperren.',
