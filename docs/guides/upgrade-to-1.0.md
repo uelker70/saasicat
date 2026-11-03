@@ -2676,6 +2676,14 @@ subscriber's invoice or contract `404`.
 - **Under row-level security**, these reads run inside `RlsBypassPort`, by the subscriber's id: an
   earlier tenant's invoices keep that tenant's id after a join (`SC-SEC-018`). Nothing to wire
   where the port is bound.
+- **`TenantBillingSection` lists them**, under "Invoices for your subscription" with the issuer
+  beneath, each with where it stands, its links to the invoices a cancellation ties it to, and its
+  document once archived ("Document follows" until then), and the contract confirmations beside
+  them (`SC-UI-022`, `SC-UI-024`). It now **requires `formatDate` and `formatCurrency`**, as
+  `TenantPlanSection` does; pass the same two. `useTenantInvoices` in `@saasicat/ui-vue` is the
+  composable behind it, for a page of your own. The sentences are catalogue keys
+  (`invoicesTitle`, `invoicesIssuedBy`, `invoicePayment…`, `confirmation…`) an application can
+  override.
 
 ### Each invoice in the record says where its payment stands
 

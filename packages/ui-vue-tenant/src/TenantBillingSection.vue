@@ -1,7 +1,17 @@
 <template>
     <!-- Hidden rather than removed: the parts have to be mounted to ask the
          server whether they are for this user at all. -->
-    <TenantCard v-show="shown.paymentMethod || shown.details" class="sp-billing-section">
+    <TenantCard
+        v-show="shown.invoices || shown.paymentMethod || shown.details"
+        class="sp-billing-section"
+    >
+        <TenantInvoicesCard
+            :http="http"
+            :api-prefix="apiPrefix"
+            :format-date="formatDate"
+            :format-currency="formatCurrency"
+            @availability="shown.invoices = $event"
+        />
         <TenantPaymentMethodCard
             :http="http"
             :api-prefix="apiPrefix"
@@ -25,21 +35,22 @@ import { computed, reactive } from 'vue';
 import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from './default-i18n.js';
 import { provideTenantI18n } from './tenant-i18n.js';
 import TenantBillingDetailsCard from './tenant-billing-section/TenantBillingDetailsCard.vue';
+import TenantInvoicesCard from './tenant-billing-section/TenantInvoicesCard.vue';
 import TenantPaymentMethodCard from './TenantPaymentMethodCard.vue';
 import TenantCard from './ui/TenantCard.vue';
 import './ui/tenant-ui.css';
 
-// TenantBillingSection — where a tenant finds its billing: what the
+// TenantBillingSection — where a tenant finds its billing: the invoices the
+// operator issues it with the contract confirmations beside them, what the
 // subscriber pays with and whom it is billed to, in one component an
 // application mounts under whatever its navigation calls billing. The plan
 // page answers "what did I book"; this answers the chores that come up
-// without a plan decision, such as a card that expires.
+// without a plan decision, such as an invoice to file or a card that expires.
 //
 // Every part sits behind the billing permission and shows itself only to a
 // user the server lets see it; the rest of the tenant sees nothing here, and a
-// request built by hand is refused where it is served. The invoices and the
-// account arrive in this section as they are built, so an application that
-// mounts it now changes nothing when they do.
+// request built by hand is refused where it is served. Each part asks its own
+// routes, so a part the server does not serve shows nothing.
 
 const props = defineProps<{
     /** App-specific HTTP adapter (axios with auth header etc.). */
@@ -52,12 +63,19 @@ const props = defineProps<{
     navigate?: (url: string) => void;
     /** i18n overrides — missing keys fall back to the active locale's map. */
     i18n?: Partial<TenantPlanSectionI18n>;
+    /** The invoices' amounts, as for `TenantPlanSection`. */
+    formatCurrency: (n: number) => string;
+    /**
+     * A day as the page writes it, as for `TenantPlanSection`: it is handed noon
+     * of a day the server named, so it reads that instant in the viewer's zone.
+     */
+    formatDate: (iso: string) => string;
 }>();
 
 const { locale } = useSuperAdminI18n();
 
 /** Which parts show anything; an empty card would be a bordered strip saying nothing. */
-const shown = reactive({ paymentMethod: false, details: false });
+const shown = reactive({ invoices: false, paymentMethod: false, details: false });
 
 provideTenantI18n(
     computed<TenantPlanSectionI18n>(() => ({

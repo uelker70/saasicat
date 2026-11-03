@@ -1785,13 +1785,35 @@ _Tested by:_
 
 ### SC-UI-022 — A tenant downloads its subscription's invoices and tells them from the application's
 
-🟡 _(Decided, not yet delivered.)_ 💰 A tenant downloads the invoices of its own subscription
+🟢 💰 A tenant downloads the invoices of its own subscription
 (`SC-PRIC-097`), served by the tenant routes SaaSiCat already mounts behind the application's tenant
 guards and the billing permission (`SC-UI-023`), so an application wires nothing new for it beyond
 mapping that permission to its roles. Each invoice names who issued it, and an application that
 invoices its own customers labels the subscription's as the operator's.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue-tenant/tests/component/a-tenant-reads-its-invoices.test.ts`
+    - the tenant's invoices
+        - stand under their own heading, named by who issued them
+        - name each its own issuer where more than one issued them
+        - show number, issue date, period, due date and total, each day as the page writes days
+        - say where each stands, a payment paid on the day the server names
+        - link a cancelled invoice to its cancellation and its replacement, and each of those back
+        - lead from a link to an invoice on a page not read yet, reading it first
+        - offer the document once it is archived, and say it follows until then
+        - say so where a document could not be downloaded, and keep the list
+        - go on with the next page below the first, where there is one
+        - keep the rows read where a further page could not be, and say so beneath them
+        - that could not be read are said to be so
+    - the contract confirmations beside them
+        - name each contract and its days, and offer the archived ones for download
+
+<!-- END proof -->
 
 ### SC-UI-023 — A tenant's invoices, payment method and billing details need the billing permission
 
@@ -1839,6 +1861,24 @@ _Tested by:_
     - changing the payment method
         - asks for the gateway form with both URLs, and answers where to go
         - a refusal reaches the caller with its code
+- `packages/ui-vue/tests/a-tenant-reads-its-invoices.test.js`
+    - the tenant's invoices
+        - are read with the confirmations, and the part is shown
+        - answered ${status}, are a part not for this user, not an error
+        - that fail otherwise are an error the page reports
+        - answered ${why} are an error, not a subscriber without invoices
+        - go on a page at a time, after the last invoice read, until there is none
+    - an invoice a link names
+        - on a page not read yet, is read with the pages up to it, and no further
+        - asked for twice at once, as by a double click, reads each page once
+        - after a further page failed, is read on the next try
+        - where a page keeps failing, stops after one try
+        - read already, reads nothing more
+        - on no page, is looked for to the last page, and said not to be there
+    - a document downloaded
+        - is the invoice’s archived file, handed over as it arrived
+        - is the contract’s archived confirmation
+        - refused, reaches the caller, saves nothing, and the download is over
 - `packages/ui-vue/tests/billing-details-are-shown-to-whoever-may-see-them.test.js`
     - loading the billing details
         - a user holding the permission sees them
@@ -1938,7 +1978,7 @@ _Tested by:_
 
 ### SC-UI-024 — A tenant's invoice list says what each invoice stands for
 
-🟡 _(Decided, not yet delivered.)_ 💰 Each entry shows its number, issue date, period, total and due
+🟢 💰 Each entry shows its number, issue date, period, total and due
 date (`SC-PRIC-046`), and whether it is open, collected on a given day, reversed, or cancelled and
 replaced; a cancelled invoice links to its cancellation and its replacement, and each of those links
 back. A credit shows that it is to be refunded, and the contract confirmations stand beside the
@@ -1947,6 +1987,28 @@ and a credit on the account is never called by the name German VAT law reserves 
 recipient writes: Guthaben, not Gutschrift.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue-tenant/tests/component/a-tenant-reads-its-invoices.test.ts`
+    - the tenant's invoices
+        - stand under their own heading, named by who issued them
+        - name each its own issuer where more than one issued them
+        - show number, issue date, period, due date and total, each day as the page writes days
+        - say where each stands, a payment paid on the day the server names
+        - link a cancelled invoice to its cancellation and its replacement, and each of those back
+        - lead from a link to an invoice on a page not read yet, reading it first
+        - offer the document once it is archived, and say it follows until then
+        - say so where a document could not be downloaded, and keep the list
+        - go on with the next page below the first, where there is one
+        - keep the rows read where a further page could not be, and say so beneath them
+        - that could not be read are said to be so
+    - the contract confirmations beside them
+        - name each contract and its days, and offer the archived ones for download
+
+<!-- END proof -->
 
 ### SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
 

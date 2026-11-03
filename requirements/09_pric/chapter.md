@@ -4106,7 +4106,7 @@ _Tested by:_
 
 ### SC-PRIC-097 — Every charge is invoiced once, and a tenant sees every invoice of its subscriber
 
-🟡 _(Decided, not yet delivered.)_ 💰 Charges are invoiced when they arise: the charges a billing
+🟢 💰 Charges are invoiced when they arise: the charges a billing
 period opens with together, and a charge that arises later in the period, such as a bundle booked
 mid-period (`SC-BUN-003`) or the difference of an immediate upgrade (`SC-CHG-020`), on an invoice of
 its own rather than added to one already issued. A counter-entry is the exception: the cancellation
