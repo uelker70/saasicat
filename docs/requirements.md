@@ -19777,6 +19777,7 @@ _Tested by:_
         - show number, issue date, period, due date and total, each day as the page writes days
         - say where each stands, a payment paid on the day the server names
         - link a cancelled invoice to its cancellation and its replacement, and each of those back
+        - lead from a link to an invoice on a page not read yet, reading it first
         - offer the document once it is archived, and say it follows until then
         - say so where a document could not be downloaded, and keep the list
         - go on with the next page below the first, where there is one
@@ -19839,6 +19840,10 @@ _Tested by:_
         - that fail otherwise are an error the page reports
         - answered ${why} are an error, not a subscriber without invoices
         - go on a page at a time, after the last invoice read, until there is none
+    - an invoice a link names
+        - on a page not read yet, is read with the pages up to it, and no further
+        - read already, reads nothing more
+        - on no page, is looked for to the last page, and said not to be there
     - a document downloaded
         - is the invoice’s archived file, handed over as it arrived
         - is the contract’s archived confirmation
@@ -19963,6 +19968,7 @@ _Tested by:_
         - show number, issue date, period, due date and total, each day as the page writes days
         - say where each stands, a payment paid on the day the server names
         - link a cancelled invoice to its cancellation and its replacement, and each of those back
+        - lead from a link to an invoice on a page not read yet, reading it first
         - offer the document once it is archived, and say it follows until then
         - say so where a document could not be downloaded, and keep the list
         - go on with the next page below the first, where there is one

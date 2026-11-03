@@ -21,6 +21,8 @@ export interface InvoiceRowFormats {
 /** A sentence naming another invoice, whose number leads to that invoice's row. */
 export interface InvoiceRowLink {
     parts: MessagePart[];
+    /** The invoice it names, which may stand on a page not read yet. */
+    invoiceId: string;
     /** The element id of the row the number leads to. */
     target: string;
 }
@@ -98,6 +100,7 @@ function linksOf(invoice: TenantInvoice, i18n: TenantPlanSectionI18n): InvoiceRo
             ? [
                   {
                       parts: messageParts(template, { number: other.number }, ['number']),
+                      invoiceId: other.invoiceId,
                       target: invoiceAnchorOf(other.invoiceId),
                   },
               ]

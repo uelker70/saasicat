@@ -50,6 +50,12 @@ export interface UseTenantInvoicesResult {
     reload(): Promise<void>;
     /** Reads the next page of invoices and adds it below. */
     more(): Promise<void>;
+    /**
+     * Reads further pages until the invoice `invoiceId` is among those read,
+     * as a link to an older invoice needs its row; `false` where no page
+     * holds it.
+     */
+    loadUntil(invoiceId: string): Promise<boolean>;
     /** Downloads an invoice's archived document; a refusal reaches the caller. */
     downloadInvoice(invoiceId: string): Promise<void>;
     /** Downloads a contract's archived confirmation; a refusal reaches the caller. */
@@ -138,6 +144,12 @@ export function useTenantInvoices(options: UseTenantInvoicesOptions = {}): UseTe
         return run(async () => showPage(await pageAfter(after), invoices.value));
     }
 
+    async function loadUntil(invoiceId: string): Promise<boolean> {
+        const read = () => invoices.value.some((invoice) => invoice.id === invoiceId);
+        while (!read() && next.value !== null && error.value === null) await more();
+        return read();
+    }
+
     async function download(id: string, url: string, fallbackName: string): Promise<void> {
         downloading.value = id;
         try {
@@ -171,6 +183,7 @@ export function useTenantInvoices(options: UseTenantInvoicesOptions = {}): UseTe
         downloading,
         reload,
         more,
+        loadUntil,
         downloadInvoice,
         downloadConfirmation,
     };

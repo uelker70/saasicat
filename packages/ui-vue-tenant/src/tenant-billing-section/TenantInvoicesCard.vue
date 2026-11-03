@@ -27,7 +27,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="row in rows" :id="row.anchor" :key="row.id">
+                        <tr v-for="row in rows" :id="row.anchor" :key="row.id" tabindex="-1">
                             <td>
                                 {{ row.number }}
                                 <span v-if="row.issuer" class="sp-invoices__issuer">
@@ -48,9 +48,12 @@
                                     class="sp-invoices__standing"
                                 >
                                     <template v-for="(part, index) in link.parts" :key="index">
-                                        <a v-if="part.strong" :href="`#${link.target}`">{{
-                                            part.text
-                                        }}</a>
+                                        <a
+                                            v-if="part.strong"
+                                            :href="`#${link.target}`"
+                                            @click.prevent="follow(link)"
+                                            >{{ part.text }}</a
+                                        >
                                         <template v-else>{{ part.text }}</template>
                                     </template>
                                 </span>
@@ -119,7 +122,7 @@
 
 <script setup lang="ts">
 import { useTenantInvoices, type HttpClient } from '@saasicat/ui-vue';
-import { computed, ref, useId, watch } from 'vue';
+import { computed, nextTick, ref, useId, watch } from 'vue';
 
 import { writeDay } from '../day-as-instant.js';
 import { messageParts } from '../message-parts.js';
@@ -127,7 +130,7 @@ import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantCardSection from '../ui/TenantCardSection.vue';
 import '../ui/tenant-ui.css';
-import { invoiceRowsOf, issuersOf } from './invoice-rows.js';
+import { invoiceRowsOf, issuersOf, type InvoiceRowLink } from './invoice-rows.js';
 
 // The invoices the operator issues the tenant for its subscription, and the
 // contract confirmations beside them (`SC-UI-022`, `SC-UI-024`). Shown only to
@@ -198,6 +201,18 @@ function downloadLabelOf(number: string): string {
     return sentence(i18n.value.invoicesDownloadInvoice, { number });
 }
 
+/**
+ * Leads to the invoice a link names: its row may stand on a page not read
+ * yet, as a cancellation corrects an invoice of any age, so the pages up to
+ * it are read first. The row then takes the focus, which scrolls it into
+ * view and is where a screen reader goes on from.
+ */
+async function follow(link: InvoiceRowLink): Promise<void> {
+    if (!(await documents.loadUntil(link.invoiceId))) return;
+    await nextTick();
+    document.getElementById(link.target)?.focus();
+}
+
 async function download(run: () => Promise<void>): Promise<void> {
     downloadFailed.value = false;
     try {
@@ -244,6 +259,11 @@ async function download(run: () => Promise<void>): Promise<void> {
 .sp-invoices__table th {
     color: var(--sa-color-fg-secondary);
     font-weight: 600;
+}
+/* A row a link led to takes the focus, and shows that it has it. */
+.sp-invoices__table tr:focus {
+    outline: 2px solid var(--sa-color-accent);
+    outline-offset: -2px;
 }
 .sp-invoices__table .sp-invoices__amount {
     text-align: end;

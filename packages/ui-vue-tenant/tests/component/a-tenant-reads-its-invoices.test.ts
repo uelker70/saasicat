@@ -225,6 +225,29 @@ describe("the tenant's invoices", () => {
         );
     });
 
+    test('lead from a link to an invoice on a page not read yet, reading it first', async () => {
+        const { wrapper, calls } = await mountSection({
+            '/billing/invoices': [
+                200,
+                {
+                    invoices: [invoice('9', { correction: { kind: 'replacement', of: of('1') } })],
+                    next: '9',
+                },
+            ],
+            '/billing/invoices?after=9': [
+                200,
+                { invoices: [invoice('1', { replacedBy: of('9') })], next: null },
+            ],
+            '/billing/contracts': [200, { confirmations: [] }],
+        });
+
+        await rowOf(wrapper, '9').standing!.find('a').trigger('click');
+        await flushPromises();
+
+        expect(calls).toContain('/billing/invoices?after=9');
+        expect(document.activeElement?.id).toBe('sp-invoice-1');
+    });
+
     test('offer the document once it is archived, and say it follows until then', async () => {
         const { wrapper } = await mountSection({
             '/billing/invoices': [200, PAGE],

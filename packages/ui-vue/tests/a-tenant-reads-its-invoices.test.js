@@ -152,6 +152,49 @@ describe("the tenant's invoices", () => {
     });
 });
 
+describe('an invoice a link names', () => {
+    const PAGES = {
+        '/billing/invoices': [200, { invoices: [INVOICE('3')], next: '3' }],
+        '/billing/contracts': [200, { confirmations: [] }],
+        '/billing/invoices?after=3': [200, { invoices: [INVOICE('2')], next: '2' }],
+        '/billing/invoices?after=2': [200, { invoices: [INVOICE('1')], next: null }],
+    };
+
+    test('on a page not read yet, is read with the pages up to it, and no further', async () => {
+        const { documents, calls } = invoicesOf(PAGES);
+        await documents.reload();
+
+        assert.equal(await documents.loadUntil('2'), true);
+
+        assert.deepEqual(
+            documents.invoices.value.map((invoice) => invoice.id),
+            ['3', '2'],
+        );
+        assert.deepEqual(
+            calls.map((call) => call.url),
+            ['/billing/invoices', '/billing/contracts', '/billing/invoices?after=3'],
+        );
+    });
+
+    test('read already, reads nothing more', async () => {
+        const { documents, calls } = invoicesOf(PAGES);
+        await documents.reload();
+
+        assert.equal(await documents.loadUntil('3'), true);
+
+        assert.equal(calls.length, 2);
+    });
+
+    test('on no page, is looked for to the last page, and said not to be there', async () => {
+        const { documents } = invoicesOf(PAGES);
+        await documents.reload();
+
+        assert.equal(await documents.loadUntil('nowhere'), false);
+
+        assert.equal(documents.hasMore.value, false);
+    });
+});
+
 describe('a document downloaded', () => {
     test('is the invoice’s archived file, handed over as it arrived', async () => {
         const bytes = new Uint8Array([37, 80, 68, 70]);
