@@ -6,11 +6,13 @@
 // `error-messages.test` compares them across locales.
 //
 // Tone follows the audience: end-user errors (registration, OTP, promo codes,
-// plan selection, limits, bookings) are plain and polite and address the reader
-// as "du", matching the German UI locale in `@saasicat/ui-vue`. Admin and
-// developer errors (catalog lifecycle, discovery, strict mode, module
-// misconfiguration) stay precise and technical. Identifiers — class, field and
-// module names, HTTP paths, SCREAMING_SNAKE_CASE values — are never translated.
+// plan selection, limits, bookings) are plain and polite. Admin and developer
+// errors (catalog lifecycle, discovery, strict mode, module misconfiguration)
+// stay precise and technical. Every sentence that addresses the reader says
+// "Sie", the tenant's screens show these beside their own texts, and a test of
+// `@saasicat/ui-vue-tenant` refuses one that says "du". Identifiers — class,
+// field and module names, HTTP paths, SCREAMING_SNAKE_CASE values — are never
+// translated.
 //
 // Pass it to `resolveErrorMessage` as the `defaults` argument.
 
@@ -52,7 +54,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_VERSION_REGRESSION:
         'Diese Planversion ist regressiv (Feature entfernt / Quota gesenkt / Preis erhöht). Das Veröffentlichen erfordert ein ausdrückliches `forceRegressive: true` (Bestätigungsdialog in der UI mit MFA).',
     PLAN_VERSION_ZERO_PRICE:
-        'Eine Planversion lässt sich nicht mit einem Preis von 0,00 veröffentlichen (Schutz vor Seed-Platzhaltern). Für bewusst kostenlose Sonderverträge setze allowZeroPrice.',
+        'Eine Planversion lässt sich nicht mit einem Preis von 0,00 veröffentlichen (Schutz vor Seed-Platzhaltern). Für bewusst kostenlose Sonderverträge setzen Sie allowZeroPrice.',
     PLAN_VERSION_DISCARD_NOT_IMPLEMENTED:
         'Das Verwerfen ist im aktuellen Repository nicht implementiert. Implementieren Sie PlanRepository.deletePlanVersionDraft.',
     PLAN_VERSION_NOT_PUBLISHED:

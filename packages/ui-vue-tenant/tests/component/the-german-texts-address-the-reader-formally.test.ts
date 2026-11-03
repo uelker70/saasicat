@@ -11,9 +11,10 @@ import { defaultTenantPlanSectionI18n } from '../../src/default-i18n';
 // "du" shows in two ways: in a pronoun ("dein Paket", "melde dich") and in
 // the verb alone, as an imperative ("Bitte lade es neu", "Pausiere ihn"),
 // where the formal form names "Sie" after the verb. Three rules find them:
-// an informal pronoun; "Bitte" before a verb ending in -e that "Sie" does
-// not follow; and a verb ending in -e that opens a clause before an object
-// or an adverb ("Beende zuerst", "und lege diese still"). They read grammar,
+// an informal pronoun; "Bitte" before a verb ending in -e, as the formal
+// request after it is an infinitive ("Bitte laden Sie"); and a verb ending
+// in -e that opens a clause before an object or an adverb ("Beende zuerst",
+// "und lege diese still"). They read grammar,
 // not a list of sentences. What they cannot tell from a noun without a
 // dictionary is not caught: an imperative followed straight by a name or
 // code ("Implementiere PlanRepository.terminate") and one whose form has no
@@ -128,7 +129,8 @@ function isInformal(words: string[]): boolean {
     ];
     return words.some((word, at) => {
         const next = words[at + 1] ?? '';
-        if (word === 'bitte') return next.endsWith('e') && words[at + 2] !== 'sie';
+        // A formal request after "Bitte" is an infinitive, which never ends in -e.
+        if (word === 'bitte') return next.endsWith('e');
         return (
             opens.includes(at) &&
             word.length > 2 &&
@@ -157,6 +159,7 @@ describe('the German texts of the tenant’s screens', () => {
     for (const [form, sentence] of [
         ['a pronoun', 'Bitte melde dich bei uns.'],
         ['an imperative after "Bitte"', 'Bitte lade es neu.'],
+        ['an imperative after "Bitte" before "sie"', 'Bitte prüfe sie erneut.'],
         ['an imperative opening a sentence', 'Pausiere ihn stattdessen.'],
         ['an imperative after "und"', 'Veröffentlichen Sie die Version, und lege diese still.'],
     ] as const) {
