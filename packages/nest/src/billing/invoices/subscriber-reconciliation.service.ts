@@ -10,6 +10,7 @@ import {
     INVOICE_ERROR_CODES,
     dayInZone,
     installationZoneOf,
+    invoiceStandingsOf,
     type AdminReconciliationCase,
     type AdminReconciliationCases,
     type AdminSubscriberPayments,
@@ -46,8 +47,9 @@ export class SubscriberReconciliationService {
         private readonly invoices: SubscriptionInvoiceRepository,
         @Inject(SUBSCRIBER_REPOSITORY_TOKEN)
         private readonly subscribers: SubscriberRepository,
-        // The zone the day a refusal names is read in; UTC where the file names
-        // none, or where a test builds the service without it.
+        // The zone the days a refusal and an invoice's standing name are read
+        // in; UTC where the file names none, or where a test builds the
+        // service without it.
         @Optional()
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
         private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
@@ -106,9 +108,10 @@ export class SubscriberReconciliationService {
 
     /**
      * The subscriber's invoices, the latest first, each with what it still
-     * owes, what it corrects and the cancellation invoice that cancelled it,
-     * and its cases still open, the oldest first — whichever tenant each was
-     * for. Refused where there is no such subscriber.
+     * owes, what it corrects, the cancellation invoice that cancelled it and
+     * the replacement that took its place, and where its payment stands; and
+     * its cases still open, the oldest first — whichever tenant each was for.
+     * Refused where there is no such subscriber.
      */
     async paymentsOf(subscriberId: string): Promise<AdminSubscriberPayments> {
         const subscriber = await this.subscribers.findById(subscriberId);
@@ -126,22 +129,19 @@ export class SubscriberReconciliationService {
             { state: 'open', subscriberId: subscriber.id },
             { limit: RECONCILIATION_PAGE_SIZE },
         );
-        // A cancellation invoice belongs to the subscriber of the invoice it
-        // cancels, so the list that holds one holds the other.
-        const cancelledBy = new Map(
-            invoices.flatMap((invoice) =>
-                invoice.correction?.kind === 'cancellation'
-                    ? [
-                          [
-                              invoice.correction.of.invoiceId,
-                              { invoiceId: invoice.id, number: invoice.number },
-                          ] as const,
-                      ]
-                    : [],
-            ),
+        const timeZone = installationZoneOf(this.settings);
+        const standings = invoiceStandingsOf(
+            {
+                invoices,
+                settlements: await this.payments.listSettlements(
+                    invoices.map((invoice) => invoice.id),
+                ),
+                credits: await this.payments.listCredits(subscriber.id),
+            },
+            { today: dayInZone(new Date(), timeZone), timeZone },
         );
         return {
-            invoices: invoices.map((invoice) => ({
+            invoices: standings.map(({ invoice, standing }) => ({
                 id: invoice.id,
                 number: invoice.number,
                 issuedAt: invoice.issuedAt.toISOString(),
@@ -152,7 +152,7 @@ export class SubscriberReconciliationService {
                 correction: invoice.correction
                     ? { kind: invoice.correction.kind, of: invoice.correction.of }
                     : null,
-                cancelledBy: cancelledBy.get(invoice.id) ?? null,
+                ...standing,
                 documentArchived: archived.has(invoice.id),
             })),
             openCases: await this.viewsOf(open),

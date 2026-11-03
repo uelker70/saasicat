@@ -59,7 +59,7 @@ import type { AdminSubscriberPayments, AdminSubscriberDetails } from '@saasicat/
 
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { formatMessage } from '../../client/i18n/format.js';
-import { invoiceStandingOf } from '../../client/invoice-standing.js';
+import { invoicePaymentOf, invoiceStandingOf } from '../../client/invoice-standing.js';
 import AdminTable from '../../ui/data/AdminTable.vue';
 import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
@@ -70,12 +70,13 @@ import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n
 import InvoiceCancellationDialog from './InvoiceCancellationDialog.vue';
 
 // The tenant's invoices, the latest first, each with what it still owes after
-// every payment, reversal and give-back and what it stands in relation to — a
-// cancellation invoice, a replacement, an invoice cancelled —, and its cases
-// still open to reconcile: what the gateway reported and no credit matched.
-// An invoice that stands is cancelled here; a case is closed on the
-// reconciliation page, with a note. Every invoice's archived document is
-// downloaded beside it, where the platform serves it.
+// every payment, reversal and give-back, what it stands in relation to — a
+// cancellation invoice, a replacement, an invoice cancelled and replaced — and
+// where its payment stands; and its cases still open to reconcile: what the
+// gateway reported and no credit matched. An invoice that stands is cancelled
+// here; a case is closed on the reconciliation page, with a note. Every
+// invoice's archived document is downloaded beside it, where the platform
+// serves it.
 const props = defineProps<{
     payments: AdminSubscriberPayments | null;
     pending: boolean;
@@ -108,6 +109,10 @@ const invoiceRows = computed(() =>
         total: formatCurrency(invoice.totalGross, locale.value, invoice.currency),
         owed: formatCurrency(invoice.owed, locale.value, invoice.currency),
         standing: invoiceStandingOf(invoice, msg.value.payments),
+        payment: invoicePaymentOf(invoice, msg.value.payments, {
+            day: props.formatDate,
+            money: (amount) => formatCurrency(amount, locale.value, invoice.currency),
+        }),
         cancellable: props.cancellation.canCancel(invoice),
         documentArchived: invoice.documentArchived,
         invoice,
@@ -133,6 +138,7 @@ const invoiceColumns = computed<QTableColumn[]>(() => {
         { name: 'due', label: m.columnDue, field: 'due', align: 'left' },
         { name: 'total', label: m.columnTotal, field: 'total', align: 'right' },
         { name: 'owed', label: m.columnOwed, field: 'owed', align: 'right' },
+        { name: 'payment', label: m.columnPayment, field: 'payment', align: 'left' },
     ];
 });
 

@@ -6,6 +6,7 @@
 // itself only where the money it was about came back: the refund failed, or
 // the gateway gave the reversal back (`SC-PRIC-086`).
 
+import type { InvoicePaymentStanding, InvoiceReference } from './invoice-standing.js';
 import type { SubscriptionInvoiceCorrection } from './subscription-invoice.types.js';
 import type { CalendarDay } from './zoned-day.js';
 
@@ -135,7 +136,15 @@ export interface AdminSubscriberInvoice {
      */
     correction: Pick<SubscriptionInvoiceCorrection, 'kind' | 'of'> | null;
     /** The cancellation invoice that cancelled it; `null` while it stands. */
-    cancelledBy: { invoiceId: string; number: string } | null;
+    cancelledBy: InvoiceReference | null;
+    /** The replacement that took its place; `null` where none did. */
+    replacedBy: InvoiceReference | null;
+    /**
+     * Where its payment stands, read by the rule the tenant's list reads it by;
+     * `null` for an invoice cancelled, a cancellation invoice and an invoice of
+     * nothing.
+     */
+    payment: InvoicePaymentStanding | null;
     /** Whether its document is archived, and can be downloaded (`SC-AUD-014`). */
     documentArchived: boolean;
 }
