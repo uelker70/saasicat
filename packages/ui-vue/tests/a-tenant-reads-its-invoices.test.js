@@ -198,6 +198,59 @@ describe('an invoice a link names', () => {
         );
     });
 
+    test('after a further page failed, is read on the next try', async () => {
+        const { client, calls } = routedHttp(PAGES);
+        let failed = false;
+        const failingOnce = (url, init) => {
+            if (url === '/billing/invoices?after=3' && !failed) {
+                failed = true;
+                calls.push({ url, binary: false });
+                return Promise.resolve({
+                    status: 500,
+                    headers: { get: () => 'application/json' },
+                    json: async () => ({}),
+                    text: async () => '{}',
+                });
+            }
+            return client(url, init);
+        };
+        const documents = useTenantInvoices({ http: failingOnce, autoLoad: false });
+        await documents.reload();
+        await documents.more();
+        assert.ok(documents.error.value instanceof Error);
+
+        assert.equal(await documents.loadUntil('2'), true);
+
+        assert.deepEqual(
+            calls.filter((call) => call.url === '/billing/invoices?after=3').length,
+            2,
+        );
+    });
+
+    test('where a page keeps failing, stops after one try', async () => {
+        // The page fails five times and answers after that, so a loop that
+        // kept trying would end by itself and be counted, rather than hang.
+        const { client } = routedHttp(PAGES);
+        let tries = 0;
+        const failingFiveTimes = (url, init) => {
+            if (url !== '/billing/invoices?after=3') return client(url, init);
+            tries += 1;
+            const [status, body] = tries > 5 ? [200, { invoices: [], next: null }] : [500, {}];
+            return Promise.resolve({
+                status,
+                headers: { get: () => 'application/json' },
+                json: async () => body,
+                text: async () => JSON.stringify(body),
+            });
+        };
+        const documents = useTenantInvoices({ http: failingFiveTimes, autoLoad: false });
+        await documents.reload();
+
+        assert.equal(await documents.loadUntil('1'), false);
+
+        assert.equal(tries, 1);
+    });
+
     test('read already, reads nothing more', async () => {
         const { documents, calls } = invoicesOf(PAGES);
         await documents.reload();

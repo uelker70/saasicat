@@ -154,7 +154,13 @@ export function useTenantInvoices(options: UseTenantInvoicesOptions = {}): UseTe
 
     async function loadUntil(invoiceId: string): Promise<boolean> {
         const read = () => invoices.value.some((invoice) => invoice.id === invoiceId);
-        while (!read() && next.value !== null && error.value === null) await more();
+        // Each page is tried once, a failed one too: a link clicked after a
+        // further page failed retries it, and a page that fails again ends
+        // the loop rather than repeating it.
+        while (!read() && next.value !== null) {
+            await more();
+            if (error.value !== null) break;
+        }
         return read();
     }
 

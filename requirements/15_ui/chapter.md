@@ -1871,6 +1871,8 @@ _Tested by:_
     - an invoice a link names
         - on a page not read yet, is read with the pages up to it, and no further
         - asked for twice at once, as by a double click, reads each page once
+        - after a further page failed, is read on the next try
+        - where a page keeps failing, stops after one try
         - read already, reads nothing more
         - on no page, is looked for to the last page, and said not to be there
     - a document downloaded
