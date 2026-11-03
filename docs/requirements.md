@@ -19781,6 +19781,7 @@ _Tested by:_
         - offer the document once it is archived, and say it follows until then
         - say so where a document could not be downloaded, and keep the list
         - go on with the next page below the first, where there is one
+        - keep the rows read where a further page could not be, and say so beneath them
         - that could not be read are said to be so
     - the contract confirmations beside them
         - name each contract and its days, and offer the archived ones for download
@@ -19842,6 +19843,7 @@ _Tested by:_
         - go on a page at a time, after the last invoice read, until there is none
     - an invoice a link names
         - on a page not read yet, is read with the pages up to it, and no further
+        - asked for twice at once, as by a double click, reads each page once
         - read already, reads nothing more
         - on no page, is looked for to the last page, and said not to be there
     - a document downloaded
@@ -19972,6 +19974,7 @@ _Tested by:_
         - offer the document once it is archived, and say it follows until then
         - say so where a document could not be downloaded, and keep the list
         - go on with the next page below the first, where there is one
+        - keep the rows read where a further page could not be, and say so beneath them
         - that could not be read are said to be so
     - the contract confirmations beside them
         - name each contract and its days, and offer the archived ones for download

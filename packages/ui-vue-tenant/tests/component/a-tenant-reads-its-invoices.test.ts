@@ -299,6 +299,25 @@ describe("the tenant's invoices", () => {
         ).toBe(false);
     });
 
+    test('keep the rows read where a further page could not be, and say so beneath them', async () => {
+        const { wrapper } = await mountSection({
+            '/billing/invoices': [200, { invoices: [invoice('2')], next: '2' }],
+            '/billing/invoices?after=2': [500, {}],
+            '/billing/contracts': [200, { confirmations: [] }],
+        });
+
+        const more = wrapper
+            .findAll('button')
+            .find((button) => button.text() === i18n.invoicesMore);
+        await more!.trigger('click');
+        await flushPromises();
+
+        expect(wrapper.findAll('tbody tr').map((row) => row.attributes('id'))).toEqual([
+            'sp-invoice-2',
+        ]);
+        expect(wrapper.find('[role="alert"]').text()).toBe(i18n.invoicesMoreFailed);
+    });
+
     test('that could not be read are said to be so', async () => {
         const { wrapper } = await mountSection({
             '/billing/invoices': [500, {}],

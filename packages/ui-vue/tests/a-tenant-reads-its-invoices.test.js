@@ -176,6 +176,28 @@ describe('an invoice a link names', () => {
         );
     });
 
+    test('asked for twice at once, as by a double click, reads each page once', async () => {
+        const { documents, calls } = invoicesOf(PAGES);
+        await documents.reload();
+
+        const both = await Promise.all([documents.loadUntil('1'), documents.loadUntil('1')]);
+
+        assert.deepEqual(both, [true, true]);
+        assert.deepEqual(
+            documents.invoices.value.map((invoice) => invoice.id),
+            ['3', '2', '1'],
+        );
+        assert.deepEqual(
+            calls.map((call) => call.url),
+            [
+                '/billing/invoices',
+                '/billing/contracts',
+                '/billing/invoices?after=3',
+                '/billing/invoices?after=2',
+            ],
+        );
+    });
+
     test('read already, reads nothing more', async () => {
         const { documents, calls } = invoicesOf(PAGES);
         await documents.reload();

@@ -138,10 +138,18 @@ export function useTenantInvoices(options: UseTenantInvoicesOptions = {}): UseTe
         });
     }
 
+    // The page being read, which every caller waits for while it runs: two
+    // reads with the same cursor would add the same page twice.
+    let reading: Promise<void> | null = null;
+
     function more(): Promise<void> {
+        if (reading) return reading;
         const after = next.value;
         if (after === null) return Promise.resolve();
-        return run(async () => showPage(await pageAfter(after), invoices.value));
+        reading = run(async () => showPage(await pageAfter(after), invoices.value)).finally(() => {
+            reading = null;
+        });
+        return reading;
     }
 
     async function loadUntil(invoiceId: string): Promise<boolean> {

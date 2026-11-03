@@ -412,6 +412,8 @@ export interface TenantPlanSectionI18n {
     /** Where the invoice's document is not archived yet. */
     invoicesDocumentFollows: string;
     invoicesMore: string;
+    /** Where a further page could not be read; the rows already read stay. */
+    invoicesMoreFailed: string;
     invoicesDownloadFailed: string;
     /** On a cancellation invoice: `{number}` of the one it cancels. */
     invoiceCancellationOf: string;
@@ -832,6 +834,7 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     invoicesDownloadInvoice: 'Rechnung {number} herunterladen',
     invoicesDocumentFollows: 'Dokument folgt',
     invoicesMore: 'Weitere Rechnungen',
+    invoicesMoreFailed: 'Weitere Rechnungen konnten nicht geladen werden.',
     invoicesDownloadFailed: 'Das Dokument konnte nicht geladen werden.',
     invoiceCancellationOf: 'Storniert {number}',
     invoiceReplacementOf: 'Ersetzt {number}',
@@ -1222,6 +1225,7 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     invoicesDownloadInvoice: 'Download invoice {number}',
     invoicesDocumentFollows: 'Document follows',
     invoicesMore: 'More invoices',
+    invoicesMoreFailed: 'More invoices could not be loaded.',
     invoicesDownloadFailed: 'The document could not be loaded.',
     invoiceCancellationOf: 'Cancels {number}',
     invoiceReplacementOf: 'Replaces {number}',

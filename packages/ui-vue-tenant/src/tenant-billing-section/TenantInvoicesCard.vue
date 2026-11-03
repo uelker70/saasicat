@@ -7,7 +7,11 @@
             <p v-if="documents.loading.value && rows.length === 0" class="sp-invoices__sub">
                 {{ i18n.loading }}
             </p>
-            <p v-else-if="documents.error.value" class="sp-invoices__error" role="alert">
+            <p
+                v-else-if="documents.error.value && rows.length === 0"
+                class="sp-invoices__error"
+                role="alert"
+            >
                 {{ i18n.invoicesLoadFailed }}
             </p>
             <p v-else-if="rows.length === 0" class="sp-invoices__sub">{{ i18n.invoicesEmpty }}</p>
@@ -86,6 +90,14 @@
             >
                 {{ i18n.invoicesMore }}
             </TenantButton>
+            <!-- A further page that failed leaves the rows already read in place. -->
+            <p
+                v-if="documents.error.value && rows.length > 0"
+                class="sp-invoices__error"
+                role="alert"
+            >
+                {{ i18n.invoicesMoreFailed }}
+            </p>
             <p v-if="downloadFailed" class="sp-invoices__error" role="alert">
                 {{ i18n.invoicesDownloadFailed }}
             </p>
