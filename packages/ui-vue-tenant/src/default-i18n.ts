@@ -738,7 +738,7 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     billingDetailsBusinessFalse: 'Verbraucher',
     billingDetailsHeldBack:
         'Ein neuer Vertrag – etwa für einen Planwechsel – ist so noch nicht möglich.',
-    billingDetailsMissing: 'Bitte ergänze: {fields}.',
+    billingDetailsMissing: 'Bitte ergänzen Sie: {fields}.',
     billingDetailsTaxRefusal:
         'Für Ihren Fall können wir die Umsatzsteuer noch nicht berechnen ({reason}). Bitte melden Sie sich bei uns.',
     billingDetailsNotStated: 'nicht angegeben',
