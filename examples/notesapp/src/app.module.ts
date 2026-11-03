@@ -99,7 +99,7 @@ import { germanTaxAdapterFactory } from '@saasicat/tax-de';
                 // adapter here, built with its keys from the environment.
                 // The tenant's payment method card needs the billing permission,
                 // which the tenant's administrator holds unless
-                // `billingPermissionGuards` says otherwise.
+                // `tenantBilling.billingPermissionGuards` says otherwise.
                 payments: {
                     gateways: { dev: new DevPaymentGateway() },
                 },

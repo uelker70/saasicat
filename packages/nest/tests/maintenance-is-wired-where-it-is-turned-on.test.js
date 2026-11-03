@@ -188,7 +188,7 @@ describe('the platform’s own scheduled jobs', () => {
         }
     });
 
-    // @requirement SC-SEC-003 — Reads that legitimately cross tenants are named as the exceptions they are
+    // @requirement SC-SEC-018 — Reads that cross tenants are named, and a tenant's reaches only its own subscriber
     test('the promotional code sweep runs under the RLS bypass, every step of it', async () => {
         const repositories = promoRepositories();
         let lifted = false;

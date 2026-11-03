@@ -202,7 +202,7 @@ installation that concludes contracts does not start while the file names no iss
 is concluded with nobody on the operator's side. A copy the migration to subscribers made of an
 existing contract's parties says so and is never presented as what was true at conclusion. Neither
 such a contract nor one concluded before a contract needed an issuer is invoiced: nothing SaaSiCat
-holds says who its parties were that day, so its charges stay held (`SC-PRIC-096`). Every
+holds says who its parties were that day, so its charges stay held (`SC-PRIC-097`). Every
 successor frozen afresh, such as after a change of plan or of its billing rhythm, an add-on booked
 or ended, a move to another version, or a refresh in full, copies both parties as they stand that
 day, and that one is invoiced. One that only carries the contract forward, a refresh of its
@@ -306,6 +306,11 @@ _Tested by:_
     - the database archive
         - with both of its triggers enabled keeps what it holds
         - ${what} names what it lacks, and the file that adds it
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - an invoice's document
+        - of the subscriber’s own invoice is the archived file
+        - of an earlier tenant joined into the subscriber is the archived file too
+        - ${why} is not found, and nothing is read from the archive
 - `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
     - an invoice’s document downloaded later
         - is the archived file, not a new rendering

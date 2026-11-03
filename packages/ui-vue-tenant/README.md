@@ -100,7 +100,7 @@ reason in their language. The offer has no deadline and nothing to decline.
 Both read the billing routes under `apiPrefix` (default `/billing`) through the
 `http` adapter you pass. The billing section shows itself only to a user the
 server lets see it — the billing permission, which your
-`payments.billingPermissionGuards` map to your roles — and renders nothing for
+`tenantBilling.billingPermissionGuards` map to your roles — and renders nothing for
 anyone else, so show its navigation entry to the same users. The invoices and
 the account will arrive inside it, and a page that mounts it now changes nothing
 when they do.

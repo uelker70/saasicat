@@ -117,7 +117,7 @@ async function anInstallationUnderPolicy() {
 }
 
 // @requirement SC-PLAN-005 — A version somebody has already bought cannot be edited
-// @requirement SC-SEC-003 — Reads that legitimately cross tenants are named as the exceptions they are
+// @requirement SC-SEC-018 — Reads that cross tenants are named, and a tenant's reaches only its own subscriber
 describe('a plan version subscribers are on, behind a tenant policy', () => {
     async function aPublishedFutureVersionWithSubscribers() {
         const installation = await anInstallationUnderPolicy();
@@ -156,7 +156,7 @@ describe('a plan version subscribers are on, behind a tenant policy', () => {
 });
 
 // @requirement SC-BUN-024 — An add-on version somebody has already booked cannot be edited
-// @requirement SC-SEC-003 — Reads that legitimately cross tenants are named as the exceptions they are
+// @requirement SC-SEC-018 — Reads that cross tenants are named, and a tenant's reaches only its own subscriber
 describe('an add-on version tenants have booked, behind a tenant policy', () => {
     test('stays locked against editing', async () => {
         const { bundles, subscriptions } = await anInstallationUnderPolicy();
@@ -179,7 +179,7 @@ describe('an add-on version tenants have booked, behind a tenant policy', () => 
     });
 });
 
-// @requirement SC-SEC-003 — Reads that legitimately cross tenants are named as the exceptions they are
+// @requirement SC-SEC-018 — Reads that cross tenants are named, and a tenant's reaches only its own subscriber
 describe("the operator's figures, behind a tenant policy", () => {
     test('the plan list counts the tenants on each plan', async () => {
         const { plans } = await anInstallationUnderPolicy();

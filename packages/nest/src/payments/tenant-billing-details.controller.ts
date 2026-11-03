@@ -1,16 +1,5 @@
-import {
-    Body,
-    Controller,
-    Get,
-    Inject,
-    NotFoundException,
-    Optional,
-    Patch,
-    Req,
-    UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Inject, Optional, Patch, Req, UseGuards } from '@nestjs/common';
 import type { SubscriberReadiness, SubscriberRecord } from '@saasicat/core';
-import { AUTH_ERROR_CODES } from '@saasicat/core';
 
 import { BillingPermissionGuard } from '../billing/billing-permission.guard.js';
 import { ComposedTenantAuthGuard } from '../billing/composed-tenant-auth.guard.js';
@@ -25,8 +14,8 @@ import {
     type UserEmailResolver,
     type UserIdResolver,
 } from '../billing/tenant-billing.tokens.js';
+import { tenantIdOf } from '../billing/tenant-id.js';
 import { actorFromRequest, actorTagOf } from '../core/web-audit.js';
-import { codedError } from '../errors/coded-error.js';
 import { SubscriberService } from '../subscriber/subscriber.service.js';
 import { ChangeBillingDetailsDto } from './dto/change-billing-details.dto.js';
 
@@ -79,7 +68,9 @@ export class TenantBillingDetailsController {
 
     @Get()
     async current(@Req() request: unknown): Promise<{ details: TenantBillingDetailsView }> {
-        const subscriber = await this.subscribers.requireForTenant(this.tenantOf(request));
+        const subscriber = await this.subscribers.requireForTenant(
+            tenantIdOf(this.tenantIdResolver, request),
+        );
         return { details: await this.viewOf(subscriber) };
     }
 
@@ -89,7 +80,7 @@ export class TenantBillingDetailsController {
         @Body() body: ChangeBillingDetailsDto,
     ): Promise<{ details: TenantBillingDetailsView }> {
         const subscriber = await this.subscribers.changeContactOfTenant(
-            this.tenantOf(request),
+            tenantIdOf(this.tenantIdResolver, request),
             body,
             this.actorOf(request),
         );
@@ -127,12 +118,5 @@ export class TenantBillingDetailsController {
                 TENANT_SELF_SERVICE_CONTEXT,
             ),
         );
-    }
-
-    private tenantOf(request: unknown): string {
-        const tenantId = this.tenantIdResolver(request);
-        if (!tenantId)
-            throw new NotFoundException(codedError(AUTH_ERROR_CODES.TENANT_CONTEXT_MISSING));
-        return tenantId;
     }
 }

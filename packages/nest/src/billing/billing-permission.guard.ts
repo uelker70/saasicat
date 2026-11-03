@@ -14,14 +14,14 @@ import { BILLING_PERMISSION_GUARDS_TOKEN, type AuthGuardList } from './tenant-bi
 
 /**
  * The billing permission: who of a tenant's users may see and change what the
- * subscriber pays with — and, as they arrive, its invoices and its account.
- * The plan, the usage and a change's preview are not behind it.
+ * subscriber pays with, whom it is billed to, and its invoices and contract
+ * confirmations. The plan, the usage and a change's preview are not behind it.
  *
  * The application decides who holds it by passing guards
- * (`payments.billingPermissionGuards`), so a role such as accounting can hold
- * it without being the tenant's administrator. Without guards the tenant's
- * administrator holds it. Runs after the tenant's authentication guards, so a
- * user is on the request.
+ * (`tenantBilling.billingPermissionGuards`), so a role such as accounting can
+ * hold it without being the tenant's administrator. Without guards the
+ * tenant's administrator holds it. Runs after the tenant's authentication
+ * guards, so a user is on the request.
  */
 @Injectable()
 export class BillingPermissionGuard implements CanActivate {

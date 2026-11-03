@@ -1478,7 +1478,8 @@ reference a gateway can charge, so each subscriber gives its payment method agai
   sees it, and is logged rather than audited.
 - **The tenant's plan page** shows the payment method in use to whoever holds the billing
   permission, and `GET`/`POST /billing/payment-method` require it: the tenant's administrator,
-  unless `payments.billingPermissionGuards` names others.
+  unless `tenantBilling.billingPermissionGuards` names others (it was `payments.billingPermissionGuards`
+  until the invoices joined the billing area; see "A tenant reads its invoices").
 
 **One refusal that needs nothing from you to arrive.** A start refuses when a payment method in use
 is held at a gateway account `config/saas.yaml#payments.accounts` no longer names — and until 1.0
@@ -2658,6 +2659,23 @@ the subscriber and leads into its record.
   `neverInForce`, `plan`, `bundles`, `minimumTermUntil` and `change`; a fixture of your own that
   builds one adds them. An application that overrides the `contracts` texts finds the old table's
   `column…` entries gone and the timeline's and the dossier's beside the rest.
+
+### A tenant reads its invoices
+
+The tenant's routes gain `GET /billing/invoices` (fifty a page, the newest first, `?after=`),
+`GET /billing/invoices/:id/document`, `GET /billing/contracts` and
+`GET /billing/contracts/:id/confirmation`, mounted where invoices are issued, behind the tenant's
+authentication and the billing permission. They list every invoice of the session's tenant's
+subscriber, an earlier tenant's joined into it included (`SC-PRIC-097`), and answer another
+subscriber's invoice or contract `404`.
+
+- **`payments.billingPermissionGuards` moved to `tenantBilling.billingPermissionGuards`.** The
+  permission governs the whole billing area, and invoices are issued without a payment gateway.
+  The start refuses the old key with a sentence saying where it went; move the guards and delete
+  them under `payments`.
+- **Under row-level security**, these reads run inside `RlsBypassPort`, by the subscriber's id: an
+  earlier tenant's invoices keep that tenant's id after a join (`SC-SEC-018`). Nothing to wire
+  where the port is bound.
 
 ### Each invoice in the record says where its payment stands
 

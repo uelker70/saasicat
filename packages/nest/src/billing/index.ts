@@ -221,6 +221,11 @@ export {
     type SubscriberReconciliationModuleOptions,
 } from './invoices/subscriber-reconciliation.module.js';
 export { OpenItemsService } from './invoices/open-items.service.js';
+export { TenantInvoiceService } from './invoices/tenant-invoice.service.js';
+export {
+    TenantInvoiceListQuery,
+    TenantInvoicesController,
+} from './invoices/tenant-invoices.controller.js';
 export {
     OpenCreditsQueryDto,
     OpenInvoicesQueryDto,

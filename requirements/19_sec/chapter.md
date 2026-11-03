@@ -63,32 +63,12 @@ _Tested by:_
 
 ### SC-SEC-003 — Reads that legitimately cross tenants are named as the exceptions they are
 
-🟢 🔒 Platform-wide counts an operator needs are the documented exception; everything else is scoped.
+🔵 _(Superseded on 2026-11-03 by `SC-SEC-018`.)_ 🔒 Platform-wide counts an operator needs are the
+documented exception; everything else is scoped.
 Administration acts on behalf of the platform rather than of a tenant, which is why they are the
 only reads that step outside a tenant's boundary.
 
 _Source:_ `docs/explanation/data-model.md`
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/an-operator-counts-past-the-tenant-policy.test.js`
-    - a plan version subscribers are on, behind a tenant policy
-        - stays locked against editing
-        - is listed with the subscribers the policy hides from the request
-    - an add-on version tenants have booked, behind a tenant policy
-        - stays locked against editing
-    - the operator's figures, behind a tenant policy
-        - the plan list counts the tenants on each plan
-        - the dashboard reads subscriptions, promo codes and the audit trail
-- `packages/nest/tests/maintenance-is-wired-where-it-is-turned-on.test.js`
-    - the platform’s own scheduled jobs
-        - the promotional code sweep runs under the RLS bypass, every step of it
-- `packages/nest/tests/pending-plan-materialization.test.js`
-    - the run reads and writes every tenant's change inside the bypass
-
-<!-- END proof -->
 
 ### SC-SEC-014 — A payment method's reference belongs to exactly one subscriber
 
@@ -98,7 +78,7 @@ by its reference is asking whether a named subscriber holds it, and another subs
 that it holds none rather than with the row; a confirmation carrying a reference another subscriber
 holds is refused, rather than recorded or answered as a repeat of a payment method that is not this
 subscriber's. Both are reached on the gateway's callback, which arrives without a session, so an
-installation that keeps its tenants apart with a policy lifts that policy there (`SC-SEC-003`) and
+installation that keeps its tenants apart with a policy lifts that policy there (`SC-SEC-018`) and
 what the question names is all that is left to bound it. Where a provider issues one reference for
 two payers, the second subscriber's confirmation is refused rather than mixed into the first's
 (`SC-PRIC-030`): taking it needs an account of its own.
@@ -147,6 +127,9 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
     - every route of the billing details is behind authentication and the permission, reading
       included
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - every route of the invoices and confirmations is behind authentication and the permission,
+      reading included
 - `packages/nest/tests/public-route.test.js`
     - SaaSiCat public route metadata
         - ${controller.name} is recognized by global auth guards
@@ -478,7 +461,7 @@ _Tested by:_
 row-level-security bypass, so an operator's lists and counts are not empty under a tenant's policy.
 Every other route — a tenant's, a public one — runs in whatever frame the installation opened for the
 request. The frame follows from the guard chain rather than from a list of routes, and the check that
-the administrator is calling runs before it opens. This is the exception `SC-SEC-003` names. A chain
+the administrator is calling runs before it opens. This is the exception `SC-SEC-018` names. A chain
 an integrator sets for a module the platform mounts frames its routes where it holds `SuperAdminGuard`,
 and a route an integrator builds itself chooses its frame with `AdminBypassRlsInterceptor`.
 
@@ -584,5 +567,60 @@ _Tested by:_
         - lands under a name of its own, and a directory named like one is not taken
     - a notice
         - is told by the file’s own name, whatever the directories on the way are called
+
+<!-- END proof -->
+
+### SC-SEC-018 — Reads that cross tenants are named, and a tenant's reaches only its own subscriber
+
+🟢 🔒 Everything is scoped to a tenant except the reads named here. The operator's administration
+acts on behalf of the platform rather than of a tenant, the platform-wide counts it needs included.
+The platform's own work that serves no single tenant reads across them too: a scheduled run, and a
+gateway's callback, which arrives without a session (`SC-SEC-014`). A tenant's own read crosses only
+to the invoices and contract confirmations of its subscriber, which reach the tenants joined into it
+(`SC-ADM-027`), as their invoices keep the tenant they were issued for. That read is by the
+subscriber the session's tenant belongs to, never one the request names; every document it hands
+out is checked against that subscriber first, and another subscriber's invoice or contract is
+answered as one that does not exist.
+
+_Source:_ `docs/explanation/data-model.md` · #336 (decided 2026-11-02)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - a tenant's invoices
+        - are its subscriber’s, the newest first, each as the list shows it
+        - include those of an earlier tenant joined into the subscriber, read past the tenant policy
+        - come fifty a page, the next after the last of the one before
+        - after an invoice the subscriber does not have, are none rather than the first page again
+        - of a tenant without a subscriber are none
+        - say which document is not archived yet, and list it all the same
+    - an invoice's document
+        - of the subscriber’s own invoice is the archived file
+        - of an earlier tenant joined into the subscriber is the archived file too
+        - ${why} is not found, and nothing is read from the archive
+    - a tenant's contract confirmations
+        - are those of its subscriber that are confirmed, with the installation’s day
+        - download as the archived file for the subscriber’s own contract
+        - of another subscriber's contract is not found, and nothing is read from the archive
+    - the routes
+        - serve the tenant of the session, and refuse a request that carries none
+        - hand a document out as an attachment under its archived name
+        - take an invoice to page after only as an id of bounded length
+- `packages/nest/tests/an-operator-counts-past-the-tenant-policy.test.js`
+    - a plan version subscribers are on, behind a tenant policy
+        - stays locked against editing
+        - is listed with the subscribers the policy hides from the request
+    - an add-on version tenants have booked, behind a tenant policy
+        - stays locked against editing
+    - the operator's figures, behind a tenant policy
+        - the plan list counts the tenants on each plan
+        - the dashboard reads subscriptions, promo codes and the audit trail
+- `packages/nest/tests/maintenance-is-wired-where-it-is-turned-on.test.js`
+    - the platform’s own scheduled jobs
+        - the promotional code sweep runs under the RLS bypass, every step of it
+- `packages/nest/tests/pending-plan-materialization.test.js`
+    - the run reads and writes every tenant's change inside the bypass
 
 <!-- END proof -->

@@ -7700,7 +7700,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        // @requirement SC-PRIC-096
+        // @requirement SC-PRIC-097
         // @requirement SC-PRIC-072
         test('a charge stands on one invoice: a second one naming it is refused and draws no number', async (t) => {
             const account = await anInvoiceAccount(t, 'tenant-invoice-once');
@@ -7720,7 +7720,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal((await invoices.issue(invoiceOf([march!]))).number, 'EX-2026-000002');
         });
 
-        // @requirement SC-PRIC-096
+        // @requirement SC-PRIC-097
         test('two invoices naming the same charge at the same time: one is issued', async (t) => {
             const account = await anInvoiceAccount(t, 'tenant-invoice-once-race');
             if (!account) return;
@@ -7757,7 +7757,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal((await invoices.issue(invoiceOf([february!]))).number, 'EX-2026-000001');
         });
 
-        // @requirement SC-PRIC-096
+        // @requirement SC-PRIC-097
         test('the charges left to invoice are those on no invoice', async (t) => {
             const account = await anInvoiceAccount(t, 'tenant-invoice-left');
             if (!account) return;
@@ -7783,7 +7783,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        // @requirement SC-PRIC-096
+        // @requirement SC-PRIC-097
         test('a correction is never left to invoice: only the cancellation that wrote it does', async (t) => {
             const account = await anInvoiceAccount(t, 'tenant-invoice-correction');
             if (!account) return;
