@@ -91,12 +91,14 @@ const USAGE = {
 
 /**
  * A server holding `bookings`, answering a POST to `endsWith` with `answer` —
- * and recording what was asked.
+ * and recording what was asked. `subscription` is what the subscription says
+ * beside its plan, such as whether the reader may change it.
  */
 export function aServer(
     bookings: () => unknown[],
     endsWith: string,
     answer: () => { status: number; body: unknown },
+    subscription: { mayChange?: boolean } = {},
 ): HttpClient & { asked: string[] } {
     const asked: string[] = [];
     const client = async (url: string, init?: { method?: string; body?: string }) => {
@@ -107,7 +109,7 @@ export function aServer(
         }
         if (url.endsWith('/subscription-bundles')) return reply(200, bookings());
         if (url.endsWith('/bundles')) return reply(200, [REPORTS]);
-        if (url.endsWith('/usage')) return reply(200, USAGE);
+        if (url.endsWith('/usage')) return reply(200, { ...USAGE, ...subscription });
         return reply(200, []);
     };
     return Object.assign(client, { asked }) as HttpClient & { asked: string[] };

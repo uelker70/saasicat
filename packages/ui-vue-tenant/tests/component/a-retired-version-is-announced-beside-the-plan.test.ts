@@ -98,8 +98,12 @@ function aSubscription(
         retirement,
         retirementSwitch,
         checkoutOfferId: null,
+        ...reader,
     });
 }
+
+/** What the subscription says of its reader; nothing, as an older server, unless a case sets it. */
+let reader: { mayChange?: boolean } = {};
 
 /** Every switch the page asked for, by the body it sent. */
 const switches: unknown[] = [];
@@ -139,6 +143,7 @@ afterEach(() => {
     document.body.innerHTML = '';
     switches.splice(0);
     switchRefusal = null;
+    reader = {};
 });
 
 async function aSection(
@@ -293,5 +298,34 @@ describe('the switch to the replacement, before the date', () => {
         expect([...alert.querySelectorAll('li')].map((li) => li.textContent!.trim())).toEqual([
             'Aktuelle Nutzung 6 überschreitet das Ziel-Limit 5 (users) im Paket Standard. Bitte zuerst die Nutzung reduzieren.',
         ]);
+    });
+});
+
+// @requirement SC-ADM-026
+describe('a retired version, read by a user who may not change the subscription', () => {
+    test('is told, with neither the switch nor a cancellation offered, and why', async () => {
+        reader = { mayChange: false };
+        const wrapper = await aSection(RETIREMENT, HELD);
+
+        expect(card()?.textContent).toContain('Version 1 Ihres Pakets wird eingestellt');
+        expect(
+            buttonNamed(wrapper, i18n.versionRetiredSwitch),
+            'a way on to a refusal',
+        ).toBeUndefined();
+        expect(buttonNamed(wrapper, i18n.cancelSubscriptionButton)).toBeUndefined();
+        expect(
+            buttonNamed(wrapper, i18n.changePlanButton),
+            'the change, which has its preview',
+        ).toBeTruthy();
+        expect(wrapper.text()).toContain(i18n.subscriptionChangesByAdministration);
+    });
+
+    test('read by the administrator, offers both and says nothing of the administration', async () => {
+        reader = { mayChange: true };
+        const wrapper = await aSection(RETIREMENT, HELD);
+
+        expect(buttonNamed(wrapper, i18n.versionRetiredSwitch)).toBeTruthy();
+        expect(buttonNamed(wrapper, i18n.cancelSubscriptionButton)).toBeTruthy();
+        expect(wrapper.text()).not.toContain(i18n.subscriptionChangesByAdministration);
     });
 });

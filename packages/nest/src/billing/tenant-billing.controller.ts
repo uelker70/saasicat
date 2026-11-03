@@ -188,6 +188,13 @@ interface UsageMomentsAnswer {
     packageSnapshot: unknown;
     /** P11.4: Optional reference to the originating CheckoutOffer. */
     checkoutOfferId: string | null;
+    /**
+     * Whether the reader may change what the tenant pays — the plan, the
+     * add-ons and the versions they are on (`SC-ADM-026`), by the rule
+     * `TenantAdminGuard` refuses by. The page reads it once, for the actions
+     * that have no preview to say it.
+     */
+    mayChange: boolean;
 }
 
 /**
@@ -396,6 +403,7 @@ export class TenantBillingController {
             usage,
             packageSnapshot: sub.packageSnapshot ?? null,
             checkoutOfferId: sub.checkoutOfferId ?? null,
+            mayChange: mayChangeWhatTheTenantPays(req),
         };
         return withUsageDays(answer, this.zone());
     }

@@ -37,6 +37,10 @@
             <p v-if="offerReadError" class="sp-plan-section__warn" role="alert">
                 {{ offerReadError }}
             </p>
+            <!-- Once, for every action below that is left out for this reader. -->
+            <p v-if="!mayChangeSubscription" class="sp-plan-section__info" role="note">
+                {{ effectiveI18n.subscriptionChangesByAdministration }}
+            </p>
 
             <!-- The version the tenant is on is being retired, and what follows. -->
             <VersionRetiredCard
@@ -318,6 +322,7 @@
 import { computed, ref, watch } from 'vue';
 import { provideTenantI18n } from './tenant-i18n.js';
 import { provideWithdrawnFeatures } from './withdrawn-features.js';
+import { provideMayChangeSubscription } from './may-change-subscription.js';
 import PackageSnapshotPanel from './PackageSnapshotPanel.vue';
 import PlanChangeWizard from './PlanChangeWizard.vue';
 import {
@@ -509,6 +514,7 @@ provideWithdrawnFeatures(
     () => catalog.featureRegistry.value,
     (iso) => props.formatDate(iso),
 );
+const mayChangeSubscription = provideMayChangeSubscription(() => usage.value?.mayChange);
 
 const catalogQuotaKeys = computed(() => {
     // Ordered union over all plans + effective limits: higher tiers
@@ -1133,6 +1139,11 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', planVersion
    further out is worth a second look. */
 .sp-plan-section__canceled {
     margin: var(--sa-space-2) 0 0;
+    color: var(--sa-color-fg-secondary);
+    font-size: var(--sa-text-sm);
+}
+.sp-plan-section__info {
+    margin: 0;
     color: var(--sa-color-fg-secondary);
     font-size: var(--sa-text-sm);
 }

@@ -281,3 +281,41 @@ describe('useTenantSubscriptionBundles', () => {
         assert.equal(view.loading.value, false);
     });
 });
+
+// @requirement SC-ADM-026
+describe('whether the reader may book, cancel or switch an add-on', () => {
+    test('is asked of the subscription, and true until it is answered', async () => {
+        const { http, calls } = httpReturning({ body: { plan: 'PRO', mayChange: false } });
+        const view = bundles({ http });
+        assert.equal(view.mayChange.value, true);
+
+        await view.readMayChange();
+
+        assert.deepEqual(
+            calls.map(({ url, init }) => [init?.method ?? 'GET', url]),
+            [['GET', '/api/v1/billing/usage']],
+        );
+        assert.equal(view.mayChange.value, false);
+    });
+
+    test('is true where the server says so', async () => {
+        const view = bundles({ http: httpReturning({ body: { mayChange: true } }).http });
+        await view.readMayChange();
+        assert.equal(view.mayChange.value, true);
+    });
+
+    test('is true where the server does not say, as one that predates it', async () => {
+        const view = bundles({ http: httpReturning({ body: { plan: 'PRO' } }).http });
+        await view.readMayChange();
+        assert.equal(view.mayChange.value, true);
+    });
+
+    test('is true where the read fails, and the failure does not reach the caller', async () => {
+        for (const status of [403, 404, 500]) {
+            const view = bundles({ http: httpReturning({ status, body: null }).http });
+            await view.readMayChange();
+            assert.equal(view.mayChange.value, true, `after ${status}`);
+            assert.equal(view.error.value, null, `after ${status}`);
+        }
+    });
+});

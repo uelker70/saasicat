@@ -308,3 +308,21 @@ describe('who may make a change, as its preview says', () => {
         assert.deepEqual(preview.effectiveDays, AROUND_MIDNIGHT);
     });
 });
+
+// @requirement SC-ADM-026
+describe('who may make a change, as the subscription says', () => {
+    // For the actions that have no preview to say it: cancelling, taking a
+    // newer version, switching away from a retired one.
+    test('the administrator may', async () => {
+        const admin = { ...REQ, user: { ...REQ.user, role: 'TENANT_ADMIN' } };
+        assert.equal((await routeIn(BERLIN).getUsage(admin)).mayChange, true);
+    });
+
+    test('another user of the tenant reads the subscription, and may not', async () => {
+        const member = { ...REQ, user: { ...REQ.user, role: 'TENANT_USER' } };
+        const usage = await routeIn(BERLIN).getUsage(member);
+
+        assert.equal(usage.mayChange, false);
+        assert.deepEqual(usage.currentPeriodEndDays, AROUND_MIDNIGHT);
+    });
+});

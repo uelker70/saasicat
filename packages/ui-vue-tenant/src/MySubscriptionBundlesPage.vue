@@ -5,7 +5,12 @@
                 <h2 class="msb-title">{{ effectiveI18n.myBundlesTitle }}</h2>
                 <p class="msb-sub">{{ effectiveI18n.myBundlesSubtitle }}</p>
             </div>
-            <TenantButton variant="solid" tone="accent" @click="openAddDialog">
+            <TenantButton
+                v-if="mayChangeSubscription"
+                variant="solid"
+                tone="accent"
+                @click="openAddDialog"
+            >
                 <svg
                     width="14"
                     height="14"
@@ -26,6 +31,9 @@
         </div>
         <div v-if="switchError" class="msb-error" role="alert">{{ switchError }}</div>
         <p v-if="switchNote" class="msb-note" role="status">{{ switchNote }}</p>
+        <p v-if="!mayChangeSubscription" class="msb-note" role="note">
+            {{ effectiveI18n.subscriptionChangesByAdministration }}
+        </p>
 
         <!-- A feature a booking grants is withdrawn, and what may end at once. -->
         <FeatureWithdrawnNotices
@@ -41,11 +49,14 @@
         </div>
 
         <div v-else-if="bundles.length === 0" class="msb-empty">
-            {{ effectiveI18n.myBundlesEmptyPrefix }}
-            <TenantButton variant="quiet" tone="accent" @click="openAddDialog">
-                {{ effectiveI18n.bundleBookAction }}
-            </TenantButton>
-            {{ effectiveI18n.myBundlesEmptySuffix }}
+            <template v-if="mayChangeSubscription">
+                {{ effectiveI18n.myBundlesEmptyPrefix }}
+                <TenantButton variant="quiet" tone="accent" @click="openAddDialog">
+                    {{ effectiveI18n.bundleBookAction }}
+                </TenantButton>
+                {{ effectiveI18n.myBundlesEmptySuffix }}
+            </template>
+            <template v-else>{{ effectiveI18n.myBundlesEmpty }}</template>
         </div>
 
         <div v-else class="msb-list">
@@ -68,7 +79,7 @@
                         </div>
                     </div>
                     <TenantButton
-                        v-if="b.canceledAt === null"
+                        v-if="b.canceledAt === null && mayChangeSubscription"
                         tone="danger"
                         :loading="cancellingId === b.id"
                         @click="onCancel(b)"
@@ -242,6 +253,7 @@ import VersionOfferCard from './tenant-plan-section/VersionOfferCard.vue';
 import TenantButton from './ui/TenantButton.vue';
 import TenantDialog from './ui/TenantDialog.vue';
 import { provideWithdrawnFeatures } from './withdrawn-features.js';
+import { provideMayChangeSubscription } from './may-change-subscription.js';
 
 // MySubscriptionBundlesPage — tenant self-service page "Meine Bundles".
 // The hosting app embeds the page
@@ -335,13 +347,27 @@ const effectiveI18n = computed<TenantPlanSectionI18n>(() => ({
     ...props.i18n,
 }));
 
-const { bundles, loading, error, load, add, cancel, switchToReplacement, acceptVersionOffer } =
-    useTenantSubscriptionBundles({
-        billingEndpoint: props.billingEndpoint,
-        http: props.http,
-    });
+const {
+    bundles,
+    loading,
+    error,
+    mayChange,
+    load,
+    readMayChange,
+    add,
+    cancel,
+    switchToReplacement,
+    acceptVersionOffer,
+} = useTenantSubscriptionBundles({
+    billingEndpoint: props.billingEndpoint,
+    http: props.http,
+});
+const mayChangeSubscription = provideMayChangeSubscription(() => mayChange.value);
 
-onMounted(() => load());
+onMounted(() => {
+    void load();
+    void readMayChange();
+});
 
 // ─── Add dialog ─────────────────────────────────────────────
 const addOpen = ref(false);

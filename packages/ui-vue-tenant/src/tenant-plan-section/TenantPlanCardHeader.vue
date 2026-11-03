@@ -78,7 +78,7 @@
                 {{ i18n.changePlanButton }}
             </TenantButton>
             <TenantButton
-                v-if="!landsAt"
+                v-if="!landsAt && mayChange"
                 variant="quiet"
                 tone="neutral"
                 @click="emit('cancelSubscription')"
@@ -94,6 +94,7 @@ import type { UsageSnapshotShape } from '@saasicat/ui-vue';
 import { computed } from 'vue';
 
 import { useTenantI18n } from '../tenant-i18n.js';
+import { useMayChangeSubscription } from '../may-change-subscription.js';
 import type { BadgeTone } from '../ui/badge-tone.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantCardSection from '../ui/TenantCardSection.vue';
@@ -103,6 +104,7 @@ import { useSubscriptionHasEnded } from '../use-subscription-ended.js';
 import '../ui/tenant-ui.css';
 
 const i18n = useTenantI18n();
+const mayChange = useMayChangeSubscription();
 
 const props = defineProps<{
     usage: UsageSnapshotShape;

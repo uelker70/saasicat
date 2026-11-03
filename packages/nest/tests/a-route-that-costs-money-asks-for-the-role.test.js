@@ -52,7 +52,11 @@ function tenantControllers() {
     return [...exported, buildTenantSubscriptionBundlesController()];
 }
 
-/** Every handler of every tenant controller, with what guards it. */
+/**
+ * Every handler of every tenant controller, with what guards it. Nest runs a
+ * class's guards and then the handler's, so a route is guarded by both:
+ * `guards` holds the two together, `ownGuards` the handler's alone.
+ */
 function routes() {
     return tenantControllers().flatMap((controller) => {
         const classGuards = Reflect.getMetadata(GUARDS, controller) ?? [];
@@ -63,12 +67,14 @@ function routes() {
             const method = Reflect.getMetadata(ROUTE_METHOD, handler);
             if (method === undefined) return [];
             const path = String(Reflect.getMetadata(ROUTE_PATH, handler));
+            const ownGuards = Reflect.getMetadata(GUARDS, handler) ?? [];
             return [
                 {
                     route: `${controller.name}.${name}`,
                     method,
                     path,
-                    guards: Reflect.getMetadata(GUARDS, handler) ?? [],
+                    guards: [...classGuards, ...ownGuards],
+                    ownGuards,
                     billingArea: classGuards.includes(BillingPermissionGuard),
                 },
             ];
@@ -122,14 +128,21 @@ describe('who of a tenant may do what', () => {
         }
     });
 
-    test('the billing area asks for the billing permission on every route, reading included', () => {
+    test('the billing area asks for the billing permission and nothing beside it, reading included', () => {
+        // A handler's guards run after its class's rather than instead of
+        // them, so one added here narrows the area from whoever holds the
+        // permission to whoever also passes the added guard.
         const billingArea = all.filter((route) => route.billingArea);
         assert.ok(billingArea.length >= 8, `only ${billingArea.length} billing routes found`);
         for (const route of billingArea) {
             assert.equal(
-                route.guards.length,
+                route.ownGuards.length,
                 0,
-                `${route.route} replaces the class guards with its own`,
+                `${route.route} adds guards of its own on top of the billing permission`,
+            );
+            assert.ok(
+                !route.guards.includes(TenantAdminGuard),
+                `${route.route} asks for the administrator's role beside the billing permission`,
             );
         }
     });

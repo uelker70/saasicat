@@ -474,3 +474,28 @@ describe('taking it', () => {
         expect(card()).not.toBeNull();
     });
 });
+
+// @requirement SC-ADM-026
+describe('the offer beside the plan, read by a user who may not take it', () => {
+    test('shows what is offered, and no way to take it', async () => {
+        await aSection(aServer({ offer: IMPROVEMENT, subscription: { mayChange: false } }));
+
+        expect(card()).not.toBeNull();
+        expect(
+            card()!.querySelector('.sp-version-offer__actions'),
+            'a way on to a refusal',
+        ).toBeNull();
+        expect(document.body.textContent).toContain(
+            DEFAULT_I18N_DE.subscriptionChangesByAdministration,
+        );
+    });
+
+    test('read by the administrator, offers to take it', async () => {
+        await aSection(aServer({ offer: IMPROVEMENT, subscription: { mayChange: true } }));
+
+        expect(takeButton()).toBeTruthy();
+        expect(document.body.textContent).not.toContain(
+            DEFAULT_I18N_DE.subscriptionChangesByAdministration,
+        );
+    });
+});

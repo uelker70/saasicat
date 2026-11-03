@@ -706,8 +706,10 @@ and of an end at once (`GET /billing/feature-withdrawals/:id/end` and
 cancellation, an end at once — is the tenant's administrator's, whose `platformRole`, or `role` where
 that is absent, is `TENANT_ADMIN` or `SUPER_ADMIN`; anyone else is refused `403` with
 `TENANT_ADMIN_REQUIRED`. The previews answer by the same rule whether their reader may make the
-change, `mayChange` on a plan change's and `mayEnd` on an end at once's, and the tenant's screens
-stop at the preview where it is `false`. The billing area — the invoices, the contract
+change, `mayChange` on a plan change's and an add-on's and `mayEnd` on an end at once's, and the
+tenant's screens stop at the preview where it is `false`. `GET /billing/usage` answers `mayChange`
+too, for the changes that have no preview; the screens leave those out for whoever may not make
+them. The billing area — the invoices, the contract
 confirmations, the payment method and the billing details — is whoever's who holds the billing
 permission, reading and changing alike.
 

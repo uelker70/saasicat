@@ -36,7 +36,7 @@
                                 {{ i18n.bundleCancelAction }}
                             </TenantButton>
                             <TenantButton
-                                v-else
+                                v-else-if="mayChange"
                                 variant="quiet"
                                 tone="accent"
                                 :loading="reactivatingId === row.id"
@@ -192,6 +192,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useTenantI18n } from '../tenant-i18n.js';
+import { useMayChangeSubscription } from '../may-change-subscription.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantCard from '../ui/TenantCard.vue';
 import TenantCardSection from '../ui/TenantCardSection.vue';
@@ -218,6 +219,7 @@ import WithdrawnFeatureMark from '../WithdrawnFeatureMark.vue';
 // catalog via `bundleVersionId`.
 
 const i18n = useTenantI18n();
+const mayChange = useMayChangeSubscription();
 
 const props = defineProps<{
     /** Booked SubscriptionBundles (incl. canceled). */

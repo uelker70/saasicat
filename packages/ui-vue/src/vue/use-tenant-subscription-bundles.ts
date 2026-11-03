@@ -48,8 +48,21 @@ export interface UseTenantSubscriptionBundlesResult {
     bundles: Ref<TenantSubscriptionBundle[]>;
     loading: Ref<boolean>;
     error: Ref<Error | null>;
+    /**
+     * Whether the reader may book, cancel or switch an add-on (`SC-ADM-026`),
+     * as `readMayChange()` read it. True until the server says otherwise.
+     */
+    mayChange: Ref<boolean>;
 
     load: () => Promise<void>;
+    /**
+     * Reads whether the reader may make a change, which `GET /billing/usage`
+     * answers beside the subscription. Where it does not say — a server that
+     * predates it, or a read that failed — `mayChange` stays true: the actions
+     * are offered as before, and a reader who may not make a change meets the
+     * refusal where the change is served. Never rejects.
+     */
+    readMayChange: () => Promise<void>;
     add: (data: {
         bundleVersionId: string;
         minimumTermMonths?: number;
@@ -113,6 +126,7 @@ export function useTenantSubscriptionBundles(
     const bundles = ref<TenantSubscriptionBundle[]>([]);
     const loading = ref(false);
     const error = ref<Error | null>(null);
+    const mayChange = ref(true);
 
     function authHeaders(): Record<string, string> {
         return {};
@@ -157,6 +171,24 @@ export function useTenantSubscriptionBundles(
         } finally {
             loading.value = false;
         }
+    }
+
+    async function readMayChange(): Promise<void> {
+        let usage: unknown;
+        try {
+            usage = await fetchJson<unknown>(`${options.billingEndpoint}/billing/usage`);
+        } catch {
+            // Handled by keeping the actions offered: the answer only decides
+            // whether they are shown, and the server refuses whoever may not.
+            mayChange.value = true;
+            return;
+        }
+        mayChange.value = !(
+            typeof usage === 'object' &&
+            usage !== null &&
+            'mayChange' in usage &&
+            usage.mayChange === false
+        );
     }
 
     async function add(data: {
@@ -239,7 +271,9 @@ export function useTenantSubscriptionBundles(
         bundles,
         loading,
         error,
+        mayChange,
         load,
+        readMayChange,
         add,
         cancel,
         switchToReplacement,

@@ -160,6 +160,10 @@ export interface TenantPlanSectionI18n {
     bundlePreviewConfirmCancel: string;
     bundlePreviewInProgress: string;
     bundlePreviewClose: string;
+    /** Instead of the confirmation, where the reader may not book or cancel an add-on (`SC-ADM-026`). */
+    bundlePreviewByAdministration: string;
+    /** Once, where the actions that change the subscription are left out for the reader (`SC-ADM-026`). */
+    subscriptionChangesByAdministration: string;
     /** The offer's heading; `{version}` is the version offered. */
     versionOfferTitle: string;
     versionOfferKindImprovement: string;
@@ -323,6 +327,8 @@ export interface TenantPlanSectionI18n {
     /** Tenant self-service page "Meine Bundles" (MySubscriptionBundlesPage). */
     myBundlesTitle: string;
     myBundlesSubtitle: string;
+    /** The empty list, where the reader may not book (`SC-ADM-026`). */
+    myBundlesEmpty: string;
     myBundlesEmptyPrefix: string;
     myBundlesEmptySuffix: string;
     myBundlesBookedSince: string;
@@ -617,6 +623,9 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     bundlePreviewConfirmCancel: 'Kündigung bestätigen',
     bundlePreviewInProgress: 'Wird ausgeführt …',
     bundlePreviewClose: 'Abbrechen',
+    bundlePreviewByAdministration: 'Diese Änderung nimmt die Administration Ihres Kontos vor.',
+    subscriptionChangesByAdministration:
+        'Änderungen am Abonnement nimmt die Administration Ihres Kontos vor.',
     versionOfferTitle: 'Version {version} Ihres Pakets',
     versionOfferKindImprovement: 'Verbesserung',
     versionOfferKindMoreForMore: 'Mehr Leistung, höherer Preis',
@@ -765,6 +774,7 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     myBundlesTitle: 'Meine Bundles',
     myBundlesSubtitle:
         'Eigenständig gebuchte Add-On-Pakete zu Ihrem Plan. Mindestlaufzeit + Kündigungs- Termin pro Bundle.',
+    myBundlesEmpty: 'Sie haben noch kein Bundle gebucht.',
     myBundlesEmptyPrefix: 'Sie haben noch kein Bundle gebucht. Über',
     myBundlesEmptySuffix: 'können Sie Ihr Paket um zusätzliche Features & Quotas erweitern.',
     myBundlesBookedSince: 'Gebucht seit',
@@ -1011,6 +1021,9 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     bundlePreviewConfirmCancel: 'Confirm cancellation',
     bundlePreviewInProgress: 'Processing …',
     bundlePreviewClose: 'Cancel',
+    bundlePreviewByAdministration: "This change is made by your account's administration.",
+    subscriptionChangesByAdministration:
+        "Changes to the subscription are made by your account's administration.",
     versionOfferTitle: 'Version {version} of your plan',
     versionOfferKindImprovement: 'Improvement',
     versionOfferKindMoreForMore: 'More for more',
@@ -1158,6 +1171,7 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     myBundlesTitle: 'My bundles',
     myBundlesSubtitle:
         'Add-on packages booked independently on top of your plan. Minimum term + cancellation date per bundle.',
+    myBundlesEmpty: 'You have not booked a bundle yet.',
     myBundlesEmptyPrefix: 'You have not booked a bundle yet. Use',
     myBundlesEmptySuffix: 'to extend your plan with additional features & quotas.',
     myBundlesBookedSince: 'Booked since',

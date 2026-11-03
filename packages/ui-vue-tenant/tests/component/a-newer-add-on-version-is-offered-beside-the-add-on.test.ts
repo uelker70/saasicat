@@ -368,3 +368,44 @@ describe('taking a newer add-on version', () => {
         expect(wrapper.text()).toContain('runs on version 2 now.');
     });
 });
+
+// @requirement SC-ADM-026
+describe('a newer add-on version, read by a user who may not take it', () => {
+    async function aSectionReadBy(mayChange: boolean) {
+        const wrapper = mount(TenantPlanSection, {
+            attachTo: document.body,
+            props: {
+                http: aServer(
+                    () => [seatsV1({ offer: MORE_FOR_MORE })],
+                    '/version-offer/accept',
+                    () => ({ status: 500, body: null }),
+                    { mayChange },
+                ),
+                formatCurrency: (value: number) => `€ ${value.toFixed(2)}`,
+                formatDate: (value: string | Date) => String(value).slice(0, 10),
+                showBundleStore: true,
+            },
+        });
+        // SAFETY: `mount` types a wrapper by its component's props; the list
+        // holds wrappers of any component and only ever unmounts them.
+        mounted.push(wrapper as VueWrapper);
+        await flushPromises();
+        // SAFETY: as above — the helper reads the wrapper's DOM only.
+        return wrapper as VueWrapper;
+    }
+
+    test('shows what is offered beside the booking, and no way to take it', async () => {
+        const wrapper = await aSectionReadBy(false);
+
+        expect(offerCards(wrapper.element)).toHaveLength(1);
+        expect(takeButton(wrapper), 'a way on to a refusal').toBeUndefined();
+        expect(wrapper.text()).toContain(DEFAULT_I18N_EN.subscriptionChangesByAdministration);
+    });
+
+    test('read by the administrator, offers to take it', async () => {
+        const wrapper = await aSectionReadBy(true);
+
+        expect(takeButton(wrapper)).toBeTruthy();
+        expect(wrapper.text()).not.toContain(DEFAULT_I18N_EN.subscriptionChangesByAdministration);
+    });
+});

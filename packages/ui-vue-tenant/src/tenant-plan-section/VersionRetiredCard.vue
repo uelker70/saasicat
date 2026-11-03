@@ -22,7 +22,7 @@
         </p>
         <p class="sp-version-retired__note">{{ i18n.versionRetiredNoAction }}</p>
 
-        <div v-if="switchTerms" class="sp-version-retired__actions">
+        <div v-if="switchTerms && mayChange" class="sp-version-retired__actions">
             <TenantButton variant="solid" tone="accent" :loading="busy" @click="confirming = true">
                 {{ i18n.versionRetiredSwitch }}
             </TenantButton>
@@ -69,6 +69,7 @@ import type {
 } from '@saasicat/core';
 
 import { useTenantI18n } from '../tenant-i18n.js';
+import { useMayChangeSubscription } from '../may-change-subscription.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantDialog from '../ui/TenantDialog.vue';
 import VersionComparison from './VersionComparison.vue';
@@ -96,6 +97,7 @@ const props = defineProps<{
 const emit = defineEmits<{ switch: [planVersionId: string] }>();
 
 const i18n = useTenantI18n();
+const mayChange = useMayChangeSubscription();
 const headingId = useId();
 const confirming = ref(false);
 
