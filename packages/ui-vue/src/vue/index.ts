@@ -43,6 +43,7 @@ export * from './use-tenant-billing.js';
 export * from './use-tenant-payment-method.js';
 export * from './use-tenant-feature-withdrawals.js';
 export * from './use-tenant-billing-details.js';
+export * from './use-tenant-invoices.js';
 export * from './use-subscription-draft.js';
 export * from './use-bulk-publish.js';
 export * from './use-plan-editor.js';

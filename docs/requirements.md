@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 679 entries: 🟢 585 stand today, 🟡 42 decided but not yet delivered, ⚪ 0 drafts,
+Of 679 entries: 🟢 590 stand today, 🟡 37 decided but not yet delivered, ⚪ 0 drafts,
 🔵 47 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -156,16 +156,13 @@ Of 679 entries: 🟢 585 stand today, 🟡 42 decided but not yet delivered, ⚪
 [SC-PRIC-043](#sc-pric-043--a-change-to-a-subscribers-tax-origin-applies-from-its-next-invoice),
 [SC-PRIC-046](#sc-pric-046--an-invoice-states-the-day-it-is-due),
 [SC-PRIC-049](#sc-pric-049--a-subscribers-account-is-shown-to-the-tenants-users-holding-the-billing-permission),
-[SC-PRIC-097](#sc-pric-097--every-charge-is-invoiced-once-and-a-tenant-sees-every-invoice-of-its-subscriber),
 [SC-REG-021](#sc-reg-021--a-payment-confirmation-is-verified-before-anything-is-created-from-it),
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
 [SC-ADM-024](#sc-adm-024--a-suspended-tenants-users-cannot-act-and-a-read-only-tenant-cannot-write),
 [SC-ADM-026](#sc-adm-026--the-administrator-changes-what-the-tenant-pays-billing-needs-the-billing-permission),
-[SC-UI-022](#sc-ui-022--a-tenant-downloads-its-subscriptions-invoices-and-tells-them-from-the-applications),
 [SC-UI-023](#sc-ui-023--a-tenants-invoices-payment-method-and-billing-details-need-the-billing-permission),
-[SC-UI-024](#sc-ui-024--a-tenants-invoice-list-says-what-each-invoice-stands-for),
 [SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
 [SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
@@ -174,9 +171,7 @@ Of 679 entries: 🟢 585 stand today, 🟡 42 decided but not yet delivered, ⚪
 [SC-PRIV-016](#sc-priv-016--erasing-a-tenants-data-or-files-is-refused-unless-exactly-one-tenant-is-named),
 [SC-PRIV-017](#sc-priv-017--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
 [SC-PRIV-018](#sc-priv-018--a-tenants-deletion-can-safely-run-again-and-is-done-only-once-every-store-confirms),
-[SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
-[SC-AUD-014](#sc-aud-014--an-invoice-downloaded-later-is-the-document-that-was-issued-not-a-new-rendering),
-[SC-AUD-016](#sc-aud-016--concluding-or-changing-a-contract-gives-the-subscriber-a-confirmation-to-keep)
+[SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to)
 
 🔵 **Superseded** — [SC-BUN-009](#sc-bun-009--an-add-on-can-be-cancelled-at-any-time-and-ends-with-the-period-it-is-in),
 [SC-BUN-015](#sc-bun-015--ending-with-the-plan-is-not-a-cancellation),
@@ -12456,7 +12451,7 @@ _Tested by:_
 
 ### SC-PRIC-097 — Every charge is invoiced once, and a tenant sees every invoice of its subscriber
 
-🟡 _(Decided, not yet delivered.)_ 💰 Charges are invoiced when they arise: the charges a billing
+🟢 💰 Charges are invoiced when they arise: the charges a billing
 period opens with together, and a charge that arises later in the period, such as a bundle booked
 mid-period (`SC-BUN-003`) or the difference of an immediate upgrade (`SC-CHG-020`), on an invoice of
 its own rather than added to one already issued. A counter-entry is the exception: the cancellation
@@ -19763,13 +19758,33 @@ _Tested by:_
 
 ### SC-UI-022 — A tenant downloads its subscription's invoices and tells them from the application's
 
-🟡 _(Decided, not yet delivered.)_ 💰 A tenant downloads the invoices of its own subscription
+🟢 💰 A tenant downloads the invoices of its own subscription
 (`SC-PRIC-097`), served by the tenant routes SaaSiCat already mounts behind the application's tenant
 guards and the billing permission (`SC-UI-023`), so an application wires nothing new for it beyond
 mapping that permission to its roles. Each invoice names who issued it, and an application that
 invoices its own customers labels the subscription's as the operator's.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue-tenant/tests/component/a-tenant-reads-its-invoices.test.ts`
+    - the tenant's invoices
+        - stand under their own heading, named by who issued them
+        - name each its own issuer where more than one issued them
+        - show number, issue date, period, due date and total, each day as the page writes days
+        - say where each stands, a payment paid on the day the server names
+        - link a cancelled invoice to its cancellation and its replacement, and each of those back
+        - offer the document once it is archived, and say it follows until then
+        - say so where a document could not be downloaded, and keep the list
+        - go on with the next page below the first, where there is one
+        - that could not be read are said to be so
+    - the contract confirmations beside them
+        - name each contract and its days, and offer the archived ones for download
+
+<!-- END proof -->
 
 ### SC-UI-023 — A tenant's invoices, payment method and billing details need the billing permission
 
@@ -19817,6 +19832,17 @@ _Tested by:_
     - changing the payment method
         - asks for the gateway form with both URLs, and answers where to go
         - a refusal reaches the caller with its code
+- `packages/ui-vue/tests/a-tenant-reads-its-invoices.test.js`
+    - the tenant's invoices
+        - are read with the confirmations, and the part is shown
+        - answered ${status}, are a part not for this user, not an error
+        - that fail otherwise are an error the page reports
+        - answered ${why} are an error, not a subscriber without invoices
+        - go on a page at a time, after the last invoice read, until there is none
+    - a document downloaded
+        - is the invoice’s archived file, handed over as it arrived
+        - is the contract’s archived confirmation
+        - refused, reaches the caller, saves nothing, and the download is over
 - `packages/ui-vue/tests/billing-details-are-shown-to-whoever-may-see-them.test.js`
     - loading the billing details
         - a user holding the permission sees them
@@ -19916,7 +19942,7 @@ _Tested by:_
 
 ### SC-UI-024 — A tenant's invoice list says what each invoice stands for
 
-🟡 _(Decided, not yet delivered.)_ 💰 Each entry shows its number, issue date, period, total and due
+🟢 💰 Each entry shows its number, issue date, period, total and due
 date (`SC-PRIC-046`), and whether it is open, collected on a given day, reversed, or cancelled and
 replaced; a cancelled invoice links to its cancellation and its replacement, and each of those links
 back. A credit shows that it is to be refunded, and the contract confirmations stand beside the
@@ -19925,6 +19951,26 @@ and a credit on the account is never called by the name German VAT law reserves 
 recipient writes: Guthaben, not Gutschrift.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue-tenant/tests/component/a-tenant-reads-its-invoices.test.ts`
+    - the tenant's invoices
+        - stand under their own heading, named by who issued them
+        - name each its own issuer where more than one issued them
+        - show number, issue date, period, due date and total, each day as the page writes days
+        - say where each stands, a payment paid on the day the server names
+        - link a cancelled invoice to its cancellation and its replacement, and each of those back
+        - offer the document once it is archived, and say it follows until then
+        - say so where a document could not be downloaded, and keep the list
+        - go on with the next page below the first, where there is one
+        - that could not be read are said to be so
+    - the contract confirmations beside them
+        - name each contract and its days, and offer the archived ones for download
+
+<!-- END proof -->
 
 ### SC-UI-028 — Every day a tenant is shown is the installation's day, named by the server
 
@@ -23690,7 +23736,7 @@ _Tested by:_
 
 ### SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
 
-🟡 _(Decided, not yet delivered.)_ 💰 The rendered document is archived when the invoice is
+🟢 💰 The rendered document is archived when the invoice is
 issued, and every later download, by the tenant or by the operator, returns that archived file;
 an invoice whose document is not yet archived is not offered at all (`SC-PRIC-033`). Rendering
 it again from today's data would hand out a document the subscriber never received.
@@ -23798,7 +23844,7 @@ _Tested by:_
 
 ### SC-AUD-016 — Concluding or changing a contract gives the subscriber a confirmation to keep
 
-🟡 _(Decided, not yet delivered.)_ 💰 It names the plan and the bundles, their prices with the tax
+🟢 💰 It names the plan and the bundles, their prices with the tax
 treatment (`SC-PRIC-038`), the term, the notice period and the version of the operator's terms that
 applied. That version is the one `config/saas.yaml` named when the contract was concluded or changed,
 which the contract records; the confirmation takes it from the contract, so one rendered again after

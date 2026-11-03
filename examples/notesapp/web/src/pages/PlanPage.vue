@@ -26,18 +26,8 @@
 <script setup lang="ts">
 import TenantPlanSection from '@saasicat/ui-vue-tenant/TenantPlanSection.vue';
 import { platformHttp } from '../services/http';
+import { formatCurrency, formatDate } from '../formats';
 import { featureLabel, quotaLabel } from '../labels';
-
-const currencyFormat = new Intl.NumberFormat('en', { style: 'currency', currency: 'EUR' });
-const dateFormat = new Intl.DateTimeFormat('en', { dateStyle: 'medium' });
-
-function formatCurrency(value: number): string {
-    return currencyFormat.format(value);
-}
-
-function formatDate(input: string | Date): string {
-    return dateFormat.format(typeof input === 'string' ? new Date(input) : input);
-}
 
 // notesapp has no fractional (storage-style) quotas — notesMax is an integer.
 function isFractionalQuota(): boolean {

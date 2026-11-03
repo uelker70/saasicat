@@ -387,6 +387,66 @@ export interface TenantPlanSectionI18n {
     billingDetailsSaveFailed: string;
     /** `{field}` is the label of the field the server refused. */
     billingDetailsFieldInvalid: string;
+    /**
+     * The heading over the invoices the operator issues the tenant, which an
+     * application that invoices its own customers tells apart from those
+     * (`SC-UI-022`).
+     */
+    invoicesTitle: string;
+    /** Beneath the heading where one issuer issued them all, and on each row where several did: `{issuer}`. */
+    invoicesIssuedBy: string;
+    invoicesEmpty: string;
+    invoicesLoadFailed: string;
+    invoicesColumnNumber: string;
+    invoicesColumnIssued: string;
+    invoicesColumnPeriod: string;
+    invoicesColumnDue: string;
+    invoicesColumnTotal: string;
+    invoicesColumnStanding: string;
+    invoicesColumnDocument: string;
+    /** A service period: `{from}` and `{until}`, its first and last day. */
+    invoicesPeriod: string;
+    invoicesDownload: string;
+    /** The download's accessible name: `{number}`. */
+    invoicesDownloadInvoice: string;
+    /** Where the invoice's document is not archived yet. */
+    invoicesDocumentFollows: string;
+    invoicesMore: string;
+    invoicesDownloadFailed: string;
+    /** On a cancellation invoice: `{number}` of the one it cancels. */
+    invoiceCancellationOf: string;
+    /** On a replacement: `{number}` of the one it replaces. */
+    invoiceReplacementOf: string;
+    /** On an invoice cancelled: `{number}` of the cancellation invoice. */
+    invoiceCancelledBy: string;
+    /** On an invoice cancelled: `{number}` of the replacement. */
+    invoiceReplacedBy: string;
+    invoicePaymentOpen: string;
+    invoicePaymentOverdue: string;
+    /** Paid in part: `{owed}` of `{total}`. */
+    invoicePaymentOpenPart: string;
+    /** Paid in part, past its due date: `{owed}` of `{total}`. */
+    invoicePaymentOverduePart: string;
+    /** A payment given back by the bank: `{day}`; the invoice's open standing follows. */
+    invoicePaymentReversed: string;
+    /** `{day}`. */
+    invoicePaymentPaid: string;
+    /** An invoice whose total is negative; never called a Gutschrift (`SC-UI-024`). */
+    invoicePaymentToBeRefunded: string;
+    /** Refunded in part: `{open}` of `{total}`. */
+    invoicePaymentToBeRefundedPart: string;
+    /** `{day}`. */
+    invoicePaymentRefunded: string;
+    confirmationsTitle: string;
+    confirmationsEmpty: string;
+    /** One confirmation: `{plan}`, `{concluded}` and `{firstDay}`. */
+    confirmationLine: string;
+    /** In place of `{plan}` for a contract without a plan. */
+    confirmationNoPlan: string;
+    /** Where the confirmation is not archived yet. */
+    confirmationBeingMade: string;
+    /** The download's accessible name: `{concluded}`. */
+    confirmationDownload: string;
     /** A window announced ahead: `{start}` and `{end}`, in the reader's zone. */
     maintenanceAnnounced: string;
     maintenanceTitle: string;
@@ -756,6 +816,42 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     billingDetailsLoadFailed: 'Die Rechnungsdaten konnten nicht geladen werden.',
     billingDetailsSaveFailed: 'Die Rechnungsdaten konnten nicht gespeichert werden.',
     billingDetailsFieldInvalid: '{field} ist nicht gültig.',
+    invoicesTitle: 'Rechnungen für Ihr Abonnement',
+    invoicesIssuedBy: 'ausgestellt von {issuer}',
+    invoicesEmpty: 'Noch keine Rechnung.',
+    invoicesLoadFailed: 'Die Rechnungen konnten nicht geladen werden.',
+    invoicesColumnNumber: 'Nummer',
+    invoicesColumnIssued: 'Rechnungsdatum',
+    invoicesColumnPeriod: 'Leistungszeitraum',
+    invoicesColumnDue: 'Fällig am',
+    invoicesColumnTotal: 'Betrag',
+    invoicesColumnStanding: 'Stand',
+    invoicesColumnDocument: 'Dokument',
+    invoicesPeriod: '{from} – {until}',
+    invoicesDownload: 'Herunterladen',
+    invoicesDownloadInvoice: 'Rechnung {number} herunterladen',
+    invoicesDocumentFollows: 'Dokument folgt',
+    invoicesMore: 'Weitere Rechnungen',
+    invoicesDownloadFailed: 'Das Dokument konnte nicht geladen werden.',
+    invoiceCancellationOf: 'Storniert {number}',
+    invoiceReplacementOf: 'Ersetzt {number}',
+    invoiceCancelledBy: 'Storniert durch {number}',
+    invoiceReplacedBy: 'Ersetzt durch {number}',
+    invoicePaymentOpen: 'Offen',
+    invoicePaymentOverdue: 'Überfällig',
+    invoicePaymentOpenPart: 'Offen: {owed} von {total}',
+    invoicePaymentOverduePart: 'Überfällig: {owed} von {total}',
+    invoicePaymentReversed: 'Zahlung am {day} zurückgebucht',
+    invoicePaymentPaid: 'Bezahlt am {day}',
+    invoicePaymentToBeRefunded: 'Wird erstattet',
+    invoicePaymentToBeRefundedPart: 'Wird erstattet: {open} von {total}',
+    invoicePaymentRefunded: 'Erstattet am {day}',
+    confirmationsTitle: 'Vertragsbestätigungen',
+    confirmationsEmpty: 'Noch keine Vertragsbestätigung.',
+    confirmationLine: '{plan}, abgeschlossen am {concluded}, gültig ab {firstDay}',
+    confirmationNoPlan: 'Vertrag',
+    confirmationBeingMade: 'Bestätigung wird erstellt',
+    confirmationDownload: 'Vertragsbestätigung vom {concluded} herunterladen',
     maintenanceAnnounced: 'Geplante Wartung von {start} bis {end}.',
     maintenanceTitle: 'Wartung',
     maintenanceUntil:
@@ -1110,6 +1206,42 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     billingDetailsLoadFailed: 'The billing details could not be loaded.',
     billingDetailsSaveFailed: 'The billing details could not be saved.',
     billingDetailsFieldInvalid: '{field} is not valid.',
+    invoicesTitle: 'Invoices for your subscription',
+    invoicesIssuedBy: 'issued by {issuer}',
+    invoicesEmpty: 'No invoice yet.',
+    invoicesLoadFailed: 'The invoices could not be loaded.',
+    invoicesColumnNumber: 'Number',
+    invoicesColumnIssued: 'Issued on',
+    invoicesColumnPeriod: 'Service period',
+    invoicesColumnDue: 'Due on',
+    invoicesColumnTotal: 'Amount',
+    invoicesColumnStanding: 'Standing',
+    invoicesColumnDocument: 'Document',
+    invoicesPeriod: '{from} – {until}',
+    invoicesDownload: 'Download',
+    invoicesDownloadInvoice: 'Download invoice {number}',
+    invoicesDocumentFollows: 'Document follows',
+    invoicesMore: 'More invoices',
+    invoicesDownloadFailed: 'The document could not be loaded.',
+    invoiceCancellationOf: 'Cancels {number}',
+    invoiceReplacementOf: 'Replaces {number}',
+    invoiceCancelledBy: 'Cancelled by {number}',
+    invoiceReplacedBy: 'Replaced by {number}',
+    invoicePaymentOpen: 'Open',
+    invoicePaymentOverdue: 'Overdue',
+    invoicePaymentOpenPart: 'Open: {owed} of {total}',
+    invoicePaymentOverduePart: 'Overdue: {owed} of {total}',
+    invoicePaymentReversed: 'Payment reversed on {day}',
+    invoicePaymentPaid: 'Paid on {day}',
+    invoicePaymentToBeRefunded: 'To be refunded',
+    invoicePaymentToBeRefundedPart: 'To be refunded: {open} of {total}',
+    invoicePaymentRefunded: 'Refunded on {day}',
+    confirmationsTitle: 'Contract confirmations',
+    confirmationsEmpty: 'No contract confirmation yet.',
+    confirmationLine: '{plan}, concluded on {concluded}, in force from {firstDay}',
+    confirmationNoPlan: 'Contract',
+    confirmationBeingMade: 'Confirmation being made',
+    confirmationDownload: 'Download the contract confirmation of {concluded}',
     maintenanceAnnounced: 'Planned maintenance from {start} to {end}.',
     maintenanceTitle: 'Under maintenance',
     maintenanceUntil: 'The application is being maintained and is expected back at {end}.',

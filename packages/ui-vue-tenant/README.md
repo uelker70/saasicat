@@ -85,7 +85,11 @@ import TenantPlanSection from '@saasicat/ui-vue-tenant/TenantPlanSection.vue';
     />
 
     <!-- Settings → Billing -->
-    <TenantBillingSection :http="http" />
+    <TenantBillingSection
+        :http="http"
+        :format-date="formatDate"
+        :format-currency="formatCurrency"
+    />
 </template>
 ```
 
@@ -101,9 +105,12 @@ Both read the billing routes under `apiPrefix` (default `/billing`) through the
 `http` adapter you pass. The billing section shows itself only to a user the
 server lets see it — the billing permission, which your
 `tenantBilling.billingPermissionGuards` map to your roles — and renders nothing for
-anyone else, so show its navigation entry to the same users. The invoices and
-the account will arrive inside it, and a page that mounts it now changes nothing
-when they do.
+anyone else, so show its navigation entry to the same users. It lists the
+invoices the operator issues the tenant under "Invoices for your subscription",
+each with where it stands and its archived document once there is one, and the
+contract confirmations beside them; it takes `formatDate` and `formatCurrency`
+as the plan section does. The account will arrive inside it, and a page that
+mounts it now changes nothing when it does.
 
 Where the platform keeps maintenance windows, wrap the whole application — the sign-in page
 included — in `MaintenanceGate`. It announces a window ahead of time and, while the lock holds,
