@@ -698,6 +698,19 @@ defineSaaSiCat({
 });
 ```
 
+**Who of a tenant's users may do what** (`SC-ADM-026`). Every signed-in user of a tenant reads its
+plan and its usage, and sees what a change would cost: the preview of a plan change
+(`POST /billing/plan/preview`), of an add-on's booking (`POST /billing/subscription-bundles/preview`)
+and of an end at once (`GET /billing/feature-withdrawals/:id/end` and
+`…/bookings/:subscriptionBundleId/end`). Making the change — a plan change, a booking, a
+cancellation, an end at once — is the tenant's administrator's, whose `platformRole`, or `role` where
+that is absent, is `TENANT_ADMIN` or `SUPER_ADMIN`; anyone else is refused `403` with
+`TENANT_ADMIN_REQUIRED`. The previews answer by the same rule whether their reader may make the
+change, `mayChange` on a plan change's and `mayEnd` on an end at once's, and the tenant's screens
+stop at the preview where it is `false`. The billing area — the invoices, the contract
+confirmations, the payment method and the billing details — is whoever's who holds the billing
+permission, reading and changing alike.
+
 ### A value is built at import time; a factory is built when it is resolved
 
 `gateways` takes either, and the difference decides when a bad configuration is found.

@@ -12,6 +12,10 @@ export interface TenantPlanSectionI18n {
     sectionTitle: string;
     sectionSubtitle: string;
     loading: string;
+    /** Instead of the next step, where the reader may not change the plan (`SC-ADM-026`). */
+    wizardChangedByAdministration: string;
+    /** Instead of the confirmation, where the reader may not end at once (`SC-ADM-026`). */
+    endAtOnceByAdministration: string;
     noSubscription: string;
     activePlan: string;
     cycleMonthly: string;
@@ -480,6 +484,8 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     sectionTitle: 'Paket & Verbrauch',
     sectionSubtitle: 'Aktuelles Paket, Verbrauch und Bundles.',
     loading: 'Lade …',
+    wizardChangedByAdministration: 'Den Wechsel nimmt die Administration Ihres Kontos vor.',
+    endAtOnceByAdministration: 'Das sofortige Ende nimmt die Administration Ihres Kontos vor.',
     noSubscription: 'Keine Subscription für diesen Mandanten gefunden.',
     activePlan: 'Aktuelles Paket',
     cycleMonthly: 'Monatlich',
@@ -872,6 +878,8 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     sectionTitle: 'Plan & usage',
     sectionSubtitle: 'Current plan, usage and bundles.',
     loading: 'Loading …',
+    wizardChangedByAdministration: "The change is made by your account's administration.",
+    endAtOnceByAdministration: "Ending at once is done by your account's administration.",
     noSubscription: 'No subscription found for this tenant.',
     activePlan: 'Current plan',
     cycleMonthly: 'Monthly',
@@ -1286,6 +1294,8 @@ export interface PlanChangeWizardI18n {
     stepPreview: string;
     stepConfirm: string;
     next: string;
+    /** Instead of the next step, where the reader may not change the plan. */
+    changedByAdministration: string;
     back: string;
     previewLoading: string;
     effectiveAtLabel: string;
@@ -1361,6 +1371,7 @@ export function planChangeWizardI18n(i18n: TenantPlanSectionI18n): PlanChangeWiz
         stepPreview: i18n.wizardStepPreview,
         stepConfirm: i18n.wizardStepConfirm,
         next: i18n.wizardNext,
+        changedByAdministration: i18n.wizardChangedByAdministration,
         back: i18n.wizardBack,
         previewLoading: i18n.wizardPreviewLoading,
         effectiveAtLabel: i18n.wizardEffectiveAtLabel,

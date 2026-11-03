@@ -2113,6 +2113,9 @@ _Tested by:_
         - a scheduled change names the days of when it lands
         - a cancellation declared names the days of when it was declared and when it lands
         - and a repeat names the days of the date it already had
+    - who may make a change, as its preview says
+        - the administrator may, and is told so
+        - another user of the tenant sees the preview, and is told the administration makes it
 - `packages/nest/tests/a-version-offer-is-taken.test.js`
     - the switch goes ahead only while the version shown is still the offer
         - the offer it carries names the days of when it takes effect

@@ -176,9 +176,15 @@
                     </div>
                 </template>
 
+                <!-- Who may not change the plan sees what it would cost, and is
+                     told here rather than refused at the last step. -->
+                <p v-if="preview?.mayChange === false" class="sp-wizard__note" role="note">
+                    {{ i18n.changedByAdministration }}
+                </p>
                 <div class="sp-wizard__nav">
                     <TenantButton @click="goToPreviousStep()">{{ i18n.back }}</TenantButton>
                     <TenantButton
+                        v-if="preview?.mayChange !== false"
                         variant="solid"
                         tone="accent"
                         :disabled="!canLeaveStep"
@@ -884,6 +890,11 @@ function issueText(issue: PlanChangePreviewIssueShape): string {
     gap: var(--sa-space-4);
     align-items: center;
     padding: var(--sa-space-7) 0;
+}
+.sp-wizard__note {
+    margin: var(--sa-space-4) 0 0;
+    color: var(--sa-color-fg-secondary);
+    font-size: var(--sa-text-sm);
 }
 .sp-wizard__error {
     color: var(--sa-color-negative);

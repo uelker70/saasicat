@@ -165,7 +165,6 @@ describe('SaaSiCatModule + tenantManifest', () => {
     });
 });
 
-// @requirement SC-ADM-013 — A tenant-facing action that costs money requires the tenant's own administrator
 describe('buildTenantManifestController', () => {
     test('creates a controller class with the configured path', () => {
         const Ctrl = buildTenantManifestController({ guards: [], path: 'my/custom' });

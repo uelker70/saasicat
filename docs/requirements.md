@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 679 entries: 🟢 590 stand today, 🟡 37 decided but not yet delivered, ⚪ 0 drafts,
-🔵 47 superseded, 🔴 5 withdrawn.
+Of 679 entries: 🟢 590 stand today, 🟡 36 decided but not yet delivered, ⚪ 0 drafts,
+🔵 47 superseded, 🔴 6 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -161,7 +161,6 @@ Of 679 entries: 🟢 590 stand today, 🟡 37 decided but not yet delivered, ⚪
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
 [SC-ADM-024](#sc-adm-024--a-suspended-tenants-users-cannot-act-and-a-read-only-tenant-cannot-write),
-[SC-ADM-026](#sc-adm-026--the-administrator-changes-what-the-tenant-pays-billing-needs-the-billing-permission),
 [SC-UI-023](#sc-ui-023--a-tenants-invoices-payment-method-and-billing-details-need-the-billing-permission),
 [SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
 [SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
@@ -225,7 +224,8 @@ Of 679 entries: 🟢 590 stand today, 🟡 37 decided but not yet delivered, ⚪
 [SC-SUB-013](#sc-sub-013--nothing-rolls-forward-onto-a-subscription-whose-cancellation-has-landed),
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
-[SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
+[SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
+[SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
 Generated from `requirements/` — 679 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
@@ -15630,49 +15630,11 @@ _Tested by:_
 
 ### SC-ADM-013 — A tenant-facing action that costs money requires the tenant's own administrator
 
-🟢 🔒 Changing a plan, booking an add-on and cancelling are not things any signed-in user of a tenant
-may do. Reading stays open to everyone who is signed in.
+🔴 _(Withdrawn on 2026-11-03.)_ 🔒 `SC-ADM-026` covers this ground, the billing permission with it.
+Changing a plan, booking an add-on and cancelling are not things any signed-in user of a tenant may
+do. Reading stays open to everyone who is signed in.
 
 _Source:_ #212
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/a-route-that-costs-money-asks-for-the-role.test.js`
-    - a route that costs money asks for the role
-        - the controller has routes, and each carries its metadata
-        - every writing route asks for the tenant administrator
-        - the three that cost money are actually among them
-        - reading and previewing stay open to every tenant user
-- `packages/nest/tests/tenant-billing-controller.test.js`
-    - getEntitlement returns EffectiveLimitsSnapshot generically (quotas map)
-    - getUsage joins Subscription + Limits + Usage and fills missing quotaKeys with 0
-    - getUsage passes packageSnapshot + checkoutOfferId through 1:1 (P11.4)
-    - getUsage returns packageSnapshot=null when the Subscription has no snapshot
-    - getUsage throws NotFoundException when the Subscription is missing
-    - getUsage states the price the subscription pays, as the plan preview reads it off the version
-      bound
-    - the tenant is taken from the session, not from what the caller sent
-    - and a session that names none is refused rather than falling back
-    - getUsage throws NotFoundException when tenantIdResolver yields no ID
-    - ComposedTenantAuthGuard chains guards in order — all ok = true
-    - ComposedTenantAuthGuard short-circuits on the first false
-    - ComposedTenantAuthGuard throws 403 without configured guards
-- `packages/nest/tests/tenant-manifest.test.js`
-    - buildTenantManifestController
-        - creates a controller class with the configured path
-- `packages/nest/tests/the-cost-routes-require-the-tenant-admin.test.js`
-    - the cost-relevant tenant routes
-        - the controller declares some, and each one is a real route
-        - a caller without a role is refused, with the code the client reads
-        - an unauthenticated caller is refused separately
-        - the tenant's own administrator is admitted
-        - `role` is honoured where `platformRole` is absent
-        - a platform operator is admitted too
-        - a plain member is refused
-
-<!-- END proof -->
 
 ### SC-ADM-014 — An administrator identity may live in the platform's tables or the application's
 
@@ -16366,14 +16328,54 @@ _Tested by:_
 
 ### SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Changing a plan, booking an add-on and cancelling are not things
-any signed-in user of a tenant may do. The plan, the usage and a change's preview stay open to
+🟢 🔒 Changing a plan, booking an add-on and cancelling are not things any signed-in user of a tenant
+may do. The plan, the usage and a change's preview stay open to
 everyone who is signed in; the invoices, the account and the payment method, reading and changing
 alike, are for whoever holds the billing permission (`SC-UI-023`), which the tenant's administrator
-holds unless the application says otherwise. This entry supersedes `SC-ADM-013` in the change that
-delivers it.
+holds unless the application says otherwise.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-route-that-costs-money-asks-for-the-role.test.js`
+    - who of a tenant may do what
+        - the tenant controllers are found, and each route carries its metadata
+        - every route that writes asks for the tenant administrator
+        - every route that only reads or previews is open to every signed-in user
+        - the billing area asks for the billing permission on every route, reading included
+        - the routes the split is about are among them, each on its side
+- `packages/nest/tests/a-tenant-is-handed-the-days-of-its-plan.test.js`
+    - who may make a change, as its preview says
+        - the administrator may, and is told so
+        - another user of the tenant sees the preview, and is told the administration makes it
+- `packages/nest/tests/an-end-at-once-preview-says-who-may-end.test.js`
+    - an end-at-once preview
+        - says the administrator may end the subscription
+        - shows another user what ending would credit, and says they may not end it
+        - of one booking says the same
+- `packages/nest/tests/the-cost-routes-require-the-tenant-admin.test.js`
+    - the cost-relevant tenant routes
+        - the controller declares some, and each one is a real route
+        - a caller without a role is refused, with the code the client reads
+        - an unauthenticated caller is refused separately
+        - the tenant's own administrator is admitted
+        - `role` is honoured where `platformRole` is absent
+        - a platform operator is admitted too
+        - a plain member is refused
+- `packages/ui-vue-tenant/tests/component/a-preview-says-who-makes-the-change.test.ts`
+    - the preview of a plan change
+        - read by a user who may not change it, says the administration makes the change
+        - read by the administrator, goes on to the confirmation
+        - from a server that does not say, goes on as it did
+- `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
+    - ending at once, read by a user who may not end
+        - shows what ending would credit, and says the administration ends it
+        - where the preview says the reader may end, offers the confirmation
+
+<!-- END proof -->
 
 ### SC-ADM-027 — An operator joins a returning customer's new tenant to the subscriber it had
 
@@ -20086,6 +20088,9 @@ _Tested by:_
         - a scheduled change names the days of when it lands
         - a cancellation declared names the days of when it was declared and when it lands
         - and a repeat names the days of the date it already had
+    - who may make a change, as its preview says
+        - the administrator may, and is told so
+        - another user of the tenant sees the preview, and is told the administration makes it
 - `packages/nest/tests/a-version-offer-is-taken.test.js`
     - the switch goes ahead only while the version shown is still the offer
         - the offer it carries names the days of when it takes effect

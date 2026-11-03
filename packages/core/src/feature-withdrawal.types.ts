@@ -439,6 +439,12 @@ export interface EndAtOncePreview {
     readonly creditNet: number;
     /** ISO 4217, where anything is credited. */
     readonly currency: string | null;
+    /**
+     * Whether the reader may end it: the preview is open to every signed-in
+     * user of the tenant, ending to its administrator (`SC-ADM-026`). Absent
+     * where a server answers that predates it.
+     */
+    readonly mayEnd?: boolean;
 }
 
 /** What ending at once did. */

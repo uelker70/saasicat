@@ -32,6 +32,7 @@ import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { EndAtOnceService } from './end-at-once.service.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
+import { mayChangeWhatTheTenantPays } from './tenant-roles.js';
 import {
     requireTenantUserId,
     tenantActorOf,
@@ -83,11 +84,23 @@ export class FeatureWithdrawalTenantController {
         return this.endings.withdrawalsOf(this.tenantOf(req), new Date());
     }
 
-    /** What ending the subscription at once now would credit. */
+    /**
+     * What ending the subscription at once now would credit — a change's
+     * preview, open to every signed-in user, which says whether its reader
+     * may end it (`SC-ADM-026`).
+     */
     @Get(':id/end')
-    @UseGuards(TenantAdminGuard)
-    previewEnd(@Req() req: unknown, @Param('id') withdrawalId: string): Promise<EndAtOncePreview> {
-        return this.endings.preview(this.tenantOf(req), withdrawalId, null, new Date());
+    async previewEnd(
+        @Req() req: unknown,
+        @Param('id') withdrawalId: string,
+    ): Promise<EndAtOncePreview> {
+        const preview = await this.endings.preview(
+            this.tenantOf(req),
+            withdrawalId,
+            null,
+            new Date(),
+        );
+        return { ...preview, mayEnd: mayChangeWhatTheTenantPays(req) };
     }
 
     /** Ends the subscription at once, and every add-on with it. */
@@ -102,20 +115,20 @@ export class FeatureWithdrawalTenantController {
         return ended;
     }
 
-    /** What ending one booking at once now would credit. */
+    /** What ending one booking at once now would credit, open as `previewEnd` is. */
     @Get(':id/bookings/:subscriptionBundleId/end')
-    @UseGuards(TenantAdminGuard)
-    previewBookingEnd(
+    async previewBookingEnd(
         @Req() req: unknown,
         @Param('id') withdrawalId: string,
         @Param('subscriptionBundleId', new ParseUUIDPipe()) subscriptionBundleId: string,
     ): Promise<EndAtOncePreview> {
-        return this.endings.preview(
+        const preview = await this.endings.preview(
             this.tenantOf(req),
             withdrawalId,
             subscriptionBundleId,
             new Date(),
         );
+        return { ...preview, mayEnd: mayChangeWhatTheTenantPays(req) };
     }
 
     /** Ends one booking at once. */

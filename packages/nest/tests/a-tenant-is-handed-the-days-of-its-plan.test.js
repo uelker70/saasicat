@@ -290,3 +290,21 @@ describe('the days of a change and of a cancellation', () => {
         assert.equal(declared.termEndsDays, null);
     });
 });
+
+// @requirement SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
+describe('who may make a change, as its preview says', () => {
+    const asked = { plan: 'PRO', billingCycle: 'MONTHLY' };
+
+    test('the administrator may, and is told so', async () => {
+        const admin = { ...REQ, user: { ...REQ.user, role: 'TENANT_ADMIN' } };
+        assert.equal((await routeIn(BERLIN).previewPlanChange(admin, asked)).mayChange, true);
+    });
+
+    test('another user of the tenant sees the preview, and is told the administration makes it', async () => {
+        const member = { ...REQ, user: { ...REQ.user, role: 'TENANT_USER' } };
+        const preview = await routeIn(BERLIN).previewPlanChange(member, asked);
+
+        assert.equal(preview.mayChange, false);
+        assert.deepEqual(preview.effectiveDays, AROUND_MIDNIGHT);
+    });
+});

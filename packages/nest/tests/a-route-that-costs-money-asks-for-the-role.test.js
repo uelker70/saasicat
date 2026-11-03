@@ -1,115 +1,166 @@
-// @requirement SC-ADM-013 — A tenant-facing action that costs money requires the tenant's own administrator
+// @requirement SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
+import 'reflect-metadata';
+
+import * as billing from '../dist/billing/index.js';
+import * as payments from '../dist/payments/index.js';
+
+const {
+    BillingPermissionGuard,
+    ComposedTenantAuthGuard,
     TenantAdminGuard,
     buildTenantSubscriptionBundlesController,
-} from '../dist/billing/index.js';
+} = billing;
 
-// Booking an add-on, cancelling one and reactivating one change what a tenant
-// pays. Until this file existed the controller carried `ComposedTenantAuthGuard`
-// alone — authentication and tenant context, no role — and the factory's
-// `extraGuards` defaulted to none. An installation that did not think to pass a
-// role guard let every signed-in user of the tenant buy and cancel add-ons.
+// Who of a tenant's users may do what, held over every tenant route the
+// packages ship (`SC-ADM-026`): reading and previewing are everyone's who is
+// signed in, so a user who cannot change the plan can still see what a change
+// would cost and ask the administrator for it; changing what the tenant pays —
+// a plan change, a booking, a cancellation, an end at once — is the tenant's
+// administrator's; and the billing area, reading and changing alike, is
+// whoever's who holds the billing permission.
 //
-// None of the three applications built on this passed one, and the neighbouring
-// controller names `TenantAdminGuard` on seven routes for the same class of
-// action. So the default was the defect, not the consumers.
-//
-// The rule this file holds is deliberately the wider one: **every route that
-// changes something asks for the role**, unless it is named below as an
-// exception with its reason. A hand-written list of the three guarded routes
-// would agree with itself forever and would not have caught the fourth one
-// somebody adds next year.
+// The controllers are read off the two entries — every export whose class
+// guards include the tenant's authentication — and the add-ons' controller the
+// factory builds, so a tenant controller added next year is held to the same
+// rule without being listed. A route that writes nothing although it is a POST
+// is one whose last path segment names a question, `preview` or `prices`.
 
 /** Nest's own metadata keys. */
 const GUARDS = '__guards__';
 const ROUTE_PATH = 'path';
 const ROUTE_METHOD = 'method';
 
-/** Nest's `RequestMethod` numbering, for the two we care to name. */
+/** Nest's `RequestMethod` numbering, for the one we care to name. */
 const GET = 0;
 
-/**
- * Routes that change nothing, with the reason each is a POST anyway.
- *
- * Both answer a question rather than record an answer: a consumer sends a body
- * because the question has parameters, not because it writes.
- */
-const READ_ONLY_POSTS = new Map([
-    ['prices', 'a price lookup writes nothing'],
-    ['preview', 'a preview writes nothing'],
-]);
+/** The last path segments that ask a question rather than record an answer. */
+const QUESTIONS = new Set(['preview', 'prices']);
 
-/** Every handler on the generated controller, with its route metadata. */
-function routes() {
-    const prototype = buildTenantSubscriptionBundlesController().prototype;
-    const found = [];
-    for (const name of Object.getOwnPropertyNames(prototype)) {
-        if (name === 'constructor') continue;
-        const handler = prototype[name];
-        if (typeof handler !== 'function') continue;
-        const method = Reflect.getMetadata(ROUTE_METHOD, handler);
-        if (method === undefined) continue;
-        found.push({
-            name,
-            method,
-            path: Reflect.getMetadata(ROUTE_PATH, handler),
-            guards: Reflect.getMetadata(GUARDS, handler) ?? [],
-        });
-    }
-    return found.sort((a, b) => a.name.localeCompare(b.name));
+/** Every tenant controller the entries export, and the one the factory builds. */
+function tenantControllers() {
+    const exported = new Set(
+        [...Object.values(billing), ...Object.values(payments)].filter(
+            (value) =>
+                typeof value === 'function' &&
+                (Reflect.getMetadata(GUARDS, value) ?? []).includes(ComposedTenantAuthGuard),
+        ),
+    );
+    return [...exported, buildTenantSubscriptionBundlesController()];
 }
 
-const all = routes();
+/** Every handler of every tenant controller, with what guards it. */
+function routes() {
+    return tenantControllers().flatMap((controller) => {
+        const classGuards = Reflect.getMetadata(GUARDS, controller) ?? [];
+        const prototype = controller.prototype;
+        return Object.getOwnPropertyNames(prototype).flatMap((name) => {
+            const handler = prototype[name];
+            if (name === 'constructor' || typeof handler !== 'function') return [];
+            const method = Reflect.getMetadata(ROUTE_METHOD, handler);
+            if (method === undefined) return [];
+            const path = String(Reflect.getMetadata(ROUTE_PATH, handler));
+            return [
+                {
+                    route: `${controller.name}.${name}`,
+                    method,
+                    path,
+                    guards: Reflect.getMetadata(GUARDS, handler) ?? [],
+                    billingArea: classGuards.includes(BillingPermissionGuard),
+                },
+            ];
+        });
+    });
+}
 
-describe('a route that costs money asks for the role', () => {
-    test('the controller has routes, and each carries its metadata', () => {
-        // Every assertion below iterates this list, and on an empty one they
-        // all pass — a renamed metadata key or a factory that stopped
-        // generating would read as "everything is guarded".
-        assert.ok(all.length >= 6, `only ${all.length} routes found`);
-        for (const route of all) {
-            assert.equal(typeof route.path, 'string', `${route.name} carries no path`);
-            assert.ok(route.method !== undefined, `${route.name} carries no HTTP method`);
+/** Whether a route only asks: a GET, or a POST whose last path segment is a question. */
+const asks = ({ method, path }) =>
+    method === GET || QUESTIONS.has(path.split('/').filter(Boolean).at(-1) ?? '');
+
+const all = routes();
+const outsideBilling = all.filter((route) => !route.billingArea);
+
+describe('who of a tenant may do what', () => {
+    test('the tenant controllers are found, and each route carries its metadata', () => {
+        // Every rule below iterates this list, and on an empty one they all
+        // pass — a renamed metadata key or an export that stopped being found
+        // would read as "everything is guarded".
+        const controllers = new Set(all.map(({ route }) => route.split('.')[0]));
+        for (const name of [
+            'TenantBillingController',
+            'FeatureWithdrawalTenantController',
+            'GeneratedTenantSubscriptionBundlesController',
+            'TenantPaymentMethodController',
+            'TenantBillingDetailsController',
+            'TenantInvoicesController',
+        ]) {
+            assert.ok(controllers.has(name), `${name} is not among the tenant controllers`);
         }
+        assert.ok(all.length >= 25, `only ${all.length} routes found`);
     });
 
-    test('every writing route asks for the tenant administrator', () => {
-        for (const route of all) {
-            if (route.method === GET) continue;
-            if (READ_ONLY_POSTS.has(route.name)) continue;
+    test('every route that writes asks for the tenant administrator', () => {
+        for (const route of outsideBilling) {
+            if (asks(route)) continue;
             assert.ok(
                 route.guards.includes(TenantAdminGuard),
-                `${route.name} changes something and does not ask for the role. ` +
-                    'Add the guard, or name it in READ_ONLY_POSTS with the reason it writes nothing.',
+                `${route.route} (${route.path}) changes something and does not ask for the role`,
             );
         }
     });
 
-    test('the three that cost money are actually among them', () => {
-        // The counter-check to the rule above: it is satisfied vacuously if the
-        // writing routes disappear. These three are the reason the file exists,
-        // so they are named — and a rename that loses one fails here rather
-        // than quietly shrinking the set the rule applies to.
-        const guarded = all.filter((r) => r.guards.includes(TenantAdminGuard)).map((r) => r.name);
-        for (const name of ['add', 'cancel', 'reactivate']) {
-            assert.ok(guarded.includes(name), `${name} no longer asks for the role`);
+    test('every route that only reads or previews is open to every signed-in user', () => {
+        for (const route of outsideBilling) {
+            if (!asks(route)) continue;
+            assert.ok(
+                !route.guards.includes(TenantAdminGuard),
+                `${route.route} (${route.path}) only asks, and asks for the role`,
+            );
         }
     });
 
-    test('reading and previewing stay open to every tenant user', () => {
-        // The other half, and not a formality: a tenant who cannot see what
-        // they booked, or what a booking would cost, cannot decide to ask an
-        // administrator for it.
-        for (const name of ['list', 'prices', 'preview']) {
-            const route = all.find((r) => r.name === name);
-            assert.ok(route, `${name} is gone`);
+    test('the billing area asks for the billing permission on every route, reading included', () => {
+        const billingArea = all.filter((route) => route.billingArea);
+        assert.ok(billingArea.length >= 8, `only ${billingArea.length} billing routes found`);
+        for (const route of billingArea) {
+            assert.equal(
+                route.guards.length,
+                0,
+                `${route.route} replaces the class guards with its own`,
+            );
+        }
+    });
+
+    test('the routes the split is about are among them, each on its side', () => {
+        // The counter-check to the rules above, which are satisfied vacuously
+        // where a route disappears or is renamed out of the set they apply to.
+        const find = (route) => {
+            const found = all.find((each) => each.route === route);
+            assert.ok(found, `${route} is gone`);
+            return found;
+        };
+        for (const route of [
+            'TenantBillingController.previewPlanChange',
+            'FeatureWithdrawalTenantController.previewEnd',
+            'FeatureWithdrawalTenantController.previewBookingEnd',
+            'GeneratedTenantSubscriptionBundlesController.preview',
+        ]) {
+            assert.ok(!find(route).guards.includes(TenantAdminGuard), `${route} asks for the role`);
+        }
+        for (const route of [
+            'TenantBillingController.changePlan',
+            'TenantBillingController.cancelSubscription',
+            'FeatureWithdrawalTenantController.end',
+            'GeneratedTenantSubscriptionBundlesController.add',
+            'GeneratedTenantSubscriptionBundlesController.cancel',
+            'GeneratedTenantSubscriptionBundlesController.reactivate',
+        ]) {
             assert.ok(
-                !route.guards.includes(TenantAdminGuard),
-                `${name} now asks for the role, and reading should not`,
+                find(route).guards.includes(TenantAdminGuard),
+                `${route} does not ask for the role`,
             );
         }
     });

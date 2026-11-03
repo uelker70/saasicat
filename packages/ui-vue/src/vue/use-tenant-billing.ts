@@ -167,6 +167,12 @@ export interface PlanChangePreviewShape {
      */
     planDirection: 'UP' | 'DOWN' | 'SAME';
     cycleDirection: 'LONGER' | 'SHORTER' | 'SAME';
+    /**
+     * Whether the reader may make the change: the preview is open to every
+     * signed-in user of the tenant, the change to its administrator
+     * (`SC-ADM-026`). Absent where a server answers that predates it.
+     */
+    mayChange?: boolean;
     current: { plan: PlanSnapshotShape; billingCycle: BillingCycleStr };
     /**
      * `planVersionId` is the version the target is priced at — what a change
