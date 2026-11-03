@@ -281,7 +281,7 @@ _Tested by:_
 
 ### SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
 
-🟡 _(Decided, not yet delivered.)_ 💰 The rendered document is archived when the invoice is
+🟢 💰 The rendered document is archived when the invoice is
 issued, and every later download, by the tenant or by the operator, returns that archived file;
 an invoice whose document is not yet archived is not offered at all (`SC-PRIC-033`). Rendering
 it again from today's data would hand out a document the subscriber never received.
@@ -389,7 +389,7 @@ _Tested by:_
 
 ### SC-AUD-016 — Concluding or changing a contract gives the subscriber a confirmation to keep
 
-🟡 _(Decided, not yet delivered.)_ 💰 It names the plan and the bundles, their prices with the tax
+🟢 💰 It names the plan and the bundles, their prices with the tax
 treatment (`SC-PRIC-038`), the term, the notice period and the version of the operator's terms that
 applied. That version is the one `config/saas.yaml` named when the contract was concluded or changed,
 which the contract records; the confirmation takes it from the contract, so one rendered again after

@@ -69,9 +69,12 @@ afterEach(() => {
     for (const wrapper of mounted.splice(0)) wrapper.unmount();
 });
 
+const formatDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB');
+const formatCurrency = (amount: number) => `€${amount.toFixed(2)}`;
+
 async function mountSection(http: HttpClient, props: Record<string, unknown> = {}) {
     const wrapper = mount(TenantBillingSection, {
-        props: { http, ...props },
+        props: { http, formatDate, formatCurrency, ...props },
         attachTo: document.body,
     });
     mounted.push(wrapper as VueWrapper);
@@ -104,6 +107,8 @@ describe('the billing section', () => {
     ] as const) {
         test(`${why} is shown nothing at all`, async () => {
             const { http } = httpRouting({
+                'GET /billing/invoices': [status, {}],
+                'GET /billing/contracts': [status, {}],
                 'GET /billing/payment-method': [status, {}],
                 'GET /billing/details': [status, {}],
             });
@@ -138,7 +143,9 @@ describe('the billing section', () => {
         });
 
         expect(calls.map((call) => call.key).sort()).toEqual([
+            'GET /api/billing/contracts',
             'GET /api/billing/details',
+            'GET /api/billing/invoices',
             'GET /api/billing/payment-method',
         ]);
         expect(wrapper.text()).toContain('Invoicing address');

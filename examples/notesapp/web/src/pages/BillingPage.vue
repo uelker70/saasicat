@@ -3,16 +3,22 @@
         <div class="billing-container">
             <h1 class="text-h5 q-mt-none q-mb-xs">Billing</h1>
             <div class="text-body2 text-grey-7 q-mb-md">
-                How your subscription is paid, and whom it is billed to.
+                The invoices for your subscription, how it is paid, and whom it is billed to.
             </div>
 
-            <TenantBillingSection :http="platformHttp" api-prefix="/billing" />
+            <TenantBillingSection
+                :http="platformHttp"
+                api-prefix="/billing"
+                :format-date="formatDate"
+                :format-currency="formatCurrency"
+            />
         </div>
     </q-page>
 </template>
 
 <script setup lang="ts">
 import TenantBillingSection from '@saasicat/ui-vue-tenant/TenantBillingSection.vue';
+import { formatCurrency, formatDate } from '../formats';
 import { platformHttp } from '../services/http';
 </script>
 
