@@ -702,7 +702,7 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     wizardNotSoldInCycle: 'In diesem Rhythmus nicht erhältlich',
     wizardStepChoose: 'Paket wählen',
     wizardStepChooseIntro:
-        'Wähle dein Ziel-Paket und den Abrechnungszyklus. Im nächsten Schritt zeigen wir Verbrauchs-Check und Feature-Diff.',
+        'Wählen Sie Ihr Ziel-Paket und den Abrechnungszyklus. Im nächsten Schritt zeigen wir Verbrauchs-Check und Feature-Diff.',
     wizardStepPreview: 'Vorschau',
     wizardStepConfirm: 'Bestätigen',
     wizardNext: 'Weiter',
@@ -758,9 +758,9 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     errorLabel: 'Fehler',
     myBundlesTitle: 'Meine Bundles',
     myBundlesSubtitle:
-        'Eigenständig gebuchte Add-On-Pakete zu deinem Plan. Mindestlaufzeit + Kündigungs- Termin pro Bundle.',
-    myBundlesEmptyPrefix: 'Du hast noch kein Bundle gebucht. Über',
-    myBundlesEmptySuffix: 'kannst du dein Paket um zusätzliche Features & Quotas erweitern.',
+        'Eigenständig gebuchte Add-On-Pakete zu Ihrem Plan. Mindestlaufzeit + Kündigungs- Termin pro Bundle.',
+    myBundlesEmptyPrefix: 'Sie haben noch kein Bundle gebucht. Über',
+    myBundlesEmptySuffix: 'können Sie Ihr Paket um zusätzliche Features & Quotas erweitern.',
     myBundlesBookedSince: 'Gebucht seit',
     myBundlesCanceledAt: 'Gekündigt am',
     myBundlesRunsUntil: 'läuft bis',
@@ -787,7 +787,7 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     paymentMethodAdd: 'Zahlungsmethode hinterlegen',
     paymentMethodChange: 'Zahlungsmethode ändern',
     paymentMethodGatewayNote:
-        'Karte oder IBAN gibst du im Formular des Zahlungsanbieters ein. Hier wird nur ein Verweis darauf gespeichert.',
+        'Karte oder IBAN geben Sie im Formular des Zahlungsanbieters ein. Hier wird nur ein Verweis darauf gespeichert.',
     paymentMethodLoadFailed: 'Die Zahlungsmethode konnte nicht geladen werden.',
     paymentMethodChangeFailed: 'Das Formular des Zahlungsanbieters konnte nicht geöffnet werden.',
     billingDetailsTitle: 'Rechnungsdaten',
@@ -800,12 +800,12 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     billingDetailsBusinessFalse: 'Verbraucher',
     billingDetailsHeldBack:
         'Ein neuer Vertrag – etwa für einen Planwechsel – ist so noch nicht möglich.',
-    billingDetailsMissing: 'Bitte ergänze: {fields}.',
+    billingDetailsMissing: 'Bitte ergänzen Sie: {fields}.',
     billingDetailsTaxRefusal:
-        'Für deinen Fall können wir die Umsatzsteuer noch nicht berechnen ({reason}). Bitte melde dich bei uns.',
+        'Für Ihren Fall können wir die Umsatzsteuer noch nicht berechnen ({reason}). Bitte melden Sie sich bei uns.',
     billingDetailsNotStated: 'nicht angegeben',
     billingDetailsIdentityNote:
-        'Firmenname und Steuernummern ändern wir auf Anfrage, denn auf sie lauten deine Verträge und Rechnungen.',
+        'Firmenname und Steuernummern ändern wir auf Anfrage, denn auf sie lauten Ihre Verträge und Rechnungen.',
     billingDetailsAddressLine1: 'Straße und Hausnummer',
     billingDetailsAddressLine2: 'Adresszusatz (optional)',
     billingDetailsPostalCode: 'PLZ',

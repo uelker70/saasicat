@@ -6,11 +6,13 @@
 // `error-messages.test` compares them across locales.
 //
 // Tone follows the audience: end-user errors (registration, OTP, promo codes,
-// plan selection, limits, bookings) are plain and polite and address the reader
-// as "du", matching the German UI locale in `@saasicat/ui-vue`. Admin and
-// developer errors (catalog lifecycle, discovery, strict mode, module
-// misconfiguration) stay precise and technical. Identifiers — class, field and
-// module names, HTTP paths, SCREAMING_SNAKE_CASE values — are never translated.
+// plan selection, limits, bookings) are plain and polite. Admin and developer
+// errors (catalog lifecycle, discovery, strict mode, module misconfiguration)
+// stay precise and technical. Every sentence that addresses the reader says
+// "Sie", the tenant's screens show these beside their own texts, and a test of
+// `@saasicat/ui-vue-tenant` refuses one that says "du". Identifiers — class,
+// field and module names, HTTP paths, SCREAMING_SNAKE_CASE values — are never
+// translated.
 //
 // Pass it to `resolveErrorMessage` as the `defaults` argument.
 
@@ -34,17 +36,17 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     BILLING_PERMISSION_REQUIRED:
         'Dieser Teil der Abrechnung erfordert die Abrechnungs-Berechtigung.',
     SUPER_ADMIN_REQUIRED: 'Nur die Rolle SUPER_ADMIN ist zugelassen',
-    MFA_NOT_SET_UP: 'Richte MFA zuerst über die CLI ein.',
+    MFA_NOT_SET_UP: 'Richten Sie MFA zuerst über die CLI ein.',
     MFA_REQUIRED: 'TOTP-Code im Header X-Mfa-Code erforderlich.',
     MFA_FAILED: 'Ungültiger TOTP-Code.',
     AUTH_GUARDS_NOT_CONFIGURED: 'TenantBillingModule.forRoot.authGuards ist nicht konfiguriert.',
     // ── catalog ──
     PLAN_HAS_DRAFTS:
-        "Plan '{planKey}' hat noch {draftCount} offene Entwurfsversion(en). Verwirf sie zuerst (DELETE /admin/catalog/plan-versions/:id) oder veröffentliche sie.",
+        "Plan '{planKey}' hat noch {draftCount} offene Entwurfsversion(en). Verwerfen Sie sie zuerst (DELETE /admin/catalog/plan-versions/:id) oder veröffentlichen Sie sie.",
     PLAN_HAS_PUBLISHED_VERSIONS:
         "Plan '{planKey}' kann nicht {operation} werden — er hat {publishedCount} veröffentlichte Version(en) ({liveCount} live, {supersededCount} abgelöst). Bestehende Abonnements verweisen auf diese Versionen (Vertragsschutz P1), deshalb muss der Plan-Datensatz erhalten bleiben.",
     PLAN_HARD_DELETE_NOT_IMPLEMENTED:
-        'Hard Delete ist im aktuellen Repository nicht implementiert. Implementiere PlanRepository.hardDelete.',
+        'Hard Delete ist im aktuellen Repository nicht implementiert. Implementieren Sie PlanRepository.hardDelete.',
     PLAN_VERSION_ALREADY_PUBLISHED:
         "PlanVersion '{versionId}' ist bereits veröffentlicht und wird weder erneut veröffentlicht noch verworfen.",
     PLAN_VERSION_NOT_EDITABLE:
@@ -52,9 +54,9 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_VERSION_REGRESSION:
         'Diese Planversion ist regressiv (Feature entfernt / Quota gesenkt / Preis erhöht). Das Veröffentlichen erfordert ein ausdrückliches `forceRegressive: true` (Bestätigungsdialog in der UI mit MFA).',
     PLAN_VERSION_ZERO_PRICE:
-        'Eine Planversion lässt sich nicht mit einem Preis von 0,00 veröffentlichen (Schutz vor Seed-Platzhaltern). Für bewusst kostenlose Sonderverträge setze allowZeroPrice.',
+        'Eine Planversion lässt sich nicht mit einem Preis von 0,00 veröffentlichen (Schutz vor Seed-Platzhaltern). Für bewusst kostenlose Sonderverträge setzen Sie allowZeroPrice.',
     PLAN_VERSION_DISCARD_NOT_IMPLEMENTED:
-        'Das Verwerfen ist im aktuellen Repository nicht implementiert. Implementiere PlanRepository.deletePlanVersionDraft.',
+        'Das Verwerfen ist im aktuellen Repository nicht implementiert. Implementieren Sie PlanRepository.deletePlanVersionDraft.',
     PLAN_VERSION_NOT_PUBLISHED:
         "Die PlanVersion '{versionId}' ist nicht veröffentlicht und kann nicht beendet werden.",
     PLAN_VERSION_SUPERSEDED:
@@ -72,7 +74,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_TERMINATE_INVALID_DATE: 'endsAt ist kein gültiges Datum.',
     PLAN_TERMINATE_DATE_NOT_FUTURE: 'endsAt ({endsAt}) muss strikt in der Zukunft liegen.',
     PLAN_TERMINATE_NOT_IMPLEMENTED:
-        'Das Beenden ist im aktuellen Repository nicht implementiert. Implementiere PlanRepository.terminate.',
+        'Das Beenden ist im aktuellen Repository nicht implementiert. Implementieren Sie PlanRepository.terminate.',
     PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES:
         'Abonnements ziehen noch auf Version {version} von {planKey} um. Sie kann frühestens am {date} enden.',
     PLAN_TERMINATE_WHILE_MOVES_OVERDUE:
@@ -94,15 +96,15 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     BUNDLE_VERSION_REGRESSION:
         'Diese Bundle-Version ist regressiv (Feature entfernt / Quota gesenkt / Preis erhöht). Das Veröffentlichen erfordert ein ausdrückliches `forceRegressive: true` (Bestätigungsdialog in der UI mit MFA).',
     BUNDLE_VERSION_ZERO_PRICE:
-        'Eine Bundle-Version lässt sich nicht mit einem ausdrücklichen Preis von 0,00 veröffentlichen (Schutz vor Seed-Platzhaltern). Kostenlose Bundles lässt du auf null, oder du setzt allowZeroPrice.',
+        'Eine Bundle-Version lässt sich nicht mit einem ausdrücklichen Preis von 0,00 veröffentlichen (Schutz vor Seed-Platzhaltern). Kostenlose Bundles lassen Sie auf null, oder Sie setzen allowZeroPrice.',
     BUNDLE_VERSION_NO_PRICE:
         'Diese Bundle-Version kann ohne Preis nicht veröffentlicht werden: weder ein Grundpreis noch eine Plan-Überschreibung ergibt einen.',
     BUNDLE_VERSION_NOT_PRICED_FOR_PLAN:
         "Dieses Bundle wird dem Plan '{planKey}' angeboten, der {billingCycle} verkauft wird, und dafür ergibt sich kein {billingCycle} Preis — weder als Grundpreis noch als Plan-Überschreibung.",
     BUNDLE_VERSION_DISCARD_NOT_IMPLEMENTED:
-        'Das Verwerfen ist im aktuellen Repository nicht implementiert. Implementiere BundleRepository.deleteDraft.',
+        'Das Verwerfen ist im aktuellen Repository nicht implementiert. Implementieren Sie BundleRepository.deleteDraft.',
     BUNDLE_VERSION_VALID_FROM_REQUIRED:
-        'Veröffentlichte Bundle-Versionen müssen ein validFrom behalten. Setze ein neues Datum in der Zukunft, oder bearbeite den Entwurf vor dem Veröffentlichen.',
+        'Veröffentlichte Bundle-Versionen müssen ein validFrom behalten. Setzen Sie ein neues Datum in der Zukunft, oder bearbeiten Sie den Entwurf vor dem Veröffentlichen.',
     BUNDLE_VERSION_VALID_FROM_INVALID: "validFrom '{validFrom}' ist kein Tag (JJJJ-MM-TT)",
     BUNDLE_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS:
         'validFrom ({validFrom}) muss strikt nach dem validFrom der Vorgängerversion ({previousValidFrom}) liegen.',
@@ -130,11 +132,11 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_ALREADY_EXISTS: "Plan '{planKey}' gibt es bereits",
     BUNDLE_ALREADY_EXISTS: "Bundle '{bundleKey}' gibt es bereits",
     MARKETING_PROJECTION_ALREADY_EXISTS:
-        'Für {targetType}/{targetVersionId}/{locale} gibt es bereits eine Marketing-Projektion — bearbeite sie per PATCH',
+        'Für {targetType}/{targetVersionId}/{locale} gibt es bereits eine Marketing-Projektion — bearbeiten Sie sie per PATCH',
     PLAN_DRAFT_ALREADY_EXISTS:
-        "Plan '{planKey}' hat bereits die Entwurfsversion v{draftVersion}; veröffentliche oder verwirf sie zuerst",
+        "Plan '{planKey}' hat bereits die Entwurfsversion v{draftVersion}; veröffentlichen oder verwerfen Sie sie zuerst",
     BUNDLE_DRAFT_ALREADY_EXISTS:
-        "Bundle '{bundleKey}' hat bereits die Entwurfsversion v{draftVersion}; veröffentliche oder verwirf sie zuerst",
+        "Bundle '{bundleKey}' hat bereits die Entwurfsversion v{draftVersion}; veröffentlichen oder verwerfen Sie sie zuerst",
     QUOTA_NOT_IN_DISCOVERY_SNAPSHOT:
         "Quota '{quotaKey}' steht nicht im Discovery-Snapshot — eine Quota, die im Code nicht deklariert ist, lässt sich nicht freigeben",
     DISCOVERY_STATUS_TRANSITION_INVALID: "Der Übergang '{from}' → '{to}' ist nicht erlaubt",
@@ -142,7 +144,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Die Freigabe braucht einen Discovery-Snapshot — Discovery ist nicht initialisiert (#25)',
     // ── catalogue import ──
     PLAN_CATALOG_UNREADABLE:
-        'Diese Datei ist kein Plankatalog — sie ließ sich nicht als einer lesen. Prüfe, ob es die YAML-Datei ist, in der deine App ihre Pläne deklariert.',
+        'Diese Datei ist kein Plankatalog — sie ließ sich nicht als einer lesen. Prüfen Sie, ob es die YAML-Datei ist, in der Ihre App ihre Pläne deklariert.',
     PLAN_CATALOG_INVALID: 'Der Plankatalog wurde gelesen und dann abgelehnt: {message}',
     // ── billing ──
     BUNDLE_ALREADY_SUBSCRIBED:
@@ -150,7 +152,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     BUNDLE_INCOMPATIBLE_WITH_PLAN:
         'Dieses Bundle kann im Plan {planKey} nicht gebucht werden. Buchbar ist es in: {allowedPlanKeys}.',
     BUNDLE_NOT_SELF_SERVICE:
-        "Bundle '{bundleKey}' wird nur über einen Sondervertrag freigeschaltet. Bitte wende dich an die Vertragsverwaltung.",
+        "Bundle '{bundleKey}' wird nur über einen Sondervertrag freigeschaltet. Bitte wenden Sie sich an die Vertragsverwaltung.",
     BUNDLE_CYCLE_EXCEEDS_PLAN:
         'Ein jährlich abgerechnetes Bundle passt nicht zu einem monatlich abgerechneten Plan: es wäre an jedem Tag gebunden, an dem der Plan enden kann.',
     BUNDLE_NOT_PRICED_FOR_THIS_PLAN:
@@ -163,7 +165,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_BUNDLE_NOT_CANCELLED:
         "SubscriptionBundle '{subscriptionBundleId}' ist nicht gekündigt.",
     SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE:
-        'Die Kündigung ist bereits wirksam — buche das Bundle einfach neu.',
+        'Die Kündigung ist bereits wirksam — buchen Sie das Bundle einfach neu.',
     SUBSCRIPTION_NOT_FOUND: 'Kein Abonnement für Mandant {tenantId}',
     SUBSCRIPTION_TENANT_MISMATCH: 'Das Abonnement gehört nicht zu diesem Mandanten',
     SUBSCRIPTION_BUNDLE_NOT_FOUND: "SubscriptionBundle '{subscriptionBundleId}' nicht gefunden",
@@ -178,14 +180,14 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         '{planName} hat für diesen Abrechnungsrhythmus keinen Preis und kann darin nicht gebucht werden.',
     PLAN_CHANGE_BLOCKED: 'Der Planwechsel ist gesperrt.',
     SUBSCRIPTION_CHANGED:
-        'Dieses Abonnement hat sich geändert, während die Anfrage entschieden wurde. Bitte lade es neu.',
+        'Dieses Abonnement hat sich geändert, während die Anfrage entschieden wurde. Bitte laden Sie es neu.',
     NO_SUBSCRIPTION: 'Dieser Mandant hat kein Abonnement, das gekündigt werden kann.',
     CANCELLATION_TERMS_CHANGED:
-        'Die Kündigung hat sich seit der Anzeige geändert. Bitte prüfe sie erneut, bevor du sie bestätigst.',
+        'Die Kündigung hat sich seit der Anzeige geändert. Bitte prüfen Sie sie erneut, bevor Sie sie bestätigen.',
     VERSION_OFFER_CHANGED:
-        'Das Angebot hat sich seit der Anzeige geändert. Bitte sieh dir das aktuelle an, bevor du wechselst.',
+        'Das Angebot hat sich seit der Anzeige geändert. Bitte sehen Sie sich das aktuelle an, bevor Sie wechseln.',
     PLAN_CHANGE_QUOTE_CHANGED:
-        'Dieser Plan hat sich seit der Anzeige geändert. Bitte sieh ihn dir noch einmal an, bevor du wechselst.',
+        'Dieser Plan hat sich seit der Anzeige geändert. Bitte sehen Sie ihn sich noch einmal an, bevor Sie wechseln.',
     PLAN_CHANGE_VERSION_NOT_NAMED:
         'Ein Planwechsel muss die Version nennen, die seine Vorschau gezeigt hat.',
     VERSION_SWITCH_AFTER_CANCELLATION:
@@ -193,9 +195,9 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     VERSION_ENDS_BEFORE_SWITCH:
         'Diese Version wird nicht mehr verkauft, bevor sie wirksam würde. Ein Wechsel dorthin ist nicht möglich.',
     RETIREMENT_TERMS_NOT_CONFIRMED:
-        'Eine Version für laufende Abonnements stillzulegen, braucht eine Klausel in deinen AGB. Setze tenantBilling.orderlyRetirement.termsConfirmed in config/saas.yaml, sobald sie sie enthalten.',
+        'Eine Version für laufende Abonnements stillzulegen, braucht eine Klausel in Ihren AGB. Setzen Sie tenantBilling.orderlyRetirement.termsConfirmed in config/saas.yaml, sobald sie sie enthalten.',
     RETIREMENT_VERSION_ON_SALE:
-        'Version {version} von {planKey} wird noch verkauft. Beende zuerst ihren Verkauf, damit sie nach der Ankündigung niemand mehr bucht.',
+        'Version {version} von {planKey} wird noch verkauft. Beenden Sie zuerst ihren Verkauf, damit sie nach der Ankündigung niemand mehr bucht.',
     RETIREMENT_REPLACEMENT_NOT_ON_SALE:
         'Version {version} von {planKey} wird nicht verkauft. Abonnements können nicht auf ihr weiterlaufen.',
     RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM:
@@ -208,9 +210,9 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     RETIREMENT_WITHIN_TWELVE_MONTHS:
         '{count} dieser Abonnements waren in den letzten zwölf Monaten schon von einer Stilllegung betroffen. Ein Abonnement ist höchstens einmal im Jahr betroffen.',
     RETIREMENT_PREVIEW_CHANGED:
-        'Die Abonnements, die diese Stilllegung betrifft, haben sich seit der Anzeige geändert. Sieh sie dir noch einmal an, bevor du sie ankündigst.',
+        'Die Abonnements, die diese Stilllegung betrifft, haben sich seit der Anzeige geändert. Sehen Sie sie sich noch einmal an, bevor Sie sie ankündigen.',
     BUNDLE_RETIREMENT_VERSION_ON_SALE:
-        'Version {version} von {bundleKey} wird noch verkauft. Veröffentliche die Version, die sie ersetzt, und lege diese still, sobald ihr Verkauf geendet hat, damit sie nach der Ankündigung niemand mehr bucht.',
+        'Version {version} von {bundleKey} wird noch verkauft. Veröffentlichen Sie die Version, die sie ersetzt, und legen Sie diese still, sobald ihr Verkauf geendet hat, damit sie nach der Ankündigung niemand mehr bucht.',
     BUNDLE_RETIREMENT_REPLACEMENT_NOT_ON_SALE:
         'Version {version} von {bundleKey} wird nicht verkauft. Buchungen können nicht auf ihr weiterlaufen.',
     BUNDLE_RETIREMENT_REPLACEMENT_OF_ANOTHER_BUNDLE:
@@ -228,7 +230,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES:
         '{bundleName} zieht am {date} auf seine neue Version um, und Ihr Paket ändert sich vorher. Der Preis, den ein Wechsel halten würde, steht deshalb noch nicht fest. Wechseln Sie, sobald Ihr Paket gewechselt hat, oder lassen Sie es an diesem Tag umziehen.',
     BUNDLE_VERSION_OFFER_CHANGED:
-        'Das Angebot hat sich seit der Anzeige geändert. Bitte sieh dir das aktuelle an, bevor du wechselst.',
+        'Das Angebot hat sich seit der Anzeige geändert. Bitte sehen Sie sich das aktuelle an, bevor Sie wechseln.',
     FEATURE_WITHDRAWAL_UNAVAILABLE:
         'Ein Feature zurückzuziehen ist hier nicht möglich: Die Speicher können nicht alle auflisten, die ein Rückzug erreicht.',
     FEATURE_WITHDRAWAL_FEATURE_UNKNOWN: 'Der Katalog kennt kein Feature {featureKey}.',
@@ -297,7 +299,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED:
         'Das Bundle setzt [{features}] voraus — weder im Plan noch in den aktiven Bundles vorhanden.',
     ONBOARDING_CREATE_FAILED:
-        'Das Konto konnte nicht angelegt werden. Bitte versuche es noch einmal.',
+        'Das Konto konnte nicht angelegt werden. Bitte versuchen Sie es noch einmal.',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS:
         'Genau eines von bundleVersionId (Vorschau fürs Buchen) oder subscriptionBundleId (Vorschau fürs Kündigen) muss angegeben sein.',
     SUBSCRIPTION_PK_MISSING:
@@ -309,7 +311,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PROMO_CODE_ALREADY_EXISTS:
         'Diesen Code gibt es bereits, oder ein gelöschter Code trägt ihn; ein gelöschter Code behält seinen Namen.',
     PROMO_CODE_HAS_REDEMPTIONS:
-        'Der Code wurde bereits eingelöst oder ist für einen laufenden Checkout reserviert — er lässt sich nicht per Soft-Delete entfernen. Pausiere ihn stattdessen.',
+        'Der Code wurde bereits eingelöst oder ist für einen laufenden Checkout reserviert — er lässt sich nicht per Soft-Delete entfernen. Pausieren Sie ihn stattdessen.',
     PROMO_CODE_NOT_REDEEMABLE: 'Der Code lässt sich nicht einlösen: {reason}',
     PROMO_CODE_FORMAT_INVALID:
         'Der Code darf nur Großbuchstaben, Ziffern, "-" und "_" enthalten (4–32 Zeichen).',
@@ -500,21 +502,21 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PENDING_REGISTRATION_NOT_FOUND:
         'Diese Registrierung konnten wir nicht finden. Vielleicht ist sie bereits abgeschlossen oder verworfen.',
     PENDING_REGISTRATION_EXPIRED:
-        'Diese Registrierung ist abgelaufen. Bitte fange noch einmal von vorn an.',
+        'Diese Registrierung ist abgelaufen. Bitte fangen Sie noch einmal von vorn an.',
     INVALID_REGISTRATION_STATE:
         'Dieser Schritt ist an dieser Stelle der Registrierung nicht verfügbar.',
-    OTP_INVALID: 'Der Code ist nicht korrekt. Bitte prüfe ihn und versuche es erneut.',
-    OTP_EXPIRED: 'Der Code ist abgelaufen. Bitte fordere einen neuen an.',
-    OTP_LOCKED: 'Zu viele falsche Versuche. Bitte fordere einen neuen Code an.',
+    OTP_INVALID: 'Der Code ist nicht korrekt. Bitte prüfen Sie ihn und versuchen Sie es erneut.',
+    OTP_EXPIRED: 'Der Code ist abgelaufen. Bitte fordern Sie einen neuen an.',
+    OTP_LOCKED: 'Zu viele falsche Versuche. Bitte fordern Sie einen neuen Code an.',
     RATE_LIMITED:
-        'Zu viele Versuche. Bitte probiere es in {retryAfterSeconds} Sekunden noch einmal.',
+        'Zu viele Versuche. Bitte probieren Sie es in {retryAfterSeconds} Sekunden noch einmal.',
     RESUME_TOKEN_INVALID:
-        'Dieser Link zum Fortsetzen gilt nicht mehr. Bitte fordere einen neuen an.',
+        'Dieser Link zum Fortsetzen gilt nicht mehr. Bitte fordern Sie einen neuen an.',
     RESUME_NOT_CONFIGURED: 'Eine begonnene Registrierung lässt sich hier nicht fortsetzen.',
     CONFIGURATOR_NOT_CONFIGURED: 'Der Konfigurator steht nicht zur Verfügung.',
     CONFIG_NOT_SAVED: 'Die Konfiguration konnte nicht gespeichert werden.',
     PLAN_NOT_AVAILABLE: 'Dieser Plan steht nicht zur Verfügung.',
-    PLAN_NOT_SELECTED: 'Bitte wähle zuerst einen Plan aus.',
+    PLAN_NOT_SELECTED: 'Bitte wählen Sie zuerst einen Plan aus.',
     MODEL_NOT_AVAILABLE: 'Diese Option steht nicht zur Verfügung.',
     // ── payments ──
     PAYMENTS_NOT_CONFIGURED: 'Zahlungsmethoden können hier noch nicht hinterlegt werden.',
@@ -524,7 +526,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PAYMENT_RETURN_URL_NOT_ALLOWED:
         'Die {field} führt auf eine Seite, zu der diese Installation nicht zurückleitet.',
     PAYMENT_GATEWAY_FAILED:
-        'Der Zahlungsanbieter hat nicht wie erwartet geantwortet. Bitte versuche es in ein paar Minuten noch einmal.',
+        'Der Zahlungsanbieter hat nicht wie erwartet geantwortet. Bitte versuchen Sie es in ein paar Minuten noch einmal.',
     // ── entitlement (code lives in upsell.types.ts) ──
     [FEATURE_NOT_LICENSED]: 'Das Feature {featureKeys} ist im aktuellen Plan nicht enthalten.',
     // ── settings ──
@@ -534,7 +536,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     // ── maintenance ──
     MAINTENANCE: 'Die Anwendung wird gerade gewartet.',
     MAINTENANCE_WINDOW_ALREADY_OPEN:
-        'Es ist bereits ein Wartungsfenster offen. Verschiebe oder streiche es, bevor du ein weiteres ankündigst.',
+        'Es ist bereits ein Wartungsfenster offen. Verschieben oder streichen Sie es, bevor Sie ein weiteres ankündigen.',
     MAINTENANCE_WINDOW_NOT_OPEN: 'Kein offenes Wartungsfenster hat diese ID.',
     MAINTENANCE_WINDOW_LOCKED:
         'Dieses Wartungsfenster ist gesperrt. Sein Beginn lässt sich nicht mehr verschieben, und beendet wird es durch Entsperren.',
