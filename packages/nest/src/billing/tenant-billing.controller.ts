@@ -42,6 +42,7 @@ import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
+import { mayChangeWhatTheTenantPays } from './tenant-roles.js';
 import { initialPeriodWindow } from './billing-period.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
@@ -187,6 +188,13 @@ interface UsageMomentsAnswer {
     packageSnapshot: unknown;
     /** P11.4: Optional reference to the originating CheckoutOffer. */
     checkoutOfferId: string | null;
+    /**
+     * Whether the reader may change what the tenant pays — the plan, the
+     * add-ons and the versions they are on (`SC-ADM-026`), by the rule
+     * `TenantAdminGuard` refuses by. The page reads it once, for the actions
+     * that have no preview to say it.
+     */
+    mayChange: boolean;
 }
 
 /**
@@ -395,6 +403,7 @@ export class TenantBillingController {
             usage,
             packageSnapshot: sub.packageSnapshot ?? null,
             checkoutOfferId: sub.checkoutOfferId ?? null,
+            mayChange: mayChangeWhatTheTenantPays(req),
         };
         return withUsageDays(answer, this.zone());
     }
@@ -490,19 +499,21 @@ export class TenantBillingController {
     }
 
     // ---------------------------------------------------------------------
-    // Plan preview (Phase C, read-only) — TENANT_ADMIN
+    // Plan preview (read-only) — every signed-in user (`SC-ADM-026`): who
+    // cannot change the plan can still see what a change would cost, and is
+    // told up front that the administration makes it.
     // ---------------------------------------------------------------------
 
     @Post('plan/preview')
     @HttpCode(HttpStatus.OK)
-    @UseGuards(TenantAdminGuard)
     async previewPlanChange(@Req() req: RequestLike, @Body() dto: PreviewPlanChangeDto) {
         const tenantId = this.requireTenantId(req);
-        return withDays(
+        const preview = withDays(
             await this.planPreview.preview(tenantId, dto.plan, dto.billingCycle),
             ['effectiveAt', 'projectedTrialEndsAt'],
             this.zone(),
         );
+        return { ...preview, mayChange: mayChangeWhatTheTenantPays(req) };
     }
 
     // ---------------------------------------------------------------------

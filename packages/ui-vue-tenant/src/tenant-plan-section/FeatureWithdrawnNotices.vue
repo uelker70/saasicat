@@ -74,6 +74,9 @@
             <template v-else-if="preview">
                 <p class="sp-feature-withdrawn__text">{{ dialogBody }}</p>
                 <p class="sp-feature-withdrawn__text">{{ creditText }}</p>
+                <p v-if="preview.mayEnd === false" class="sp-feature-withdrawn__text" role="note">
+                    {{ i18n.endAtOnceByAdministration }}
+                </p>
             </template>
             <p v-if="dialogError" class="sp-feature-withdrawn__error" role="alert">
                 {{ dialogError }}
@@ -84,6 +87,7 @@
                     {{ i18n.bundlePreviewClose }}
                 </TenantButton>
                 <TenantButton
+                    v-if="preview?.mayEnd !== false"
                     variant="solid"
                     tone="danger"
                     :loading="ending"

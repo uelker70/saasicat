@@ -411,3 +411,113 @@ describe('the switch beside a retired add-on version', () => {
         expect(wrapper.text()).toContain('runs on version 2 now.');
     });
 });
+
+/** The buttons of `wrapper` by their words. */
+const buttonsOf = (wrapper: VueWrapper) => wrapper.findAll('button').map((button) => button.text());
+
+// @requirement SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
+describe('the add-ons, read by a user who may not change the subscription', () => {
+    /** The plan section over a cancelled booking and a retired one that may switch. */
+    async function aSectionReadBy(mayChange: boolean) {
+        const wrapper = mount(TenantPlanSection, {
+            attachTo: document.body,
+            props: {
+                http: aServer(
+                    () => [
+                        seatsV1({
+                            canceledAt: daysFromNow(-30),
+                            canceledEffectiveAt: daysFromNow(30),
+                        }),
+                        switchable({ id: 'sb-2' }),
+                    ],
+                    '/reactivate',
+                    () => ({ status: 500, body: null }),
+                    { mayChange },
+                ),
+                formatCurrency: (value: number) => `€ ${value.toFixed(2)}`,
+                formatDate: (value: string | Date) => String(value).slice(0, 10),
+                showBundleStore: true,
+            },
+        });
+        // SAFETY: `mount` types a wrapper by its component's props; the list
+        // holds wrappers of any component and only ever unmounts them.
+        mounted.push(wrapper as VueWrapper);
+        await flushPromises();
+        // SAFETY: as above — the cases read the wrapper's DOM only.
+        return wrapper as VueWrapper;
+    }
+
+    test('in the plan section, offer neither reinstating nor switching, and say why', async () => {
+        const wrapper = await aSectionReadBy(false);
+
+        expect(notices(wrapper.element)).toHaveLength(1);
+        expect(buttonsOf(wrapper)).not.toContain(DEFAULT_I18N_EN.bundleReactivateAction);
+        expect(buttonsOf(wrapper)).not.toContain(DEFAULT_I18N_EN.versionRetiredSwitch);
+        expect(buttonsOf(wrapper), 'the cancellation, which has its preview').toContain(
+            DEFAULT_I18N_EN.bundleCancelAction,
+        );
+        expect(wrapper.text()).toContain(DEFAULT_I18N_EN.subscriptionChangesByAdministration);
+    });
+
+    test('in the plan section, read by the administrator, offer both', async () => {
+        const wrapper = await aSectionReadBy(true);
+
+        expect(buttonsOf(wrapper)).toContain(DEFAULT_I18N_EN.bundleReactivateAction);
+        expect(buttonsOf(wrapper)).toContain(DEFAULT_I18N_EN.versionRetiredSwitch);
+        expect(wrapper.text()).not.toContain(DEFAULT_I18N_EN.subscriptionChangesByAdministration);
+    });
+
+    /** The page of the tenant's add-ons over `bookings`, its subscription saying `subscription`. */
+    async function thePageReadBy(subscription: { mayChange?: boolean }, bookings: unknown[]) {
+        const wrapper = mount(MySubscriptionBundlesPage, {
+            props: {
+                billingEndpoint: '/api',
+                http: aServer(
+                    () => bookings,
+                    '/none',
+                    () => ({ status: 500, body: null }),
+                    subscription,
+                ),
+            },
+        });
+        // SAFETY: as above.
+        mounted.push(wrapper as VueWrapper);
+        await flushPromises();
+        // SAFETY: as above.
+        return wrapper as VueWrapper;
+    }
+
+    test('on the add-ons page, offer neither booking, cancelling nor switching, and say why', async () => {
+        const wrapper = await thePageReadBy({ mayChange: false }, [switchable()]);
+
+        expect(notices(wrapper.element)).toHaveLength(1);
+        for (const action of [
+            DEFAULT_I18N_EN.bundleBookAction,
+            DEFAULT_I18N_EN.bundleCancelAction,
+            DEFAULT_I18N_EN.versionRetiredSwitch,
+        ]) {
+            expect(buttonsOf(wrapper), action).not.toContain(action);
+        }
+        expect(wrapper.text()).toContain(DEFAULT_I18N_EN.subscriptionChangesByAdministration);
+    });
+
+    test('on the add-ons page with nothing booked, say so without the way to book', async () => {
+        const wrapper = await thePageReadBy({ mayChange: false }, []);
+
+        expect(wrapper.find('.msb-empty').text()).toBe(DEFAULT_I18N_EN.myBundlesEmpty);
+        expect(buttonsOf(wrapper)).not.toContain(DEFAULT_I18N_EN.bundleBookAction);
+    });
+
+    test('on the add-ons page, from a server that does not say, offer all three as before', async () => {
+        const wrapper = await thePageReadBy({}, [switchable()]);
+
+        for (const action of [
+            DEFAULT_I18N_EN.bundleBookAction,
+            DEFAULT_I18N_EN.bundleCancelAction,
+            DEFAULT_I18N_EN.versionRetiredSwitch,
+        ]) {
+            expect(buttonsOf(wrapper), action).toContain(action);
+        }
+        expect(wrapper.text()).not.toContain(DEFAULT_I18N_EN.subscriptionChangesByAdministration);
+    });
+});

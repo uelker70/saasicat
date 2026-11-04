@@ -69,6 +69,7 @@ import { cancellationHasLanded, cancellationLandsAt } from '../entitlement/lande
 import { codedError } from '../errors/coded-error.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
+import { mayChangeWhatTheTenantPays } from './tenant-roles.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import { intendedContractOf } from './freeze-contract-after.js';
 import type { IntendedContract } from '../subscription-contract/subscription-contract.service.js';
@@ -327,6 +328,9 @@ export function buildTenantSubscriptionBundlesController(
             return withDays(result, SUBSCRIPTION_BUNDLE_MOMENTS, this.zone());
         }
 
+        // Open to every signed-in user, as a plan change's preview is: it says
+        // whether its reader may make the change, by the rule the booking and
+        // the cancellation are refused by (`SC-ADM-026`).
         @Post('preview')
         @HttpCode(HttpStatus.OK)
         async preview(@Req() req: RequestLike, @Body() dto: PreviewSubscriptionBundleDto) {
@@ -363,7 +367,7 @@ export function buildTenantSubscriptionBundlesController(
                 // Asked only about a purchase: a cancellation has no plan to fit.
                 plansAhead: hasAdd ? await this.plansAheadOf(sub) : [],
             };
-            return hasAdd
+            const preview = hasAdd
                 ? withDays(
                       await this.previewService.previewAdd(ctx, {
                           bundleVersionId: dto.bundleVersionId!,
@@ -385,6 +389,7 @@ export function buildTenantSubscriptionBundlesController(
                       ['effectiveAt'],
                       this.zone(),
                   );
+            return { ...preview, mayChange: mayChangeWhatTheTenantPays(req) };
         }
 
         @Delete(':id')

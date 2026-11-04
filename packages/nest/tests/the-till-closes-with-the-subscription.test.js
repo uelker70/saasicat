@@ -127,8 +127,9 @@ describe('once the subscription has ended', () => {
 
         const answer = await ctrl.preview(REQ, { subscriptionBundleId: 'sb-1' });
 
-        // The service's answer, with the days of a date this stand-in names none of.
-        assert.deepEqual(answer, { ok: true, effectiveDays: null });
+        // The service's answer, with the days of a date this stand-in names none
+        // of, and whether the reader — a user without a role here — may cancel.
+        assert.deepEqual(answer, { ok: true, effectiveDays: null, mayChange: false });
     });
 
     test('but what was booked can still be read', async () => {

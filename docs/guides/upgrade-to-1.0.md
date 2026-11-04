@@ -2685,6 +2685,35 @@ subscriber's invoice or contract `404`.
   (`invoicesTitle`, `invoicesIssuedBy`, `invoicePayment…`, `confirmation…`) an application can
   override.
 
+### Every user of a tenant sees what a change would cost
+
+A plan change's preview (`POST /billing/plan/preview`) and an end at once's
+(`GET /billing/feature-withdrawals/:id/end` and `…/bookings/:subscriptionBundleId/end`) no longer
+ask for the tenant's administrator: every signed-in user of the tenant reads them, as they read the
+plan, the usage and an add-on's preview already (`SC-ADM-026`). Making the change still asks for the
+administrator, and is refused `403` with `TENANT_ADMIN_REQUIRED` otherwise. The previews say which
+of the two their reader is, by the rule that refusal is made by: `mayChange` on a plan change's and
+on an add-on's (`POST /billing/subscription-bundles/preview`, booking and cancelling alike), `mayEnd`
+on an end at once's.
+
+- **`PlanChangeWizard`** stops at the preview where `mayChange` is `false`, and says there that the
+  change is made by the account's administration, rather than leading its reader on to a refusal.
+  The dialog of an end at once does the same where `mayEnd` is `false`, and the add-on dialog where
+  its preview's `mayChange` is. Where the field is absent, as from a server before this release, all
+  three go on as they did. The sentences are the catalogue keys `wizardChangedByAdministration`,
+  `endAtOnceByAdministration` and `bundlePreviewByAdministration`.
+- **The actions without a preview** — cancelling the subscription, reinstating an add-on, taking a
+  newer version of the plan or of an add-on, and switching away from a retired one — are not shown
+  to a user who may not make them. `GET /billing/usage` answers `mayChange` for them, by the same
+  rule, and `TenantPlanSection` and `MySubscriptionBundlesPage` say once instead that the
+  account's administration makes changes to the subscription (`subscriptionChangesByAdministration`;
+  an empty add-ons page says `myBundlesEmpty` without the way to book). `MySubscriptionBundlesPage`
+  reads it with `useTenantSubscriptionBundles`' new `readMayChange()`, one `GET /billing/usage`
+  when it mounts; where the read fails or the field is absent, the actions stay as they were.
+- **A test of your own** that expects a user who is not the administrator to be refused the preview
+  now finds it answered, with `mayChange: false` or `mayEnd: false`; one that compares an add-on's
+  preview whole finds `mayChange` in it.
+
 ### Each invoice in the record says where its payment stands
 
 `GET admin/subscribers/:id/payments` answers each invoice with `replacedBy`, the replacement that

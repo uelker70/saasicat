@@ -55,7 +55,7 @@ function contextFor(user) {
 const routes = costRoutes();
 const guard = new TenantAdminGuard();
 
-// @requirement SC-ADM-013 — A tenant-facing action that costs money requires the tenant's own administrator
+// @requirement SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
 describe('the cost-relevant tenant routes', () => {
     test('the controller declares some, and each one is a real route', () => {
         // Every assertion below iterates this list. On an empty one they all

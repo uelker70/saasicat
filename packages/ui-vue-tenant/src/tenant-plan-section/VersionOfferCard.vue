@@ -25,7 +25,7 @@
         <p class="sp-version-offer__effective">{{ effectiveText }}</p>
         <p class="sp-version-offer__note">{{ i18n.versionOfferNoAction }}</p>
 
-        <div class="sp-version-offer__actions">
+        <div v-if="mayChange" class="sp-version-offer__actions">
             <TenantButton variant="solid" tone="accent" :loading="busy" @click="onTake">
                 {{ takeLabel }}
             </TenantButton>
@@ -71,6 +71,7 @@ import { computed, ref, useId } from 'vue';
 import type { BundleVersionOfferWithDays, VersionOfferWithDays } from '@saasicat/core';
 
 import { useTenantI18n } from '../tenant-i18n.js';
+import { useMayChangeSubscription } from '../may-change-subscription.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantDialog from '../ui/TenantDialog.vue';
 import VersionComparison from './VersionComparison.vue';
@@ -95,6 +96,7 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'take', versionId: string): void }>();
 
 const i18n = useTenantI18n();
+const mayChange = useMayChangeSubscription();
 const headingId = useId();
 const confirming = ref(false);
 

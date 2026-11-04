@@ -147,6 +147,9 @@
                     </li>
                 </ul>
             </section>
+            <p v-if="preview.mayChange === false" class="sp-bundle-preview__note" role="note">
+                {{ i18n.bundlePreviewByAdministration }}
+            </p>
         </template>
 
         <template #footer>
@@ -154,6 +157,7 @@
                 {{ i18n.bundlePreviewClose }}
             </TenantButton>
             <TenantButton
+                v-if="preview?.mayChange !== false"
                 variant="solid"
                 :tone="isCancel ? 'danger' : 'accent'"
                 :loading="submitting"

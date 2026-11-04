@@ -147,3 +147,32 @@ describe('the days of what a tenant is about to agree to', () => {
         assert.deepEqual(taken.takesEffectDays, AROUND_MIDNIGHT);
     });
 });
+
+// @requirement SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
+describe('who may make an add-on change, as its preview says', () => {
+    const as = (role) => ({ user: { ...REQ.user, role } });
+
+    test('the administrator may book and cancel what the previews show', async () => {
+        const route = routeIn(BERLIN);
+        const booking = await route.preview(as('TENANT_ADMIN'), { bundleVersionId: 'bv-1' });
+        const cancellation = await route.preview(as('TENANT_ADMIN'), {
+            subscriptionBundleId: 'sb-t1',
+        });
+
+        assert.equal(booking.mayChange, true);
+        assert.equal(cancellation.mayChange, true);
+    });
+
+    test('a member reads both previews, and is told the administration makes the change', async () => {
+        const route = routeIn(BERLIN);
+        const booking = await route.preview(as('TENANT_USER'), { bundleVersionId: 'bv-1' });
+        const cancellation = await route.preview(as('TENANT_USER'), {
+            subscriptionBundleId: 'sb-t1',
+        });
+
+        assert.equal(booking.mayChange, false);
+        assert.deepEqual(booking.firstPeriodEndDays, AROUND_MIDNIGHT);
+        assert.equal(cancellation.mayChange, false);
+        assert.deepEqual(cancellation.effectiveDays, AROUND_MIDNIGHT);
+    });
+});

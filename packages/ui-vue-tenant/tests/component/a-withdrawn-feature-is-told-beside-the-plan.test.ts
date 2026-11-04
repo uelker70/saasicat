@@ -122,6 +122,8 @@ interface ServerOptions {
     listAnswer?: unknown;
     listStatus?: number;
     previewStatus?: number;
+    /** Whether the preview says its reader may end; left out, as a server that predates it. */
+    mayEnd?: boolean;
 }
 
 function aServer({
@@ -129,6 +131,7 @@ function aServer({
     listAnswer,
     listStatus = 200,
     previewStatus = 200,
+    mayEnd,
 }: ServerOptions = {}): Server {
     const asked: string[] = [];
     const reply = (body: unknown, status = 200) => ({
@@ -156,7 +159,9 @@ function aServer({
                           withdrawalId: 'fw-1',
                           subscriptionBundleId: booking ? 'sb-1' : null,
                       }
-                    : answer,
+                    : mayEnd === undefined
+                      ? answer
+                      : { ...answer, mayEnd },
             );
         }
         if (url.endsWith('/feature-withdrawals')) {
@@ -391,6 +396,34 @@ describe('ending at once while a feature is withdrawn', () => {
         );
         expect(dialogButtonNamed(i18n.endAtOnceConfirm)?.disabled).toBe(true);
         expect(server.asked).toEqual(['GET /billing/feature-withdrawals/fw-1/end']);
+    });
+});
+
+// @requirement SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
+describe('ending at once, read by a user who may not end', () => {
+    test('shows what ending would credit, and says the administration ends it', async () => {
+        const server = aServer({ mayEnd: false });
+        const wrapper = await aSection(server);
+
+        await buttonNamed(wrapper, i18n.featureWithdrawnEndSubscription)!.trigger('click');
+        await flushPromises();
+
+        expect(dialogText()).toContain(
+            'Für die bereits bezahlte Zeit danach werden Ihrem Konto € 33.87 netto gutgeschrieben.',
+        );
+        expect(dialogText()).toContain(i18n.endAtOnceByAdministration);
+        expect(dialogButtonNamed(i18n.endAtOnceConfirm)).toBeUndefined();
+    });
+
+    test('where the preview says the reader may end, offers the confirmation', async () => {
+        const server = aServer({ mayEnd: true });
+        const wrapper = await aSection(server);
+
+        await buttonNamed(wrapper, i18n.featureWithdrawnEndSubscription)!.trigger('click');
+        await flushPromises();
+
+        expect(dialogText()).not.toContain(i18n.endAtOnceByAdministration);
+        expect(dialogButtonNamed(i18n.endAtOnceConfirm)).toBeTruthy();
     });
 });
 

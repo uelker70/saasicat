@@ -255,49 +255,11 @@ _Tested by:_
 
 ### SC-ADM-013 — A tenant-facing action that costs money requires the tenant's own administrator
 
-🟢 🔒 Changing a plan, booking an add-on and cancelling are not things any signed-in user of a tenant
-may do. Reading stays open to everyone who is signed in.
+🔴 _(Withdrawn on 2026-11-03.)_ 🔒 `SC-ADM-026` covers this ground, the billing permission with it.
+Changing a plan, booking an add-on and cancelling are not things any signed-in user of a tenant may
+do. Reading stays open to everyone who is signed in.
 
 _Source:_ #212
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/a-route-that-costs-money-asks-for-the-role.test.js`
-    - a route that costs money asks for the role
-        - the controller has routes, and each carries its metadata
-        - every writing route asks for the tenant administrator
-        - the three that cost money are actually among them
-        - reading and previewing stay open to every tenant user
-- `packages/nest/tests/tenant-billing-controller.test.js`
-    - getEntitlement returns EffectiveLimitsSnapshot generically (quotas map)
-    - getUsage joins Subscription + Limits + Usage and fills missing quotaKeys with 0
-    - getUsage passes packageSnapshot + checkoutOfferId through 1:1 (P11.4)
-    - getUsage returns packageSnapshot=null when the Subscription has no snapshot
-    - getUsage throws NotFoundException when the Subscription is missing
-    - getUsage states the price the subscription pays, as the plan preview reads it off the version
-      bound
-    - the tenant is taken from the session, not from what the caller sent
-    - and a session that names none is refused rather than falling back
-    - getUsage throws NotFoundException when tenantIdResolver yields no ID
-    - ComposedTenantAuthGuard chains guards in order — all ok = true
-    - ComposedTenantAuthGuard short-circuits on the first false
-    - ComposedTenantAuthGuard throws 403 without configured guards
-- `packages/nest/tests/tenant-manifest.test.js`
-    - buildTenantManifestController
-        - creates a controller class with the configured path
-- `packages/nest/tests/the-cost-routes-require-the-tenant-admin.test.js`
-    - the cost-relevant tenant routes
-        - the controller declares some, and each one is a real route
-        - a caller without a role is refused, with the code the client reads
-        - an unauthenticated caller is refused separately
-        - the tenant's own administrator is admitted
-        - `role` is honoured where `platformRole` is absent
-        - a platform operator is admitted too
-        - a plain member is refused
-
-<!-- END proof -->
 
 ### SC-ADM-014 — An administrator identity may live in the platform's tables or the application's
 
@@ -991,14 +953,88 @@ _Tested by:_
 
 ### SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Changing a plan, booking an add-on and cancelling are not things
-any signed-in user of a tenant may do. The plan, the usage and a change's preview stay open to
+🟢 🔒 Changing a plan, booking an add-on and cancelling are not things any signed-in user of a tenant
+may do. The plan, the usage and a change's preview stay open to
 everyone who is signed in; the invoices, the account and the payment method, reading and changing
 alike, are for whoever holds the billing permission (`SC-UI-023`), which the tenant's administrator
-holds unless the application says otherwise. This entry supersedes `SC-ADM-013` in the change that
-delivers it.
+holds unless the application says otherwise.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-route-that-costs-money-asks-for-the-role.test.js`
+    - who of a tenant may do what
+        - the tenant controllers are found, and each route carries its metadata
+        - every route that writes asks for the tenant administrator
+        - every route that only reads or previews is open to every signed-in user
+        - the billing area asks for the billing permission and nothing beside it, reading included
+        - the routes the split is about are among them, each on its side
+- `packages/nest/tests/a-tenant-is-handed-the-days-of-its-add-ons.test.js`
+    - who may make an add-on change, as its preview says
+        - the administrator may book and cancel what the previews show
+        - a member reads both previews, and is told the administration makes the change
+- `packages/nest/tests/a-tenant-is-handed-the-days-of-its-plan.test.js`
+    - who may make a change, as its preview says
+        - the administrator may, and is told so
+        - another user of the tenant sees the preview, and is told the administration makes it
+    - who may make a change, as the subscription says
+        - the administrator may
+        - another user of the tenant reads the subscription, and may not
+- `packages/nest/tests/an-end-at-once-preview-says-who-may-end.test.js`
+    - an end-at-once preview
+        - says the administrator may end the subscription
+        - shows another user what ending would credit, and says they may not end it
+        - of one booking says the same
+- `packages/nest/tests/the-cost-routes-require-the-tenant-admin.test.js`
+    - the cost-relevant tenant routes
+        - the controller declares some, and each one is a real route
+        - a caller without a role is refused, with the code the client reads
+        - an unauthenticated caller is refused separately
+        - the tenant's own administrator is admitted
+        - `role` is honoured where `platformRole` is absent
+        - a platform operator is admitted too
+        - a plain member is refused
+- `packages/ui-vue/tests/use-tenant-subscription-bundles.test.js`
+    - whether the reader may book, cancel or switch an add-on
+        - is asked of the subscription, and true until it is answered
+        - is true where the server says so
+        - is true where the server does not say, as one that predates it
+        - is true where the read fails, and the failure does not reach the caller
+- `packages/ui-vue-tenant/tests/component/a-newer-add-on-version-is-offered-beside-the-add-on.test.ts`
+    - a newer add-on version, read by a user who may not take it
+        - shows what is offered beside the booking, and no way to take it
+        - read by the administrator, offers to take it
+- `packages/ui-vue-tenant/tests/component/a-newer-version-is-offered-beside-the-plan.test.ts`
+    - the offer beside the plan, read by a user who may not take it
+        - shows what is offered, and no way to take it
+        - read by the administrator, offers to take it
+- `packages/ui-vue-tenant/tests/component/a-preview-says-who-makes-the-change.test.ts`
+    - the preview of a plan change
+        - read by a user who may not change it, says the administration makes the change
+        - read by the administrator, goes on to the confirmation
+        - from a server that does not say, goes on as it did
+    - the preview of an add-on's booking or cancellation
+        - from a server that does not say, offers to confirm it as it did
+- `packages/ui-vue-tenant/tests/component/a-retired-add-on-version-is-announced-beside-the-add-on.test.ts`
+    - the add-ons, read by a user who may not change the subscription
+        - in the plan section, offer neither reinstating nor switching, and say why
+        - in the plan section, read by the administrator, offer both
+        - on the add-ons page, offer neither booking, cancelling nor switching, and say why
+        - on the add-ons page with nothing booked, say so without the way to book
+        - on the add-ons page, from a server that does not say, offer all three as before
+- `packages/ui-vue-tenant/tests/component/a-retired-version-is-announced-beside-the-plan.test.ts`
+    - a retired version, read by a user who may not change the subscription
+        - is told, with neither the switch nor a cancellation offered, and why
+        - read by the administrator, offers both and says nothing of the administration
+- `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
+    - ending at once, read by a user who may not end
+        - shows what ending would credit, and says the administration ends it
+        - where the preview says the reader may end, offers the confirmation
+
+<!-- END proof -->
 
 ### SC-ADM-027 — An operator joins a returning customer's new tenant to the subscriber it had
 

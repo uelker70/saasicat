@@ -118,6 +118,12 @@ export interface UsageSnapshotShape extends SubscriptionUsageDays {
     packageSnapshotCapturedDays: DaysAround | null;
     /** P11.4: Optional reference to the original CheckoutOffer. */
     checkoutOfferId: string | null;
+    /**
+     * Whether the reader may change what the tenant pays — the plan, the
+     * add-ons and the versions they are on (`SC-ADM-026`). Absent where a
+     * server answers that predates it.
+     */
+    mayChange?: boolean;
 }
 
 /**
@@ -167,6 +173,12 @@ export interface PlanChangePreviewShape {
      */
     planDirection: 'UP' | 'DOWN' | 'SAME';
     cycleDirection: 'LONGER' | 'SHORTER' | 'SAME';
+    /**
+     * Whether the reader may make the change: the preview is open to every
+     * signed-in user of the tenant, the change to its administrator
+     * (`SC-ADM-026`). Absent where a server answers that predates it.
+     */
+    mayChange?: boolean;
     current: { plan: PlanSnapshotShape; billingCycle: BillingCycleStr };
     /**
      * `planVersionId` is the version the target is priced at — what a change
@@ -422,6 +434,13 @@ export interface BundleAddPreviewShape {
     endsWithPlanDays: DaysAround | null;
     redundantFeatures: RedundantFeatureHintShape[];
     missingRequires: string[];
+    /**
+     * Whether the reader may make the change: the preview is open to every
+     * signed-in user of the tenant, booking and cancelling to its
+     * administrator (`SC-ADM-026`). Absent where a server answers that
+     * predates it.
+     */
+    mayChange?: boolean;
     blockers: BundlePreviewIssueShape[];
     warnings: BundlePreviewIssueShape[];
 }
@@ -439,6 +458,13 @@ export interface BundleCancelPreviewShape {
     /** The days of `effectiveAt`, in the installation's zone. */
     effectiveDays: DaysAround;
     nextPeriodSavingsNet: number | null;
+    /**
+     * Whether the reader may make the change: the preview is open to every
+     * signed-in user of the tenant, booking and cancelling to its
+     * administrator (`SC-ADM-026`). Absent where a server answers that
+     * predates it.
+     */
+    mayChange?: boolean;
     blockers: BundlePreviewIssueShape[];
     warnings: BundlePreviewIssueShape[];
 }

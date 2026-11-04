@@ -26,6 +26,21 @@ export function holdsTenantAdminRole(context: ExecutionContext): boolean {
             message: 'Not authenticated',
         });
     }
-    const role = request.user.platformRole ?? request.user.role;
-    return Boolean(role && ADMIN_ROLES.has(role));
+    return mayChangeWhatTheTenantPays(request);
+}
+
+/**
+ * Whether the user a request carries is the tenant's administrator — what a
+ * preview answers as whether its reader may make the change, by the rule
+ * `TenantAdminGuard` refuses the change by.
+ */
+export function mayChangeWhatTheTenantPays(request: unknown): boolean {
+    if (typeof request !== 'object' || request === null || !('user' in request)) return false;
+    const { user } = request;
+    if (typeof user !== 'object' || user === null) return false;
+    const role =
+        ('platformRole' in user && typeof user.platformRole === 'string'
+            ? user.platformRole
+            : null) ?? ('role' in user && typeof user.role === 'string' ? user.role : null);
+    return role !== null && ADMIN_ROLES.has(role);
 }
