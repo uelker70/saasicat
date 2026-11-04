@@ -12,10 +12,10 @@ import type { TenantPlanSectionI18n } from '../default-i18n.js';
 import { writeDay } from '../day-as-instant.js';
 import { messageParts, type MessagePart } from '../message-parts.js';
 
-/** How the application writes a day and an amount. */
+/** How the application writes a day, and an amount in its ISO 4217 currency. */
 export interface InvoiceRowFormats {
     formatDate: (iso: string) => string;
-    formatCurrency: (amount: number) => string;
+    formatCurrency: (amount: number, currency: string) => string;
 }
 
 /** A sentence naming another invoice, whose number leads to that invoice's row. */
@@ -73,12 +73,12 @@ export function invoiceRowsOf(
             .map((part) => part.text)
             .join(''),
         due: day(invoice.dueDate),
-        total: formats.formatCurrency(invoice.totalGross),
+        total: formats.formatCurrency(invoice.totalGross, invoice.currency),
         issuer: severalIssuers ? invoice.issuer.legalName : null,
         links: linksOf(invoice, i18n),
         payment: invoicePaymentOf(invoice, paymentMessagesOf(i18n), {
             day,
-            money: formats.formatCurrency,
+            money: (amount) => formats.formatCurrency(amount, invoice.currency),
         }),
         documentArchived: invoice.documentArchived,
     }));

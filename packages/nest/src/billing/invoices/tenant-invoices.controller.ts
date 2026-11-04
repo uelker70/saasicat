@@ -9,7 +9,7 @@ import {
     StreamableFile,
     UseGuards,
 } from '@nestjs/common';
-import type { TenantContractConfirmations, TenantInvoicePage } from '@saasicat/core';
+import type { TenantAccount, TenantContractConfirmations, TenantInvoicePage } from '@saasicat/core';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { BillingPermissionGuard } from '../billing-permission.guard.js';
@@ -31,9 +31,10 @@ export class TenantInvoiceListQuery {
 }
 
 /**
- * The tenant's invoices and contract confirmations, and their archived
- * documents, behind the billing permission for listing and downloading alike
- * (`SC-UI-023`): `GET billing/invoices`, `GET billing/invoices/:id/document`,
+ * The tenant's account, invoices and contract confirmations, and their
+ * archived documents, behind the billing permission for reading and
+ * downloading alike (`SC-UI-023`): `GET billing/account`,
+ * `GET billing/invoices`, `GET billing/invoices/:id/document`,
  * `GET billing/contracts` and `GET billing/contracts/:id/confirmation`. The
  * tenant is the session's; a document is the file archived when it was issued,
  * never rendered again (`SC-AUD-014`).
@@ -47,6 +48,12 @@ export class TenantInvoicesController {
         @Inject(TENANT_ID_RESOLVER_TOKEN)
         private readonly tenantIdResolver: TenantIdResolver | null = null,
     ) {}
+
+    /** What the subscriber owes and is owed, per currency (`SC-PRIC-049`). */
+    @Get('account')
+    account(@Req() request: unknown): Promise<TenantAccount> {
+        return this.invoices.accountOf(tenantIdOf(this.tenantIdResolver, request));
+    }
 
     @Get('invoices')
     page(

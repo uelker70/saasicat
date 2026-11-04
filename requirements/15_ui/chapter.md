@@ -1803,6 +1803,7 @@ _Tested by:_
         - name each its own issuer where more than one issued them
         - show number, issue date, period, due date and total, each day as the page writes days
         - say where each stands, a payment paid on the day the server names
+        - write each amount in the currency of its invoice, as the app formats it
         - link a cancelled invoice to its cancellation and its replacement, and each of those back
         - lead from a link to an invoice on a page not read yet, reading it first
         - offer the document once it is archived, and say it follows until then
@@ -1817,7 +1818,7 @@ _Tested by:_
 
 ### SC-UI-023 — A tenant's invoices, payment method and billing details need the billing permission
 
-🟡 _(Decided, not yet delivered.)_ 🔒 They show the subscriber's amounts, address and masked payment
+🟢 🔒 They show the subscriber's amounts, address and masked payment
 details, which not every user of a tenant is meant to see. The permission governs the whole billing
 area, reading and changing alike: the invoices and their downloads, the account (`SC-PRIC-049`) and
 the payment method (`SC-PRIC-030`). The plan, the usage and a change's preview stay open to every
@@ -1928,6 +1929,15 @@ _Tested by:_
     - the plan page
         - shows the payment method at its foot unless told otherwise
         - leaves it out, and does not ask for it, where the application keeps billing elsewhere
+    - the account, at the top of the billing section
+        - says what is open, of that what is overdue, and beside it the credit to be refunded
+        - says only what is open where nothing is overdue, and no credit where none is owed
+        - says so where nothing is open
+        - writes each amount in its own currency, as the app formats it
+        - calls a credit a Guthaben in German, never a Gutschrift
+        - stands above the invoices
+        - is not there for a user the server does not let see it
+        - that could not be read says so
 
 <!-- END proof -->
 
@@ -1973,6 +1983,15 @@ _Tested by:_
     - the plan page
         - shows the payment method at its foot unless told otherwise
         - leaves it out, and does not ask for it, where the application keeps billing elsewhere
+    - the account, at the top of the billing section
+        - says what is open, of that what is overdue, and beside it the credit to be refunded
+        - says only what is open where nothing is overdue, and no credit where none is owed
+        - says so where nothing is open
+        - writes each amount in its own currency, as the app formats it
+        - calls a credit a Guthaben in German, never a Gutschrift
+        - stands above the invoices
+        - is not there for a user the server does not let see it
+        - that could not be read says so
 
 <!-- END proof -->
 
@@ -1998,6 +2017,7 @@ _Tested by:_
         - name each its own issuer where more than one issued them
         - show number, issue date, period, due date and total, each day as the page writes days
         - say where each stands, a payment paid on the day the server names
+        - write each amount in the currency of its invoice, as the app formats it
         - link a cancelled invoice to its cancellation and its replacement, and each of those back
         - lead from a link to an invoice on a page not read yet, reading it first
         - offer the document once it is archived, and say it follows until then

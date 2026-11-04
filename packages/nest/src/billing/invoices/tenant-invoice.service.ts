@@ -1,7 +1,8 @@
 // What a tenant's users holding the billing permission read of their
 // subscription: every invoice of the subscriber their tenant belongs to, an
-// earlier tenant's joined into it included, each with where it stands, and the
-// contract confirmations beside them (`SC-UI-022`, `SC-UI-024`, `SC-AUD-016`).
+// earlier tenant's joined into it included, each with where it stands, what
+// the account adds up to, and the contract confirmations beside them
+// (`SC-UI-022`, `SC-UI-024`, `SC-AUD-016`, `SC-PRIC-049`).
 //
 // The subscriber comes from the session's tenant and never from the request.
 // An earlier tenant's invoices keep that tenant's id after a join, so under
@@ -17,14 +18,17 @@ import {
     dayInZone,
     installationZoneOf,
     invoiceStandingsOf,
+    tenantAccountOf,
     type InvoiceDocument,
     type PlanCatalogSettings,
     type RlsBypassPort,
     type SubscriberPaymentRepository,
+    type SubscriberCreditStanding,
     type SubscriberRecord,
     type InvoiceStanding,
     type SubscriptionInvoiceRecord,
     type SubscriptionInvoiceRepository,
+    type TenantAccount,
     type TenantContractConfirmations,
     type TenantInvoice,
     type TenantInvoicePage,
@@ -76,7 +80,7 @@ export class TenantInvoiceService {
         const subscriber = await this.subscribers.findByTenantId(tenantId);
         if (!subscriber) return { invoices: [], next: null };
         const invoices = await this.read(() => this.invoices.listBySubscriber(subscriber.id));
-        const standings = await this.standingsOf(subscriber, invoices);
+        const { standings } = await this.standingsOf(subscriber, invoices);
         const at = after === undefined ? -1 : invoices.findIndex((invoice) => invoice.id === after);
         // A page after an invoice the subscriber does not have is empty, not the first again.
         if (after !== undefined && at === -1) return { invoices: [], next: null };
@@ -96,6 +100,19 @@ export class TenantInvoiceService {
             })),
             next: last && start + page.length < invoices.length ? last.invoice.id : null,
         };
+    }
+
+    /**
+     * What `tenantId`'s subscriber owes and is owed, per currency, read from
+     * the standings its invoice list shows; nothing for a tenant without a
+     * subscriber.
+     */
+    async accountOf(tenantId: string): Promise<TenantAccount> {
+        const subscriber = await this.subscribers.findByTenantId(tenantId);
+        if (!subscriber) return { balances: [] };
+        const invoices = await this.read(() => this.invoices.listBySubscriber(subscriber.id));
+        const { standings, credits } = await this.standingsOf(subscriber, invoices);
+        return tenantAccountOf(standings, credits);
     }
 
     /** The archived document of an invoice of `tenantId`'s subscriber; any other is not found. */
@@ -141,10 +158,14 @@ export class TenantInvoiceService {
         return confirmations.confirmationOf(contractId);
     }
 
+    /** Where each of `invoices` stands, and the subscriber's credits it was read from. */
     private async standingsOf(
         subscriber: SubscriberRecord,
         invoices: SubscriptionInvoiceRecord[],
-    ): Promise<{ invoice: SubscriptionInvoiceRecord; standing: InvoiceStanding }[]> {
+    ): Promise<{
+        standings: { invoice: SubscriptionInvoiceRecord; standing: InvoiceStanding }[];
+        credits: SubscriberCreditStanding[];
+    }> {
         const timeZone = installationZoneOf(this.settings);
         const payments = this.payments;
         const [settlements, credits] = payments
@@ -155,10 +176,11 @@ export class TenantInvoiceService {
                   ]),
               )
             : [[], []];
-        return invoiceStandingsOf(
+        const standings = invoiceStandingsOf(
             { invoices, settlements, credits },
             { today: dayInZone(new Date(), timeZone), timeZone },
         );
+        return { standings, credits };
     }
 
     /** A read of the subscriber's own rows, lifted across the tenants joined into it. */

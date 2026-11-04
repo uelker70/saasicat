@@ -162,6 +162,7 @@ export * from './open-items.types.js';
 export * from './open-items.js';
 export * from './invoice-standing.js';
 export * from './tenant-invoice.types.js';
+export * from './tenant-account.js';
 export * from './contract-register.types.js';
 export * from './contract-register.js';
 export * from './invoice-export.types.js';

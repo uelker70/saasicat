@@ -2,8 +2,6 @@
 // Direct instantiation without NestJS bootstrap — mocks for EntitlementService,
 // SubscriptionUsagePort, UsageSnapshotPort. Auth guard is tested in isolation.
 
-// @requirement SC-PRIC-019 — A tenant can see their own account
-
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ComposedTenantAuthGuard, TenantBillingController } from '../dist/billing/index.js';

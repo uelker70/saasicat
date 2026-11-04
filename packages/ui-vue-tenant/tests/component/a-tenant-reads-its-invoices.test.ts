@@ -104,10 +104,13 @@ afterEach(() => {
     for (const wrapper of mounted.splice(0)) wrapper.unmount();
 });
 
-async function mountSection(routes: Record<string, Answer>) {
+async function mountSection(
+    routes: Record<string, Answer>,
+    formats: { formatCurrency?: (amount: number, currency: string) => string } = {},
+) {
     const { http, calls } = httpRouting(routes);
     const wrapper = mount(TenantBillingSection, {
-        props: { http, formatDate, formatCurrency },
+        props: { http, formatDate, formatCurrency, ...formats },
         attachTo: document.body,
     });
     // SAFETY: `mount` types a wrapper by its component's props; the list holds
@@ -198,6 +201,34 @@ describe("the tenant's invoices", () => {
         );
         expect(rowOf(wrapper, '3').cells[5]).toContain(
             fill(i18n.invoicePaymentOpenPart, { owed: '€20.00', total: '€39.00' }),
+        );
+    });
+
+    test('write each amount in the currency of its invoice, as the app formats it', async () => {
+        const { wrapper } = await mountSection(
+            {
+                '/billing/invoices': [
+                    200,
+                    {
+                        invoices: [
+                            invoice('usd', {
+                                currency: 'USD',
+                                totalGross: 39,
+                                payment: { kind: 'open', owed: 20, overdue: false },
+                            }),
+                        ],
+                        next: null,
+                    },
+                ],
+                '/billing/contracts': [200, CONFIRMATIONS],
+            },
+            { formatCurrency: (amount, currency) => `${currency} ${amount.toFixed(2)}` },
+        );
+
+        const { cells } = rowOf(wrapper, 'usd');
+        expect(cells[4]).toBe('USD 39.00');
+        expect(cells[5]).toContain(
+            fill(i18n.invoicePaymentOpenPart, { owed: 'USD 20.00', total: 'USD 39.00' }),
         );
     });
 
