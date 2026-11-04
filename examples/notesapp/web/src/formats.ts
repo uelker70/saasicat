@@ -2,11 +2,11 @@
 // platform names reaches `formatDate` as noon of that day, read here in the
 // viewer's zone, so it is written as the day the platform meant.
 
-const currencyFormat = new Intl.NumberFormat('en', { style: 'currency', currency: 'EUR' });
 const dateFormat = new Intl.DateTimeFormat('en', { dateStyle: 'medium' });
 
-export function formatCurrency(value: number): string {
-    return currencyFormat.format(value);
+/** An amount in `currency` (ISO 4217), which the billing section hands over with each one. */
+export function formatCurrency(value: number, currency = 'EUR'): string {
+    return new Intl.NumberFormat('en', { style: 'currency', currency }).format(value);
 }
 
 export function formatDate(input: string | Date): string {

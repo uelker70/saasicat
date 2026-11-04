@@ -418,8 +418,6 @@ export interface TenantPlanSectionI18n {
     /** Where nothing is open and nothing is owed to the subscriber. */
     accountNothingOpen: string;
     accountLoadFailed: string;
-    /** One line of an account in several currencies; `{currency}` is its code, `{text}` the line. */
-    accountInCurrency: string;
     invoicesColumnNumber: string;
     invoicesColumnIssued: string;
     invoicesColumnPeriod: string;
@@ -857,7 +855,6 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     accountCredit: 'Guthaben: {amount}, wird erstattet',
     accountNothingOpen: 'Es ist nichts offen.',
     accountLoadFailed: 'Ihr Konto konnte nicht geladen werden.',
-    accountInCurrency: '{currency}: {text}',
     invoicesColumnNumber: 'Nummer',
     invoicesColumnIssued: 'Rechnungsdatum',
     invoicesColumnPeriod: 'Leistungszeitraum',
@@ -1261,7 +1258,6 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     accountCredit: 'Credit: {amount}, to be refunded',
     accountNothingOpen: 'Nothing is open.',
     accountLoadFailed: 'Your account could not be loaded.',
-    accountInCurrency: '{currency}: {text}',
     invoicesColumnNumber: 'Number',
     invoicesColumnIssued: 'Issued on',
     invoicesColumnPeriod: 'Service period',

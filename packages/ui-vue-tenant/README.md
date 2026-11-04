@@ -114,7 +114,8 @@ the credit to be refunded, never one set off against the other. Beneath, it
 lists the invoices the operator issues the tenant under "Invoices for your
 subscription", each with where it stands and its archived document once there
 is one, and the contract confirmations beside them; it takes `formatDate` and
-`formatCurrency` as the plan section does.
+`formatCurrency` as the plan section does, and hands `formatCurrency` each
+amount's currency as a second argument for a formatter that writes a symbol.
 
 Where the platform keeps maintenance windows, wrap the whole application — the sign-in page
 included — in `MaintenanceGate`. It announces a window ahead of time and, while the lock holds,

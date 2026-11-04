@@ -2695,11 +2695,14 @@ are not in it. The rule is `tenantAccountOf` in `@saasicat/core`. Nothing is to 
 what the invoice list reads.
 
 - **`TenantBillingSection` shows it at the top**, above the invoices: "Open: …, of that overdue: …"
-  and "Credit: …, to be refunded", one line each, and "Nothing is open." where that is so; the
-  currency is named on each line where there is more than one. `useTenantAccount` in
-  `@saasicat/ui-vue` is the composable behind it, for a page of your own. The sentences are the
-  catalogue keys `accountTitle`, `accountOwed`, `accountOwedOverdue`, `accountCredit`,
-  `accountNothingOpen`, `accountLoadFailed` and `accountInCurrency`.
+  and "Credit: …, to be refunded", one line each, and "Nothing is open." where that is so.
+  `useTenantAccount` in `@saasicat/ui-vue` is the composable behind it, for a page of your own. The
+  sentences are the catalogue keys `accountTitle`, `accountOwed`, `accountOwedOverdue`,
+  `accountCredit`, `accountNothingOpen` and `accountLoadFailed`.
+- **`formatCurrency` is handed each amount's currency**, ISO 4217, as its second argument — the
+  account's and the invoices' alike, since an installation may bill in more than one. A formatter
+  that writes a symbol takes it from there; one that takes only the amount keeps working, and writes
+  every amount in the currency it knows.
 - **A test of your own** that lists the requests the billing section makes finds
   `GET /billing/account` among them.
 

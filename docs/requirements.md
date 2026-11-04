@@ -11744,7 +11744,7 @@ _Tested by:_
         - says what is open, of that what is overdue, and beside it the credit to be refunded
         - says only what is open where nothing is overdue, and no credit where none is owed
         - says so where nothing is open
-        - names the currency of each line where it holds more than one
+        - writes each amount in its own currency, as the app formats it
         - calls a credit a Guthaben in German, never a Gutschrift
         - stands above the invoices
         - is not there for a user the server does not let see it
@@ -19832,6 +19832,7 @@ _Tested by:_
         - name each its own issuer where more than one issued them
         - show number, issue date, period, due date and total, each day as the page writes days
         - say where each stands, a payment paid on the day the server names
+        - write each amount in the currency of its invoice, as the app formats it
         - link a cancelled invoice to its cancellation and its replacement, and each of those back
         - lead from a link to an invoice on a page not read yet, reading it first
         - offer the document once it is archived, and say it follows until then
@@ -19961,7 +19962,7 @@ _Tested by:_
         - says what is open, of that what is overdue, and beside it the credit to be refunded
         - says only what is open where nothing is overdue, and no credit where none is owed
         - says so where nothing is open
-        - names the currency of each line where it holds more than one
+        - writes each amount in its own currency, as the app formats it
         - calls a credit a Guthaben in German, never a Gutschrift
         - stands above the invoices
         - is not there for a user the server does not let see it
@@ -20015,7 +20016,7 @@ _Tested by:_
         - says what is open, of that what is overdue, and beside it the credit to be refunded
         - says only what is open where nothing is overdue, and no credit where none is owed
         - says so where nothing is open
-        - names the currency of each line where it holds more than one
+        - writes each amount in its own currency, as the app formats it
         - calls a credit a Guthaben in German, never a Gutschrift
         - stands above the invoices
         - is not there for a user the server does not let see it
@@ -20045,6 +20046,7 @@ _Tested by:_
         - name each its own issuer where more than one issued them
         - show number, issue date, period, due date and total, each day as the page writes days
         - say where each stands, a payment paid on the day the server names
+        - write each amount in the currency of its invoice, as the app formats it
         - link a cancelled invoice to its cancellation and its replacement, and each of those back
         - lead from a link to an invoice on a page not read yet, reading it first
         - offer the document once it is archived, and say it follows until then

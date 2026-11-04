@@ -479,22 +479,26 @@ describe('the account, at the top of the billing section', () => {
         expect(lines(await mountSection(http))).toEqual([i18n.accountNothingOpen]);
     });
 
-    test('names the currency of each line where it holds more than one', async () => {
+    test('writes each amount in its own currency, as the app formats it', async () => {
         const { http } = httpRouting({
             'GET /billing/account': [
                 200,
                 {
                     balances: [
                         { currency: 'CHF', owed: 0, overdue: 0, credit: 3 },
-                        { currency: 'EUR', owed: 20, overdue: 0, credit: 0 },
+                        { currency: 'EUR', owed: 20, overdue: 5, credit: 0 },
                     ],
                 },
             ],
         });
+        const wrapper = await mountSection(http, {
+            formatCurrency: (amount: number, currency: string) =>
+                `${currency} ${amount.toFixed(2)}`,
+        });
 
-        expect(lines(await mountSection(http))).toEqual([
-            'CHF: Credit: €3.00, to be refunded',
-            'EUR: Open: €20.00',
+        expect(lines(wrapper)).toEqual([
+            'Credit: CHF 3.00, to be refunded',
+            'Open: EUR 20.00, of that overdue: EUR 5.00',
         ]);
     });
 

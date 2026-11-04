@@ -71,8 +71,12 @@ const props = defineProps<{
     navigate?: (url: string) => void;
     /** i18n overrides — missing keys fall back to the active locale's map. */
     i18n?: Partial<TenantPlanSectionI18n>;
-    /** The account's and the invoices' amounts, as for `TenantPlanSection`. */
-    formatCurrency: (n: number) => string;
+    /**
+     * The account's and the invoices' amounts. Each comes with its ISO 4217
+     * currency, which a formatter that writes a symbol takes from here: an
+     * installation may bill in more than one.
+     */
+    formatCurrency: (amount: number, currency: string) => string;
     /**
      * A day as the page writes it, as for `TenantPlanSection`: it is handed noon
      * of a day the server named, so it reads that instant in the viewer's zone.

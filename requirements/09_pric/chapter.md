@@ -3401,7 +3401,7 @@ _Tested by:_
         - says what is open, of that what is overdue, and beside it the credit to be refunded
         - says only what is open where nothing is overdue, and no credit where none is owed
         - says so where nothing is open
-        - names the currency of each line where it holds more than one
+        - writes each amount in its own currency, as the app formats it
         - calls a credit a Guthaben in German, never a Gutschrift
         - stands above the invoices
         - is not there for a user the server does not let see it

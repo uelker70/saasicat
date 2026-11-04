@@ -15,11 +15,15 @@ invoice list shows, by `tenantAccountOf` in `@saasicat/core`, so the two never
 disagree; a charge on no invoice yet is not in it.
 
 `TenantBillingSection` shows it at its top: "Open: …, of that overdue: …" and
-"Credit: …, to be refunded", or "Nothing is open.", naming the currency on each
-line where there is more than one. `useTenantAccount` in `@saasicat/ui-vue` is
-the composable behind it. The sentences are catalogue keys (`accountTitle`,
-`accountOwed`, `accountOwedOverdue`, `accountCredit`, `accountNothingOpen`,
-`accountLoadFailed`, `accountInCurrency`).
+"Credit: …, to be refunded", or "Nothing is open.". `useTenantAccount` in
+`@saasicat/ui-vue` is the composable behind it. The sentences are catalogue keys
+(`accountTitle`, `accountOwed`, `accountOwedOverdue`, `accountCredit`,
+`accountNothingOpen`, `accountLoadFailed`).
+
+The section's `formatCurrency` is handed each amount's currency (ISO 4217) as
+its second argument, the invoices' as the account's: an installation may bill
+in more than one, and a formatter that writes a symbol takes it from there. One
+that takes only the amount keeps working as before.
 
 `SC-PRIC-019` is withdrawn: `SC-PRIC-049` covers its ground, the billing
 permission with it.

@@ -36,7 +36,8 @@ import { accountLinesOf } from './account-lines.js';
 const props = defineProps<{
     http?: HttpClient;
     apiPrefix?: string;
-    formatCurrency: (n: number) => string;
+    /** An amount, with the ISO 4217 currency of the balance it is of. */
+    formatCurrency: (amount: number, currency: string) => string;
 }>();
 
 const emit = defineEmits<{
