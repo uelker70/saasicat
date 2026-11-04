@@ -1,5 +1,65 @@
 # @saasicat/spec
 
+## 1.0.0-rc.30
+
+### Minor Changes
+
+- 5908d34: A tenant's plan days are the installation's days, named by the server
+
+    The plan section wrote a moment as the browser's day, so a trial ending at
+    midnight in Berlin read as the first day it no longer covers, and a viewer in
+    New York read a different day than one in Berlin. The server now hands out,
+    beside each moment of the plan a tenant is shown as a day, its days in the
+    installation's zone — `config/saas.yaml#timeZone`, UTC where it names none —
+    `until`, the last day of what the moment ends, and `from`, the first of what it
+    begins (`SC-UI-028`).
+
+    `GET /billing/usage` gains `trialEndsDays`, `startedDays`,
+    `currentPeriodStartDays`, `currentPeriodEndDays`, `pendingEffectiveDays`,
+    `canceledDays`, `canceledEffectiveDays` and `packageSnapshotCapturedDays`,
+    `pilotEndsDay` (the day that was picked, the same in every zone), the days of
+    `cancellation` (`effectiveDays`, `termEndsDays`, `noticeDeadlineDays`) and
+    `effectiveDays` on a retirement on its way. `POST /billing/plan/preview` gains
+    `effectiveDays` and `projectedTrialEndsDays`, a change `POST /billing/plan`
+    schedules `pendingEffectiveDays`, and `POST /billing/cancel` the days of its
+    four moments. The fields are added; nothing is removed.
+
+    The last day a subscription, or an add-on booking, may be cancelled without
+    notice when its version is retired (`lastDayToCancel`) is the last whole day
+    before the date in the installation's zone rather than in UTC (`SC-SUB-046`,
+    `SC-BUN-066`). The day can move either way: east of UTC, a term ending at local
+    midnight now names one day later — the day a subscriber there reads as the day
+    before; west of UTC it can name one day earlier — a term ending at UTC midnight
+    on 1 July, 20:00 on 30 June in New York, named 30 June and now names 29 June.
+    Either way the platform accepts a cancellation without notice until the
+    retirement takes effect. A notice already sent keeps the day it named.
+    `retirementReach(sub, toldAt, timeZone)` and
+    `bundleRetirementReach(booking, sub, toldAt, timeZone, ahead)`, exported from
+    `@saasicat/nest`, take the installation's zone; the second takes it before the
+    optional `ahead`, so a call that passed `ahead` fourth passes it fifth.
+
+    What the plan section shows changes where a moment falls near midnight and
+    where an end is shown: a trial, a cancellation and its confirmation name the
+    last day they cover. The plan-change wizard's sentences about what stays
+    unchanged take `{lastDay}`, the last day before the change, beside `{date}`,
+    the first day it applies; an override that still writes `{date}` there goes on
+    getting the first day. `TenantPlanCardHeader` takes `billsAgain` in place of
+    `nextBillingDate`, `VersionRetiredCard` `nextPeriodStartDay` in place of
+    `nextPeriodStart`, `PlanChangeWizard` `trialEndsDays` in place of
+    `trialEndsAt`, and `PackageSnapshotPanel` an optional `capturedDays`.
+
+    In English, a sentence that names the last day something still runs now says
+    it ends with that day rather than "as of" it: "Cancel at the end of …", "takes
+    effect only at the end of …", "Cancellation takes effect at the end of" and
+    "Canceled, runs until" for an add-on; an ended subscription "has been over
+    since" the first day it no longer ran. An override of these keys is unaffected.
+
+    `@saasicat/core` gains `withUsageDays`, `pickedDayOf`,
+    `SUBSCRIPTION_USAGE_MOMENTS`, `CANCELLATION_MOMENTS` and
+    `CANCELLATION_RESULT_MOMENTS`, and the types `SubscriptionUsageDays`,
+    `UsageMoments`, `WithUsageDays`, `CancellationMoments`, `CancellationDays` and
+    `VersionRetiredNoticeWithDays`.
+
 ## 1.0.0-rc.29
 
 ### Minor Changes
