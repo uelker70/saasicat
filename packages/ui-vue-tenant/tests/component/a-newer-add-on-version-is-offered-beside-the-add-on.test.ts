@@ -369,7 +369,7 @@ describe('taking a newer add-on version', () => {
     });
 });
 
-// @requirement SC-ADM-026
+// @requirement SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
 describe('a newer add-on version, read by a user who may not take it', () => {
     async function aSectionReadBy(mayChange: boolean) {
         const wrapper = mount(TenantPlanSection, {

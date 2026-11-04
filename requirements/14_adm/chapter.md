@@ -970,12 +970,19 @@ _Tested by:_
         - the tenant controllers are found, and each route carries its metadata
         - every route that writes asks for the tenant administrator
         - every route that only reads or previews is open to every signed-in user
-        - the billing area asks for the billing permission on every route, reading included
+        - the billing area asks for the billing permission and nothing beside it, reading included
         - the routes the split is about are among them, each on its side
+- `packages/nest/tests/a-tenant-is-handed-the-days-of-its-add-ons.test.js`
+    - who may make an add-on change, as its preview says
+        - the administrator may book and cancel what the previews show
+        - a member reads both previews, and is told the administration makes the change
 - `packages/nest/tests/a-tenant-is-handed-the-days-of-its-plan.test.js`
     - who may make a change, as its preview says
         - the administrator may, and is told so
         - another user of the tenant sees the preview, and is told the administration makes it
+    - who may make a change, as the subscription says
+        - the administrator may
+        - another user of the tenant reads the subscription, and may not
 - `packages/nest/tests/an-end-at-once-preview-says-who-may-end.test.js`
     - an end-at-once preview
         - says the administrator may end the subscription
@@ -990,11 +997,38 @@ _Tested by:_
         - `role` is honoured where `platformRole` is absent
         - a platform operator is admitted too
         - a plain member is refused
+- `packages/ui-vue/tests/use-tenant-subscription-bundles.test.js`
+    - whether the reader may book, cancel or switch an add-on
+        - is asked of the subscription, and true until it is answered
+        - is true where the server says so
+        - is true where the server does not say, as one that predates it
+        - is true where the read fails, and the failure does not reach the caller
+- `packages/ui-vue-tenant/tests/component/a-newer-add-on-version-is-offered-beside-the-add-on.test.ts`
+    - a newer add-on version, read by a user who may not take it
+        - shows what is offered beside the booking, and no way to take it
+        - read by the administrator, offers to take it
+- `packages/ui-vue-tenant/tests/component/a-newer-version-is-offered-beside-the-plan.test.ts`
+    - the offer beside the plan, read by a user who may not take it
+        - shows what is offered, and no way to take it
+        - read by the administrator, offers to take it
 - `packages/ui-vue-tenant/tests/component/a-preview-says-who-makes-the-change.test.ts`
     - the preview of a plan change
         - read by a user who may not change it, says the administration makes the change
         - read by the administrator, goes on to the confirmation
         - from a server that does not say, goes on as it did
+    - the preview of an add-on's booking or cancellation
+        - from a server that does not say, offers to confirm it as it did
+- `packages/ui-vue-tenant/tests/component/a-retired-add-on-version-is-announced-beside-the-add-on.test.ts`
+    - the add-ons, read by a user who may not change the subscription
+        - in the plan section, offer neither reinstating nor switching, and say why
+        - in the plan section, read by the administrator, offer both
+        - on the add-ons page, offer neither booking, cancelling nor switching, and say why
+        - on the add-ons page with nothing booked, say so without the way to book
+        - on the add-ons page, from a server that does not say, offer all three as before
+- `packages/ui-vue-tenant/tests/component/a-retired-version-is-announced-beside-the-plan.test.ts`
+    - a retired version, read by a user who may not change the subscription
+        - is told, with neither the switch nor a cancellation offered, and why
+        - read by the administrator, offers both and says nothing of the administration
 - `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
     - ending at once, read by a user who may not end
         - shows what ending would credit, and says the administration ends it

@@ -309,7 +309,7 @@ describe('who may make a change, as its preview says', () => {
     });
 });
 
-// @requirement SC-ADM-026
+// @requirement SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
 describe('who may make a change, as the subscription says', () => {
     // For the actions that have no preview to say it: cancelling, taking a
     // newer version, switching away from a retired one.

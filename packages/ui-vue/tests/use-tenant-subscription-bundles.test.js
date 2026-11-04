@@ -7,8 +7,6 @@
 // a page renders the list either way, but a mutation the caller awaited has to
 // fail loudly — and both need to keep the shape `toAdminError` reads.
 
-// @requirement SC-BUN-005 — A tenant on a yearly plan chooses the rhythm each add-on is billed in
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -56,6 +54,7 @@ function bundles(options = {}) {
     return useTenantSubscriptionBundles({ billingEndpoint: '/api/v1', ...options });
 }
 
+// @requirement SC-BUN-005 — A tenant on a yearly plan chooses the rhythm each add-on is billed in
 describe('useTenantSubscriptionBundles', () => {
     test('the endpoint is required — there is no prefix the platform could guess', () => {
         assert.throws(() => useTenantSubscriptionBundles({}), /billingEndpoint/);
@@ -282,7 +281,7 @@ describe('useTenantSubscriptionBundles', () => {
     });
 });
 
-// @requirement SC-ADM-026
+// @requirement SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
 describe('whether the reader may book, cancel or switch an add-on', () => {
     test('is asked of the subscription, and true until it is answered', async () => {
         const { http, calls } = httpReturning({ body: { plan: 'PRO', mayChange: false } });

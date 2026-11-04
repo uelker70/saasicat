@@ -415,7 +415,7 @@ describe('the switch beside a retired add-on version', () => {
 /** The buttons of `wrapper` by their words. */
 const buttonsOf = (wrapper: VueWrapper) => wrapper.findAll('button').map((button) => button.text());
 
-// @requirement SC-ADM-026
+// @requirement SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
 describe('the add-ons, read by a user who may not change the subscription', () => {
     /** The plan section over a cancelled booking and a retired one that may switch. */
     async function aSectionReadBy(mayChange: boolean) {

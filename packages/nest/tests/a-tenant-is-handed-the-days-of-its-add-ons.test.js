@@ -148,7 +148,7 @@ describe('the days of what a tenant is about to agree to', () => {
     });
 });
 
-// @requirement SC-ADM-026
+// @requirement SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
 describe('who may make an add-on change, as its preview says', () => {
     const as = (role) => ({ user: { ...REQ.user, role } });
 

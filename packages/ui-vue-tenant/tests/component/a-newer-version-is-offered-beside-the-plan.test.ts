@@ -475,7 +475,7 @@ describe('taking it', () => {
     });
 });
 
-// @requirement SC-ADM-026
+// @requirement SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
 describe('the offer beside the plan, read by a user who may not take it', () => {
     test('shows what is offered, and no way to take it', async () => {
         await aSection(aServer({ offer: IMPROVEMENT, subscription: { mayChange: false } }));

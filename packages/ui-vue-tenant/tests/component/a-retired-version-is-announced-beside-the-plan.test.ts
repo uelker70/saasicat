@@ -301,7 +301,7 @@ describe('the switch to the replacement, before the date', () => {
     });
 });
 
-// @requirement SC-ADM-026
+// @requirement SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
 describe('a retired version, read by a user who may not change the subscription', () => {
     test('is told, with neither the switch nor a cancellation offered, and why', async () => {
         reader = { mayChange: false };

@@ -2095,6 +2095,9 @@ _Tested by:_
         - a booking’s preview names the days of its first period, its term and its end
         - a cancellation’s preview names the days of when it takes effect
         - a newer version taken names the days of when it takes effect
+    - who may make an add-on change, as its preview says
+        - the administrator may book and cancel what the previews show
+        - a member reads both previews, and is told the administration makes the change
 - `packages/nest/tests/a-tenant-is-handed-the-days-of-its-plan.test.js`
     - the days of the subscription
         - are read in the zone the settings name, for every moment it is shown
@@ -2116,6 +2119,9 @@ _Tested by:_
     - who may make a change, as its preview says
         - the administrator may, and is told so
         - another user of the tenant sees the preview, and is told the administration makes it
+    - who may make a change, as the subscription says
+        - the administrator may
+        - another user of the tenant reads the subscription, and may not
 - `packages/nest/tests/a-version-offer-is-taken.test.js`
     - the switch goes ahead only while the version shown is still the offer
         - the offer it carries names the days of when it takes effect
