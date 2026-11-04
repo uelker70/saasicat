@@ -559,32 +559,11 @@ _Tested by:_
 
 ### SC-PRIC-019 — A tenant can see their own account
 
-🟡 _(Decided, not yet delivered.)_ 💰 Balance, what is open, and the history. An open balance a
-customer cannot see is a surprise at the moment it becomes a problem; one they can see is something
-they can act on.
+🔴 _(Withdrawn on 2026-11-04.)_ 💰 `SC-PRIC-049` covers this ground, the billing permission with it.
+Balance, what is open, and the history. An open balance a customer cannot see is a surprise at the
+moment it becomes a problem; one they can see is something they can act on.
 
 _Source:_ #214
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/tenant-billing-controller.test.js`
-    - getEntitlement returns EffectiveLimitsSnapshot generically (quotas map)
-    - getUsage joins Subscription + Limits + Usage and fills missing quotaKeys with 0
-    - getUsage passes packageSnapshot + checkoutOfferId through 1:1 (P11.4)
-    - getUsage returns packageSnapshot=null when the Subscription has no snapshot
-    - getUsage throws NotFoundException when the Subscription is missing
-    - getUsage states the price the subscription pays, as the plan preview reads it off the version
-      bound
-    - the tenant is taken from the session, not from what the caller sent
-    - and a session that names none is refused rather than falling back
-    - getUsage throws NotFoundException when tenantIdResolver yields no ID
-    - ComposedTenantAuthGuard chains guards in order — all ok = true
-    - ComposedTenantAuthGuard short-circuits on the first false
-    - ComposedTenantAuthGuard throws 403 without configured guards
-
-<!-- END proof -->
 
 ### SC-PRIC-020 — A charge, once written, is never edited
 
@@ -3379,13 +3358,56 @@ _Tested by:_
 
 ### SC-PRIC-049 — A subscriber's account is shown to the tenant's users holding the billing permission
 
-🟡 _(Decided, not yet delivered.)_ 💰 Balance, what is open, and the history, in the subscriber's one
+🟢 💰 Balance, what is open, and the history, in the subscriber's one
 live tenant (`SC-SCOPE-012`), to whoever holds the billing permission (`SC-UI-023`). An open balance
 a customer cannot see is a surprise at the moment it becomes a problem; one they can see is something
 they can act on. The account belongs to the subscriber and shows its amounts, which not every user of
-a tenant is meant to see. This entry supersedes `SC-PRIC-019` in the change that delivers it.
+a tenant is meant to see.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tenant-reads-its-account.test.js`
+    - a subscriber's account
+        - of nothing open is no balance at all
+        - owes what its open invoices still owe, and of that what is overdue
+        - adds to the cent, as the amounts were written
+        - leaves out what a cancelled invoice, a cancellation and a paid one would say
+        - shows the credit beside what is owed, and sets neither off against the other
+        - counts every credit still to be paid out, whatever it arose from
+        - counts an invoice to be refunded before its credit is recorded, as the list says
+        - counts it by its credit once that is recorded, and not twice
+        - keeps each currency apart, the codes in order
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - a tenant's account
+        - adds up what its subscriber’s invoices owe, of that what is overdue, and its credit beside
+          it
+        - counts an earlier tenant’s invoices joined into the subscriber, read past the tenant
+          policy
+        - of a tenant without a subscriber is empty
+        - is served for the tenant of the session, and a request that carries none is refused
+- `packages/ui-vue/tests/a-tenant-reads-its-account.test.js`
+    - the tenant's account
+        - is read under the prefix the app gives, and the part is shown
+        - answered ${status}, is a part not for this user, not an error
+        - that fails otherwise is an error the page reports
+        - answered without balances is an error, not a subscriber that owes nothing
+        - is read once without being asked
+- `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
+    - the account, at the top of the billing section
+        - says what is open, of that what is overdue, and beside it the credit to be refunded
+        - says only what is open where nothing is overdue, and no credit where none is owed
+        - says so where nothing is open
+        - names the currency of each line where it holds more than one
+        - calls a credit a Guthaben in German, never a Gutschrift
+        - stands above the invoices
+        - is not there for a user the server does not let see it
+        - that could not be read says so
+
+<!-- END proof -->
 
 ### SC-PRIC-061 — A derived amount is rounded the way a person computing it by hand rounds
 

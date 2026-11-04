@@ -1284,6 +1284,12 @@ answered `404` like one that does not exist. An earlier tenant's invoices keep t
 after a join, so the reads run inside `RlsBypassPort`, by the subscriber's id alone — the one read
 a tenant makes past its own boundary (`SC-SEC-018`).
 
+**The tenant reads its account** at `GET /billing/account`, beside the invoices and behind the same
+guards: per currency, what the subscriber's invoices still owe and of that what is overdue, and
+beside it the credit to be refunded, never set off against each other (`SC-PRIC-049`). It is added
+up from the standings the invoice list shows, so the two agree; a charge on no invoice yet is not
+in it.
+
 ### The confirmation of each contract
 
 Every contract written since confirmations exist gives its subscriber a confirmation to keep

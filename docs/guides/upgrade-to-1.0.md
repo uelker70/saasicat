@@ -2685,6 +2685,24 @@ subscriber's invoice or contract `404`.
   (`invoicesTitle`, `invoicesIssuedBy`, `invoicePayment…`, `confirmation…`) an application can
   override.
 
+### A tenant reads its account
+
+The tenant's routes gain `GET /billing/account`, mounted beside the invoices and behind the billing
+permission like them: per currency, what the subscriber's invoices still owe and of that what is
+overdue, and beside it — never set off against it — the credit to be refunded (`SC-PRIC-049`). It is
+read from the standings the invoice list shows, so the two never disagree; charges on no invoice yet
+are not in it. The rule is `tenantAccountOf` in `@saasicat/core`. Nothing is to be wired: it reads
+what the invoice list reads.
+
+- **`TenantBillingSection` shows it at the top**, above the invoices: "Open: …, of that overdue: …"
+  and "Credit: …, to be refunded", one line each, and "Nothing is open." where that is so; the
+  currency is named on each line where there is more than one. `useTenantAccount` in
+  `@saasicat/ui-vue` is the composable behind it, for a page of your own. The sentences are the
+  catalogue keys `accountTitle`, `accountOwed`, `accountOwedOverdue`, `accountCredit`,
+  `accountNothingOpen`, `accountLoadFailed` and `accountInCurrency`.
+- **A test of your own** that lists the requests the billing section makes finds
+  `GET /billing/account` among them.
+
 ### Every user of a tenant sees what a change would cost
 
 A plan change's preview (`POST /billing/plan/preview`) and an end at once's

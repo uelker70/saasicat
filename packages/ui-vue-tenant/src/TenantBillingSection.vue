@@ -2,9 +2,15 @@
     <!-- Hidden rather than removed: the parts have to be mounted to ask the
          server whether they are for this user at all. -->
     <TenantCard
-        v-show="shown.invoices || shown.paymentMethod || shown.details"
+        v-show="shown.account || shown.invoices || shown.paymentMethod || shown.details"
         class="sp-billing-section"
     >
+        <TenantAccountCard
+            :http="http"
+            :api-prefix="apiPrefix"
+            :format-currency="formatCurrency"
+            @availability="shown.account = $event"
+        />
         <TenantInvoicesCard
             :http="http"
             :api-prefix="apiPrefix"
@@ -34,16 +40,18 @@ import { computed, reactive } from 'vue';
 
 import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from './default-i18n.js';
 import { provideTenantI18n } from './tenant-i18n.js';
+import TenantAccountCard from './tenant-billing-section/TenantAccountCard.vue';
 import TenantBillingDetailsCard from './tenant-billing-section/TenantBillingDetailsCard.vue';
 import TenantInvoicesCard from './tenant-billing-section/TenantInvoicesCard.vue';
 import TenantPaymentMethodCard from './TenantPaymentMethodCard.vue';
 import TenantCard from './ui/TenantCard.vue';
 import './ui/tenant-ui.css';
 
-// TenantBillingSection — where a tenant finds its billing: the invoices the
-// operator issues it with the contract confirmations beside them, what the
-// subscriber pays with and whom it is billed to, in one component an
-// application mounts under whatever its navigation calls billing. The plan
+// TenantBillingSection — where a tenant finds its billing: what its account
+// owes and is owed, the invoices the operator issues it with the contract
+// confirmations beside them, what the subscriber pays with and whom it is
+// billed to, in one component an application mounts under whatever its
+// navigation calls billing. The plan
 // page answers "what did I book"; this answers the chores that come up
 // without a plan decision, such as an invoice to file or a card that expires.
 //
@@ -63,7 +71,7 @@ const props = defineProps<{
     navigate?: (url: string) => void;
     /** i18n overrides — missing keys fall back to the active locale's map. */
     i18n?: Partial<TenantPlanSectionI18n>;
-    /** The invoices' amounts, as for `TenantPlanSection`. */
+    /** The account's and the invoices' amounts, as for `TenantPlanSection`. */
     formatCurrency: (n: number) => string;
     /**
      * A day as the page writes it, as for `TenantPlanSection`: it is handed noon
@@ -75,7 +83,7 @@ const props = defineProps<{
 const { locale } = useSuperAdminI18n();
 
 /** Which parts show anything; an empty card would be a bordered strip saying nothing. */
-const shown = reactive({ invoices: false, paymentMethod: false, details: false });
+const shown = reactive({ account: false, invoices: false, paymentMethod: false, details: false });
 
 provideTenantI18n(
     computed<TenantPlanSectionI18n>(() => ({

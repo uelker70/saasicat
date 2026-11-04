@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 679 entries: 🟢 590 stand today, 🟡 36 decided but not yet delivered, ⚪ 0 drafts,
-🔵 47 superseded, 🔴 6 withdrawn.
+Of 679 entries: 🟢 592 stand today, 🟡 33 decided but not yet delivered, ⚪ 0 drafts,
+🔵 47 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -142,7 +142,6 @@ Of 679 entries: 🟢 590 stand today, 🟡 36 decided but not yet delivered, ⚪
 [SC-CANC-020](#sc-canc-020--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
 [SC-CANC-021](#sc-canc-021--the-read-only-period-and-the-deletion-date-are-stated-before-a-tenant-cancels),
 [SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
-[SC-PRIC-019](#sc-pric-019--a-tenant-can-see-their-own-account),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
 [SC-PRIC-095](#sc-pric-095--an-issued-invoice-is-never-edited-its-cancellation-corrects-what-was-not-owed),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
@@ -155,13 +154,11 @@ Of 679 entries: 🟢 590 stand today, 🟡 36 decided but not yet delivered, ⚪
 [SC-PRIC-042](#sc-pric-042--an-invoice-is-issued-in-the-format-its-tax-adapter-requires),
 [SC-PRIC-043](#sc-pric-043--a-change-to-a-subscribers-tax-origin-applies-from-its-next-invoice),
 [SC-PRIC-046](#sc-pric-046--an-invoice-states-the-day-it-is-due),
-[SC-PRIC-049](#sc-pric-049--a-subscribers-account-is-shown-to-the-tenants-users-holding-the-billing-permission),
 [SC-REG-021](#sc-reg-021--a-payment-confirmation-is-verified-before-anything-is-created-from-it),
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
 [SC-ADM-024](#sc-adm-024--a-suspended-tenants-users-cannot-act-and-a-read-only-tenant-cannot-write),
-[SC-UI-023](#sc-ui-023--a-tenants-invoices-payment-method-and-billing-details-need-the-billing-permission),
 [SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
 [SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
@@ -224,6 +221,7 @@ Of 679 entries: 🟢 590 stand today, 🟡 36 decided but not yet delivered, ⚪
 [SC-SUB-013](#sc-sub-013--nothing-rolls-forward-onto-a-subscription-whose-cancellation-has-landed),
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
+[SC-PRIC-019](#sc-pric-019--a-tenant-can-see-their-own-account),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
@@ -8904,32 +8902,11 @@ _Tested by:_
 
 ### SC-PRIC-019 — A tenant can see their own account
 
-🟡 _(Decided, not yet delivered.)_ 💰 Balance, what is open, and the history. An open balance a
-customer cannot see is a surprise at the moment it becomes a problem; one they can see is something
-they can act on.
+🔴 _(Withdrawn on 2026-11-04.)_ 💰 `SC-PRIC-049` covers this ground, the billing permission with it.
+Balance, what is open, and the history. An open balance a customer cannot see is a surprise at the
+moment it becomes a problem; one they can see is something they can act on.
 
 _Source:_ #214
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/tenant-billing-controller.test.js`
-    - getEntitlement returns EffectiveLimitsSnapshot generically (quotas map)
-    - getUsage joins Subscription + Limits + Usage and fills missing quotaKeys with 0
-    - getUsage passes packageSnapshot + checkoutOfferId through 1:1 (P11.4)
-    - getUsage returns packageSnapshot=null when the Subscription has no snapshot
-    - getUsage throws NotFoundException when the Subscription is missing
-    - getUsage states the price the subscription pays, as the plan preview reads it off the version
-      bound
-    - the tenant is taken from the session, not from what the caller sent
-    - and a session that names none is refused rather than falling back
-    - getUsage throws NotFoundException when tenantIdResolver yields no ID
-    - ComposedTenantAuthGuard chains guards in order — all ok = true
-    - ComposedTenantAuthGuard short-circuits on the first false
-    - ComposedTenantAuthGuard throws 403 without configured guards
-
-<!-- END proof -->
 
 ### SC-PRIC-020 — A charge, once written, is never edited
 
@@ -11724,13 +11701,56 @@ _Tested by:_
 
 ### SC-PRIC-049 — A subscriber's account is shown to the tenant's users holding the billing permission
 
-🟡 _(Decided, not yet delivered.)_ 💰 Balance, what is open, and the history, in the subscriber's one
+🟢 💰 Balance, what is open, and the history, in the subscriber's one
 live tenant (`SC-SCOPE-012`), to whoever holds the billing permission (`SC-UI-023`). An open balance
 a customer cannot see is a surprise at the moment it becomes a problem; one they can see is something
 they can act on. The account belongs to the subscriber and shows its amounts, which not every user of
-a tenant is meant to see. This entry supersedes `SC-PRIC-019` in the change that delivers it.
+a tenant is meant to see.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tenant-reads-its-account.test.js`
+    - a subscriber's account
+        - of nothing open is no balance at all
+        - owes what its open invoices still owe, and of that what is overdue
+        - adds to the cent, as the amounts were written
+        - leaves out what a cancelled invoice, a cancellation and a paid one would say
+        - shows the credit beside what is owed, and sets neither off against the other
+        - counts every credit still to be paid out, whatever it arose from
+        - counts an invoice to be refunded before its credit is recorded, as the list says
+        - counts it by its credit once that is recorded, and not twice
+        - keeps each currency apart, the codes in order
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - a tenant's account
+        - adds up what its subscriber’s invoices owe, of that what is overdue, and its credit beside
+          it
+        - counts an earlier tenant’s invoices joined into the subscriber, read past the tenant
+          policy
+        - of a tenant without a subscriber is empty
+        - is served for the tenant of the session, and a request that carries none is refused
+- `packages/ui-vue/tests/a-tenant-reads-its-account.test.js`
+    - the tenant's account
+        - is read under the prefix the app gives, and the part is shown
+        - answered ${status}, is a part not for this user, not an error
+        - that fails otherwise is an error the page reports
+        - answered without balances is an error, not a subscriber that owes nothing
+        - is read once without being asked
+- `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
+    - the account, at the top of the billing section
+        - says what is open, of that what is overdue, and beside it the credit to be refunded
+        - says only what is open where nothing is overdue, and no credit where none is owed
+        - says so where nothing is open
+        - names the currency of each line where it holds more than one
+        - calls a credit a Guthaben in German, never a Gutschrift
+        - stands above the invoices
+        - is not there for a user the server does not let see it
+        - that could not be read says so
+
+<!-- END proof -->
 
 ### SC-PRIC-061 — A derived amount is rounded the way a person computing it by hand rounds
 
@@ -19826,7 +19846,7 @@ _Tested by:_
 
 ### SC-UI-023 — A tenant's invoices, payment method and billing details need the billing permission
 
-🟡 _(Decided, not yet delivered.)_ 🔒 They show the subscriber's amounts, address and masked payment
+🟢 🔒 They show the subscriber's amounts, address and masked payment
 details, which not every user of a tenant is meant to see. The permission governs the whole billing
 area, reading and changing alike: the invoices and their downloads, the account (`SC-PRIC-049`) and
 the payment method (`SC-PRIC-030`). The plan, the usage and a change's preview stay open to every
@@ -19937,6 +19957,15 @@ _Tested by:_
     - the plan page
         - shows the payment method at its foot unless told otherwise
         - leaves it out, and does not ask for it, where the application keeps billing elsewhere
+    - the account, at the top of the billing section
+        - says what is open, of that what is overdue, and beside it the credit to be refunded
+        - says only what is open where nothing is overdue, and no credit where none is owed
+        - says so where nothing is open
+        - names the currency of each line where it holds more than one
+        - calls a credit a Guthaben in German, never a Gutschrift
+        - stands above the invoices
+        - is not there for a user the server does not let see it
+        - that could not be read says so
 
 <!-- END proof -->
 
@@ -19982,6 +20011,15 @@ _Tested by:_
     - the plan page
         - shows the payment method at its foot unless told otherwise
         - leaves it out, and does not ask for it, where the application keeps billing elsewhere
+    - the account, at the top of the billing section
+        - says what is open, of that what is overdue, and beside it the credit to be refunded
+        - says only what is open where nothing is overdue, and no credit where none is owed
+        - says so where nothing is open
+        - names the currency of each line where it holds more than one
+        - calls a credit a Guthaben in German, never a Gutschrift
+        - stands above the invoices
+        - is not there for a user the server does not let see it
+        - that could not be read says so
 
 <!-- END proof -->
 

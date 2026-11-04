@@ -108,12 +108,13 @@ Both read the billing routes under `apiPrefix` (default `/billing`) through the
 `http` adapter you pass. The billing section shows itself only to a user the
 server lets see it — the billing permission, which your
 `tenantBilling.billingPermissionGuards` map to your roles — and renders nothing for
-anyone else, so show its navigation entry to the same users. It lists the
-invoices the operator issues the tenant under "Invoices for your subscription",
-each with where it stands and its archived document once there is one, and the
-contract confirmations beside them; it takes `formatDate` and `formatCurrency`
-as the plan section does. The account will arrive inside it, and a page that
-mounts it now changes nothing when it does.
+anyone else, so show its navigation entry to the same users. At its top it
+says what the account owes — what is open and of that overdue — and beside it
+the credit to be refunded, never one set off against the other. Beneath, it
+lists the invoices the operator issues the tenant under "Invoices for your
+subscription", each with where it stands and its archived document once there
+is one, and the contract confirmations beside them; it takes `formatDate` and
+`formatCurrency` as the plan section does.
 
 Where the platform keeps maintenance windows, wrap the whole application — the sign-in page
 included — in `MaintenanceGate`. It announces a window ahead of time and, while the lock holds,

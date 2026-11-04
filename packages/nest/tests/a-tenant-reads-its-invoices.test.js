@@ -58,7 +58,7 @@ function invoiceOf(id, subscriber, tenantId, day, overrides = {}) {
  * policy, the archived documents and the confirmations — and the service
  * reading them.
  */
-function billingArea({ invoices = [], contracts = {}, bypass = true } = {}) {
+function billingArea({ invoices = [], contracts = {}, bypass = true, credits = [] } = {}) {
     const state = { tenant: null, lifted: false, documents: [], confirmations: [] };
     const subscriberOf = { 'tenant-meier-2026': MEIER, 'tenant-schulz': SCHULZ };
     const visible = (invoice) => state.lifted || invoice.tenantId === state.tenant;
@@ -110,11 +110,17 @@ function billingArea({ invoices = [], contracts = {}, bypass = true } = {}) {
               },
           }
         : null;
+    // Nothing settled against any invoice; the credits of each subscriber as given.
+    const payments = {
+        listSettlements: async () => [],
+        listCredits: async (subscriberId) =>
+            credits.filter(({ credit }) => credit.subscriberId === subscriberId),
+    };
     const service = new TenantInvoiceService(
         subscribers,
         store,
         documents,
-        null,
+        payments,
         confirmations,
         rlsBypass,
         { timeZone: 'Europe/Berlin' },
@@ -140,7 +146,13 @@ test('every route of the invoices and confirmations is behind authentication and
     const handlers = Object.getOwnPropertyNames(prototype).filter(
         (name) => Reflect.getMetadata(ROUTE_METHOD, prototype[name]) !== undefined,
     );
-    assert.deepEqual(handlers.sort(), ['confirmationOf', 'confirmations', 'documentOf', 'page']);
+    assert.deepEqual(handlers.sort(), [
+        'account',
+        'confirmationOf',
+        'confirmations',
+        'documentOf',
+        'page',
+    ]);
     for (const name of handlers) {
         assert.equal(
             Reflect.getMetadata(GUARDS, prototype[name]),
@@ -252,6 +264,73 @@ describe("a tenant's invoices", () => {
         const [invoice] = (await service.page('tenant-meier-2026')).invoices;
 
         assert.equal(invoice.documentArchived, false);
+    });
+});
+
+// @requirement SC-PRIC-049 — A subscriber's account is shown to the tenant's users holding the billing permission
+describe("a tenant's account", () => {
+    /** A credit of `subscriber` with `open` still to be paid out, from an overpayment. */
+    const creditOf = (id, subscriber, open) => ({
+        credit: {
+            id,
+            subscriberId: subscriber.id,
+            currency: 'EUR',
+            amount: open,
+            origin: { kind: 'payment', paymentId: `payment-${id}` },
+        },
+        entries: [],
+        open,
+    });
+
+    test('adds up what its subscriber’s invoices owe, of that what is overdue, and its credit beside it', async () => {
+        const { service } = billingArea({
+            invoices: [
+                invoiceOf('meier-due', MEIER, 'tenant-meier-2026', 1, { dueDate: '2026-07-15' }),
+                invoiceOf('meier-open', MEIER, 'tenant-meier-2026', 2, { totalGross: 20 }),
+                invoiceOf('schulz', SCHULZ, 'tenant-schulz', 3),
+            ],
+            credits: [creditOf('meier', MEIER, 12), creditOf('schulz', SCHULZ, 99)],
+        });
+
+        assert.deepEqual(await service.accountOf('tenant-meier-2026'), {
+            balances: [{ currency: 'EUR', owed: 69, overdue: 49, credit: 12 }],
+        });
+    });
+
+    test('counts an earlier tenant’s invoices joined into the subscriber, read past the tenant policy', async () => {
+        const { service } = billingArea({
+            invoices: [
+                invoiceOf('meier-2025', MEIER, 'tenant-meier-2025', 1),
+                invoiceOf('meier-2026', MEIER, 'tenant-meier-2026', 2),
+            ],
+        });
+
+        const { balances } = await service.accountOf('tenant-meier-2026');
+
+        assert.equal(balances[0].owed, 98);
+    });
+
+    test('of a tenant without a subscriber is empty', async () => {
+        const { service } = billingArea({
+            invoices: [invoiceOf('meier-1', MEIER, 'tenant-meier-2026', 1)],
+        });
+
+        assert.deepEqual(await service.accountOf('tenant-without-one'), { balances: [] });
+    });
+
+    test('is served for the tenant of the session, and a request that carries none is refused', async () => {
+        const { service } = billingArea({
+            invoices: [invoiceOf('meier-1', MEIER, 'tenant-meier-2026', 1)],
+        });
+        const controller = new TenantInvoicesController(service, null);
+
+        assert.deepEqual(await controller.account({ user: { tenantId: 'tenant-meier-2026' } }), {
+            balances: [{ currency: 'EUR', owed: 49, overdue: 0, credit: 0 }],
+        });
+        await assert.rejects(
+            async () => controller.account({ user: {} }),
+            refusedAs(404, 'TENANT_CONTEXT_MISSING'),
+        );
     });
 });
 

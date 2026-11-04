@@ -407,6 +407,19 @@ export interface TenantPlanSectionI18n {
     invoicesIssuedBy: string;
     invoicesEmpty: string;
     invoicesLoadFailed: string;
+    /** The account's heading, at the top of the billing section (`SC-PRIC-049`). */
+    accountTitle: string;
+    /** What the subscriber's invoices still owe; `{amount}` is it. */
+    accountOwed: string;
+    /** As `accountOwed`, where some of it is overdue; `{overdue}` is that part. */
+    accountOwedOverdue: string;
+    /** What the subscriber is owed, to be refunded; `{amount}` is it. A credit, never a credit note. */
+    accountCredit: string;
+    /** Where nothing is open and nothing is owed to the subscriber. */
+    accountNothingOpen: string;
+    accountLoadFailed: string;
+    /** One line of an account in several currencies; `{currency}` is its code, `{text}` the line. */
+    accountInCurrency: string;
     invoicesColumnNumber: string;
     invoicesColumnIssued: string;
     invoicesColumnPeriod: string;
@@ -838,6 +851,13 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     invoicesIssuedBy: 'ausgestellt von {issuer}',
     invoicesEmpty: 'Noch keine Rechnung.',
     invoicesLoadFailed: 'Die Rechnungen konnten nicht geladen werden.',
+    accountTitle: 'Ihr Konto',
+    accountOwed: 'Offen: {amount}',
+    accountOwedOverdue: 'Offen: {amount}, davon überfällig: {overdue}',
+    accountCredit: 'Guthaben: {amount}, wird erstattet',
+    accountNothingOpen: 'Es ist nichts offen.',
+    accountLoadFailed: 'Ihr Konto konnte nicht geladen werden.',
+    accountInCurrency: '{currency}: {text}',
     invoicesColumnNumber: 'Nummer',
     invoicesColumnIssued: 'Rechnungsdatum',
     invoicesColumnPeriod: 'Leistungszeitraum',
@@ -1235,6 +1255,13 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     invoicesIssuedBy: 'issued by {issuer}',
     invoicesEmpty: 'No invoice yet.',
     invoicesLoadFailed: 'The invoices could not be loaded.',
+    accountTitle: 'Your account',
+    accountOwed: 'Open: {amount}',
+    accountOwedOverdue: 'Open: {amount}, of that overdue: {overdue}',
+    accountCredit: 'Credit: {amount}, to be refunded',
+    accountNothingOpen: 'Nothing is open.',
+    accountLoadFailed: 'Your account could not be loaded.',
+    accountInCurrency: '{currency}: {text}',
     invoicesColumnNumber: 'Number',
     invoicesColumnIssued: 'Issued on',
     invoicesColumnPeriod: 'Service period',

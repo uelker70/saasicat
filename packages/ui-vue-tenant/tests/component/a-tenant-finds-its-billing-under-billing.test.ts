@@ -143,6 +143,7 @@ describe('the billing section', () => {
         });
 
         expect(calls.map((call) => call.key).sort()).toEqual([
+            'GET /api/billing/account',
             'GET /api/billing/contracts',
             'GET /api/billing/details',
             'GET /api/billing/invoices',
@@ -436,5 +437,109 @@ describe('the plan page', () => {
         expect(wrapper.text()).not.toContain(i18n.paymentMethodTitle);
         expect(calls.some((url) => url.includes('/payment-method'))).toBe(false);
         expect(wrapper.text(), 'the rest of the page is still there').toContain(i18n.activePlan);
+    });
+});
+
+// @requirement SC-PRIC-049 — A subscriber's account is shown to the tenant's users holding the billing permission
+describe('the account, at the top of the billing section', () => {
+    const lines = (wrapper: VueWrapper) =>
+        wrapper.findAll('.sp-account__line').map((line) => line.text());
+
+    test('says what is open, of that what is overdue, and beside it the credit to be refunded', async () => {
+        const { http } = httpRouting({
+            'GET /billing/account': [
+                200,
+                { balances: [{ currency: 'EUR', owed: 69, overdue: 20, credit: 12 }] },
+            ],
+        });
+        const wrapper = await mountSection(http);
+
+        expect(wrapper.find('.sp-account h3').text()).toBe(i18n.accountTitle);
+        expect(lines(wrapper)).toEqual([
+            'Open: €69.00, of that overdue: €20.00',
+            'Credit: €12.00, to be refunded',
+        ]);
+        expect(wrapper.find('.sp-billing-section').isVisible()).toBe(true);
+    });
+
+    test('says only what is open where nothing is overdue, and no credit where none is owed', async () => {
+        const { http } = httpRouting({
+            'GET /billing/account': [
+                200,
+                { balances: [{ currency: 'EUR', owed: 49, overdue: 0, credit: 0 }] },
+            ],
+        });
+
+        expect(lines(await mountSection(http))).toEqual(['Open: €49.00']);
+    });
+
+    test('says so where nothing is open', async () => {
+        const { http } = httpRouting({ 'GET /billing/account': [200, { balances: [] }] });
+
+        expect(lines(await mountSection(http))).toEqual([i18n.accountNothingOpen]);
+    });
+
+    test('names the currency of each line where it holds more than one', async () => {
+        const { http } = httpRouting({
+            'GET /billing/account': [
+                200,
+                {
+                    balances: [
+                        { currency: 'CHF', owed: 0, overdue: 0, credit: 3 },
+                        { currency: 'EUR', owed: 20, overdue: 0, credit: 0 },
+                    ],
+                },
+            ],
+        });
+
+        expect(lines(await mountSection(http))).toEqual([
+            'CHF: Credit: €3.00, to be refunded',
+            'EUR: Open: €20.00',
+        ]);
+    });
+
+    test('calls a credit a Guthaben in German, never a Gutschrift', async () => {
+        const { http } = httpRouting({
+            'GET /billing/account': [
+                200,
+                { balances: [{ currency: 'EUR', owed: 0, overdue: 0, credit: 12 }] },
+            ],
+        });
+        const wrapper = await mountSection(http, {
+            i18n: defaultTenantPlanSectionI18n('de'),
+        });
+
+        expect(lines(wrapper)).toEqual(['Guthaben: €12.00, wird erstattet']);
+        expect(wrapper.text()).not.toContain('Gutschrift');
+    });
+
+    test('stands above the invoices', async () => {
+        const { http } = httpRouting({
+            'GET /billing/account': [200, { balances: [] }],
+            'GET /billing/invoices': [200, { invoices: [], next: null }],
+            'GET /billing/contracts': [200, { confirmations: [] }],
+        });
+        const wrapper = await mountSection(http);
+
+        const parts = [...wrapper.element.querySelectorAll('.sp-account, .sp-invoices')];
+        expect(
+            parts.map((part) => (part.classList.contains('sp-account') ? 'account' : 'invoices')),
+        ).toEqual(['account', 'invoices']);
+    });
+
+    test('is not there for a user the server does not let see it', async () => {
+        const { http } = httpRouting({ 'GET /billing/account': [403, {}] });
+        const wrapper = await mountSection(http);
+
+        expect(wrapper.find('.sp-account').exists()).toBe(false);
+        expect(wrapper.find('.sp-billing-section').isVisible()).toBe(false);
+    });
+
+    test('that could not be read says so', async () => {
+        const { http } = httpRouting({ 'GET /billing/account': [500, {}] });
+        const wrapper = await mountSection(http);
+
+        expect(wrapper.find('.sp-account__error').text()).toBe(i18n.accountLoadFailed);
+        expect(lines(wrapper)).toEqual([]);
     });
 });
