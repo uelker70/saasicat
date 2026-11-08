@@ -552,8 +552,6 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Dieses Konto kann derzeit nur gelesen werden. Sie können seine Daten weiterhin ansehen und exportieren.',
     TENANT_SUSPENDED: 'Dieses Konto ist gesperrt. Bitte wenden Sie sich an Ihren Anbieter.',
     TENANT_BEING_DELETED: 'Dieses Konto wird gelöscht.',
-    TENANT_ALREADY_SUSPENDED: 'Dieser Mandant ist bereits gesperrt.',
-    TENANT_NOT_SUSPENDED: 'Dieser Mandant ist nicht gesperrt.',
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED:
         'Der Steueradapter {adapter} unterstützt diesen Fall nicht: {reason}',

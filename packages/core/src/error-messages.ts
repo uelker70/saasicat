@@ -534,8 +534,6 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'This account can be read but not changed at the moment. You can still view and export its data.',
     TENANT_SUSPENDED: 'This account is suspended. Please contact your provider.',
     TENANT_BEING_DELETED: 'This account is being deleted.',
-    TENANT_ALREADY_SUSPENDED: 'This tenant is suspended already.',
-    TENANT_NOT_SUSPENDED: 'This tenant is not suspended.',
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED: 'The tax adapter {adapter} does not support this case: {reason}',
     TAX_VAT_ID_CHECK_NOT_COMPLETED:

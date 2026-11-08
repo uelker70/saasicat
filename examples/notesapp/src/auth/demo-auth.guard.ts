@@ -34,8 +34,9 @@ import { isSaaSiCatPublicRoute } from '@saasicat/nest/platform';
  * Once the user is known, the tenant's access state is asked (`SC-ADM-024`):
  * a suspended tenant's users are refused, a read-only tenant's writes are. This
  * is the line a real app adds at the end of its own authentication guard. The
- * operator's requests are the administration's, not a tenant's, and are not
- * held to it.
+ * operator is not one of the tenant's users and passes a suspension or
+ * read-only, never a deletion under way; saying so here is also what lets the
+ * operator through the platform's own tenant routes, which trust this check.
  */
 @Injectable()
 export class DemoAuthGuard implements CanActivate {
@@ -73,7 +74,9 @@ export class DemoAuthGuard implements CanActivate {
                     : `demo-user-${tenantId}@notesapp.example`,
             sessionId: 'notesapp-demo',
         };
-        if (platformRole !== 'SUPER_ADMIN') await this.access.enforce(context, tenantId);
+        await this.access.enforce(context, tenantId, {
+            actingAsOperator: platformRole === 'SUPER_ADMIN',
+        });
         return true;
     }
 }

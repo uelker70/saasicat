@@ -237,6 +237,10 @@ describe('which routes the check reaches', () => {
         assert.deepEqual(unguarded, []);
     });
 
+    // Replacing the payment method is not among them: SC-ADM-024 leaves it open
+    // under read-only only while one of the subscriber's invoices is open, and
+    // this check does not see invoices. Until it does, a read-only tenant cannot
+    // replace its payment method.
     test('exactly these routes let a read-only tenant through with a writing method', () => {
         const writingNothing = tenantControllers
             .flatMap(handlersOf)
