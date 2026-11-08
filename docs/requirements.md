@@ -430,7 +430,8 @@ _Tested by:_
         - a negation right before it is not
         - a negation further away belongs to something else
         - the name of the Open Source Initiative is not the claim
-        - words that merely contain the two are not either
+        - the two written as one word are the claim as well
+        - words that merely contain the two are not a mention
 
 <!-- END proof -->
 

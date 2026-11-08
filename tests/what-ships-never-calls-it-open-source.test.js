@@ -17,6 +17,16 @@
 // Negation is read in the few words right before the mention, not in the
 // sentence around it: "because the project is open source and a developer who
 // does not configure a locale…" carries a "not" that negates something else.
+// For the same reason a contrast ends the look-back — in "not proprietary but
+// open source" the "not" belongs to "proprietary". "opensource" written as one
+// word is a mention like the two. What the reading still gets wrong fails
+// closed: a negation further back than the window, or one this file does not
+// know, reports a mention that was a denial, and rewording it is the remedy.
+//
+// Published history is left as it went out. `CHANGELOG.md` is outside what
+// `scripts/what-ships.mjs` counts as shipped, and older entries there call the
+// packages open-source: a release note records what was said when its version
+// was published, and it is not rewritten afterwards.
 //
 // One kind of text is exempt, and it is derived rather than listed: the
 // requirement that states the rule, and the decision records its `_Source:_`
@@ -39,7 +49,10 @@ const ADR_DIRECTORY = 'docs/explanation/adr';
 
 /** One quantifier over a class that excludes its own separator — nothing to backtrack. */
 const NOT_A_WORD = /[^\p{L}\p{N}]+/u;
-const NEGATIONS = new Set(['not', 'never']);
+const NEGATIONS = new Set(['not', 'never', 'no', 'isn', 'aren', 'wasn']);
+
+/** Words after which an earlier negation belongs to what came before them. */
+const CONTRASTS = new Set(['but', 'yet', 'rather', 'instead']);
 
 /** How many words before a mention a negation may stand and still be its own. */
 const NEGATION_REACH = 3;
@@ -55,15 +68,31 @@ function wordsOf(text) {
     );
 }
 
+/** How many words a mention starting at `at` spans, or 0 where none starts there. */
+function mentionAt(words, at) {
+    if (words[at].word === 'opensource') return 1;
+    if (words[at].word === 'open' && words[at + 1]?.word === 'source') return 2;
+    return 0;
+}
+
+/** Whether a negation stands right before `at`, with no contrast in between. */
+function negatedBefore(words, at) {
+    for (let back = at - 1; back >= Math.max(0, at - NEGATION_REACH); back--) {
+        if (CONTRASTS.has(words[back].word)) return false;
+        if (NEGATIONS.has(words[back].word)) return true;
+    }
+    return false;
+}
+
 /** The lines on which a text calls something open source without negating it. */
 export function claimsIn(text) {
     const words = wordsOf(text);
     const claims = [];
-    for (let at = 0; at + 1 < words.length; at++) {
-        if (words[at].word !== 'open' || words[at + 1].word !== 'source') continue;
-        if (words[at + 2]?.word === 'initiative') continue;
-        const before = words.slice(Math.max(0, at - NEGATION_REACH), at);
-        if (before.some(({ word }) => NEGATIONS.has(word))) continue;
+    for (let at = 0; at < words.length; at++) {
+        const span = mentionAt(words, at);
+        if (span === 0) continue;
+        if (words[at + span]?.word === 'initiative') continue;
+        if (negatedBefore(words, at)) continue;
         claims.push(words[at].line);
     }
     return claims;
@@ -137,6 +166,8 @@ describe('what counts as the claim', () => {
         assert.deepEqual(claimsIn('source-available, not OSI\nopen source.'), []);
         assert.deepEqual(claimsIn('must not be called open source'), []);
         assert.deepEqual(claimsIn('never calls SaaSiCat open source'), []);
+        assert.deepEqual(claimsIn("the licence isn't open source"), []);
+        assert.deepEqual(claimsIn('it is no open source licence'), []);
     });
 
     test('a negation further away belongs to something else', () => {
@@ -145,13 +176,19 @@ describe('what counts as the claim', () => {
             [1],
         );
         assert.deepEqual(claimsIn('This is not optional. The project is open source.'), [1]);
+        assert.deepEqual(claimsIn('this is not proprietary but open source'), [1]);
     });
 
     test('the name of the Open Source Initiative is not the claim', () => {
         assert.deepEqual(claimsIn('not approved by the Open Source Initiative'), []);
     });
 
-    test('words that merely contain the two are not either', () => {
-        assert.deepEqual(claimsIn('reopen sources; opensource; open sourcing'), []);
+    test('the two written as one word are the claim as well', () => {
+        assert.deepEqual(claimsIn('SaaSiCat is opensource'), [1]);
+        assert.deepEqual(claimsIn('SaaSiCat is not opensource'), []);
+    });
+
+    test('words that merely contain the two are not a mention', () => {
+        assert.deepEqual(claimsIn('reopen sources; open sourcing; opensourced'), []);
     });
 });
