@@ -25,6 +25,7 @@ import {
     Patch,
     Post,
     Query,
+    Req,
     type Type,
 } from '@nestjs/common';
 
@@ -40,6 +41,7 @@ import {
 } from './dto/plan-versions.dto.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
+import { WebAuditLogger } from '../core/web-audit.js';
 
 export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/plans')
@@ -52,6 +54,9 @@ export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
             @Optional()
             @Inject(PlanVersionsService)
             private readonly versionsService: PlanVersionsService | null = null,
+            @Optional()
+            @Inject(WebAuditLogger)
+            private readonly audit: WebAuditLogger | null = null,
         ) {}
 
         // ─── Master operations ───
@@ -111,10 +116,12 @@ export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
         createDraft(
             @Param('id', new ParseUUIDPipe()) planId: string,
             @Body() dto: CreatePlanVersionDraftDto,
+            @Req() request: unknown,
         ) {
             this.assertVersionsService();
             return this.versionsService!.createPlanDraft({
                 planId,
+                createdByUserId: this.audit?.resolveUserId(request) ?? null,
                 features: dto.features,
                 bundles: dto.bundles,
                 quotas: dto.quotas,
@@ -153,6 +160,9 @@ export function buildPlanVersionsController(guards: Array<Type<CanActivate>>): T
         constructor(
             @Inject(PlanVersionsService)
             private readonly service: PlanVersionsService,
+            @Optional()
+            @Inject(WebAuditLogger)
+            private readonly audit: WebAuditLogger | null = null,
         ) {}
 
         @Get(':id')
@@ -170,17 +180,35 @@ export function buildPlanVersionsController(guards: Array<Type<CanActivate>>): T
 
         @Post(':id/publish')
         @EnforceMfa()
-        publish(
+        async publish(
             @Param('id', new ParseUUIDPipe()) versionId: string,
             @Body() dto: PublishPlanVersionDto,
+            @Req() request: unknown,
         ) {
-            return this.service.publishPlanVersion(versionId, {
-                publishedByUserId: null, // set by the app's @CurrentUser(); not yet wired up in Pack 2a
+            const result = await this.service.publishPlanVersion(versionId, {
+                publishedByUserId: this.audit?.resolveUserId(request) ?? null,
                 forceRegressive: dto.forceRegressive,
                 allowZeroPrice: dto.allowZeroPrice,
                 validFrom: dto.validFrom,
                 validUntil: dto.validUntil,
             });
+            const published = result.planVersion;
+            await this.audit?.logFromRequest(
+                request,
+                'PlanVersion',
+                published.id,
+                'PLAN_VERSION_PUBLISH',
+                {
+                    planId: published.planId,
+                    version: published.version,
+                    validFrom: published.validFrom,
+                    validUntil: published.validUntil,
+                    nonRegressive: published.nonRegressive,
+                    forceRegressive: dto.forceRegressive === true,
+                    allowZeroPrice: dto.allowZeroPrice === true,
+                },
+            );
+            return result;
         }
 
         @Delete(':id')
@@ -191,11 +219,32 @@ export function buildPlanVersionsController(guards: Array<Type<CanActivate>>): T
 
         @Post(':id/terminate')
         @EnforceMfa()
-        terminate(
+        async terminate(
             @Param('id', new ParseUUIDPipe()) versionId: string,
             @Body() dto: TerminatePlanVersionDto,
+            @Req() request: unknown,
         ) {
-            return this.service.terminatePlanVersion(versionId, new Date(dto.endsAt));
+            // Ending is repeatable and moves an end already set, so the entry
+            // names the end it replaced: without it a log could not show that
+            // customers' end was brought forward, or from which day.
+            const before = await this.service.getPlanVersion(versionId);
+            const terminated = await this.service.terminatePlanVersion(
+                versionId,
+                new Date(dto.endsAt),
+            );
+            await this.audit?.logFromRequest(
+                request,
+                'PlanVersion',
+                terminated.id,
+                'PLAN_VERSION_TERMINATE',
+                {
+                    planId: terminated.planId,
+                    version: terminated.version,
+                    endsAt: terminated.endsAt,
+                    previousEndsAt: before.endsAt,
+                },
+            );
+            return terminated;
         }
     }
 
