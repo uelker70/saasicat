@@ -1,5 +1,5 @@
 {
-    "require-safety-comment-for-type-assertion": 1094,
+    "require-safety-comment-for-type-assertion": 1093,
     "no-chained-type-assertions": 127,
     "no-widen-then-assert": 0,
     "no-reflect-get": 1,

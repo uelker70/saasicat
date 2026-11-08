@@ -1,5 +1,6 @@
 import type { AdminManifest } from '../admin-manifest.types.js';
 import type { AuditEntry, AuditQuery } from '../audit-event.types.js';
+import type { TenantAccessState } from '../tenant-access.types.js';
 
 // -----------------------------------------------------------------------------
 // Admin stats and platform operation ports
@@ -129,9 +130,20 @@ export interface AuditQueryPort {
 // -----------------------------------------------------------------------------
 
 export interface AdminTenantListFilter {
+    /** A status of the application's own; the platform answers `ACTIVE`, `INACTIVE` and `SUSPENDED` itself. */
     status?: string;
     plan?: string;
     search?: string;
+    /**
+     * Only tenants that may act (`true`) or may not (`false`): the
+     * application's own flag (`isActive`) and the platform's suspension
+     * together. True asks for an active tenant not among `heldBackTenantIds`;
+     * false for an inactive tenant or one among them. Applied in the query,
+     * before the list is cut to a page.
+     */
+    mayAct?: boolean;
+    /** The tenants the platform holds back, which `mayAct` takes into account. */
+    heldBackTenantIds?: readonly string[];
 }
 
 export interface AdminUserListFilter {
@@ -151,6 +163,11 @@ export interface AdminTenantListRow {
     id: string;
     slug: string;
     name: string;
+    /**
+     * Whether the application lets the tenant act. The platform's own reasons
+     * — a suspension, a deletion under way — are kept by the platform and
+     * added on top in the row the administration reads (`AdminTenantListEntry`).
+     */
     isActive: boolean;
     deletedAt: string | null;
     plan: string | null;
@@ -219,12 +236,28 @@ export interface AdminTenantSummary {
     deletedAt: string | null;
 }
 
+/**
+ * What a tenant's state is to the administration: the row the application
+ * gives, with `isActive` narrowed to whether the tenant may act at all — false
+ * where the application deactivated it, and false where the platform suspended
+ * it or is deleting it — and the platform's state beside it (`SC-ADM-024`).
+ */
+export interface TenantAccessOverlay {
+    access: TenantAccessState;
+}
+
+/** A tenant row as the administration's list reads it. */
+export type AdminTenantListEntry = AdminTenantListRow & TenantAccessOverlay;
+
+/** A tenant as the administration's detail page reads it. */
+export type AdminTenantDetailEntry = AdminTenantDetail & TenantAccessOverlay;
+
+/** What suspending or reactivating a tenant answers: its state afterwards. */
 export interface AdminTenantStateResult {
     ok: true;
     id: string;
     slug: string;
-    isActive: boolean;
-    status: string | null;
+    access: TenantAccessState;
 }
 
 /**
@@ -243,11 +276,6 @@ export interface AdminResourcesPort {
      * left out, and the record says so rather than guessing (`SC-ADM-036`).
      */
     findTenantsByIds(tenantIds: readonly string[]): Promise<AdminTenantSummary[]>;
-    setTenantActive(
-        slug: string,
-        active: boolean,
-        subscriptionStatus: string,
-    ): Promise<AdminTenantStateResult | null>;
     listUsers(filter: AdminUserListFilter): Promise<AdminUserListRow[]>;
     listAudit(filter: AdminAuditListFilter): Promise<AuditEntry[]>;
     listSubscriptions(): Promise<AdminSubscriptionListRow[]>;

@@ -149,9 +149,11 @@ describe('an app that calls everything something else', () => {
 
         const [call] = calls;
         assert.equal(call.delegate, 'organization');
-        assert.equal(call.args.where.enabled, true, 'the status filter uses the mapped flag');
+        // A status is not the adapter's to filter: the platform answers it
+        // with `mayAct`, from the flag and its own record of suspensions.
+        assert.deepEqual(call.args.where.AND.length, 1, 'only the search is a condition');
         assert.deepEqual(
-            call.args.where.OR.map((clause) => Object.keys(clause)[0]),
+            call.args.where.AND[0].OR.map((clause) => Object.keys(clause)[0]),
             ['handle', 'title'],
             'the search filter uses the mapped columns',
         );
@@ -243,15 +245,33 @@ describe('an app that calls everything something else', () => {
         assert.deepEqual(calls, []);
     });
 
-    test('suspending writes the mapped flag', async () => {
-        const { client, calls } = clientWith(RENAMED, {
-            organization: [{ id: 't1', handle: 'acme' }],
-        });
+    test('may act asks for the mapped flag and not held back, before the limit', async () => {
+        const { client, calls } = clientWith(RENAMED, { organization: [] });
         const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
-        await adapter.setTenantActive('acme', false, 'suspended');
 
-        const update = calls.find((c) => c.method === 'update');
-        assert.deepEqual(update.args.data, { enabled: false });
+        await adapter.listTenants({ mayAct: true, heldBackTenantIds: ['t1'], search: 'ac' });
+
+        const [{ args }] = calls;
+        assert.deepEqual(args.where.AND[0], { enabled: true, id: { notIn: ['t1'] } });
+        assert.deepEqual(
+            args.where.AND[1].OR.map((clause) => Object.keys(clause)[0]),
+            ['handle', 'title'],
+            'the search stays a condition of its own',
+        );
+        assert.equal(typeof args.take, 'number', 'the limit applies to the filtered rows');
+    });
+
+    test('may not act asks for the mapped flag off, or held back, in one condition', async () => {
+        const { client, calls } = clientWith(RENAMED, { organization: [] });
+        const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
+
+        await adapter.listTenants({ mayAct: false, heldBackTenantIds: ['t1', 't2'] });
+        await adapter.listTenants({ mayAct: false, heldBackTenantIds: [] });
+
+        assert.deepEqual(calls[0].args.where.AND, [
+            { OR: [{ enabled: false }, { id: { in: ['t1', 't2'] } }] },
+        ]);
+        assert.deepEqual(calls[1].args.where.AND, [{ enabled: false }]);
     });
 
     test('the user list filters and reads the mapped names', async () => {
@@ -293,11 +313,12 @@ describe('an app that matches the convention is unaffected', () => {
             ],
         });
         const adapter = new PrismaAdminResourcesAdapter(client);
-        const rows = await adapter.listTenants({ status: 'INACTIVE' });
+        const rows = await adapter.listTenants({});
 
         assert.equal(calls[0].delegate, 'tenant');
-        assert.deepEqual(calls[0].args.where, { isActive: false });
+        assert.deepEqual(calls[0].args.where, {});
         assert.equal(rows[0].slug, 'acme');
+        assert.equal(rows[0].isActive, true, 'the flag is read from its conventional column');
     });
 });
 

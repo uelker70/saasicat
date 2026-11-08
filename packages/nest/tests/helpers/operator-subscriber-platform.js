@@ -11,6 +11,7 @@ import { AdminManifestService, SaaSiCatModule } from '../../dist/platform/index.
 import {
     FakeSubscriberJoinRepository,
     FakeSubscriberRepository,
+    FakeTenantAccessHoldRepository,
 } from '../../dist/testing/index.js';
 import { storeSecretsInPlainText } from '../../dist/index.js';
 import {
@@ -154,7 +155,6 @@ export async function aPlatform({
                     : [],
             );
         },
-        setTenantActive: async () => null,
         listUsers: async () => [],
         listAudit: async () => [],
         listSubscriptions: async () => [],
@@ -196,6 +196,7 @@ export async function aPlatform({
                 },
                 rlsBypass,
                 transactionRunner: { run: (fn) => fn({}) },
+                tenantAccessHolds: new FakeTenantAccessHoldRepository(),
             },
             entitlement,
             adminResources: { resources: tenants },

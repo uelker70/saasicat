@@ -5,7 +5,6 @@ import type {
     AdminTenantDetail,
     AdminTenantListFilter,
     AdminTenantListRow,
-    AdminTenantStateResult,
     AdminTenantSummary,
     AdminUserListFilter,
     AdminUserListRow,
@@ -127,14 +126,20 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
     async listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]> {
         const t = this.schema.tenant;
         const where: Record<string, unknown> = {};
-        const active = parseActiveFilter(filter.status);
-        if (active !== undefined) where[t.isActive] = active;
-        if (filter.search) {
-            where.OR = [
-                { [t.slug]: { contains: literalInLike(filter.search), mode: 'insensitive' } },
-                { [t.name]: { contains: literalInLike(filter.search), mode: 'insensitive' } },
-            ];
-        }
+        // Applied in the query, before `take`: whether a tenant may act is its
+        // own flag and the platform's suspension together, and a filter
+        // applied to rows a limit already cut would miss every tenant past it.
+        const mayAct = mayActCondition(t.isActive, filter);
+        const search = filter.search
+            ? {
+                  OR: [
+                      { [t.slug]: { contains: literalInLike(filter.search), mode: 'insensitive' } },
+                      { [t.name]: { contains: literalInLike(filter.search), mode: 'insensitive' } },
+                  ],
+              }
+            : null;
+        const all = [mayAct, search].filter((condition) => condition !== null);
+        if (all.length) where.AND = all;
         if (filter.plan) where[t.subscription] = { plan: filter.plan };
 
         const rows = await this.tenants().findMany({
@@ -208,33 +213,6 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
             name: this.read<string>(row, t.name) ?? '',
             deletedAt: this.read<Date | null>(row, t.deletedAt)?.toISOString() ?? null,
         }));
-    }
-
-    async setTenantActive(
-        slug: string,
-        active: boolean,
-        subscriptionStatus: string,
-    ): Promise<AdminTenantStateResult | null> {
-        const t = this.schema.tenant;
-        const tenant = await this.tenants().findUnique({ where: { [t.slug]: slug } });
-        if (!tenant) return null;
-
-        await this.tenants().update({
-            where: { id: tenant.id },
-            data: { [t.isActive]: active },
-        });
-        await this.subscriptions().updateMany({
-            where: { tenantId: tenant.id },
-            data: { status: subscriptionStatus },
-        });
-
-        return {
-            ok: true,
-            id: tenant.id,
-            slug,
-            isActive: active,
-            status: subscriptionStatus,
-        };
     }
 
     async listUsers(filter: AdminUserListFilter): Promise<AdminUserListRow[]> {
@@ -352,12 +330,29 @@ function metricSelect(metrics: readonly string[]): Record<string, true> {
     return Object.fromEntries(metrics.map((metric) => [metric, true]));
 }
 
-function parseActiveFilter(status: string | undefined): boolean | undefined {
-    if (!status) return undefined;
-    const normalized = status.toUpperCase();
-    if (normalized === 'ACTIVE') return true;
-    if (normalized === 'INACTIVE' || normalized === 'SUSPENDED') return false;
-    return undefined;
+/** A condition on the tenant's flag column, and on its id where tenants are held back. */
+type MayActCondition =
+    | Record<string, boolean | { notIn: readonly string[] }>
+    | { OR: [Record<string, boolean>, { id: { in: readonly string[] } }] };
+
+/**
+ * The condition `mayAct` asks for, on the application's flag and the tenants
+ * the platform holds back, or null where it asks for nothing.
+ */
+function mayActCondition(
+    isActiveColumn: string,
+    filter: AdminTenantListFilter,
+): MayActCondition | null {
+    if (filter.mayAct === undefined) return null;
+    const heldBack = filter.heldBackTenantIds ?? [];
+    if (filter.mayAct) {
+        return heldBack.length
+            ? { [isActiveColumn]: true, id: { notIn: heldBack } }
+            : { [isActiveColumn]: true };
+    }
+    return heldBack.length
+        ? { OR: [{ [isActiveColumn]: false }, { id: { in: heldBack } }] }
+        : { [isActiveColumn]: false };
 }
 
 function validDateString(value: string | undefined): string | undefined {

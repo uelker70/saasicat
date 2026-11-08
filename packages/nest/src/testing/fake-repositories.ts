@@ -7,6 +7,7 @@
 import type {
     NewTenantAccessHold,
     TenantAccessHold,
+    TenantAccessHoldKind,
     TenantAccessHoldPort,
     BundleListFilter,
     BundleRepository,
@@ -1006,6 +1007,11 @@ export class FakeTenantAccessHoldRepository implements TenantAccessHoldPort {
 
     async listOpenFor(tenantIds: readonly string[]): Promise<TenantAccessHold[]> {
         return this.open().filter((hold) => tenantIds.includes(hold.tenantId));
+    }
+
+    async listTenantIdsHeldBy(kinds: readonly TenantAccessHoldKind[]): Promise<string[]> {
+        const held = this.open().filter((hold) => kinds.includes(hold.kind));
+        return [...new Set(held.map((hold) => hold.tenantId))];
     }
 
     async record(hold: NewTenantAccessHold): Promise<TenantAccessHold | null> {

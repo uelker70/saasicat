@@ -549,12 +549,29 @@ function formatCreatedAt(row: TenantRow): string {
  * can also render markup a pill list cannot express.
  */
 function resolvedPills(row: TenantRow): StatusPillDef[] {
-    const isActive = (row as TenantDto).isActive;
-    return [
-        isActive
-            ? { label: common.value.active, icon: 'check_circle', tone: 'positive' }
-            : { label: msg.value.list.suspended, icon: 'block', tone: 'negative' },
-    ];
+    return [tenantStatePill(row)];
+}
+
+/**
+ * The platform's state where the row carries it (`SC-ADM-024`); otherwise, and
+ * for a tenant the application deactivated, what `isActive` says.
+ */
+function tenantStatePill(row: { isActive: boolean; access?: unknown }): StatusPillDef {
+    if (row.access === 'deleting') {
+        return { label: msg.value.list.beingDeleted, icon: 'delete_forever', tone: 'negative' };
+    }
+    if (row.access === 'suspended') {
+        return { label: msg.value.list.suspended, icon: 'block', tone: 'negative' };
+    }
+    if (!row.isActive) {
+        return row.access === undefined
+            ? { label: msg.value.list.suspended, icon: 'block', tone: 'negative' }
+            : { label: common.value.inactive, icon: 'pause_circle', tone: 'muted' };
+    }
+    if (row.access === 'read-only') {
+        return { label: msg.value.list.readOnly, icon: 'visibility', tone: 'warning' };
+    }
+    return { label: common.value.active, icon: 'check_circle', tone: 'positive' };
 }
 
 function visibleActions(row: TenantRow): TenantRowAction[] {

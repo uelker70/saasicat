@@ -121,7 +121,7 @@ import type { tenantsResource } from '../client/resources/tenants.resource.js';
 import type { TenantDetailData, UsageField } from '../internal/tenant-detail/types.js';
 import type { QTableColumn } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
-import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/core';
+import type { AdminManifest, TenantAccessState, TenantActionDef, TenantDto } from '@saasicat/core';
 import { formatMessage } from '../client/i18n/format.js';
 import TenantMasterData from '../internal/tenant-detail/TenantMasterData.vue';
 import TenantSubscriberCard from '../internal/tenant-detail/TenantSubscriberCard.vue';
@@ -134,6 +134,7 @@ import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
 import { useTenantSubscriber } from '../vue/use-tenant-subscriber.js';
 import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
+import { tenantActionVisible } from '../vue/use-platform-tenant-actions.js';
 import { useStandardPageRoute } from '../vue/standard-page-routes.js';
 
 export type { TenantDetailData, UsageField } from '../internal/tenant-detail/types.js';
@@ -308,22 +309,28 @@ function onConfirmDialogVisibility(open: boolean): void {
 
 const SUPPORTED_ACTION_KEYS = new Set(['tenants.suspend', 'tenants.reactivate']);
 
-const tenantRow = computed<TenantDto | null>(() => {
+/** The tenant as its actions read it: with the platform's state, where the server says it. */
+type TenantRow = TenantDto & { access?: TenantAccessState };
+
+const tenantRow = computed<TenantRow | null>(() => {
     const t = data.value;
     if (!t) return null;
-    return { id: t.id, slug: t.slug, name: t.name, isActive: t.isActive, deletedAt: null };
+    return {
+        id: t.id,
+        slug: t.slug,
+        name: t.name,
+        isActive: t.isActive,
+        deletedAt: null,
+        access: t.access,
+    };
 });
 
-const flow = useTenantActionFlow<TenantDto>(manifestRef, {
+const flow = useTenantActionFlow<TenantRow>(manifestRef, {
     confirm: showConfirmDialog,
     mfa: showMfaDialog,
     notify,
     onSuccess: () => void load(),
-    visibleForRow: (def, row) => {
-        if (def.actionKey === 'tenants.suspend') return row.isActive;
-        if (def.actionKey === 'tenants.reactivate') return !row.isActive;
-        return true;
-    },
+    visibleForRow: (def, row) => tenantActionVisible(def, row),
 });
 
 const manifestActions = computed(() => {

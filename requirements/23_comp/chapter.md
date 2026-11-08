@@ -909,6 +909,7 @@ _Tested by:_
         - many tenants are read in one query, and none asks nothing
         - a reason is recorded under an id made here, the index deciding a second
         - a lift asks for a reason still open, and one already lifted answers null
+        - the tenants held back by some kinds are read once each, from open reasons
         - a row with a kind the platform does not know is refused
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record

@@ -20,7 +20,7 @@
 import {
     SUBSCRIBER_ATTENTION_PAGE_SIZE,
     type AdminSubscriberAttention,
-    type AdminTenantDetail,
+    type AdminTenantDetailEntry,
     type AdminTenantSubscriber,
     type TenantDto,
     type TenantListFilter,
@@ -55,8 +55,8 @@ function attentionPages(tenantIds: readonly string[]): string[][] {
 export const tenantsResource = defineResource('tenants', {
     list: defineListOp<TenantDto, TenantsListFilter>((ctx) => tenantsUrl(ctx)),
 
-    detail: async (http, ctx, slug: string): Promise<AdminTenantDetail | null> =>
-        requestJson<AdminTenantDetail>(http, tenantUrl(ctx, slug)),
+    detail: async (http, ctx, slug: string): Promise<AdminTenantDetailEntry | null> =>
+        requestJson<AdminTenantDetailEntry>(http, tenantUrl(ctx, slug)),
 
     /**
      * Suspends a tenant. The reason is recorded on the audit trail, so it is a

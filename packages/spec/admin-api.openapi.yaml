@@ -252,7 +252,7 @@ paths:
             - $ref: '#/components/parameters/TenantSlug'
         post:
             tags: [tenants]
-            summary: Deactivate a tenant (login is blocked, data remains)
+            summary: Suspend a tenant — its users are refused until it is reactivated; nothing of the application's is written
             x-mfa-required: true
             requestBody:
                 required: true
@@ -264,17 +264,30 @@ paths:
                             properties:
                                 reason: { type: string, minLength: 5 }
             responses:
-                '200': { description: Suspended }
+                '200':
+                    description: Suspended — the tenant's state afterwards
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminTenantStateResult' }
+                '409':
+                    {
+                        description: 'TENANT_ALREADY_SUSPENDED — the suspension that stands keeps its note',
+                    }
 
     /tenants/{slug}/reactivate:
         parameters:
             - $ref: '#/components/parameters/TenantSlug'
         post:
             tags: [tenants]
-            summary: Reactivate a suspended tenant
+            summary: Reactivate a suspended tenant — lifts the suspension and no other reason the tenant is held back for
             x-mfa-required: true
             responses:
-                '200': { description: Reactivated }
+                '200':
+                    description: Reactivated — the tenant's state afterwards, read-only where an overdue invoice still holds
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminTenantStateResult' }
+                '409': { description: TENANT_NOT_SUSPENDED }
 
     /tenants/{slug}/impersonate:
         parameters:
@@ -3881,6 +3894,10 @@ components:
                 id: { type: string }
                 slug: { type: string }
                 name: { type: string }
+                isActive:
+                    type: boolean
+                    description: 'Whether the tenant may act at all: false where the application deactivated it, and where the platform suspended it or is deleting it'
+                access: { $ref: '#/components/schemas/TenantAccessState' }
                 plan: { type: string }
                 status: { type: string }
                 createdAt: { type: string, format: date-time }
@@ -3888,6 +3905,20 @@ components:
                     type: object
                     additionalProperties: { type: integer }
                     description: 'Current usage per quotaKey'
+
+        TenantAccessState:
+            type: string
+            enum: [open, read-only, suspended, deleting]
+            description: "What the tenant's users may do (SC-ADM-024): the strictest of the open reasons the platform keeps"
+
+        AdminTenantStateResult:
+            type: object
+            required: [ok, id, slug, access]
+            properties:
+                ok: { type: boolean, enum: [true] }
+                id: { type: string }
+                slug: { type: string }
+                access: { $ref: '#/components/schemas/TenantAccessState' }
 
         AdminTenantDetail:
             allOf:

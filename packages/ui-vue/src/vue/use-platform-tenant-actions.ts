@@ -40,7 +40,7 @@ export interface PlatformTenantActionsOptions<TRow extends TenantRowLike> {
     notify: (kind: 'positive' | 'negative', message: string) => void;
     /** Success hook after a successful dispatch (e.g. reload the list). */
     onSuccess: () => Promise<void> | void;
-    /** Row-specific visibility. Default: suspend only for active, reactivate only for inactive tenants. */
+    /** Row-specific visibility. Default: `tenantActionVisible`, from the platform's state of the tenant. */
     visibleForRow?: (def: TenantActionDef, row: TRow) => boolean;
     /** MFA dialog description. Default: `"{def.label} — Tenant „{row.name}". TOTP-Code aus Authenticator eingeben."`. */
     mfaDescription?: (def: TenantActionDef, row: TRow) => string;
@@ -84,14 +84,29 @@ export interface PlatformTenantActionsResult<TRow extends TenantRowLike> {
     onConfirmDialogVisibility: (open: boolean) => void;
 }
 
-const DEFAULT_VISIBLE_FOR_ROW = <TRow extends TenantRowLike>(
+/**
+ * Whether a tenant row offers suspending or reactivating it. From the
+ * platform's state where the row carries it (`access`, `SC-ADM-024`): a tenant
+ * that is open or read-only can be suspended, and only the platform's own
+ * suspension can be reactivated — not a tenant the application deactivated,
+ * which reactivating would not change. From `isActive` where the row has no
+ * state, as a server before it answers.
+ */
+export function tenantActionVisible(
     def: TenantActionDef,
-    row: TRow,
-): boolean => {
-    if (def.actionKey === 'tenants.suspend') return row.isActive;
-    if (def.actionKey === 'tenants.reactivate') return !row.isActive;
+    row: { isActive: boolean; access?: unknown },
+): boolean {
+    const access = typeof row.access === 'string' ? row.access : undefined;
+    if (def.actionKey === 'tenants.suspend') {
+        return access === undefined ? row.isActive : access === 'open' || access === 'read-only';
+    }
+    if (def.actionKey === 'tenants.reactivate') {
+        return access === undefined ? !row.isActive : access === 'suspended';
+    }
     return true;
-};
+}
+
+const DEFAULT_VISIBLE_FOR_ROW = tenantActionVisible;
 
 const DEFAULT_ICON_FOR_ACTION_KEY = (actionKey: string): string => {
     if (actionKey.endsWith('.suspend')) return 'block';

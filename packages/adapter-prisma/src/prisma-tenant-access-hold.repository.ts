@@ -4,6 +4,7 @@ import {
     type CanonicalTenantAccessHoldRow,
     type NewTenantAccessHold,
     type TenantAccessHold,
+    type TenantAccessHoldKind,
     type TenantAccessHoldPort,
     toTenantAccessHold,
 } from '@saasicat/core';
@@ -69,6 +70,16 @@ export class PrismaTenantAccessHoldRepository implements TenantAccessHoldPort {
             orderBy: OLDEST_FIRST,
         });
         return rows.map(toTenantAccessHold);
+    }
+
+    async listTenantIdsHeldBy(kinds: readonly TenantAccessHoldKind[]): Promise<string[]> {
+        if (kinds.length === 0) return [];
+        const rows = await this.db.tenantAccessHold.findMany({
+            where: { kind: { in: [...kinds] }, liftedAt: null },
+            select: { tenantId: true },
+            distinct: ['tenantId'],
+        });
+        return rows.map((row) => row.tenantId);
     }
 
     /**

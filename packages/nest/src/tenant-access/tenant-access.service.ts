@@ -11,9 +11,11 @@
 import { type ExecutionContext, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
+    KINDS_HOLDING_EVERYONE_BACK,
     TENANT_ACCESS_ERROR_CODES,
     type TenantAccess,
     type TenantAccessErrorCode,
+    type TenantAccessHold,
     type TenantAccessActor,
     type TenantAccessHoldPort,
     type TenantAccessState,
@@ -65,6 +67,58 @@ export class TenantAccessService {
     /** The state of `tenantId` and the open reasons it follows from. */
     async accessOf(tenantId: string): Promise<TenantAccess> {
         return tenantAccessOf(await this.holds.listOpen(tenantId));
+    }
+
+    /** Every tenant nobody of which acts at all: suspended, or being deleted. */
+    async tenantsHeldBack(): Promise<string[]> {
+        return this.holds.listTenantIdsHeldBy(KINDS_HOLDING_EVERYONE_BACK);
+    }
+
+    /** The state of each of `tenantIds`, from one read; a tenant without an open reason is open. */
+    async accessOfEach(tenantIds: readonly string[]): Promise<Map<string, TenantAccess>> {
+        const holds = await this.holds.listOpenFor(tenantIds);
+        return new Map(
+            tenantIds.map((tenantId) => [
+                tenantId,
+                tenantAccessOf(holds.filter((hold) => hold.tenantId === tenantId)),
+            ]),
+        );
+    }
+
+    /**
+     * Records the operator's suspension of `tenantId` with their `note`, or
+     * null where the tenant is suspended already: the suspension that stands
+     * keeps its own note and moment.
+     */
+    async suspend(
+        tenantId: string,
+        note: string,
+        recordedBy: string,
+        at: Date,
+    ): Promise<TenantAccessHold | null> {
+        return this.holds.record({
+            tenantId,
+            kind: 'suspended',
+            reference: null,
+            note,
+            since: at,
+            recordedBy,
+        });
+    }
+
+    /**
+     * Lifts the suspension of `tenantId` and no other reason, or answers null
+     * where the tenant is not suspended. An overdue invoice or an ended
+     * subscription keeps the tenant where that reason puts it.
+     */
+    async reactivate(
+        tenantId: string,
+        liftedBy: string,
+        at: Date,
+    ): Promise<TenantAccessHold | null> {
+        const open = await this.holds.listOpen(tenantId);
+        const suspension = open.find((hold) => hold.kind === 'suspended');
+        return suspension ? this.holds.lift(suspension.id, at, liftedBy) : null;
     }
 
     /**
