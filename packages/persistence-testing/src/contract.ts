@@ -17,6 +17,7 @@ import type {
     ConfirmedPaymentMethod,
     CreateCheckoutOfferData,
     NewMaintenanceWindow,
+    NewTenantAccessHold,
     CreateSubscriberData,
     SubscriberSearch,
     SubscriberJoinState,
@@ -632,6 +633,10 @@ const CONTRACT_GAPS: Record<
     maintenanceWindows: {
         reason: 'adapter provides no MaintenanceWindowPort',
         present: ({ adapter }) => Boolean(adapter.maintenanceWindows),
+    },
+    tenantAccessHolds: {
+        reason: 'adapter provides no TenantAccessHoldPort',
+        present: ({ adapter }) => Boolean(adapter.tenantAccessHolds),
     },
     subscriptionNotices: {
         reason: 'adapter provides no SubscriptionNoticeRepository',
@@ -13513,6 +13518,136 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 (await port.listRecent(2)).map((w) => w.id),
                 [ids[2], ids[1]],
             );
+        });
+
+        // -------------------------------------------------------------
+        // Tenant access holds — one open reason per tenant, kind and
+        // reference, and a lift that lands once
+        // -------------------------------------------------------------
+
+        const HELD_SINCE = new Date('2026-11-02T08:30:00.123Z');
+        const LIFTED_AT = new Date('2026-11-05T16:45:00.456Z');
+        const HOLDING_OPERATOR = 'web:ops@example.com:s1';
+        const holdOf = (overrides: Partial<NewTenantAccessHold> = {}): NewTenantAccessHold => ({
+            tenantId: 'tenant-held',
+            kind: 'suspended',
+            reference: null,
+            note: 'Contract under review',
+            since: HELD_SINCE,
+            recordedBy: HOLDING_OPERATOR,
+            ...overrides,
+        });
+
+        test('a recorded reason comes back as written, and is open', async (t) => {
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            assert.deepEqual(await port.listOpen('tenant-held'), []);
+            const recorded = await port.record(holdOf());
+            assert.ok(recorded?.id, 'the adapter assigns the id');
+            const [open] = await port.listOpen('tenant-held');
+            assert.deepEqual(open, {
+                id: recorded.id,
+                tenantId: 'tenant-held',
+                kind: 'suspended',
+                reference: null,
+                note: 'Contract under review',
+                since: HELD_SINCE,
+                recordedBy: HOLDING_OPERATOR,
+                liftedAt: null,
+                liftedBy: null,
+            });
+        });
+
+        test('the same reason is recorded once, however many record it at once', async (t) => {
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            // A suspension has no reference: the key reads it as empty, so two
+            // concurrent suspensions collide instead of both landing.
+            const suspensions = await Promise.all([
+                port.record(holdOf()),
+                port.record(holdOf()),
+                port.record(holdOf()),
+            ]);
+            assert.equal(suspensions.filter(Boolean).length, 1, 'one suspension lands');
+            const overdue = await Promise.all([
+                port.record(holdOf({ kind: 'overdue', reference: 'invoice-1', note: null })),
+                port.record(holdOf({ kind: 'overdue', reference: 'invoice-1', note: null })),
+            ]);
+            assert.equal(overdue.filter(Boolean).length, 1, 'one reason per invoice');
+            // Both began at the same moment, so their order is the ids'; the kinds
+            // are compared as a set.
+            assert.deepEqual(
+                (await port.listOpen('tenant-held'))
+                    .map((hold) => `${hold.kind}:${hold.reference}`)
+                    .sort(),
+                ['overdue:invoice-1', 'suspended:null'],
+            );
+        });
+
+        test('another reference, kind or tenant is another reason', async (t) => {
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            const overdue = { kind: 'overdue' as const, note: null };
+            assert.ok(await port.record(holdOf({ ...overdue, reference: 'invoice-1' })));
+            assert.ok(await port.record(holdOf({ ...overdue, reference: 'invoice-2' })));
+            assert.ok(await port.record(holdOf()), 'a suspension beside two overdue invoices');
+            assert.ok(await port.record(holdOf({ tenantId: 'tenant-other' })));
+            assert.equal((await port.listOpen('tenant-held')).length, 3);
+            assert.equal((await port.listOpen('tenant-other')).length, 1);
+        });
+
+        test('a lift lands once, and the reason may hold again afterwards', async (t) => {
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            const recorded = await port.record(holdOf());
+            assert.ok(recorded);
+            const lifts = await Promise.all([
+                port.lift(recorded.id, LIFTED_AT, HOLDING_OPERATOR),
+                port.lift(recorded.id, LIFTED_AT, 'web:other@example.com:s2'),
+            ]);
+            const landed = lifts.filter(Boolean);
+            assert.equal(landed.length, 1, 'one of two concurrent lifts lands');
+            assert.equal(landed[0]?.liftedAt?.toISOString(), LIFTED_AT.toISOString());
+            assert.deepEqual(await port.listOpen('tenant-held'), []);
+            assert.equal(await port.lift(recorded.id, LIFTED_AT, HOLDING_OPERATOR), null);
+            assert.equal(await port.lift('no-such-reason', LIFTED_AT, HOLDING_OPERATOR), null);
+            const again = await port.record(holdOf({ since: LIFTED_AT }));
+            assert.ok(again, 'a lifted reason leaves room for the same one later');
+            assert.notEqual(again.id, recorded.id);
+        });
+
+        test('the open reasons of many tenants are read at once, oldest first', async (t) => {
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            const later = new Date(HELD_SINCE.getTime() + 60_000);
+            await port.record(holdOf({ tenantId: 'tenant-b', since: later }));
+            await port.record(holdOf({ tenantId: 'tenant-a' }));
+            const lifted = await port.record(holdOf({ tenantId: 'tenant-c' }));
+            assert.ok(lifted);
+            await port.lift(lifted.id, LIFTED_AT, HOLDING_OPERATOR);
+            await port.record(holdOf({ tenantId: 'tenant-elsewhere' }));
+            assert.deepEqual(
+                (await port.listOpenFor(['tenant-a', 'tenant-b', 'tenant-c'])).map(
+                    (hold) => hold.tenantId,
+                ),
+                ['tenant-a', 'tenant-b'],
+            );
+            assert.deepEqual(await port.listOpenFor([]), []);
         });
 
         // -------------------------------------------------------------

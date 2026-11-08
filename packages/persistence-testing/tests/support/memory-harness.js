@@ -197,6 +197,7 @@ export function createMemoryHarness() {
         appliedSettings: null,
         settingsChanges: [],
         maintenanceWindows: [],
+        tenantAccessHolds: [],
         subscriptionNotices: [],
         versionRetirements: [],
         bundleVersionRetirements: [],
@@ -1910,6 +1911,50 @@ export function createMemoryHarness() {
             );
             if (!row) return null;
             Object.assign(row, structuredClone(changes));
+            return structuredClone(row);
+        },
+    };
+
+    /**
+     * Tenant access holds: one open reason per tenant, kind and reference, as
+     * the partial unique index keeps it, and a lift conditional on the reason
+     * still being open.
+     */
+    const openHolds = () =>
+        state.tenantAccessHolds
+            .filter((row) => row.liftedAt === null)
+            .sort((a, b) => a.since - b.since || (a.id < b.id ? -1 : 1));
+    const tenantAccessHolds = {
+        async listOpen(tenantId) {
+            return structuredClone(openHolds().filter((row) => row.tenantId === tenantId));
+        },
+        async listOpenFor(tenantIds) {
+            return structuredClone(openHolds().filter((row) => tenantIds.includes(row.tenantId)));
+        },
+        async record(hold) {
+            const taken = openHolds().some(
+                (row) =>
+                    row.tenantId === hold.tenantId &&
+                    row.kind === hold.kind &&
+                    (row.reference ?? '') === (hold.reference ?? ''),
+            );
+            if (taken) return null;
+            const row = {
+                id: nextId('hold'),
+                ...structuredClone(hold),
+                liftedAt: null,
+                liftedBy: null,
+            };
+            state.tenantAccessHolds.push(row);
+            return structuredClone(row);
+        },
+        async lift(id, liftedAt, liftedBy) {
+            const row = state.tenantAccessHolds.find(
+                (candidate) => candidate.id === id && candidate.liftedAt === null,
+            );
+            if (!row) return null;
+            row.liftedAt = liftedAt;
+            row.liftedBy = liftedBy;
             return structuredClone(row);
         },
     };
@@ -3824,6 +3869,7 @@ export function createMemoryHarness() {
             checkoutOfferRepository,
             appliedSettings,
             maintenanceWindows,
+            tenantAccessHolds,
             subscriptionNotices,
             versionRetirements,
             bundleVersionRetirements,

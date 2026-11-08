@@ -58,6 +58,7 @@ import type {
 import type { PlanCatalogImportSink, PlanCatalogReadSink } from '../plan-catalog-import.types.js';
 import type { AppliedSettingsPort, TermsArchivePort } from './settings-ports.types.js';
 import type { MaintenanceWindowPort } from './maintenance-ports.types.js';
+import type { TenantAccessHoldPort } from './tenant-access-ports.types.js';
 import type { SubscriptionNoticeRepository } from './subscription-notice-ports.types.js';
 import type { BundleVersionRetirementRepository } from './bundle-version-retirement-ports.types.js';
 import type { VersionRetirementRepository } from './version-retirement-ports.types.js';
@@ -146,6 +147,14 @@ export interface SaaSiCatPersistenceCore {
      * one is refused at start-up.
      */
     maintenanceWindows?: PersistenceProvider<MaintenanceWindowPort>;
+    /**
+     * Where the reasons a tenant is held back are kept (`SC-ADM-024`): a
+     * suspension, an overdue invoice, an ended subscription. Optional so an
+     * adapter written before it existed still compiles; an installation that
+     * serves tenants without one is refused at start-up, since a state that is
+     * not recorded cannot be enforced.
+     */
+    tenantAccessHolds?: PersistenceProvider<TenantAccessHoldPort>;
     /**
      * Where the versions of the operator's terms are kept (`config/saas.yaml#terms`,
      * `SC-CFG-038`). Absent where the schema leaves `TermsVersion` out; an

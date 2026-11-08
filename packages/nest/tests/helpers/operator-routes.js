@@ -11,6 +11,7 @@ import {
     SaaSiCatModule,
     storeSecretsInPlainText,
 } from '../../dist/platform/index.js';
+import { FakeTenantAccessHoldRepository } from '../../dist/testing/index.js';
 import { aConfirmationRenderer, aMailbox, aRenderer, anArchive } from './invoice-documents.js';
 import { ISSUER, invoicingAdapter } from './invoice-run.js';
 import { MAIN_ACCOUNT, ScriptedGateway, paymentsCatalog } from './payments.js';
@@ -55,6 +56,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             superAdminProvisioning: PORT,
             auditStats: PORT,
             maintenanceWindows: PORT,
+            tenantAccessHolds: new FakeTenantAccessHoldRepository(),
             appliedSettings: PORT,
             termsArchive: PORT,
         },

@@ -18,6 +18,7 @@ import { AdminManifestService, SaaSiCatModule } from '../dist/platform/index.js'
 import { ARCHIVE, anAccount, discountLine, line, utc } from './helpers/charge-journal.js';
 import { controllersIn, handlersOf } from './helpers/operator-routes.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
+import { FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
 
 const STANDARD = () => line('plan', 'STANDARD', 49, { titleSnapshot: 'Standard' });
 const WELCOME = () => ({
@@ -278,6 +279,7 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
                 advisoryLocks: false,
             },
             core: {
+                tenantAccessHolds: new FakeTenantAccessHoldRepository(),
                 mfa: {},
                 audit: { write: async () => {} },
                 rlsBypass,

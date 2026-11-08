@@ -125,6 +125,7 @@ persistenceAdapterContract({
         'contractConfirmations',
         'contractConfirmationArchive',
         'maintenanceWindows',
+        'tenantAccessHolds',
         'subscriptionNotices',
         'versionRetirements',
         'boundSubscriptions',

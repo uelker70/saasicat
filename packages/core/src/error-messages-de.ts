@@ -547,6 +547,11 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     MAINTENANCE_TIME_INVALID:
         '{field} muss Datum und Uhrzeit mit Zeitzone sein, etwa 2026-10-02T22:00+02:00.',
     MAINTENANCE_MESSAGE_TOO_LONG: 'Die Nachricht darf höchstens {max} Zeichen lang sein.',
+    // ── tenant access ──
+    TENANT_READ_ONLY:
+        'Dieses Konto kann derzeit nur gelesen werden. Sie können seine Daten weiterhin ansehen und exportieren.',
+    TENANT_SUSPENDED: 'Dieses Konto ist gesperrt. Bitte wenden Sie sich an Ihren Anbieter.',
+    TENANT_BEING_DELETED: 'Dieses Konto wird gelöscht.',
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED:
         'Der Steueradapter {adapter} unterstützt diesen Fall nicht: {reason}',

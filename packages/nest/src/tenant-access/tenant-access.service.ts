@@ -1,0 +1,121 @@
+// TenantAccessService — what a tenant's users may do, asked on every request
+// (`SC-ADM-024`).
+//
+// The application calls `enforce` at the end of its own authentication guard,
+// once the tenant of the request is known, and `assertAllowed` where there is
+// no request to read a method from: a sign-in, a scheduled job. The platform
+// does the same behind the application's guards on its own tenant routes. A
+// session opened before the state changed is held to it on its next request,
+// since nothing is cached between two.
+
+import { type ExecutionContext, ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import {
+    TENANT_ACCESS_ERROR_CODES,
+    type TenantAccess,
+    type TenantAccessErrorCode,
+    type TenantAccessActor,
+    type TenantAccessHoldPort,
+    type TenantAccessState,
+    requestWrites,
+    tenantAccessOf,
+    tenantAccessRefusal,
+} from '@saasicat/core';
+
+import { codedError } from '../errors/coded-error.js';
+import { tenantAccessMarkOf } from './tenant-access-marks.js';
+import { TENANT_ACCESS_HOLDS_TOKEN } from './tenant-access.tokens.js';
+
+const REFUSAL_CODE: Readonly<Record<Exclude<TenantAccessState, 'open'>, TenantAccessErrorCode>> = {
+    'read-only': TENANT_ACCESS_ERROR_CODES.TENANT_READ_ONLY,
+    suspended: TENANT_ACCESS_ERROR_CODES.TENANT_SUSPENDED,
+    deleting: TENANT_ACCESS_ERROR_CODES.TENANT_BEING_DELETED,
+};
+
+/** What a request asks to do, where there is no request to read it from. */
+export interface TenantAccessIntent extends TenantAccessActor {
+    writes: boolean;
+}
+
+interface RequestLike {
+    method?: string;
+}
+
+/** The tenant a request was checked for, once it passed. */
+interface PassedCheck {
+    tenantId: string;
+}
+
+@Injectable()
+export class TenantAccessService {
+    /**
+     * The requests that passed a check, by request object, kept on the server
+     * and gone with the request. Only the application can say that a request
+     * is the operator acting as the tenant, and it says so to `enforce`; the
+     * platform's own check on the same request then trusts what passed rather
+     * than asking again without knowing who is asking.
+     */
+    private readonly passed = new WeakMap<object, PassedCheck>();
+
+    constructor(
+        @Inject(TENANT_ACCESS_HOLDS_TOKEN) private readonly holds: TenantAccessHoldPort,
+        @Inject(Reflector) private readonly reflector: Reflector,
+    ) {}
+
+    /** The state of `tenantId` and the open reasons it follows from. */
+    async accessOf(tenantId: string): Promise<TenantAccess> {
+        return tenantAccessOf(await this.holds.listOpen(tenantId));
+    }
+
+    /**
+     * Refuses the current request where `tenantId`'s state does not allow it.
+     * Whether it writes is its route's mark, or else its method; a request
+     * whose method cannot be read counts as a write.
+     */
+    async enforce(
+        context: ExecutionContext,
+        tenantId: string,
+        actor: TenantAccessActor = {},
+    ): Promise<void> {
+        const request = context.switchToHttp().getRequest<RequestLike>();
+        const mark = tenantAccessMarkOf(this.reflector, context);
+        const writes =
+            typeof request.method === 'string'
+                ? requestWrites(request.method, mark)
+                : mark !== 'writes-nothing';
+        await this.assertAllowed(tenantId, { ...actor, writes });
+        if (typeof request === 'object' && request !== null) this.passed.set(request, { tenantId });
+    }
+
+    /**
+     * Refuses the current request as `enforce` does, unless the application
+     * already checked it for `tenantId` and it passed — with the operator
+     * acting as the tenant, where the application said so. A request the
+     * application did not check, or checked for another tenant, is checked here
+     * as a tenant user's. The platform's tenant routes ask this.
+     */
+    async enforceUnlessChecked(context: ExecutionContext, tenantId: string): Promise<void> {
+        const request = context.switchToHttp().getRequest<RequestLike>();
+        const checked =
+            typeof request === 'object' && request !== null ? this.passed.get(request) : undefined;
+        if (checked?.tenantId === tenantId) return;
+        await this.enforce(context, tenantId);
+    }
+
+    /** Refuses what `intent` describes where `tenantId`'s state does not allow it. */
+    async assertAllowed(tenantId: string, intent: TenantAccessIntent): Promise<void> {
+        const access = await this.accessOf(tenantId);
+        const refusal = tenantAccessRefusal(access, intent.writes, intent);
+        if (!refusal) return;
+        // The operator's note on a suspension is theirs, not the tenant's: a
+        // refusal names each reason by its kind and the moment it began.
+        throw new ForbiddenException(
+            codedError(REFUSAL_CODE[refusal], {
+                reasons: access.holds.map((hold) => ({
+                    kind: hold.kind,
+                    since: hold.since.toISOString(),
+                })),
+            }),
+        );
+    }
+}

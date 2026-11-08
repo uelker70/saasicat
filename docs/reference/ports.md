@@ -9,7 +9,7 @@ them against the canonical schema already.
 Why the seam is here, and what an adapter may and may not decide:
 [ADR 0007](../explanation/adr/0007-ports-and-adapters.md).
 
-Generated from `packages/core/src/ports` — 23 ports. Do not edit by hand:
+Generated from `packages/core/src/ports` — 24 ports. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Administration
@@ -245,3 +245,16 @@ Sends a notice to the administrators of the tenant it is for, in the application
 | Member                                                                     | What it does |
 | -------------------------------------------------------------------------- | ------------ |
 | `deliver(notice: SubscriptionNotice): Promise<SubscriptionNoticeDelivery>` | —            |
+
+## Tenant access
+
+### `TenantAccessHoldPort`
+
+Keeps the reasons a tenant is held back, in the application's own database.
+
+| Member                                                                                  | What it does                                                                          |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `listOpen(tenantId: string): Promise<TenantAccessHold[]>`                               | The open reasons of `tenantId`, oldest first.                                         |
+| `listOpenFor(tenantIds: readonly string[]): Promise<TenantAccessHold[]>`                | The open reasons of each of `tenantIds`, in one read; a tenant without any is absent. |
+| `record(hold: NewTenantAccessHold): Promise<TenantAccessHold \| null>`                  | Records `hold` and returns it as stored — the id is the adapter's to assign.          |
+| `lift(id: string, liftedAt: Date, liftedBy: string): Promise<TenantAccessHold \| null>` | Lifts the open reason `id` as of `liftedAt`.                                          |

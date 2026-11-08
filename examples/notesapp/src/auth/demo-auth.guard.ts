@@ -1,10 +1,12 @@
 import {
     type CanActivate,
     type ExecutionContext,
+    Inject,
     Injectable,
     UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { TenantAccessService } from '@saasicat/nest';
 import { isSaaSiCatPublicRoute } from '@saasicat/nest/platform';
 
 /**
@@ -28,12 +30,22 @@ import { isSaaSiCatPublicRoute } from '@saasicat/nest/platform';
  * through: a payment gateway's callback carries no session, and its signature
  * is what the webhook route checks instead. A JWT guard in the same position
  * does the same.
+ *
+ * Once the user is known, the tenant's access state is asked (`SC-ADM-024`):
+ * a suspended tenant's users are refused, a read-only tenant's writes are. This
+ * is the line a real app adds at the end of its own authentication guard. The
+ * operator is not one of the tenant's users and passes a suspension or
+ * read-only, never a deletion under way; saying so here is also what lets the
+ * operator through the platform's own tenant routes, which trust this check.
  */
 @Injectable()
 export class DemoAuthGuard implements CanActivate {
-    constructor(private readonly reflector: Reflector) {}
+    constructor(
+        private readonly reflector: Reflector,
+        @Inject(TenantAccessService) private readonly access: TenantAccessService,
+    ) {}
 
-    canActivate(context: ExecutionContext): boolean {
+    async canActivate(context: ExecutionContext): Promise<boolean> {
         if (isSaaSiCatPublicRoute(this.reflector, context)) return true;
         const request = context.switchToHttp().getRequest<{
             headers: Record<string, string | string[] | undefined>;
@@ -62,6 +74,9 @@ export class DemoAuthGuard implements CanActivate {
                     : `demo-user-${tenantId}@notesapp.example`,
             sessionId: 'notesapp-demo',
         };
+        await this.access.enforce(context, tenantId, {
+            actingAsOperator: platformRole === 'SUPER_ADMIN',
+        });
         return true;
     }
 }

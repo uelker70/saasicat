@@ -28,6 +28,7 @@ import {
 } from '../dist/index.js';
 import { settingsSubtreeOf } from '@saasicat/core';
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
+import { FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
 
 const NOTICE = { monthly: 14, yearly: 90 };
 const BLOCKED = { asTarget: ['ENTERPRISE'], asSource: [] };
@@ -57,6 +58,7 @@ const persistenceWith = (appliedSettings) => ({
         advisoryLocks: false,
     },
     core: {
+        tenantAccessHolds: new FakeTenantAccessHoldRepository(),
         mfa: spec,
         audit: spec,
         rlsBypass: spec,

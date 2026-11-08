@@ -30,6 +30,7 @@ const AREA = {
     'subscription-notice-ports.types.ts': 'Subscriber notices',
     'version-retirement-ports.types.ts': 'Version retirements',
     'bundle-version-retirement-ports.types.ts': 'Version retirements',
+    'tenant-access-ports.types.ts': 'Tenant access',
 };
 
 /**

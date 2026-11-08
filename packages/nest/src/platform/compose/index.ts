@@ -16,6 +16,7 @@ import type { CompositionContext } from './context.js';
 import { composeEntitlement } from './entitlement.js';
 import { composeFeatureWithdrawal } from './feature-withdrawal.js';
 import { composeMaintenance } from './maintenance.js';
+import { composeTenantAccess } from './tenant-access.js';
 import {
     composeAdminStats,
     composeCheckoutOffer,
@@ -40,6 +41,8 @@ export const FEATURE_COMPOSERS: readonly Composer[] = [
     composeCatalog,
     composeAdminResources,
     composePromoCodes,
+    // Global, and read by the tenant routes every module below mounts.
+    composeTenantAccess,
     // Before the bundles — see the note above.
     composeTenantBilling,
     composeSubscriptionBundles,

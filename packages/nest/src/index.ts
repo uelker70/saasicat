@@ -37,6 +37,7 @@ export * from './subscription-contract/index.js';
 export * from './subscriber/index.js';
 export * from './settings/index.js';
 export * from './maintenance/index.js';
+export * from './tenant-access/index.js';
 
 // High-level composition is also exported from the root entry so existing
 // consumers that already inject root-entry classes can migrate incrementally

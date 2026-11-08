@@ -21,6 +21,7 @@ import { CheckoutOfferModule } from '../../checkout-offer/checkout-offer.module.
 import { DiscoveryModule } from '../../discovery/discovery.module.js';
 import { EntitlementModule } from '../../entitlement/entitlement.module.js';
 import { MaintenanceModule } from '../../maintenance/maintenance.module.js';
+import { TenantAccessModule } from '../../tenant-access/tenant-access.module.js';
 import { PromoCodesModule } from '../../promo/promo.module.js';
 import { SetupModule } from '../../setup/setup.module.js';
 import { SubscriptionContractModule } from '../../subscription-contract/subscription-contract.module.js';
@@ -52,6 +53,7 @@ function optionalExports({ options, requiresFullEntitlement }: CompositionContex
         [options.checkoutOffer, CheckoutOfferModule],
         [options.subscriptionContract, SubscriptionContractModule],
         [options.maintenance, MaintenanceModule],
+        [options.tenantBilling, TenantAccessModule],
     ] as const;
 }
 

@@ -5,6 +5,9 @@
 // without running against a real DB.
 
 import type {
+    NewTenantAccessHold,
+    TenantAccessHold,
+    TenantAccessHoldPort,
     BundleListFilter,
     BundleRepository,
     ContractRegisterRecordPage,
@@ -984,6 +987,57 @@ export class FakePlanVersionRepository implements PlanVersionRepository {
         _tx?: TransactionContext,
     ): Promise<PlanVersionRecord | null> {
         return this.byPlanId.get(planId) ?? null;
+    }
+}
+
+/**
+ * In-memory `TenantAccessHoldPort` for tests: one open reason per tenant, kind
+ * and reference, as the partial unique index holds it in the database, and a
+ * lift that lands once. Starts empty, so every tenant is open until a test
+ * records a reason.
+ */
+export class FakeTenantAccessHoldRepository implements TenantAccessHoldPort {
+    readonly holds: TenantAccessHold[] = [];
+    private nextId = 1;
+
+    async listOpen(tenantId: string): Promise<TenantAccessHold[]> {
+        return this.open().filter((hold) => hold.tenantId === tenantId);
+    }
+
+    async listOpenFor(tenantIds: readonly string[]): Promise<TenantAccessHold[]> {
+        return this.open().filter((hold) => tenantIds.includes(hold.tenantId));
+    }
+
+    async record(hold: NewTenantAccessHold): Promise<TenantAccessHold | null> {
+        const taken = this.open().some(
+            (open) =>
+                open.tenantId === hold.tenantId &&
+                open.kind === hold.kind &&
+                open.reference === hold.reference,
+        );
+        if (taken) return null;
+        const recorded: TenantAccessHold = {
+            ...hold,
+            id: `hold-${this.nextId++}`,
+            liftedAt: null,
+            liftedBy: null,
+        };
+        this.holds.push(recorded);
+        return { ...recorded };
+    }
+
+    async lift(id: string, liftedAt: Date, liftedBy: string): Promise<TenantAccessHold | null> {
+        const hold = this.holds.find((candidate) => candidate.id === id && !candidate.liftedAt);
+        if (!hold) return null;
+        hold.liftedAt = liftedAt;
+        hold.liftedBy = liftedBy;
+        return { ...hold };
+    }
+
+    private open(): TenantAccessHold[] {
+        return this.holds
+            .filter((hold) => hold.liftedAt === null)
+            .sort((a, b) => a.since.getTime() - b.since.getTime());
     }
 }
 

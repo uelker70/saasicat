@@ -6,6 +6,7 @@ import { Test } from '@nestjs/testing';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import { PlanChangePreviewService, TenantBillingModule } from '../dist/billing/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
+import { FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
 
 // A rule that reads an optional dependency is only as real as its wiring.
 //
@@ -184,6 +185,7 @@ function persistenceWith(repo) {
             advisoryLocks: false,
         },
         core: {
+            tenantAccessHolds: new FakeTenantAccessHoldRepository(),
             mfa: spec,
             audit: spec,
             rlsBypass: spec,

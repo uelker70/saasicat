@@ -1726,3 +1726,28 @@ model TermsVersion {
 
     @@map("terms_versions")
 }
+
+// =============================================================================
+// Tenant access holds (28-tenant-access-hold.prisma)
+// =============================================================================
+
+// One row per reason a tenant is held back — a suspension, an overdue invoice,
+// an ended subscription. Open until lifted; the tenant's state is the strictest
+// open reason. One open row per tenant, kind and reference — held by the partial
+// unique index the entrypoint applies from @saasicat/spec/sql/constraints.postgres.sql.
+
+model TenantAccessHold {
+    id         String    @id @default(uuid())
+    tenantId   String
+    kind       String
+    reference  String?
+    note       String?
+    since      DateTime
+    recordedBy String
+    liftedAt   DateTime?
+    liftedBy   String?
+    createdAt  DateTime  @default(now())
+
+    @@index([tenantId, liftedAt])
+    @@map("tenant_access_holds")
+}

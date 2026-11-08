@@ -430,6 +430,22 @@ export const maintenanceWindows = pgTable('maintenance_windows', {
     endedBy: text('endedBy'),
 });
 
+// The reasons a tenant is held back, one row each, open until lifted. The
+// partial unique index that holds a tenant to one open reason per kind and
+// reference, and the check on `kind`, are in constraints.postgres.sql.
+export const tenantAccessHolds = pgTable('tenant_access_holds', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenantId').notNull(),
+    kind: text('kind').notNull(),
+    reference: text('reference'),
+    note: text('note'),
+    since: ts('since').notNull(),
+    recordedBy: text('recordedBy').notNull(),
+    liftedAt: ts('liftedAt'),
+    liftedBy: text('liftedBy'),
+    createdAt: writtenAt('createdAt'),
+});
+
 // What each subscriber was told, once per subscription, kind and subject. The
 // DDL authority, the unique key a second record of one notice collides with, is
 // `subscription_notices_subscriptionId_kind_subject_key`.

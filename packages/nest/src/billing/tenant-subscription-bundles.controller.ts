@@ -111,6 +111,7 @@ import type { PlansAhead } from './plans-ahead.js';
 import { resolvePlanAnchorDay } from './bundle-period.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
+import { WritesNothing } from '../tenant-access/tenant-access-marks.js';
 
 interface RequestLike {
     user?: { tenantId?: string | null } | null;
@@ -291,6 +292,7 @@ export function buildTenantSubscriptionBundlesController(
          * all.
          */
         @Post('prices')
+        @WritesNothing()
         async prices(@Req() req: RequestLike, @Body() dto: BundlePriceLookupDto) {
             const sub = await this.requireSubscription(this.requireTenantId(req));
             return this.service.resolvePricesFor(sub.plan, dto.bundleVersionIds);
@@ -333,6 +335,7 @@ export function buildTenantSubscriptionBundlesController(
         // the cancellation are refused by (`SC-ADM-026`).
         @Post('preview')
         @HttpCode(HttpStatus.OK)
+        @WritesNothing()
         async preview(@Req() req: RequestLike, @Body() dto: PreviewSubscriptionBundleDto) {
             const hasAdd = Boolean(dto.bundleVersionId);
             const hasCancel = Boolean(dto.subscriptionBundleId);
