@@ -4296,9 +4296,15 @@ cancelled one included. To adopt it:
    applied after the cut would lose every tenant past it. The shipped Prisma adapter does both.
 2. At sign-in, ask `TenantAccessService.assertAllowed(tenantId, { writes: false })` rather than
    reading a suspension off your own tenant flag.
-3. A tenant suspended before this release has `isActive: false` in your table and no reason in
-   the platform's. Suspend it again from the administration after the deploy, or insert its row
-   into `tenant_access_holds` with `kind = 'suspended'`.
+3. A tenant suspended before this release carries that suspension in your tables, not the
+   platform's: `isActive: false` on the tenant, and `PAST_DUE` on every one of its subscriptions,
+   both written by the old suspension. Nothing writes either back any more, so undo both first —
+   set `isActive` to `true`, and give each subscription the status it had before, which only your
+   own records still know (the old suspension overwrote it): `ACTIVE` for a paying one, `TRIAL` for
+   a trial, `CANCELED` for a cancelled one. Then suspend the tenant again from the administration
+   after the deploy, or insert its row into `tenant_access_holds` with `kind = 'suspended'`.
+   Skipped, the tenant stays deactivated by your own flag after it is reactivated, and the
+   administration offers no way back.
 
 - **The administration's tenant rows** gain `access`, and `isActive` there says whether the tenant
   may act at all: false for a tenant your application deactivated, and for one the platform

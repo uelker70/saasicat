@@ -366,6 +366,7 @@ _Tested by:_
         - the active and suspended filters are answered here, from the state
         - a suspended tenant past the first page is still found, and an active one is not lost
         - a status the platform does not answer goes to the application as it was
+        - the platform's own filters cannot be set by the caller
         - the detail carries the state too
 - `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
     - where the cancellation is served
@@ -985,6 +986,7 @@ _Tested by:_
         - the active and suspended filters are answered here, from the state
         - a suspended tenant past the first page is still found, and an active one is not lost
         - a status the platform does not answer goes to the application as it was
+        - the platform's own filters cannot be set by the caller
         - the detail carries the state too
 - `packages/nest/tests/the-platforms-tenant-routes-check-the-access-state.test.js`
     - the platform's tenant guard asks the state once the application let the request in

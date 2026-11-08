@@ -236,6 +236,17 @@ describe("the administration reads each tenant with the platform's state", () =>
         assert.deepEqual(resources.listed, [{ status: 'deleted' }]);
     });
 
+    test("the platform's own filters cannot be set by the caller", async () => {
+        const { service, resources } = platform();
+        await service.listTenants({
+            search: 'a',
+            isActive: 'false',
+            tenantIds: 'tenant-1',
+            excludeTenantIds: ['tenant-2'],
+        });
+        assert.deepEqual(resources.listed, [{ search: 'a' }]);
+    });
+
     test('the detail carries the state too', async () => {
         const { service } = platform();
         await service.suspendTenant('acme', 'review', ACTOR);

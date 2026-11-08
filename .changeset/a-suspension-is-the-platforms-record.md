@@ -3,6 +3,8 @@
 '@saasicat/spec': minor
 '@saasicat/nest': minor
 '@saasicat/adapter-prisma': minor
+'@saasicat/adapter-drizzle': minor
+'@saasicat/persistence-testing': minor
 '@saasicat/ui-vue': minor
 ---
 
@@ -29,6 +31,7 @@ Breaking: remove `setTenantActive` from an `AdminResourcesPort` of your own and
 let its `listTenants` apply the new `isActive`, `tenantIds` and
 `excludeTenantIds` filters in its query, before its limit; ask
 `TenantAccessService.assertAllowed` at sign-in instead of your own tenant flag,
-and suspend again any tenant suspended before this release. `adminResources` now
-needs `persistence.core.tenantAccessHolds` as `tenantBilling` does. The upgrade
-guide has the steps.
+and for a tenant suspended before this release set its `isActive` back to `true`
+and its subscriptions back to their earlier status, then suspend it again.
+`adminResources` now needs `persistence.core.tenantAccessHolds` as
+`tenantBilling` does. The upgrade guide has the steps.

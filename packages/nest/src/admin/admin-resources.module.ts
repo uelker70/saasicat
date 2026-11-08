@@ -83,7 +83,8 @@ export class AdminResourcesService {
      * to a page. Filtering the rows afterwards would lose every tenant past
      * that page. Any other status goes to the application as it is.
      */
-    async listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListEntry[]> {
+    async listTenants(query: AdminTenantListFilter): Promise<AdminTenantListEntry[]> {
+        const filter = askedFor(query);
         const { status, ...rest } = filter;
         const mayAct = mayActFilterOf(status);
         if (mayAct === undefined)
@@ -199,6 +200,20 @@ function withAccess<Row extends AdminTenantListRow | AdminTenantDetail>(
     const entry = { ...row, access: state };
     entry.isActive = row.isActive && !holdsEveryoneBack(state);
     return entry;
+}
+
+/**
+ * What a caller may ask the list for: a status, a plan, a search. The other
+ * fields of `AdminTenantListFilter` are the platform's to set when it answers
+ * a status, and arrive on the route as strings from a query it does not
+ * validate, so they are dropped here rather than handed to the application.
+ */
+function askedFor(query: AdminTenantListFilter): AdminTenantListFilter {
+    const asked: AdminTenantListFilter = {};
+    if (query.status !== undefined) asked.status = query.status;
+    if (query.plan !== undefined) asked.plan = query.plan;
+    if (query.search !== undefined) asked.search = query.search;
+    return asked;
 }
 
 /** Each tenant once — one the application deactivated may be held back too — newest first. */
