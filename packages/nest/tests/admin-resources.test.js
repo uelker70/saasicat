@@ -24,7 +24,7 @@ const ASLEEP = { id: 'tenant-3', slug: 'asleep', name: 'Asleep', isActive: false
  * way the shipped adapter filters in its query, and cut to `limit` rows after
  * filtering, as the adapter's `take` does.
  */
-function applicationResources({ limit = 200 } = {}) {
+function applicationResources({ limit = 200, ignoresFilters = false } = {}) {
     const listed = [];
     const rows = [ACME, BETA, ASLEEP].map((tenant, at) => ({
         ...tenant,
@@ -38,9 +38,7 @@ function applicationResources({ limit = 200 } = {}) {
         async listTenants(filter) {
             listed.push(filter);
             return rows
-                .filter((row) => filter.isActive === undefined || row.isActive === filter.isActive)
-                .filter((row) => !filter.tenantIds || filter.tenantIds.includes(row.id))
-                .filter((row) => !filter.excludeTenantIds?.includes(row.id))
+                .filter((row) => ignoresFilters || mayActAs(filter, row))
                 .slice(0, limit)
                 .map((row) => ({ ...row }));
         },
@@ -61,6 +59,13 @@ function applicationResources({ limit = 200 } = {}) {
             return [];
         },
     };
+}
+
+/** The may-act filter as the shipped adapter applies it in its query. */
+function mayActAs(filter, row) {
+    if (filter.mayAct === undefined) return true;
+    const heldBack = (filter.heldBackTenantIds ?? []).includes(row.id);
+    return filter.mayAct ? row.isActive && !heldBack : !row.isActive || heldBack;
 }
 
 function platform(options) {
@@ -205,11 +210,10 @@ describe("the administration reads each tenant with the platform's state", () =>
         assert.deepEqual(
             resources.listed,
             [
-                { search: 'a', isActive: true, excludeTenantIds: ['tenant-1'] },
-                { isActive: false },
-                { tenantIds: ['tenant-1'] },
+                { search: 'a', mayAct: true, heldBackTenantIds: ['tenant-1'] },
+                { mayAct: false, heldBackTenantIds: ['tenant-1'] },
             ],
-            'the status is answered as filters the application applies before its limit',
+            'the status is answered as one filter the application applies before its limit',
         );
     });
 
@@ -226,7 +230,33 @@ describe("the administration reads each tenant with the platform's state", () =>
         await older.suspendTenant('beta', 'review', ACTOR);
         assert.deepEqual(
             (await older.listTenants({ status: 'SUSPENDED' })).map((row) => row.slug),
-            ['beta', 'asleep'],
+            ['beta'],
+        );
+    });
+
+    test('suspended or deactivated is one list, cut once, newest first', async () => {
+        // Two lists cut on their own and merged would answer the newest
+        // suspended tenant beside an older deactivated one, while a newer
+        // deactivated tenant past the first list's cut went missing.
+        const { service, resources } = platform({ limit: 1 });
+        await service.suspendTenant('acme', 'review', ACTOR);
+        assert.deepEqual(
+            (await service.listTenants({ status: 'INACTIVE' })).map((row) => row.slug),
+            ['acme'],
+        );
+        assert.equal(resources.listed.length, 1, 'one query');
+    });
+
+    test('a port that ignores the filter still lists no suspended tenant as active', async () => {
+        const { service } = platform({ ignoresFilters: true });
+        await service.suspendTenant('acme', 'review', ACTOR);
+        assert.deepEqual(
+            (await service.listTenants({ status: 'ACTIVE' })).map((row) => row.slug),
+            ['beta'],
+        );
+        assert.deepEqual(
+            (await service.listTenants({ status: 'INACTIVE' })).map((row) => row.slug),
+            ['acme', 'asleep'],
         );
     });
 

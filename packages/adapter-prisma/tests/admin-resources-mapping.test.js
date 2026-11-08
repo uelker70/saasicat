@@ -149,12 +149,11 @@ describe('an app that calls everything something else', () => {
 
         const [call] = calls;
         assert.equal(call.delegate, 'organization');
-        // Whether a tenant may act is the platform's to answer, from its own
-        // record of suspensions; the adapter reads the flag and filters on it no
-        // more.
-        assert.equal('enabled' in call.args.where, false, 'the status is not filtered here');
+        // A status is not the adapter's to filter: the platform answers it
+        // with `mayAct`, from the flag and its own record of suspensions.
+        assert.deepEqual(call.args.where.AND.length, 1, 'only the search is a condition');
         assert.deepEqual(
-            call.args.where.OR.map((clause) => Object.keys(clause)[0]),
+            call.args.where.AND[0].OR.map((clause) => Object.keys(clause)[0]),
             ['handle', 'title'],
             'the search filter uses the mapped columns',
         );
@@ -246,27 +245,33 @@ describe('an app that calls everything something else', () => {
         assert.deepEqual(calls, []);
     });
 
-    test("the platform's filters reach the query, on the mapped flag, before its limit", async () => {
+    test('may act asks for the mapped flag and not held back, before the limit', async () => {
         const { client, calls } = clientWith(RENAMED, { organization: [] });
         const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
 
-        await adapter.listTenants({
-            isActive: false,
-            tenantIds: ['t1', 't2'],
-            excludeTenantIds: ['t3'],
-        });
+        await adapter.listTenants({ mayAct: true, heldBackTenantIds: ['t1'], search: 'ac' });
 
-        const [call] = calls;
-        assert.equal(call.args.where.enabled, false, 'the flag is the mapped column');
-        assert.deepEqual(call.args.where.id, { in: ['t1', 't2'], notIn: ['t3'] });
-        assert.equal(typeof call.args.take, 'number', 'the limit applies to the filtered rows');
+        const [{ args }] = calls;
+        assert.deepEqual(args.where.AND[0], { enabled: true, id: { notIn: ['t1'] } });
+        assert.deepEqual(
+            args.where.AND[1].OR.map((clause) => Object.keys(clause)[0]),
+            ['handle', 'title'],
+            'the search stays a condition of its own',
+        );
+        assert.equal(typeof args.take, 'number', 'the limit applies to the filtered rows');
     });
 
-    test('an empty list of tenants matches none, without asking the database', async () => {
+    test('may not act asks for the mapped flag off, or held back, in one condition', async () => {
         const { client, calls } = clientWith(RENAMED, { organization: [] });
         const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
-        assert.deepEqual(await adapter.listTenants({ tenantIds: [] }), []);
-        assert.deepEqual(calls, []);
+
+        await adapter.listTenants({ mayAct: false, heldBackTenantIds: ['t1', 't2'] });
+        await adapter.listTenants({ mayAct: false, heldBackTenantIds: [] });
+
+        assert.deepEqual(calls[0].args.where.AND, [
+            { OR: [{ enabled: false }, { id: { in: ['t1', 't2'] } }] },
+        ]);
+        assert.deepEqual(calls[1].args.where.AND, [{ enabled: false }]);
     });
 
     test('the user list filters and reads the mapped names', async () => {

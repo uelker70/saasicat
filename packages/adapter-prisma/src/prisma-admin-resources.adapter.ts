@@ -125,22 +125,21 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
 
     async listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]> {
         const t = this.schema.tenant;
-        if (filter.tenantIds?.length === 0) return [];
         const where: Record<string, unknown> = {};
-        if (filter.isActive !== undefined) where[t.isActive] = filter.isActive;
-        // Applied in the query, before `take`: the platform filters by its own
-        // record of suspensions this way, and a filter applied to the rows a
-        // limit already cut would miss every tenant past the limit.
-        const ids: Record<string, readonly string[]> = {};
-        if (filter.tenantIds) ids.in = filter.tenantIds;
-        if (filter.excludeTenantIds?.length) ids.notIn = filter.excludeTenantIds;
-        if (Object.keys(ids).length) where.id = ids;
-        if (filter.search) {
-            where.OR = [
-                { [t.slug]: { contains: literalInLike(filter.search), mode: 'insensitive' } },
-                { [t.name]: { contains: literalInLike(filter.search), mode: 'insensitive' } },
-            ];
-        }
+        // Applied in the query, before `take`: whether a tenant may act is its
+        // own flag and the platform's suspension together, and a filter
+        // applied to rows a limit already cut would miss every tenant past it.
+        const mayAct = mayActCondition(t.isActive, filter);
+        const search = filter.search
+            ? {
+                  OR: [
+                      { [t.slug]: { contains: literalInLike(filter.search), mode: 'insensitive' } },
+                      { [t.name]: { contains: literalInLike(filter.search), mode: 'insensitive' } },
+                  ],
+              }
+            : null;
+        const all = [mayAct, search].filter((condition) => condition !== null);
+        if (all.length) where.AND = all;
         if (filter.plan) where[t.subscription] = { plan: filter.plan };
 
         const rows = await this.tenants().findMany({
@@ -329,6 +328,31 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
 
 function metricSelect(metrics: readonly string[]): Record<string, true> {
     return Object.fromEntries(metrics.map((metric) => [metric, true]));
+}
+
+/** A condition on the tenant's flag column, and on its id where tenants are held back. */
+type MayActCondition =
+    | Record<string, boolean | { notIn: readonly string[] }>
+    | { OR: [Record<string, boolean>, { id: { in: readonly string[] } }] };
+
+/**
+ * The condition `mayAct` asks for, on the application's flag and the tenants
+ * the platform holds back, or null where it asks for nothing.
+ */
+function mayActCondition(
+    isActiveColumn: string,
+    filter: AdminTenantListFilter,
+): MayActCondition | null {
+    if (filter.mayAct === undefined) return null;
+    const heldBack = filter.heldBackTenantIds ?? [];
+    if (filter.mayAct) {
+        return heldBack.length
+            ? { [isActiveColumn]: true, id: { notIn: heldBack } }
+            : { [isActiveColumn]: true };
+    }
+    return heldBack.length
+        ? { OR: [{ [isActiveColumn]: false }, { id: { in: heldBack } }] }
+        : { [isActiveColumn]: false };
 }
 
 function validDateString(value: string | undefined): string | undefined {

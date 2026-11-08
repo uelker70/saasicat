@@ -134,12 +134,16 @@ export interface AdminTenantListFilter {
     status?: string;
     plan?: string;
     search?: string;
-    /** Only tenants whose own flag (`isActive`) is this. */
-    isActive?: boolean;
-    /** Only these tenants. An empty list matches none. */
-    tenantIds?: readonly string[];
-    /** None of these tenants. */
-    excludeTenantIds?: readonly string[];
+    /**
+     * Only tenants that may act (`true`) or may not (`false`): the
+     * application's own flag (`isActive`) and the platform's suspension
+     * together. True asks for an active tenant not among `heldBackTenantIds`;
+     * false for an inactive tenant or one among them. Applied in the query,
+     * before the list is cut to a page.
+     */
+    mayAct?: boolean;
+    /** The tenants the platform holds back, which `mayAct` takes into account. */
+    heldBackTenantIds?: readonly string[];
 }
 
 export interface AdminUserListFilter {

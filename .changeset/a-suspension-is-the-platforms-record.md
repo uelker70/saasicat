@@ -28,8 +28,8 @@ one that is not suspended `TENANT_NOT_SUSPENDED`. The pages offer reactivating
 only for the platform's suspension (`tenantActionVisible`).
 
 Breaking: remove `setTenantActive` from an `AdminResourcesPort` of your own and
-let its `listTenants` apply the new `isActive`, `tenantIds` and
-`excludeTenantIds` filters in its query, before its limit; ask
+let its `listTenants` apply the new `mayAct` and `heldBackTenantIds` filters in
+its query, before its limit; ask
 `TenantAccessService.assertAllowed` at sign-in instead of your own tenant flag,
 and for a tenant suspended before this release set its `isActive` back to `true`
 and its subscriptions back to their earlier status, then suspend it again.

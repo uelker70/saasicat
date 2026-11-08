@@ -89,21 +89,12 @@ export class AdminResourcesService {
         const mayAct = mayActFilterOf(status);
         if (mayAct === undefined)
             return this.withAccessOf(await this.resources.listTenants(filter));
-        const heldBack = await this.access.tenantsHeldBack();
-        if (mayAct) {
-            return this.withAccessOf(
-                await this.resources.listTenants({
-                    ...rest,
-                    isActive: true,
-                    excludeTenantIds: heldBack,
-                }),
-            );
-        }
-        const [deactivated, held] = await Promise.all([
-            this.resources.listTenants({ ...rest, isActive: false }),
-            this.resources.listTenants({ ...rest, tenantIds: heldBack }),
-        ]);
-        return this.withAccessOf(newestFirstOnce([...deactivated, ...held]));
+        const heldBackTenantIds = await this.access.tenantsHeldBack();
+        const rows = await this.resources.listTenants({ ...rest, mayAct, heldBackTenantIds });
+        // Again on the rows, which changes nothing where the application
+        // applied the filter, and keeps a port that ignores it from listing
+        // suspended tenants as active.
+        return (await this.withAccessOf(rows)).filter((row) => row.isActive === mayAct);
     }
 
     private async withAccessOf(rows: AdminTenantListRow[]): Promise<AdminTenantListEntry[]> {
@@ -214,12 +205,6 @@ function askedFor(query: AdminTenantListFilter): AdminTenantListFilter {
     if (query.plan !== undefined) asked.plan = query.plan;
     if (query.search !== undefined) asked.search = query.search;
     return asked;
-}
-
-/** Each tenant once — one the application deactivated may be held back too — newest first. */
-function newestFirstOnce(rows: AdminTenantListRow[]): AdminTenantListRow[] {
-    const byId = new Map(rows.map((row) => [row.id, row]));
-    return [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 /**

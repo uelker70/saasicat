@@ -4290,10 +4290,11 @@ overdue invoice, and reactivating no longer sets every subscription of the tenan
 cancelled one included. To adopt it:
 
 1. Remove `setTenantActive` from an `AdminResourcesPort` of your own, and let its `listTenants`
-   honour the three filters `AdminTenantListFilter` gains — `isActive` (the application's own flag),
-   `tenantIds` (only these; an empty list matches none) and `excludeTenantIds` — in its query, before
-   it cuts the list to a page. The platform answers `ACTIVE` and `INACTIVE` with them, and a filter
-   applied after the cut would lose every tenant past it. The shipped Prisma adapter does both.
+   honour the two filters `AdminTenantListFilter` gains, in its query and before it cuts the list to
+   a page: `mayAct: true` asks for a tenant whose own flag is on and that is not among
+   `heldBackTenantIds`, `mayAct: false` for one whose flag is off _or_ that is among them. The
+   platform answers `ACTIVE` and `INACTIVE` with them, and a filter applied after the cut would lose
+   every tenant past it. The shipped Prisma adapter does both.
 2. At sign-in, ask `TenantAccessService.assertAllowed(tenantId, { writes: false })` rather than
    reading a suspension off your own tenant flag.
 3. A tenant suspended before this release carries that suspension in your tables, not the
