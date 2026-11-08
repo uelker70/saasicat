@@ -125,7 +125,16 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
 
     async listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]> {
         const t = this.schema.tenant;
+        if (filter.tenantIds?.length === 0) return [];
         const where: Record<string, unknown> = {};
+        if (filter.isActive !== undefined) where[t.isActive] = filter.isActive;
+        // Applied in the query, before `take`: the platform filters by its own
+        // record of suspensions this way, and a filter applied to the rows a
+        // limit already cut would miss every tenant past the limit.
+        const ids: Record<string, readonly string[]> = {};
+        if (filter.tenantIds) ids.in = filter.tenantIds;
+        if (filter.excludeTenantIds?.length) ids.notIn = filter.excludeTenantIds;
+        if (Object.keys(ids).length) where.id = ids;
         if (filter.search) {
             where.OR = [
                 { [t.slug]: { contains: literalInLike(filter.search), mode: 'insensitive' } },

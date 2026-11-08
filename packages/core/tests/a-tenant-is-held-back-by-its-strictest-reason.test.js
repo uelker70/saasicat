@@ -6,6 +6,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    KINDS_HOLDING_EVERYONE_BACK,
+    holdsEveryoneBack,
     requestWrites,
     tenantAccessOf,
     tenantAccessRefusal,
@@ -127,5 +129,21 @@ describe('a stored reason is read back only as a kind the platform knows', () =>
             () => toTenantAccessHold({ ...hold('suspended'), kind: 'paused' }),
             /kind 'paused', which is none of suspended, overdue, ended, deleting/,
         );
+    });
+});
+
+describe('which reasons stop everybody, reading included', () => {
+    test('exactly the kinds whose state holds everybody back', () => {
+        // Derived from the state each kind puts a tenant in, so the list and
+        // the order of strictness cannot say different things.
+        for (const kind of ['suspended', 'overdue', 'ended', 'deleting']) {
+            assert.equal(
+                KINDS_HOLDING_EVERYONE_BACK.includes(kind),
+                holdsEveryoneBack(tenantAccessOf([hold(kind)]).state),
+                kind,
+            );
+        }
+        assert.equal(holdsEveryoneBack('open'), false);
+        assert.equal(holdsEveryoneBack('read-only'), false);
     });
 });

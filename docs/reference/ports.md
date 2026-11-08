@@ -255,5 +255,6 @@ Keeps the reasons a tenant is held back, in the application's own database.
 | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `listOpen(tenantId: string): Promise<TenantAccessHold[]>`                               | The open reasons of `tenantId`, oldest first.                                         |
 | `listOpenFor(tenantIds: readonly string[]): Promise<TenantAccessHold[]>`                | The open reasons of each of `tenantIds`, in one read; a tenant without any is absent. |
+| `listTenantIdsHeldBy(kinds: readonly TenantAccessHoldKind[]): Promise<string[]>`        | Every tenant with an open reason of one of `kinds`, each once.                        |
 | `record(hold: NewTenantAccessHold): Promise<TenantAccessHold \| null>`                  | Records `hold` and returns it as stored — the id is the adapter's to assign.          |
 | `lift(id: string, liftedAt: Date, liftedBy: string): Promise<TenantAccessHold \| null>` | Lifts the open reason `id` as of `liftedAt`.                                          |

@@ -1931,6 +1931,10 @@ export function createMemoryHarness() {
         async listOpenFor(tenantIds) {
             return structuredClone(openHolds().filter((row) => tenantIds.includes(row.tenantId)));
         },
+        async listTenantIdsHeldBy(kinds) {
+            const held = openHolds().filter((row) => kinds.includes(row.kind));
+            return [...new Set(held.map((row) => row.tenantId))];
+        },
         async record(hold) {
             const taken = openHolds().some(
                 (row) =>

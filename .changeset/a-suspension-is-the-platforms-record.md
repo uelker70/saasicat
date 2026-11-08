@@ -19,12 +19,15 @@ sets them all `ACTIVE`, a cancelled one included.
 The administration's tenant rows and detail carry the platform's state as
 `access`, and their `isActive` says whether the tenant may act at all, so a
 page that reads it keeps showing a suspension. The list's `ACTIVE`, `INACTIVE`
-and `SUSPENDED` filters are answered from that state. Suspending a suspended
-tenant answers `TENANT_ALREADY_SUSPENDED`, reactivating one that is not
-suspended `TENANT_NOT_SUSPENDED`. The pages offer reactivating only for the
-platform's suspension (`tenantActionVisible`).
+and `SUSPENDED` filters are answered from that state, as filters the adapter
+applies before it cuts the list, so a suspended tenant is found however old.
+Suspending a suspended tenant answers `TENANT_ALREADY_SUSPENDED`, reactivating
+one that is not suspended `TENANT_NOT_SUSPENDED`. The pages offer reactivating
+only for the platform's suspension (`tenantActionVisible`).
 
-Breaking: remove `setTenantActive` from an `AdminResourcesPort` of your own, ask
+Breaking: remove `setTenantActive` from an `AdminResourcesPort` of your own and
+let its `listTenants` apply the new `isActive`, `tenantIds` and
+`excludeTenantIds` filters in its query, before its limit; ask
 `TenantAccessService.assertAllowed` at sign-in instead of your own tenant flag,
 and suspend again any tenant suspended before this release. `adminResources` now
 needs `persistence.core.tenantAccessHolds` as `tenantBilling` does. The upgrade

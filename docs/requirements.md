@@ -15721,6 +15721,8 @@ _Tested by:_
         - the detail route addresses the tenant by the mapped slug
         - the tenants a subscriber names are read in one question, a soft-deleted one included
         - no tenants named, no question asked
+        - the platform's filters reach the query, on the mapped flag, before its limit
+        - an empty list of tenants matches none, without asking the database
         - the user list filters and reads the mapped names
     - an app that matches the convention is unaffected
         - no mapping means the same queries as before
@@ -15769,6 +15771,7 @@ _Tested by:_
     - the administration reads each tenant with the platform's state
         - every row carries its state, and a suspended tenant is not active
         - the active and suspended filters are answered here, from the state
+        - a suspended tenant past the first page is still found, and an active one is not lost
         - a status the platform does not answer goes to the application as it was
         - the detail carries the state too
 - `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
@@ -16387,6 +16390,7 @@ _Tested by:_
     - the administration reads each tenant with the platform's state
         - every row carries its state, and a suspended tenant is not active
         - the active and suspended filters are answered here, from the state
+        - a suspended tenant past the first page is still found, and an active one is not lost
         - a status the platform does not answer goes to the application as it was
         - the detail carries the state too
 - `packages/nest/tests/the-platforms-tenant-routes-check-the-access-state.test.js`
@@ -25978,6 +25982,7 @@ _Tested by:_
         - many tenants are read in one query, and none asks nothing
         - a reason is recorded under an id made here, the index deciding a second
         - a lift asks for a reason still open, and one already lifted answers null
+        - the tenants held back by some kinds are read once each, from open reasons
         - a row with a kind the platform does not know is refused
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record

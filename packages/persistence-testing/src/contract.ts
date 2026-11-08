@@ -13650,6 +13650,34 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(await port.listOpenFor([]), []);
         });
 
+        test('the tenants held back by some kinds are read each once, from open reasons only', async (t) => {
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            await port.record(holdOf({ tenantId: 'tenant-a' }));
+            await port.record(holdOf({ tenantId: 'tenant-b', kind: 'deleting', note: null }));
+            await port.record(holdOf({ tenantId: 'tenant-b' }));
+            await port.record(
+                holdOf({
+                    tenantId: 'tenant-c',
+                    kind: 'overdue',
+                    reference: 'invoice-1',
+                    note: null,
+                }),
+            );
+            const lifted = await port.record(holdOf({ tenantId: 'tenant-d' }));
+            assert.ok(lifted);
+            await port.lift(lifted.id, LIFTED_AT, HOLDING_OPERATOR);
+            assert.deepEqual((await port.listTenantIdsHeldBy(['suspended', 'deleting'])).sort(), [
+                'tenant-a',
+                'tenant-b',
+            ]);
+            assert.deepEqual(await port.listTenantIdsHeldBy(['overdue']), ['tenant-c']);
+            assert.deepEqual(await port.listTenantIdsHeldBy([]), []);
+        });
+
         // -------------------------------------------------------------
         // Subscriber notices — recorded once, claimed by one run at a time
         // -------------------------------------------------------------

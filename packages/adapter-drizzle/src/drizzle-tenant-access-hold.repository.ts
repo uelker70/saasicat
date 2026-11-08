@@ -4,6 +4,7 @@ import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import {
     type NewTenantAccessHold,
     type TenantAccessHold,
+    type TenantAccessHoldKind,
     type TenantAccessHoldPort,
     toTenantAccessHold,
 } from '@saasicat/core';
@@ -39,6 +40,20 @@ export class DrizzleTenantAccessHoldRepository implements TenantAccessHoldPort {
             )
             .orderBy(asc(tenantAccessHolds.since), asc(tenantAccessHolds.id));
         return rows.map(toTenantAccessHold);
+    }
+
+    async listTenantIdsHeldBy(kinds: readonly TenantAccessHoldKind[]): Promise<string[]> {
+        if (kinds.length === 0) return [];
+        const rows = await this.db
+            .selectDistinct({ tenantId: tenantAccessHolds.tenantId })
+            .from(tenantAccessHolds)
+            .where(
+                and(
+                    inArray(tenantAccessHolds.kind, [...kinds]),
+                    isNull(tenantAccessHolds.liftedAt),
+                ),
+            );
+        return rows.map((row) => row.tenantId);
     }
 
     /**

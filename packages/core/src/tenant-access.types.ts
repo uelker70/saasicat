@@ -64,6 +64,17 @@ const STATE_OF_KIND: Readonly<Record<TenantAccessHoldKind, TenantAccessState>> =
 
 const STRICTNESS: readonly TenantAccessState[] = ['open', 'read-only', 'suspended', 'deleting'];
 
+/** The kinds of reason that stop every user of a tenant, reading included. */
+export const KINDS_HOLDING_EVERYONE_BACK: readonly TenantAccessHoldKind[] = [
+    'suspended',
+    'deleting',
+];
+
+/** Whether nobody of a tenant in `state` acts at all. */
+export function holdsEveryoneBack(state: TenantAccessState): boolean {
+    return state === 'suspended' || state === 'deleting';
+}
+
 /** The strictest state the open reasons among `holds` put a tenant in. */
 export function tenantAccessOf(holds: readonly TenantAccessHold[]): TenantAccess {
     const open = holds.filter((hold) => hold.liftedAt === null);

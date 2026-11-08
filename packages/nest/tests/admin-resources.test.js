@@ -19,21 +19,30 @@ const ACME = { id: 'tenant-1', slug: 'acme', name: 'Acme', isActive: true };
 const BETA = { id: 'tenant-2', slug: 'beta', name: 'Beta', isActive: true };
 const ASLEEP = { id: 'tenant-3', slug: 'asleep', name: 'Asleep', isActive: false };
 
-/** The application's side: three tenants, read only. */
-function applicationResources() {
+/**
+ * The application's side, read only: three tenants, newest first, filtered the
+ * way the shipped adapter filters in its query, and cut to `limit` rows after
+ * filtering, as the adapter's `take` does.
+ */
+function applicationResources({ limit = 200 } = {}) {
     const listed = [];
-    const rows = [ACME, BETA, ASLEEP].map((tenant) => ({
+    const rows = [ACME, BETA, ASLEEP].map((tenant, at) => ({
         ...tenant,
         deletedAt: null,
         plan: 'PRO',
         status: 'ACTIVE',
-        createdAt: '2026-01-01T00:00:00.000Z',
+        createdAt: `2026-01-0${3 - at}T00:00:00.000Z`,
     }));
     return {
         listed,
         async listTenants(filter) {
             listed.push(filter);
-            return rows.map((row) => ({ ...row }));
+            return rows
+                .filter((row) => filter.isActive === undefined || row.isActive === filter.isActive)
+                .filter((row) => !filter.tenantIds || filter.tenantIds.includes(row.id))
+                .filter((row) => !filter.excludeTenantIds?.includes(row.id))
+                .slice(0, limit)
+                .map((row) => ({ ...row }));
         },
         async getTenantDetail(slug) {
             const row = rows.find((candidate) => candidate.slug === slug);
@@ -54,10 +63,10 @@ function applicationResources() {
     };
 }
 
-function platform() {
+function platform(options) {
     const holds = new FakeTenantAccessHoldRepository();
     const audits = [];
-    const resources = applicationResources();
+    const resources = applicationResources(options);
     const service = new AdminResourcesService(
         resources,
         {
@@ -193,7 +202,32 @@ describe("the administration reads each tenant with the platform's state", () =>
             suspended.map((row) => row.slug),
             ['acme', 'asleep'],
         );
-        assert.deepEqual(resources.listed, [{ search: 'a' }, {}], 'the status is not handed on');
+        assert.deepEqual(
+            resources.listed,
+            [
+                { search: 'a', isActive: true, excludeTenantIds: ['tenant-1'] },
+                { isActive: false },
+                { tenantIds: ['tenant-1'] },
+            ],
+            'the status is answered as filters the application applies before its limit',
+        );
+    });
+
+    test('a suspended tenant past the first page is still found, and an active one is not lost', async () => {
+        const { service } = platform({ limit: 1 });
+        // The newest tenant is suspended; the application cuts every list to
+        // one row. Filtering after the cut would find nothing in either case.
+        await service.suspendTenant('acme', 'review', ACTOR);
+        assert.deepEqual(
+            (await service.listTenants({ status: 'ACTIVE' })).map((row) => row.slug),
+            ['beta'],
+        );
+        const { service: older } = platform({ limit: 1 });
+        await older.suspendTenant('beta', 'review', ACTOR);
+        assert.deepEqual(
+            (await older.listTenants({ status: 'SUSPENDED' })).map((row) => row.slug),
+            ['beta', 'asleep'],
+        );
     });
 
     test('a status the platform does not answer goes to the application as it was', async () => {

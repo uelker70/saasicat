@@ -11,6 +11,7 @@
 import { type ExecutionContext, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
+    KINDS_HOLDING_EVERYONE_BACK,
     TENANT_ACCESS_ERROR_CODES,
     type TenantAccess,
     type TenantAccessErrorCode,
@@ -66,6 +67,11 @@ export class TenantAccessService {
     /** The state of `tenantId` and the open reasons it follows from. */
     async accessOf(tenantId: string): Promise<TenantAccess> {
         return tenantAccessOf(await this.holds.listOpen(tenantId));
+    }
+
+    /** Every tenant nobody of which acts at all: suspended, or being deleted. */
+    async tenantsHeldBack(): Promise<string[]> {
+        return this.holds.listTenantIdsHeldBy(KINDS_HOLDING_EVERYONE_BACK);
     }
 
     /** The state of each of `tenantIds`, from one read; a tenant without an open reason is open. */

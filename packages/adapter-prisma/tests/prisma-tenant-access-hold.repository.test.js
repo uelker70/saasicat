@@ -105,6 +105,26 @@ describe('PrismaTenantAccessHoldRepository', () => {
         );
     });
 
+    test('the tenants held back by some kinds are read once each, from open reasons', async () => {
+        const client = fakeClient();
+        client.tenantAccessHold.findMany = async (args) => {
+            client.calls.push(['findMany', args]);
+            return [{ tenantId: 't-1' }, { tenantId: 't-2' }];
+        };
+        const repository = new PrismaTenantAccessHoldRepository(client);
+        assert.deepEqual(await repository.listTenantIdsHeldBy(['suspended', 'deleting']), [
+            't-1',
+            't-2',
+        ]);
+        assert.deepEqual(client.calls[0][1], {
+            where: { kind: { in: ['suspended', 'deleting'] }, liftedAt: null },
+            select: { tenantId: true },
+            distinct: ['tenantId'],
+        });
+        assert.deepEqual(await repository.listTenantIdsHeldBy([]), []);
+        assert.equal(client.calls.length, 1, 'no query for no kinds');
+    });
+
     test('a row with a kind the platform does not know is refused', async () => {
         const client = fakeClient();
         client.tenantAccessHold.findMany = async () => [{ ...ROW, kind: 'paused' }];

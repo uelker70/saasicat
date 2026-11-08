@@ -4289,8 +4289,11 @@ is gone, and with it the subscription status a suspension used to set — a susp
 overdue invoice, and reactivating no longer sets every subscription of the tenant to `ACTIVE`, a
 cancelled one included. To adopt it:
 
-1. Remove `setTenantActive` from an `AdminResourcesPort` of your own; the shipped Prisma adapter
-   has none.
+1. Remove `setTenantActive` from an `AdminResourcesPort` of your own, and let its `listTenants`
+   honour the three filters `AdminTenantListFilter` gains — `isActive` (the application's own flag),
+   `tenantIds` (only these; an empty list matches none) and `excludeTenantIds` — in its query, before
+   it cuts the list to a page. The platform answers `ACTIVE` and `INACTIVE` with them, and a filter
+   applied after the cut would lose every tenant past it. The shipped Prisma adapter does both.
 2. At sign-in, ask `TenantAccessService.assertAllowed(tenantId, { writes: false })` rather than
    reading a suspension off your own tenant flag.
 3. A tenant suspended before this release has `isActive: false` in your table and no reason in
@@ -4300,8 +4303,8 @@ cancelled one included. To adopt it:
 - **The administration's tenant rows** gain `access`, and `isActive` there says whether the tenant
   may act at all: false for a tenant your application deactivated, and for one the platform
   suspended or is deleting. A page that reads `isActive` keeps showing a suspension. The list's
-  `status` filter values `ACTIVE`, `INACTIVE` and `SUSPENDED` are answered by the platform from
-  that and no longer reach the adapter; any other value still does.
+  `status` filter values `ACTIVE`, `INACTIVE` and `SUSPENDED` are answered by the platform, through
+  the filters above, and no longer reach the adapter as a status; any other value still does.
 - **Two new refusals:** suspending a suspended tenant answers `409 TENANT_ALREADY_SUSPENDED`,
   reactivating one that is not suspended `409 TENANT_NOT_SUSPENDED`.
 - **`adminResources` on its own** now composes the tenant access module, and the start needs

@@ -130,9 +130,16 @@ export interface AuditQueryPort {
 // -----------------------------------------------------------------------------
 
 export interface AdminTenantListFilter {
+    /** A status of the application's own; the platform answers `ACTIVE`, `INACTIVE` and `SUSPENDED` itself. */
     status?: string;
     plan?: string;
     search?: string;
+    /** Only tenants whose own flag (`isActive`) is this. */
+    isActive?: boolean;
+    /** Only these tenants. An empty list matches none. */
+    tenantIds?: readonly string[];
+    /** None of these tenants. */
+    excludeTenantIds?: readonly string[];
 }
 
 export interface AdminUserListFilter {

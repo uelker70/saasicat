@@ -1,6 +1,10 @@
 // Where the reasons a tenant is held back are kept (`SC-ADM-024`).
 
-import type { NewTenantAccessHold, TenantAccessHold } from '../tenant-access.types.js';
+import type {
+    NewTenantAccessHold,
+    TenantAccessHold,
+    TenantAccessHoldKind,
+} from '../tenant-access.types.js';
 
 /**
  * Keeps the reasons a tenant is held back, in the application's own database.
@@ -17,6 +21,12 @@ export interface TenantAccessHoldPort {
     listOpen(tenantId: string): Promise<TenantAccessHold[]>;
     /** The open reasons of each of `tenantIds`, in one read; a tenant without any is absent. */
     listOpenFor(tenantIds: readonly string[]): Promise<TenantAccessHold[]>;
+    /**
+     * Every tenant with an open reason of one of `kinds`, each once. What the
+     * administration filters its list by before the application's rows are
+     * cut to a page, so a tenant held back is found however old it is.
+     */
+    listTenantIdsHeldBy(kinds: readonly TenantAccessHoldKind[]): Promise<string[]>;
     /**
      * Records `hold` and returns it as stored — the id is the adapter's to
      * assign. Returns null where the same reason is already open for the

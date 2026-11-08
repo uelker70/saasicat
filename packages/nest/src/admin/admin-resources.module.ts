@@ -35,7 +35,7 @@ import type {
     TenantAccess,
     TenantAccessState,
 } from '@saasicat/core';
-import { BILLING_ERROR_CODES, TENANT_ACCESS_ERROR_CODES } from '@saasicat/core';
+import { BILLING_ERROR_CODES, TENANT_ACCESS_ERROR_CODES, holdsEveryoneBack } from '@saasicat/core';
 import { actorTagOf } from '../core/web-audit.js';
 import { codedError } from '../errors/coded-error.js';
 import { TenantAccessService } from '../tenant-access/tenant-access.service.js';
@@ -75,18 +75,39 @@ export class AdminResourcesService {
     ) {}
 
     /**
-     * The application's tenants with the platform's state beside each. Whether
-     * a tenant is active or suspended is the platform's to say since it keeps
-     * the suspension, so that filter is applied here, after the state is known,
-     * rather than handed to the application; any other filter goes through.
+     * The application's tenants with the platform's state beside each.
+     *
+     * Whether a tenant may act is the application's flag and the platform's
+     * suspension together, so `ACTIVE` and `INACTIVE` are answered here — as
+     * filters the application applies in its query, before it cuts the list
+     * to a page. Filtering the rows afterwards would lose every tenant past
+     * that page. Any other status goes to the application as it is.
      */
     async listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListEntry[]> {
         const { status, ...rest } = filter;
         const mayAct = mayActFilterOf(status);
-        const rows = await this.resources.listTenants(mayAct === undefined ? filter : rest);
+        if (mayAct === undefined)
+            return this.withAccessOf(await this.resources.listTenants(filter));
+        const heldBack = await this.access.tenantsHeldBack();
+        if (mayAct) {
+            return this.withAccessOf(
+                await this.resources.listTenants({
+                    ...rest,
+                    isActive: true,
+                    excludeTenantIds: heldBack,
+                }),
+            );
+        }
+        const [deactivated, held] = await Promise.all([
+            this.resources.listTenants({ ...rest, isActive: false }),
+            this.resources.listTenants({ ...rest, tenantIds: heldBack }),
+        ]);
+        return this.withAccessOf(newestFirstOnce([...deactivated, ...held]));
+    }
+
+    private async withAccessOf(rows: AdminTenantListRow[]): Promise<AdminTenantListEntry[]> {
         const access = await this.access.accessOfEach(rows.map((row) => row.id));
-        const entries = rows.map((row) => withAccess(row, access.get(row.id)));
-        return mayAct === undefined ? entries : entries.filter((row) => row.isActive === mayAct);
+        return rows.map((row) => withAccess(row, access.get(row.id)));
     }
 
     async getTenantDetail(slug: string): Promise<AdminTenantDetailEntry> {
@@ -165,9 +186,6 @@ export class AdminResourcesService {
     }
 }
 
-/** The states in which nobody of the tenant acts at all. */
-const HOLDS_EVERYONE_BACK: ReadonlySet<TenantAccessState> = new Set(['suspended', 'deleting']);
-
 /**
  * A row with the platform's state beside it, and `isActive` narrowed to
  * whether the tenant may act at all — so a page that reads `isActive` alone
@@ -179,8 +197,14 @@ function withAccess<Row extends AdminTenantListRow | AdminTenantDetail>(
 ): Row & { access: TenantAccessState } {
     const state = access?.state ?? 'open';
     const entry = { ...row, access: state };
-    entry.isActive = row.isActive && !HOLDS_EVERYONE_BACK.has(state);
+    entry.isActive = row.isActive && !holdsEveryoneBack(state);
     return entry;
+}
+
+/** Each tenant once — one the application deactivated may be held back too — newest first. */
+function newestFirstOnce(rows: AdminTenantListRow[]): AdminTenantListRow[] {
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 /**

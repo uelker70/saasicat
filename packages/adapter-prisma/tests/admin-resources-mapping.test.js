@@ -246,6 +246,29 @@ describe('an app that calls everything something else', () => {
         assert.deepEqual(calls, []);
     });
 
+    test("the platform's filters reach the query, on the mapped flag, before its limit", async () => {
+        const { client, calls } = clientWith(RENAMED, { organization: [] });
+        const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
+
+        await adapter.listTenants({
+            isActive: false,
+            tenantIds: ['t1', 't2'],
+            excludeTenantIds: ['t3'],
+        });
+
+        const [call] = calls;
+        assert.equal(call.args.where.enabled, false, 'the flag is the mapped column');
+        assert.deepEqual(call.args.where.id, { in: ['t1', 't2'], notIn: ['t3'] });
+        assert.equal(typeof call.args.take, 'number', 'the limit applies to the filtered rows');
+    });
+
+    test('an empty list of tenants matches none, without asking the database', async () => {
+        const { client, calls } = clientWith(RENAMED, { organization: [] });
+        const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
+        assert.deepEqual(await adapter.listTenants({ tenantIds: [] }), []);
+        assert.deepEqual(calls, []);
+    });
+
     test('the user list filters and reads the mapped names', async () => {
         const { client, calls } = clientWith(RENAMED, {
             account: [
