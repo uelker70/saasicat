@@ -141,10 +141,14 @@ describe('publishing and ending a version names who did it', () => {
         ]);
     });
 
-    test('ending a plan version is audited with the day it ends', async () => {
+    test('ending a plan version is audited with the day it ends and the end it replaced', async () => {
         const audit = fakeAudit();
+        const before = { ...PUBLISHED_PLAN, endsAt: '2027-06-30T00:00:00.000Z' };
         const ended = { ...PUBLISHED_PLAN, endsAt: '2027-03-31T00:00:00.000Z' };
-        const { service, calls } = fakeService({ terminatePlanVersion: ended });
+        const { service, calls } = fakeService({
+            getPlanVersion: before,
+            terminatePlanVersion: ended,
+        });
         const Controller = buildPlanVersionsController([]);
         const controller = new Controller(service, audit);
 
@@ -157,7 +161,12 @@ describe('publishing and ending a version names who did it', () => {
                 entity: 'PlanVersion',
                 entityId: VERSION_ID,
                 action: 'PLAN_VERSION_TERMINATE',
-                changes: { planId: 'STARTER', version: 3, endsAt: '2027-03-31T00:00:00.000Z' },
+                changes: {
+                    planId: 'STARTER',
+                    version: 3,
+                    endsAt: '2027-03-31T00:00:00.000Z',
+                    previousEndsAt: '2027-06-30T00:00:00.000Z',
+                },
             },
         ]);
     });
@@ -183,7 +192,7 @@ describe('publishing and ending a version names who did it', () => {
         ];
         for (const [build, method, act] of cases) {
             const audit = fakeAudit();
-            const { service } = fakeService({ [method]: refusal });
+            const { service } = fakeService({ getPlanVersion: PUBLISHED_PLAN, [method]: refusal });
             const Controller = build([]);
             await assert.rejects(act(new Controller(service, audit)), refusal);
             assert.deepEqual(

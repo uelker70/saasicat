@@ -224,6 +224,10 @@ export function buildPlanVersionsController(guards: Array<Type<CanActivate>>): T
             @Body() dto: TerminatePlanVersionDto,
             @Req() request: unknown,
         ) {
+            // Ending is repeatable and moves an end already set, so the entry
+            // names the end it replaced: without it a log could not show that
+            // customers' end was brought forward, or from which day.
+            const before = await this.service.getPlanVersion(versionId);
             const terminated = await this.service.terminatePlanVersion(
                 versionId,
                 new Date(dto.endsAt),
@@ -237,6 +241,7 @@ export function buildPlanVersionsController(guards: Array<Type<CanActivate>>): T
                     planId: terminated.planId,
                     version: terminated.version,
                     endsAt: terminated.endsAt,
+                    previousEndsAt: before.endsAt,
                 },
             );
             return terminated;
