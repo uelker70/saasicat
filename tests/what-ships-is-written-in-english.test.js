@@ -60,10 +60,11 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { isShipped, shippedFiles } from '../scripts/what-ships.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -165,22 +166,6 @@ const GERMAN = new Set(GERMAN_WORDS);
 /** One quantifier over a class that excludes its own separator — nothing to backtrack. */
 const NOT_A_LETTER = /[^\p{L}]+/u;
 
-/**
- * What carries prose somebody reads, which is wider than "source".
- *
- * `.yaml` is here because `@saasicat/spec` ships `admin-api.openapi.yaml` and
- * calls it normative; `.json` because the four JSON Schemas hold 68
- * `description` strings that are the field-by-field documentation of the
- * platform contract, and because a `package.json` description is what npm
- * shows. The example's operational files are here for the plainest reason of
- * all: they are the first thing anybody runs.
- */
-const SHIPPED =
-    /\.(ts|mts|cts|js|mjs|cjs|vue|md|prisma|sql|css|scss|html|tpl|ya?ml|jsonc?|sh|conf|example)$/;
-
-/** Shipped files a stranger reads that carry no extension at all. */
-const SHIPPED_BY_NAME = new Set(['Dockerfile', 'Makefile']);
-const IS_TEST = /\.(test|spec)\.[cm]?[jt]sx?$/;
 const DECLARATION_WINDOW = 20;
 
 function declares(text, marker) {
@@ -239,20 +224,6 @@ export function outsideQuotes(line) {
     return out;
 }
 
-/** Whether a repository-relative path is something a stranger reads. */
-export function isShipped(path) {
-    const name = path.split('/').at(-1);
-    if (!SHIPPED.test(path) && !SHIPPED_BY_NAME.has(name.split('.')[0])) return false;
-    // The changeset config, not a release note.
-    if (path.startsWith('.changeset/') && !path.endsWith('.md')) return false;
-    if (path.endsWith('CHANGELOG.md')) return false;
-    // Tool-owned: nobody writes it, and it is now inside the extension list.
-    if (name === 'pnpm-lock.yaml') return false;
-    const parts = path.split('/');
-    if (parts.includes('tests') || parts.includes('node_modules')) return false;
-    return !IS_TEST.test(parts.at(-1));
-}
-
 /**
  * Every German word in a piece of text, with the line it stands on.
  *
@@ -272,18 +243,16 @@ export function germanIn(text) {
     return found;
 }
 
-const tracked = execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' })
-    .split('\n')
-    .filter(Boolean);
+const shipped = shippedFiles(ROOT);
 
 describe('what ships is written in English', () => {
     test('there are shipped files to look at — otherwise nothing below looks at anything', () => {
-        assert.ok(tracked.filter(isShipped).length > 200);
+        assert.ok(shipped.length > 200);
     });
 
     test('none of them carries a German word', () => {
         const offenders = [];
-        for (const path of tracked.filter(isShipped)) {
+        for (const path of shipped) {
             const text = readFileSync(join(ROOT, path), 'utf8');
             if (declaresLanguageHistory(path, text)) continue;
             const read = declaresTranslationCatalogue(text)

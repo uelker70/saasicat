@@ -420,6 +420,17 @@ _Tested by:_
     - what the docs say about the licence is what the licence says
         - ${file} quotes it verbatim
         - the clause is not trivially short, so the check is not trivially true
+- `tests/what-ships-never-calls-it-open-source.test.js`
+    - what ships never calls SaaSiCat open source
+        - there are shipped files to look at, and the exemptions resolve
+        - no shipped file makes the claim
+        - the requirement itself is still read once its own wording is cut out
+    - what counts as the claim
+        - a plain statement is one, however it is spelled or broken
+        - a negation right before it is not
+        - a negation further away belongs to something else
+        - the name of the Open Source Initiative is not the claim
+        - words that merely contain the two are not either
 
 <!-- END proof -->
 
