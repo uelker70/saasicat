@@ -93,7 +93,7 @@ describe('the rule table', () => {
 
 // @requirement SC-CFG-006 — A misconfigured installation is told everything that is wrong at once
 describe('all of them at once', () => {
-    test('four independent mistakes are reported together', () => {
+    test('independent mistakes are reported together', () => {
         const violations = findViolations({
             options: {
                 planCatalog: MINIMAL_CATALOG,
@@ -115,6 +115,8 @@ describe('all of them at once', () => {
             'setup.requires-provisioning-port',
             'subscription-bundles.requires-repositories',
             'subscription-bundles.requires-tenant-billing',
+            // The administration suspends tenants, with nowhere to keep it.
+            'tenant-access.requires-holds-port',
         ]);
     });
 
@@ -263,7 +265,9 @@ describe('forRoot runs the table', () => {
                 adminResources: true,
             }),
         );
-        assert.match(error.message, /2 configuration problems/);
+        // The catalogue and the administration need persistence, and the
+        // administration's suspensions need a place to be kept.
+        assert.match(error.message, /3 configuration problems/);
     });
 
     test('tenantManifest without plan resolution fails before anything is assembled', () => {

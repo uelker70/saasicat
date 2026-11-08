@@ -33,6 +33,7 @@ import {
     type SaaSiCatModuleOptions,
 } from '../module-options.js';
 import { resolveBundleRepository } from '../compose/bundle-repository-source.js';
+import { servesTenantAccess } from '../compose/tenant-access.js';
 
 /** Everything a rule may look at: the options as given, the adapters as resolved. */
 export interface PlatformConfiguration {
@@ -333,11 +334,12 @@ const RULE_SPECS: readonly RuleSpec[] = [
     },
     {
         id: 'tenant-access.requires-holds-port',
-        when: (c) => Boolean(c.options.tenantBilling),
+        when: (c) => servesTenantAccess(c.options),
         assert: (c) => Boolean(bundle(c)?.core?.tenantAccessHolds),
         message:
-            'tenantBilling serves tenants, but there is nowhere to keep the reasons a tenant is ' +
-            'held back (SC-ADM-024): a state that is not recorded cannot be enforced. Use a ' +
+            'tenantBilling or adminResources is on, but there is nowhere to keep the reasons a ' +
+            'tenant is held back (SC-ADM-024): a state that is not recorded cannot be enforced, ' +
+            'and a suspension has nowhere to go. Use a ' +
             'bundle providing `persistence.core.tenantAccessHolds` — both shipped adapters do, ' +
             'from the `TenantAccessHold` model of `@saasicat/spec`.',
     },

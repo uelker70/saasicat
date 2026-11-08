@@ -4280,6 +4280,35 @@ tenant passes there too; one your guard did not check is checked as a tenant use
   `persistence.core`: `FakeTenantAccessHoldRepository` from `@saasicat/nest/testing` keeps it in
   memory and starts empty.
 
+### A suspension is the platform's own record
+
+Suspending and reactivating a tenant in the administration now record and lift a `suspended`
+reason in `tenant_access_holds` (`SC-ADM-024`), and the check of the previous section holds the
+tenant to it. Nothing of the application's is written any more: `AdminResourcesPort.setTenantActive`
+is gone, and with it the subscription status a suspension used to set — a suspension is not an
+overdue invoice, and reactivating no longer sets every subscription of the tenant to `ACTIVE`, a
+cancelled one included. To adopt it:
+
+1. Remove `setTenantActive` from an `AdminResourcesPort` of your own; the shipped Prisma adapter
+   has none.
+2. At sign-in, ask `TenantAccessService.assertAllowed(tenantId, { writes: false })` rather than
+   reading a suspension off your own tenant flag.
+3. A tenant suspended before this release has `isActive: false` in your table and no reason in
+   the platform's. Suspend it again from the administration after the deploy, or insert its row
+   into `tenant_access_holds` with `kind = 'suspended'`.
+
+- **The administration's tenant rows** gain `access`, and `isActive` there says whether the tenant
+  may act at all: false for a tenant your application deactivated, and for one the platform
+  suspended or is deleting. A page that reads `isActive` keeps showing a suspension. The list's
+  `status` filter values `ACTIVE`, `INACTIVE` and `SUSPENDED` are answered by the platform from
+  that and no longer reach the adapter; any other value still does.
+- **Two new refusals:** suspending a suspended tenant answers `409 TENANT_ALREADY_SUSPENDED`,
+  reactivating one that is not suspended `409 TENANT_NOT_SUSPENDED`.
+- **`adminResources` on its own** now composes the tenant access module, and the start needs
+  `persistence.core.tenantAccessHolds` for it as well.
+- **The administration** offers reactivating only for the platform's own suspension, read from
+  `access`; `tenantActionVisible` from `@saasicat/ui-vue/vue` is the rule for a page of your own.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

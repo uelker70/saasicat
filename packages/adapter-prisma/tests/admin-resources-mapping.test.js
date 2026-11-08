@@ -149,7 +149,10 @@ describe('an app that calls everything something else', () => {
 
         const [call] = calls;
         assert.equal(call.delegate, 'organization');
-        assert.equal(call.args.where.enabled, true, 'the status filter uses the mapped flag');
+        // Whether a tenant may act is the platform's to answer, from its own
+        // record of suspensions; the adapter reads the flag and filters on it no
+        // more.
+        assert.equal('enabled' in call.args.where, false, 'the status is not filtered here');
         assert.deepEqual(
             call.args.where.OR.map((clause) => Object.keys(clause)[0]),
             ['handle', 'title'],
@@ -243,17 +246,6 @@ describe('an app that calls everything something else', () => {
         assert.deepEqual(calls, []);
     });
 
-    test('suspending writes the mapped flag', async () => {
-        const { client, calls } = clientWith(RENAMED, {
-            organization: [{ id: 't1', handle: 'acme' }],
-        });
-        const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
-        await adapter.setTenantActive('acme', false, 'suspended');
-
-        const update = calls.find((c) => c.method === 'update');
-        assert.deepEqual(update.args.data, { enabled: false });
-    });
-
     test('the user list filters and reads the mapped names', async () => {
         const { client, calls } = clientWith(RENAMED, {
             account: [
@@ -293,11 +285,12 @@ describe('an app that matches the convention is unaffected', () => {
             ],
         });
         const adapter = new PrismaAdminResourcesAdapter(client);
-        const rows = await adapter.listTenants({ status: 'INACTIVE' });
+        const rows = await adapter.listTenants({});
 
         assert.equal(calls[0].delegate, 'tenant');
-        assert.deepEqual(calls[0].args.where, { isActive: false });
+        assert.deepEqual(calls[0].args.where, {});
         assert.equal(rows[0].slug, 'acme');
+        assert.equal(rows[0].isActive, true, 'the flag is read from its conventional column');
     });
 });
 

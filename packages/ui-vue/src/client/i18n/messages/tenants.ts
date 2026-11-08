@@ -14,6 +14,8 @@ export const tenantsMessages = defineMessages(
             columnUsage: 'Verbrauch',
             columnCreatedAt: 'Angelegt',
             suspended: 'Suspendiert',
+            readOnly: 'Nur lesen',
+            beingDeleted: 'Wird gelöscht',
             empty: 'Keine Mandanten mit diesen Filtern.',
         },
         detail: {
@@ -65,6 +67,8 @@ export const tenantsMessages = defineMessages(
             columnUsage: 'Usage',
             columnCreatedAt: 'Created',
             suspended: 'Suspended',
+            readOnly: 'Read-only',
+            beingDeleted: 'Being deleted',
             empty: 'No tenants match these filters.',
         },
         detail: {

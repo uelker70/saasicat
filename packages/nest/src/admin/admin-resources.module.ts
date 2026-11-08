@@ -1,6 +1,7 @@
 import {
     Body,
     type CanActivate,
+    ConflictException,
     Controller,
     type DynamicModule,
     type ForwardReference,
@@ -22,6 +23,8 @@ import type {
     AdminResourcesPort,
     AdminSubscriptionListRow,
     AdminTenantDetail,
+    AdminTenantDetailEntry,
+    AdminTenantListEntry,
     AdminTenantListFilter,
     AdminTenantListRow,
     AdminTenantStateResult,
@@ -29,8 +32,13 @@ import type {
     AdminUserListFilter,
     AdminUserListRow,
     AuditEntry,
+    TenantAccess,
+    TenantAccessState,
 } from '@saasicat/core';
-import { BILLING_ERROR_CODES } from '@saasicat/core';
+import { BILLING_ERROR_CODES, TENANT_ACCESS_ERROR_CODES } from '@saasicat/core';
+import { actorTagOf } from '../core/web-audit.js';
+import { codedError } from '../errors/coded-error.js';
+import { TenantAccessService } from '../tenant-access/tenant-access.service.js';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminAuditService } from './admin-audit.service.js';
 import { EnforceMfa } from './enforce-mfa.decorator.js';
@@ -62,22 +70,28 @@ export class AdminResourcesService {
         private readonly resources: AdminResourcesPort,
         @Inject(AdminAuditService)
         private readonly audit: AdminAuditService,
+        @Inject(TenantAccessService)
+        private readonly access: TenantAccessService,
     ) {}
 
-    listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]> {
-        return this.resources.listTenants(filter);
+    /**
+     * The application's tenants with the platform's state beside each. Whether
+     * a tenant is active or suspended is the platform's to say since it keeps
+     * the suspension, so that filter is applied here, after the state is known,
+     * rather than handed to the application; any other filter goes through.
+     */
+    async listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListEntry[]> {
+        const { status, ...rest } = filter;
+        const mayAct = mayActFilterOf(status);
+        const rows = await this.resources.listTenants(mayAct === undefined ? filter : rest);
+        const access = await this.access.accessOfEach(rows.map((row) => row.id));
+        const entries = rows.map((row) => withAccess(row, access.get(row.id)));
+        return mayAct === undefined ? entries : entries.filter((row) => row.isActive === mayAct);
     }
 
-    async getTenantDetail(slug: string): Promise<AdminTenantDetail> {
-        const tenant = await this.resources.getTenantDetail(slug);
-        if (!tenant) {
-            throw new NotFoundException({
-                code: BILLING_ERROR_CODES.TENANT_NOT_FOUND,
-                message: `Tenant ${slug} not found`,
-                params: { slug },
-            });
-        }
-        return tenant;
+    async getTenantDetail(slug: string): Promise<AdminTenantDetailEntry> {
+        const tenant = await this.tenantNamed(slug);
+        return withAccess(tenant, await this.access.accessOf(tenant.id));
     }
 
     /** The tenants among `tenantIds` the application still has; one it no longer has is left out. */
@@ -97,48 +111,88 @@ export class AdminResourcesService {
         return this.resources.listSubscriptions();
     }
 
-    suspendTenant(
+    /**
+     * Records the operator's suspension as a reason the tenant is held back
+     * (`SC-ADM-024`). Nothing of the application's is written — neither its
+     * tenant row nor a subscription: a suspension is not an overdue invoice,
+     * and reactivating must not turn a cancelled subscription active again.
+     */
+    async suspendTenant(
         slug: string,
         reason: string | undefined,
         actor: AdminActor,
     ): Promise<AdminTenantStateResult> {
-        return this.setTenantActive(slug, false, 'PAST_DUE', actor, {
-            action: 'TENANT_SUSPEND',
-            reason: reason ?? '',
-        });
-    }
-
-    reactivateTenant(slug: string, actor: AdminActor): Promise<AdminTenantStateResult> {
-        return this.setTenantActive(slug, true, 'ACTIVE', actor, {
-            action: 'TENANT_REACTIVATE',
-            reason: '',
-        });
-    }
-
-    private async setTenantActive(
-        slug: string,
-        active: boolean,
-        subscriptionStatus: string,
-        actor: AdminActor,
-        audit: { action: string; reason: string },
-    ): Promise<AdminTenantStateResult> {
-        const result = await this.resources.setTenantActive(slug, active, subscriptionStatus);
-        if (!result) {
-            throw new NotFoundException({
-                code: BILLING_ERROR_CODES.TENANT_NOT_FOUND,
-                message: `Tenant ${slug} not found`,
-                params: { slug },
-            });
+        const tenant = await this.tenantNamed(slug);
+        const note = reason ?? '';
+        const suspended = await this.access.suspend(tenant.id, note, actorTagOf(actor), new Date());
+        if (!suspended) {
+            throw new ConflictException(
+                codedError(TENANT_ACCESS_ERROR_CODES.TENANT_ALREADY_SUSPENDED, { slug }),
+            );
         }
-        await this.audit.log({
-            actor,
-            entity: 'Tenant',
-            entityId: result.id,
-            action: audit.action,
-            changes: { slug, reason: audit.reason },
-        });
-        return result;
+        return this.answer(tenant, actor, 'TENANT_SUSPEND', { slug, reason: note });
     }
+
+    /** Lifts the suspension and no other reason the tenant is held back for. */
+    async reactivateTenant(slug: string, actor: AdminActor): Promise<AdminTenantStateResult> {
+        const tenant = await this.tenantNamed(slug);
+        const lifted = await this.access.reactivate(tenant.id, actorTagOf(actor), new Date());
+        if (!lifted) {
+            throw new ConflictException(
+                codedError(TENANT_ACCESS_ERROR_CODES.TENANT_NOT_SUSPENDED, { slug }),
+            );
+        }
+        return this.answer(tenant, actor, 'TENANT_REACTIVATE', { slug });
+    }
+
+    private async tenantNamed(slug: string): Promise<AdminTenantDetail> {
+        const tenant = await this.resources.getTenantDetail(slug);
+        if (!tenant) {
+            throw new NotFoundException(codedError(BILLING_ERROR_CODES.TENANT_NOT_FOUND, { slug }));
+        }
+        return tenant;
+    }
+
+    private async answer(
+        tenant: AdminTenantDetail,
+        actor: AdminActor,
+        action: 'TENANT_SUSPEND' | 'TENANT_REACTIVATE',
+        changes: { slug: string; reason?: string },
+    ): Promise<AdminTenantStateResult> {
+        await this.audit.log({ actor, entity: 'Tenant', entityId: tenant.id, action, changes });
+        const { state } = await this.access.accessOf(tenant.id);
+        return { ok: true, id: tenant.id, slug: tenant.slug, access: state };
+    }
+}
+
+/** The states in which nobody of the tenant acts at all. */
+const HOLDS_EVERYONE_BACK: ReadonlySet<TenantAccessState> = new Set(['suspended', 'deleting']);
+
+/**
+ * A row with the platform's state beside it, and `isActive` narrowed to
+ * whether the tenant may act at all — so a page that reads `isActive` alone
+ * still shows a suspended tenant as suspended.
+ */
+function withAccess<Row extends AdminTenantListRow | AdminTenantDetail>(
+    row: Row,
+    access: TenantAccess | undefined,
+): Row & { access: TenantAccessState } {
+    const state = access?.state ?? 'open';
+    const entry = { ...row, access: state };
+    entry.isActive = row.isActive && !HOLDS_EVERYONE_BACK.has(state);
+    return entry;
+}
+
+/**
+ * The status filters the platform answers itself: `ACTIVE` for a tenant that
+ * may act, `INACTIVE` or `SUSPENDED` for one that may not. Undefined for any
+ * other value, which goes to the application as before.
+ */
+function mayActFilterOf(status: string | undefined): boolean | undefined {
+    const normalized = status?.toUpperCase();
+    if (normalized === 'ACTIVE') return true;
+    if (normalized === 'INACTIVE' || normalized === 'SUSPENDED') return false;
+    return undefined;
 }
 
 export interface AdminResourcesModuleOptions {
@@ -171,12 +225,12 @@ function buildAdminResourcesController(guards: Array<Type<CanActivate>>): Type {
         @Get('tenants')
         listTenants(
             @Query() query: { status?: string; plan?: string; search?: string },
-        ): Promise<AdminTenantListRow[]> {
+        ): Promise<AdminTenantListEntry[]> {
             return this.resources.listTenants(query);
         }
 
         @Get('tenants/:slug')
-        getTenant(@Param('slug') slug: string): Promise<AdminTenantDetail> {
+        getTenant(@Param('slug') slug: string): Promise<AdminTenantDetailEntry> {
             return this.resources.getTenantDetail(slug);
         }
 

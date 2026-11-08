@@ -15721,7 +15721,6 @@ _Tested by:_
         - the detail route addresses the tenant by the mapped slug
         - the tenants a subscriber names are read in one question, a soft-deleted one included
         - no tenants named, no question asked
-        - suspending writes the mapped flag
         - the user list filters and reads the mapped names
     - an app that matches the convention is unaffected
         - no mapping means the same queries as before
@@ -15761,7 +15760,17 @@ _Tested by:_
         - hash prints the hash
         - validate reads the manifest before it judges it
 - `packages/nest/tests/admin-resources.test.js`
-    - AdminResourcesService keeps tenant actions and writes their audit entry
+    - a suspension is the platform's record
+        - suspending records the reason with its note and who, audits it, and answers the state
+        - a second suspension is refused, and the first keeps its note
+        - reactivating lifts the suspension and leaves an overdue invoice holding
+        - reactivating a tenant that is not suspended is refused
+        - an unknown tenant is refused by name
+    - the administration reads each tenant with the platform's state
+        - every row carries its state, and a suspended tenant is not active
+        - the active and suspended filters are answered here, from the state
+        - a status the platform does not answer goes to the application as it was
+        - the detail carries the state too
 - `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
     - where the cancellation is served
         - beside the invoices’ documents, announced as invoices.cancel with its audit action
@@ -16368,6 +16377,18 @@ _Tested by:_
         - lifting the suspension leaves an overdue invoice holding
         - another tenant is not held back by this one
         - the operator acting as the tenant passes a suspension, not a deletion
+- `packages/nest/tests/admin-resources.test.js`
+    - a suspension is the platform's record
+        - suspending records the reason with its note and who, audits it, and answers the state
+        - a second suspension is refused, and the first keeps its note
+        - reactivating lifts the suspension and leaves an overdue invoice holding
+        - reactivating a tenant that is not suspended is refused
+        - an unknown tenant is refused by name
+    - the administration reads each tenant with the platform's state
+        - every row carries its state, and a suspended tenant is not active
+        - the active and suspended filters are answered here, from the state
+        - a status the platform does not answer goes to the application as it was
+        - the detail carries the state too
 - `packages/nest/tests/the-platforms-tenant-routes-check-the-access-state.test.js`
     - the platform's tenant guard asks the state once the application let the request in
         - an application guard that refuses ends it before the state is read
@@ -16388,6 +16409,15 @@ _Tested by:_
         - there are tenant controllers to look at
         - every controller that reads the tenant from the request passes through the guard
         - exactly these routes let a read-only tenant through with a writing method
+- `packages/ui-vue/tests/a-tenant-action-follows-the-platforms-state.test.js`
+    - a tenant row offers what the platform's state allows
+        - an open or read-only tenant can be suspended, not reactivated
+        - a suspended tenant can be reactivated, not suspended again
+        - a tenant being deleted offers neither
+        - a tenant the application deactivated is not offered a reactivation that would change
+          nothing
+        - a row without a state falls back to isActive
+        - other actions are not the state’s to decide
 
 <!-- END proof -->
 
@@ -20875,7 +20905,7 @@ _Tested by:_
         - every rule has a distinct id, a message and a docs link
         - a rule that does not apply stays silent
     - all of them at once
-        - four independent mistakes are reported together
+        - independent mistakes are reported together
         - the error names every one of them, numbered, each with its link
         - one problem is still phrased as one
         - a message names which of a set is missing, not that some are

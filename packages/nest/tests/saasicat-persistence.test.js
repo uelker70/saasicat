@@ -390,7 +390,6 @@ describe('SaaSiCatModule persistence bundle', () => {
                 resources: {
                     listTenants: async () => [],
                     getTenantDetail: async () => null,
-                    setTenantActive: async () => null,
                     listUsers: async () => [],
                     listAudit: async () => [],
                     listSubscriptions: async () => [],

@@ -468,7 +468,7 @@ _Tested by:_
         - every rule has a distinct id, a message and a docs link
         - a rule that does not apply stays silent
     - all of them at once
-        - four independent mistakes are reported together
+        - independent mistakes are reported together
         - the error names every one of them, numbered, each with its link
         - one problem is still phrased as one
         - a message names which of a set is missing, not that some are

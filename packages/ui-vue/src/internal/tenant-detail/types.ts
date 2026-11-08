@@ -1,8 +1,12 @@
+import type { TenantAccessState } from '@saasicat/core';
+
 export interface TenantDetailData {
     id: string;
     slug: string;
     name: string;
     isActive: boolean;
+    /** The platform's state of the tenant (`SC-ADM-024`), where the server says it. */
+    access?: TenantAccessState;
     vatId?: string | null;
     subscription?: {
         plan?: string | null;

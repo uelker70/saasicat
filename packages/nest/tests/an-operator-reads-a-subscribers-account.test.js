@@ -261,7 +261,6 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
             seen.lookups.push({ slug, bypassed: bypassed > 0 });
             return slug === 'northwind' ? { id: 't-northwind', slug, name: 'Northwind' } : null;
         },
-        setTenantActive: async () => null,
         listUsers: async () => [],
         listAudit: async () => [],
         listSubscriptions: async () => [],

@@ -162,8 +162,8 @@ this option `false` and retain its own controllers — or implement
 `AdminResourcesPort` directly, which needs no new controllers or DTOs.
 
 Turning it on also costs pagination (`AdminTenantListFilter` has no page size,
-hard cap 200), MFA on the write routes, and `setTenantActive` will additionally
-write `subscription.status`.
+hard cap 200) and MFA on the write routes. A suspension is kept by the platform
+(`TenantAccessHold`) and writes nothing of the application's.
 
 ---
 

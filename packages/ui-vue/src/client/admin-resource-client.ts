@@ -1,7 +1,7 @@
 import type {
     AdminAuditListFilter,
     AdminSubscriptionListRow,
-    AdminTenantDetail,
+    AdminTenantDetailEntry,
     AdminUserListFilter,
     AdminUserListRow,
     AuditEntry,
@@ -61,7 +61,7 @@ export function createAdminResourceClient(options: AdminResourceClientOptions) {
     return {
         tenantsEndpoint,
         loadTenantDetail: (slug: string) =>
-            getJson<AdminTenantDetail>(`${tenantsEndpoint}/${encodeURIComponent(slug)}`),
+            getJson<AdminTenantDetailEntry>(`${tenantsEndpoint}/${encodeURIComponent(slug)}`),
         loadUsers: (filter: AdminUserListFilter) =>
             getJson<AdminUserListRow[]>(
                 `${base}/users${filterQueryString({ q: filter.q, tenant: filter.tenant })}`,

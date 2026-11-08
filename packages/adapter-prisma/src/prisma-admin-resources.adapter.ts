@@ -5,7 +5,6 @@ import type {
     AdminTenantDetail,
     AdminTenantListFilter,
     AdminTenantListRow,
-    AdminTenantStateResult,
     AdminTenantSummary,
     AdminUserListFilter,
     AdminUserListRow,
@@ -127,8 +126,6 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
     async listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]> {
         const t = this.schema.tenant;
         const where: Record<string, unknown> = {};
-        const active = parseActiveFilter(filter.status);
-        if (active !== undefined) where[t.isActive] = active;
         if (filter.search) {
             where.OR = [
                 { [t.slug]: { contains: literalInLike(filter.search), mode: 'insensitive' } },
@@ -208,33 +205,6 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
             name: this.read<string>(row, t.name) ?? '',
             deletedAt: this.read<Date | null>(row, t.deletedAt)?.toISOString() ?? null,
         }));
-    }
-
-    async setTenantActive(
-        slug: string,
-        active: boolean,
-        subscriptionStatus: string,
-    ): Promise<AdminTenantStateResult | null> {
-        const t = this.schema.tenant;
-        const tenant = await this.tenants().findUnique({ where: { [t.slug]: slug } });
-        if (!tenant) return null;
-
-        await this.tenants().update({
-            where: { id: tenant.id },
-            data: { [t.isActive]: active },
-        });
-        await this.subscriptions().updateMany({
-            where: { tenantId: tenant.id },
-            data: { status: subscriptionStatus },
-        });
-
-        return {
-            ok: true,
-            id: tenant.id,
-            slug,
-            isActive: active,
-            status: subscriptionStatus,
-        };
     }
 
     async listUsers(filter: AdminUserListFilter): Promise<AdminUserListRow[]> {
@@ -350,14 +320,6 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
 
 function metricSelect(metrics: readonly string[]): Record<string, true> {
     return Object.fromEntries(metrics.map((metric) => [metric, true]));
-}
-
-function parseActiveFilter(status: string | undefined): boolean | undefined {
-    if (!status) return undefined;
-    const normalized = status.toUpperCase();
-    if (normalized === 'ACTIVE') return true;
-    if (normalized === 'INACTIVE' || normalized === 'SUSPENDED') return false;
-    return undefined;
 }
 
 function validDateString(value: string | undefined): string | undefined {

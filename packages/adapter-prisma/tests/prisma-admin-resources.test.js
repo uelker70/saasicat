@@ -129,28 +129,15 @@ test('PrismaAdminResourcesAdapter serves every standard Admin resource', async (
         },
     ]);
     assert.deepEqual(calls.tenants[0].include._count.select, { notes: true, users: true });
-    assert.equal(calls.tenants[0].where.isActive, true);
+    assert.equal(
+        'isActive' in calls.tenants[0].where,
+        false,
+        "the status is the platform's to filter",
+    );
 
     const detail = await adapter.getTenantDetail('acme');
     assert.equal(detail.counts.notes, 3);
     assert.equal(detail.users[0].email, 'owner@acme.example');
-
-    const suspended = await adapter.setTenantActive('acme', false, 'PAST_DUE');
-    assert.deepEqual(suspended, {
-        ok: true,
-        id: 'tenant-1',
-        slug: 'acme',
-        isActive: false,
-        status: 'PAST_DUE',
-    });
-    assert.deepEqual(calls.tenantUpdates[0], {
-        where: { id: 'tenant-1' },
-        data: { isActive: false },
-    });
-    assert.deepEqual(calls.subscriptionUpdates[0], {
-        where: { tenantId: 'tenant-1' },
-        data: { status: 'PAST_DUE' },
-    });
 
     const users = await adapter.listUsers({ q: 'owner', tenant: 'acme' });
     assert.equal(users[0].role, 'MEMBER');
@@ -174,4 +161,11 @@ test('PrismaAdminResourcesAdapter serves every standard Admin resource', async (
     });
     assert.equal(calls.audit[0].where.createdAt, undefined);
     assert.equal(calls.audit[0].take, 200);
+
+    // Nothing the adapter does writes a tenant's flag or a subscription's
+    // status. A suspension is the platform's own record, and a subscription's
+    // status belongs to its billing, which a suspension must not move:
+    // reactivating would otherwise turn a cancelled subscription active.
+    assert.deepEqual(calls.tenantUpdates, []);
+    assert.deepEqual(calls.subscriptionUpdates, []);
 });
