@@ -21,10 +21,11 @@ export const SA_LOCALES: readonly SaBuiltinLocale[] = ['de', 'en'];
 /**
  * The locale the shell falls back to when an app names none.
  *
- * English, because the project is open source and a developer who does not
- * configure a locale is far more likely to read English than German. German
- * remains a first-class catalog — it is the reference that fixes the key
- * structure — and an app that wants it says so through
+ * English, because the project is written for an international developer
+ * community, and a developer who does not configure a locale is far more
+ * likely to read English than German. German remains a first-class catalog —
+ * it is the reference that fixes the key structure — and an app that wants it
+ * says so through
  * `createSuperAdminApp({ i18n: { locale: 'de' } })`.
  *
  * This is also the fallback for `Intl` formatting, so an unconfigured app
