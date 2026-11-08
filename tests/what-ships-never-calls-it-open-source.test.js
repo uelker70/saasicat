@@ -18,10 +18,15 @@
 // sentence around it: "because the project is open source and a developer who
 // does not configure a locale…" carries a "not" that negates something else.
 // For the same reason a contrast ends the look-back — in "not proprietary but
-// open source" the "not" belongs to "proprietary". "opensource" written as one
-// word is a mention like the two. What the reading still gets wrong fails
-// closed: a negation further back than the window, or one this file does not
-// know, reports a mention that was a denial, and rewording it is the remedy.
+// open source" the "not" belongs to "proprietary", and in "not only open
+// source" to "only". "No" negates only right before the mention: in "No,
+// SaaSiCat is open source" it answers a question. "opensource" written as one
+// word is a mention like the two.
+//
+// The misses known to this reading fail closed: a negation further back than
+// the window, or one this file does not know, reports a mention that was a
+// denial, and rewording it is the remedy. A phrasing that slips through the
+// other way is a case for the list below, with a unit case of its own.
 //
 // Published history is left as it went out. `CHANGELOG.md` is outside what
 // `scripts/what-ships.mjs` counts as shipped, and older entries there call the
@@ -49,10 +54,13 @@ const ADR_DIRECTORY = 'docs/explanation/adr';
 
 /** One quantifier over a class that excludes its own separator — nothing to backtrack. */
 const NOT_A_WORD = /[^\p{L}\p{N}]+/u;
-const NEGATIONS = new Set(['not', 'never', 'no', 'isn', 'aren', 'wasn']);
+const NEGATIONS = new Set(['not', 'never', 'isn', 'aren', 'wasn']);
+
+/** A negation only where it is the word right before the mention: "no open source licence". */
+const ADJACENT_NEGATIONS = new Set(['no']);
 
 /** Words after which an earlier negation belongs to what came before them. */
-const CONTRASTS = new Set(['but', 'yet', 'rather', 'instead']);
+const CONTRASTS = new Set(['but', 'yet', 'rather', 'instead', 'only', 'just', 'merely']);
 
 /** How many words before a mention a negation may stand and still be its own. */
 const NEGATION_REACH = 3;
@@ -77,6 +85,7 @@ function mentionAt(words, at) {
 
 /** Whether a negation stands right before `at`, with no contrast in between. */
 function negatedBefore(words, at) {
+    if (at > 0 && ADJACENT_NEGATIONS.has(words[at - 1].word)) return true;
     for (let back = at - 1; back >= Math.max(0, at - NEGATION_REACH); back--) {
         if (CONTRASTS.has(words[back].word)) return false;
         if (NEGATIONS.has(words[back].word)) return true;
@@ -177,6 +186,9 @@ describe('what counts as the claim', () => {
         );
         assert.deepEqual(claimsIn('This is not optional. The project is open source.'), [1]);
         assert.deepEqual(claimsIn('this is not proprietary but open source'), [1]);
+        assert.deepEqual(claimsIn('SaaSiCat is not only open source but also hosted'), [1]);
+        assert.deepEqual(claimsIn('not just open source'), [1]);
+        assert.deepEqual(claimsIn('No, SaaSiCat is open source.'), [1]);
     });
 
     test('the name of the Open Source Initiative is not the claim', () => {
