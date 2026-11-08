@@ -28,7 +28,9 @@ Breaking for an installation with `tenantBilling`:
   `@WritesNothing()`, and a `GET` that writes with `@Writes()`
 
 The platform's own tenant routes check the same state behind the application's
-guards. A refusal is a `403` with `TENANT_READ_ONLY`, `TENANT_SUSPENDED` or
+guards, and trust the application's check where it already ran for the same
+request and tenant — the one place that knows the operator is acting as the
+tenant. A refusal is a `403` with `TENANT_READ_ONLY`, `TENANT_SUSPENDED` or
 `TENANT_BEING_DELETED` and the open reasons in `params.reasons`.
 `FakeTenantAccessHoldRepository` in `@saasicat/nest/testing` keeps the reasons
 in memory for tests. The upgrade guide has the steps.

@@ -119,6 +119,67 @@ describe("the platform's tenant guard asks the state once the application let th
         );
     });
 
+    describe('where the application already checked the request', () => {
+        /** The application's guard, checking as the example says, with whoever it names. */
+        const applicationChecking = (service, tenantId, actor) => ({
+            canActivate: async (context) => {
+                await service.enforce(context, tenantId, actor);
+                return true;
+            },
+        });
+        const platformWith = (store, appGuard) => {
+            const service = new TenantAccessService(store, new Reflector());
+            return new ComposedTenantAuthGuard([appGuard(service)], service, null);
+        };
+
+        test('the operator it let through, acting as the tenant, is not refused again', async () => {
+            const store = countedStore();
+            await held(store, 't-1', 'suspended');
+            await held(store, 't-1', 'overdue');
+            const guard = platformWith(store, (service) =>
+                applicationChecking(service, 't-1', { actingAsOperator: true }),
+            );
+            assert.equal(await guard.canActivate(contextFor(asTenant('t-1', 'POST'))), true);
+            assert.equal(store.asked, 1, 'the state is read once for the request');
+        });
+
+        test('a deletion stops the operator in the application check itself', async () => {
+            const store = countedStore();
+            await held(store, 't-1', 'deleting');
+            const guard = platformWith(store, (service) =>
+                applicationChecking(service, 't-1', { actingAsOperator: true }),
+            );
+            await assert.rejects(
+                guard.canActivate(contextFor(asTenant('t-1'))),
+                (error) => error.getResponse().code === 'TENANT_BEING_DELETED',
+            );
+        });
+
+        test('a check for another tenant does not stand for this one', async () => {
+            const store = countedStore();
+            await held(store, 't-1', 'suspended');
+            const guard = platformWith(store, (service) =>
+                applicationChecking(service, 't-elsewhere', { actingAsOperator: true }),
+            );
+            await assert.rejects(
+                guard.canActivate(contextFor(asTenant('t-1'))),
+                (error) => error.getResponse().code === 'TENANT_SUSPENDED',
+            );
+        });
+
+        test('a check on another request does not stand for this one', async () => {
+            const store = countedStore();
+            await held(store, 't-1', 'suspended');
+            const service = new TenantAccessService(store, new Reflector());
+            await service.enforce(contextFor(asTenant('t-1')), 't-1', { actingAsOperator: true });
+            const guard = new ComposedTenantAuthGuard([{ canActivate: () => true }], service, null);
+            await assert.rejects(
+                guard.canActivate(contextFor(asTenant('t-1'))),
+                (error) => error.getResponse().code === 'TENANT_SUSPENDED',
+            );
+        });
+    });
+
     test('without the service, as in a module wired by hand, the application guards decide alone', async () => {
         assert.equal(
             await guardWith({ store: null }).canActivate(contextFor(asTenant('t-1'))),

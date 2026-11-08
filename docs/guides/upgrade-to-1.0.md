@@ -4267,7 +4267,9 @@ arrive with the releases that bring them, so until then no tenant is held back. 
    `@Writes()`. Without a mark the method decides: `GET`, `HEAD` and `OPTIONS` read.
 
 The platform's own tenant routes check the same state behind your guards, through
-`ComposedTenantAuthGuard`; there is nothing to wire for them.
+`ComposedTenantAuthGuard`; there is nothing to wire for them. A request your guard already checked
+for the same tenant is not checked again, so the operator your guard lets through as acting as the
+tenant passes there too; one your guard did not check is checked as a tenant user's.
 
 - **A refusal** is a `403` with `TENANT_READ_ONLY`, `TENANT_SUSPENDED` or `TENANT_BEING_DELETED`
   and the open reasons in `params.reasons`, each with its `kind` and `since`. An operator's note on

@@ -41,8 +41,22 @@ interface RequestLike {
     method?: string;
 }
 
+/** The tenant a request was checked for, once it passed. */
+interface PassedCheck {
+    tenantId: string;
+}
+
 @Injectable()
 export class TenantAccessService {
+    /**
+     * The requests that passed a check, by request object, kept on the server
+     * and gone with the request. Only the application can say that a request
+     * is the operator acting as the tenant, and it says so to `enforce`; the
+     * platform's own check on the same request then trusts what passed rather
+     * than asking again without knowing who is asking.
+     */
+    private readonly passed = new WeakMap<object, PassedCheck>();
+
     constructor(
         @Inject(TENANT_ACCESS_HOLDS_TOKEN) private readonly holds: TenantAccessHoldPort,
         @Inject(Reflector) private readonly reflector: Reflector,
@@ -63,11 +77,29 @@ export class TenantAccessService {
         tenantId: string,
         actor: TenantAccessActor = {},
     ): Promise<void> {
-        const { method } = context.switchToHttp().getRequest<RequestLike>();
+        const request = context.switchToHttp().getRequest<RequestLike>();
         const mark = tenantAccessMarkOf(this.reflector, context);
         const writes =
-            typeof method === 'string' ? requestWrites(method, mark) : mark !== 'writes-nothing';
+            typeof request.method === 'string'
+                ? requestWrites(request.method, mark)
+                : mark !== 'writes-nothing';
         await this.assertAllowed(tenantId, { ...actor, writes });
+        if (typeof request === 'object' && request !== null) this.passed.set(request, { tenantId });
+    }
+
+    /**
+     * Refuses the current request as `enforce` does, unless the application
+     * already checked it for `tenantId` and it passed — with the operator
+     * acting as the tenant, where the application said so. A request the
+     * application did not check, or checked for another tenant, is checked here
+     * as a tenant user's. The platform's tenant routes ask this.
+     */
+    async enforceUnlessChecked(context: ExecutionContext, tenantId: string): Promise<void> {
+        const request = context.switchToHttp().getRequest<RequestLike>();
+        const checked =
+            typeof request === 'object' && request !== null ? this.passed.get(request) : undefined;
+        if (checked?.tenantId === tenantId) return;
+        await this.enforce(context, tenantId);
     }
 
     /** Refuses what `intent` describes where `tenantId`'s state does not allow it. */

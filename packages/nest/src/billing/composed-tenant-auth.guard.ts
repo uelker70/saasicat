@@ -30,7 +30,10 @@ import {
 // Once the application's guards have let a request through, its tenant is
 // known, and the tenant's access state is checked last (`SC-ADM-024`): every
 // tenant route of the platform passes through here, so this one check covers
-// them all. Where no `TenantAccessService` is in scope — a module wired by hand
+// them all. Where the application's guard already checked the request for the
+// same tenant — saying, where it was, that the operator is acting as the
+// tenant — that check stands; otherwise the request is checked as a tenant
+// user's. Where no `TenantAccessService` is in scope — a module wired by hand
 // without `SaaSiCatModule` — nothing records a reason either, so there is
 // nothing to enforce.
 
@@ -64,7 +67,10 @@ export class ComposedTenantAuthGuard implements CanActivate {
         }
         if (this.access) {
             const request: unknown = context.switchToHttp().getRequest();
-            await this.access.enforce(context, tenantIdOf(this.tenantIdResolver, request));
+            await this.access.enforceUnlessChecked(
+                context,
+                tenantIdOf(this.tenantIdResolver, request),
+            );
         }
         return true;
     }

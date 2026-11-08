@@ -968,6 +968,14 @@ _Tested by:_
         - a read-only tenant reads, and is refused a write
         - the tenant is the application's resolver's, not another value on the request
         - a request without a tenant is refused rather than let through unchecked
+        - where the application already checked the request › the operator it let through, acting as
+          the tenant, is not refused again
+        - where the application already checked the request › a deletion stops the operator in the
+          application check itself
+        - where the application already checked the request › a check for another tenant does not
+          stand for this one
+        - where the application already checked the request › a check on another request does not
+          stand for this one
         - without the service, as in a module wired by hand, the application guards decide alone
     - which routes the check reaches
         - there are tenant controllers to look at
