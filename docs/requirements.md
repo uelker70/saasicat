@@ -23572,7 +23572,7 @@ _Tested by:_
     - publishing and ending a version names who did it
         - a plan version records its publisher and is audited with what was chosen
         - an add-on version records its publisher and is audited with what was chosen
-        - ending a plan version is audited with the day it ends
+        - ending a plan version is audited with the day it ends and the end it replaced
         - a refused publish or end leaves no audit entry behind
         - without a signed-in user the publisher stays empty rather than invented
     - a draft names who started it
