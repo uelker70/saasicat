@@ -15,10 +15,12 @@ import {
     HttpCode,
     HttpStatus,
     Inject,
+    Optional,
     Param,
     ParseUUIDPipe,
     Patch,
     Post,
+    Req,
     type Type,
 } from '@nestjs/common';
 
@@ -33,6 +35,7 @@ import {
 } from './dto/bundles.dto.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
+import { WebAuditLogger } from '../core/web-audit.js';
 
 /**
  * Builds the controller class at boot time with the guards configured by the
@@ -46,6 +49,9 @@ export function buildBundlesController(guards: Array<Type<CanActivate>>): Type {
         constructor(
             @Inject(BundlesService)
             private readonly service: BundlesService,
+            @Optional()
+            @Inject(WebAuditLogger)
+            private readonly audit: WebAuditLogger | null = null,
         ) {}
 
         // ─── Root operations ───
@@ -90,9 +96,11 @@ export function buildBundlesController(guards: Array<Type<CanActivate>>): Type {
         createDraft(
             @Param('id', new ParseUUIDPipe()) bundleId: string,
             @Body() dto: CreateBundleVersionDraftDto,
+            @Req() request: unknown,
         ) {
             return this.service.createBundleDraft({
                 bundleId,
+                createdByUserId: this.audit?.resolveUserId(request) ?? null,
                 features: dto.features,
                 quotas: dto.quotas,
                 compatibility: dto.compatibility,
@@ -125,6 +133,9 @@ export function buildBundleVersionsController(guards: Array<Type<CanActivate>>):
         constructor(
             @Inject(BundlesService)
             private readonly service: BundlesService,
+            @Optional()
+            @Inject(WebAuditLogger)
+            private readonly audit: WebAuditLogger | null = null,
         ) {}
 
         @Get(':id')
@@ -148,17 +159,35 @@ export function buildBundleVersionsController(guards: Array<Type<CanActivate>>):
 
         @Post(':id/publish')
         @EnforceMfa()
-        publish(
+        async publish(
             @Param('id', new ParseUUIDPipe()) versionId: string,
             @Body() dto: PublishBundleVersionDto,
+            @Req() request: unknown,
         ) {
-            return this.service.publishBundleVersion(versionId, {
-                publishedByUserId: null, // set by the app's @CurrentUser(); not yet wired up in M3
+            const result = await this.service.publishBundleVersion(versionId, {
+                publishedByUserId: this.audit?.resolveUserId(request) ?? null,
                 forceRegressive: dto.forceRegressive,
                 allowZeroPrice: dto.allowZeroPrice,
                 validFrom: dto.validFrom,
                 validUntil: dto.validUntil,
             });
+            const published = result.bundleVersion;
+            await this.audit?.logFromRequest(
+                request,
+                'BundleVersion',
+                published.id,
+                'BUNDLE_VERSION_PUBLISH',
+                {
+                    bundleKey: published.bundleKey,
+                    version: published.version,
+                    validFrom: published.validFrom,
+                    validUntil: published.validUntil,
+                    nonRegressive: published.nonRegressive,
+                    forceRegressive: dto.forceRegressive === true,
+                    allowZeroPrice: dto.allowZeroPrice === true,
+                },
+            );
+            return result;
         }
     }
 

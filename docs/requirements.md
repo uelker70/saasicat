@@ -23568,6 +23568,16 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Tested by:_
 
+- `packages/nest/tests/a-published-version-names-who-published-it.test.js`
+    - publishing and ending a version names who did it
+        - a plan version records its publisher and is audited with what was chosen
+        - an add-on version records its publisher and is audited with what was chosen
+        - ending a plan version is audited with the day it ends
+        - a refused publish or end leaves no audit entry behind
+        - without a signed-in user the publisher stays empty rather than invented
+    - a draft names who started it
+        - for a plan
+        - for an add-on
 - `packages/nest/tests/admin-guards.test.js`
     - AdminAuditService
         - actorTag formats source:email:context

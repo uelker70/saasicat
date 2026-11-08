@@ -177,13 +177,14 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             { key: 'PILOT_GRANT', label: 'Pilot status set', severity: 'medium' },
             { key: 'PILOT_REVOKE', label: 'Pilot status revoked', severity: 'medium' },
             { key: 'PILOT_EXTEND', label: 'Pilot extended', severity: 'low' },
-            { key: 'PLAN_VERSION_PUBLISH', label: 'Plan version approved', severity: 'high' },
+            { key: 'PLAN_VERSION_PUBLISH', label: 'Plan version published', severity: 'high' },
             {
                 key: 'PLAN_VERSION_TERMINATE',
                 label: 'Plan version terminated',
                 severity: 'high',
             },
             { key: 'PLAN_VERSION_RETIRE', label: 'Plan version retired', severity: 'high' },
+            { key: 'BUNDLE_VERSION_PUBLISH', label: 'Add-on version published', severity: 'high' },
             { key: 'BUNDLE_VERSION_RETIRE', label: 'Add-on version retired', severity: 'high' },
             {
                 key: 'PLAN_VERSION_RETIREMENT_MOVE',
