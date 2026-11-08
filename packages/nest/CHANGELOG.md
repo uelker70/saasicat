@@ -1,5 +1,320 @@
 # @saasicat/nest
 
+## 1.0.0-rc.30
+
+### Minor Changes
+
+- 5908d34: A tenant's plan days are the installation's days, named by the server
+
+    The plan section wrote a moment as the browser's day, so a trial ending at
+    midnight in Berlin read as the first day it no longer covers, and a viewer in
+    New York read a different day than one in Berlin. The server now hands out,
+    beside each moment of the plan a tenant is shown as a day, its days in the
+    installation's zone — `config/saas.yaml#timeZone`, UTC where it names none —
+    `until`, the last day of what the moment ends, and `from`, the first of what it
+    begins (`SC-UI-028`).
+
+    `GET /billing/usage` gains `trialEndsDays`, `startedDays`,
+    `currentPeriodStartDays`, `currentPeriodEndDays`, `pendingEffectiveDays`,
+    `canceledDays`, `canceledEffectiveDays` and `packageSnapshotCapturedDays`,
+    `pilotEndsDay` (the day that was picked, the same in every zone), the days of
+    `cancellation` (`effectiveDays`, `termEndsDays`, `noticeDeadlineDays`) and
+    `effectiveDays` on a retirement on its way. `POST /billing/plan/preview` gains
+    `effectiveDays` and `projectedTrialEndsDays`, a change `POST /billing/plan`
+    schedules `pendingEffectiveDays`, and `POST /billing/cancel` the days of its
+    four moments. The fields are added; nothing is removed.
+
+    The last day a subscription, or an add-on booking, may be cancelled without
+    notice when its version is retired (`lastDayToCancel`) is the last whole day
+    before the date in the installation's zone rather than in UTC (`SC-SUB-046`,
+    `SC-BUN-066`). The day can move either way: east of UTC, a term ending at local
+    midnight now names one day later — the day a subscriber there reads as the day
+    before; west of UTC it can name one day earlier — a term ending at UTC midnight
+    on 1 July, 20:00 on 30 June in New York, named 30 June and now names 29 June.
+    Either way the platform accepts a cancellation without notice until the
+    retirement takes effect. A notice already sent keeps the day it named.
+    `retirementReach(sub, toldAt, timeZone)` and
+    `bundleRetirementReach(booking, sub, toldAt, timeZone, ahead)`, exported from
+    `@saasicat/nest`, take the installation's zone; the second takes it before the
+    optional `ahead`, so a call that passed `ahead` fourth passes it fifth.
+
+    What the plan section shows changes where a moment falls near midnight and
+    where an end is shown: a trial, a cancellation and its confirmation name the
+    last day they cover. The plan-change wizard's sentences about what stays
+    unchanged take `{lastDay}`, the last day before the change, beside `{date}`,
+    the first day it applies; an override that still writes `{date}` there goes on
+    getting the first day. `TenantPlanCardHeader` takes `billsAgain` in place of
+    `nextBillingDate`, `VersionRetiredCard` `nextPeriodStartDay` in place of
+    `nextPeriodStart`, `PlanChangeWizard` `trialEndsDays` in place of
+    `trialEndsAt`, and `PackageSnapshotPanel` an optional `capturedDays`.
+
+    In English, a sentence that names the last day something still runs now says
+    it ends with that day rather than "as of" it: "Cancel at the end of …", "takes
+    effect only at the end of …", "Cancellation takes effect at the end of" and
+    "Canceled, runs until" for an add-on; an ended subscription "has been over
+    since" the first day it no longer ran. An override of these keys is unaffected.
+
+    `@saasicat/core` gains `withUsageDays`, `pickedDayOf`,
+    `SUBSCRIPTION_USAGE_MOMENTS`, `CANCELLATION_MOMENTS` and
+    `CANCELLATION_RESULT_MOMENTS`, and the types `SubscriptionUsageDays`,
+    `UsageMoments`, `WithUsageDays`, `CancellationMoments`, `CancellationDays` and
+    `VersionRetiredNoticeWithDays`.
+
+- f23a7b6: A day a refusal names is the installation's day, in the application's format
+
+    A refusal that named a day cut it out of a UTC timestamp and handed it to the
+    page as raw `YYYY-MM-DD` text, so a tenant switching plans read "runs until
+    2026-12-01 at the earliest" beside an add-on whose card said "minimum term until
+    30.11.2026". The server now reads each such day in the installation's zone —
+    `config/saas.yaml#timeZone`, UTC where it names none — and a refusal, like each
+    blocker of a plan change or add-on preview, says which of its `params` are days
+    in a new `dayParams` list. The tenant pages write exactly those through the
+    application's `formatDate` (`SC-UI-028`, which this completes).
+
+    The refusals concerned: `BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE`,
+    `BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN`,
+    `BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN`,
+    `RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW`,
+    `RETIREMENT_SWITCH_BUNDLE_REPLACEMENT_CANNOT_FOLLOW`,
+    `BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES`, `BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN`,
+    `BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE`, `BUNDLE_RETIREMENT_REINSTATE_REFUSED`,
+    `FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED`, `BUNDLE_VERSION_NOT_YET_ON_SALE` (a
+    picked day, already the right one, now written in the application's format)
+    and `NO_ACTIVE_PLAN_VERSION` for the tenant; `FEATURE_WITHDRAWAL_OVERLAPS` and
+    `FEATURE_WITHDRAWAL_ALREADY_LIFTED` for the operator.
+
+    Where a sentence means two days — how long an add-on still runs, and from when
+    the way is free — it now names both. The existing placeholder keeps its value,
+    so a catalogue override goes on reading the same day: `{until}` is the first
+    day without the add-on, `{date}` in `FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED` the
+    day the cancellation lands. `{lastDay}`, the last day it still runs, is added,
+    and the shipped English and German sentences name the day they mean: "… runs
+    until 30.11.2026 at the earliest. Once it is cancelled, a change that takes
+    effect on or after 01.12.2026 goes through"; "Your cancellation is recorded and
+    cannot be brought forward here: it runs until 30.11.2026, and until then the
+    reduction applies." The day an add-on can be booked again after a
+    retirement is the first whole day without the old booking in the installation's
+    zone, and whether the subscription still runs then is asked on that same day.
+
+    The tenant section's booking, cancellation and preview failures now show the
+    refusal's sentence in the reader's language, where they showed the request's
+    diagnostic text.
+
+    `@saasicat/core` gains `writeDayParams` and `dayParams` on `PlatformErrorBody`,
+    `FeatureWithdrawalBlocker` and `RetirementBlocker`; `@saasicat/ui-vue`'s
+    `PlanChangePreviewIssueShape` and `BundlePreviewIssueShape` gain `dayParams`.
+    `refusalMessage` and `issueSentence` from
+    `@saasicat/ui-vue-tenant/refusal-of.js` take the application's `formatDate` as
+    their third argument.
+
+- 18a5ee7: A plan change that loses a race reads the installation's day, and never a 500
+
+    A store refuses a plan change whose target lost its version on sale between the
+    platform's check and the write (`NO_ACTIVE_PLAN_VERSION`). A store knows no
+    zone, so the refusal named the day in UTC, where the platform's own check names
+    the installation's. `PersistenceRefusal` now carries the moments behind the
+    values that are days (`dayMoments`, a new optional fifth argument, set by
+    `noActivePlanVersion`), and the platform answers such a refusal with each day
+    in the installation's zone, said to be a day in `dayParams`, its English
+    sentence naming the same day (`refusalBodyIn`, `SC-UI-028`). The refusal as the
+    store raises it is unchanged, so a persistence contract harness reads what it
+    read.
+
+    Scheduling a plan change, taking a version offer for the end of the term and
+    the early switch after a retirement answered a store's refusal — a subscription
+    gone meanwhile — with a 500. They now answer it as the check does, like every
+    other plan write (`SC-OPS-016`).
+
+- 10ded47: A tenant reads its account in the billing section
+
+    `GET /billing/account`, beside the invoices and behind the billing permission
+    like them, answers per currency what the subscriber's invoices still owe and of
+    that what is overdue, and beside it the credit to be refunded — never one set
+    off against the other (`SC-PRIC-049`). It is added up from the standings the
+    invoice list shows, by `tenantAccountOf` in `@saasicat/core`, so the two never
+    disagree; a charge on no invoice yet is not in it.
+
+    `TenantBillingSection` shows it at its top: "Open: …, of that overdue: …" and
+    "Credit: …, to be refunded", or "Nothing is open.". `useTenantAccount` in
+    `@saasicat/ui-vue` is the composable behind it. The sentences are catalogue keys
+    (`accountTitle`, `accountOwed`, `accountOwedOverdue`, `accountCredit`,
+    `accountNothingOpen`, `accountLoadFailed`).
+
+    The section's `formatCurrency` is handed each amount's currency (ISO 4217) as
+    its second argument, the invoices' as the account's: an installation may bill
+    in more than one, and a formatter that writes a symbol takes it from there. One
+    that takes only the amount keeps working as before.
+
+    `SC-PRIC-019` is withdrawn: `SC-PRIC-049` covers its ground, the billing
+    permission with it.
+
+- 03eff6a: A tenant reads its subscription's invoices and contract confirmations
+
+    The tenant's routes gain four, mounted where invoices are issued and behind the
+    tenant's authentication and the billing permission:
+    `GET /billing/invoices` — fifty a page, the newest first, `?after=` the last of
+    the page before —, `GET /billing/invoices/:id/document`,
+    `GET /billing/contracts` and `GET /billing/contracts/:id/confirmation`. They
+    list every invoice of the subscriber the session's tenant belongs to, an earlier
+    tenant's joined into it included (`SC-PRIC-097`), each with where it stands; a
+    document is the file archived when it was issued. Another subscriber's invoice
+    or contract is answered `404` like one that does not exist. Under row-level
+    security the reads run inside `RlsBypassPort`, by that subscriber's id alone
+    (`SC-SEC-018`). The types are `TenantInvoicePage` and
+    `TenantContractConfirmations` in `@saasicat/core`.
+
+    Breaking: `payments.billingPermissionGuards` moved to
+    `tenantBilling.billingPermissionGuards`, as the permission governs the whole
+    billing area and invoices are issued without a payment gateway. The start
+    refuses the old key, saying where it went.
+
+- e788d90: A withdrawn feature's days are the installation's days, named by the server
+
+    The withdrawal notices and the mark beside a withdrawn feature wrote a moment
+    as the browser's day, so a withdrawal from midnight in Berlin read as 30
+    November to a viewer in New York. The server now hands out, beside each moment
+    of a withdrawal a tenant is shown as a day, its days in the installation's
+    zone — `config/saas.yaml#timeZone`, UTC where it names none — `until`, the last
+    day of what the moment ends, and `from`, the first of what it begins
+    (`SC-UI-028`). Every sentence about a withdrawal says "from", "since" or "on",
+    so the pages write `from`.
+
+    Each mark in `withdrawn` of `GET /billing/feature-registry` gains
+    `effectiveFromDays` and `liftedFromDays`. `GET /billing/feature-withdrawals`
+    gains `effectiveFromDays` and `liftedFromDays` on each withdrawal and
+    `fromChangeDays` on each line, and what ending at once previews and answers
+    gains `endsDays`. The fields are added; nothing is removed.
+
+    `provideWithdrawnFeatures` keeps its signature: the `formatDate` you hand it is
+    now handed noon of the named day in the viewer's zone, as the other tenant
+    components' is, so a formatter that reads an instant in the viewer's zone —
+    `toLocaleDateString` without a `timeZone` — writes the named day wherever the
+    viewer is. A test of your own that builds a mark for `WithdrawnFeatureMark`
+    gives it `effectiveFromDays` and `liftedFromDays`; without them the mark writes
+    a dash, as it does for a server that names no days yet.
+
+    `@saasicat/core` gains `withWithdrawalDays`, `FEATURE_WITHDRAWAL_MOMENTS` and
+    the type `TenantFeatureWithdrawalAsRead`; `FeatureWithdrawalMark`,
+    `TenantFeatureWithdrawal`, `TenantFeatureWithdrawalLine` and `EndAtOncePreview`
+    carry the days, and `WithdrawnFeature`, what `withdrawnFeaturesOf` returns,
+    stays without them.
+
+- 119d101: A tenant's add-on days are the installation's days, named by the server
+
+    The tenant's pages wrote a moment as the browser's day, so a booking made at
+    00:30 in Berlin read as the day before in New York, and an end at midnight read
+    as the day after the last one it covers. The server now hands out, beside each
+    moment a tenant is shown as a day, its days in the installation's zone —
+    `config/saas.yaml#timeZone`, UTC where it names none: `until`, the last day of
+    what the moment ends, and `from`, the first of what it begins (`SC-UI-028`).
+
+    This covers the add-on bookings of `billing/subscription-bundles` (`startedDays`,
+    `minimumTermEndsDays`, `canceledDays`, `canceledEffectiveDays`,
+    `currentPeriodEndDays`, `pendingVersionEffectiveDays`, and `effectiveDays` on a
+    retirement notice), an add-on's preview (`firstPeriodEndDays`,
+    `minimumTermEndsDays`, `endsWithPlanDays`; `effectiveDays` for a cancellation),
+    and the version offers of a plan and of an add-on together with what taking one
+    answers, a refusal that carries the current offer included (`takesEffectDays`).
+    The fields are added; nothing is removed.
+
+    What the add-on pages show changes where a moment falls near midnight, and where
+    an end is shown: a minimum term, a cancellation and a preview's first period
+    name the last day they cover — 30 November rather than 1 December. Your
+    `formatDate` is handed noon of the named day in the viewer's zone, which a
+    formatter that reads an instant in the viewer's zone writes as that day
+    wherever the viewer is.
+
+    `@saasicat/core` gains `daysAround`, `withDays`, `installationZoneOf` and
+    `DEFAULT_INSTALLATION_ZONE`, and the types `DaysAround`, `WithDays`,
+    `SubscriptionBundleDays` and the `…WithDays` forms of the offers, switches and
+    add-on retirement notices.
+
+- 89a3bde: An invoice in the subscriber's record says where its payment stands
+
+    Each invoice in the operator's record of a subscriber now names the
+    replacement that took its place, and says where its payment stands: open,
+    overdue, open in part with what it still owes, paid on a day, its payment
+    reversed on a day, to be refunded, or refunded on a day — every day the
+    installation's (`SC-ADM-051`). `GET admin/subscribers/:id/payments` answers
+    `replacedBy` and `payment` beside each invoice, and the record shows the
+    payment in a column of its own.
+
+    The rule is `invoiceStandingsOf` in `@saasicat/core`, read from the invoices,
+    their settlements and the subscriber's credits; a payment a cancellation moved
+    into the replacement counts from the day it arrived. In `@saasicat/ui-vue`,
+    `invoiceStandingOf` takes a `replacedBy` message beside its three, and
+    `invoicePaymentOf` words the payment.
+
+- 41973a8: An operator reads a refusal's days in the installation's zone and format
+
+    Two refusals named a day as a raw ISO timestamp.
+    `SUBSCRIBER_RECONCILIATION_CASE_CLOSED`, which the reconciliation page shows
+    when a case was closed in the meantime, named the moment it was closed; it now
+    names the day it was closed on in the installation's zone
+    (`config/saas.yaml#timeZone`, UTC where it names none).
+    `PLAN_TERMINATE_DATE_NOT_FUTURE` named the end it refused as
+    `2026-11-02T23:59:59.000Z`; its `endsAt` now names the day the operator
+    picked, while the English `message` keeps the moment refused. The shipped plan
+    page answers that code with a sentence of its own, so the day reaches a page of
+    yours that words it from the catalogue. Both say which of
+    their values are days in `dayParams` (`SC-ADM-048`).
+
+    The administration writes every day a refusal names that way with the day
+    formatter it writes every other day with: `adminErrorMessage(err, messages,
+intlLocale)` takes the interface's locale as a new, required third argument,
+    and `useAdminErrorText()` gives a page or a composable the function with the
+    catalogue and the locale bound — the shipped pages and composables use it. The
+    two feature withdrawal refusals the operator reads, which name their days in
+    `dayParams` as well, are written the same way.
+
+- 15cb07a: Every user of a tenant sees what a change would cost
+
+    A plan change's preview (`POST /billing/plan/preview`) and an end at once's
+    (`GET /billing/feature-withdrawals/:id/end` and
+    `…/bookings/:subscriptionBundleId/end`) are open to every signed-in user of the
+    tenant, as the plan, the usage and an add-on's preview already are
+    (`SC-ADM-026`). Making the change still needs the tenant's administrator, and
+    is refused `403` with `TENANT_ADMIN_REQUIRED` otherwise.
+
+    The previews say which of the two their reader is, by the rule that refusal is
+    made by: `mayChange` on a plan change's and on an add-on's
+    (`POST /billing/subscription-bundles/preview`, booking and cancelling alike),
+    `mayEnd` on an end at once's. `PlanChangeWizard` stops at the preview where
+    `mayChange` is `false` and says that the account's administration makes the
+    change, rather than leading on to a refusal; the dialog of an end at once does
+    the same where `mayEnd` is `false`, and the add-on dialog where its preview's
+    `mayChange` is. Where a server sends neither field, all three go on as before.
+    The sentences are the catalogue keys `wizardChangedByAdministration`,
+    `endAtOnceByAdministration` and `bundlePreviewByAdministration`.
+
+    The changes that have no preview — cancelling the subscription, reinstating an
+    add-on, taking a newer version of the plan or of an add-on, and switching away
+    from a retired one — are no longer offered to a user who may not make them.
+    `GET /billing/usage` answers `mayChange` for them, and `TenantPlanSection` and
+    `MySubscriptionBundlesPage` say once instead that the account's administration
+    makes changes to the subscription (`subscriptionChangesByAdministration`).
+    `useTenantSubscriptionBundles` gains `mayChange` and `readMayChange()`, which
+    `MySubscriptionBundlesPage` calls once when it mounts.
+
+    `SC-ADM-013` is withdrawn: `SC-ADM-026` covers its ground, the billing
+    permission with it.
+
+### Patch Changes
+
+- Updated dependencies [5908d34]
+- Updated dependencies [f23a7b6]
+- Updated dependencies [18a5ee7]
+- Updated dependencies [10ded47]
+- Updated dependencies [03eff6a]
+- Updated dependencies [e788d90]
+- Updated dependencies [119d101]
+- Updated dependencies [89a3bde]
+- Updated dependencies [15cb07a]
+- Updated dependencies [0d81914]
+- Updated dependencies [ade14fa]
+    - @saasicat/core@1.0.0-rc.30
+    - @saasicat/spec@1.0.0-rc.30
+
 ## 1.0.0-rc.29
 
 ### Minor Changes
