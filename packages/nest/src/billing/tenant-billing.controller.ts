@@ -115,6 +115,7 @@ import {
     type AgreementSettings,
 } from '../subscription-contract/contract-agreement.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
+import { WritesNothing } from '../tenant-access/tenant-access-marks.js';
 
 // TenantBillingController — tenant self-service endpoints for plan
 // management. Phase B: reads only (`/entitlement` + `/usage`). Phase C
@@ -506,6 +507,7 @@ export class TenantBillingController {
 
     @Post('plan/preview')
     @HttpCode(HttpStatus.OK)
+    @WritesNothing()
     async previewPlanChange(@Req() req: RequestLike, @Body() dto: PreviewPlanChangeDto) {
         const tenantId = this.requireTenantId(req);
         const preview = withDays(

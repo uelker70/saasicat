@@ -13,6 +13,7 @@ import type {
     InvoiceCollectionRepository,
     SubscriberPaymentRepository,
     MaintenanceWindowPort,
+    TenantAccessHoldPort,
     MfaPort,
     PaymentEventLog,
     PersistenceCapabilities,
@@ -226,6 +227,15 @@ export interface ContractAdapterInstances {
      */
     maintenanceWindows?: MaintenanceWindowPort;
     /**
+     * Enables the tenant access scenarios: one open reason per tenant, kind and
+     * reference however many writers record it at once, a lift that lands once,
+     * and the open reasons read per tenant and for many tenants at once. The
+     * platform reads them on every request of a tenant, so an adapter that let a
+     * reason open twice would leave one behind when it is lifted, and the tenant
+     * held back for a reason that ended.
+     */
+    tenantAccessHolds?: TenantAccessHoldPort;
+    /**
      * Enables the subscriber notice scenarios: one record per subscription,
      * kind and subject however many runs claim it at once, and a claim, a
      * confirmation and a release each guarded on the claim the caller holds.
@@ -417,6 +427,7 @@ export type ContractGap =
     | 'checkoutOffers'
     | 'appliedSettings'
     | 'maintenanceWindows'
+    | 'tenantAccessHolds'
     | 'subscriptionNotices'
     | 'versionRetirements'
     | 'boundSubscriptions'

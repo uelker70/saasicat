@@ -24,6 +24,7 @@ import {
     noticeDaysFor,
 } from '../dist/billing/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
+import { FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
 
 const NOTICE = { monthly: 14, yearly: 90 };
 const BLOCKED = { asTarget: ['ENTERPRISE'], asSource: ['ENTERPRISE'] };
@@ -51,7 +52,13 @@ const PERSISTENCE = {
         rowLevelSecurity: false,
         advisoryLocks: false,
     },
-    core: { mfa: spec, audit: spec, rlsBypass: spec, transactionRunner: spec },
+    core: {
+        tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+        mfa: spec,
+        audit: spec,
+        rlsBypass: spec,
+        transactionRunner: spec,
+    },
     entitlement: {
         subscriptionRepository: { findByTenantId: async () => null },
         planVersionRepository: { findActive: async () => null, findById: async () => null },

@@ -4222,6 +4222,62 @@ are on. Every installation with version notices on has to do this:
   (`SC-BUN-062`), which `SC-BUN-063`, `SC-BUN-064` and `SC-BUN-065` say beside the rules they
   supersede (`SC-BUN-009`, `SC-BUN-015`, `SC-BUN-016`).
 
+### A tenant is held to its state on every request
+
+Required wherever `tenantBilling` is on. SaaSiCat keeps the reasons a tenant is held back — a
+suspension, an invoice overdue past its grace period, a subscription that ended, a deletion under
+way — and every tenant request is checked against the strictest of them (`SC-ADM-024`): read-only
+refuses a write, a suspension refuses everything, and the operator acting as the tenant is held
+back only by a deletion. This release brings the record and the check; the reasons themselves
+arrive with the releases that bring them, so until then no tenant is held back. To adopt it:
+
+1. Add `TenantAccessHold` from `prisma-fragments/28-tenant-access-hold.prisma` to your schema.
+2. Run the migration once, before `db push` where you use one, and apply `constraints.postgres.sql`
+   after the push — the partial unique index that keeps one open reason per tenant, kind and
+   reference, and the check on `kind`, are two things `db push` does not know:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-tenant-access-holds-are-kept.postgres.sql
+    ```
+
+3. Both shipped adapters provide `persistence.core.tenantAccessHolds`. A bundle without it is
+   refused at start (`tenant-access.requires-holds-port`); an adapter of your own implements
+   `TenantAccessHoldPort`.
+4. Ask the check at the end of your own authentication guard, once the request's tenant is known —
+   one place covers every route that guard covers:
+
+    ```ts
+    constructor(@Inject(TenantAccessService) private readonly access: TenantAccessService) {}
+
+    async canActivate(context: ExecutionContext): Promise<boolean> {
+        const user = await this.authenticate(context); // what your guard does today
+        await this.access.enforce(context, user.tenantId, {
+            actingAsOperator: user.impersonatedBy !== undefined,
+        });
+        return true;
+    }
+    ```
+
+    At sign-in, where there is no route to read a method from, ask
+    `access.assertAllowed(tenantId, { writes: false })`; a scheduled job that writes for a tenant
+    asks `assertAllowed(tenantId, { writes: true })`, or reads `accessOf(tenantId)`.
+
+5. Mark a route that writes nothing under a writing method with `@WritesNothing()` — a preview, a
+   PDF rendered from data already there, an export's test run — and a `GET` that writes with
+   `@Writes()`. Without a mark the method decides: `GET`, `HEAD` and `OPTIONS` read.
+
+The platform's own tenant routes check the same state behind your guards, through
+`ComposedTenantAuthGuard`; there is nothing to wire for them.
+
+- **A refusal** is a `403` with `TENANT_READ_ONLY`, `TENANT_SUSPENDED` or `TENANT_BEING_DELETED`
+  and the open reasons in `params.reasons`, each with its `kind` and `since`. An operator's note on
+  a suspension is not in it. The shipped texts cover English and German.
+- **A persistence contract harness** gains the `tenantAccessHolds` member; a harness without it
+  declares `gaps: ['tenantAccessHolds']`.
+- **Your own tests** that compose `SaaSiCatModule` with `tenantBilling` need the store in
+  `persistence.core`: `FakeTenantAccessHoldRepository` from `@saasicat/nest/testing` keeps it in
+  memory and starts empty.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

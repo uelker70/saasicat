@@ -903,6 +903,13 @@ _Tested by:_
         - a confirmation that finds the claim gone answers false
         - what was delivered is read as sent, and a delivery nobody can read stops the read
         - the subscriptions told of a subject are the delivered ones
+- `packages/adapter-prisma/tests/prisma-tenant-access-hold.repository.test.js`
+    - PrismaTenantAccessHoldRepository
+        - a tenant's open reasons are the ones not lifted, read column by column
+        - many tenants are read in one query, and none asks nothing
+        - a reason is recorded under an id made here, the index deciding a second
+        - a lift asks for a reason still open, and one already lifted answers null
+        - a row with a kind the platform does not know is refused
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record
         - dates leave as ISO strings, and an undeleted plan says so

@@ -95,6 +95,24 @@ ALTER TABLE subscription_invoice_lines
 CREATE UNIQUE INDEX IF NOT EXISTS maintenance_windows_one_open
     ON maintenance_windows ((true)) WHERE "endedAt" IS NULL;
 
+-- At most ONE open reason per tenant, kind and reference holds a tenant back.
+--
+-- A suspension has no reference, so the reference is read as an empty string
+-- for the key: a NULL would make every open suspension distinct and let a
+-- tenant be suspended twice. A lifted reason leaves the index, so the same kind
+-- can hold again later. A run repeated, or two operators at once, therefore
+-- record a reason once.
+CREATE UNIQUE INDEX IF NOT EXISTS tenant_access_holds_one_open
+    ON tenant_access_holds ("tenantId", "kind", (COALESCE("reference", ''))) WHERE "liftedAt" IS NULL;
+
+-- A reason is one of the kinds the platform knows. Dropped first, because this
+-- file is applied again on every deployment and `ADD CONSTRAINT` has no
+-- `IF NOT EXISTS`.
+ALTER TABLE tenant_access_holds DROP CONSTRAINT IF EXISTS tenant_access_holds_known_kind;
+ALTER TABLE tenant_access_holds
+    ADD CONSTRAINT tenant_access_holds_known_kind
+    CHECK ("kind" IN ('suspended', 'overdue', 'ended', 'deleting'));
+
 -- At most ONE withdrawal of a feature is not lifted. A lifted one keeps its row
 -- with `liftedFrom` set and leaves the index, so the feature can be withdrawn
 -- again from that date. Two operators announcing at the same moment therefore

@@ -29,6 +29,11 @@ const CATALOGUES = [
         'Maintenance',
         'The lock that refuses tenant requests, and the operator routes around it.',
     ],
+    [
+        'TENANT_ACCESS_ERROR_CODES',
+        'Tenant access',
+        "What a held-back tenant's users meet, with the open reasons in `params.reasons`, and the operator's suspension.",
+    ],
 ];
 
 export const TARGET = 'docs/reference/error-codes.md';

@@ -1,10 +1,12 @@
 import {
     type CanActivate,
     type ExecutionContext,
+    Inject,
     Injectable,
     UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { TenantAccessService } from '@saasicat/nest';
 import { isSaaSiCatPublicRoute } from '@saasicat/nest/platform';
 
 /**
@@ -28,12 +30,21 @@ import { isSaaSiCatPublicRoute } from '@saasicat/nest/platform';
  * through: a payment gateway's callback carries no session, and its signature
  * is what the webhook route checks instead. A JWT guard in the same position
  * does the same.
+ *
+ * Once the user is known, the tenant's access state is asked (`SC-ADM-024`):
+ * a suspended tenant's users are refused, a read-only tenant's writes are. This
+ * is the line a real app adds at the end of its own authentication guard. The
+ * operator's requests are the administration's, not a tenant's, and are not
+ * held to it.
  */
 @Injectable()
 export class DemoAuthGuard implements CanActivate {
-    constructor(private readonly reflector: Reflector) {}
+    constructor(
+        private readonly reflector: Reflector,
+        @Inject(TenantAccessService) private readonly access: TenantAccessService,
+    ) {}
 
-    canActivate(context: ExecutionContext): boolean {
+    async canActivate(context: ExecutionContext): Promise<boolean> {
         if (isSaaSiCatPublicRoute(this.reflector, context)) return true;
         const request = context.switchToHttp().getRequest<{
             headers: Record<string, string | string[] | undefined>;
@@ -62,6 +73,7 @@ export class DemoAuthGuard implements CanActivate {
                     : `demo-user-${tenantId}@notesapp.example`,
             sessionId: 'notesapp-demo',
         };
+        if (platformRole !== 'SUPER_ADMIN') await this.access.enforce(context, tenantId);
         return true;
     }
 }

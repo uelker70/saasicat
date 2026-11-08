@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 29 rules, in 16 areas.
+There are 30 rules, in 17 areas.
 
 ## core
 
@@ -112,6 +112,15 @@ AdminStats is enabled, but no auditStatsPort is available. Set
 Maintenance is enabled, but there is nowhere to keep the windows. Set
 `maintenance.windows` or use a bundle providing
 `persistence.core.maintenanceWindows` — both shipped adapters do.
+
+## tenant-access
+
+### tenant-access.requires-holds-port
+
+TenantBilling serves tenants, but there is nowhere to keep the reasons a tenant
+is held back (SC-ADM-024): a state that is not recorded cannot be enforced. Use
+a bundle providing `persistence.core.tenantAccessHolds` — both shipped adapters
+do, from the `TenantAccessHold` model of `@saasicat/spec`.
 
 ## subscriber-joins
 

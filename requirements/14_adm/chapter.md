@@ -932,6 +932,50 @@ where the subscriber can pay it with a new payment method and needs no tenant.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tenant-is-held-back-by-its-strictest-reason.test.js`
+    - the strictest open reason decides the state
+        - no reason leaves the tenant open
+        - each reason on its own puts the tenant where it belongs
+        - a deletion before a suspension, a suspension before read-only
+        - lifting one reason lifts only that one
+    - a request writes by its method, unless its route says otherwise
+        - GET, HEAD and OPTIONS read, in any case
+        - every other method writes
+        - a mark wins over the method, both ways
+    - who is refused, and for what
+        - an open tenant is refused nothing
+        - read-only refuses a write and lets a read through
+        - a suspension refuses reading as well
+        - the operator acting as the tenant is held back only by a deletion
+- `packages/nest/tests/a-held-back-tenant-is-refused-where-it-asks.test.js`
+    - a tenant's state on its requests, on ${platform.name}
+        - an open tenant reads and writes
+        - read-only lets a read through and refuses a write with the reason
+        - a route marked as writing nothing stays open under read-only, a writing GET does not
+        - a suspension refuses reading too, and the operator note stays with the operator
+        - a session opened before the state changed is held to it on its next request
+        - lifting the suspension leaves an overdue invoice holding
+        - another tenant is not held back by this one
+        - the operator acting as the tenant passes a suspension, not a deletion
+- `packages/nest/tests/the-platforms-tenant-routes-check-the-access-state.test.js`
+    - the platform's tenant guard asks the state once the application let the request in
+        - an application guard that refuses ends it before the state is read
+        - a suspended tenant is refused on a read
+        - a read-only tenant reads, and is refused a write
+        - the tenant is the application's resolver's, not another value on the request
+        - a request without a tenant is refused rather than let through unchecked
+        - without the service, as in a module wired by hand, the application guards decide alone
+    - which routes the check reaches
+        - there are tenant controllers to look at
+        - every controller that reads the tenant from the request passes through the guard
+        - exactly these routes let a read-only tenant through with a writing method
+
+<!-- END proof -->
+
 ### SC-ADM-025 — An operator gets a description of the invoicing procedure to document its own on
 
 🟢 💰 German bookkeeping rules (GoBD) ask an operator to document how

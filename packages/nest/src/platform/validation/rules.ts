@@ -332,6 +332,16 @@ const RULE_SPECS: readonly RuleSpec[] = [
             '`persistence.core.maintenanceWindows` — both shipped adapters do.',
     },
     {
+        id: 'tenant-access.requires-holds-port',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) => Boolean(bundle(c)?.core?.tenantAccessHolds),
+        message:
+            'tenantBilling serves tenants, but there is nowhere to keep the reasons a tenant is ' +
+            'held back (SC-ADM-024): a state that is not recorded cannot be enforced. Use a ' +
+            'bundle providing `persistence.core.tenantAccessHolds` — both shipped adapters do, ' +
+            'from the `TenantAccessHold` model of `@saasicat/spec`.',
+    },
+    {
         id: 'subscriber-joins.requires-join-repository',
         when: (c) => c.options.subscriberJoins === true,
         assert: (c) =>

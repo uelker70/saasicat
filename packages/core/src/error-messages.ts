@@ -529,6 +529,13 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     MAINTENANCE_TIME_INVALID:
         'The {field} has to be a date and time with its zone, such as 2026-10-02T22:00+02:00.',
     MAINTENANCE_MESSAGE_TOO_LONG: 'The message may be at most {max} characters long.',
+    // ── tenant access ──
+    TENANT_READ_ONLY:
+        'This account can be read but not changed at the moment. You can still view and export its data.',
+    TENANT_SUSPENDED: 'This account is suspended. Please contact your provider.',
+    TENANT_BEING_DELETED: 'This account is being deleted.',
+    TENANT_ALREADY_SUSPENDED: 'This tenant is suspended already.',
+    TENANT_NOT_SUSPENDED: 'This tenant is not suspended.',
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED: 'The tax adapter {adapter} does not support this case: {reason}',
     TAX_VAT_ID_CHECK_NOT_COMPLETED:

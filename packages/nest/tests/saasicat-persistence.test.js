@@ -17,6 +17,7 @@ import {
 } from '../dist/platform/index.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from '../dist/billing/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
+import { FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
 
 // forRoot wiring of the `persistence` bundle option (adapter bundles from
 // e.g. @saasicat/adapter-prisma) incl. the capability fail-fast.
@@ -45,6 +46,7 @@ function fakeBundle(capabilityOverrides = {}) {
             ...capabilityOverrides,
         },
         core: {
+            tenantAccessHolds: new FakeTenantAccessHoldRepository(),
             mfa: spec,
             audit: spec,
             rlsBypass: spec,
@@ -208,6 +210,7 @@ describe('SaaSiCatModule persistence bundle', () => {
                 advisoryLocks: false,
             },
             core: {
+                tenantAccessHolds: new FakeTenantAccessHoldRepository(),
                 mfa: {
                     getSecret: async () => null,
                     setSecret: async () => {},
@@ -299,12 +302,13 @@ describe('SaaSiCatModule persistence bundle', () => {
             }),
         );
 
-        // Base 6 + Entitlement + Catalog + PublicCatalog + TenantBilling +
-        // Bundles + AdminResources + PromoCodes.
-        // Twelve platform modules plus Nest's DiscoveryModule, which every
+        // Base 6 + Entitlement + Catalog + PublicCatalog + TenantAccess +
+        // TenantBilling + Bundles + AdminResources + PromoCodes.
+        // Thirteen platform modules plus Nest's DiscoveryModule, which every
         // configuration imports for `EnforcementChainCheck`.
-        assert.equal(mod.imports.length, 14);
+        assert.equal(mod.imports.length, 15);
         assert.ok(mod.exports.some((entry) => entry.name === 'CatalogModule'));
+        assert.ok(mod.exports.some((entry) => entry.name === 'TenantAccessModule'));
         assert.ok(mod.exports.some((entry) => entry.name === 'TenantBillingModule'));
         assert.ok(
             mod.providers.some((provider) =>
@@ -348,6 +352,7 @@ describe('SaaSiCatModule persistence bundle', () => {
                 advisoryLocks: false,
             },
             core: {
+                tenantAccessHolds: new FakeTenantAccessHoldRepository(),
                 mfa: {
                     getSecret: async () => null,
                     setSecret: async () => {},

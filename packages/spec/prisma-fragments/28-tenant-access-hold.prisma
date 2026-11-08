@@ -1,0 +1,46 @@
+// =============================================================================
+// SaaS platform Prisma fragment: TenantAccessHold
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// One row per reason a tenant is held back (`SC-ADM-024`): an operator's
+// suspension, an invoice left unpaid past its grace period, a subscription that
+// ended, a deletion under way. A reason is open until `liftedAt` is set, and
+// lifting one leaves the others as they are; the tenant's state is the strictest
+// of its open reasons.
+//
+// The platform reads the open reasons of a tenant on every request of that
+// tenant, so the table is small per tenant and indexed on the tenant.
+//
+// At most ONE open row per tenant, kind and reference. Prisma cannot express a
+// partial unique index over an expression; the one that holds it is in
+// sql/constraints.postgres.sql, together with the check on `kind`, and it is
+// what makes a repeated run or two operators at once record a reason once.
+//
+// Required wherever tenants are served: the platform refuses to start without a
+// place to keep the reasons, since a state that is not recorded is not enforced.
+
+model TenantAccessHold {
+    id         String    @id @default(uuid())
+    // The tenant held back. Not a relation: the tenant model is the application's.
+    tenantId   String
+    // suspended | overdue | ended | deleting
+    kind       String
+    // What the reason is about, where it is about one thing: the overdue
+    // invoice, the subscription that ended. Null for a suspension.
+    reference  String?
+    // The operator's words for a suspension.
+    note       String?
+    // When the reason began to hold, and who recorded it (an actor tag, as the
+    // audit log writes it, or the run that did).
+    since      DateTime
+    recordedBy String
+    // Set when the reason no longer holds.
+    liftedAt   DateTime?
+    liftedBy   String?
+    createdAt  DateTime  @default(now())
+
+    @@index([tenantId, liftedAt])
+    @@map("tenant_access_holds")
+}

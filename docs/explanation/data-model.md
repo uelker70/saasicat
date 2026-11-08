@@ -179,6 +179,17 @@ in a deploy the lock protects. The announced times are what tenants were told;
 they never start or end the lock. The guide is
 [Take the application offline for a deploy](../guides/take-the-application-offline-for-a-deploy.md).
 
+### Tenant access
+
+| Entity                                     | Identity / uniqueness                                                            | Notes                                                                                                                                                                                                                                                                          |
+| ------------------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TenantAccessHold` (`tenant_access_holds`) | `id`; at most one open row per tenant, kind and reference (partial unique index) | One row per reason a tenant is held back (`SC-ADM-024`): `kind` is `suspended`, `overdue`, `ended` or `deleting`, `reference` names the invoice or subscription where the reason is about one, `note` is the operator's words for a suspension. Open while `liftedAt` is null. |
+
+**Read on every request of a tenant.** The tenant's state is the strictest of
+its open reasons — a deletion before a suspension, a suspension before
+read-only — so lifting one reason leaves the others standing. `tenantId` is a
+value, not a relation: the tenant model is the application's.
+
 ## Transactional invariants (what adapters must guarantee)
 
 These are the behaviors `@saasicat/persistence-testing` verifies against a
@@ -341,6 +352,11 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
     triggers of `1.0-a-contract-confirmation-is-archived.postgres.sql` refuse
     every update, delete and truncate of `contract_confirmation_archive`; the
     start refuses invoicing where they are missing or disabled.
+20. **A tenant holds one open reason per kind and reference, and a lift lands
+    once.** `TenantAccessHoldPort.record` inserts only where the same reason is
+    not open — a suspension has no reference, and the partial unique index
+    reads it as empty, so two operators suspending at once record one — and
+    `lift` closes a reason only while it is still open.
 
 ## Capability requirements
 

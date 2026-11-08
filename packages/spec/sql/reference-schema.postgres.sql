@@ -30,6 +30,7 @@
 --   prisma-fragments/25-terms.prisma
 --   prisma-fragments/26-contract-confirmation.prisma
 --   prisma-fragments/27-subscriber-join.prisma
+--   prisma-fragments/28-tenant-access-hold.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -1154,6 +1155,22 @@ CREATE TABLE "subscriber_joins" (
     CONSTRAINT "subscriber_joins_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "tenant_access_holds" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "reference" TEXT,
+    "note" TEXT,
+    "since" TIMESTAMP(3) NOT NULL,
+    "recordedBy" TEXT NOT NULL,
+    "liftedAt" TIMESTAMP(3),
+    "liftedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "tenant_access_holds_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -1547,6 +1564,9 @@ CREATE UNIQUE INDEX "subscriber_joins_fromSubscriberId_key" ON "subscriber_joins
 -- CreateIndex
 CREATE INDEX "subscriber_joins_intoSubscriberId_idx" ON "subscriber_joins"("intoSubscriberId");
 
+-- CreateIndex
+CREATE INDEX "tenant_access_holds_tenantId_liftedAt_idx" ON "tenant_access_holds"("tenantId", "liftedAt");
+
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -1835,6 +1855,24 @@ ALTER TABLE subscription_invoice_lines
 -- because the second insert meets the first and is told a window is open.
 CREATE UNIQUE INDEX IF NOT EXISTS maintenance_windows_one_open
     ON maintenance_windows ((true)) WHERE "endedAt" IS NULL;
+
+-- At most ONE open reason per tenant, kind and reference holds a tenant back.
+--
+-- A suspension has no reference, so the reference is read as an empty string
+-- for the key: a NULL would make every open suspension distinct and let a
+-- tenant be suspended twice. A lifted reason leaves the index, so the same kind
+-- can hold again later. A run repeated, or two operators at once, therefore
+-- record a reason once.
+CREATE UNIQUE INDEX IF NOT EXISTS tenant_access_holds_one_open
+    ON tenant_access_holds ("tenantId", "kind", (COALESCE("reference", ''))) WHERE "liftedAt" IS NULL;
+
+-- A reason is one of the kinds the platform knows. Dropped first, because this
+-- file is applied again on every deployment and `ADD CONSTRAINT` has no
+-- `IF NOT EXISTS`.
+ALTER TABLE tenant_access_holds DROP CONSTRAINT IF EXISTS tenant_access_holds_known_kind;
+ALTER TABLE tenant_access_holds
+    ADD CONSTRAINT tenant_access_holds_known_kind
+    CHECK ("kind" IN ('suspended', 'overdue', 'ended', 'deleting'));
 
 -- At most ONE withdrawal of a feature is not lifted. A lifted one keeps its row
 -- with `liftedFrom` set and leaves the index, so the feature can be withdrawn

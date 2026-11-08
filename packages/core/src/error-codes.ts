@@ -1087,6 +1087,26 @@ export const MAINTENANCE_ERROR_CODES = {
 export type MaintenanceErrorCode =
     (typeof MAINTENANCE_ERROR_CODES)[keyof typeof MAINTENANCE_ERROR_CODES];
 
+/**
+ * Codes of a tenant's access state (`SC-ADM-024`): the refusals a held-back
+ * tenant's users meet, and the operator's suspension. A refusal carries the
+ * open reasons as `params.reasons`, each with its `kind` and `since`.
+ */
+export const TENANT_ACCESS_ERROR_CODES = {
+    /** The tenant can read and not write: an overdue invoice or an ended subscription. */
+    TENANT_READ_ONLY: 'TENANT_READ_ONLY',
+    /** The operator suspended the tenant; nobody acts in it until it is reactivated. */
+    TENANT_SUSPENDED: 'TENANT_SUSPENDED',
+    /** The tenant is being deleted; nobody acts in it any more. */
+    TENANT_BEING_DELETED: 'TENANT_BEING_DELETED',
+    /** The tenant is suspended already; the suspension that stands keeps its note. */
+    TENANT_ALREADY_SUSPENDED: 'TENANT_ALREADY_SUSPENDED',
+    /** The tenant is not suspended, so there is nothing to reactivate. */
+    TENANT_NOT_SUSPENDED: 'TENANT_NOT_SUSPENDED',
+} as const;
+export type TenantAccessErrorCode =
+    (typeof TENANT_ACCESS_ERROR_CODES)[keyof typeof TENANT_ACCESS_ERROR_CODES];
+
 /** Codes of the installation's tax adapter (ADR 0013). */
 export const TAX_ERROR_CODES = {
     /**
@@ -1133,6 +1153,7 @@ export const PLATFORM_ERROR_CODES = {
     ...PAYMENT_ERROR_CODES,
     ...SETTINGS_ERROR_CODES,
     ...MAINTENANCE_ERROR_CODES,
+    ...TENANT_ACCESS_ERROR_CODES,
     ...TAX_ERROR_CODES,
 } as const;
 
@@ -1149,6 +1170,7 @@ export type PlatformErrorCode =
     | PaymentErrorCode
     | SettingsErrorCode
     | MaintenanceErrorCode
+    | TenantAccessErrorCode
     | TaxErrorCode;
 
 /**
