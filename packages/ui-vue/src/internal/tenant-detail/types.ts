@@ -1,4 +1,4 @@
-import type { TenantAccessState } from '@saasicat/core';
+import type { AdminTenantAccessReason, TenantAccessState } from '@saasicat/core';
 
 export interface TenantDetailData {
     id: string;
@@ -7,6 +7,8 @@ export interface TenantDetailData {
     isActive: boolean;
     /** The platform's state of the tenant (`SC-ADM-052`), where the server says it. */
     access?: TenantAccessState;
+    /** Every reason it is held back for, the oldest first (`SC-ADM-053`), where the server says them. */
+    accessReasons?: AdminTenantAccessReason[];
     vatId?: string | null;
     subscription?: {
         plan?: string | null;
@@ -39,4 +41,18 @@ export interface TenantMasterDataLabels {
     trialEnd: string;
     pilotEnd: string;
     vatId: string;
+}
+
+/** The resolved labels of the access section. */
+export interface TenantAccessLabels {
+    open: string;
+    /** `{day}` is the day it began to hold. */
+    since: string;
+    suspended: string;
+    overdue: string;
+    overdueUnnamed: string;
+    ended: string;
+    deleting: string;
+    /** `{note}` is the operator's note on a suspension. */
+    note: string;
 }

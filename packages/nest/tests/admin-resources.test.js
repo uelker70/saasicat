@@ -72,6 +72,7 @@ function platform(options) {
     const holds = new FakeTenantAccessHoldRepository();
     const audits = [];
     const resources = applicationResources(options);
+    const access = new TenantAccessService(holds, new Reflector());
     const service = new AdminResourcesService(
         resources,
         {
@@ -79,9 +80,9 @@ function platform(options) {
                 audits.push(entry);
             },
         },
-        new TenantAccessService(holds, new Reflector()),
+        access,
     );
-    return { service, holds, audits, resources };
+    return { service, holds, audits, resources, access };
 }
 
 const ACTOR = {
@@ -283,5 +284,81 @@ describe("the administration reads each tenant with the platform's state", () =>
         const detail = await service.getTenantDetail('acme');
         assert.equal(detail.access, 'suspended');
         assert.equal(detail.isActive, false);
+    });
+});
+
+// @requirement SC-ADM-053 — The operator sees every reason a tenant is held back for
+describe('the detail names every reason a tenant is held back for', () => {
+    const OVERDUE_SINCE = new Date('2026-02-15T23:00:00.000Z');
+
+    /** `tenant-1` suspended with a note, and held back by an invoice unpaid on its due date before that. */
+    async function heldBackTwice({ invoicesNamed = true } = {}) {
+        const { service, holds, access } = platform();
+        if (invoicesNamed) {
+            access.nameInvoicesFrom({
+                invoicesNamed: async (ids) =>
+                    ids
+                        .filter((id) => id === 'invoice-7')
+                        .map((id) => ({ id, number: 'AHP-2026-000007', subscriberId: 'sub-1' })),
+            });
+        }
+        await holds.record({
+            tenantId: ACME.id,
+            kind: 'overdue',
+            reference: 'invoice-7',
+            note: null,
+            since: OVERDUE_SINCE,
+            recordedBy: 'job:platform:overdue-invoices',
+        });
+        await service.suspendTenant('acme', 'chargeback under review', ACTOR);
+        return service;
+    }
+
+    test('the oldest first, a suspension with its note and an invoice by its number and subscriber', async () => {
+        const service = await heldBackTwice();
+
+        const detail = await service.getTenantDetail('acme');
+
+        assert.equal(detail.access, 'suspended');
+        assert.deepEqual(
+            detail.accessReasons.map((reason) => [
+                reason.kind,
+                reason.note,
+                reason.invoice,
+                reason.subscriptionId,
+            ]),
+            [
+                [
+                    'overdue',
+                    null,
+                    { id: 'invoice-7', number: 'AHP-2026-000007', subscriberId: 'sub-1' },
+                    null,
+                ],
+                ['suspended', 'chargeback under review', null, null],
+            ],
+        );
+        assert.equal(detail.accessReasons[0].since, OVERDUE_SINCE.toISOString());
+    });
+
+    test('an invoice where invoices cannot be read is named as none, and the reason stays', async () => {
+        const service = await heldBackTwice({ invoicesNamed: false });
+
+        const detail = await service.getTenantDetail('acme');
+
+        assert.deepEqual(
+            detail.accessReasons.map((reason) => [reason.kind, reason.invoice]),
+            [
+                ['overdue', null],
+                ['suspended', null],
+            ],
+        );
+    });
+
+    test('none for a tenant held back by nothing', async () => {
+        const { service } = platform();
+
+        const detail = await service.getTenantDetail('acme');
+
+        assert.deepEqual(detail.accessReasons, []);
     });
 });

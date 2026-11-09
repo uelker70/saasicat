@@ -4373,6 +4373,9 @@ adopt it:
   `GET /billing/payment-method` now answers beside `paymentMethod` (`SC-PRIC-103`). Pass it
   `formatDate` where you mount it on its own — without it the day reads `YYYY-MM-DD`; texts of your
   own gain `paymentMethodReplaceWait` with `{date}`.
+- **`TenantDetailPage`** lists under "Access" every reason a tenant is held back for, from
+  `accessReasons` on the tenant's detail (`SC-ADM-053`). An `AdminResourcesPort` of your own changes
+  nothing: the platform adds the reasons to what the port answers.
 
 ## What the codemod leaves to you
 

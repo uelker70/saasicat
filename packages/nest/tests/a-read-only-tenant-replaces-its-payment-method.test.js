@@ -247,6 +247,21 @@ describe('the platform as it starts', () => {
             }
         });
     }
+
+    // @requirement SC-ADM-053 — The operator sees every reason a tenant is held back for
+    test('asks the tenant’s invoices what an invoice a reason names is called', async (t) => {
+        t.mock.method(TenantInvoiceService.prototype, 'invoicesNamed', async (ids) =>
+            ids.map((id) => ({ id, number: `N-${id}`, subscriberId: 's1' })),
+        );
+        const { moduleRef, access } = await startedReadOnly();
+        try {
+            assert.deepEqual(await access.invoicesNamed(['invoice-1']), [
+                { id: 'invoice-1', number: 'N-invoice-1', subscriberId: 's1' },
+            ]);
+        } finally {
+            await moduleRef.close();
+        }
+    });
 });
 
 describe('an invoice is open for the exception', () => {

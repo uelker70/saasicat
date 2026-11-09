@@ -23,6 +23,7 @@ import type {
     AdminResourcesPort,
     AdminSubscriptionListRow,
     AdminTenantDetail,
+    AdminTenantAccessReason,
     AdminTenantDetailEntry,
     AdminTenantListEntry,
     AdminTenantListFilter,
@@ -33,12 +34,13 @@ import type {
     AdminUserListRow,
     AuditEntry,
     TenantAccess,
+    TenantAccessHold,
     TenantAccessState,
 } from '@saasicat/core';
 import { BILLING_ERROR_CODES, TENANT_ACCESS_ERROR_CODES, holdsEveryoneBack } from '@saasicat/core';
 import { actorTagOf } from '../core/web-audit.js';
 import { codedError } from '../errors/coded-error.js';
-import { TenantAccessService } from '../tenant-access/tenant-access.service.js';
+import { TenantAccessService, type NamedInvoice } from '../tenant-access/tenant-access.service.js';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminAuditService } from './admin-audit.service.js';
 import { EnforceMfa } from './enforce-mfa.decorator.js';
@@ -102,9 +104,24 @@ export class AdminResourcesService {
         return rows.map((row) => withAccess(row, access.get(row.id)));
     }
 
+    /**
+     * The tenant with its state and every reason it is held back for, the
+     * oldest first, an invoice named by its number (`SC-ADM-053`).
+     */
     async getTenantDetail(slug: string): Promise<AdminTenantDetailEntry> {
         const tenant = await this.tenantNamed(slug);
-        return withAccess(tenant, await this.access.accessOf(tenant.id));
+        const access = await this.access.accessOf(tenant.id);
+        const named = await this.access.invoicesNamed(
+            access.holds.flatMap((hold) =>
+                hold.kind === 'overdue' && hold.reference ? [hold.reference] : [],
+            ),
+        );
+        return {
+            ...withAccess(tenant, access),
+            accessReasons: [...access.holds]
+                .sort((a, b) => a.since.getTime() - b.since.getTime())
+                .map((hold) => reasonOf(hold, named)),
+        };
     }
 
     /** The tenants among `tenantIds` the application still has; one it no longer has is left out. */
@@ -176,6 +193,20 @@ export class AdminResourcesService {
         const { state } = await this.access.accessOf(tenant.id);
         return { ok: true, id: tenant.id, slug: tenant.slug, access: state };
     }
+}
+
+/** A reason as the administration shows it, an invoice named where it is one of `named`. */
+function reasonOf(hold: TenantAccessHold, named: readonly NamedInvoice[]): AdminTenantAccessReason {
+    return {
+        kind: hold.kind,
+        since: hold.since.toISOString(),
+        note: hold.kind === 'suspended' ? hold.note : null,
+        invoice:
+            hold.kind === 'overdue'
+                ? (named.find((invoice) => invoice.id === hold.reference) ?? null)
+                : null,
+        subscriptionId: hold.kind === 'ended' ? hold.reference : null,
+    };
 }
 
 /**

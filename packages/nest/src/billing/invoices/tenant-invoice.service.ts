@@ -39,7 +39,11 @@ import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { readAcrossTenants } from '../../admin/read-across-tenants.js';
 import { codedError } from '../../errors/coded-error.js';
 import { SubscriberService } from '../../subscriber/subscriber.service.js';
-import type { OpenInvoiceSource } from '../../tenant-access/tenant-access.service.js';
+import type {
+    InvoiceNameSource,
+    NamedInvoice,
+    OpenInvoiceSource,
+} from '../../tenant-access/tenant-access.service.js';
 import {
     ContractConfirmationService,
     contractNotFound,
@@ -50,7 +54,7 @@ import { InvoiceDocumentService } from './invoice-document.service.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.tokens.js';
 
 @Injectable()
-export class TenantInvoiceService implements OpenInvoiceSource {
+export class TenantInvoiceService implements OpenInvoiceSource, InvoiceNameSource {
     constructor(
         @Inject(SubscriberService) private readonly subscribers: SubscriberService,
         @Inject(SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN)
@@ -119,6 +123,20 @@ export class TenantInvoiceService implements OpenInvoiceSource {
         const invoices = await this.read(() => this.invoices.listBySubscriber(subscriber.id));
         const { standings, credits } = await this.standingsOf(subscriber, invoices);
         return { ...tenantAccountOf(standings, credits), directDebitCollectedOn };
+    }
+
+    /**
+     * The invoices among `invoiceIds` by number and subscriber, read past the
+     * tenants' policy as every read of the administration is (`SC-SEC-018`);
+     * one that cannot be found is left out.
+     */
+    async invoicesNamed(invoiceIds: readonly string[]): Promise<NamedInvoice[]> {
+        const invoices = await this.read(() => this.invoices.findByIds(invoiceIds));
+        return invoices.map((invoice) => ({
+            id: invoice.id,
+            number: invoice.number,
+            subscriberId: invoice.subscriberId,
+        }));
     }
 
     /**

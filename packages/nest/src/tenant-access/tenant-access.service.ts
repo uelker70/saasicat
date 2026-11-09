@@ -53,6 +53,18 @@ export interface OpenInvoiceSource {
     hasOpenInvoice(tenantId: string): Promise<boolean>;
 }
 
+/** An invoice a reason names, by what tells it apart and whose record lists it. */
+export interface NamedInvoice {
+    id: string;
+    number: string;
+    subscriberId: string;
+}
+
+/** What the invoices a reason names are called. Answered by the invoices where they are wired. */
+export interface InvoiceNameSource {
+    invoicesNamed(invoiceIds: readonly string[]): Promise<NamedInvoice[]>;
+}
+
 interface RequestLike {
     method?: string;
 }
@@ -81,6 +93,9 @@ export class TenantAccessService {
      */
     private openInvoices: OpenInvoiceSource | null = null;
 
+    /** Where an invoice a reason names is looked up by its id, registered as `openInvoices` is. */
+    private invoiceNames: InvoiceNameSource | null = null;
+
     constructor(
         @Inject(TENANT_ACCESS_HOLDS_TOKEN) private readonly holds: TenantAccessHoldPort,
         @Inject(Reflector) private readonly reflector: Reflector,
@@ -89,6 +104,20 @@ export class TenantAccessService {
     /** Lets `source` say whether a tenant's subscriber has an invoice open. */
     answerOpenInvoicesFrom(source: OpenInvoiceSource): void {
         this.openInvoices = source;
+    }
+
+    /** Lets `source` say what the invoices a reason names are called. */
+    nameInvoicesFrom(source: InvoiceNameSource): void {
+        this.invoiceNames = source;
+    }
+
+    /**
+     * The invoices among `invoiceIds` that can be read, by number and the
+     * subscriber whose record lists them; none where invoices are not wired.
+     */
+    async invoicesNamed(invoiceIds: readonly string[]): Promise<NamedInvoice[]> {
+        if (invoiceIds.length === 0 || !this.invoiceNames) return [];
+        return this.invoiceNames.invoicesNamed(invoiceIds);
     }
 
     /** The state of `tenantId` and the open reasons it follows from. */
