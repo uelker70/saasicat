@@ -49,6 +49,7 @@ const started = (counts: Partial<TenantPaymentStarted>): TenantPaymentStarted =>
     onTheirWay: 0,
     refused: 0,
     waiting: 0,
+    notSentYet: 0,
     ...counts,
 });
 
@@ -126,6 +127,12 @@ describe('paying now, on the account', () => {
         ['a payment method a payment was taken back on', { refused: 1 }, i18n.accountPayRefused],
         ['a mandate missing', { waiting: 1 }, i18n.accountPayWaiting],
         ['a payment already on its way', { onTheirWay: 1 }, i18n.accountPayOnItsWay],
+        ['an invoice not sent yet', { notSentYet: 1 }, i18n.accountPayNotSentYet],
+        [
+            'a payment beside an invoice not sent yet',
+            { collected: 1, notSentYet: 1 },
+            i18n.accountPayNotSentYet,
+        ],
         ['no payment method', { paymentMethod: false }, i18n.accountPayNoMethod],
     ] as const) {
         test(`says what follows ${what}`, async () => {

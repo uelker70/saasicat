@@ -10088,6 +10088,8 @@ _Tested by:_
         - the confirmation makes the new payment method the one in use, and keeps the one it
           replaced
         - a confirmed payment method is told to what follows it once it is recorded, and once only
+        - the gateway is answered without waiting for what follows the confirmation
+        - what follows a confirmation and fails is logged, and the payment method stays recorded
         - a confirmation whose recording fails leaves the claim and the setup open for the retry
         - a return URL at another origin is refused, and neither the gateway nor a setup is touched
         - opening the form records the setup for this subscriber and this session
@@ -11005,6 +11007,8 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
     - changing it opens the gateway form, and the confirmation replaces the one in use
         - a confirmed payment method is told to what follows it once it is recorded, and once only
+        - the gateway is answered without waiting for what follows the confirmation
+        - what follows a confirmation and fails is logged, and the payment method stays recorded
 - `packages/nest/tests/an-invoice-is-collected.test.js`
     - an invoice that reached the subscriber
         - by card is collected at once, through the account its payment method is held at, under its

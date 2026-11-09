@@ -19,6 +19,7 @@ export function paymentStartedMessage(
         | 'accountPayPending'
         | 'accountPaidNow'
         | 'accountPayOnItsWay'
+        | 'accountPayNotSentYet'
         | 'accountNothingOpen'
     >,
 ): string {
@@ -27,6 +28,9 @@ export function paymentStartedMessage(
     if (started.waiting > 0) return i18n.accountPayWaiting;
     if (started.announced > 0) return i18n.accountPayAnnounced;
     if (started.pending > 0) return i18n.accountPayPending;
+    // Before a payment that went through: the balance beside it still shows
+    // the invoice not sent yet, and this is the sentence that explains it.
+    if (started.notSentYet > 0) return i18n.accountPayNotSentYet;
     if (started.collected > 0) return i18n.accountPaidNow;
     if (started.onTheirWay > 0) return i18n.accountPayOnItsWay;
     return i18n.accountNothingOpen;

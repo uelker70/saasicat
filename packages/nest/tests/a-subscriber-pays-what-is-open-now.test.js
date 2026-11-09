@@ -92,6 +92,12 @@ async function aDirectDebitAnnounced(installation) {
 
 const stateOf = async (access, tenantId) => (await access.accessOf(tenantId)).state;
 
+/** Why each collection was planned, as the audit log records it. */
+const plannedBecause = ({ audits }) =>
+    audits
+        .filter((entry) => entry.action === 'SUBSCRIPTION_INVOICE_COLLECTION_PLANNED')
+        .map((entry) => entry.changes.because);
+
 /** Replaces the payment method of `subscriberId` with `type`, confirmed at `at`. */
 const replaceWith = (installation, subscriberId, type, at) =>
     installation.paymentMethods.recordConfirmed(
@@ -283,6 +289,7 @@ describe('paying now', () => {
             onTheirWay: 0,
             refused: 0,
             waiting: 0,
+            notSentYet: 0,
         });
     });
 
@@ -295,6 +302,7 @@ describe('paying now', () => {
         const started = await installation.collection.payNow('t1', clockAt(FIRST_RUN));
 
         assert.equal(started.collected, 0);
+        assert.equal(started.notSentYet, 1, 'counted, so the page can say why it is still owed');
         assert.equal(installation.gateway.collections.length, 0);
     });
 
@@ -326,6 +334,11 @@ describe('a payment method the subscriber enters', () => {
         await installation.confirmed(subscriber.id);
 
         assert.equal(await installation.payments.owedBy(invoice.id), 0);
+        assert.deepEqual(
+            plannedBecause(installation),
+            ['payment-method-entered'],
+            'as the run says it',
+        );
     });
 
     test('where its confirmation collected nothing, leaves an invoice issued while none was in use to the run', async () => {
@@ -382,6 +395,11 @@ describe('a payment method the subscriber enters', () => {
         await installation.confirmed(subscriber.id);
 
         assert.deepEqual(installation.gateway.collections, [], 'nothing brought forward');
+        assert.deepEqual(
+            plannedBecause(installation),
+            ['payment-method-replaced'],
+            'as the run says it',
+        );
         assert.deepEqual(
             installation.collections.attempts.map((each) => [each.status, each.collectOn]),
             [['SCHEDULED', '2026-02-15']],

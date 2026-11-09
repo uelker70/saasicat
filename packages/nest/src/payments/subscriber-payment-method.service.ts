@@ -43,9 +43,10 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
 
     /**
      * Told of every payment method a subscriber confirmed, once the
-     * transaction that records it committed. Registered by the invoices, which
-     * collect what is open with it (`SC-PRIC-099`), rather than injected:
-     * payments are composed before them and know nothing of invoices.
+     * transaction that records it committed, and not waited for. Registered
+     * by the invoices, which collect what is open with it (`SC-PRIC-099`),
+     * rather than injected: payments are composed before them and know
+     * nothing of invoices.
      */
     private readonly confirmedListeners: PaymentMethodConfirmedListener[] = [];
 
@@ -156,7 +157,17 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
         );
         for (const listener of this.confirmedListeners) {
             context.afterCommit(async () => {
-                await listener(subscriberId);
+                // Not awaited: the gateway waits for the answer to its
+                // callback, and what follows can take a charge or a mail per
+                // open invoice. A redelivery would find the claim taken and
+                // change nothing; what a listener does not finish, the
+                // quarter-hourly collection takes up (`SC-PRIC-099`).
+                void listener(subscriberId).catch((error: unknown) => {
+                    const reason = error instanceof Error ? error.message : String(error);
+                    this.logger.warn(
+                        `A payment method of subscriber ${subscriberId} is recorded, and what follows it failed; the next collection run takes it up: ${reason}`,
+                    );
+                });
             });
         }
         return 'took-effect';

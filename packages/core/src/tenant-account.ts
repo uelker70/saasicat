@@ -110,4 +110,6 @@ export interface TenantPaymentStarted {
     refused: number;
     /** Not started yet, such as a direct debit whose mandate reference is missing. */
     waiting: number;
+    /** Not handed to the subscriber yet, so collected as it says once it is (`SC-PRIC-099`). */
+    notSentYet: number;
 }

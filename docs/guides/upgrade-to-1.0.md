@@ -2012,8 +2012,11 @@ collected yet; collecting follows in this release line.
 
     It adds `payment` and `collectionDate` to `subscription_invoices`, both nullable; take the two
     fields of `prisma-fragments/20-subscription-invoice.prisma` into your schema as well. An invoice
-    issued before records no payment method: it is not collected, and it stays due on the day it
-    states. The file does nothing on a second run, nor without the table.
+    issued before records no payment method and stays due on the day it states. It is collected
+    once its subscriber has a payment method in use and it still owes something (`SC-PRIC-099`) —
+    from the first quarter-hourly run after the upgrade where the subscriber has one already.
+    Nothing in SaaSiCat records a payment made outside it, so an invoice settled that way counts as
+    owed and is collected as well. The file does nothing on a second run, nor without the table.
 
 2. Name the lead time under `invoicing` in `config/saas.yaml` where it is not fourteen days:
    `directDebitLeadDays`, in calendar days. **It has to be what the mandate your subscribers accepted

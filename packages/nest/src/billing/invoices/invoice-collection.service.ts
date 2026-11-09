@@ -182,7 +182,7 @@ type PlannedBecause =
     | 'payment-method-entered'
     /** The invoice reached the subscriber less than the lead time before its direct debit's day. */
     | 'announced-too-late'
-    /** The subscriber paid now, or entered a payment method (`SC-PRIC-099`, `SC-PRIC-100`). */
+    /** The subscriber paid now (`SC-PRIC-100`). */
     | 'started-by-subscriber';
 
 /** Who started collecting what is open: the subscriber paying now, or entering a payment method. */
@@ -212,7 +212,7 @@ type CollectionAudit =
               paymentMethodId: string;
               /**
                * The invoice owes nothing any more, its payment method was
-               * replaced, or the subscriber started its payment now instead.
+               * replaced, or the subscriber paid now instead.
                */
               because: 'paid' | 'payment-method-replaced' | 'started-by-subscriber';
           };
@@ -382,7 +382,10 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                     continue;
                 }
                 if (!(await this.recording().payments.owes(invoice.id))) continue;
-                if (!(await this.invoices.findDocument(invoice.id))?.deliveredAt) continue;
+                if (!(await this.invoices.findDocument(invoice.id))?.deliveredAt) {
+                    started.notSentYet += 1;
+                    continue;
+                }
                 const attempts = await this.collections.listByInvoice(invoice.id);
                 if (attempts.some((each) => UNSETTLED_COLLECTION_STATUSES.includes(each.status))) {
                     started.onTheirWay += 1;
@@ -396,15 +399,16 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                     started.onTheirWay += 1;
                     continue;
                 }
+                const because = plannedBecauseOf(startedBy, invoice);
                 for (const later of attempts.filter((each) => each.status === 'SCHEDULED')) {
-                    await this.giveWay(invoice, later);
+                    await this.giveWay(invoice, later, because);
                 }
                 const planned = await this.planWith(
                     invoice,
                     attempts.at(-1)?.attempt ?? 0,
                     method,
                     startedBy === 'paying-now' ? today : notBeforeItsDay(invoice, today),
-                    'started-by-subscriber',
+                    because,
                     run,
                 );
                 if (planned) await this.takeUp(planned.id, today, run);
@@ -413,10 +417,15 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         });
     }
 
-    /** Withdraws a planned collection, which the one the subscriber started takes the place of. */
+    /**
+     * Withdraws a planned collection, which the one the subscriber started
+     * takes the place of: by paying now, or with the payment method entered,
+     * written as the run writes a replaced one.
+     */
     private async giveWay(
         invoice: SubscriptionInvoiceRecord,
         planned: InvoiceCollectionRecord,
+        because: PlannedBecause,
     ): Promise<void> {
         if (!(await this.collections.withdraw(planned.id, new Date()))) return;
         await this.writeAudit(invoice.id, {
@@ -425,7 +434,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                 number: invoice.number,
                 attempt: planned.attempt,
                 paymentMethodId: planned.paymentMethodId,
-                because: 'started-by-subscriber',
+                because: because === 'started-by-subscriber' ? because : 'payment-method-replaced',
             },
         });
     }
@@ -1430,6 +1439,19 @@ function directDebitAnnouncedWith(
     );
 }
 
+/**
+ * Why a collection the subscriber started is planned, as the audit log says
+ * it: paying now, or the payment method entered — written as the run writes
+ * it, so the reason does not depend on which of the two got there first.
+ */
+function plannedBecauseOf(
+    startedBy: CollectionStartedBy,
+    invoice: SubscriptionInvoiceRecord,
+): PlannedBecause {
+    if (startedBy === 'paying-now') return 'started-by-subscriber';
+    return invoice.payment ? 'payment-method-replaced' : 'payment-method-entered';
+}
+
 /** `today`, or the day the invoice named for its collection where that is later. */
 function notBeforeItsDay(invoice: SubscriptionInvoiceRecord, today: CalendarDay): CalendarDay {
     return invoice.collectionDate !== null && invoice.collectionDate > today
@@ -1462,6 +1484,7 @@ function nothingStarted(paymentMethod: boolean): TenantPaymentStarted {
         onTheirWay: 0,
         refused: 0,
         waiting: 0,
+        notSentYet: 0,
     };
 }
 

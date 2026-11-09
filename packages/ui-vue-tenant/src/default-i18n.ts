@@ -442,6 +442,8 @@ export interface TenantPlanSectionI18n {
     accountPayWaiting: string;
     /** Afterwards: a payment of it is on its way already. */
     accountPayOnItsWay: string;
+    /** Afterwards: an invoice is not with the subscriber yet, and is collected once it is. */
+    accountPayNotSentYet: string;
     invoicesColumnNumber: string;
     invoicesColumnIssued: string;
     invoicesColumnPeriod: string;
@@ -893,6 +895,8 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     accountPayWaiting:
         'Mit Ihrem Zahlungsmittel kann noch nicht abgebucht werden. Bitte prüfen oder ersetzen Sie es.',
     accountPayOnItsWay: 'Eine Zahlung ist bereits unterwegs.',
+    accountPayNotSentYet:
+        'Ihre neueste Rechnung ist noch auf dem Weg zu Ihnen. Sobald sie angekommen ist, wird sie eingezogen, wie sie es angibt.',
     invoicesColumnNumber: 'Nummer',
     invoicesColumnIssued: 'Rechnungsdatum',
     invoicesColumnPeriod: 'Leistungszeitraum',
@@ -1308,6 +1312,8 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     accountPayNoMethod: 'Please enter a payment method first.',
     accountPayWaiting: 'Your payment method cannot be charged yet. Please check or replace it.',
     accountPayOnItsWay: 'A payment is on its way already.',
+    accountPayNotSentYet:
+        'Your latest invoice is still on its way to you. Once it has arrived, it is collected as it says.',
     invoicesColumnNumber: 'Number',
     invoicesColumnIssued: 'Issued on',
     invoicesColumnPeriod: 'Service period',
