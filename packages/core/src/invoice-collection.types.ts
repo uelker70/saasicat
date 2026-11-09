@@ -12,7 +12,7 @@
 // An attempt after a failure, or with a payment method that replaced the one
 // the invoice named, is planned first, for a day: a card's for the day it is
 // charged, a direct debit's for the day its own announcement names
-// (`SC-PRIC-028`, `SC-PRIC-080`, `SC-PRIC-099`).
+// (`SC-PRIC-028`, `SC-PRIC-101`, `SC-PRIC-099`).
 
 import type {
     CollectionFailureReason,
@@ -29,7 +29,7 @@ import type { CalendarDay } from './zoned-day.js';
  * one will not be made, because the payment method it was planned with is no
  * longer in use; `REVERSED` where it succeeded and a reversal of its payment —
  * a returned direct debit, a chargeback — opened its invoice again, which is
- * then collected only with another payment method (`SC-PRIC-085`).
+ * then collected only with another payment method (`SC-PRIC-102`).
  */
 export type InvoiceCollectionStatus =
     'SCHEDULED' | 'SUBMITTED' | 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'WITHDRAWN' | 'REVERSED';
@@ -201,7 +201,7 @@ export const COLLECTION_NOT_SENT_PAID: CollectionOutcome = {
 /**
  * The same for an attempt whose payment method a payment of its invoice was
  * reversed on meanwhile: sent now, it would collect with that payment method
- * again (`SC-PRIC-085`). The reversal's notice tells the subscriber what
+ * again (`SC-PRIC-102`). The reversal's notice tells the subscriber what
  * follows.
  */
 export const COLLECTION_NOT_SENT_REVERSED: CollectionOutcome = {

@@ -12,7 +12,7 @@
 
 // @requirement SC-PRIC-034 — A collection retried after an unanswered request never charges twice
 // @requirement SC-PRIC-036 — What an invoice owes and how it is paid changes one step at a time
-// @requirement SC-PRIC-080 — A failed collection is tried once more, and the subscriber is told of every failure
+// @requirement SC-PRIC-101 — After a failure, nothing is tried past the due date, and read-only is told
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -799,7 +799,7 @@ export const INVOICE_ERROR_CODES = {
     /**
      * A direct debit announced again after a failed collection (`attemptKey`)
      * waits until the subscriber has been told of that failure
-     * (`SC-PRIC-080`).
+     * (`SC-PRIC-101`).
      */
     SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD: 'SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD',
     /**

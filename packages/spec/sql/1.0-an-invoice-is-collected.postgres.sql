@@ -5,7 +5,7 @@
 -- The attempts to collect an invoice: each request the platform makes of the
 -- gateway, with everything it carries, and what became of it, and the attempts
 -- planned after a failure or with a payment method that replaced the one the
--- invoice named (#276 step 6, SC-PRIC-034, SC-PRIC-080). Needed where `tenantBilling.chargeJournal.invoices.collections`
+-- invoice named (#276 step 6, SC-PRIC-034, SC-PRIC-101). Needed where `tenantBilling.chargeJournal.invoices.collections`
 -- is configured. Run it BEFORE `db push`, and after
 -- `1.0-an-invoice-is-issued.postgres.sql`, whose `subscription_invoices` table
 -- every attempt points at:

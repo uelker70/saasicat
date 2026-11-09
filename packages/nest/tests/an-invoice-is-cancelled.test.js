@@ -873,7 +873,7 @@ describe('the documents of a cancellation', () => {
 });
 
 // @requirement SC-PRIC-036 — What an invoice owes and how it is paid changes one step at a time
-// @requirement SC-PRIC-085 — A reversal is told, and the payment method it reversed collects nothing again
+// @requirement SC-PRIC-102 — A reversal is told, with read-only, and its payment method collects nothing again
 describe('the collections of a cancelled invoice’s chain', () => {
     clockFrom(FIRST_RUN);
 

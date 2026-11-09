@@ -22,11 +22,13 @@ const TABLE = 'subscription_notices';
 const NEXT_ACTIONS: readonly CollectionFailureNext['action'][] = [
     'charged-again',
     'announced-again',
+    'pay-now',
     'replace-payment-method',
 ];
 
 const AFTER_REVERSAL_ACTIONS: readonly CollectionReversedNext['action'][] = [
     'collected-with-payment-method-in-use',
+    'pay-now',
     'replace-payment-method',
 ];
 
@@ -68,6 +70,12 @@ class NoticeFields {
         return dayOf(this.value(name), this.where(name));
     }
 
+    /** A day, or `null` where the field is `null` or absent: a notice recorded before it existed. */
+    dayOrNone(name: string) {
+        const value = this.value(name);
+        return value === null || value === undefined ? null : this.day(name);
+    }
+
     oneOf<T extends string>(allowed: readonly T[], name: string): T {
         return oneOf(allowed, this.text(name), this.where(name));
     }
@@ -100,6 +108,7 @@ export function toCollectionFailedNotice(content: unknown, id: string): Collecti
         paymentMethodType: fields.oneOf(PAYMENT_METHOD_TYPES, 'paymentMethodType'),
         reason: fields.oneOf(COLLECTION_FAILURE_REASONS, 'reason'),
         next: action === 'charged-again' ? { action, on: next.day('on') } : { action },
+        readOnlyFrom: fields.dayOrNone('readOnlyFrom'),
     };
 }
 
@@ -127,5 +136,6 @@ export function toCollectionReversedNotice(content: unknown, id: string): Collec
         paymentMethodType: fields.oneOf(PAYMENT_METHOD_TYPES, 'paymentMethodType'),
         owed: fields.amount('owed'),
         next: { action: fields.nested('next').oneOf(AFTER_REVERSAL_ACTIONS, 'action') },
+        readOnlyFrom: fields.dayOrNone('readOnlyFrom'),
     };
 }

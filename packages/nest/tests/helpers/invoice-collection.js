@@ -85,10 +85,11 @@ export function quietLog() {
 
 /**
  * An installation with one subscriber paying by `method`, its February invoice
- * issued and handed to the mail at `mailedAt`.
+ * issued and handed to the mail at `mailedAt`; with `holds`, an unpaid invoice
+ * holds its tenant back there.
  */
-export async function anInvoiceToCollect(method = 'card', { mailedAt = ISSUED, mail } = {}) {
-    const installation = aCollectingInstallation({ mail });
+export async function anInvoiceToCollect(method = 'card', { mailedAt = ISSUED, mail, holds } = {}) {
+    const installation = aCollectingInstallation({ mail, holds });
     const paying = await installation.aPayingSubscriber('t1', method);
     const invoice = await installation.anInvoiceMailed(paying.subscriber.id, ISSUED, mailedAt);
     return { ...installation, ...paying, invoice };
@@ -456,6 +457,7 @@ export function aCollectingInstallation({
         money,
         transactions,
         paymentMethodChanges,
+        overdue,
     );
     // Corrects an issued invoice: the journal as the ledger reads it, and the
     // platform's transaction, which the invoices in memory need none of.

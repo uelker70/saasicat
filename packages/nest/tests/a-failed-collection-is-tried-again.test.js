@@ -1,18 +1,22 @@
 // What follows a collection that failed, and an invoice whose payment method
-// was replaced: the subscriber told, the same payment method charged once more
-// where the reason can pass, a direct debit announced again before it is
-// debited, and the replacement collecting what is still open.
+// was replaced: the subscriber told, with the day the tenant is read-only from;
+// the same payment method charged once more where the reason can pass and that
+// falls on or before the due date, and otherwise nothing until the subscriber
+// starts it again; a direct debit announced before it is debited; and the
+// replacement collecting what is still open.
 //
 // Every case goes through `InvoiceCollectionService.collectDue` over the
 // installation in memory of `an-invoice-is-collected.test.js`, on a clock the
 // test runs: the service stamps a failure, a hold and an announcement with it,
 // and the day of a second charge counts from the day the failure was recorded.
 
-// @requirement SC-PRIC-080 — A failed collection is tried once more, and the subscriber is told of every failure
+// @requirement SC-PRIC-101 — After a failure, nothing is tried past the due date, and read-only is told
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { INVOICE_ERROR_CODES } from '@saasicat/core';
+
+import { FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
 
 import {
     FIRST_RUN,
@@ -87,6 +91,7 @@ describe('a card that failed for a reason that can pass', () => {
                     paymentMethodType: 'card',
                     reason: 'insufficient-funds',
                     next: { action: 'charged-again', on: '2026-02-08' },
+                    readOnlyFrom: null,
                 },
             },
         ]);
@@ -122,7 +127,7 @@ describe('a card that failed for a reason that can pass', () => {
         ]);
     });
 
-    test('that fails again is told so, and not tried a third time: the subscriber is asked to replace the card', async () => {
+    test('that fails again is told so, and not tried a third time: the subscriber is asked to pay it with the card', async () => {
         quietLog();
         const { collect, gateway, collections, mail } = await anInvoiceToCollect();
         gateway.answers.push(FUNDS_SHORT, FUNDS_SHORT);
@@ -134,11 +139,85 @@ describe('a card that failed for a reason that can pass', () => {
         assert.equal(gateway.collections.length, 2);
         assert.deepEqual(
             toldOf(mail, 'collection-failed').map((each) => each.next),
-            [{ action: 'charged-again', on: '2026-02-08' }, { action: 'replace-payment-method' }],
+            [{ action: 'charged-again', on: '2026-02-08' }, { action: 'pay-now' }],
         );
         assert.deepEqual(
             collections.attempts.map((each) => each.status),
             ['FAILED', 'FAILED'],
+        );
+    });
+});
+
+describe('a card whose failure is learned late', () => {
+    clockFrom(FIRST_RUN);
+
+    /** The card's first charge answered later, as failed for funds short, learned on `day` at 09:00 in Berlin. */
+    async function aFailureLearnedOn(day, options = {}) {
+        const installation = await anInvoiceToCollect('card', options);
+        installation.gateway.answers.push({ status: 'pending', paymentRef: 'pi_wait' });
+        await installation.collect(FIRST_RUN);
+        const [attempt] = installation.collections.attempts;
+        installation.gateway.held.set(attempt.attemptKey, FUNDS_SHORT);
+        const learned = new Date(berlinMidnight(day).getTime() + 9 * 3_600_000);
+        const run = await installation.collect(clockAt(learned));
+        assert.equal(run.failed, 1, 'the premise: the failure is learned then');
+        return installation;
+    }
+
+    for (const [learned, charged] of [
+        ['2026-02-08', '2026-02-15'],
+        ['2026-02-09', null],
+    ]) {
+        test(`on ${learned} is charged again ${charged ? `on its due date, ${charged}` : 'never: seven days after falls past the due date'}`, async () => {
+            quietLog();
+            const { collections, mail } = await aFailureLearnedOn(learned);
+
+            assert.deepEqual(
+                collections.attempts.slice(1).map((each) => [each.status, each.collectOn]),
+                charged ? [['SCHEDULED', charged]] : [],
+            );
+            assert.deepEqual(
+                toldOf(mail, 'collection-failed').map((each) => each.next),
+                [charged ? { action: 'charged-again', on: charged } : { action: 'pay-now' }],
+            );
+        });
+    }
+
+    test('past the due date tells the day the tenant is read-only from, where tenants are held back', async () => {
+        quietLog();
+        const { mail } = await aFailureLearnedOn('2026-02-16', {
+            holds: new FakeTenantAccessHoldRepository(),
+        });
+
+        assert.deepEqual(
+            toldOf(mail, 'collection-failed').map((each) => each.readOnlyFrom),
+            ['2026-02-16'],
+            'read-only from the day the failure was learned, after the due date',
+        );
+    });
+
+    test('before the due date, with nothing that follows, tells the due date as the day the tenant is read-only from', async () => {
+        quietLog();
+        const { collect, gateway, mail } = await anInvoiceToCollect('card', {
+            holds: new FakeTenantAccessHoldRepository(),
+        });
+        gateway.answers.push(UNUSABLE);
+
+        await collect(FIRST_RUN);
+
+        assert.deepEqual(
+            toldOf(mail, 'collection-failed').map((each) => [each.next, each.readOnlyFrom]),
+            [[{ action: 'replace-payment-method' }, '2026-02-15']],
+        );
+    });
+
+    test('tells no day where no tenant is held back', async () => {
+        quietLog();
+        const { mail } = await aFailureLearnedOn('2026-02-16');
+
+        assert.deepEqual(
+            toldOf(mail, 'collection-failed').map((each) => each.readOnlyFrom),
+            [null],
         );
     });
 });
@@ -163,30 +242,50 @@ describe('a collection that failed for a reason that cannot pass', () => {
     });
 });
 
-// @requirement SC-PRIC-028 — A direct debit is announced before it is collected
 describe('a direct debit that failed for a reason that can pass', () => {
     /** 09:00 in Berlin on the day the invoice announced. */
     const COLLECTED = new Date('2026-02-15T08:00:00.000Z');
     clockFrom(COLLECTED);
 
-    test('is announced again under its mandate for the lead time after, and debited on that day, not the minute before', async () => {
+    test('is not announced again past its due date: the subscriber is asked to pay it, read-only until then', async () => {
         quietLog();
-        const { collect, gateway, mail, invoice, subscriber, method } =
-            await anInvoiceToCollect('sepa_debit');
+        const { collect, gateway, mail, collections } = await anInvoiceToCollect('sepa_debit', {
+            holds: new FakeTenantAccessHoldRepository(),
+        });
         gateway.answers.push(FUNDS_SHORT);
 
         const run = await collect(COLLECTED);
+        await collect(clockAt(berlinMidnight('2026-03-31')));
 
-        assert.deepEqual([run.failed, run.planned, run.announced, run.told], [1, 1, 1, 1]);
+        assert.deepEqual([run.failed, run.planned, run.announced, run.told], [1, 0, 0, 1]);
+        assert.equal(collections.attempts.length, 1, 'tried again of its own');
         assert.deepEqual(
-            mail.told.map((each) => each.notice.kind),
-            ['collection-failed', 'collection-announced'],
-            'the subscriber heard of the new debit before the failure',
+            toldOf(mail, 'collection-failed').map((each) => [each.next, each.readOnlyFrom]),
+            [[{ action: 'pay-now' }, '2026-02-15']],
         );
-        assert.deepEqual(
-            toldOf(mail, 'collection-failed').map((each) => each.next),
-            [{ action: 'announced-again' }],
+        assert.equal(gateway.collections.length, 1);
+    });
+});
+
+// @requirement SC-PRIC-028 — A direct debit is announced before it is collected
+describe('a direct debit announced again, its invoice having reached the subscriber too late', () => {
+    /** 09:00 in Berlin on the day the invoice announced. */
+    const COLLECTED = new Date('2026-02-15T08:00:00.000Z');
+    clockFrom(COLLECTED);
+
+    /** Handed to the mail on 10 February, less than the lead time before the 15th it announced. */
+    const LATE = { mailedAt: new Date('2026-02-10T08:00:00.000Z') };
+
+    test('is announced under its mandate for the lead time after, and debited on that day, not the minute before', async () => {
+        quietLog();
+        const { collect, gateway, mail, invoice, subscriber, method } = await anInvoiceToCollect(
+            'sepa_debit',
+            LATE,
         );
+
+        const run = await collect(COLLECTED);
+
+        assert.deepEqual([run.planned, run.announced, run.told], [1, 1, 0]);
         assert.deepEqual(toldOf(mail, 'collection-announced'), [
             {
                 kind: 'collection-announced',
@@ -197,7 +296,7 @@ describe('a direct debit that failed for a reason that can pass', () => {
                 invoiceNumber: invoice.number,
                 amount: invoice.totalGross,
                 currency: 'EUR',
-                // Fourteen days after the 15th, later than seven after the failure.
+                // Fourteen days after the day it is announced.
                 collectOn: '2026-03-01',
                 mandateReference: method.mandateReference,
                 last4: '3000',
@@ -205,25 +304,22 @@ describe('a direct debit that failed for a reason that can pass', () => {
         ]);
 
         await collect(clockAt(justBefore('2026-03-01')));
-        assert.equal(gateway.collections.length, 1, 'debited before the day it announced');
+        assert.equal(gateway.collections.length, 0, 'debited before the day it announced');
 
         await collect(clockAt(berlinMidnight('2026-03-01')));
 
         assert.deepEqual(
             gateway.collections.map((each) => [each.attemptKey, each.type]),
-            [
-                [`saasicat:collect:${invoice.id}:1`, 'sepa_debit'],
-                [`saasicat:collect:${invoice.id}:2`, 'sepa_debit'],
-            ],
+            [[`saasicat:collect:${invoice.id}:1`, 'sepa_debit']],
         );
     });
 
     test('whose announcement the mail refused is announced the next day, for the lead time after that day', async () => {
         quietLog();
-        const { collect, gateway, collections, mail } = await anInvoiceToCollect('sepa_debit', {
+        const { collect, collections, mail } = await anInvoiceToCollect('sepa_debit', {
+            ...LATE,
             mail: aMailbox({ tellFailures: 1, tellFailing: 'collection-announced' }),
         });
-        gateway.answers.push(FUNDS_SHORT);
         await collect(COLLECTED);
         assert.deepEqual(toldOf(mail, 'collection-announced'), []);
 
@@ -233,16 +329,15 @@ describe('a direct debit that failed for a reason that can pass', () => {
             toldOf(mail, 'collection-announced').map((each) => each.collectOn),
             ['2026-03-02'],
         );
-        assert.equal(collections.attempts[1].collectOn, '2026-03-02');
+        assert.equal(collections.attempts[0].collectOn, '2026-03-02');
     });
 
     test('that was announced without the announcement being recorded keeps the day it was told, and is not announced twice', async () => {
         quietLog();
-        const { collect, gateway, collections, mail } = await anInvoiceToCollect('sepa_debit');
-        gateway.answers.push(FUNDS_SHORT);
+        const { collect, collections, mail } = await anInvoiceToCollect('sepa_debit', LATE);
         collections.failNextAnnounce = new Error('database unreachable');
         await collect(COLLECTED);
-        assert.equal(collections.attempts[1].announcedAt, null);
+        assert.equal(collections.attempts[0].announcedAt, null);
 
         await collect(clockAt(new Date('2026-02-16T08:00:00.000Z')));
 
@@ -250,8 +345,8 @@ describe('a direct debit that failed for a reason that can pass', () => {
             toldOf(mail, 'collection-announced').map((each) => each.collectOn),
             ['2026-03-01'],
         );
-        assert.equal(collections.attempts[1].collectOn, '2026-03-01');
-        assert.deepEqual(collections.attempts[1].announcedAt, COLLECTED);
+        assert.equal(collections.attempts[0].collectOn, '2026-03-01');
+        assert.deepEqual(collections.attempts[0].announcedAt, COLLECTED);
     });
 });
 
@@ -351,6 +446,43 @@ describe('a payment method that replaced the one an invoice named, or the one th
             toldOf(mail, 'collection-failed').map((each) => each.next),
             [{ action: 'charged-again', on: '2026-02-01' }],
         );
+    });
+
+    test('past the due date, one entered before the refusal was learned collects nothing of its own, and one entered after it was told does', async () => {
+        quietLog();
+        const { collect, gateway, collections, mail, paymentMethods, subscriber } =
+            await anInvoiceToCollect('sepa_debit');
+        gateway.answers.push({ status: 'pending', paymentRef: 'pi_wait' });
+        await collect(clockAt(new Date('2026-02-15T08:00:00.000Z')));
+        await paymentMethods.recordConfirmed(
+            paymentMethodOf(subscriber.id, 'card', {
+                paymentMethodRef: 'pm_card_before',
+                confirmedAt: new Date('2026-02-16T08:00:00.000Z'),
+            }),
+        );
+        gateway.held.set(collections.attempts[0].attemptKey, FUNDS_SHORT);
+        await collect(clockAt(new Date('2026-02-18T08:00:00.000Z')));
+        await collect(clockAt(new Date('2026-02-19T08:00:00.000Z')));
+
+        assert.equal(collections.attempts.length, 1, 'collected of its own past the due date');
+        assert.deepEqual(
+            toldOf(mail, 'collection-failed').map((each) => each.next),
+            [{ action: 'pay-now' }],
+        );
+
+        const { method: entered } = await paymentMethods.recordConfirmed(
+            paymentMethodOf(subscriber.id, 'card', {
+                paymentMethodRef: 'pm_card_after',
+                confirmedAt: new Date('2026-02-20T08:00:00.000Z'),
+            }),
+        );
+        await collect(clockAt(new Date('2026-02-20T08:15:00.000Z')));
+
+        assert.deepEqual(attemptsOf(collections).at(-1), [
+            2,
+            'SUCCEEDED',
+            entered.paymentMethodRef,
+        ]);
     });
 
     test('while a second charge is planned, the plan is withdrawn and the replacement charged instead', async () => {
@@ -607,15 +739,22 @@ describe('a failure the subscriber has not heard of yet', () => {
     const COLLECTED = new Date('2026-02-15T08:00:00.000Z');
     clockFrom(COLLECTED);
 
-    test('holds back the direct debit announced after it until it is told, and the audit log says why', async () => {
-        quietLog();
-        const { collect, gateway, mail, collections, audits, invoice } = await anInvoiceToCollect(
-            'sepa_debit',
-            { mail: aMailbox({ tellFailures: 1, tellFailing: 'collection-failed' }) },
-        );
-        gateway.answers.push(FUNDS_SHORT);
+    /** The subscriber pays now, `minutes` after `from`, with the direct debit in use. */
+    const payNowAfter = (installation, from, minutes) =>
+        installation.collection.payNow('t1', clockAt(after(from, { minutes })));
 
+    test('holds back the direct debit the subscriber starts after it until it is told, and the audit log says why', async () => {
+        quietLog();
+        const installation = await anInvoiceToCollect('sepa_debit', {
+            mail: aMailbox({ tellFailures: 1, tellFailing: 'collection-failed' }),
+        });
+        const { collect, gateway, mail, collections, audits, invoice } = installation;
+        gateway.answers.push(FUNDS_SHORT);
         await collect(COLLECTED);
+
+        const started = await payNowAfter(installation, COLLECTED, 5);
+
+        assert.equal(started.waiting, 1);
         assert.deepEqual(mail.told, [], 'the debit was announced before the failure was told');
         assert.equal(collections.attempts[1].announcedAt, null);
         assert.deepEqual(entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING'), [
@@ -637,36 +776,26 @@ describe('a failure the subscriber has not heard of yet', () => {
 
     test('a debit held behind each of two failures is audited for each', async () => {
         quietLog();
-        // The first failure's notice is refused once, the second's twice.
-        const refusals = new Map([
-            ['announced-again', 1],
-            ['replace-payment-method', 2],
-        ]);
+        // The first notice of each failure is refused, the second goes out.
+        let failureNotices = 0;
         const mail = aMailbox({
             tellRefuses: (notice) => {
                 if (notice.kind !== 'collection-failed') return false;
-                const left = refusals.get(notice.next.action) ?? 0;
-                refusals.set(notice.next.action, left - 1);
-                return left > 0;
+                failureNotices += 1;
+                return failureNotices === 1 || failureNotices === 3;
             },
         });
-        const { collect, gateway, collections, audits, paymentMethods, subscriber } =
-            await anInvoiceToCollect('sepa_debit', { mail });
+        const installation = await anInvoiceToCollect('sepa_debit', { mail });
+        const { collect, gateway, collections, audits } = installation;
         gateway.answers.push(FUNDS_SHORT, FUNDS_SHORT);
-        const firstOfMarch = berlinMidnight('2026-03-01');
+        const firstOfMarch = new Date(berlinMidnight('2026-03-01').getTime() + 9 * 3_600_000);
         await collect(COLLECTED);
+        await payNowAfter(installation, COLLECTED, 5);
         await collect(clockAt(after(COLLECTED, { minutes: 15 })));
         await collect(clockAt(firstOfMarch));
-        await collect(clockAt(after(firstOfMarch, { minutes: 15 })));
-        await paymentMethods.recordConfirmed(
-            paymentMethodOf(subscriber.id, 'sepa_debit', {
-                paymentMethodRef: 'pm_debit_new',
-                mandateReference: 'MANDAT-NEW',
-                confirmedAt: new Date('2026-03-01T00:20:00.000Z'),
-            }),
-        );
+        assert.equal(collections.attempts[1].status, 'FAILED', 'the premise: failed again');
 
-        await collect(clockAt(after(firstOfMarch, { minutes: 30 })));
+        await payNowAfter(installation, firstOfMarch, 5);
 
         assert.deepEqual(
             entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING').map(
@@ -678,37 +807,39 @@ describe('a failure the subscriber has not heard of yet', () => {
 
     test('never announces a debit after a failure nobody was told of, even one marked followed up', async () => {
         quietLog();
-        const { collect, gateway, mail, collections, notices } = await anInvoiceToCollect(
-            'sepa_debit',
-            { mail: aMailbox({ tellFailures: 1, tellFailing: 'collection-failed' }) },
-        );
+        const installation = await anInvoiceToCollect('sepa_debit', {
+            mail: aMailbox({ tellFailures: 1, tellFailing: 'collection-failed' }),
+        });
+        const { collect, gateway, mail, collections, notices } = installation;
         gateway.answers.push(FUNDS_SHORT);
         await collect(COLLECTED);
         assert.ok(collections.attempts[0].followedUpAt, 'the failure was not followed up');
         // What a run reads where its snapshot of the notices predates the record.
         notices.rows.clear();
 
+        await payNowAfter(installation, COLLECTED, 5);
         await collect(clockAt(after(COLLECTED, { minutes: 15 })));
 
         assert.deepEqual(toldOf(mail, 'collection-announced'), []);
         assert.equal(collections.attempts[1].announcedAt, null);
     });
 
-    test('holds back a direct debit planned by a run that stopped before it recorded the failure', async () => {
+    test('holds back the direct debit the subscriber starts while the run that learned the failure stopped before recording it', async () => {
         quietLog();
-        const { collect, gateway, mail, collections, notices } =
-            await anInvoiceToCollect('sepa_debit');
+        const installation = await anInvoiceToCollect('sepa_debit');
+        const { collect, gateway, mail, collections, notices } = installation;
         gateway.answers.push(FUNDS_SHORT);
         const record = notices.record;
         notices.record = async () => {
             notices.record = record;
             throw new Error('database unreachable');
         };
-
         await collect(COLLECTED);
+
+        await payNowAfter(installation, COLLECTED, 5);
         assert.deepEqual(
-            [collections.attempts[1].status, mail.told],
-            ['SCHEDULED', []],
+            [collections.attempts[1].status, collections.attempts[1].announcedAt, mail.told],
+            ['SCHEDULED', null, []],
             'the debit was announced before its failure was even recorded',
         );
 

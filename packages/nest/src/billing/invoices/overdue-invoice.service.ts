@@ -87,6 +87,11 @@ export class OverdueInvoiceService {
         private readonly holds: TenantAccessHoldPort | null = null,
     ) {}
 
+    /** Whether an invoice unpaid on its due date holds its tenant back here at all. */
+    holdsTenantsBack(): boolean {
+        return this.holds !== null;
+    }
+
     /**
      * Records a reason for every invoice that holds its tenant back on `at` —
      * open on or after its due date, and not merely waiting for its first

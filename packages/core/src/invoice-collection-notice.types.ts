@@ -1,7 +1,7 @@
 // What a subscriber is told about collecting an invoice: that a collection
 // failed and what follows, the day a direct debit is collected when it is
 // announced again, and that a payment was reversed and its invoice is open
-// again (`SC-PRIC-028`, `SC-PRIC-080`, `SC-PRIC-085`).
+// again (`SC-PRIC-028`, `SC-PRIC-101`, `SC-PRIC-102`).
 //
 // Unlike a notice about a subscription's plan, which goes to the tenant's
 // administrators, these go to the subscriber's invoice email — where the
@@ -17,6 +17,12 @@ export type CollectionFailureNext =
     | { readonly action: 'charged-again'; readonly on: CalendarDay }
     /** A direct debit is announced again, with its own day, in a notice of its own. */
     | { readonly action: 'announced-again' }
+    /**
+     * Nothing is tried again; the payment method in use can pay it, and the
+     * subscriber starts that in the billing area (`SC-PRIC-100`) — or enters
+     * another one.
+     */
+    | { readonly action: 'pay-now' }
     /** Nothing is tried again until the subscriber replaces the payment method. */
     | { readonly action: 'replace-payment-method' };
 
@@ -38,6 +44,15 @@ export interface CollectionFailedNotice extends CollectionNoticeInvoice {
     readonly paymentMethodType: PaymentMethodType;
     readonly reason: CollectionFailureReason;
     readonly next: CollectionFailureNext;
+    /**
+     * The day the tenant is read-only from until the invoice is paid
+     * (`SC-PRIC-098`), where nothing that follows collects it by its due
+     * date: that day, or the day the failure was learned where it is later.
+     * `null` where what follows collects it by then, and where the
+     * installation holds no tenant back. A notice recorded before this field
+     * existed reads as `null`.
+     */
+    readonly readOnlyFrom: CalendarDay | null;
 }
 
 /**
@@ -58,6 +73,12 @@ export interface CollectionAnnouncedNotice extends CollectionNoticeInvoice {
 export type CollectionReversedNext =
     /** It is collected with the payment method now in use, which replaced the reversed one. */
     | { readonly action: 'collected-with-payment-method-in-use' }
+    /**
+     * Nothing is collected of its own; the payment method now in use, which
+     * replaced the reversed one, can pay it, and the subscriber starts that in
+     * the billing area (`SC-PRIC-100`).
+     */
+    | { readonly action: 'pay-now' }
     /** Nothing is collected until the subscriber replaces the payment method. */
     | { readonly action: 'replace-payment-method' };
 
@@ -73,6 +94,8 @@ export interface CollectionReversedNotice extends CollectionNoticeInvoice {
     /** What the invoice owes again, of `currency`. */
     readonly owed: number;
     readonly next: CollectionReversedNext;
+    /** As on a failure's notice: from when the tenant is read-only until it is paid. */
+    readonly readOnlyFrom: CalendarDay | null;
 }
 
 /** A notice about collecting an invoice. */

@@ -1,11 +1,12 @@
-// What follows a failed collection, and the day a planned one is collected
-// from (`SC-PRIC-028`, `SC-PRIC-080`).
+// What follows a failed collection, the day a planned one is collected from,
+// and which of them the platform starts of its own (`SC-PRIC-028`,
+// `SC-PRIC-101`).
 //
 // Pure, so the rules are read in one place: the run decides with them, and
 // their boundaries are tested without a run.
 
 import type { InvoiceCollectionRecord } from './invoice-collection.types.js';
-import { isRetryableCollectionFailure } from './payment-gateway.types.js';
+import { isRetryableCollectionFailure, type PaymentMethodType } from './payment-gateway.types.js';
 import { addDaysToDay, type CalendarDay } from './zoned-day.js';
 
 /** How many days after a failure the same payment method is charged once more. */
@@ -46,4 +47,37 @@ export function announcedCollectionDay(
 ): CalendarDay {
     const afterLead = addDaysToDay(announcedOn, leadDays);
     return afterLead > earliest ? afterLead : earliest;
+}
+
+/**
+ * The day a collection planned from `collectOn` on `today` reaches the
+ * account: a card's on that day, a direct debit's the lead time after the
+ * announcement it is given today, not before.
+ */
+export function plannedCollectionReaches(
+    type: PaymentMethodType,
+    collectOn: CalendarDay,
+    today: CalendarDay,
+    leadDays: number,
+): CalendarDay {
+    return type === 'sepa_debit' ? announcedCollectionDay(collectOn, today, leadDays) : collectOn;
+}
+
+/**
+ * Whether the platform starts, of its own, a collection that reaches the
+ * account on `reaches`: only on or before the invoice's due date
+ * (`SC-PRIC-101`). After it, nothing is collected but what the subscriber
+ * starts — paying now, or entering a payment method.
+ */
+export function isStartedByThePlatform(reaches: CalendarDay, dueDate: CalendarDay): boolean {
+    return reaches <= dueDate;
+}
+
+/**
+ * The day a tenant is read-only from for an invoice nothing collects by its
+ * due date, until it is paid: its due date, or `today` where that is later —
+ * a refusal or a reversal learned after it (`SC-PRIC-098`).
+ */
+export function readOnlyFromFor(dueDate: CalendarDay, today: CalendarDay): CalendarDay {
+    return today > dueDate ? today : dueDate;
 }

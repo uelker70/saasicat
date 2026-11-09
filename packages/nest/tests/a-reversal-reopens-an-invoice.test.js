@@ -31,6 +31,7 @@ import {
     succeeded,
 } from './helpers/money-events.js';
 import { MAIN_ACCOUNT, lostAfter, signedCallback } from './helpers/payments.js';
+import { FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
 
 const LATER = after(FIRST_RUN, { days: 30 });
 
@@ -38,8 +39,8 @@ const LATER = after(FIRST_RUN, { days: 30 });
  * An invoice paid at the first run, by a payment that brought `beyond` more
  * than it owed, and a way to deliver what the gateway reports.
  */
-async function aPaidInvoice({ beyond = 0, method = 'card', mail } = {}) {
-    const installation = await anInvoiceToCollect(method, { mail });
+async function aPaidInvoice({ beyond = 0, method = 'card', mail, holds } = {}) {
+    const installation = await anInvoiceToCollect(method, { mail, holds });
     const { invoice, gateway } = installation;
     const brought = (toCents(invoice.totalGross) + toCents(beyond)) / 100;
     gateway.answers.push(succeeded(invoice, 'pi_1', brought));
@@ -181,7 +182,7 @@ describe('a reversal the gateway reports', () => {
     });
 });
 
-// @requirement SC-PRIC-085 — A reversal is told, and the payment method it reversed collects nothing again
+// @requirement SC-PRIC-102 — A reversal is told, with read-only, and its payment method collects nothing again
 describe('after a reversal opened an invoice again', () => {
     clockFrom(FIRST_RUN);
 
@@ -205,9 +206,35 @@ describe('after a reversal opened an invoice again', () => {
         assert.equal(gateway.collections.length, 1, 'collected again with the reversed card');
     });
 
-    test('with another payment method in use, the subscriber is told so and the invoice is collected with it', async () => {
+    test('with another payment method in use, before the due date, the subscriber is told so and the invoice is collected with it', async () => {
         quietLog();
         const installation = await aPaidInvoice();
+        const { deliver, reversal, mail, gateway, invoice, subscriber, paymentMethods, payments } =
+            installation;
+        await paymentMethods.recordConfirmed(
+            paymentMethodOf(subscriber.id, 'card', { paymentMethodRef: 'pm_card_new' }),
+        );
+        await deliver(reversal('evt_d1', invoice.totalGross));
+
+        for (const minutes of [15, 30, 45]) {
+            await runAt(installation, after(FIRST_RUN, { days: 2, minutes }));
+        }
+
+        const [told] = mail.told.filter((each) => each.notice.kind === 'collection-reversed');
+        assert.deepEqual(
+            [told.notice.next, told.notice.readOnlyFrom],
+            [{ action: 'collected-with-payment-method-in-use' }, null],
+        );
+        assert.deepEqual(
+            gateway.collections.map((each) => each.paymentMethodRef),
+            [`pm_card_${subscriber.id}`, 'pm_card_new'],
+        );
+        assert.equal(await payments.owedBy(invoice.id), 0);
+    });
+
+    test('with another payment method in use, past the due date, nothing is collected of its own: the subscriber is asked to pay it, read-only until then', async () => {
+        quietLog();
+        const installation = await aPaidInvoice({ holds: new FakeTenantAccessHoldRepository() });
         const { deliver, reversal, mail, gateway, invoice, subscriber, paymentMethods, payments } =
             installation;
         await paymentMethods.recordConfirmed(
@@ -220,15 +247,23 @@ describe('after a reversal opened an invoice again', () => {
         }
 
         const [told] = mail.told.filter((each) => each.notice.kind === 'collection-reversed');
-        assert.deepEqual(told.notice.next, { action: 'collected-with-payment-method-in-use' });
         assert.deepEqual(
-            gateway.collections.map((each) => each.paymentMethodRef),
-            [`pm_card_${subscriber.id}`, 'pm_card_new'],
+            [told.notice.next, told.notice.readOnlyFrom],
+            [{ action: 'pay-now' }, '2026-03-03'],
         );
+        assert.equal(gateway.collections.length, 1, 'collected of its own past the due date');
+
+        const started = await installation.collection.payNow(
+            't1',
+            clockAt(after(LATER, { minutes: 60 })),
+        );
+
+        assert.equal(started.collected, 1);
+        assert.equal(gateway.collections.at(-1).paymentMethodRef, 'pm_card_new');
         assert.equal(await payments.owedBy(invoice.id), 0);
     });
 
-    test('a direct debit that replaces the payment method waits until the subscriber heard of the reversal', async () => {
+    test('a direct debit the subscriber starts with another payment method waits until they heard of the reversal', async () => {
         quietLog();
         const mail = aMailbox({ tellFailures: 10, tellFailing: 'collection-reversed' });
         const installation = await aPaidInvoice({ mail });
@@ -236,8 +271,10 @@ describe('after a reversal opened an invoice again', () => {
             installation;
         await paymentMethods.recordConfirmed(paymentMethodOf(subscriber.id, 'sepa_debit'));
         await deliver(reversal('evt_d1', invoice.totalGross));
+        await runAt(installation, after(LATER, { minutes: 15 }));
 
-        for (const minutes of [15, 30, 45]) {
+        await installation.collection.payNow('t1', clockAt(after(LATER, { minutes: 20 })));
+        for (const minutes of [30, 45]) {
             await runAt(installation, after(LATER, { minutes }));
         }
 
@@ -323,7 +360,7 @@ async function aFortnightOfRuns(installation, from) {
 
 const toldOf = (mail, kind) => mail.told.filter((each) => each.notice.kind === kind);
 
-// @requirement SC-PRIC-085 — A reversal is told, and the payment method it reversed collects nothing again
+// @requirement SC-PRIC-102 — A reversal is told, with read-only, and its payment method collects nothing again
 describe('a payment that arrived late beside another attempt, reversed', () => {
     clockFrom(FIRST_RUN);
 
@@ -344,7 +381,10 @@ describe('a payment that arrived late beside another attempt, reversed', () => {
         assert.equal(gateway.collections.length, 2, 'collected again with the reversed card');
 
         await installation.paymentMethods.recordConfirmed(
-            paymentMethodOf(subscriber.id, 'card', { paymentMethodRef: 'pm_card_new' }),
+            paymentMethodOf(subscriber.id, 'card', {
+                paymentMethodRef: 'pm_card_new',
+                confirmedAt: after(RETRY_DAY, { days: 19 }),
+            }),
         );
         await runAt(installation, after(RETRY_DAY, { days: 20 }));
         assert.deepEqual(
@@ -492,7 +532,10 @@ describe('two payments of one invoice, both no longer there', () => {
             assert.equal(gateway.collections.length, 2, 'collected again with the card');
 
             await installation.paymentMethods.recordConfirmed(
-                paymentMethodOf(subscriber.id, 'card', { paymentMethodRef: 'pm_card_new' }),
+                paymentMethodOf(subscriber.id, 'card', {
+                    paymentMethodRef: 'pm_card_new',
+                    confirmedAt: after(RETRY_DAY, { days: 19 }),
+                }),
             );
             await runAt(installation, after(RETRY_DAY, { days: 20 }));
             assert.equal(gateway.collections.at(-1)?.paymentMethodRef, 'pm_card_new');
@@ -623,13 +666,17 @@ describe('two payments of one invoice, both no longer there', () => {
         );
         await aFortnightOfRuns(installation, after(FIRST_RUN, { days: day + 2 }));
         await paymentMethods.recordConfirmed(
-            paymentMethodOf(subscriber.id, 'sepa_debit', { paymentMethodRef: 'pm_sepa_second' }),
+            paymentMethodOf(subscriber.id, 'sepa_debit', {
+                paymentMethodRef: 'pm_sepa_second',
+                confirmedAt: after(FIRST_RUN, { days: day + 16 }),
+            }),
         );
         await aFortnightOfRuns(installation, after(FIRST_RUN, { days: day + 17 }));
         await aFortnightOfRuns(installation, after(FIRST_RUN, { days: day + 32 }));
 
         const [told] = toldOf(mail, 'collection-reversed');
-        assert.deepEqual(told?.notice.next, { action: 'replace-payment-method' });
+        // The direct debit in use failed for funds short, which can pass.
+        assert.deepEqual(told?.notice.next, { action: 'pay-now' });
         assert.equal(toldOf(mail, 'collection-announced').length, 2);
         assert.equal(gateway.collections.at(-1)?.paymentMethodRef, 'pm_sepa_second');
     });
@@ -644,7 +691,9 @@ describe('two payments of one invoice, both no longer there', () => {
         assert.equal(toldOf(mail, 'collection-reversed').length, 1, 'the premise: told');
 
         await installation.paymentMethods.recordConfirmed(
-            paymentMethodOf(subscriber.id, 'sepa_debit'),
+            paymentMethodOf(subscriber.id, 'sepa_debit', {
+                confirmedAt: after(RETRY_DAY, { days: 15 }),
+            }),
         );
         await aFortnightOfRuns(installation, after(RETRY_DAY, { days: 16 }));
         await aFortnightOfRuns(installation, after(RETRY_DAY, { days: 31 }));
@@ -672,6 +721,7 @@ describe('a reversal the gateway gives back', () => {
         for (const minutes of [15, 30, 45]) {
             await runAt(installation, after(LATER, { minutes }));
         }
+        await installation.collection.payNow('t1', clockAt(after(LATER, { minutes: 60 })));
         assert.equal(await payments.owedBy(invoice.id), 0, 'the premise: paid again');
 
         await deliver(reversal('evt_d2', invoice.totalGross, invoice.totalGross));

@@ -1297,7 +1297,7 @@ installation's zone, which is what paying now by direct debit waits for.
 collected at once with the payment method in use — a card charged now, a direct debit announced and
 collected the lead time after. An invoice whose collection is on its way is left to it, a direct
 debit already announced with the payment method in use keeps the day the subscriber was told, and a
-payment method a payment was taken back on collects nothing again (`SC-PRIC-085`). The answer,
+payment method a payment was taken back on collects nothing again (`SC-PRIC-102`). The answer,
 `TenantPaymentStarted`, counts what was set going, so a page can say what follows. A payment method
 the subscriber confirms in the gateway's form collects what is open too, but as each invoice says:
 from the day it named, or at once where that day has passed (`SC-PRIC-099`).
@@ -1564,21 +1564,27 @@ stamps every hold.
   again while the subscriber has not been told of the failure before it
   (`SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD`).
 - **A failure** is recorded with its reason and the gateway's code, and the audit log records
-  `SUBSCRIPTION_INVOICE_COLLECTION_FAILED` once (`SC-PRIC-080`). The subscriber is told, at their
-  invoice email, with what follows. Where the reason can pass — funds short, a refusal without a
-  cause — the same payment method is charged once more: a card seven days after the failure, a
-  direct debit on the day its new announcement names, seven days after at the earliest. A second
-  failure, and one for any other reason, is not tried again: the subscriber is asked to replace the
-  payment method, and the replacement collects the invoice.
+  `SUBSCRIPTION_INVOICE_COLLECTION_FAILED` once (`SC-PRIC-101`). The subscriber is told, at their
+  invoice email, with what follows. The platform tries again of its own only where that reaches the
+  account by the invoice's due date: where the reason can pass — funds short, a refusal without a
+  cause — the same card seven days after the failure, and a payment method the subscriber entered
+  before the failure was learned, at once. A refused direct debit, learned after the day it was
+  collected, is not announced again. Otherwise the subscriber starts it — paying now, or entering a
+  payment method, which collects at once (`SC-PRIC-099`) —, and the notice says which helps and,
+  where unpaid invoices hold tenants back, from which day the tenant is read-only until it is paid.
 
 **What the subscriber is told** goes through `InvoiceMailPort.tell({ notice, to })`, beside
 `deliver`: a `CollectionFailedNotice` — the invoice, the amount, the reason, and what follows, as
-`next.action` `charged-again` with the day, `announced-again`, or `replace-payment-method` —, a
-`CollectionAnnouncedNotice` with the amount, `collectOn`, the mandate reference and the account's
-last four digits, or a `CollectionReversedNotice` — the invoice open again after a reversal, what it
-owes, and `next.action` `collected-with-payment-method-in-use` or `replace-payment-method`. Word
-them as you word the invoice; each is sent once, and one the port rejects is tried again by the next
-run.
+`next.action` `charged-again` with the day, `announced-again`, `pay-now` or
+`replace-payment-method` —, a `CollectionAnnouncedNotice` with the amount, `collectOn`, the mandate
+reference and the account's last four digits, or a `CollectionReversedNotice` — the invoice open
+again after a reversal, what it owes, and `next.action` `collected-with-payment-method-in-use`,
+`pay-now` or `replace-payment-method`. `pay-now` means the payment method in use can still pay it,
+which the subscriber starts in the billing area; `replace-payment-method`, that it cannot. A failure
+and a reversal notice carry `readOnlyFrom`, the day the tenant is read-only from until the invoice is
+paid, or `null` where what follows collects it by its due date. Word them as you word the invoice —
+say the read-only day plainly; each is sent once, and one the port rejects is tried again by the
+next run.
 
 ### What a collection brings, and what the subscriber is owed
 
@@ -1618,8 +1624,9 @@ you name another. The start refuses collections without it.
   two reversals of one invoice's payments end alike in either order (`SC-PRIC-090`). The
   attempt that collected it is then `REVERSED`, also one that failed before its payment arrived
   late: once no other attempt of the invoice is on its way the next run tells the subscriber, and
-  the invoice is collected again only with a payment method none of its payments was reversed on
-  (`SC-PRIC-085`); an attempt of it that succeeded is marked `REVERSED` as well, since it would
+  the invoice is collected again only with a payment method none of its payments was reversed on —
+  of its own only by the due date, and otherwise once the subscriber pays now or enters one
+  (`SC-PRIC-102`); an attempt of it that succeeded is marked `REVERSED` as well, since it would
   keep every other attempt from being made, and its payment method then collects that invoice no
   more either, even where its own payment was not reversed (`SC-PRIC-090`). A dispute
   won takes the reversal back part for part, and what the invoice no longer owes — the subscriber

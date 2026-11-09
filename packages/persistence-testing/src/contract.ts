@@ -8690,7 +8690,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-PRIC-034
-        // @requirement SC-PRIC-080
+        // @requirement SC-PRIC-101
         test('the first attempt is started once, and never beside another; after a failure the next is planned, numbered 2', async (t) => {
             const account = await collectable(t, 'tenant-collect-one-open');
             if (!account) return;
@@ -8974,7 +8974,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        // @requirement SC-PRIC-080
+        // @requirement SC-PRIC-101
         // @requirement SC-PRIC-099
         test('an attempt is planned for its day with nothing sent, keeps the invoice from another, and is taken up as sent by one run', async (t) => {
             const account = await collectable(t, 'tenant-collect-plan');
@@ -9033,7 +9033,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.ok(!(await collections.listPlanned({ limit: 50 })).includes(id));
         });
 
-        // @requirement SC-PRIC-080
+        // @requirement SC-PRIC-101
         test('attempts planned at the same time for one invoice: one is, and the others are told', async (t) => {
             const account = await collectable(t, 'tenant-collect-plan-race');
             if (!account) return;
@@ -9084,7 +9084,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        // @requirement SC-PRIC-080
+        // @requirement SC-PRIC-101
         test('a plan that follows an attempt another has come after since is refused', async (t) => {
             const account = await collectable(t, 'tenant-collect-plan-stale');
             if (!account) return;
@@ -9160,7 +9160,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(sent, null, 'a first attempt was started beside a planned one');
         });
 
-        // @requirement SC-PRIC-080
+        // @requirement SC-PRIC-101
         test('the failed attempts whose follow-up is not recorded are listed, page by page, and no others', async (t) => {
             const account = await collectable(t, 'tenant-collect-to-follow-up', [{}, {}, {}]);
             if (!account) return;
@@ -9218,7 +9218,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(first.length, 1);
         });
 
-        // @requirement SC-PRIC-080
+        // @requirement SC-PRIC-101
         test('what follows a failure is recorded once, and only for a failure', async (t) => {
             const account = await collectable(t, 'tenant-collect-follow-up', [{}, {}]);
             if (!account) return;
@@ -11047,7 +11047,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ]);
         });
 
-        // @requirement SC-PRIC-085
+        // @requirement SC-PRIC-102
         test('a reversed attempt frees its invoice for another payment method once it is followed up', async (t) => {
             const account = await paidOnce(t, 'tenant-reversal-again');
             if (!account) return;
@@ -11078,7 +11078,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(planned?.attempt, 2);
         });
 
-        // @requirement SC-PRIC-085
+        // @requirement SC-PRIC-102
         test('an attempt that failed before its payment arrived is marked reversed and followed up again, one on its way is not', async (t) => {
             const account = await payable(t, 'tenant-reversal-not-succeeded');
             if (!account) return;
@@ -11100,7 +11100,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(await collections.markReversed(first!.id, REVERSED_AT), false, 'twice');
         });
 
-        // @requirement SC-PRIC-085
+        // @requirement SC-PRIC-102
         test('an invoice is collected again with no payment method one of its payments was reversed on, once every reversal was followed up', async (t) => {
             const account = await payable(t, 'tenant-reversal-late');
             if (!account) return;
@@ -12275,7 +12275,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-PRIC-036
-        // @requirement SC-PRIC-085
+        // @requirement SC-PRIC-102
         test('nothing of a chain is collected again with a payment method one of its payments was reversed on', async (t) => {
             const account = await paidOnce(t, 'tenant-cancel-reversed-method');
             if (!account) return;

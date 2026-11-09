@@ -1,6 +1,6 @@
 // The run that collects the invoices that announced how they are paid, and
 // decides what follows when a collection fails or its payment is reversed
-// (`SC-PRIC-080`, `SC-PRIC-099`, `SC-PRIC-085`).
+// (`SC-PRIC-101`, `SC-PRIC-099`, `SC-PRIC-102`).
 //
 // It first takes on the attempts that are not settled: one whose answer was
 // lost is asked about at the gateway, and sent again as the same request under
@@ -15,13 +15,17 @@
 //
 // It then follows each failure up, once: where the reason can pass the same
 // payment method is planned once more, where another payment method replaced
-// it that one is planned, and the subscriber's notice is recorded from what
-// was planned. A reversal that opened an invoice again is followed up as well,
-// once no other attempt of the invoice is on its way: the subscriber's notice
-// is recorded, and nothing of the invoice is planned again with a payment
-// method one of its payments was reversed on. An invoice whose last attempt
-// failed or was reversed and was followed up, or was withdrawn, is planned
-// again once its subscriber uses another payment method.
+// it that one is planned — each only where it reaches the account by the
+// invoice's due date, after which the platform starts nothing of its own —,
+// and the subscriber's notice is recorded from what was planned, with the day
+// the tenant is read-only from where nothing was. A reversal that opened an
+// invoice again is followed up as well, once no other attempt of the invoice
+// is on its way: the subscriber's notice is recorded, and nothing of the
+// invoice is planned again with a payment method one of its payments was
+// reversed on. An invoice whose last attempt failed or was reversed and was
+// followed up is planned again with another payment method the subscriber
+// entered since, or with one in use that reaches the account by the due date;
+// one whose last plan was withdrawn for a replacement, with that.
 //
 // It tells the subscriber of every failure and reversal not yet told, and last takes up
 // what is planned. A planned attempt whose payment method is no longer in use
@@ -59,6 +63,10 @@ import {
     dayInZone,
     directDebitLeadDaysOf,
     isChargedAgain,
+    isRetryableCollectionFailure,
+    isStartedByThePlatform,
+    plannedCollectionReaches,
+    readOnlyFromFor,
     sentCollectionOf,
     standingInvoiceOf,
     toCents,
@@ -122,6 +130,7 @@ import {
     INVOICE_COLLECTION_REPOSITORY_TOKEN,
 } from './invoice-collection.tokens.js';
 import { InvoicePaymentService } from './invoice-payment.service.js';
+import { OverdueInvoiceService } from './overdue-invoice.service.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.tokens.js';
 
 /** The name the run writes its audit entries under: `job:platform:subscription-invoices`. */
@@ -279,6 +288,11 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         @Optional()
         @Inject(SubscriberPaymentMethodService)
         private readonly paymentMethodChanges: SubscriberPaymentMethodService | null = null,
+        // Whether an invoice unpaid on its due date holds its tenant back,
+        // which a notice says from when; without it no notice says so.
+        @Optional()
+        @Inject(OverdueInvoiceService)
+        private readonly overdue: OverdueInvoiceService | null = null,
     ) {
         this.sender = notices
             ? new NoticeSender<InvoiceCollectionNotice>(notices, {
@@ -356,7 +370,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
      * mails it; one whose collection is on its way, or whose direct debit is
      * announced with the payment method in use, which keeps the day the
      * subscriber was told; and one a payment was taken back on with this
-     * payment method, which is not collected with it again (`SC-PRIC-085`).
+     * payment method, which is not collected with it again (`SC-PRIC-102`).
      * Any other collection planned for a later day gives way.
      */
     private async collectOpenNow(
@@ -580,7 +594,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     ): Promise<void> {
         const attempt = await this.collections.findById(id);
         if (attempt?.status === 'REVERSED') {
-            await this.followUpReversal(attempt);
+            await this.followUpReversal(attempt, today);
             return;
         }
         await this.followUpFailure(id, today, run);
@@ -588,29 +602,38 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
 
     /**
      * Decides what follows a reversal that opened the attempt's invoice again,
-     * once: records what the subscriber is told — the invoice open again, and
-     * that it is collected with the payment method now in use where another
-     * replaced the reversed one, or otherwise asked for a replacement — and
-     * marks the attempt. Nothing is planned here: the invoice is planned again,
-     * with another payment method only, once it is followed up. Where the
-     * invoice owes nothing by now — the gateway gave the reversal back, or the
-     * subscriber paid —, nobody is told.
+     * once: records what the subscriber is told — the invoice open again; that
+     * it is collected with the payment method now in use where another
+     * replaced the reversed one and that reaches the account by the due date,
+     * that the subscriber pays it with that one now where it does not, or
+     * otherwise that the payment method has to be replaced; and from when the
+     * tenant is read-only until it is paid — and marks the attempt. Nothing is
+     * planned here: the invoice is planned again, with another payment method
+     * only, once it is followed up. Where the invoice owes nothing by now —
+     * the gateway gave the reversal back, or the subscriber paid —, nobody is
+     * told.
      *
      * The invoice open again is the one that stands in the chain of the
      * attempt's: the replacement, where the invoice it collected was cancelled
      * since and the reversal opened the replacement by the payment's share
-     * (`SC-PRIC-085`).
+     * (`SC-PRIC-102`).
      */
-    private async followUpReversal(reversed: InvoiceCollectionRecord): Promise<void> {
+    private async followUpReversal(
+        reversed: InvoiceCollectionRecord,
+        today: CalendarDay,
+    ): Promise<void> {
         if (reversed.followedUpAt !== null) return;
         // From the hold to the mark in the chain's turn: what every invoice of
         // it is collected with decides whether, and how, the subscriber is
         // told, and nothing changes that before the notice is recorded.
-        await this.recording().transactions.run((tx) => this.followUpReversalIn(reversed, tx));
+        await this.recording().transactions.run((tx) =>
+            this.followUpReversalIn(reversed, today, tx),
+        );
     }
 
     private async followUpReversalIn(
         reversed: InvoiceCollectionRecord,
+        today: CalendarDay,
         tx: TransactionContext,
     ): Promise<void> {
         const chain = await this.invoices.holdChain(reversed.invoiceId, tx);
@@ -646,19 +669,25 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         if (ofChain.some((each) => UNSETTLED_COLLECTION_STATUSES.includes(each.status))) return;
         const invoice = standing;
         const method = await this.paymentMethods!.findActive(invoice.subscriberId, tx);
+        const usable = method !== null && canPayWith(method, ofChain);
+        // What `planAgain` will do: collect with the payment method in use
+        // where neither the last attempt nor a reversal was made with it, and
+        // only where that reaches the account by the due date.
+        const collectedOfItsOwn =
+            usable &&
+            method.id !== ofChain.at(-1)?.paymentMethodId &&
+            this.reachesByTheDueDate(method, invoice, today);
         const notice: CollectionReversedNotice = {
             kind: 'collection-reversed',
             ...aboutInvoice(invoice),
             paymentMethodType: reversed.paymentMethodType,
             owed,
-            // What `planAgain` will do: collect with the payment method in use
-            // where neither the last attempt nor a reversal was made with it.
-            next:
-                method &&
-                method.id !== ofChain.at(-1)?.paymentMethodId &&
-                !reversedOn(ofChain).has(method.id)
-                    ? { action: 'collected-with-payment-method-in-use' }
-                    : { action: 'replace-payment-method' },
+            next: collectedOfItsOwn
+                ? { action: 'collected-with-payment-method-in-use' }
+                : usable
+                  ? { action: 'pay-now' }
+                  : { action: 'replace-payment-method' },
+            readOnlyFrom: collectedOfItsOwn ? null : this.readOnlyFrom(invoice, today),
         };
         await this.notices!.record(
             [
@@ -715,7 +744,11 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             ...aboutInvoice(invoice),
             paymentMethodType: failed.paymentMethodType,
             reason: failureOf(failed).reason,
-            next: toldNext(next),
+            next: toldNext(next, await this.canPayNow(invoice)),
+            readOnlyFrom:
+                next !== null && this.collects(next, invoice, today)
+                    ? null
+                    : this.readOnlyFrom(invoice, today),
         };
         await this.notices!.record(
             [
@@ -761,7 +794,8 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         }
         if (standing || after.length > 0) return method ? undefined : null;
         const decided =
-            method && this.nextAfter(failed, attempts, method, failureOf(failed).failedAt, today);
+            method &&
+            this.nextAfter(failed, attempts, method, failureOf(failed).failedAt, today, invoice);
         if (!method || !decided) return null;
         const planned = await this.planWith(
             invoice,
@@ -777,9 +811,11 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
 
     /**
      * Plans an invoice with the payment method that replaced the one its last
-     * attempt was made with: after a failure that was followed up, or after a
-     * plan was withdrawn. The payment method in use is read again, since it
-     * may have changed since the invoice was listed.
+     * attempt was made with: after a plan was withdrawn for it, and after a
+     * failure or a reversal that was followed up — where the subscriber
+     * entered it since, which starts the payment again, or where it reaches
+     * the account by the due date (`SC-PRIC-101`). The payment method in use
+     * is read again, since it may have changed since the invoice was listed.
      */
     private async planAgain(
         invoiceId: string,
@@ -801,16 +837,91 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         if (!method || method.id === last.paymentMethodId || reversedOn(attempts).has(method.id)) {
             return;
         }
+        if (!enteredAfter(method, last) && !this.reachesByTheDueDate(method, invoice, today)) {
+            return;
+        }
         await this.planWith(invoice, last.attempt, method, today, 'payment-method-replaced', run);
+    }
+
+    /** Whether `method`, planned from today, reaches the account on or before the invoice's due date. */
+    private reachesByTheDueDate(
+        method: SubscriberPaymentMethodRecord,
+        invoice: SubscriptionInvoiceRecord,
+        today: CalendarDay,
+    ): boolean {
+        return isStartedByThePlatform(
+            plannedCollectionReaches(method.type, today, today, this.leadDays()),
+            invoice.dueDate,
+        );
+    }
+
+    /** Whether the attempt `next` reaches the account on or before the invoice's due date. */
+    private collects(
+        next: InvoiceCollectionRecord,
+        invoice: SubscriptionInvoiceRecord,
+        today: CalendarDay,
+    ): boolean {
+        const collectOn = next.collectOn ?? today;
+        const reaches =
+            next.announcedAt === null
+                ? plannedCollectionReaches(
+                      next.paymentMethodType,
+                      collectOn,
+                      today,
+                      this.leadDays(),
+                  )
+                : collectOn;
+        return isStartedByThePlatform(reaches, invoice.dueDate);
+    }
+
+    /** Whether the subscriber can pay `invoice` now with the payment method in use (`SC-PRIC-100`). */
+    private async canPayNow(invoice: SubscriptionInvoiceRecord): Promise<boolean> {
+        const method = await this.paymentMethods!.findActive(invoice.subscriberId);
+        return (
+            method !== null && canPayWith(method, await this.collections.listByInvoice(invoice.id))
+        );
+    }
+
+    /**
+     * The day `invoice` holds its tenant back from until it is paid, as a
+     * notice says it; `null` where unpaid invoices hold no tenant back.
+     */
+    private readOnlyFrom(
+        invoice: SubscriptionInvoiceRecord,
+        today: CalendarDay,
+    ): CalendarDay | null {
+        return this.overdue?.holdsTenantsBack() ? readOnlyFromFor(invoice.dueDate, today) : null;
     }
 
     /**
      * The attempt that follows a failure where the subscriber has `method` in
      * use: one with it where it replaced the payment method that failed, the
-     * same one once more seven days after where the reason can pass, and
-     * otherwise none until the payment method is replaced.
+     * same one once more seven days after where the reason can pass — each
+     * only where it reaches the account by the invoice's due date
+     * (`SC-PRIC-101`) — and otherwise none: the subscriber starts the payment
+     * again.
      */
     private nextAfter(
+        failed: InvoiceCollectionRecord,
+        attempts: readonly InvoiceCollectionRecord[],
+        method: SubscriberPaymentMethodRecord,
+        failedAt: Date,
+        today: CalendarDay,
+        invoice: SubscriptionInvoiceRecord,
+    ): { collectOn: CalendarDay; because: PlannedBecause } | null {
+        const decided = this.attemptDecidedAfter(failed, attempts, method, failedAt, today);
+        if (!decided) return null;
+        const reaches = plannedCollectionReaches(
+            method.type,
+            decided.collectOn,
+            today,
+            this.leadDays(),
+        );
+        return isStartedByThePlatform(reaches, invoice.dueDate) ? decided : null;
+    }
+
+    /** The attempt a failure asks for, before the due date has its say. */
+    private attemptDecidedAfter(
         failed: InvoiceCollectionRecord,
         attempts: readonly InvoiceCollectionRecord[],
         method: SubscriberPaymentMethodRecord,
@@ -1292,7 +1403,7 @@ function unsettledBefore(at: Date): { submittedBefore: Date; pendingBefore: Date
 
 /**
  * The payment methods a payment of the invoice was reversed on: none of them
- * collects the invoice again (`SC-PRIC-085`).
+ * collects the invoice again (`SC-PRIC-102`).
  */
 function reversedOn(attempts: readonly InvoiceCollectionRecord[]): Set<string> {
     return new Set(
@@ -1408,8 +1519,13 @@ function failureOf(failed: InvoiceCollectionRecord): {
  * follows it: a card charged on the day it was planned for, a direct debit
  * announced again, or nothing until the payment method is replaced.
  */
-function toldNext(next: InvoiceCollectionRecord | null): CollectionFailureNext {
-    if (next === null) return { action: 'replace-payment-method' };
+/**
+ * What a failure's notice says follows: the attempt after it, or — where none
+ * is made — that the subscriber pays now with the payment method in use, or
+ * replaces it.
+ */
+function toldNext(next: InvoiceCollectionRecord | null, canPayNow: boolean): CollectionFailureNext {
+    if (next === null) return { action: canPayNow ? 'pay-now' : 'replace-payment-method' };
     if (next.paymentMethodType === 'card') {
         return { action: 'charged-again', on: plannedDayOf(next) };
     }
@@ -1457,6 +1573,38 @@ function notBeforeItsDay(invoice: SubscriptionInvoiceRecord, today: CalendarDay)
     return invoice.collectionDate !== null && invoice.collectionDate > today
         ? invoice.collectionDate
         : today;
+}
+
+/**
+ * Whether `method` can still pay an invoice of `attempts`, as a notice tells
+ * the subscriber to try: no payment of it was taken back on it, and none of
+ * its attempts with it failed for a reason that cannot pass.
+ */
+function canPayWith(
+    method: SubscriberPaymentMethodRecord,
+    attempts: readonly InvoiceCollectionRecord[],
+): boolean {
+    if (reversedOn(attempts).has(method.id)) return false;
+    return !attempts.some(
+        (each) =>
+            each.status === 'FAILED' &&
+            each.paymentMethodId === method.id &&
+            each.failureReason !== null &&
+            !isRetryableCollectionFailure(each.failureReason),
+    );
+}
+
+/**
+ * Whether the subscriber entered `method` after what followed `last` was
+ * decided — starting the payment again (`SC-PRIC-099`) — or `last` is a plan
+ * withdrawn for it.
+ */
+function enteredAfter(
+    method: SubscriberPaymentMethodRecord,
+    last: InvoiceCollectionRecord,
+): boolean {
+    if (last.status === 'WITHDRAWN') return true;
+    return last.followedUpAt !== null && method.confirmedAt > last.followedUpAt;
 }
 
 /** A run that has done nothing yet. */
