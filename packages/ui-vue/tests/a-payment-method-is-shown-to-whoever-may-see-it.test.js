@@ -109,6 +109,30 @@ describe('loading the payment method', () => {
     });
 });
 
+// @requirement SC-PRIC-103 — Before replacing the payment method, the subscriber learns when a new one collects
+describe('the day a direct debit entered now is collected on', () => {
+    test('is carried as the server says it', async () => {
+        const { client } = scriptedHttp([
+            200,
+            { paymentMethod: CARD, directDebitCollectedOn: '2026-11-23' },
+        ]);
+        const method = useTenantPaymentMethod({ http: client, autoLoad: false });
+
+        await method.reload();
+
+        assert.equal(method.directDebitCollectedOn.value, '2026-11-23');
+    });
+
+    test('is none where the server does not say', async () => {
+        const { client } = scriptedHttp([200, { paymentMethod: CARD }]);
+        const method = useTenantPaymentMethod({ http: client, autoLoad: false });
+
+        await method.reload();
+
+        assert.equal(method.directDebitCollectedOn.value, null);
+    });
+});
+
 describe('changing the payment method', () => {
     test('asks for the gateway form with both URLs, and answers where to go', async () => {
         const { client, calls } = scriptedHttp([

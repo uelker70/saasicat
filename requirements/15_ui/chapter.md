@@ -1859,6 +1859,9 @@ _Tested by:_
         - any other failure keeps the card and says it failed
         - an answer in another shape is an error, not a subscriber without a payment method
         - the prefix the billing routes sit under is used as given
+    - the day a direct debit entered now is collected on
+        - is carried as the server says it
+        - is none where the server does not say
     - changing the payment method
         - asks for the gateway form with both URLs, and answers where to go
         - a refusal reaches the caller with its code
@@ -1900,6 +1903,11 @@ _Tested by:_
         - a subscriber without a payment method is offered to add one
         - a direct debit names its account and the mandate it is collected under
         - in German too, and a card whose network the provider did not name
+    - before it is replaced
+        - says a new card is charged at once and a new direct debit no earlier than the day the
+          server names, as the application writes days
+        - writes the day as it came where the application gives no date formatter
+        - says nothing of it where the server names no day
     - changing it
         - opens the provider's form and sends the person there, back to this page
         - a form that could not be opened is said on the card, and nobody is sent anywhere

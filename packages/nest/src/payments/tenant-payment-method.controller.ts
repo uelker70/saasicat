@@ -9,10 +9,17 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
-import type { PaymentMethodType, SubscriberPaymentMethodRecord } from '@saasicat/core';
+import {
+    directDebitCollectedOnAt,
+    type CalendarDay,
+    type PaymentMethodType,
+    type PlanCatalogSettings,
+    type SubscriberPaymentMethodRecord,
+} from '@saasicat/core';
 
 import { BillingPermissionGuard } from '../billing/billing-permission.guard.js';
 import { ComposedTenantAuthGuard } from '../billing/composed-tenant-auth.guard.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import {
     TENANT_ID_RESOLVER_TOKEN,
     USER_EMAIL_RESOLVER_TOKEN,
@@ -36,6 +43,17 @@ export interface TenantPaymentMethodView {
     confirmedAt: string;
 }
 
+/** What `GET /billing/payment-method` answers. */
+export interface TenantPaymentMethodAnswer {
+    paymentMethod: TenantPaymentMethodView | null;
+    /**
+     * The day a direct debit entered now is collected on at the earliest, the
+     * lead time after its announcement, said before the subscriber replaces
+     * the payment method (`SC-PRIC-103`).
+     */
+    directDebitCollectedOn: CalendarDay;
+}
+
 /**
  * `GET /billing/payment-method` and `POST /billing/payment-method/setup` — the
  * tenant's view of what its subscriber pays with, behind the billing
@@ -52,16 +70,24 @@ export class TenantPaymentMethodController {
         @Optional()
         @Inject(USER_EMAIL_RESOLVER_TOKEN)
         private readonly userEmailResolver: UserEmailResolver | null = null,
+        // The installation's zone and direct debit lead time; their defaults without it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: Pick<
+            PlanCatalogSettings,
+            'timeZone' | 'invoicing'
+        > | null = null,
     ) {}
 
     @Get()
-    async current(
-        @Req() request: unknown,
-    ): Promise<{ paymentMethod: TenantPaymentMethodView | null }> {
+    async current(@Req() request: unknown): Promise<TenantPaymentMethodAnswer> {
         const method = await this.paymentMethods.current(
             tenantIdOf(this.tenantIdResolver, request),
         );
-        return { paymentMethod: method ? viewOf(method) : null };
+        return {
+            paymentMethod: method ? viewOf(method) : null,
+            directDebitCollectedOn: directDebitCollectedOnAt(new Date(), this.settings),
+        };
     }
 
     @Post('setup')

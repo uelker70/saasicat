@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 102     |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 103     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 685 entries: 🟢 595 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+Of 686 entries: 🟢 596 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
 🔵 52 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -228,7 +228,7 @@ Of 685 entries: 🟢 595 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 685 requirements. Do not edit by hand:
+Generated from `requirements/` — 686 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9877,6 +9877,9 @@ _Tested by:_
         - is the day planned for a direct debit where the lead time ends before it
     - the day an invoice nothing collects by its due date makes its tenant read-only from
         - is ${from} where it is learned on ${today}, the due date being 2026-02-15
+    - the day a direct debit entered or paid now is collected on
+        - is the lead time the installation names after its own today
+        - is fourteen days after today, in UTC, where the installation names neither
 - `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
     - how an invoice is paid
         - a direct debit is collected the lead time after the issue date, the day it falls due,
@@ -10137,6 +10140,11 @@ _Tested by:_
         - a subscriber without a payment method is offered to add one
         - a direct debit names its account and the mandate it is collected under
         - in German too, and a card whose network the provider did not name
+    - before it is replaced
+        - says a new card is charged at once and a new direct debit no earlier than the day the
+          server names, as the application writes days
+        - writes the day as it came where the application gives no date formatter
+        - says nothing of it where the server names no day
     - changing it
         - opens the provider's form and sends the person there, back to this page
         - a form that could not be opened is said on the card, and nobody is sent anywhere
@@ -11045,6 +11053,9 @@ _Tested by:_
         - is the day planned for a direct debit where the lead time ends before it
     - the day an invoice nothing collects by its due date makes its tenant read-only from
         - is ${from} where it is learned on ${today}, the due date being 2026-02-15
+    - the day a direct debit entered or paid now is collected on
+        - is the lead time the installation names after its own today
+        - is fourteen days after today, in UTC, where the installation names neither
 - `packages/nest/tests/a-failed-collection-is-tried-again.test.js`
     - a card that failed for a reason that can pass
         - is told to the subscriber once, at their invoice email, with the day it is charged again
@@ -11177,6 +11188,43 @@ _Tested by:_
           entered before: the subscriber is asked to pay it
         - a reversal is followed up in its chain’s turn: read, told and marked on the transaction
           that holds the chain
+
+<!-- END proof -->
+
+### SC-PRIC-103 — Before replacing the payment method, the subscriber learns when a new one collects
+
+🟢 💰 Where a user of the tenant holding the billing permission (`SC-UI-023`) replaces the payment
+method, they are told beforehand that a new card is charged at once for what is due, and that a new
+direct debit is collected no earlier than the day the lead time this installation sets puts after
+today (`SC-PRIC-028`) — that day named — so that whoever has to pay before an invoice's due date
+can choose the card (`SC-PRIC-098`, `SC-PRIC-099`). A direct debit entered after an invoice was
+issued is collected then even where that falls after its due date, and the tenant is read-only from
+the due date until it is paid; the notice before replacing is what says so in advance.
+
+_Source:_ #337 (decided 2026-11-09)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-failed-collection-is-planned-once-more.test.js`
+    - the day a direct debit entered or paid now is collected on
+        - is the lead time the installation names after its own today
+        - is fourteen days after today, in UTC, where the installation names neither
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - the tenant sees the payment method in use
+        - beside it, the day a direct debit entered now is collected on: the lead time after the
+          installation’s today
+- `packages/ui-vue/tests/a-payment-method-is-shown-to-whoever-may-see-it.test.js`
+    - the day a direct debit entered now is collected on
+        - is carried as the server says it
+        - is none where the server does not say
+- `packages/ui-vue-tenant/tests/component/a-payment-method-is-changed-in-the-providers-form.test.ts`
+    - before it is replaced
+        - says a new card is charged at once and a new direct debit no earlier than the day the
+          server names, as the application writes days
+        - writes the day as it came where the application gives no date formatter
+        - says nothing of it where the server names no day
 
 <!-- END proof -->
 
@@ -20347,6 +20395,9 @@ _Tested by:_
         - any other failure keeps the card and says it failed
         - an answer in another shape is an error, not a subscriber without a payment method
         - the prefix the billing routes sit under is used as given
+    - the day a direct debit entered now is collected on
+        - is carried as the server says it
+        - is none where the server does not say
     - changing the payment method
         - asks for the gateway form with both URLs, and answers where to go
         - a refusal reaches the caller with its code
@@ -20388,6 +20439,11 @@ _Tested by:_
         - a subscriber without a payment method is offered to add one
         - a direct debit names its account and the mandate it is collected under
         - in German too, and a card whose network the provider did not name
+    - before it is replaced
+        - says a new card is charged at once and a new direct debit no earlier than the day the
+          server names, as the application writes days
+        - writes the day as it came where the application gives no date formatter
+        - says nothing of it where the server names no day
     - changing it
         - opens the provider's form and sends the person there, back to this page
         - a form that could not be opened is said on the card, and nobody is sent anywhere

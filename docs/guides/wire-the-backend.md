@@ -813,7 +813,10 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
 - **`GET /billing/payment-method`** and **`POST /billing/payment-method/setup`** — the tenant's
   payment method, with `tenantBilling` enabled. Both sit behind `tenantBilling.authGuards` and the
   billing permission, reading included; a user without the permission is refused with
-  `BILLING_PERMISSION_REQUIRED`. The setup takes `successUrl` and `cancelUrl` and answers the form's
+  `BILLING_PERMISSION_REQUIRED`. The read answers `paymentMethod` and `directDebitCollectedOn`, the
+  day a direct debit entered now is collected on at the earliest, which `TenantPaymentMethodCard`
+  says before the button: a new card is charged at once for what is due, a new direct debit not
+  before that day (`SC-PRIC-103`). The setup takes `successUrl` and `cancelUrl` and answers the form's
   `redirectUrl`; nothing changes until the gateway confirms, and the confirmed payment method
   replaces the one in use, which stays as history. Opening the form records the setup, and a
   confirmation is recorded only for the account, session and subscriber of an open setup — a

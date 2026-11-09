@@ -15,9 +15,8 @@ import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import {
     INVOICE_ERROR_CODES,
     TENANT_INVOICE_PAGE_SIZE,
-    announcedCollectionDay,
     dayInZone,
-    directDebitLeadDaysOf,
+    directDebitCollectedOnAt,
     installationZoneOf,
     invoiceStandingsOf,
     tenantAccountOf,
@@ -114,12 +113,7 @@ export class TenantInvoiceService implements OpenInvoiceSource {
      * subscriber —, and the day a direct debit announced now is collected on.
      */
     async accountOf(tenantId: string, now: Date = new Date()): Promise<TenantAccount> {
-        const today = dayInZone(now, installationZoneOf(this.settings));
-        const directDebitCollectedOn = announcedCollectionDay(
-            today,
-            today,
-            directDebitLeadDaysOf(this.settings?.invoicing ?? {}),
-        );
+        const directDebitCollectedOn = directDebitCollectedOnAt(now, this.settings);
         const subscriber = await this.subscribers.findByTenantId(tenantId);
         if (!subscriber) return { balances: [], directDebitCollectedOn };
         const invoices = await this.read(() => this.invoices.listBySubscriber(subscriber.id));

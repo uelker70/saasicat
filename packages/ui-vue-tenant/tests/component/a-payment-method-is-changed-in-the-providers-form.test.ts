@@ -122,6 +122,42 @@ describe('what the card says', () => {
     });
 });
 
+// @requirement SC-PRIC-103 — Before replacing the payment method, the subscriber learns when a new one collects
+describe('before it is replaced', () => {
+    test('says a new card is charged at once and a new direct debit no earlier than the day the server names, as the application writes days', async () => {
+        const { http } = httpAnswering([
+            200,
+            { paymentMethod: CARD, directDebitCollectedOn: '2026-11-23' },
+        ]);
+        // The day the instant falls on in the viewer's zone, written so the test can tell it was used.
+        const wrapper = await mountCard(http, {
+            formatDate: (iso: string) => `[${new Date(iso).toLocaleDateString('en-CA')}]`,
+        });
+
+        const wait = wrapper.find('.sp-payment-method__wait').text();
+        expect(wait).toBe(i18n.paymentMethodReplaceWait.replace('{date}', '[2026-11-23]'));
+    });
+
+    test('writes the day as it came where the application gives no date formatter', async () => {
+        const { http } = httpAnswering([
+            200,
+            { paymentMethod: null, directDebitCollectedOn: '2026-11-23' },
+        ]);
+        const wrapper = await mountCard(http);
+
+        expect(wrapper.find('.sp-payment-method__wait').text()).toBe(
+            i18n.paymentMethodReplaceWait.replace('{date}', '2026-11-23'),
+        );
+    });
+
+    test('says nothing of it where the server names no day', async () => {
+        const { http } = httpAnswering([200, { paymentMethod: CARD }]);
+        const wrapper = await mountCard(http);
+
+        expect(wrapper.find('.sp-payment-method__wait').exists()).toBe(false);
+    });
+});
+
 describe('changing it', () => {
     test("opens the provider's form and sends the person there, back to this page", async () => {
         const { http, calls } = httpAnswering(
