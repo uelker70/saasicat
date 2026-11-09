@@ -1654,8 +1654,8 @@ makes the tenant read-only in that run.
   tenant is let go when the payment is there. A refusal of an invoice that had come due and still
   owed when it was cancelled holds the tenant back until the invoice that replaced it is paid,
   whatever day that one states: a correction is not a payment. A refusal a later payment made good
-  before the correction counts no more, and a payment taken back after it counts against the
-  replacement.
+  before a correction counts no more, however many corrections follow, and a payment taken back
+  after it counts against the replacement until the gateway gives it back.
 - **Recorded by the run**, as its last step, after the collection: one `overdue` reason per invoice,
   referencing it, recorded by `job:platform:overdue-invoices`, so a tenant with two unpaid invoices
   stays read-only until both are paid. An application with a scheduler of its own calls

@@ -571,6 +571,64 @@ describe('a refusal a payment made good', () => {
     });
 });
 
+describe('a chain of corrections', () => {
+    clockFrom(FIRST_RUN);
+
+    test('forgets a refusal behind an invoice that was paid before it was replaced', async () => {
+        quietLog();
+        const installation = await unpaidInvoices();
+        const { cancellation, invoices, paying, access, collections } = installation;
+        const subscriberId = paying[0].subscriber.id;
+        await installation.overdue.holdBackDue(clockAt(DUE_DAY));
+        assert.equal(await stateOf(access, 't1'), 'read-only', 'the premise: A held back');
+
+        const firstCorrection = berlinMidnight('2026-02-20');
+        const { replacement: second } = await cancellation.cancel(
+            invoices[0].id,
+            { reason: 'The billing address was wrong.' },
+            'operator:anna',
+            firstCorrection,
+        );
+        installation.mailed(second.id, firstCorrection);
+        await replaceCard(installation, subscriberId, firstCorrection);
+        await installation.collect(clockAt(later(firstCorrection, 30)));
+        const paidSecond = collections.attempts.find((each) => each.invoiceId === second.id);
+        assert.equal(paidSecond?.status, 'SUCCEEDED', 'the premise: B paid in full');
+        assert.equal(await stateOf(access, 't1'), 'open', 'the premise: let go once paid');
+
+        const secondCorrection = berlinMidnight('2026-03-01');
+        const { replacement: third } = await cancellation.cancel(
+            second.id,
+            { reason: 'The company name was wrong.' },
+            'operator:anna',
+            secondCorrection,
+        );
+        const takenBackAt = berlinMidnight('2026-03-03');
+        clockAt(takenBackAt);
+        await installation.callbacks.handle(
+            MAIN_ACCOUNT,
+            signedCallback(
+                reversalReported('evt_cb_b', paidSecond.attemptKey, {
+                    reversalRef: 'du_b',
+                    paymentRef: paidSecond.paymentRef,
+                    withdrawnCents: toCents(second.totalGross),
+                    reinstatedCents: 0,
+                }),
+            ),
+        );
+        assert.ok((await installation.payments.owedBy(third.id)) > 0, 'the premise: C owes again');
+
+        await installation.overdue.holdBackDue(clockAt(later(takenBackAt, 15)));
+        assert.equal(
+            await stateOf(access, 't1'),
+            'open',
+            'A’s refusal was made good when B was paid, and C is not due yet',
+        );
+        await installation.overdue.holdBackDue(clockAt(berlinMidnight(third.dueDate)));
+        assert.equal(await stateOf(access, 't1'), 'read-only');
+    });
+});
+
 describe('a payment taken back', () => {
     clockFrom(FIRST_RUN);
 

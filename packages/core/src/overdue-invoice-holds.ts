@@ -28,6 +28,7 @@
 import { UNSETTLED_COLLECTION_STATUSES } from './invoice-collection-mapping.js';
 import type { InvoiceCollectionStatus } from './invoice-collection.types.js';
 import type { InvoiceSettlementRecord } from './invoice-export.types.js';
+import { toCents } from './money.js';
 import { REOPENING_SETTLEMENT_KINDS } from './subscriber-payment-mapping.js';
 import { owedOn } from './subscriber-payment-rules.js';
 import type { TenantAccessHold } from './tenant-access.types.js';
@@ -104,6 +105,24 @@ export function owedWhenReplaced(
                     : settlement.amount,
             ),
     );
+}
+
+/**
+ * Whether a payment the settlements of an invoice settled was taken back and
+ * not given back in full: a reversal recorded against it beyond what was
+ * reinstated of that same reversal. A chargeback the gateway gave back once
+ * the dispute was won is money that came back.
+ */
+export function paymentTakenBack(
+    settlements: readonly Pick<InvoiceSettlementRecord, 'kind' | 'amount' | 'reversal'>[],
+): boolean {
+    const standing = new Map<string, number>();
+    for (const { kind, amount, reversal } of settlements) {
+        if (!reversal || (kind !== 'REVERSAL' && kind !== 'REINSTATEMENT')) continue;
+        const cents = kind === 'REVERSAL' ? toCents(amount) : -toCents(amount);
+        standing.set(reversal.id, (standing.get(reversal.id) ?? 0) + cents);
+    }
+    return [...standing.values()].some((cents) => cents > 0);
 }
 
 /** The reasons to record and to lift so that the open ones are `overdue`, and only those. */

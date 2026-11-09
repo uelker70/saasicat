@@ -22,6 +22,7 @@ import {
     installationZoneOf,
     overdueHoldChanges,
     owedWhenReplaced,
+    paymentTakenBack,
     unpaidInvoiceHoldsBack,
     type InvoiceCollectionRepository,
     type CollectionAttemptStanding,
@@ -191,10 +192,11 @@ export class OverdueInvoiceService {
 
     /**
      * Of the open invoices `invoiceIds`, those that hold their tenant back on
-     * `today`, each decided on its own attempts and on those of every invoice
-     * it replaced that still owed something then. A payment of a replaced
-     * invoice taken back after the cancellation opens the replacement again,
-     * and counts against it as a payment of its own taken back.
+     * `today`, each decided on its own attempts and on those of the invoices it
+     * replaced, back to the first that was paid when it was replaced. A
+     * payment of a replaced invoice taken back after the cancellation opens
+     * the replacement again, and counts against it as a payment of its own
+     * taken back, until it is given back.
      */
     private async unpaidOf(
         invoiceIds: readonly string[],
@@ -211,41 +213,38 @@ export class OverdueInvoiceService {
         const settlementsOf = (invoiceId: string) =>
             settlements.filter((settlement) => settlement.invoiceId === invoiceId);
         const attempts = await this.collections.listByInvoices(chained);
-        /** The attempts of `invoiceId`, as the rule reads them for the open invoice `openId`. */
-        const standingsOf = (invoiceId: string, openId: string): CollectionAttemptStanding[] => {
-            const invoice = records.get(invoiceId);
-            if (!invoice) return [];
-            let dueOn: CalendarDay | null = invoice.dueDate;
-            if (invoiceId !== openId) {
-                const replaced = replacedIn.get(invoiceId);
-                // A replaced invoice paid by the time it was replaced: its
-                // refusals were made good, and nothing of it counts.
-                if (
-                    !replaced ||
-                    owedWhenReplaced(invoice.totalGross, settlementsOf(invoiceId), replaced) <= 0
-                ) {
-                    return [];
-                }
-                dueOn = invoice.dueDate <= dayInZone(replaced.cancelledAt, zone) ? dueOn : null;
-            }
-            const own = attempts
+        const standingsOf = (invoiceId: string, dueOn: CalendarDay | null) =>
+            attempts
                 .filter((attempt) => attempt.invoiceId === invoiceId)
-                .map((attempt) => ({
+                .map((attempt): CollectionAttemptStanding => ({
                     status: attempt.status,
                     sentOn: attempt.submittedAt ? dayInZone(attempt.submittedAt, zone) : null,
                     dueOn,
                 }));
-            const takenBack =
-                invoiceId === openId &&
-                settlementsOf(invoiceId).some((settlement) => settlement.kind === 'REVERSAL');
-            return takenBack ? [...own, { status: 'REVERSED', sentOn: null, dueOn }] : own;
+        /** An invoice of a chain that still owed when it was replaced, with when that was. */
+        const owingWhenReplaced = (invoiceId: string) => {
+            const invoice = records.get(invoiceId);
+            const replaced = replacedIn.get(invoiceId);
+            if (!invoice || !replaced) return null;
+            const owed = owedWhenReplaced(invoice.totalGross, settlementsOf(invoiceId), replaced);
+            return owed > 0 ? { invoice, replaced } : null;
         };
         return invoiceIds.flatMap((invoiceId) => {
             const invoice = records.get(invoiceId);
             if (!invoice) return [];
-            const standings = (chainOf.get(invoiceId) ?? [invoiceId]).flatMap((id) =>
-                standingsOf(id, invoiceId),
-            );
+            const standings = standingsOf(invoiceId, invoice.dueDate);
+            if (paymentTakenBack(settlementsOf(invoiceId))) {
+                standings.push({ status: 'REVERSED', sentOn: null, dueOn: invoice.dueDate });
+            }
+            // Back through the invoices it replaced, as far as the first that
+            // was paid when it was replaced: a refusal before that was made good.
+            for (const earlier of (chainOf.get(invoiceId) ?? [invoiceId]).slice(1)) {
+                const owing = owingWhenReplaced(earlier);
+                if (!owing) break;
+                const cameDue =
+                    owing.invoice.dueDate <= dayInZone(owing.replaced.cancelledAt, zone);
+                standings.push(...standingsOf(earlier, cameDue ? owing.invoice.dueDate : null));
+            }
             return unpaidInvoiceHoldsBack(invoice.dueDate, standings, today) ? [invoice] : [];
         });
     }
@@ -316,20 +315,27 @@ export class OverdueInvoiceService {
 
     /**
      * The open reasons `invoiceId` holds a tenant back for, on the tenant its
-     * subscriber is live for — the one the run holds back. Read for that tenant
-     * alone, so a payment costs the same however many tenants are held back; a
-     * reason left on a tenant the subscriber has left is the next run's to lift.
+     * subscriber is live for — the one the run holds back —, and those of the
+     * invoices it replaced, which a run may not have moved onto it yet: paying
+     * it pays what they were held back for. Read for that tenant alone, so a
+     * payment costs the same however many tenants are held back; a reason left
+     * on a tenant the subscriber has left is the next run's to lift.
      */
     private async reasonsOf(
         holds: TenantAccessHoldPort,
         invoiceId: string,
     ): Promise<TenantAccessHold[]> {
-        const [held] = await readAcrossTenants(this.rlsBypass, async () =>
-            this.liveTenantsOf(await this.invoices.findByIds([invoiceId])),
-        );
+        const { held, chain } = await readAcrossTenants(this.rlsBypass, async () => {
+            const [tenant] = await this.liveTenantsOf(await this.invoices.findByIds([invoiceId]));
+            const { chainOf } = await this.chainsOf([invoiceId]);
+            return { held: tenant, chain: chainOf.get(invoiceId) ?? [invoiceId] };
+        });
         if (!held) return [];
         return (await holds.listOpen(held.tenantId)).filter(
-            (hold) => hold.kind === 'overdue' && hold.reference === invoiceId,
+            (hold) =>
+                hold.kind === 'overdue' &&
+                hold.reference !== null &&
+                chain.includes(hold.reference),
         );
     }
 }
