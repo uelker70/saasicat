@@ -8,11 +8,13 @@
 // @requirement SC-ADM-053 — The operator sees every reason a tenant is held back for
 
 import type { AdminTenantAccessReason } from '@saasicat/core';
-import { afterEach, describe, expect, test } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { defineComponent } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import type { TenantDetailData } from '../../src/internal/tenant-detail/types.js';
+import TenantAccessReasons from '../../src/internal/tenant-detail/TenantAccessReasons.vue';
 import TenantDetailPage from '../../src/pages/TenantDetailPage.vue';
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 import { SUPER_ADMIN_MANIFEST_KEY } from '../../src/vue/super-admin-context.js';
@@ -21,6 +23,7 @@ import { provideStubResources } from './support/stub-resources.js';
 const TENANT = { id: 't-1', slug: 'wien', name: 'Wien', isActive: false, users: [] };
 
 const OVERDUE: AdminTenantAccessReason = {
+    id: 'hold-1',
     kind: 'overdue',
     since: '2026-02-15T23:00:00.000Z',
     note: null,
@@ -28,6 +31,7 @@ const OVERDUE: AdminTenantAccessReason = {
     subscriptionId: null,
 };
 const SUSPENDED: AdminTenantAccessReason = {
+    id: 'hold-2',
     kind: 'suspended',
     since: '2026-03-02T09:00:00.000Z',
     note: 'chargeback under review',
@@ -123,5 +127,47 @@ describe("the tenant detail's access section", () => {
 
         expect(wrapper.find('.sa-tenant-access__open').exists()).toBe(false);
         expect(wrapper.find('.sa-tenant-access__reasons').exists()).toBe(false);
+    });
+});
+
+describe('two reasons of one kind that began at the same moment', () => {
+    test('stay two rows when the list is read again, each by its own reason', async () => {
+        const warned = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const second = {
+            ...OVERDUE,
+            id: 'hold-3',
+            invoice: { id: 'invoice-8', number: 'AHP-2026-000008', subscriberId: 's-1' },
+        };
+        const wrapper = mount(TenantAccessReasons, {
+            props: {
+                reasons: [SUSPENDED, OVERDUE, second],
+                labels: {
+                    open: 'Not held back.',
+                    since: 'since {day}',
+                    suspended: 'Suspended',
+                    overdue: 'Unpaid on its due date',
+                    overdueUnnamed: 'An invoice unpaid on its due date',
+                    ended: 'Ended',
+                    deleting: 'Deleting',
+                    note: 'Note: {note}',
+                },
+                dayOf: (iso: string) => iso.slice(0, 10),
+                recordRoute: (subscriberId: string) => `/admin/subscribers/${subscriberId}`,
+            },
+            global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } },
+        });
+
+        // A move Vue resolves by key: the suspension from the front to the end.
+        await wrapper.setProps({ reasons: [OVERDUE, second, SUSPENDED] });
+
+        expect(wrapper.findAll('.sa-tenant-access__invoice').map((link) => link.text())).toEqual([
+            'AHP-2026-000007',
+            'AHP-2026-000008',
+        ]);
+        expect(
+            warned.mock.calls.some((call) => String(call[0]).includes('Duplicate keys')),
+            'two rows shared one key',
+        ).toBe(false);
+        warned.mockRestore();
     });
 });

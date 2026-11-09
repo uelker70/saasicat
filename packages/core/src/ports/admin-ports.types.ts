@@ -259,6 +259,8 @@ export interface AdminTenantAccessInvoice {
 
 /** One reason a tenant is held back, as the administration's detail page shows it (`SC-ADM-053`). */
 export interface AdminTenantAccessReason {
+    /** The reason's own id: two reasons of one kind can begin at the same moment. */
+    id: string;
     kind: TenantAccessHoldKind;
     /** ISO 8601: when it began to hold. */
     since: string;

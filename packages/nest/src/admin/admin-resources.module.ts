@@ -198,6 +198,7 @@ export class AdminResourcesService {
 /** A reason as the administration shows it, an invoice named where it is one of `named`. */
 function reasonOf(hold: TenantAccessHold, named: readonly NamedInvoice[]): AdminTenantAccessReason {
     return {
+        id: hold.id,
         kind: hold.kind,
         since: hold.since.toISOString(),
         note: hold.kind === 'suspended' ? hold.note : null,

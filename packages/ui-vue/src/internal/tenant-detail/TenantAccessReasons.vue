@@ -1,11 +1,7 @@
 <template>
     <p v-if="reasons.length === 0" class="sa-tenant-access__open">{{ labels.open }}</p>
     <ul v-else class="sa-tenant-access__reasons">
-        <li
-            v-for="reason in reasons"
-            :key="`${reason.kind}-${reason.since}`"
-            class="sa-tenant-access__reason"
-        >
+        <li v-for="reason in reasons" :key="reason.id" class="sa-tenant-access__reason">
             <span class="sa-tenant-access__what">
                 {{ whatOf(reason) }}
                 <router-link

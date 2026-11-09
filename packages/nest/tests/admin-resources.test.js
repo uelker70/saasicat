@@ -311,11 +311,11 @@ describe('the detail names every reason a tenant is held back for', () => {
             recordedBy: 'job:platform:overdue-invoices',
         });
         await service.suspendTenant('acme', 'chargeback under review', ACTOR);
-        return service;
+        return { service, holds };
     }
 
     test('the oldest first, a suspension with its note and an invoice by its number and subscriber', async () => {
-        const service = await heldBackTwice();
+        const { service, holds } = await heldBackTwice();
 
         const detail = await service.getTenantDetail('acme');
 
@@ -338,10 +338,17 @@ describe('the detail names every reason a tenant is held back for', () => {
             ],
         );
         assert.equal(detail.accessReasons[0].since, OVERDUE_SINCE.toISOString());
+        assert.deepEqual(
+            detail.accessReasons.map((reason) => reason.id),
+            ['overdue', 'suspended'].map(
+                (kind) => openOf(holds, ACME.id).find((hold) => hold.kind === kind).id,
+            ),
+            'each reason by the id of its own record',
+        );
     });
 
     test('an invoice where invoices cannot be read is named as none, and the reason stays', async () => {
-        const service = await heldBackTwice({ invoicesNamed: false });
+        const { service } = await heldBackTwice({ invoicesNamed: false });
 
         const detail = await service.getTenantDetail('acme');
 

@@ -1111,6 +1111,8 @@ _Tested by:_
         - an invoice the server could not name is still a reason
         - a tenant held back by nothing says so
         - is not shown where the server names no reasons
+    - two reasons of one kind that began at the same moment
+        - stay two rows when the list is read again, each by its own reason
 
 <!-- END proof -->
 
