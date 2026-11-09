@@ -1513,6 +1513,8 @@ _Tested by:_
           2026-02-15
     - the day a planned collection reaches the account
         - is the day planned for a card
+        - is today for a card whose day planned has passed, since it is charged at once
+        - is the day planned for a card planned for today
         - is the lead time after today for a direct debit announced today
         - is the day planned for a direct debit where the lead time ends before it
     - the day an invoice nothing collects by its due date makes its tenant read-only from
@@ -2679,6 +2681,8 @@ _Tested by:_
           2026-02-15
     - the day a planned collection reaches the account
         - is the day planned for a card
+        - is today for a card whose day planned has passed, since it is charged at once
+        - is the day planned for a card planned for today
         - is the lead time after today for a direct debit announced today
         - is the day planned for a direct debit where the lead time ends before it
     - the day an invoice nothing collects by its due date makes its tenant read-only from
@@ -2734,6 +2738,8 @@ _Tested by:_
         - is sent by the next run where the mail refused it
         - a run that stops before it planned what follows plans it the next time, from the day it
           failed, and tells it once
+        - a run that follows a failure up only past the due date charges nothing of its own, though
+          the second charge counted from it fell before
     - a failure the subscriber has not heard of yet
         - holds back the direct debit the subscriber starts after it until it is told, and the audit
           log says why

@@ -129,6 +129,20 @@ describe('the day a planned collection reaches the account', () => {
         );
     });
 
+    test('is today for a card whose day planned has passed, since it is charged at once', () => {
+        assert.equal(
+            plannedCollectionReaches('card', '2026-02-08', '2026-02-16', 14),
+            '2026-02-16',
+        );
+    });
+
+    test('is the day planned for a card planned for today', () => {
+        assert.equal(
+            plannedCollectionReaches('card', '2026-02-08', '2026-02-08', 14),
+            '2026-02-08',
+        );
+    });
+
     test('is the lead time after today for a direct debit announced today', () => {
         assert.equal(
             plannedCollectionReaches('sepa_debit', '2026-02-08', '2026-02-01', 14),

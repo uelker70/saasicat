@@ -732,6 +732,30 @@ describe('what the subscriber is told of a failure', () => {
             'the failure was not marked as followed up',
         );
     });
+
+    test('a run that follows a failure up only past the due date charges nothing of its own, though the second charge counted from it fell before', async () => {
+        quietLog();
+        const { collect, gateway, collections, mail } = await anInvoiceToCollect('card', {
+            holds: new FakeTenantAccessHoldRepository(),
+        });
+        gateway.answers.push(FUNDS_SHORT);
+        collections.failNextPlan = new Error('database unreachable');
+        await collect(FIRST_RUN);
+
+        // The runs stop until the 16th: the second charge would have been due on the 8th.
+        await collect(clockAt(new Date(berlinMidnight('2026-02-16').getTime() + 9 * 3_600_000)));
+
+        assert.deepEqual(
+            collections.attempts.map((each) => each.status),
+            ['FAILED'],
+            'charged of its own past the due date',
+        );
+        assert.deepEqual(
+            toldOf(mail, 'collection-failed').map((each) => [each.next, each.readOnlyFrom]),
+            [[{ action: 'pay-now' }, '2026-02-16']],
+        );
+        assert.equal(gateway.collections.length, 1);
+    });
 });
 
 describe('a failure the subscriber has not heard of yet', () => {

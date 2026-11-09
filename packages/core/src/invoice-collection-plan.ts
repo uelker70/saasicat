@@ -51,8 +51,9 @@ export function announcedCollectionDay(
 
 /**
  * The day a collection planned from `collectOn` on `today` reaches the
- * account: a card's on that day, a direct debit's the lead time after the
- * announcement it is given today, not before.
+ * account: a card's on that day, or today where that day has passed — a run
+ * takes a planned charge up the moment it is due —, a direct debit's the lead
+ * time after the announcement it is given today, not before.
  */
 export function plannedCollectionReaches(
     type: PaymentMethodType,
@@ -60,7 +61,8 @@ export function plannedCollectionReaches(
     today: CalendarDay,
     leadDays: number,
 ): CalendarDay {
-    return type === 'sepa_debit' ? announcedCollectionDay(collectOn, today, leadDays) : collectOn;
+    if (type === 'sepa_debit') return announcedCollectionDay(collectOn, today, leadDays);
+    return collectOn > today ? collectOn : today;
 }
 
 /**
