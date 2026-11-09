@@ -90,6 +90,8 @@ import { InvoiceCancellationService } from './invoices/invoice-cancellation.serv
 import { SubscriptionInvoiceService } from './invoices/subscription-invoice.service.js';
 import { InvoiceDocumentService } from './invoices/invoice-document.service.js';
 import { TenantInvoiceService } from './invoices/tenant-invoice.service.js';
+import { OpenInvoicesForTenantAccess } from './invoices/open-invoices-for-tenant-access.js';
+import { OverdueInvoiceService } from './invoices/overdue-invoice.service.js';
 import { TenantInvoicesController } from './invoices/tenant-invoices.controller.js';
 import { InvoiceExportService } from './invoices/invoice-export.service.js';
 import { InvoiceRegisterService } from './invoices/invoice-register.service.js';
@@ -736,6 +738,7 @@ export class TenantBillingModule {
                     ? [
                           InvoiceDocumentService,
                           TenantInvoiceService,
+                          OpenInvoicesForTenantAccess,
                           BillingPermissionGuard,
                           ...(options.billingPermissionGuards
                               ? [
@@ -764,6 +767,7 @@ export class TenantBillingModule {
                           SubscriberCreditService,
                           SubscriberReconciliationService,
                           OpenItemsService,
+                          OverdueInvoiceService,
                       ]
                     : []),
                 ...(invoices.includeCron === false ? [] : [SubscriptionInvoiceCron]),
@@ -945,6 +949,7 @@ export class TenantBillingModule {
                           SubscriberCreditService,
                           SubscriberReconciliationService,
                           OpenItemsService,
+                          OverdueInvoiceService,
                       ]
                     : []),
                 ...(versionNotices ? [VersionNoticeService] : []),

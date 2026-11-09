@@ -50,6 +50,7 @@ import type {
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { AdminAuditService, platformJobActor } from '../../admin/admin-audit.service.js';
 import { readAcrossTenants } from '../../admin/read-across-tenants.js';
+import { actorTagOf } from '../../core/web-audit.js';
 import {
     PaymentCallbackService,
     type CollectionReportedEvent,
@@ -64,6 +65,7 @@ import {
     INVOICE_COLLECTION_REPOSITORY_TOKEN,
     SUBSCRIBER_PAYMENT_REPOSITORY_TOKEN,
 } from './invoice-collection.tokens.js';
+import { OverdueInvoiceService } from './overdue-invoice.service.js';
 
 const JOB = 'subscription-invoices';
 const GATEWAY = 'payment-gateway';
@@ -213,6 +215,11 @@ export class InvoicePaymentService
         @Optional()
         @Inject(AdminAuditService)
         private readonly audit: AdminAuditService | null = null,
+        // Provided beside this service: a payment that settles an invoice
+        // unpaid on its due date lifts what it held back at once.
+        @Optional()
+        @Inject(OverdueInvoiceService)
+        private readonly overdue: OverdueInvoiceService | null = null,
     ) {}
 
     /** Takes the gateway's events about money; refuses to start without the payments to take them from. */
@@ -333,6 +340,16 @@ export class InvoicePaymentService
             },
         });
         if (payment.credit) await this.auditCredit(payment.credit);
+        // Where this fails, the event stays recorded, and the next run lifts
+        // what the payment settled. Lifted as the actor the payment is audited
+        // as, so the reason's record names what lifted it.
+        if (payment.settled > 0) {
+            await this.overdue?.liftSettled(
+                attempt.invoiceId,
+                new Date(),
+                actorTagOf(platformJobActor(JOB)),
+            );
+        }
     }
 
     /**

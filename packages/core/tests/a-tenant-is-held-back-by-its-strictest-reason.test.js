@@ -84,6 +84,11 @@ describe('a request writes by its method, unless its route says otherwise', () =
         assert.equal(requestWrites('POST', 'writes'), true);
         assert.equal(requestWrites('GET', 'writes-nothing'), false);
     });
+
+    test('replacing the payment method is a write, whatever the method', () => {
+        assert.equal(requestWrites('GET', 'replaces-payment-method'), true);
+        assert.equal(requestWrites('POST', 'replaces-payment-method'), true);
+    });
 });
 
 // @requirement SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write

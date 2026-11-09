@@ -83,7 +83,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 97      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 98      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 679 entries: 🟢 592 stand today, 🟡 33 decided but not yet delivered, ⚪ 0 drafts,
-🔵 47 superseded, 🔴 7 withdrawn.
+Of 680 entries: 🟢 594 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+🔵 48 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -114,14 +114,12 @@ Of 679 entries: 🟢 592 stand today, 🟡 33 decided but not yet delivered, ⚪
 [SC-PRIC-095](#sc-pric-095--an-issued-invoice-is-never-edited-its-cancellation-corrects-what-was-not-owed),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
 [SC-PRIC-030](#sc-pric-030--a-payment-method-is-entered-in-the-gateways-own-form-and-saasicat-keeps-a-reference),
-[SC-PRIC-081](#sc-pric-081--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-037](#sc-pric-037--the-tax-a-subscriber-is-charged-is-decided-by-a-tax-adapter-for-the-issuer),
 [SC-PRIC-038](#sc-pric-038--a-contract-and-an-invoice-record-the-tax-treatment-and-the-adapter-that-decided-it),
 [SC-PRIC-039](#sc-pric-039--a-subscriber-the-tax-adapter-cannot-treat-is-refused-before-a-contract-exists),
 [SC-PRIC-040](#sc-pric-040--a-tax-identifier-is-validated-before-a-tax-treatment-depends-on-it),
 [SC-PRIC-042](#sc-pric-042--an-invoice-is-issued-in-the-format-its-tax-adapter-requires),
 [SC-PRIC-043](#sc-pric-043--a-change-to-a-subscribers-tax-origin-applies-from-its-next-invoice),
-[SC-PRIC-046](#sc-pric-046--an-invoice-states-the-day-it-is-due),
 [SC-REG-021](#sc-reg-021--a-payment-confirmation-is-verified-before-anything-is-created-from-it),
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
@@ -166,6 +164,7 @@ Of 679 entries: 🟢 592 stand today, 🟡 33 decided but not yet delivered, ⚪
 [SC-PRIC-088](#sc-pric-088--reversals-of-an-invoice-end-alike-in-any-order-and-it-is-collected-again),
 [SC-PRIC-079](#sc-pric-079--an-invoice-is-collected-once-it-has-reached-the-subscriber),
 [SC-PRIC-035](#sc-pric-035--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
+[SC-PRIC-081](#sc-pric-081--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
 [SC-PRIC-047](#sc-pric-047--every-invoice-reaches-the-subscriber-by-email-with-its-file-attached),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),

@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 97      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 98      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 679 entries: 🟢 592 stand today, 🟡 33 decided but not yet delivered, ⚪ 0 drafts,
-🔵 47 superseded, 🔴 7 withdrawn.
+Of 680 entries: 🟢 594 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+🔵 48 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -146,14 +146,12 @@ Of 679 entries: 🟢 592 stand today, 🟡 33 decided but not yet delivered, ⚪
 [SC-PRIC-095](#sc-pric-095--an-issued-invoice-is-never-edited-its-cancellation-corrects-what-was-not-owed),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
 [SC-PRIC-030](#sc-pric-030--a-payment-method-is-entered-in-the-gateways-own-form-and-saasicat-keeps-a-reference),
-[SC-PRIC-081](#sc-pric-081--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-037](#sc-pric-037--the-tax-a-subscriber-is-charged-is-decided-by-a-tax-adapter-for-the-issuer),
 [SC-PRIC-038](#sc-pric-038--a-contract-and-an-invoice-record-the-tax-treatment-and-the-adapter-that-decided-it),
 [SC-PRIC-039](#sc-pric-039--a-subscriber-the-tax-adapter-cannot-treat-is-refused-before-a-contract-exists),
 [SC-PRIC-040](#sc-pric-040--a-tax-identifier-is-validated-before-a-tax-treatment-depends-on-it),
 [SC-PRIC-042](#sc-pric-042--an-invoice-is-issued-in-the-format-its-tax-adapter-requires),
 [SC-PRIC-043](#sc-pric-043--a-change-to-a-subscribers-tax-origin-applies-from-its-next-invoice),
-[SC-PRIC-046](#sc-pric-046--an-invoice-states-the-day-it-is-due),
 [SC-REG-021](#sc-reg-021--a-payment-confirmation-is-verified-before-anything-is-created-from-it),
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
@@ -198,6 +196,7 @@ Of 679 entries: 🟢 592 stand today, 🟡 33 decided but not yet delivered, ⚪
 [SC-PRIC-088](#sc-pric-088--reversals-of-an-invoice-end-alike-in-any-order-and-it-is-collected-again),
 [SC-PRIC-079](#sc-pric-079--an-invoice-is-collected-once-it-has-reached-the-subscriber),
 [SC-PRIC-035](#sc-pric-035--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
+[SC-PRIC-081](#sc-pric-081--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
 [SC-PRIC-047](#sc-pric-047--every-invoice-reaches-the-subscriber-by-email-with-its-file-attached),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
@@ -225,7 +224,7 @@ Of 679 entries: 🟢 592 stand today, 🟡 33 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 679 requirements. Do not edit by hand:
+Generated from `requirements/` — 680 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -10379,7 +10378,7 @@ weeks a bank honours a return without question comes back the same way, and char
 after a chargeback counts against the operator —, so the notice asks the subscriber to replace it;
 where another payment method is already in use, the invoice is collected with that one, as after
 a failure that asks for a replacement (`SC-PRIC-080`). A reversal that only shrinks a credit opens
-nothing and tells nobody. An invoice left open is unpaid like any other (`SC-PRIC-081`).
+nothing and tells nobody. An invoice left open is unpaid like any other (`SC-PRIC-098`).
 
 _Source:_ #333 (decided 2026-10-14)
 
@@ -11013,7 +11012,8 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIC-081 — An invoice left unpaid past its grace period makes the tenant read-only
 
-🟡 _(Decided, not yet delivered.)_ 💰 A collection that fails, the first one after sign-up included,
+🔵 _(Superseded on 2026-11-09 by `SC-PRIC-098`.)_ 💰 A collection that fails, the first one after
+sign-up included,
 and a reversal (`SC-PRIC-084`) leave the invoice open; it is collected again and the subscriber told
 as `SC-PRIC-080` says. An invoice still open when the grace period named in `config/saas.yaml` has
 passed, counted from its due date (`SC-PRIC-046`), puts the tenant into read-only (`SC-ADM-024`),
@@ -11025,7 +11025,119 @@ restricted as that reason makes it. Suspending the tenant stays the operator's d
 (`SC-REG-022`), and this is what keeps that from being service against an invoice nobody pays.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #333
+
 (decided 2026-10-14)
+
+### SC-PRIC-098 — An invoice unpaid on its due date makes the tenant read-only until it is paid
+
+🟢 💰 An invoice still open on its due date (`SC-PRIC-046`) makes the tenant its subscriber is live
+for read-only (`SC-ADM-024`) from that day, within the quarter of an hour the run takes, until it
+is paid; there is no grace period, and before its due date an invoice holds nobody back, unless an
+invoice it replaced had come due, was refused and still owed when it was replaced: a correction is
+not a payment, and the tenant stays read-only until the replacement is paid, whatever day the
+replacement states. A refusal a later payment made good before the correction counts no more, and a
+payment taken back after it counts against the replacement. The one thing that keeps an unpaid
+invoice from holding back is a collection sent by its due date and still on its way, with nothing
+failed before it, of the invoice or of one it replaced: a direct debit sent on the due date holds
+nobody back while the bank has not answered, and its refusal days later holds the tenant back once
+it is there. A card declined, a direct debit
+refused or returned, a chargeback (`SC-PRIC-084`), a collection planned for a later day and no
+payment method at all leave the tenant read-only, and so does a collection started again after a
+refusal while it waits for the bank: the tenant is let go when the payment is there, not before. A
+user holding the billing permission (`SC-UI-023`) can still replace the payment method, and the
+replacement collects the invoice. The payment that settles an invoice lifts that reason at once and
+no other: a tenant whose subscription has ended (`SC-CANC-020`), that the operator suspended or
+that is being deleted (`SC-PRIV-014`) stays as restricted as that reason makes it, and with two
+invoices unpaid the tenant stays read-only until both are paid. Suspending the tenant stays the
+operator's decision (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a
+completed collection (`SC-REG-022`), and this is what keeps that from being service against an
+invoice nobody pays.
+
+_Source:_ #276 · #337 (decided 2026-11-09) · #498
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-unpaid-on-its-due-date-holds-its-tenant-back.test.js`
+    - an open invoice holds its tenant back
+        - ${holds ? 'holds' : 'does not hold'} it ${why}
+    - the reasons a run records and lifts
+        - an invoice that holds its tenant back without a reason gets one, on the tenant it names
+        - an invoice that holds its tenant back already is left as it is
+        - a reason whose invoice holds nobody back any more is lifted, and only that one
+        - an invoice whose subscriber is live for another tenant now moves its reason there
+        - a reason of another kind is not this rule’s to lift, whatever it refers to
+        - a reason of another kind about the same invoice does not stand in for one
+        - a reason lifted before is no reason: the invoice gets a new one, and nothing is lifted
+          twice
+        - an invoice listed twice is one reason
+        - two invoices of one tenant are two reasons, so settling one leaves the other holding
+    - what a replaced invoice still owed when it was replaced
+        - is its total where nothing settled it
+        - is nothing where a payment settled it before, a refusal before that made good
+        - is what a reversal before the cancellation took back again
+        - leaves out the shares the cancellation moved, and what came after it
+        - counts in cents, not in binary fractions
+    - the reversals that still take a payment back
+        - are none, with nothing reversed
+        - are the reversal that took it back
+        - are none once the gateway gave that reversal back in full, on whichever invoice
+        - are the reversal given back in part
+        - are the one of two reversals not given back
+        - count in cents, not in binary fractions
+    - a chain of corrections holds its tenant back
+        - a payment taken back on B holds C’s tenant before C’s own due date
+        - given back on C, where the gateway writes it, it holds C’s tenant back no more
+        - a refusal A made good before its correction counts no more on B
+        - a refusal A had come due with and still owed holds B’s tenant before B’s due date
+        - an empty chain holds nobody back
+- `packages/nest/tests/an-invoice-unpaid-on-its-due-date-holds-its-tenant-back.test.js`
+    - an invoice left unpaid
+        - is open and due on 15 February, its card refused on the day it was issued
+        - holds nobody back before its due date, a refused card included
+        - makes the tenant read-only on its due date, recorded by the run
+        - is one reason however often the run finds it
+        - with no payment method to collect it, holds the tenant back from its due date
+        - holds back only the tenant whose subscriber owes it
+        - holds nobody back where its subscriber is live for no tenant any more
+    - a direct debit collected on its due date
+        - holds nobody back while it waits for the bank
+        - that the bank refuses days later holds the tenant back once the refusal is there
+    - settling an overdue invoice
+        - by the payment that collects it lifts the reason at once, before any run
+        - started again by the tenant, lifts nothing while the payment waits, and lifts it once it
+          is there
+        - in part lifts nothing: what is still owed holds the tenant back
+        - lifts that reason and no other: a tenant the operator suspended stays suspended
+        - reads the reasons of its own tenant alone, however many others are held back
+        - in another way than a collection is found by the next run, which lets the tenant go
+        - by cancelling it so that nothing is owed, lets the tenant go at the next run
+        - a subscriber live for no tenant any more lets its former tenant go at the next run
+    - a payment started after the due date
+        - with nothing failed before, lets the tenant go once it is there, not while it waits
+    - an invoice that replaced a cancelled one
+        - carries the refusal of the invoice it replaced, while its own collection waits
+        - cancelled once it was due and refused, keeps the tenant held until the replacement is paid
+    - a refusal a payment made good
+        - counts no more once the invoice is replaced; a payment taken back after holds from the
+          replacement’s due date
+    - a chain of corrections
+        - forgets a refusal behind an invoice that was paid before it was replaced
+    - a payment taken back on a corrected invoice
+        - keeps the tenant held through the next correction, until the money comes back
+    - a payment taken back
+        - opens the invoice again, and the next run holds the tenant back until it is paid again
+    - the quarter-hourly run
+        - holds a tenant back once its invoice is unpaid on its due date
+        - collects first, so an invoice it collects holds nobody back, not even for a moment
+        - with an invoice due the day it is issued, a refused card holds the tenant back in the run
+          that issues it
+    - a payment that lands while the run compares
+        - before its reason is recorded leaves no reason standing
+        - after the reason it lifts was read as gone leaves none recorded again
+
+<!-- END proof -->
 
 ### SC-PRIC-036 — What an invoice owes and how it is paid changes one step at a time
 
@@ -11557,10 +11669,10 @@ _Tested by:_
 
 ### SC-PRIC-046 — An invoice states the day it is due
 
-🟡 _(Decided, not yet delivered.)_ 💰 An invoice collected by direct debit is due on the collection
+🟢 💰 An invoice collected by direct debit is due on the collection
 date it announces (`SC-PRIC-028`), any other on its issue date plus the payment term named in
-`config/saas.yaml`. The grace period of `SC-PRIC-081` counts from that day, and a collection
-announced again with a later date leaves the due date as the invoice states it.
+`config/saas.yaml`. An invoice still unpaid on that day holds its tenant back (`SC-PRIC-098`), and
+a collection announced again with a later date leaves the due date as the invoice states it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -14464,7 +14576,7 @@ _Tested by:_
 🟢 Or not at all: only after the gateway confirmed the payment
 method, which sign-up asks for in the gateway's own form, together with the master data an invoice
 needs (`SC-PRIC-032`), and a partial creation is undone. A first collection that then fails leaves
-an invoice unpaid like any other, with the grace period of `SC-PRIC-081`.
+an invoice unpaid like any other, as `SC-PRIC-098` says.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -16335,22 +16447,22 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
 
 🟡 _(Decided, not yet delivered.)_ 🔒 SaaSiCat decides the state, and records it with every reason
-that holds, such as an ended subscription (`SC-CANC-020`), an overdue invoice (`SC-PRIC-081`), a
-suspension or a deletion under way; the strictest of them applies, a deletion under way before a
-suspension and a suspension before read-only, and ending one reason lifts only that one. The
-application checks it on every request through a port, sign-in included, so a session that was
-already open when the state changed is held to it on its next request; SaaSiCat does the same on the
-routes it protects. A state that is recorded and not enforced is a switch that looks like
-protection. The operator acting as the tenant (`SC-ADM-005`) is not one of its users and is not held
-to the state, except once the tenant is being deleted (`SC-PRIV-018`), so support and an export stay
-possible on a suspended tenant; that access requires the second factor and is recorded. Read-only
-stops at one write: while one of the subscriber's invoices is open, a user of the tenant holding the
-billing permission (`SC-UI-023`) can still replace the payment method (`SC-PRIC-030`), because the
-claim outlives the subscription (`SC-PRIV-013`) and nobody else can enter a means of payment for it.
-A suspended tenant has no such exception, and lifting a suspension is the operator's (`SC-ADM-005`).
-Once the tenant is deleted nobody is left to act in it, so an invoice still open is settled through
-a payment page of the gateway that the operator sends to the contact address `SC-PRIV-013` keeps,
-where the subscriber can pay it with a new payment method and needs no tenant.
+that holds, such as an ended subscription (`SC-CANC-020`), an invoice unpaid on its due date
+(`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a deletion
+under way before a suspension and a suspension before read-only, and ending one reason lifts only
+that one. The application checks it on every request through a port, sign-in included, so a session
+that was already open when the state changed is held to it on its next request; SaaSiCat does the
+same on the routes it protects. A state that is recorded and not enforced is a switch that looks
+like protection. The operator acting as the tenant (`SC-ADM-005`) is not one of its users and is not
+held to the state, except once the tenant is being deleted (`SC-PRIV-018`), so support and an export
+stay possible on a suspended tenant; that access requires the second factor and is recorded.
+Read-only stops at one write: while one of the subscriber's invoices is open, a user of the tenant
+holding the billing permission (`SC-UI-023`) can still replace the payment method (`SC-PRIC-030`),
+because the claim outlives the subscription (`SC-PRIV-013`) and nobody else can enter a means of
+payment for it. A suspended tenant has no such exception, and lifting a suspension is the operator's
+(`SC-ADM-005`). Once the tenant is deleted nobody is left to act in it, so an invoice still open is
+settled through a payment page of the gateway that the operator sends to the contact address
+`SC-PRIV-013` keeps, where the subscriber can pay it with a new payment method and needs no tenant.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -16368,6 +16480,7 @@ _Tested by:_
         - GET, HEAD and OPTIONS read, in any case
         - every other method writes
         - a mark wins over the method, both ways
+        - replacing the payment method is a write, whatever the method
     - who is refused, and for what
         - an open tenant is refused nothing
         - read-only refuses a write and lets a read through
@@ -16383,6 +16496,28 @@ _Tested by:_
         - lifting the suspension leaves an overdue invoice holding
         - another tenant is not held back by this one
         - the operator acting as the tenant passes a suspension, not a deletion
+- `packages/nest/tests/a-read-only-tenant-replaces-its-payment-method.test.js`
+    - a read-only tenant replacing its payment method
+        - is let through while one of its invoices is open
+        - is refused once none is open
+        - is refused where nothing can say whether an invoice is open: no invoices are issued
+        - writes nothing else: another write is refused, invoice open or not
+        - reads its payment method as any read, without asking about invoices
+        - asked without a request, as a scheduled job asks, follows the same rule
+    - the exception is read-only’s alone
+        - a tenant ${kind === 'suspended' ? 'suspended' : 'being deleted'} is refused, an invoice
+          open or not
+        - an open tenant replaces it without the invoices being asked
+    - where the request is checked
+        - the platform’s route carries the mark, and stays behind the billing permission
+        - the application’s guard, checking first on the same handler, lets it through as the
+          platform does
+    - the platform as it starts
+        - asks the tenant’s invoices, which ${open ? 'let it through while one is open' : 'refuse it
+          where none is'}
+    - an invoice is open for the exception
+        - where it was refused, and where it was paid in part
+        - not where it was paid, nor for a tenant without a subscriber
 - `packages/nest/tests/admin-resources.test.js`
     - a suspension is the platform's record
         - suspending records the reason with its note and who, audits it, and answers the state
@@ -16419,6 +16554,7 @@ _Tested by:_
         - there are tenant controllers to look at
         - every controller that reads the tenant from the request passes through the guard
         - exactly these routes let a read-only tenant through with a writing method
+        - exactly this route replaces the payment method
 - `packages/ui-vue/tests/a-tenant-action-follows-the-platforms-state.test.js`
     - a tenant row offers what the platform's state allows
         - an open or read-only tenant can be suspended, not reactivated

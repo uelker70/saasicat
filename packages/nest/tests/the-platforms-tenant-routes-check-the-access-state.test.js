@@ -8,7 +8,8 @@
 // to pass through it is derived rather than listed — every controller that
 // reads the tenant from the request — so a tenant route added without it fails
 // here. The routes a read-only tenant may still call with a writing method are
-// named, because each of them is a decision somebody has to have made.
+// named, because each of them is a decision somebody has to have made, and so
+// is the one route that replaces the payment method.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -237,10 +238,6 @@ describe('which routes the check reaches', () => {
         assert.deepEqual(unguarded, []);
     });
 
-    // Replacing the payment method is not among them: SC-ADM-024 leaves it open
-    // under read-only only while one of the subscriber's invoices is open, and
-    // this check does not see invoices. Until it does, a read-only tenant cannot
-    // replace its payment method.
     test('exactly these routes let a read-only tenant through with a writing method', () => {
         const writingNothing = tenantControllers
             .flatMap(handlersOf)
@@ -252,6 +249,16 @@ describe('which routes the check reaches', () => {
             'POST billing/subscription-bundles/preview',
             'POST billing/subscription-bundles/prices',
         ]);
+    });
+
+    // A write all the same, let through under read-only only while one of the
+    // subscriber's invoices is open (`a-read-only-tenant-replaces-its-payment-method`).
+    test('exactly this route replaces the payment method', () => {
+        const replacing = tenantControllers
+            .flatMap(handlersOf)
+            .filter((handler) => handler.mark === 'replaces-payment-method')
+            .map((handler) => `${handler.method} ${handler.path}`);
+        assert.deepEqual(replacing, ['POST billing/payment-method/setup']);
     });
 });
 

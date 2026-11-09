@@ -4225,11 +4225,11 @@ are on. Every installation with version notices on has to do this:
 ### A tenant is held to its state on every request
 
 Required wherever `tenantBilling` is on. SaaSiCat keeps the reasons a tenant is held back — a
-suspension, an invoice overdue past its grace period, a subscription that ended, a deletion under
+suspension, an invoice unpaid on its due date, a subscription that ended, a deletion under
 way — and every tenant request is checked against the strictest of them (`SC-ADM-024`): read-only
 refuses a write, a suspension refuses everything, and the operator acting as the tenant is held
-back only by a deletion. This release brings the record and the check; the reasons themselves
-arrive with the releases that bring them, so until then no tenant is held back. To adopt it:
+back only by a deletion. Each reason is recorded by what brings it, as the sections below say. To
+adopt it:
 
 1. Add `TenantAccessHold` from `prisma-fragments/28-tenant-access-hold.prisma` to your schema.
 2. Run the migration once, before `db push` where you use one, and apply `constraints.postgres.sql`
@@ -4318,6 +4318,30 @@ cancelled one included. To adopt it:
   `persistence.core.tenantAccessHolds` for it as well.
 - **The administration** offers reactivating only for the platform's own suspension, read from
   `access`; `tenantActionVisible` from `@saasicat/ui-vue/vue` is the rule for a page of your own.
+
+### An invoice unpaid on its due date makes the tenant read-only
+
+Wherever `config/saas.yaml` names `invoicing`, an invoice still open on its due date makes its
+subscriber's tenant read-only from that day until it is paid (`SC-PRIC-098`): the quarter-hourly
+invoice run records an `overdue` reason for it, the payment that settles it lifts the reason at
+once, and the next run lifts any whose invoice no longer owes. There is no grace period and nothing
+to configure; a direct debit sent on the due date holds nobody back until the bank refuses it. To
+adopt it:
+
+1. A scheduler of your own (`chargeJournal.invoices.includeCron: false`) calls
+   `OverdueInvoiceService.holdBackDue(now)` after `InvoiceCollectionService.collectDue(now)`.
+2. Mark with `@WritesNothing()` every route of yours a read-only tenant still needs under a writing
+   method, as the section on the check says: from this release on, an unpaid invoice makes the
+   difference.
+3. Deploy knowing that the first run after it holds back every tenant whose invoice is unpaid on or
+   after its due date already.
+
+- **Replacing the payment method** stays open under read-only while one of the subscriber's
+  invoices is open, for a user holding the billing permission: the platform's
+  `POST billing/payment-method/setup` carries the mark the check reads, so your guard's `enforce`
+  lets it through as the platform does. Nothing to wire; a suspended tenant cannot.
+- **`TenantAccessService.assertAllowed`** takes `replacesPaymentMethod: true` beside
+  `writes: true` for the same exception where there is no request to read the route from.
 
 ## What the codemod leaves to you
 

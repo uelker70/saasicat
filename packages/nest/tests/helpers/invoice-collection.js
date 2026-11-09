@@ -25,6 +25,7 @@ import {
     InvoiceCancellationService,
     InvoiceCollectionService,
     InvoicePaymentService,
+    OverdueInvoiceService,
 } from '../../dist/billing/index.js';
 import { PaymentCallbackService, PaymentGatewayRegistry } from '../../dist/payments/index.js';
 import { FakeTransactionRunner } from '../../dist/testing/index.js';
@@ -385,12 +386,16 @@ export function collectionStore(
 
 /**
  * An installation that issues, mails and collects invoices. `settings` is the
- * file; the first `failingAuditWrites` writes to the audit log fail.
+ * file; the first `failingAuditWrites` writes to the audit log fail. `holds`
+ * is where the tenants' reasons are kept, where a test reads them: an invoice
+ * unpaid on its due date is recorded there by `overdue`, and a payment that
+ * settles it lifts it.
  */
 export function aCollectingInstallation({
     settings = COLLECTING_SETTINGS,
     failingAuditWrites = 0,
     mail = aMailbox(),
+    holds = null,
 } = {}) {
     const paymentMethods = new MemoryPaymentMethods();
     const installation = anInvoicingInstallation({ settings, paymentMethods, mail });
@@ -411,6 +416,15 @@ export function aCollectingInstallation({
     const eventLog = new MemoryPaymentEventLog();
     const transactions = new RollbackRunner([payments, eventLog]);
     const callbacks = new PaymentCallbackService(gateways, eventLog, transactions);
+    const overdue = new OverdueInvoiceService(
+        payments,
+        installation.store,
+        installation.subscriberRepository,
+        collections,
+        settings,
+        null,
+        holds,
+    );
     const money = new InvoicePaymentService(
         collections,
         payments,
@@ -418,6 +432,7 @@ export function aCollectingInstallation({
         callbacks,
         null,
         auditLogFailing(audits, failingAuditWrites),
+        overdue,
     );
     money.onModuleInit();
     const collection = new InvoiceCollectionService(
@@ -481,6 +496,7 @@ export function aCollectingInstallation({
         eventLog,
         callbacks,
         money,
+        overdue,
         collections,
         notices,
         gateway,

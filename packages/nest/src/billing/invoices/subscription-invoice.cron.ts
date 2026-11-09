@@ -5,23 +5,26 @@ import { MaintenanceService } from '../../maintenance/maintenance.service.js';
 import { ContractConfirmationService } from '../confirmations/contract-confirmation.service.js';
 import { InvoiceCollectionService } from './invoice-collection.service.js';
 import { InvoicePaymentService } from './invoice-payment.service.js';
+import { OverdueInvoiceService } from './overdue-invoice.service.js';
 import { InvoiceDocumentService } from './invoice-document.service.js';
 import { SubscriptionInvoiceService } from './subscription-invoice.service.js';
 
 /**
  * Issues the invoices the charge journal is owed, every quarter of an hour,
  * then archives their documents, mails them, confirms the contracts written
- * since the last run, and collects the invoices mailed, so a charge is
- * invoiced, sent and collected within one of being written, a contract is
- * confirmed within one of being concluded, and whatever was held back goes on
- * within one of being put right.
+ * since the last run, collects the invoices mailed, and holds a tenant to
+ * reading for an invoice unpaid on its due date, so a charge is invoiced, sent
+ * and collected within one of being written, a contract is confirmed within
+ * one of being concluded, a tenant is held back within one of its invoice going
+ * unpaid, and whatever was held back goes on within one of being put right.
  *
  * Needs `ScheduleModule` in the application. Left out with
  * `tenantBilling.chargeJournal.invoices.includeCron: false` — for a CLI boot,
  * or an application that calls `SubscriptionInvoiceService.issueDue`, then
  * `InvoiceDocumentService.archiveDue` and `deliverDue`, then
  * `ContractConfirmationService.archiveDue` and `deliverDue`, then
- * `InvoiceCollectionService.collectDue`, from a scheduler of its own. An
+ * `InvoiceCollectionService.collectDue`, then
+ * `OverdueInvoiceService.holdBackDue`, from a scheduler of its own. An
  * invoice is mailed only once its document is archived, and collected only
  * once it is mailed, and a confirmation is mailed only once it is archived, so
  * a scheduler that leaves out a step stops everything after it.
@@ -55,6 +58,10 @@ export class SubscriptionInvoiceCron {
         @Optional()
         @Inject(ContractConfirmationService)
         private readonly confirmations: ContractConfirmationService | null = null,
+        // Beside the payments: an invoice unpaid on its due date.
+        @Optional()
+        @Inject(OverdueInvoiceService)
+        private readonly overdue: OverdueInvoiceService | null = null,
     ) {}
 
     @Cron('*/15 * * * *', { name: 'subscriptionInvoices' })
@@ -139,6 +146,17 @@ export class SubscriptionInvoiceCron {
                     `Invoice collection: ${collected.collected} collected, ${collected.pending} on ` +
                         `their way, ${collected.failed} failed, ${collected.waiting} waiting for a ` +
                         `new announcement, ${collected.unanswered} to ask again.`,
+                );
+            }
+            // After the collection, so that what it brought this run settles an
+            // invoice before the invoice is found unpaid.
+            const overdue = await this.step('Overdue invoices', () =>
+                this.overdue?.holdBackDue(new Date()),
+            );
+            if (overdue && (overdue.held > 0 || overdue.lifted > 0)) {
+                this.logger.log(
+                    `Overdue invoices: ${overdue.held} now hold their tenant to reading, ` +
+                        `${overdue.lifted} no longer do.`,
                 );
             }
         } finally {

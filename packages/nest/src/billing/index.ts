@@ -221,6 +221,10 @@ export {
     type SubscriberReconciliationModuleOptions,
 } from './invoices/subscriber-reconciliation.module.js';
 export { OpenItemsService } from './invoices/open-items.service.js';
+export {
+    OverdueInvoiceService,
+    type OverdueInvoiceRun,
+} from './invoices/overdue-invoice.service.js';
 export { TenantInvoiceService } from './invoices/tenant-invoice.service.js';
 export {
     TenantInvoiceListQuery,
