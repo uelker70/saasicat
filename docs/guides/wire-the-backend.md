@@ -1638,6 +1638,38 @@ it there.
 One installation is the range of exactly one issuer, and an issuer keeps one range: a second
 application issuing for the same issuer is not supported.
 
+### An invoice unpaid on its due date
+
+An invoice still open on its due date makes the tenant its subscriber is live for read-only from
+that day until it is paid (`SC-PRIC-098`, `SC-ADM-024`); there is no grace period, and before its due
+date an invoice holds nobody back. A subscription paid on its date sets `invoicing.paymentTermDays`
+to `0`: the invoice is then due the day it is issued, and a card declined in the run that issues it
+makes the tenant read-only in that run.
+
+- **What holds back**: a card declined, a direct debit refused or returned, a chargeback, a
+  collection planned for a later day, and no payment method to collect it. A direct debit sent on
+  the due date holds nobody back while the bank has not answered; its refusal days later holds the
+  tenant back once it is there. A payment started after the due date — again after a refusal or a
+  chargeback, or for the first time — keeps the tenant read-only while it waits for the bank: the
+  tenant is let go when the payment is there. A refusal of an invoice that had come due and still
+  owed when it was cancelled holds the tenant back until the invoice that replaced it is paid,
+  whatever day that one states: a correction is not a payment. A refusal a later payment made good
+  before the correction counts no more, and a payment taken back after it counts against the
+  replacement.
+- **Recorded by the run**, as its last step, after the collection: one `overdue` reason per invoice,
+  referencing it, recorded by `job:platform:overdue-invoices`, so a tenant with two unpaid invoices
+  stays read-only until both are paid. An application with a scheduler of its own calls
+  `OverdueInvoiceService.holdBackDue(now)` after `collectDue(now)`.
+- **Lifted by the payment that settles it**, at once, as the actor the payment is audited as, and
+  otherwise by the next run, which lifts every reason whose invoice no longer owes — cancelled, or
+  settled again by a reversal given back — or whose subscriber is no longer live for that tenant.
+  Lifting an `overdue` reason lifts no other: a suspended tenant stays suspended.
+- **One write is left**: a user of a read-only tenant holding the billing permission can replace the
+  payment method (`POST billing/payment-method/setup`) while one of the subscriber's invoices is
+  open, and the replacement collects it — a card at once. Your own authentication guard, which
+  calls `TenantAccessService.enforce`, lets that route through as the platform does, since the
+  route carries the mark the check reads. A suspended tenant, and one being deleted, cannot.
+
 ## Telling Subscribers of a Newer Version
 
 A subscription keeps the plan version it was sold, and a newer one sits beside the plan as an offer

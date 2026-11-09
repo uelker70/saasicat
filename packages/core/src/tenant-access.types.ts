@@ -1,8 +1,8 @@
 // What a tenant's users may do, and why (`SC-ADM-024`).
 //
 // A tenant is held back for reasons, and every reason that holds is recorded on
-// its own: an operator's suspension, an invoice left unpaid past its grace
-// period, a subscription that ended, a deletion under way. The state is the
+// its own: an operator's suspension, an invoice unpaid on its due date, a
+// subscription that ended, a deletion under way. The state is the
 // strictest of the open reasons, so ending one reason lifts only that one — a
 // tenant that pays its overdue invoice while the operator has it suspended
 // stays suspended.
@@ -13,6 +13,11 @@
 // that writes says that; the mark wins over the method. A forgotten mark
 // therefore refuses a harmless request rather than letting a write through,
 // except for a `GET` that writes, which REST makes rare.
+//
+// Read-only stops at one write: replacing the payment method while one of the
+// subscriber's invoices is open, because the claim outlives the subscription
+// and nobody else can enter a means of payment for it. The route that does it
+// says so with a mark of its own, and is still a write everywhere else.
 
 /** Why a tenant is held back. */
 export type TenantAccessHoldKind = 'suspended' | 'overdue' | 'ended' | 'deleting';
@@ -85,15 +90,19 @@ export function tenantAccessOf(holds: readonly TenantAccessHold[]): TenantAccess
     return { state, holds: open };
 }
 
-/** How a route declares what it does, where its method would say otherwise. */
-export type TenantAccessMark = 'writes-nothing' | 'writes';
+/**
+ * How a route declares what it does, where its method would say otherwise:
+ * it writes nothing, it writes, or it replaces the payment method — a write
+ * that read-only lets through while an invoice is open.
+ */
+export type TenantAccessMark = 'writes-nothing' | 'writes' | 'replaces-payment-method';
 
 const READING_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** Whether a request writes: its route's mark where it has one, otherwise its method. */
 export function requestWrites(method: string, mark: TenantAccessMark | null): boolean {
     if (mark === 'writes-nothing') return false;
-    if (mark === 'writes') return true;
+    if (mark === 'writes' || mark === 'replaces-payment-method') return true;
     return !READING_METHODS.has(method.toUpperCase());
 }
 

@@ -37,6 +37,19 @@ const REFUSAL_CODE: Readonly<Record<Exclude<TenantAccessState, 'open'>, TenantAc
 /** What a request asks to do, where there is no request to read it from. */
 export interface TenantAccessIntent extends TenantAccessActor {
     writes: boolean;
+    /**
+     * It replaces the payment method: the one write a read-only tenant may
+     * make, while one of its subscriber's invoices is open (`SC-ADM-024`).
+     */
+    replacesPaymentMethod?: boolean;
+}
+
+/**
+ * Whether a tenant's subscriber has an invoice open, as the tenant's own list
+ * of invoices shows it. Answered by the invoices where they are wired.
+ */
+export interface OpenInvoiceSource {
+    hasOpenInvoice(tenantId: string): Promise<boolean>;
 }
 
 interface RequestLike {
@@ -59,10 +72,23 @@ export class TenantAccessService {
      */
     private readonly passed = new WeakMap<object, PassedCheck>();
 
+    /**
+     * Where an open invoice is looked up. Registered by the invoices rather
+     * than injected, since they are composed inside tenant billing and this
+     * service is global; without invoices no invoice can be open, and a
+     * read-only tenant replaces no payment method.
+     */
+    private openInvoices: OpenInvoiceSource | null = null;
+
     constructor(
         @Inject(TENANT_ACCESS_HOLDS_TOKEN) private readonly holds: TenantAccessHoldPort,
         @Inject(Reflector) private readonly reflector: Reflector,
     ) {}
+
+    /** Lets `source` say whether a tenant's subscriber has an invoice open. */
+    answerOpenInvoicesFrom(source: OpenInvoiceSource): void {
+        this.openInvoices = source;
+    }
 
     /** The state of `tenantId` and the open reasons it follows from. */
     async accessOf(tenantId: string): Promise<TenantAccess> {
@@ -137,7 +163,11 @@ export class TenantAccessService {
             typeof request.method === 'string'
                 ? requestWrites(request.method, mark)
                 : mark !== 'writes-nothing';
-        await this.assertAllowed(tenantId, { ...actor, writes });
+        await this.assertAllowed(tenantId, {
+            ...actor,
+            writes,
+            replacesPaymentMethod: mark === 'replaces-payment-method',
+        });
         if (typeof request === 'object' && request !== null) this.passed.set(request, { tenantId });
     }
 
@@ -161,6 +191,17 @@ export class TenantAccessService {
         const access = await this.accessOf(tenantId);
         const refusal = tenantAccessRefusal(access, intent.writes, intent);
         if (!refusal) return;
+        // Asked only where it decides: a read-only tenant replacing its
+        // payment method. A suspension or a deletion under way has no such
+        // exception, and whether the user may change the payment method at
+        // all is the billing permission's.
+        if (
+            refusal === 'read-only' &&
+            intent.replacesPaymentMethod === true &&
+            (await this.openInvoices?.hasOpenInvoice(tenantId)) === true
+        ) {
+            return;
+        }
         // The operator's note on a suspension is theirs, not the tenant's: a
         // refusal names each reason by its kind and the moment it began.
         throw new ForbiddenException(

@@ -10,11 +10,11 @@
 A tenant is held to its state on every request
 
 SaaSiCat now keeps the reasons a tenant is held back — a suspension, an invoice
-overdue past its grace period, a subscription that ended, a deletion under way
-— and checks every tenant request against the strictest of them: read-only
+unpaid on its due date, a subscription that ended, a deletion under way — and
+checks every tenant request against the strictest of them: read-only
 refuses a write, a suspension refuses everything, and the operator acting as
-the tenant is held back only by a deletion. This release brings the record and
-the check; the reasons arrive with the releases that bring them.
+the tenant is held back only by a deletion. Each reason is recorded by what
+brings it.
 
 Breaking for an installation with `tenantBilling`:
 

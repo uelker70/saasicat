@@ -190,6 +190,12 @@ its open reasons — a deletion before a suspension, a suspension before
 read-only — so lifting one reason leaves the others standing. `tenantId` is a
 value, not a relation: the tenant model is the application's.
 
+**An `overdue` reason per invoice.** The quarter-hourly invoice run records
+one for every invoice unpaid on or after its due date, on the tenant the
+invoice's subscriber is live for, and lifts each whose invoice that no longer
+describes; the payment that settles an invoice lifts its reason at once
+(`SC-PRIC-098`).
+
 ## Transactional invariants (what adapters must guarantee)
 
 These are the behaviors `@saasicat/persistence-testing` verifies against a

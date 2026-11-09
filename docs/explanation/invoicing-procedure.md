@@ -64,9 +64,9 @@ that is put right. The runs go every quarter of an hour, by the actor
   `tenantBilling.chargeJournal.invoices.includeCron: false`, a scheduler of yours that calls
   `SubscriptionInvoiceService.issueDue`, then `InvoiceDocumentService.archiveDue` and `deliverDue`,
   then `ContractConfirmationService.archiveDue` and `deliverDue`, then
-  `InvoiceCollectionService.collectDue` — in that order and every one of them: an invoice is mailed
-  only once its document is archived and collected only once it is mailed, so a step left out stops
-  everything after it.
+  `InvoiceCollectionService.collectDue`, then `OverdueInvoiceService.holdBackDue` — in that order
+  and every one of them: an invoice is mailed only once its document is archived and collected only
+  once it is mailed, so a step left out stops everything after it.
 
 ## 2. Numbered
 

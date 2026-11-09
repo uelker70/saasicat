@@ -163,6 +163,7 @@ export * from './invoice-register.types.js';
 export * from './invoice-register.js';
 export * from './open-items.types.js';
 export * from './open-items.js';
+export * from './overdue-invoice-holds.js';
 export * from './invoice-standing.js';
 export * from './tenant-invoice.types.js';
 export * from './tenant-account.js';

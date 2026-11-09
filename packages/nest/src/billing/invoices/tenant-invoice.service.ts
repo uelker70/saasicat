@@ -38,6 +38,7 @@ import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { readAcrossTenants } from '../../admin/read-across-tenants.js';
 import { codedError } from '../../errors/coded-error.js';
 import { SubscriberService } from '../../subscriber/subscriber.service.js';
+import type { OpenInvoiceSource } from '../../tenant-access/tenant-access.service.js';
 import {
     ContractConfirmationService,
     contractNotFound,
@@ -48,7 +49,7 @@ import { InvoiceDocumentService } from './invoice-document.service.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.tokens.js';
 
 @Injectable()
-export class TenantInvoiceService {
+export class TenantInvoiceService implements OpenInvoiceSource {
     constructor(
         @Inject(SubscriberService) private readonly subscribers: SubscriberService,
         @Inject(SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN)
@@ -113,6 +114,16 @@ export class TenantInvoiceService {
         const invoices = await this.read(() => this.invoices.listBySubscriber(subscriber.id));
         const { standings, credits } = await this.standingsOf(subscriber, invoices);
         return tenantAccountOf(standings, credits);
+    }
+
+    /**
+     * Whether `tenantId`'s subscriber has an invoice that still owes something,
+     * as its account shows it: what read-only leaves the payment method open
+     * for (`SC-ADM-024`). Not for a tenant without a subscriber.
+     */
+    async hasOpenInvoice(tenantId: string): Promise<boolean> {
+        const { balances } = await this.accountOf(tenantId);
+        return balances.some((balance) => balance.owed > 0);
     }
 
     /** The archived document of an invoice of `tenantId`'s subscriber; any other is not found. */

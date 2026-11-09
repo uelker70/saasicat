@@ -2024,7 +2024,7 @@ weeks a bank honours a return without question comes back the same way, and char
 after a chargeback counts against the operator —, so the notice asks the subscriber to replace it;
 where another payment method is already in use, the invoice is collected with that one, as after
 a failure that asks for a replacement (`SC-PRIC-080`). A reversal that only shrinks a credit opens
-nothing and tells nobody. An invoice left open is unpaid like any other (`SC-PRIC-081`).
+nothing and tells nobody. An invoice left open is unpaid like any other (`SC-PRIC-098`).
 
 _Source:_ #333 (decided 2026-10-14)
 
@@ -2658,7 +2658,8 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIC-081 — An invoice left unpaid past its grace period makes the tenant read-only
 
-🟡 _(Decided, not yet delivered.)_ 💰 A collection that fails, the first one after sign-up included,
+🔵 _(Superseded on 2026-11-09 by `SC-PRIC-098`.)_ 💰 A collection that fails, the first one after
+sign-up included,
 and a reversal (`SC-PRIC-084`) leave the invoice open; it is collected again and the subscriber told
 as `SC-PRIC-080` says. An invoice still open when the grace period named in `config/saas.yaml` has
 passed, counted from its due date (`SC-PRIC-046`), puts the tenant into read-only (`SC-ADM-024`),
@@ -2670,7 +2671,102 @@ restricted as that reason makes it. Suspending the tenant stays the operator's d
 (`SC-REG-022`), and this is what keeps that from being service against an invoice nobody pays.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #333
+
 (decided 2026-10-14)
+
+### SC-PRIC-098 — An invoice unpaid on its due date makes the tenant read-only until it is paid
+
+🟢 💰 An invoice still open on its due date (`SC-PRIC-046`) makes the tenant its subscriber is live
+for read-only (`SC-ADM-024`) from that day, within the quarter of an hour the run takes, until it
+is paid; there is no grace period, and before its due date an invoice holds nobody back, unless an
+invoice it replaced had come due, was refused and still owed when it was replaced: a correction is
+not a payment, and the tenant stays read-only until the replacement is paid, whatever day the
+replacement states. A refusal a later payment made good before the correction counts no more, and a
+payment taken back after it counts against the replacement. The one thing that keeps an unpaid
+invoice from holding back is a collection sent by its due date and still on its way, with nothing
+failed before it, of the invoice or of one it replaced: a direct debit sent on the due date holds
+nobody back while the bank has not answered, and its refusal days later holds the tenant back once
+it is there. A card declined, a direct debit
+refused or returned, a chargeback (`SC-PRIC-084`), a collection planned for a later day and no
+payment method at all leave the tenant read-only, and so does a collection started again after a
+refusal while it waits for the bank: the tenant is let go when the payment is there, not before. A
+user holding the billing permission (`SC-UI-023`) can still replace the payment method, and the
+replacement collects the invoice. The payment that settles an invoice lifts that reason at once and
+no other: a tenant whose subscription has ended (`SC-CANC-020`), that the operator suspended or
+that is being deleted (`SC-PRIV-014`) stays as restricted as that reason makes it, and with two
+invoices unpaid the tenant stays read-only until both are paid. Suspending the tenant stays the
+operator's decision (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a
+completed collection (`SC-REG-022`), and this is what keeps that from being service against an
+invoice nobody pays.
+
+_Source:_ #276 · #337 (decided 2026-11-09) · #498
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-unpaid-on-its-due-date-holds-its-tenant-back.test.js`
+    - an open invoice holds its tenant back
+        - ${holds ? 'holds' : 'does not hold'} it ${why}
+    - the reasons a run records and lifts
+        - an invoice that holds its tenant back without a reason gets one, on the tenant it names
+        - an invoice that holds its tenant back already is left as it is
+        - a reason whose invoice holds nobody back any more is lifted, and only that one
+        - an invoice whose subscriber is live for another tenant now moves its reason there
+        - a reason of another kind is not this rule’s to lift, whatever it refers to
+        - a reason of another kind about the same invoice does not stand in for one
+        - a reason lifted before is no reason: the invoice gets a new one, and nothing is lifted
+          twice
+        - an invoice listed twice is one reason
+        - two invoices of one tenant are two reasons, so settling one leaves the other holding
+    - what a replaced invoice still owed when it was replaced
+        - is its total where nothing settled it
+        - is nothing where a payment settled it before, a refusal before that made good
+        - is what a reversal before the cancellation took back again
+        - leaves out the shares the cancellation moved, and what came after it
+        - counts in cents, not in binary fractions
+- `packages/nest/tests/an-invoice-unpaid-on-its-due-date-holds-its-tenant-back.test.js`
+    - an invoice left unpaid
+        - is open and due on 15 February, its card refused on the day it was issued
+        - holds nobody back before its due date, a refused card included
+        - makes the tenant read-only on its due date, recorded by the run
+        - is one reason however often the run finds it
+        - with no payment method to collect it, holds the tenant back from its due date
+        - holds back only the tenant whose subscriber owes it
+        - holds nobody back where its subscriber is live for no tenant any more
+    - a direct debit collected on its due date
+        - holds nobody back while it waits for the bank
+        - that the bank refuses days later holds the tenant back once the refusal is there
+    - settling an overdue invoice
+        - by the payment that collects it lifts the reason at once, before any run
+        - started again by the tenant, lifts nothing while the payment waits, and lifts it once it
+          is there
+        - in part lifts nothing: what is still owed holds the tenant back
+        - lifts that reason and no other: a tenant the operator suspended stays suspended
+        - reads the reasons of its own tenant alone, however many others are held back
+        - in another way than a collection is found by the next run, which lets the tenant go
+        - by cancelling it so that nothing is owed, lets the tenant go at the next run
+        - a subscriber live for no tenant any more lets its former tenant go at the next run
+    - a payment started after the due date
+        - with nothing failed before, lets the tenant go once it is there, not while it waits
+    - an invoice that replaced a cancelled one
+        - carries the refusal of the invoice it replaced, while its own collection waits
+        - cancelled once it was due and refused, keeps the tenant held until the replacement is paid
+    - a refusal a payment made good
+        - counts no more once the invoice is replaced; a payment taken back after holds from the
+          replacement’s due date
+    - a payment taken back
+        - opens the invoice again, and the next run holds the tenant back until it is paid again
+    - the quarter-hourly run
+        - holds a tenant back once its invoice is unpaid on its due date
+        - collects first, so an invoice it collects holds nobody back, not even for a moment
+        - with an invoice due the day it is issued, a refused card holds the tenant back in the run
+          that issues it
+    - a payment that lands while the run compares
+        - before its reason is recorded leaves no reason standing
+        - after the reason it lifts was read as gone leaves none recorded again
+
+<!-- END proof -->
 
 ### SC-PRIC-036 — What an invoice owes and how it is paid changes one step at a time
 
@@ -3202,10 +3298,10 @@ _Tested by:_
 
 ### SC-PRIC-046 — An invoice states the day it is due
 
-🟡 _(Decided, not yet delivered.)_ 💰 An invoice collected by direct debit is due on the collection
+🟢 💰 An invoice collected by direct debit is due on the collection
 date it announces (`SC-PRIC-028`), any other on its issue date plus the payment term named in
-`config/saas.yaml`. The grace period of `SC-PRIC-081` counts from that day, and a collection
-announced again with a later date leaves the due date as the invoice states it.
+`config/saas.yaml`. An invoice still unpaid on that day holds its tenant back (`SC-PRIC-098`), and
+a collection announced again with a later date leaves the due date as the invoice states it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 

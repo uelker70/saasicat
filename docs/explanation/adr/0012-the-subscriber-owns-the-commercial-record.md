@@ -97,8 +97,8 @@ become one transaction, so a failed attempt is retried rather than discarded as 
 other direction, a request to collect carries a key that stays the same for that invoice and attempt
 across retries, so a lost answer never becomes a second charge, an invoice has one active collection
 attempt at a time, and a payment is recorded once by the gateway's reference for it however it is
-reported. Sign-up activates on a confirmed payment method, and an invoice still unpaid past a grace
-period, the first one included, makes the tenant read-only until it is settled. A tenant's access
+reported. Sign-up activates on a confirmed payment method, and an invoice still unpaid on its due
+date, the first one included, makes the tenant read-only until it is settled. A tenant's access
 state keeps every reason that holds, the strictest applies, and settling lifts only its own, so a
 payment never reopens a tenant that is read-only after its subscription ended or is suspended. A
 direct debit is announced on the invoice before it is collected, and a payment the gateway takes
@@ -157,8 +157,8 @@ word for a dealer's record of its buyers.
 invoice dates count in, the payment term, the version of the operator's terms, which a contract
 records when the subscriber concludes or changes it, the invoice number
 prefix, the gateway accounts, the one for new payment methods with the methods it offers and any
-still holding references, the direct debit lead time, the read-only period, the grace period for an
-unpaid invoice, and how long a payment can still be reversed. Each account's keys and webhook secret
+still holding references, the direct debit lead time, the read-only period, and how long a payment
+can still be reversed. Each account's keys and webhook secret
 come from the environment.
 
 **The model cut lands before 1.0.0.** Introducing the subscriber, the party copy on the contract and

@@ -928,22 +928,22 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
 
 🟡 _(Decided, not yet delivered.)_ 🔒 SaaSiCat decides the state, and records it with every reason
-that holds, such as an ended subscription (`SC-CANC-020`), an overdue invoice (`SC-PRIC-081`), a
-suspension or a deletion under way; the strictest of them applies, a deletion under way before a
-suspension and a suspension before read-only, and ending one reason lifts only that one. The
-application checks it on every request through a port, sign-in included, so a session that was
-already open when the state changed is held to it on its next request; SaaSiCat does the same on the
-routes it protects. A state that is recorded and not enforced is a switch that looks like
-protection. The operator acting as the tenant (`SC-ADM-005`) is not one of its users and is not held
-to the state, except once the tenant is being deleted (`SC-PRIV-018`), so support and an export stay
-possible on a suspended tenant; that access requires the second factor and is recorded. Read-only
-stops at one write: while one of the subscriber's invoices is open, a user of the tenant holding the
-billing permission (`SC-UI-023`) can still replace the payment method (`SC-PRIC-030`), because the
-claim outlives the subscription (`SC-PRIV-013`) and nobody else can enter a means of payment for it.
-A suspended tenant has no such exception, and lifting a suspension is the operator's (`SC-ADM-005`).
-Once the tenant is deleted nobody is left to act in it, so an invoice still open is settled through
-a payment page of the gateway that the operator sends to the contact address `SC-PRIV-013` keeps,
-where the subscriber can pay it with a new payment method and needs no tenant.
+that holds, such as an ended subscription (`SC-CANC-020`), an invoice unpaid on its due date
+(`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a deletion
+under way before a suspension and a suspension before read-only, and ending one reason lifts only
+that one. The application checks it on every request through a port, sign-in included, so a session
+that was already open when the state changed is held to it on its next request; SaaSiCat does the
+same on the routes it protects. A state that is recorded and not enforced is a switch that looks
+like protection. The operator acting as the tenant (`SC-ADM-005`) is not one of its users and is not
+held to the state, except once the tenant is being deleted (`SC-PRIV-018`), so support and an export
+stay possible on a suspended tenant; that access requires the second factor and is recorded.
+Read-only stops at one write: while one of the subscriber's invoices is open, a user of the tenant
+holding the billing permission (`SC-UI-023`) can still replace the payment method (`SC-PRIC-030`),
+because the claim outlives the subscription (`SC-PRIV-013`) and nobody else can enter a means of
+payment for it. A suspended tenant has no such exception, and lifting a suspension is the operator's
+(`SC-ADM-005`). Once the tenant is deleted nobody is left to act in it, so an invoice still open is
+settled through a payment page of the gateway that the operator sends to the contact address
+`SC-PRIV-013` keeps, where the subscriber can pay it with a new payment method and needs no tenant.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -961,6 +961,7 @@ _Tested by:_
         - GET, HEAD and OPTIONS read, in any case
         - every other method writes
         - a mark wins over the method, both ways
+        - replacing the payment method is a write, whatever the method
     - who is refused, and for what
         - an open tenant is refused nothing
         - read-only refuses a write and lets a read through
@@ -976,6 +977,28 @@ _Tested by:_
         - lifting the suspension leaves an overdue invoice holding
         - another tenant is not held back by this one
         - the operator acting as the tenant passes a suspension, not a deletion
+- `packages/nest/tests/a-read-only-tenant-replaces-its-payment-method.test.js`
+    - a read-only tenant replacing its payment method
+        - is let through while one of its invoices is open
+        - is refused once none is open
+        - is refused where nothing can say whether an invoice is open: no invoices are issued
+        - writes nothing else: another write is refused, invoice open or not
+        - reads its payment method as any read, without asking about invoices
+        - asked without a request, as a scheduled job asks, follows the same rule
+    - the exception is read-only’s alone
+        - a tenant ${kind === 'suspended' ? 'suspended' : 'being deleted'} is refused, an invoice
+          open or not
+        - an open tenant replaces it without the invoices being asked
+    - where the request is checked
+        - the platform’s route carries the mark, and stays behind the billing permission
+        - the application’s guard, checking first on the same handler, lets it through as the
+          platform does
+    - the platform as it starts
+        - asks the tenant’s invoices, which ${open ? 'let it through while one is open' : 'refuse it
+          where none is'}
+    - an invoice is open for the exception
+        - where it was refused, and where it was paid in part
+        - not where it was paid, nor for a tenant without a subscriber
 - `packages/nest/tests/admin-resources.test.js`
     - a suspension is the platform's record
         - suspending records the reason with its note and who, audits it, and answers the state
@@ -1012,6 +1035,7 @@ _Tested by:_
         - there are tenant controllers to look at
         - every controller that reads the tenant from the request passes through the guard
         - exactly these routes let a read-only tenant through with a writing method
+        - exactly this route replaces the payment method
 - `packages/ui-vue/tests/a-tenant-action-follows-the-platforms-state.test.js`
     - a tenant row offers what the platform's state allows
         - an open or read-only tenant can be suspended, not reactivated
