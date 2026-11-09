@@ -927,6 +927,28 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
 
+🔵 _(Superseded on 2026-11-09 by `SC-ADM-052`.)_ 🔒 SaaSiCat decides the state, and records it with
+every reason that holds, such as an ended subscription (`SC-CANC-020`), an invoice unpaid on its due
+date (`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a
+deletion under way before a suspension and a suspension before read-only, and ending one reason
+lifts only that one. The application checks it on every request through a port, sign-in included, so
+a session that was already open when the state changed is held to it on its next request; SaaSiCat
+does the same on the routes it protects. A state that is recorded and not enforced is a switch that
+looks like protection. The operator acting as the tenant (`SC-ADM-005`) is not one of its users and
+is not held to the state, except once the tenant is being deleted (`SC-PRIV-018`), so support and an
+export stay possible on a suspended tenant; that access requires the second factor and is recorded.
+Read-only stops at one write: while one of the subscriber's invoices is open, a user of the tenant
+holding the billing permission (`SC-UI-023`) can still replace the payment method (`SC-PRIC-030`),
+because the claim outlives the subscription (`SC-PRIV-013`) and nobody else can enter a means of
+payment for it. A suspended tenant has no such exception, and lifting a suspension is the operator's
+(`SC-ADM-005`). Once the tenant is deleted nobody is left to act in it, so an invoice still open is
+settled through a payment page of the gateway that the operator sends to the contact address
+`SC-PRIV-013` keeps, where the subscriber can pay it with a new payment method and needs no tenant.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
+
 🟡 _(Decided, not yet delivered.)_ 🔒 SaaSiCat decides the state, and records it with every reason
 that holds, such as an ended subscription (`SC-CANC-020`), an invoice unpaid on its due date
 (`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a deletion
@@ -937,15 +959,16 @@ same on the routes it protects. A state that is recorded and not enforced is a s
 like protection. The operator acting as the tenant (`SC-ADM-005`) is not one of its users and is not
 held to the state, except once the tenant is being deleted (`SC-PRIV-018`), so support and an export
 stay possible on a suspended tenant; that access requires the second factor and is recorded.
-Read-only stops at one write: while one of the subscriber's invoices is open, a user of the tenant
-holding the billing permission (`SC-UI-023`) can still replace the payment method (`SC-PRIC-030`),
-because the claim outlives the subscription (`SC-PRIV-013`) and nobody else can enter a means of
-payment for it. A suspended tenant has no such exception, and lifting a suspension is the operator's
-(`SC-ADM-005`). Once the tenant is deleted nobody is left to act in it, so an invoice still open is
-settled through a payment page of the gateway that the operator sends to the contact address
-`SC-PRIV-013` keeps, where the subscriber can pay it with a new payment method and needs no tenant.
+Read-only stops at one kind of write, starting a payment: while one of the subscriber's invoices is
+open, a user of the tenant holding the billing permission (`SC-UI-023`) can still pay it now
+(`SC-PRIC-100`) and replace the payment method (`SC-PRIC-030`), because the claim outlives the
+subscription (`SC-PRIV-013`) and nobody else can pay it. A suspended tenant has no such exception,
+and lifting a suspension is the operator's (`SC-ADM-005`). Once the tenant is deleted nobody is left
+to act in it, so an invoice still open is settled through a payment page of the gateway that the
+operator sends to the contact address `SC-PRIV-013` keeps, where the subscriber can pay it with a
+new payment method and needs no tenant.
 
-_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #337
 
 <!-- BEGIN proof -->
 
@@ -980,6 +1003,7 @@ _Tested by:_
 - `packages/nest/tests/a-read-only-tenant-replaces-its-payment-method.test.js`
     - a read-only tenant replacing its payment method
         - is let through while one of its invoices is open
+        - pays now as it replaces the payment method: let through while an invoice is open
         - is refused once none is open
         - is refused where nothing can say whether an invoice is open: no invoices are issued
         - writes nothing else: another write is refused, invoice open or not
@@ -1035,7 +1059,7 @@ _Tested by:_
         - there are tenant controllers to look at
         - every controller that reads the tenant from the request passes through the guard
         - exactly these routes let a read-only tenant through with a writing method
-        - exactly this route replaces the payment method
+        - exactly these routes start a payment
 - `packages/ui-vue/tests/a-tenant-action-follows-the-platforms-state.test.js`
     - a tenant row offers what the platform's state allows
         - an open or read-only tenant can be suspended, not reactivated
@@ -1047,6 +1071,8 @@ _Tested by:_
         - other actions are not the state’s to decide
 
 <!-- END proof -->
+
+(decided 2026-11-09)
 
 ### SC-ADM-025 — An operator gets a description of the invoicing procedure to document its own on
 

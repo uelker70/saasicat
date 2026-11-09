@@ -1,6 +1,6 @@
 // Read-only stops at one write: while one of the subscriber's invoices is
 // open, a user of the tenant can still replace the payment method
-// (`SC-ADM-024`, `SC-PRIC-098`). A suspension and a deletion under way have no
+// (`SC-ADM-052`, `SC-PRIC-098`). A suspension and a deletion under way have no
 // such exception, and whether the user may change the payment method at all
 // is still the billing permission's.
 //
@@ -9,7 +9,7 @@
 // on the same handler, lets the request through as the platform's does. The
 // handler is the platform's own route, with the mark it carries.
 
-// @requirement SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
+// @requirement SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,6 +19,7 @@ import { Reflector } from '@nestjs/core';
 
 import {
     BillingPermissionGuard,
+    TenantInvoicesController,
     ComposedTenantAuthGuard,
     TENANT_ACCESS_HOLDS_TOKEN,
     TenantAccessService,
@@ -79,6 +80,7 @@ function contextFor(controller, handler, method) {
 }
 
 const replacing = () => contextFor(TenantPaymentMethodController, 'startSetup', 'POST');
+const payingNow = () => contextFor(TenantInvoicesController, 'pay', 'POST');
 const reading = () => contextFor(TenantPaymentMethodController, 'current', 'GET');
 
 /** Another write of the tenant's, without a mark. */
@@ -99,6 +101,16 @@ describe('a read-only tenant replacing its payment method', () => {
         await accessWith(store, source).enforce(replacing(), 't1');
 
         assert.equal(source.asked, 1);
+    });
+
+    test('pays now as it replaces the payment method: let through while an invoice is open', async () => {
+        const store = new FakeTenantAccessHoldRepository();
+        await held(store, 't1', 'overdue');
+        await accessWith(store, invoicesThatAre(true)).enforce(payingNow(), 't1');
+        await assert.rejects(
+            accessWith(store, invoicesThatAre(false)).enforce(payingNow(), 't1'),
+            refusedWith('TENANT_READ_ONLY'),
+        );
     });
 
     test('is refused once none is open', async () => {
@@ -142,7 +154,7 @@ describe('a read-only tenant replacing its payment method', () => {
         const store = new FakeTenantAccessHoldRepository();
         await held(store, 't1', 'overdue');
         const access = accessWith(store, invoicesThatAre(true));
-        await access.assertAllowed('t1', { writes: true, replacesPaymentMethod: true });
+        await access.assertAllowed('t1', { writes: true, startsPayment: true });
         await assert.rejects(
             access.assertAllowed('t1', { writes: true }),
             refusedWith('TENANT_READ_ONLY'),
@@ -225,7 +237,7 @@ describe('the platform as it starts', () => {
             try {
                 const attempt = access.assertAllowed('t1', {
                     writes: true,
-                    replacesPaymentMethod: true,
+                    startsPayment: true,
                 });
                 if (open) await attempt;
                 else await assert.rejects(attempt, refusedWith('TENANT_READ_ONLY'));

@@ -513,7 +513,7 @@ export interface TenantBillingModuleOptions {
              * gateway are kept — `persistence.entitlement.invoiceCollectionRepository`.
              * Required where `config/saas.yaml` names `payments`: the invoices
              * then announce how they are collected, and the quarter-hourly run
-             * collects them (`SC-PRIC-082`). Needs `PaymentsModule`.
+             * collects them (`SC-PRIC-099`). Needs `PaymentsModule`.
              */
             collections?: ProviderSpec<InvoiceCollectionRepository>;
             /**

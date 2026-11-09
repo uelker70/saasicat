@@ -26,7 +26,7 @@ import {
 } from './helpers/invoice-collection.js';
 import { MAIN_ACCOUNT, hanging, lostAfter } from './helpers/payments.js';
 
-// @requirement SC-PRIC-082 — An invoice is collected as it, or an announcement after it, says
+// @requirement SC-PRIC-099 — An invoice is collected as it says, and an entered payment method collects it
 // @requirement SC-PRIC-034 — A collection retried after an unanswered request never charges twice
 describe('an invoice that reached the subscriber', () => {
     test('by card is collected at once, through the account its payment method is held at, under its attempt key', async () => {
@@ -436,7 +436,7 @@ describe('collecting starts', () => {
     });
 });
 
-// @requirement SC-PRIC-082 — An invoice is collected as it, or an announcement after it, says
+// @requirement SC-PRIC-099 — An invoice is collected as it says, and an entered payment method collects it
 describe('the quarter-hourly run', () => {
     test('issues, archives, mails and collects an invoice by card in one run', async () => {
         const installation = aCollectingInstallation();

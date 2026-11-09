@@ -1,22 +1,34 @@
 import {
+    ConflictException,
     Controller,
     Get,
+    HttpCode,
     Inject,
     Optional,
     Param,
+    Post,
     Query,
     Req,
     StreamableFile,
     UseGuards,
 } from '@nestjs/common';
-import type { TenantAccount, TenantContractConfirmations, TenantInvoicePage } from '@saasicat/core';
+import {
+    PAYMENT_ERROR_CODES,
+    type TenantAccount,
+    type TenantContractConfirmations,
+    type TenantInvoicePage,
+    type TenantPaymentStarted,
+} from '@saasicat/core';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { BillingPermissionGuard } from '../billing-permission.guard.js';
 import { ComposedTenantAuthGuard } from '../composed-tenant-auth.guard.js';
 import { TENANT_ID_RESOLVER_TOKEN, type TenantIdResolver } from '../tenant-billing.tokens.js';
 import { tenantIdOf } from '../tenant-id.js';
+import { codedError } from '../../errors/coded-error.js';
+import { StartsPayment } from '../../tenant-access/tenant-access-marks.js';
 import { downloadOf } from './archived-download.js';
+import { InvoiceCollectionService } from './invoice-collection.service.js';
 import { TenantInvoiceService } from './tenant-invoice.service.js';
 
 /** The longest invoice id a page may go on after; an id is a uuid, far shorter. */
@@ -35,9 +47,10 @@ export class TenantInvoiceListQuery {
  * archived documents, behind the billing permission for reading and
  * downloading alike (`SC-UI-023`): `GET billing/account`,
  * `GET billing/invoices`, `GET billing/invoices/:id/document`,
- * `GET billing/contracts` and `GET billing/contracts/:id/confirmation`. The
- * tenant is the session's; a document is the file archived when it was issued,
- * never rendered again (`SC-AUD-014`).
+ * `GET billing/contracts` and `GET billing/contracts/:id/confirmation`; and
+ * paying what the account owes now, `POST billing/account/pay`
+ * (`SC-PRIC-100`). The tenant is the session's; a document is the file
+ * archived when it was issued, never rendered again (`SC-AUD-014`).
  */
 @Controller('billing')
 @UseGuards(ComposedTenantAuthGuard, BillingPermissionGuard)
@@ -47,12 +60,32 @@ export class TenantInvoicesController {
         @Optional()
         @Inject(TENANT_ID_RESOLVER_TOKEN)
         private readonly tenantIdResolver: TenantIdResolver | null = null,
+        // Where invoices are collected through a gateway; without it nothing
+        // can be paid here.
+        @Optional()
+        @Inject(InvoiceCollectionService)
+        private readonly collection: InvoiceCollectionService | null = null,
     ) {}
 
     /** What the subscriber owes and is owed, per currency (`SC-PRIC-049`). */
     @Get('account')
     account(@Req() request: unknown): Promise<TenantAccount> {
         return this.invoices.accountOf(tenantIdOf(this.tenantIdResolver, request));
+    }
+
+    /**
+     * Pays every invoice still open now, with the payment method in use
+     * (`SC-PRIC-100`) — the payment a read-only tenant may still start
+     * (`SC-ADM-052`).
+     */
+    @Post('account/pay')
+    @HttpCode(200)
+    @StartsPayment()
+    async pay(@Req() request: unknown): Promise<TenantPaymentStarted> {
+        if (!this.collection) {
+            throw new ConflictException(codedError(PAYMENT_ERROR_CODES.PAYMENTS_NOT_CONFIGURED));
+        }
+        return this.collection.payNow(tenantIdOf(this.tenantIdResolver, request));
     }
 
     @Get('invoices')

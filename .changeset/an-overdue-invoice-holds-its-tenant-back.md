@@ -23,5 +23,5 @@ subscriber's invoices is open: the platform's
 `POST billing/payment-method/setup` is let through by the access check — the
 application's guard included — and stays behind the billing permission. A
 suspended tenant, and one being deleted, cannot.
-`TenantAccessService.assertAllowed` takes `replacesPaymentMethod` for the same
+`TenantAccessService.assertAllowed` takes `startsPayment` for the same
 exception without a request.

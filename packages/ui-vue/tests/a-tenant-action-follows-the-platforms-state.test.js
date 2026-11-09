@@ -1,8 +1,8 @@
 // Which of suspending and reactivating a tenant row offers, from the platform's
-// state of the tenant where the server says it (`SC-ADM-024`), and from
+// state of the tenant where the server says it (`SC-ADM-052`), and from
 // `isActive` where it does not.
 
-// @requirement SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
+// @requirement SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

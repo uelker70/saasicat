@@ -418,6 +418,30 @@ export interface TenantPlanSectionI18n {
     /** Where nothing is open and nothing is owed to the subscriber. */
     accountNothingOpen: string;
     accountLoadFailed: string;
+    /** Pays every invoice still open now, with the payment method in use (`SC-PRIC-100`). */
+    accountPayNow: string;
+    /**
+     * Beside it, before the user pays: when the account opens again, by card
+     * and by direct debit; `{date}` is the day a direct debit announced now is
+     * collected on.
+     */
+    accountPayNowHint: string;
+    /** The payment could not be started at all. */
+    accountPayFailed: string;
+    /** Afterwards: paid. */
+    accountPaidNow: string;
+    /** Afterwards: charged, the answer still to come. */
+    accountPayPending: string;
+    /** Afterwards: a direct debit announced, collected after its notice. */
+    accountPayAnnounced: string;
+    /** Afterwards: refused, or the payment method cannot be charged again. */
+    accountPayRefused: string;
+    /** Afterwards: no payment method is in use. */
+    accountPayNoMethod: string;
+    /** Afterwards: the payment method is not ready to be charged, such as a mandate missing. */
+    accountPayWaiting: string;
+    /** Afterwards: a payment of it is on its way already. */
+    accountPayOnItsWay: string;
     invoicesColumnNumber: string;
     invoicesColumnIssued: string;
     invoicesColumnPeriod: string;
@@ -855,6 +879,20 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     accountCredit: 'Guthaben: {amount}, wird erstattet',
     accountNothingOpen: 'Es ist nichts offen.',
     accountLoadFailed: 'Ihr Konto konnte nicht geladen werden.',
+    accountPayNow: 'Jetzt bezahlen',
+    accountPayNowHint:
+        'Mit Karte ist Ihr Konto sofort wieder frei, mit Lastschrift erst, wenn sie am {date} eingezogen und von der Bank bestätigt ist.',
+    accountPayFailed: 'Die Zahlung konnte nicht gestartet werden.',
+    accountPaidNow: 'Bezahlt. Vielen Dank.',
+    accountPayPending: 'Die Zahlung ist unterwegs. Ihr Konto ist wieder frei, sobald sie da ist.',
+    accountPayAnnounced:
+        'Die Lastschrift ist angekündigt. Ihr Konto ist wieder frei, sobald die Bank sie bestätigt.',
+    accountPayRefused:
+        'Die Zahlung wurde abgelehnt. Bitte hinterlegen Sie ein anderes Zahlungsmittel.',
+    accountPayNoMethod: 'Bitte hinterlegen Sie zuerst ein Zahlungsmittel.',
+    accountPayWaiting:
+        'Mit Ihrem Zahlungsmittel kann noch nicht abgebucht werden. Bitte prüfen oder ersetzen Sie es.',
+    accountPayOnItsWay: 'Eine Zahlung ist bereits unterwegs.',
     invoicesColumnNumber: 'Nummer',
     invoicesColumnIssued: 'Rechnungsdatum',
     invoicesColumnPeriod: 'Leistungszeitraum',
@@ -1258,6 +1296,18 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     accountCredit: 'Credit: {amount}, to be refunded',
     accountNothingOpen: 'Nothing is open.',
     accountLoadFailed: 'Your account could not be loaded.',
+    accountPayNow: 'Pay now',
+    accountPayNowHint:
+        'Paid by card, your account opens again at once; by direct debit, once it is collected on {date} and the bank confirms it.',
+    accountPayFailed: 'The payment could not be started.',
+    accountPaidNow: 'Paid. Thank you.',
+    accountPayPending: 'The payment is on its way. Your account opens again once it is there.',
+    accountPayAnnounced:
+        'The direct debit is announced. Your account opens again once the bank confirms it.',
+    accountPayRefused: 'The payment was refused. Please enter another payment method.',
+    accountPayNoMethod: 'Please enter a payment method first.',
+    accountPayWaiting: 'Your payment method cannot be charged yet. Please check or replace it.',
+    accountPayOnItsWay: 'A payment is on its way already.',
     invoicesColumnNumber: 'Number',
     invoicesColumnIssued: 'Issued on',
     invoicesColumnPeriod: 'Service period',

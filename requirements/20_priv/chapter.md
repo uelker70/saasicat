@@ -198,7 +198,7 @@ out after it has already erased. Each eraser treats what is already gone as done
 partway is reported and repeated rather than left half-finished, and the deletion record
 (`SC-PRIV-015`) is written only when every store has confirmed. Once a run has begun the tenant is
 being deleted: nobody writes to it any more, the operator acting as the tenant included
-(`SC-ADM-024`). Before its first destructive call, each store counts what it is about to erase and
+(`SC-ADM-052`). Before its first destructive call, each store counts what it is about to erase and
 keeps those counts with the run, so a call whose answer was lost, and a repeat that finds the store
 already empty, still leave the counts that were erased rather than a record that nothing was
 deleted.

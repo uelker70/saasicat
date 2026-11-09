@@ -1,4 +1,4 @@
-// Where the reasons a tenant is held back are kept (`SC-ADM-024`).
+// Where the reasons a tenant is held back are kept (`SC-ADM-052`).
 
 import type {
     NewTenantAccessHold,

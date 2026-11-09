@@ -13,6 +13,20 @@
                     {{ line.text }}
                 </li>
             </ul>
+            <template v-if="owes">
+                <div class="sp-account__actions">
+                    <TenantButton :loading="account.paying.value" @click="account.payNow()">
+                        {{ i18n.accountPayNow }}
+                    </TenantButton>
+                </div>
+                <p class="sp-account__hint">{{ payNowHint }}</p>
+            </template>
+            <p v-if="account.payError.value" class="sp-account__error" role="alert">
+                {{ i18n.accountPayFailed }}
+            </p>
+            <p v-else-if="startedMessage" class="sp-account__started" role="status">
+                {{ startedMessage }}
+            </p>
         </section>
     </TenantCardSection>
 </template>
@@ -21,14 +35,20 @@
 import { useTenantAccount, type HttpClient } from '@saasicat/ui-vue';
 import { computed, useId, watch } from 'vue';
 
+import { writeDay } from '../day-as-instant.js';
 import { useTenantI18n } from '../tenant-i18n.js';
+import TenantButton from '../ui/TenantButton.vue';
 import TenantCardSection from '../ui/TenantCardSection.vue';
 import '../ui/tenant-ui.css';
 import { accountLinesOf } from './account-lines.js';
+import { paymentStartedMessage } from './payment-started.js';
 
 // TenantAccountCard — what the tenant's subscriber owes and is owed, at the
 // top of its billing section (`SC-PRIC-049`): what is open and of that
-// overdue, and beside it the credit to be refunded. The history is the invoice
+// overdue, and beside it the credit to be refunded, and where something is open
+// a way to pay it now, with when the account opens again by card and by direct
+// debit — the day a direct debit announced now is collected — said before it is
+// pressed (`SC-PRIC-100`). The history is the invoice
 // list beneath it. Behind the billing permission like the rest of the section,
 // so it does not render for anyone else — nor before the first answer, which is
 // what says whether it is for this user; a reload keeps the lines it shows.
@@ -38,6 +58,8 @@ const props = defineProps<{
     apiPrefix?: string;
     /** An amount, with the ISO 4217 currency of the balance it is of. */
     formatCurrency: (amount: number, currency: string) => string;
+    /** A day, as the application writes days. */
+    formatDate: (iso: string) => string;
 }>();
 
 const emit = defineEmits<{
@@ -52,6 +74,16 @@ watch(account.available, (shown) => emit('availability', shown), { immediate: tr
 
 const lines = computed(() =>
     accountLinesOf(account.balances.value, i18n.value, props.formatCurrency),
+);
+const owes = computed(() => account.balances.value.some((balance) => balance.owed > 0));
+const payNowHint = computed(() =>
+    i18n.value.accountPayNowHint.replace(
+        '{date}',
+        writeDay(props.formatDate, account.directDebitCollectedOn.value),
+    ),
+);
+const startedMessage = computed(() =>
+    account.started.value ? paymentStartedMessage(account.started.value, i18n.value) : null,
 );
 </script>
 
@@ -73,6 +105,18 @@ const lines = computed(() =>
 }
 .sp-account__line {
     margin: 0;
+    font-size: var(--sa-text-md);
+}
+.sp-account__actions {
+    margin-top: var(--sa-space-4);
+}
+.sp-account__started {
+    margin: var(--sa-space-2) 0 0;
+    font-size: var(--sa-text-md);
+}
+.sp-account__hint {
+    margin: var(--sa-space-2) 0 0;
+    color: var(--sa-color-fg-muted);
     font-size: var(--sa-text-md);
 }
 </style>

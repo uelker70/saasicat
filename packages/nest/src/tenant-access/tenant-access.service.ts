@@ -1,5 +1,5 @@
 // TenantAccessService — what a tenant's users may do, asked on every request
-// (`SC-ADM-024`).
+// (`SC-ADM-052`).
 //
 // The application calls `enforce` at the end of its own authentication guard,
 // once the tenant of the request is known, and `assertAllowed` where there is
@@ -38,10 +38,11 @@ const REFUSAL_CODE: Readonly<Record<Exclude<TenantAccessState, 'open'>, TenantAc
 export interface TenantAccessIntent extends TenantAccessActor {
     writes: boolean;
     /**
-     * It replaces the payment method: the one write a read-only tenant may
-     * make, while one of its subscriber's invoices is open (`SC-ADM-024`).
+     * It starts a payment — pays now, or replaces the payment method: the one
+     * kind of write a read-only tenant may make, while one of its subscriber's
+     * invoices is open (`SC-ADM-052`).
      */
-    replacesPaymentMethod?: boolean;
+    startsPayment?: boolean;
 }
 
 /**
@@ -76,7 +77,7 @@ export class TenantAccessService {
      * Where an open invoice is looked up. Registered by the invoices rather
      * than injected, since they are composed inside tenant billing and this
      * service is global; without invoices no invoice can be open, and a
-     * read-only tenant replaces no payment method.
+     * read-only tenant starts no payment.
      */
     private openInvoices: OpenInvoiceSource | null = null;
 
@@ -166,7 +167,7 @@ export class TenantAccessService {
         await this.assertAllowed(tenantId, {
             ...actor,
             writes,
-            replacesPaymentMethod: mark === 'replaces-payment-method',
+            startsPayment: mark === 'starts-payment',
         });
         if (typeof request === 'object' && request !== null) this.passed.set(request, { tenantId });
     }
@@ -191,13 +192,13 @@ export class TenantAccessService {
         const access = await this.accessOf(tenantId);
         const refusal = tenantAccessRefusal(access, intent.writes, intent);
         if (!refusal) return;
-        // Asked only where it decides: a read-only tenant replacing its
-        // payment method. A suspension or a deletion under way has no such
-        // exception, and whether the user may change the payment method at
-        // all is the billing permission's.
+        // Asked only where it decides: a read-only tenant starting a
+        // payment. A suspension or a deletion under way has no such
+        // exception, and whether the user may pay at all is the billing
+        // permission's.
         if (
             refusal === 'read-only' &&
-            intent.replacesPaymentMethod === true &&
+            intent.startsPayment === true &&
             (await this.openInvoices?.hasOpenInvoice(tenantId)) === true
         ) {
             return;

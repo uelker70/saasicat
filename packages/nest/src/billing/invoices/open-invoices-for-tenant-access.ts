@@ -1,6 +1,6 @@
 // Tells the tenant's access check whether an invoice is open, so a read-only
-// tenant can replace its payment method while it owes something
-// (`SC-ADM-024`).
+// tenant can start a payment — pay now, or replace its payment method — while
+// it owes something (`SC-ADM-052`).
 //
 // The check is global and composed before tenant billing, so it cannot inject
 // the invoices; they answer it from here, at the start, as the invoice

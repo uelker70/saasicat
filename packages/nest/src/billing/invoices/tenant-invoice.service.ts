@@ -15,7 +15,9 @@ import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import {
     INVOICE_ERROR_CODES,
     TENANT_INVOICE_PAGE_SIZE,
+    announcedCollectionDay,
     dayInZone,
+    directDebitLeadDaysOf,
     installationZoneOf,
     invoiceStandingsOf,
     tenantAccountOf,
@@ -68,7 +70,10 @@ export class TenantInvoiceService implements OpenInvoiceSource {
         private readonly rlsBypass: RlsBypassPort | null = null,
         @Optional()
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
-        private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
+        private readonly settings: Pick<
+            PlanCatalogSettings,
+            'timeZone' | 'invoicing'
+        > | null = null,
     ) {}
 
     /**
@@ -105,21 +110,27 @@ export class TenantInvoiceService implements OpenInvoiceSource {
 
     /**
      * What `tenantId`'s subscriber owes and is owed, per currency, read from
-     * the standings its invoice list shows; nothing for a tenant without a
-     * subscriber.
+     * the standings its invoice list shows — nothing for a tenant without a
+     * subscriber —, and the day a direct debit announced now is collected on.
      */
-    async accountOf(tenantId: string): Promise<TenantAccount> {
+    async accountOf(tenantId: string, now: Date = new Date()): Promise<TenantAccount> {
+        const today = dayInZone(now, installationZoneOf(this.settings));
+        const directDebitCollectedOn = announcedCollectionDay(
+            today,
+            today,
+            directDebitLeadDaysOf(this.settings?.invoicing ?? {}),
+        );
         const subscriber = await this.subscribers.findByTenantId(tenantId);
-        if (!subscriber) return { balances: [] };
+        if (!subscriber) return { balances: [], directDebitCollectedOn };
         const invoices = await this.read(() => this.invoices.listBySubscriber(subscriber.id));
         const { standings, credits } = await this.standingsOf(subscriber, invoices);
-        return tenantAccountOf(standings, credits);
+        return { ...tenantAccountOf(standings, credits), directDebitCollectedOn };
     }
 
     /**
      * Whether `tenantId`'s subscriber has an invoice that still owes something,
-     * as its account shows it: what read-only leaves the payment method open
-     * for (`SC-ADM-024`). Not for a tenant without a subscriber.
+     * as its account shows it: what read-only leaves starting a payment open
+     * for (`SC-ADM-052`). Not for a tenant without a subscriber.
      */
     async hasOpenInvoice(tenantId: string): Promise<boolean> {
         const { balances } = await this.accountOf(tenantId);

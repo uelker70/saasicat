@@ -8577,7 +8577,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             return { ...account, collections, ids };
         }
 
-        // @requirement SC-PRIC-082
+        // @requirement SC-PRIC-099
         // @requirement SC-PRIC-028
         test('an invoice is due once it was mailed: by card at once, by direct debit from the day it announced, until it has an attempt', async (t) => {
             const account = await collectable(t, 'tenant-collect-due', [
@@ -8949,7 +8949,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-PRIC-080
-        // @requirement SC-PRIC-082
+        // @requirement SC-PRIC-099
         test('an attempt is planned for its day with nothing sent, keeps the invoice from another, and is taken up as sent by one run', async (t) => {
             const account = await collectable(t, 'tenant-collect-plan');
             if (!account) return;
@@ -9108,7 +9108,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(await collections.announce(sent!.id, '2026-03-01', announcedAt), false);
         });
 
-        // @requirement SC-PRIC-082
+        // @requirement SC-PRIC-099
         test('a planned attempt is withdrawn once, is never sent, and the invoice can be planned again', async (t) => {
             const account = await collectable(t, 'tenant-collect-withdraw');
             if (!account) return;
@@ -9155,7 +9155,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(first.length, 1);
         });
 
-        // @requirement SC-PRIC-082
+        // @requirement SC-PRIC-099
         test('the invoices another payment method can collect are those whose last attempt failed and was followed up, or was withdrawn, and no others', async (t) => {
             const account = await collectable(t, 'tenant-collect-again', [{}, {}, {}, {}, {}, {}]);
             if (!account) return;

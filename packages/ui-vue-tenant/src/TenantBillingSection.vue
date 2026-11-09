@@ -8,6 +8,7 @@
         <TenantAccountCard
             :http="http"
             :api-prefix="apiPrefix"
+            :format-date="formatDate"
             :format-currency="formatCurrency"
             @availability="shown.account = $event"
         />

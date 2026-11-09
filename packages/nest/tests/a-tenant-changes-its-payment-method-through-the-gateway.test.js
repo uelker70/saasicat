@@ -22,6 +22,7 @@ import {
 import {
     DevPaymentGateway,
     PaymentWebhookController,
+    SubscriberPaymentMethodService,
     TenantBillingDetailsController,
     TenantPaymentMethodController,
 } from '../dist/payments/index.js';
@@ -326,6 +327,32 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
             true,
             'recorded outside the claim',
         );
+    });
+
+    // @requirement SC-PRIC-099 — An invoice is collected as it says, and an entered payment method collects it
+    test('a confirmed payment method is told to what follows it once it is recorded, and once only', async () => {
+        const ctx = await withSubscriber();
+        await inUse(ctx, MAIN_ACCOUNT, 'cus_known');
+        const told = [];
+        ctx.app.get(SubscriberPaymentMethodService).afterConfirming(async (subscriberId) => {
+            told.push([subscriberId, ctx.methods.rows.at(-1)?.paymentMethodRef]);
+        });
+        await ctx.routes.startSetup(adminOf('tenant-1'), URLS);
+        const callback = signedCallback(
+            confirmation({
+                eventId: 'evt_told',
+                sessionRef: 'cs_1',
+                subject: { kind: 'subscriber', subscriberId: ctx.subscriber.id },
+                paymentMethodRef: 'pm_new',
+                customerRef: 'cus_known',
+                occurredAt: '2026-09-15T10:00:00.000Z',
+            }),
+        );
+
+        await ctx.callbacks.handle(MAIN_ACCOUNT, callback);
+        await ctx.callbacks.handle(MAIN_ACCOUNT, callback);
+
+        assert.deepEqual(told, [[ctx.subscriber.id, 'pm_new']]);
     });
 
     test('a confirmation whose recording fails leaves the claim and the setup open for the retry', async () => {

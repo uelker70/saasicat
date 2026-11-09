@@ -126,7 +126,7 @@ export class AdminResourcesService {
 
     /**
      * Records the operator's suspension as a reason the tenant is held back
-     * (`SC-ADM-024`). Nothing of the application's is written — neither its
+     * (`SC-ADM-052`). Nothing of the application's is written — neither its
      * tenant row nor a subscription: a suspension is not an overdue invoice,
      * and reactivating must not turn a cancelled subscription active again.
      */

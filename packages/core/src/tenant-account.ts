@@ -11,6 +11,7 @@
 // Charges that stand on no invoice yet are not shown: they are owed once an
 // invoice names them.
 
+import type { CalendarDay } from './zoned-day.js';
 import type { InvoiceStanding, StandingInvoice } from './invoice-standing.js';
 import { toCents } from './money.js';
 import type { SubscriberCreditStanding } from './subscriber-payment.types.js';
@@ -29,6 +30,13 @@ export interface TenantAccountBalance {
 /** A subscriber's account, one balance per currency in which anything is open, by currency. */
 export interface TenantAccount {
     balances: TenantAccountBalance[];
+    /**
+     * The day a direct debit announced today is collected on, the notice
+     * period this installation sets after today (`SC-PRIC-028`): what paying
+     * now by direct debit waits for, before the bank can confirm it
+     * (`SC-PRIC-100`).
+     */
+    directDebitCollectedOn: CalendarDay;
 }
 
 /** An invoice with where it stands, as the tenant's list reads it. */
@@ -41,7 +49,7 @@ export interface AccountInvoice {
 export function tenantAccountOf(
     standings: readonly AccountInvoice[],
     credits: readonly SubscriberCreditStanding[],
-): TenantAccount {
+): Pick<TenantAccount, 'balances'> {
     const cents = new Map<string, { owed: number; overdue: number; credit: number }>();
     const of = (currency: string) => {
         const known = cents.get(currency);
@@ -79,4 +87,27 @@ export function tenantAccountOf(
                 credit: balance.credit / 100,
             })),
     };
+}
+
+/**
+ * What paying now set going for the tenant's subscriber, counted over the
+ * invoices still open (`SC-PRIC-100`): what a page tells the user afterwards.
+ */
+export interface TenantPaymentStarted {
+    /** Whether a payment method is in use; without one nothing was started. */
+    paymentMethod: boolean;
+    /** Charged now, and paid. */
+    collected: number;
+    /** Charged now, the answer still to come. */
+    pending: number;
+    /** Charged now, and refused. */
+    failed: number;
+    /** Direct debits announced, and collected the lead time after. */
+    announced: number;
+    /** Already on their way, so not started twice. */
+    onTheirWay: number;
+    /** Not collected with the payment method in use, which a payment was taken back on. */
+    refused: number;
+    /** Not started yet, such as a direct debit whose mandate reference is missing. */
+    waiting: number;
 }

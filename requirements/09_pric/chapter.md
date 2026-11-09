@@ -1690,7 +1690,7 @@ _Tested by:_
 details `SC-PRIV-005` allows, never the IBAN or the card number. Adding or changing a payment
 method needs the billing permission (`SC-UI-023`) and is taken in the subscriber's one live tenant
 (`SC-SCOPE-012`), or, once that tenant is deleted, on the gateway's payment page for an open invoice
-(`SC-ADM-024`). A reference is only meaningful to the gateway account that issued it,
+(`SC-ADM-052`). A reference is only meaningful to the gateway account that issued it,
 the provider and the merchant account there, so each payment method and each payment records that
 account. `config/saas.yaml` names the account that takes new payment methods; one that still holds
 a payment method in use, an open collection, a credit to refund, a payment inside its reversal
@@ -1731,6 +1731,7 @@ _Tested by:_
         - without an invoice email, the gateway is given the requesting user's address
         - the confirmation makes the new payment method the one in use, and keeps the one it
           replaced
+        - a confirmed payment method is told to what follows it once it is recorded, and once only
         - a confirmation whose recording fails leaves the claim and the setup open for the retry
         - a return URL at another origin is refused, and neither the gateway nor a setup is touched
         - opening the form records the setup for this subscriber and this session
@@ -2448,7 +2449,7 @@ failure, a direct debit on the day its new announcement names, which is seven da
 failure at the earliest and the lead time after the announcement reached the subscriber
 (`SC-PRIC-028`). A second failure of the same payment method, and a failure for a reason that cannot
 pass, is not tried again: the subscriber is asked to replace the payment method, and the
-replacement collects the invoice (`SC-PRIC-082`). A gateway tries nothing again of its own. The
+replacement collects the invoice (`SC-PRIC-099`). A gateway tries nothing again of its own. The
 invoice stays as it was issued, its due date included (`SC-PRIC-046`).
 
 _Source:_ #333 (decided 2026-10-13 and 2026-10-14) · #276
@@ -2591,19 +2592,39 @@ _Tested by:_
 
 ### SC-PRIC-082 — An invoice is collected as it, or an announcement after it, says
 
+🔵 _(Superseded on 2026-11-09 by `SC-PRIC-099`.)_ 💰 An invoice that names the payment method it is
+collected with (`SC-PRIC-028`) is collected through the gateway account that payment method is held
+at once it was handed to the mail: by card at once, by direct debit from the collection date it
+announced. Where the subscriber's payment method in use is another than the invoice named, the
+invoice is collected with the one in use: a card at once, a direct debit from the date a new
+announcement names (`SC-PRIC-028`); so is an invoice that could not be collected (`SC-PRIC-080`)
+once its payment method is replaced. A direct debit whose invoice reached the subscriber less than
+the lead time before the date it announced is announced again rather than collected early. Without a
+payment method in use nothing is collected, and the operator is shown why. Collecting is the fourth
+step of the quarter-hourly run that issues, archives and mails invoices, so nothing is collected
+before the subscriber was sent what it is collected for.
+
+_Source:_ #333 (decided 2026-10-13 and 2026-10-14) · #276
+
+### SC-PRIC-099 — An invoice is collected as it says, and an entered payment method collects it
+
 🟢 💰 An invoice that names the payment method it is collected with (`SC-PRIC-028`) is collected
 through the gateway account that payment method is held at once it was handed to the mail: by card
 at once, by direct debit from the collection date it announced. Where the subscriber's payment
 method in use is another than the invoice named, the invoice is collected with the one in use: a
-card at once, a direct debit from the date a new announcement names (`SC-PRIC-028`); so is an
-invoice that could not be collected (`SC-PRIC-080`) once its payment method is replaced. A direct
-debit whose invoice reached the subscriber less than the lead time before the date it announced is
-announced again rather than collected early. Without a payment method in use nothing is collected,
-and the operator is shown why. Collecting is the fourth step of the quarter-hourly run that issues,
-archives and mails invoices, so nothing is collected before the subscriber was sent what it is
-collected for.
+card at once, a direct debit from the date a new announcement names (`SC-PRIC-028`). A direct debit
+whose invoice reached the subscriber less than the lead time before the date it announced is
+announced again rather than collected early. A payment method the subscriber enters collects every
+invoice still open that was handed to the subscriber — one that could not be collected
+(`SC-PRIC-080`) and one issued while no payment method was in use included — as the invoice says:
+from the day it named, or at once where that day has passed, so replacing a payment method early
+brings no payment forward; paying now is what does (`SC-PRIC-100`). An invoice whose collection is
+on its way is left to it, and a payment method a payment was taken back on collects nothing again
+(`SC-PRIC-085`). Without a payment method in use nothing is collected, and the operator is shown
+why. Collecting is the fourth step of the quarter-hourly run that issues, archives and mails
+invoices, so nothing is collected before the subscriber was sent what it is collected for.
 
-_Source:_ #333 (decided 2026-10-13 and 2026-10-14) · #276
+_Source:_ #333 (decided 2026-10-13 and 2026-10-14) · #276 · #337 (decided 2026-11-09)
 
 <!-- BEGIN proof -->
 
@@ -2625,6 +2646,9 @@ _Tested by:_
     - a direct debit whose invoice reached the subscriber too late for its day
         - is announced again for the lead time after, and debited then rather than on the day it
           named
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - changing it opens the gateway form, and the confirmation replaces the one in use
+        - a confirmed payment method is told to what follows it once it is recorded, and once only
 - `packages/nest/tests/an-invoice-is-collected.test.js`
     - an invoice that reached the subscriber
         - by card is collected at once, through the account its payment method is held at, under its
@@ -2638,6 +2662,72 @@ _Tested by:_
 - `packages/nest/tests/invoices-start-only-as-configured.test.js`
     - the payment methods invoices are collected with
         - refuse the start where the file names payment accounts and nothing collects the invoices
+
+<!-- END proof -->
+
+### SC-PRIC-100 — A subscriber pays what is open now
+
+🟢 💰 A user of the tenant holding the billing permission (`SC-UI-023`) can pay every invoice still
+open at once with the payment method in use, read-only included (`SC-ADM-052`), from the account
+that shows what is open (`SC-PRIC-049`): a card is charged at once, and the tenant is let go once
+the payment is there (`SC-PRIC-098`); a direct debit is announced and collected the lead time after
+(`SC-PRIC-028`), and the tenant stays read-only until the bank confirms it. Before paying, the user
+is told that a card opens the account again at once and a direct debit only once it is collected and
+the bank confirms it, with the day a direct debit announced then is collected on — the lead time
+this installation sets, not a fixed span; afterwards, what was set going — paid, on its way,
+announced, refused, or that a payment method has to be entered or replaced first. A card charge
+planned for a later day gives way to paying now; a direct debit already announced with the payment
+method in use keeps the day the subscriber was told and is not announced again; an invoice whose
+collection is on its way is not collected twice; and a payment method a payment was taken back on
+collects nothing again (`SC-PRIC-085`).
+
+_Source:_ #337 (decided 2026-11-09)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-pays-what-is-open-now.test.js`
+    - paying now
+        - charges the card in use at once, and a tenant held back is let go
+        - with the same card, once it has funds again, pays before the second attempt was due
+        - answered later leaves the tenant read-only until the payment is there
+        - by direct debit announces it, and collects it the lead time after
+        - with a card entered since, charges a direct debit’s invoice at once, before the day it
+          names
+        - leaves a direct debit the invoice announced with the payment method in use to its day
+        - leaves a direct debit planned with the payment method in use to the day it was announced
+          for
+        - leaves an invoice on its way to that collection
+        - does not collect again with a payment method a payment was taken back on
+        - without a payment method in use starts nothing, and says so
+        - leaves an invoice not handed to the subscriber yet to the run that mails it
+        - pays nothing twice for an invoice already paid
+    - a payment method the subscriber enters
+        - collects at once an invoice issued while none was in use
+        - before the day a direct debit’s invoice names, charges a card on that day and not earlier
+    - the route a tenant pays on
+        - answers that nothing can be paid where invoices are not collected
+        - pays for the session’s tenant
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - the day a direct debit paid now is collected on, beside the account
+        - is the lead time the installation sets after its own today
+        - is fourteen days after today where the installation sets no lead time
+        - is answered for a tenant without a subscriber as well
+- `packages/ui-vue/tests/a-tenant-reads-its-account.test.js`
+    - the day a direct debit paid now is collected on
+        - is carried as the server says it
+        - is none where the server does not say
+    - paying what is open now
+        - pays under the prefix the app gives, keeps what it set going, and reads the account again
+        - that the server refuses is kept as an error, and the account is not read again
+- `packages/ui-vue-tenant/tests/component/a-tenant-pays-what-is-open-now.test.ts`
+    - paying now, on the account
+        - is offered where something is open, with when the account opens again said beside it
+        - is not offered where nothing is open, a credit included
+        - pays, reads the account again, and says it is paid
+        - says what follows ${what}
+        - that could not be started says so
 
 <!-- END proof -->
 
@@ -2677,7 +2767,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-PRIC-098 — An invoice unpaid on its due date makes the tenant read-only until it is paid
 
 🟢 💰 An invoice still open on its due date (`SC-PRIC-046`) makes the tenant its subscriber is live
-for read-only (`SC-ADM-024`) from that day, within the quarter of an hour the run takes, until it
+for read-only (`SC-ADM-052`) from that day, within the quarter of an hour the run takes, until it
 is paid; there is no grace period, and before its due date an invoice holds nobody back, unless an
 invoice it replaced had come due, was refused and still owed when it was replaced: a correction is
 not a payment, and the tenant stays read-only until the replacement is paid, whatever day the
@@ -3509,6 +3599,12 @@ _Tested by:_
         - that fails otherwise is an error the page reports
         - answered without balances is an error, not a subscriber that owes nothing
         - is read once without being asked
+    - the day a direct debit paid now is collected on
+        - is carried as the server says it
+        - is none where the server does not say
+    - paying what is open now
+        - pays under the prefix the app gives, keeps what it set going, and reads the account again
+        - that the server refuses is kept as an error, and the account is not read again
 - `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
     - the account, at the top of the billing section
         - says what is open, of that what is overdue, and beside it the credit to be refunded

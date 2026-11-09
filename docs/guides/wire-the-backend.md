@@ -1288,7 +1288,22 @@ a tenant makes past its own boundary (`SC-SEC-018`).
 guards: per currency, what the subscriber's invoices still owe and of that what is overdue, and
 beside it the credit to be refunded, never set off against each other (`SC-PRIC-049`). It is added
 up from the standings the invoice list shows, so the two agree; a charge on no invoice yet is not
-in it.
+in it. Beside the balances it answers `directDebitCollectedOn`: the day a direct debit announced
+today is collected on, the lead time `invoicing.directDebitLeadDays` sets after today in the
+installation's zone, which is what paying now by direct debit waits for.
+
+**The tenant pays what is open now** at `POST /billing/account/pay`, behind the same guards
+(`SC-PRIC-100`): every invoice that still owes something and was handed to the subscriber is
+collected at once with the payment method in use — a card charged now, a direct debit announced and
+collected the lead time after. An invoice whose collection is on its way is left to it, a direct
+debit already announced with the payment method in use keeps the day the subscriber was told, and a
+payment method a payment was taken back on collects nothing again (`SC-PRIC-085`). The answer,
+`TenantPaymentStarted`, counts what was set going, so a page can say what follows. A payment method
+the subscriber confirms in the gateway's form collects what is open too, but as each invoice says:
+from the day it named, or at once where that day has passed (`SC-PRIC-099`).
+`InvoiceCollectionService` registers with `SubscriberPaymentMethodService` at the start, and is
+told of each confirmation once it is recorded. The shipped `TenantAccountCard` offers the button
+where something is open; a page of your own calls `useTenantAccount().payNow()`.
 
 ### The confirmation of each contract
 
@@ -1509,7 +1524,7 @@ billing module it built.
 
 Where `config/saas.yaml` names `payments`, an invoice that announced how it is paid is collected
 through the gateway account its payment method is held at, as the fourth step of the quarter-hourly
-run — after it was mailed (`SC-PRIC-082`): by card at once, by direct debit from the collection date
+run — after it was mailed (`SC-PRIC-099`): by card at once, by direct debit from the collection date
 it announced. Adopt `prisma-fragments/23-subscription-invoice-collection.prisma` with the
 `collections` back-relation it names on `SubscriptionInvoice`, run
 `sql/1.0-an-invoice-is-collected.postgres.sql` once before `db push`, and pass
@@ -1641,7 +1656,7 @@ application issuing for the same issuer is not supported.
 ### An invoice unpaid on its due date
 
 An invoice still open on its due date makes the tenant its subscriber is live for read-only from
-that day until it is paid (`SC-PRIC-098`, `SC-ADM-024`); there is no grace period, and before its due
+that day until it is paid (`SC-PRIC-098`, `SC-ADM-052`); there is no grace period, and before its due
 date an invoice holds nobody back. A subscription paid on its date sets `invoicing.paymentTermDays`
 to `0`: the invoice is then due the day it is issued, and a card declined in the run that issues it
 makes the tenant read-only in that run.
@@ -1664,11 +1679,12 @@ makes the tenant read-only in that run.
   otherwise by the next run, which lifts every reason whose invoice no longer owes — cancelled, or
   settled again by a reversal given back — or whose subscriber is no longer live for that tenant.
   Lifting an `overdue` reason lifts no other: a suspended tenant stays suspended.
-- **One write is left**: a user of a read-only tenant holding the billing permission can replace the
-  payment method (`POST billing/payment-method/setup`) while one of the subscriber's invoices is
-  open, and the replacement collects it — a card at once. Your own authentication guard, which
-  calls `TenantAccessService.enforce`, lets that route through as the platform does, since the
-  route carries the mark the check reads. A suspended tenant, and one being deleted, cannot.
+- **Starting a payment is left**: a user of a read-only tenant holding the billing permission can
+  pay now (`POST billing/account/pay`) and replace the payment method
+  (`POST billing/payment-method/setup`) while one of the subscriber's invoices is open, and either
+  collects it — a card at once. Your own authentication guard, which calls
+  `TenantAccessService.enforce`, lets both routes through as the platform does, since they carry the
+  mark the check reads (`starts-payment`). A suspended tenant, and one being deleted, cannot.
 
 ## Telling Subscribers of a Newer Version
 

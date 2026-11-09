@@ -1,4 +1,4 @@
-// What a tenant's users may do, and why (`SC-ADM-024`).
+// What a tenant's users may do, and why (`SC-ADM-052`).
 //
 // A tenant is held back for reasons, and every reason that holds is recorded on
 // its own: an operator's suspension, an invoice unpaid on its due date, a
@@ -14,10 +14,11 @@
 // therefore refuses a harmless request rather than letting a write through,
 // except for a `GET` that writes, which REST makes rare.
 //
-// Read-only stops at one write: replacing the payment method while one of the
-// subscriber's invoices is open, because the claim outlives the subscription
-// and nobody else can enter a means of payment for it. The route that does it
-// says so with a mark of its own, and is still a write everywhere else.
+// Read-only stops at one kind of write: starting a payment — paying now, or
+// replacing the payment method — while one of the subscriber's invoices is
+// open, because the claim outlives the subscription and nobody else can pay it.
+// The routes that do it say so with a mark of their own, and are still writes
+// everywhere else.
 
 /** Why a tenant is held back. */
 export type TenantAccessHoldKind = 'suspended' | 'overdue' | 'ended' | 'deleting';
@@ -92,17 +93,17 @@ export function tenantAccessOf(holds: readonly TenantAccessHold[]): TenantAccess
 
 /**
  * How a route declares what it does, where its method would say otherwise:
- * it writes nothing, it writes, or it replaces the payment method — a write
- * that read-only lets through while an invoice is open.
+ * it writes nothing, it writes, or it starts a payment — a write that
+ * read-only lets through while an invoice is open.
  */
-export type TenantAccessMark = 'writes-nothing' | 'writes' | 'replaces-payment-method';
+export type TenantAccessMark = 'writes-nothing' | 'writes' | 'starts-payment';
 
 const READING_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** Whether a request writes: its route's mark where it has one, otherwise its method. */
 export function requestWrites(method: string, mark: TenantAccessMark | null): boolean {
     if (mark === 'writes-nothing') return false;
-    if (mark === 'writes' || mark === 'replaces-payment-method') return true;
+    if (mark === 'writes' || mark === 'starts-payment') return true;
     return !READING_METHODS.has(method.toUpperCase());
 }
 

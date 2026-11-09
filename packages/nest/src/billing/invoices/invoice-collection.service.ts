@@ -1,6 +1,6 @@
 // The run that collects the invoices that announced how they are paid, and
 // decides what follows when a collection fails or its payment is reversed
-// (`SC-PRIC-080`, `SC-PRIC-082`, `SC-PRIC-085`).
+// (`SC-PRIC-080`, `SC-PRIC-099`, `SC-PRIC-085`).
 //
 // It first takes on the attempts that are not settled: one whose answer was
 // lost is asked about at the gateway, and sent again as the same request under
@@ -91,6 +91,7 @@ import {
     type SubscriptionNoticeRepository,
     type TransactionContext,
     type TransactionRunner,
+    type TenantPaymentStarted,
 } from '@saasicat/core';
 
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
@@ -105,6 +106,7 @@ import {
     PAYMENT_TRANSACTION_RUNNER_TOKEN,
     SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN,
 } from '../../payments/payments.tokens.js';
+import { SubscriberPaymentMethodService } from '../../payments/subscriber-payment-method.service.js';
 import { SubscriberService } from '../../subscriber/subscriber.service.js';
 import {
     NOTICE_CLAIM_LEASE_MS,
@@ -177,7 +179,12 @@ type PlannedBecause =
     /** The payment method in use is another than the invoice named, or than the one tried. */
     | 'payment-method-replaced'
     /** The invoice reached the subscriber less than the lead time before its direct debit's day. */
-    | 'announced-too-late';
+    | 'announced-too-late'
+    /** The subscriber paid now, or entered a payment method (`SC-PRIC-099`, `SC-PRIC-100`). */
+    | 'started-by-subscriber';
+
+/** Who started collecting what is open: the subscriber paying now, or entering a payment method. */
+type CollectionStartedBy = 'paying-now' | 'payment-method-entered';
 
 /** What an audit entry about a collection records. */
 type CollectionAudit =
@@ -201,8 +208,11 @@ type CollectionAudit =
               number: string;
               attempt: number;
               paymentMethodId: string;
-              /** The invoice owes nothing any more, or its payment method was replaced. */
-              because: 'paid' | 'payment-method-replaced';
+              /**
+               * The invoice owes nothing any more, its payment method was
+               * replaced, or the subscriber started its payment now instead.
+               */
+              because: 'paid' | 'payment-method-replaced' | 'started-by-subscriber';
           };
       }
     | {
@@ -262,6 +272,11 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         @Optional()
         @Inject(PAYMENT_TRANSACTION_RUNNER_TOKEN)
         private readonly transactions: TransactionRunner | null = null,
+        // Where payment methods are replaced: one confirmed collects what is
+        // open at once.
+        @Optional()
+        @Inject(SubscriberPaymentMethodService)
+        private readonly paymentMethodChanges: SubscriberPaymentMethodService | null = null,
     ) {
         this.sender = notices
             ? new NoticeSender<InvoiceCollectionNotice>(notices, {
@@ -304,10 +319,113 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                     'persistence.tenantBilling.subscriptionNotices, beside chargeJournal.invoices.mail.',
             );
         }
-        if (problems.length === 0) return;
-        throw new Error(
-            `Invoices cannot start:\n${problems.map((problem) => `- ${problem}`).join('\n')}`,
+        if (problems.length > 0) {
+            throw new Error(
+                `Invoices cannot start:\n${problems.map((problem) => `- ${problem}`).join('\n')}`,
+            );
+        }
+        this.paymentMethodChanges?.afterConfirming((subscriberId) =>
+            this.collectOpenNow(subscriberId, 'payment-method-entered'),
         );
+    }
+
+    /**
+     * Pays now what the tenant's subscriber owes (`SC-PRIC-100`): every
+     * invoice still open, collected as `collectOpenNow` says. A tenant without
+     * a subscriber has nothing to pay.
+     */
+    async payNow(tenantId: string, now: Date = new Date()): Promise<TenantPaymentStarted> {
+        const subscriber = await this.subscribers?.findByTenantId(tenantId);
+        if (!subscriber) return nothingStarted(false);
+        return this.collectOpenNow(subscriber.id, 'paying-now', now);
+    }
+
+    /**
+     * Collects every invoice of `subscriberId` that still owes something with
+     * the payment method in use: what paying now does, and what a payment
+     * method the subscriber enters does (`SC-PRIC-099`, `SC-PRIC-100`) — an
+     * invoice issued while none was in use included. Paying now collects at
+     * once: a card is charged now, a direct debit announced and collected the
+     * lead time after. A payment method entered collects as the invoice says:
+     * from the day it named, or at once where that day has passed, so
+     * replacing a payment method early does not bring a payment forward.
+     *
+     * Left alone: an invoice not handed to the subscriber yet, to the run that
+     * mails it; one whose collection is on its way, or whose direct debit is
+     * announced with the payment method in use, which keeps the day the
+     * subscriber was told; and one a payment was taken back on with this
+     * payment method, which is not collected with it again (`SC-PRIC-085`).
+     * Any other collection planned for a later day gives way.
+     */
+    private async collectOpenNow(
+        subscriberId: string,
+        startedBy: CollectionStartedBy,
+        now: Date = new Date(),
+    ): Promise<TenantPaymentStarted> {
+        return readAcrossTenants(this.rlsBypass, async () => {
+            const methods = this.paymentMethods;
+            const method = methods ? await methods.findActive(subscriberId) : null;
+            if (!method) return nothingStarted(false);
+            const started = nothingStarted(true);
+            const run = emptyRun();
+            const today = dayInZone(now, this.timeZone());
+            const invoices = await this.invoices.listBySubscriber(subscriberId);
+            const cancelled = new Set(
+                (await this.invoices.listCancellations(invoices.map((invoice) => invoice.id))).map(
+                    (cancellation) => cancellation.cancelledInvoiceId,
+                ),
+            );
+            for (const invoice of invoices) {
+                if (invoice.correction?.kind === 'cancellation' || cancelled.has(invoice.id)) {
+                    continue;
+                }
+                if (!(await this.recording().payments.owes(invoice.id))) continue;
+                if (!(await this.invoices.findDocument(invoice.id))?.deliveredAt) continue;
+                const attempts = await this.collections.listByInvoice(invoice.id);
+                if (attempts.some((each) => UNSETTLED_COLLECTION_STATUSES.includes(each.status))) {
+                    started.onTheirWay += 1;
+                    continue;
+                }
+                if (reversedOn(attempts).has(method.id)) {
+                    started.refused += 1;
+                    continue;
+                }
+                if (directDebitAnnouncedWith(invoice, attempts, method)) {
+                    started.onTheirWay += 1;
+                    continue;
+                }
+                for (const later of attempts.filter((each) => each.status === 'SCHEDULED')) {
+                    await this.giveWay(invoice, later);
+                }
+                const planned = await this.planWith(
+                    invoice,
+                    attempts.at(-1)?.attempt ?? 0,
+                    method,
+                    startedBy === 'paying-now' ? today : notBeforeItsDay(invoice, today),
+                    'started-by-subscriber',
+                    run,
+                );
+                if (planned) await this.takeUp(planned.id, today, run);
+            }
+            return { ...started, ...countsOf(run) };
+        });
+    }
+
+    /** Withdraws a planned collection, which the one the subscriber started takes the place of. */
+    private async giveWay(
+        invoice: SubscriptionInvoiceRecord,
+        planned: InvoiceCollectionRecord,
+    ): Promise<void> {
+        if (!(await this.collections.withdraw(planned.id, new Date()))) return;
+        await this.writeAudit(invoice.id, {
+            action: 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN',
+            changes: {
+                number: invoice.number,
+                attempt: planned.attempt,
+                paymentMethodId: planned.paymentMethodId,
+                because: 'started-by-subscriber',
+            },
+        });
     }
 
     /**
@@ -340,16 +458,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
      */
     async collectDue(now: Date): Promise<InvoiceCollectionRun> {
         return readAcrossTenants(this.rlsBypass, async () => {
-            const run: InvoiceCollectionRun = {
-                collected: 0,
-                pending: 0,
-                failed: 0,
-                planned: 0,
-                announced: 0,
-                told: 0,
-                waiting: 0,
-                unanswered: 0,
-            };
+            const run = emptyRun();
             const before = unsettledBefore(new Date());
             await this.eachPage(
                 (page) => this.collections.listUnsettled(before, page),
@@ -1294,5 +1403,69 @@ function noPaymentMethod(invoice: SubscriptionInvoiceRecord): Waiting {
     return {
         code: INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD,
         params: { subscriberId: invoice.subscriberId },
+    };
+}
+
+/**
+ * Whether the invoice's direct debit is announced with `method` already: by
+ * the invoice itself where nothing was tried yet, or by a planned attempt.
+ */
+function directDebitAnnouncedWith(
+    invoice: SubscriptionInvoiceRecord,
+    attempts: readonly InvoiceCollectionRecord[],
+    method: SubscriberPaymentMethodRecord,
+): boolean {
+    if (method.type !== 'sepa_debit') return false;
+    if (attempts.length === 0) return invoice.payment?.paymentMethodId === method.id;
+    return attempts.some(
+        (each) => each.status === 'SCHEDULED' && each.paymentMethodId === method.id,
+    );
+}
+
+/** `today`, or the day the invoice named for its collection where that is later. */
+function notBeforeItsDay(invoice: SubscriptionInvoiceRecord, today: CalendarDay): CalendarDay {
+    return invoice.collectionDate !== null && invoice.collectionDate > today
+        ? invoice.collectionDate
+        : today;
+}
+
+/** A run that has done nothing yet. */
+function emptyRun(): InvoiceCollectionRun {
+    return {
+        collected: 0,
+        pending: 0,
+        failed: 0,
+        planned: 0,
+        announced: 0,
+        told: 0,
+        waiting: 0,
+        unanswered: 0,
+    };
+}
+
+/** Nothing started yet, with a payment method in use or without one. */
+function nothingStarted(paymentMethod: boolean): TenantPaymentStarted {
+    return {
+        paymentMethod,
+        collected: 0,
+        pending: 0,
+        failed: 0,
+        announced: 0,
+        onTheirWay: 0,
+        refused: 0,
+        waiting: 0,
+    };
+}
+
+/** What a run that paid now did, as the subscriber is told it; a lost answer is still to come. */
+function countsOf(
+    run: InvoiceCollectionRun,
+): Pick<TenantPaymentStarted, 'collected' | 'pending' | 'failed' | 'announced' | 'waiting'> {
+    return {
+        collected: run.collected,
+        pending: run.pending + run.unanswered,
+        failed: run.failed,
+        announced: run.announced,
+        waiting: run.waiting,
     };
 }

@@ -32,7 +32,7 @@ const hold = (kind, overrides = {}) => ({
 });
 const stateOf = (...holds) => tenantAccessOf(holds).state;
 
-// @requirement SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
+// @requirement SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
 describe('the strictest open reason decides the state', () => {
     test('no reason leaves the tenant open', () => {
         assert.deepEqual(tenantAccessOf([]), { state: 'open', holds: [] });
@@ -64,7 +64,7 @@ describe('the strictest open reason decides the state', () => {
     });
 });
 
-// @requirement SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
+// @requirement SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
 describe('a request writes by its method, unless its route says otherwise', () => {
     test('GET, HEAD and OPTIONS read, in any case', () => {
         for (const method of ['GET', 'HEAD', 'OPTIONS', 'get', 'Head']) {
@@ -86,12 +86,12 @@ describe('a request writes by its method, unless its route says otherwise', () =
     });
 
     test('replacing the payment method is a write, whatever the method', () => {
-        assert.equal(requestWrites('GET', 'replaces-payment-method'), true);
-        assert.equal(requestWrites('POST', 'replaces-payment-method'), true);
+        assert.equal(requestWrites('GET', 'starts-payment'), true);
+        assert.equal(requestWrites('POST', 'starts-payment'), true);
     });
 });
 
-// @requirement SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
+// @requirement SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
 describe('who is refused, and for what', () => {
     const refusalOf = (holds, writes, actor) =>
         tenantAccessRefusal(tenantAccessOf(holds), writes, actor);
