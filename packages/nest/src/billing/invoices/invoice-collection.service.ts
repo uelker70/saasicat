@@ -85,6 +85,7 @@ import {
     type InvoiceCollectionRecord,
     type InvoiceCollectionRepository,
     type InvoiceMailPort,
+    type PlannedInvoiceCollection,
     type PaymentMethodType,
     type PlanCatalogSettings,
     type RlsBypassPort,
@@ -543,6 +544,10 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             return;
         }
         if (!invoice.payment) {
+            // Only with one the subscriber entered since the invoice was last
+            // opened: issued without one, or settled on issue and opened again
+            // by a reversal, whose follow-up decided what is collected then.
+            if (method.confirmedAt <= (await this.openedAt(invoice, new Date()))) return;
             await this.planWith(invoice, 0, method, today, 'payment-method-entered', run);
             return;
         }
@@ -594,7 +599,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     ): Promise<void> {
         const attempt = await this.collections.findById(id);
         if (attempt?.status === 'REVERSED') {
-            await this.followUpReversal(attempt, today);
+            await this.followUpReversal(attempt, today, run);
             return;
         }
         await this.followUpFailure(id, today, run);
@@ -607,11 +612,12 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
      * replaced the reversed one and that reaches the account by the due date,
      * that the subscriber pays it with that one now where it does not, or
      * otherwise that the payment method has to be replaced; and from when the
-     * tenant is read-only until it is paid — and marks the attempt. Nothing is
-     * planned here: the invoice is planned again, with another payment method
-     * only, once it is followed up. Where the invoice owes nothing by now —
-     * the gateway gave the reversal back, or the subscriber paid —, nobody is
-     * told.
+     * tenant is read-only until it is paid — and marks the attempt. What it
+     * says is collected is planned on the same transaction, so the notice and
+     * the plan are one decision on one day; otherwise the invoice is planned
+     * again only once the subscriber enters another payment method. Where the
+     * invoice owes nothing by now — the gateway gave the reversal back, or the
+     * subscriber paid —, nobody is told.
      *
      * The invoice open again is the one that stands in the chain of the
      * attempt's: the replacement, where the invoice it collected was cancelled
@@ -621,28 +627,38 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     private async followUpReversal(
         reversed: InvoiceCollectionRecord,
         today: CalendarDay,
+        run: InvoiceCollectionRun,
     ): Promise<void> {
         if (reversed.followedUpAt !== null) return;
         // From the hold to the mark in the chain's turn: what every invoice of
         // it is collected with decides whether, and how, the subscriber is
         // told, and nothing changes that before the notice is recorded.
-        await this.recording().transactions.run((tx) =>
+        const planned = await this.recording().transactions.run((tx) =>
             this.followUpReversalIn(reversed, today, tx),
         );
+        // Audited once the plan is written for good.
+        if (planned) {
+            await this.auditPlanned(
+                planned.invoice,
+                planned.attempt,
+                'payment-method-replaced',
+                run,
+            );
+        }
     }
 
     private async followUpReversalIn(
         reversed: InvoiceCollectionRecord,
         today: CalendarDay,
         tx: TransactionContext,
-    ): Promise<void> {
+    ): Promise<{ invoice: SubscriptionInvoiceRecord; attempt: InvoiceCollectionRecord } | null> {
         const chain = await this.invoices.holdChain(reversed.invoiceId, tx);
         if (!chain) throw new Error(`Invoice ${reversed.invoiceId} does not exist.`);
         const standing = standingInvoiceOf(chain);
         const owed = standing ? await this.recording().payments.owed(standing.id, tx) : 0;
         if (!standing || owed <= 0) {
             await this.collections.markFollowedUp(reversed.id, new Date(), tx);
-            return;
+            return null;
         }
         const attempts = await this.collections.listByInvoice(reversed.invoiceId, tx);
         const ofChain: InvoiceCollectionRecord[] = [];
@@ -661,22 +677,36 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         );
         if (toldByALater) {
             await this.collections.markFollowedUp(reversed.id, new Date(), tx);
-            return;
+            return null;
         }
         // Another attempt of the chain on its way may still pay the invoice
         // that stands: the subscriber is told once it settled, so the notice
         // says what follows.
-        if (ofChain.some((each) => UNSETTLED_COLLECTION_STATUSES.includes(each.status))) return;
+        if (ofChain.some((each) => UNSETTLED_COLLECTION_STATUSES.includes(each.status))) {
+            return null;
+        }
         const invoice = standing;
         const method = await this.paymentMethods!.findActive(invoice.subscriberId, tx);
         const usable = method !== null && canPayWith(method, ofChain);
-        // What `planAgain` will do: collect with the payment method in use
-        // where neither the last attempt nor a reversal was made with it, and
-        // only where that reaches the account by the due date.
-        const collectedOfItsOwn =
+        // Collected with the payment method in use where neither the last
+        // attempt nor a reversal was made with it, and only where that reaches
+        // the account by the due date — planned here, so what the notice says
+        // is what was planned.
+        const planned =
             usable &&
             method.id !== ofChain.at(-1)?.paymentMethodId &&
-            this.reachesByTheDueDate(method, invoice, today);
+            this.reachesByTheDueDate(method, invoice, today)
+                ? await this.collections.plan(
+                      planRequestOf(
+                          invoice,
+                          lastAttemptNumberOf(ofChain, invoice.id),
+                          method,
+                          today,
+                      ),
+                      tx,
+                  )
+                : null;
+        const collectedOfItsOwn = planned !== null;
         const notice: CollectionReversedNotice = {
             kind: 'collection-reversed',
             ...aboutInvoice(invoice),
@@ -703,6 +733,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             tx,
         );
         await this.collections.markFollowedUp(reversed.id, new Date(), tx);
+        return planned ? { invoice, attempt: planned } : null;
     }
 
     /**
@@ -874,6 +905,26 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         return isStartedByThePlatform(reaches, invoice.dueDate);
     }
 
+    /**
+     * When `invoice` was last opened: when the last reversal in its chain was
+     * followed up, now where one is recorded and not followed up yet — what
+     * follows it is still to be decided —, or else when it was issued.
+     */
+    private async openedAt(invoice: SubscriptionInvoiceRecord, now: Date): Promise<Date> {
+        const chain = (await this.invoices.listBySubscriber(invoice.subscriberId)).filter(
+            (each) => each.chainId === invoice.chainId,
+        );
+        let opened = invoice.issuedAt;
+        for (const each of chain) {
+            for (const attempt of await this.collections.listByInvoice(each.id)) {
+                if (attempt.status !== 'REVERSED') continue;
+                const at = attempt.followedUpAt ?? now;
+                if (at > opened) opened = at;
+            }
+        }
+        return opened;
+    }
+
     /** Whether the subscriber can pay `invoice` now with the payment method in use (`SC-PRIC-100`). */
     private async canPayNow(invoice: SubscriptionInvoiceRecord): Promise<boolean> {
         const method = await this.paymentMethods!.findActive(invoice.subscriberId);
@@ -952,32 +1003,33 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         because: PlannedBecause,
         run: InvoiceCollectionRun,
     ): Promise<InvoiceCollectionRecord | null> {
-        const planned = await this.collections.plan({
-            invoiceId: invoice.id,
-            after,
-            gatewayAccount: method.gatewayAccount,
-            paymentMethodId: method.id,
-            paymentMethodType: method.type,
-            customerRef: method.customerRef,
-            paymentMethodRef: method.paymentMethodRef,
-            invoiceNumber: invoice.number,
-            currency: invoice.currency,
-            collectOn,
-        });
+        const planned = await this.collections.plan(
+            planRequestOf(invoice, after, method, collectOn),
+        );
         // Another instance planned it first, or one of its attempts is open.
         if (!planned) return null;
+        await this.auditPlanned(invoice, planned, because, run);
+        return planned;
+    }
+
+    /** Counts and audits an attempt planned for `invoice`, `because` it is. */
+    private async auditPlanned(
+        invoice: SubscriptionInvoiceRecord,
+        planned: InvoiceCollectionRecord,
+        because: PlannedBecause,
+        run: InvoiceCollectionRun,
+    ): Promise<void> {
         run.planned += 1;
         await this.writeAudit(invoice.id, {
             action: 'SUBSCRIPTION_INVOICE_COLLECTION_PLANNED',
             changes: {
                 number: invoice.number,
                 attempt: planned.attempt,
-                paymentMethodType: method.type,
-                collectOn,
+                paymentMethodType: planned.paymentMethodType,
+                collectOn: plannedDayOf(planned),
                 because,
             },
         });
-        return planned;
     }
 
     /**
@@ -1573,6 +1625,38 @@ function notBeforeItsDay(invoice: SubscriptionInvoiceRecord, today: CalendarDay)
     return invoice.collectionDate !== null && invoice.collectionDate > today
         ? invoice.collectionDate
         : today;
+}
+
+/** What planning the attempt of `invoice` after attempt `after` with `method`, from `collectOn`, asks the store. */
+function planRequestOf(
+    invoice: SubscriptionInvoiceRecord,
+    after: number,
+    method: SubscriberPaymentMethodRecord,
+    collectOn: CalendarDay,
+): PlannedInvoiceCollection {
+    return {
+        invoiceId: invoice.id,
+        after,
+        gatewayAccount: method.gatewayAccount,
+        paymentMethodId: method.id,
+        paymentMethodType: method.type,
+        customerRef: method.customerRef,
+        paymentMethodRef: method.paymentMethodRef,
+        invoiceNumber: invoice.number,
+        currency: invoice.currency,
+        collectOn,
+    };
+}
+
+/** The number of the last of `attempts` made for `invoiceId`, or 0 where none was. */
+function lastAttemptNumberOf(
+    attempts: readonly InvoiceCollectionRecord[],
+    invoiceId: string,
+): number {
+    return Math.max(
+        0,
+        ...attempts.filter((each) => each.invoiceId === invoiceId).map((each) => each.attempt),
+    );
 }
 
 /**

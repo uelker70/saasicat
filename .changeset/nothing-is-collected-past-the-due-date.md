@@ -11,7 +11,9 @@ failure whose reason can pass, or a payment method the subscriber entered
 before the failure was learned. A refused direct debit is no longer announced
 again, and after a reversal another payment method in use collects only by the
 due date. Past it, the subscriber starts the payment — paying now, or entering
-a payment method, which collects at once.
+a payment method, which collects at once. A collection planned before this
+release is taken up as it was planned, past the due date included; the rule
+applies to what is planned from now on.
 
 The failure and the reversal notices say so: `next.action` gains `pay-now`,
 where the payment method in use can still pay the invoice, and both notices

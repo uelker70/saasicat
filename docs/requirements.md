@@ -11154,6 +11154,8 @@ _Tested by:_
           from it again
         - with another payment method in use, before the due date, the subscriber is told so and the
           invoice is collected with it
+        - with another payment method in use, followed up in the last run of the due date, is
+          collected in that run as its notice says
         - with another payment method in use, past the due date, nothing is collected of its own:
           the subscriber is asked to pay it, read-only until then
         - a direct debit the subscriber starts with another payment method waits until they heard of
@@ -11171,6 +11173,8 @@ _Tested by:_
         - a reversal is told only once no attempt of any invoice of the chain is on its way, about
           the invoice that stands
         - a reversal of a payment that moved tells the subscriber the replacement is open again
+        - a replacement a reversal opens past its due date is not collected with a payment method
+          entered before: the subscriber is asked to pay it
         - a reversal is followed up in its chain’s turn: read, told and marked on the transaction
           that holds the chain
 
@@ -11391,6 +11395,8 @@ _Tested by:_
         - a reversal is told only once no attempt of any invoice of the chain is on its way, about
           the invoice that stands
         - a reversal of a payment that moved tells the subscriber the replacement is open again
+        - a replacement a reversal opens past its due date is not collected with a payment method
+          entered before: the subscriber is asked to pay it
         - a reversal is followed up in its chain’s turn: read, told and marked on the transaction
           that holds the chain
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`

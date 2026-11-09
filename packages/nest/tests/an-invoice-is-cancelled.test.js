@@ -1013,6 +1013,50 @@ describe('the collections of a cancelled invoice’s chain', () => {
         assert.equal(await installation.payments.owedBy(replacement.id), invoice.totalGross);
     });
 
+    test('a replacement a reversal opens past its due date is not collected with a payment method entered before: the subscriber is asked to pay it', async () => {
+        quietLog();
+        const installation = await anInvoiceToCollect();
+        const { cancellation, invoice, collections, mail, gateway, paymentMethods, subscriber } =
+            installation;
+        await installation.collect(FIRST_RUN);
+        const [attempt] = collections.attempts;
+        const { replacement } = await cancellation.cancel(
+            invoice.id,
+            REQUEST,
+            'operator:anna',
+            CANCELLED_AT,
+        );
+        await paymentMethods.recordConfirmed(
+            paymentMethodOf(subscriber.id, 'card', {
+                paymentMethodRef: 'pm_card_before',
+                confirmedAt: after(CANCELLED_AT, { days: 1 }),
+            }),
+        );
+        installation.mailed(replacement.id, after(CANCELLED_AT, { minutes: 5 }));
+        assert.equal(replacement.payment, null, 'the premise: settled on issue');
+        const pastItsDueDate = after(CANCELLED_AT, { days: 20 });
+        assert.ok(replacement.dueDate < '2026-04-09', 'the premise: past its due date then');
+
+        clockAt(pastItsDueDate);
+        await delivering(installation)(
+            reversalReported('evt_r1', attempt.attemptKey, {
+                reversalRef: 'du_1',
+                paymentRef: 'pi_1',
+                withdrawnCents: toCents(invoice.totalGross),
+            }),
+        );
+        await runAt(installation, after(pastItsDueDate, { minutes: 15 }));
+        await runAt(installation, after(pastItsDueDate, { days: 1 }));
+
+        const told = mail.told.filter((each) => each.notice.kind === 'collection-reversed');
+        assert.deepEqual(
+            told.map((each) => each.notice.next),
+            [{ action: 'pay-now' }],
+        );
+        assert.equal(gateway.collections.length, 1, 'collected of its own past its due date');
+        assert.equal(await installation.payments.owedBy(replacement.id), invoice.totalGross);
+    });
+
     test('a reversal is followed up in its chain’s turn: read, told and marked on the transaction that holds the chain', async () => {
         quietLog();
         const installation = await anInvoiceToCollect();

@@ -232,6 +232,29 @@ describe('after a reversal opened an invoice again', () => {
         assert.equal(await payments.owedBy(invoice.id), 0);
     });
 
+    test('with another payment method in use, followed up in the last run of the due date, is collected in that run as its notice says', async () => {
+        quietLog();
+        const installation = await aPaidInvoice({ holds: new FakeTenantAccessHoldRepository() });
+        const { deliver, reversal, mail, gateway, invoice, subscriber, paymentMethods, payments } =
+            installation;
+        await paymentMethods.recordConfirmed(
+            paymentMethodOf(subscriber.id, 'card', { paymentMethodRef: 'pm_card_new' }),
+        );
+        // 23:40 and 23:45 in Berlin on the due date, then the first run of the next day.
+        clockAt(new Date('2026-02-15T22:40:00.000Z'));
+        await deliver(reversal('evt_d1', invoice.totalGross));
+        await runAt(installation, new Date('2026-02-15T22:45:00.000Z'));
+        await runAt(installation, new Date('2026-02-15T23:00:00.000Z'));
+
+        const [told] = mail.told.filter((each) => each.notice.kind === 'collection-reversed');
+        assert.deepEqual(
+            [told.notice.next, told.notice.readOnlyFrom],
+            [{ action: 'collected-with-payment-method-in-use' }, null],
+        );
+        assert.equal(gateway.collections.at(-1)?.paymentMethodRef, 'pm_card_new');
+        assert.equal(await payments.owedBy(invoice.id), 0);
+    });
+
     test('with another payment method in use, past the due date, nothing is collected of its own: the subscriber is asked to pay it, read-only until then', async () => {
         quietLog();
         const installation = await aPaidInvoice({ holds: new FakeTenantAccessHoldRepository() });

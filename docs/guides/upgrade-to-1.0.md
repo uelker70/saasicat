@@ -4362,7 +4362,8 @@ adopt it:
 - **Nothing is collected past the due date of the platform's own** (`SC-PRIC-101`, `SC-PRIC-102`):
   a second card charge only where it falls by the due date, a refused direct debit not announced
   again, and a payment method in use after a reversal only where it reaches the account by then.
-  Past it the subscriber pays now or enters a payment method. Your `InvoiceMailPort.tell` words two
+  Past it the subscriber pays now or enters a payment method. What was planned before the upgrade is
+  taken up as planned, past the due date included. Your `InvoiceMailPort.tell` words two
   more things: `next.action` `pay-now` on a failure and a reversal notice — the payment method in
   use can still pay it, in the billing area — and `readOnlyFrom`, the day the tenant is read-only
   from until it is paid, or `null`. Say both plainly; an exhaustive switch over `next.action` stops
