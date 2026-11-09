@@ -6,6 +6,7 @@
 // the page shows no card. Anything else is an error the card reports.
 
 import { ref, type Ref } from 'vue';
+import type { CalendarDay } from '@saasicat/core';
 
 import { httpStatusOf } from '../client/admin-error.js';
 import { isHiddenFromThisUser } from '../client/billing-area.js';
@@ -39,6 +40,11 @@ export interface UseTenantPaymentMethodOptions {
 
 export interface UseTenantPaymentMethodResult {
     paymentMethod: Ref<TenantPaymentMethodShape | null>;
+    /**
+     * The day a direct debit entered now is collected on at the earliest;
+     * `null` until it is read, or where the server does not say.
+     */
+    directDebitCollectedOn: Ref<CalendarDay | null>;
     /** Whether this user may see it here at all — false without the routes or the permission. */
     available: Ref<boolean>;
     loading: Ref<boolean>;
@@ -52,9 +58,10 @@ export interface UseTenantPaymentMethodResult {
     startChange(urls: { successUrl: string; cancelUrl: string }): Promise<string>;
 }
 
-function isPaymentMethodAnswer(
-    value: unknown,
-): value is { paymentMethod: TenantPaymentMethodShape | null } {
+function isPaymentMethodAnswer(value: unknown): value is {
+    paymentMethod: TenantPaymentMethodShape | null;
+    directDebitCollectedOn?: unknown;
+} {
     return (
         value !== null &&
         typeof value === 'object' &&
@@ -70,6 +77,7 @@ export function useTenantPaymentMethod(
     const http = options.http ?? defaultHttpClient();
 
     const paymentMethod = ref<TenantPaymentMethodShape | null>(null);
+    const directDebitCollectedOn = ref<CalendarDay | null>(null);
     const available = ref(false);
     const loading = ref(false);
     const error = ref<Error | null>(null);
@@ -85,9 +93,14 @@ export function useTenantPaymentMethod(
                 throw new Error(`${route} did not answer with { paymentMethod }.`);
             }
             paymentMethod.value = answer.paymentMethod;
+            directDebitCollectedOn.value =
+                typeof answer.directDebitCollectedOn === 'string'
+                    ? answer.directDebitCollectedOn
+                    : null;
             available.value = true;
         } catch (err) {
             paymentMethod.value = null;
+            directDebitCollectedOn.value = null;
             available.value = !isHiddenFromThisUser(httpStatusOf(err));
             if (available.value) error.value = err instanceof Error ? err : new Error(String(err));
         } finally {
@@ -108,5 +121,13 @@ export function useTenantPaymentMethod(
         queueMicrotask(() => void reload());
     }
 
-    return { paymentMethod, available, loading, error, reload, startChange };
+    return {
+        paymentMethod,
+        directDebitCollectedOn,
+        available,
+        loading,
+        error,
+        reload,
+        startChange,
+    };
 }

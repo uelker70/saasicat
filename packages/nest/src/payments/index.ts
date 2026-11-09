@@ -33,6 +33,7 @@ export {
 } from './subscriber-payment-method.service.js';
 export {
     TenantPaymentMethodController,
+    type TenantPaymentMethodAnswer,
     type TenantPaymentMethodView,
 } from './tenant-payment-method.controller.js';
 export {

@@ -4368,6 +4368,11 @@ adopt it:
   use can still pay it, in the billing area — and `readOnlyFrom`, the day the tenant is read-only
   from until it is paid, or `null`. Say both plainly; an exhaustive switch over `next.action` stops
   compiling until it handles `pay-now`.
+- **`TenantPaymentMethodCard`** says before replacing the payment method that a new card is charged
+  at once for what is due and a new direct debit not before `directDebitCollectedOn`, which
+  `GET /billing/payment-method` now answers beside `paymentMethod` (`SC-PRIC-103`). Pass it
+  `formatDate` where you mount it on its own — without it the day reads `YYYY-MM-DD`; texts of your
+  own gain `paymentMethodReplaceWait` with `{date}`.
 
 ## What the codemod leaves to you
 

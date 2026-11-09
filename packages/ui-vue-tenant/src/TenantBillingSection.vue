@@ -22,6 +22,7 @@
         <TenantPaymentMethodCard
             :http="http"
             :api-prefix="apiPrefix"
+            :format-date="formatDate"
             :return-url="returnUrl"
             :navigate="navigate"
             :separated="false"

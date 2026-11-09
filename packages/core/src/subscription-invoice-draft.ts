@@ -5,9 +5,16 @@
 // Pure: the invoice run reads the charges, the contract, the parties and the
 // tax adapter's decision, and asks this for the invoice they make.
 
-import { addDaysToDay, dayInZone, lastDayInZone, yearOfDay } from './zoned-day.js';
+import {
+    addDaysToDay,
+    dayInZone,
+    installationZoneOf,
+    lastDayInZone,
+    yearOfDay,
+    type CalendarDay,
+} from './zoned-day.js';
 import type { TaxPerRate } from './money.js';
-import type { PlanCatalogInvoicing } from './plan-catalog.types.js';
+import type { PlanCatalogInvoicing, PlanCatalogSettings } from './plan-catalog.types.js';
 import type { SubscriberChargeRecord } from './subscriber-ledger.types.js';
 import type { SubscriberPaymentMethodRecord } from './subscriber-payment-method.types.js';
 import type { ContractLineItemRecord } from './subscription-contract.types.js';
@@ -101,6 +108,21 @@ export function directDebitLeadDaysOf(
     invoicing: Pick<PlanCatalogInvoicing, 'directDebitLeadDays'>,
 ): number {
     return invoicing.directDebitLeadDays ?? DIRECT_DEBIT_LEAD_DAYS;
+}
+
+/**
+ * The day a direct debit announced at `now` is collected on: the lead time
+ * `settings` names after the installation's today (`SC-PRIC-028`) — what paying
+ * by direct debit, now or with one entered now, waits for (`SC-PRIC-100`).
+ */
+export function directDebitCollectedOnAt(
+    now: Date,
+    settings: Pick<PlanCatalogSettings, 'timeZone' | 'invoicing'> | null | undefined,
+): CalendarDay {
+    return addDaysToDay(
+        dayInZone(now, installationZoneOf(settings)),
+        directDebitLeadDaysOf(settings?.invoicing ?? {}),
+    );
 }
 
 /**

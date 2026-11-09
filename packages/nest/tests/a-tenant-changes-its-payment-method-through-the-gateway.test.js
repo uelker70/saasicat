@@ -147,17 +147,15 @@ describe('the tenant sees the payment method in use', () => {
             confirmedAt: new Date('2026-09-01T08:00:00.000Z'),
         });
 
-        assert.deepEqual(await ctx.routes.current(adminOf('tenant-1')), {
-            paymentMethod: {
-                type: 'card',
-                brand: 'visa',
-                last4: '4242',
-                expiryMonth: 12,
-                expiryYear: 2030,
-                country: 'DE',
-                mandateReference: null,
-                confirmedAt: '2026-09-01T08:00:00.000Z',
-            },
+        assert.deepEqual((await ctx.routes.current(adminOf('tenant-1'))).paymentMethod, {
+            type: 'card',
+            brand: 'visa',
+            last4: '4242',
+            expiryMonth: 12,
+            expiryYear: 2030,
+            country: 'DE',
+            mandateReference: null,
+            confirmedAt: '2026-09-01T08:00:00.000Z',
         });
     });
 
@@ -165,7 +163,19 @@ describe('the tenant sees the payment method in use', () => {
         const ctx = await paymentsApp();
         await ctx.subscribers.createForTenant('tenant-1', { legalName: 'Meier GmbH' });
 
-        assert.deepEqual(await ctx.routes.current(adminOf('tenant-1')), { paymentMethod: null });
+        assert.equal((await ctx.routes.current(adminOf('tenant-1'))).paymentMethod, null);
+    });
+
+    // @requirement SC-PRIC-103 — Before replacing the payment method, the subscriber learns when a new one collects
+    test('beside it, the day a direct debit entered now is collected on: the lead time after the installation’s today', async (t) => {
+        const ctx = await paymentsApp();
+        await ctx.subscribers.createForTenant('tenant-1', { legalName: 'Meier GmbH' });
+        // Fourteen days unless the installation names a lead time, in its zone — UTC here.
+        t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-09T23:30:00.000Z') });
+
+        const answer = await ctx.routes.current(adminOf('tenant-1'));
+
+        assert.equal(answer.directDebitCollectedOn, '2026-11-23');
     });
 
     test('a tenant without a subscriber, and a request without a tenant, are refused', async () => {

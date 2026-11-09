@@ -130,6 +130,7 @@
                     v-if="showPaymentMethod"
                     :http="http"
                     :api-prefix="apiPrefix"
+                    :format-date="formatDate"
                 />
 
                 <hr v-if="showBundleStore && hasBundleStore" class="sp-divider" />

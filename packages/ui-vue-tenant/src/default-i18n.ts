@@ -361,6 +361,12 @@ export interface TenantPlanSectionI18n {
     paymentMethodAdd: string;
     paymentMethodChange: string;
     paymentMethodGatewayNote: string;
+    /**
+     * Before the payment method is replaced: a card is charged for what is
+     * due at once, a direct debit no earlier than `{date}`, the lead time
+     * after its announcement (`SC-PRIC-103`).
+     */
+    paymentMethodReplaceWait: string;
     paymentMethodLoadFailed: string;
     paymentMethodChangeFailed: string;
     /** Whom the subscription is billed to, in the billing section, to whoever holds the billing permission. */
@@ -841,6 +847,8 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     paymentMethodChange: 'Zahlungsmethode ändern',
     paymentMethodGatewayNote:
         'Karte oder IBAN geben Sie im Formular des Zahlungsanbieters ein. Hier wird nur ein Verweis darauf gespeichert.',
+    paymentMethodReplaceWait:
+        'Eine neue Karte wird für Fälliges sofort belastet, eine neue Lastschrift frühestens am {date}, nach der Vorlaufzeit ab ihrer Ankündigung.',
     paymentMethodLoadFailed: 'Die Zahlungsmethode konnte nicht geladen werden.',
     paymentMethodChangeFailed: 'Das Formular des Zahlungsanbieters konnte nicht geöffnet werden.',
     billingDetailsTitle: 'Rechnungsdaten',
@@ -1260,6 +1268,8 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     paymentMethodChange: 'Change payment method',
     paymentMethodGatewayNote:
         "You enter the card or IBAN in the payment provider's form. Only a reference to it is kept here.",
+    paymentMethodReplaceWait:
+        'A new card is charged at once for what is due; a new direct debit no earlier than {date}, the notice period after it is announced.',
     paymentMethodLoadFailed: 'The payment method could not be loaded.',
     paymentMethodChangeFailed: "The payment provider's form could not be opened.",
     billingDetailsTitle: 'Billing details',

@@ -14,6 +14,7 @@ import {
     COLLECTION_RETRY_AFTER_DAYS,
     announcedCollectionDay,
     chargedAgainOn,
+    directDebitCollectedOnAt,
     isChargedAgain,
     isStartedByThePlatform,
     plannedCollectionReaches,
@@ -168,4 +169,24 @@ describe('the day an invoice nothing collects by its due date makes its tenant r
             assert.equal(readOnlyFromFor('2026-02-15', today), from);
         });
     }
+});
+
+// @requirement SC-PRIC-103 — Before replacing the payment method, the subscriber learns when a new one collects
+describe('the day a direct debit entered or paid now is collected on', () => {
+    // Half past midnight in Berlin on 10 November, still the 9th in UTC.
+    const NOW = new Date('2026-11-09T23:30:00.000Z');
+
+    test('is the lead time the installation names after its own today', () => {
+        assert.equal(
+            directDebitCollectedOnAt(NOW, {
+                timeZone: 'Europe/Berlin',
+                invoicing: { directDebitLeadDays: 2 },
+            }),
+            '2026-11-12',
+        );
+    });
+
+    test('is fourteen days after today, in UTC, where the installation names neither', () => {
+        assert.equal(directDebitCollectedOnAt(NOW, null), '2026-11-23');
+    });
 });

@@ -33,6 +33,9 @@
                 </TenantButton>
             </div>
             <p class="sp-payment-method__sub">{{ i18n.paymentMethodGatewayNote }}</p>
+            <p v-if="replaceWait" class="sp-payment-method__sub sp-payment-method__wait">
+                {{ replaceWait }}
+            </p>
         </section>
     </TenantCardSection>
 </template>
@@ -41,6 +44,7 @@
 import { useTenantPaymentMethod, type HttpClient } from '@saasicat/ui-vue';
 import { computed, ref, useId, watch } from 'vue';
 
+import { writeDay } from './day-as-instant.js';
 import { useTenantI18n } from './tenant-i18n.js';
 import TenantButton from './ui/TenantButton.vue';
 import TenantCardSection from './ui/TenantCardSection.vue';
@@ -55,7 +59,8 @@ import './ui/tenant-ui.css';
 //
 // Part of `TenantBillingSection`, and of `TenantPlanSection` unless it is told
 // `showPaymentMethod: false`; mounted on its own where an application keeps
-// the payment method somewhere else again.
+// the payment method somewhere else again. Before the button it says when a
+// new card and a new direct debit collect (`SC-PRIC-103`).
 
 const props = withDefaults(
     defineProps<{
@@ -67,6 +72,8 @@ const props = withDefaults(
         navigate?: (url: string) => void;
         /** Draws a divider above the card, for when it follows other content in one card. */
         separated?: boolean;
+        /** A day, as the application writes days. Without it a day is written `YYYY-MM-DD`. */
+        formatDate?: (iso: string) => string;
     }>(),
     { separated: true },
 );
@@ -92,6 +99,16 @@ const mandate = computed(() =>
         .map((part) => part.text)
         .join(''),
 );
+
+const replaceWait = computed(() => {
+    const day = method.directDebitCollectedOn.value;
+    if (!day) return '';
+    return messageParts(i18n.value.paymentMethodReplaceWait, {
+        date: props.formatDate ? writeDay(props.formatDate, day) : day,
+    })
+        .map((part) => part.text)
+        .join('');
+});
 
 const starting = ref(false);
 const changeFailed = ref(false);
