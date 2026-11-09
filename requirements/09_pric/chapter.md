@@ -2725,13 +2725,13 @@ _Tested by:_
         - is what a reversal before the cancellation took back again
         - leaves out the shares the cancellation moved, and what came after it
         - counts in cents, not in binary fractions
-    - a payment of an invoice taken back
-        - is not, with nothing reversed
-        - is, once a reversal took it back
-        - is not, once the gateway gave that reversal back in full
-        - is, where the reversal was given back in part
-        - is, where one of two reversals was given back and the other not
-        - counts in cents, not in binary fractions
+    - the reversals that still take a payment back
+        - are none, with nothing reversed
+        - are the reversal that took it back
+        - are none once the gateway gave that reversal back in full, on whichever invoice
+        - are the reversal given back in part
+        - are the one of two reversals not given back
+        - count in cents, not in binary fractions
 - `packages/nest/tests/an-invoice-unpaid-on-its-due-date-holds-its-tenant-back.test.js`
     - an invoice left unpaid
         - is open and due on 15 February, its card refused on the day it was issued
@@ -2764,6 +2764,8 @@ _Tested by:_
           replacement’s due date
     - a chain of corrections
         - forgets a refusal behind an invoice that was paid before it was replaced
+    - a payment taken back on a corrected invoice
+        - keeps the tenant held through the next correction, until it is paid
     - a payment taken back
         - opens the invoice again, and the next run holds the tenant back until it is paid again
     - the quarter-hourly run

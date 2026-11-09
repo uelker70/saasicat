@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import {
     overdueHoldChanges,
     owedWhenReplaced,
-    paymentTakenBack,
+    reversalsStillTakenBack,
     unpaidInvoiceHoldsBack,
 } from '../dist/index.js';
 
@@ -337,50 +337,53 @@ describe('what a replaced invoice still owed when it was replaced', () => {
     });
 });
 
-describe('a payment of an invoice taken back', () => {
+describe('the reversals that still take a payment back', () => {
     const reversal = (kind, amount, id = 'du-1') => ({ kind, amount, reversal: { id } });
 
-    test('is not, with nothing reversed', () => {
-        assert.equal(paymentTakenBack([{ kind: 'PAYMENT', amount: 119, reversal: null }]), false);
-    });
-
-    test('is, once a reversal took it back', () => {
-        assert.equal(paymentTakenBack([reversal('REVERSAL', 119)]), true);
-    });
-
-    test('is not, once the gateway gave that reversal back in full', () => {
-        assert.equal(
-            paymentTakenBack([reversal('REVERSAL', 119), reversal('REINSTATEMENT', 119)]),
-            false,
+    test('are none, with nothing reversed', () => {
+        assert.deepEqual(
+            reversalsStillTakenBack([{ kind: 'PAYMENT', amount: 119, reversal: null }]),
+            [],
         );
     });
 
-    test('is, where the reversal was given back in part', () => {
-        assert.equal(
-            paymentTakenBack([reversal('REVERSAL', 119), reversal('REINSTATEMENT', 100)]),
-            true,
+    test('are the reversal that took it back', () => {
+        assert.deepEqual(reversalsStillTakenBack([reversal('REVERSAL', 119)]), ['du-1']);
+    });
+
+    test('are none once the gateway gave that reversal back in full, on whichever invoice', () => {
+        assert.deepEqual(
+            reversalsStillTakenBack([reversal('REVERSAL', 119), reversal('REINSTATEMENT', 119)]),
+            [],
         );
     });
 
-    test('is, where one of two reversals was given back and the other not', () => {
-        assert.equal(
-            paymentTakenBack([
+    test('are the reversal given back in part', () => {
+        assert.deepEqual(
+            reversalsStillTakenBack([reversal('REVERSAL', 119), reversal('REINSTATEMENT', 100)]),
+            ['du-1'],
+        );
+    });
+
+    test('are the one of two reversals not given back', () => {
+        assert.deepEqual(
+            reversalsStillTakenBack([
                 reversal('REVERSAL', 50, 'du-1'),
                 reversal('REINSTATEMENT', 50, 'du-1'),
                 reversal('REVERSAL', 69, 'du-2'),
             ]),
-            true,
+            ['du-2'],
         );
     });
 
-    test('counts in cents, not in binary fractions', () => {
-        assert.equal(
-            paymentTakenBack([
+    test('count in cents, not in binary fractions', () => {
+        assert.deepEqual(
+            reversalsStillTakenBack([
                 reversal('REVERSAL', 0.3),
                 reversal('REINSTATEMENT', 0.1),
                 reversal('REINSTATEMENT', 0.2),
             ]),
-            false,
+            [],
         );
     });
 });

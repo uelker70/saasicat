@@ -108,21 +108,22 @@ export function owedWhenReplaced(
 }
 
 /**
- * Whether a payment the settlements of an invoice settled was taken back and
- * not given back in full: a reversal recorded against it beyond what was
- * reinstated of that same reversal. A chargeback the gateway gave back once
- * the dispute was won is money that came back.
+ * The reversals among `settlements` that still take a payment back: recorded
+ * beyond what was reinstated of them. A chargeback the gateway gave back once
+ * the dispute was won is money that came back. Read across every invoice of a
+ * chain at once, since a give-back lands on the invoice that stands by then
+ * while the reversal stays where it was recorded.
  */
-export function paymentTakenBack(
+export function reversalsStillTakenBack(
     settlements: readonly Pick<InvoiceSettlementRecord, 'kind' | 'amount' | 'reversal'>[],
-): boolean {
+): string[] {
     const standing = new Map<string, number>();
     for (const { kind, amount, reversal } of settlements) {
         if (!reversal || (kind !== 'REVERSAL' && kind !== 'REINSTATEMENT')) continue;
         const cents = kind === 'REVERSAL' ? toCents(amount) : -toCents(amount);
         standing.set(reversal.id, (standing.get(reversal.id) ?? 0) + cents);
     }
-    return [...standing.values()].some((cents) => cents > 0);
+    return [...standing].filter(([, cents]) => cents > 0).map(([reversalId]) => reversalId);
 }
 
 /** The reasons to record and to lift so that the open ones are `overdue`, and only those. */

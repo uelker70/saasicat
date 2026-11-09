@@ -22,7 +22,7 @@ import {
     installationZoneOf,
     overdueHoldChanges,
     owedWhenReplaced,
-    paymentTakenBack,
+    reversalsStillTakenBack,
     unpaidInvoiceHoldsBack,
     type InvoiceCollectionRepository,
     type CollectionAttemptStanding,
@@ -232,19 +232,49 @@ export class OverdueInvoiceService {
         return invoiceIds.flatMap((invoiceId) => {
             const invoice = records.get(invoiceId);
             if (!invoice) return [];
-            const standings = standingsOf(invoiceId, invoice.dueDate);
-            if (paymentTakenBack(settlementsOf(invoiceId))) {
-                standings.push({ status: 'REVERSED', sentOn: null, dueOn: invoice.dueDate });
-            }
-            // Back through the invoices it replaced, as far as the first that
-            // was paid when it was replaced: a refusal before that was made good.
+            // The invoice, then back through the invoices it replaced, as far
+            // as the first that was paid when it was replaced: a refusal
+            // before that was made good. Each counts with what it held when it
+            // was replaced, and with the due date it had come to by then.
+            const walked: { invoiceId: string; dueOn: CalendarDay | null; upTo: Date | null }[] = [
+                { invoiceId, dueOn: invoice.dueDate, upTo: null },
+            ];
             for (const earlier of (chainOf.get(invoiceId) ?? [invoiceId]).slice(1)) {
                 const owing = owingWhenReplaced(earlier);
                 if (!owing) break;
-                const cameDue =
-                    owing.invoice.dueDate <= dayInZone(owing.replaced.cancelledAt, zone);
-                standings.push(...standingsOf(earlier, cameDue ? owing.invoice.dueDate : null));
+                const { cancelledAt } = owing.replaced;
+                const cameDue = owing.invoice.dueDate <= dayInZone(cancelledAt, zone);
+                walked.push({
+                    invoiceId: earlier,
+                    dueOn: cameDue ? owing.invoice.dueDate : null,
+                    upTo: cancelledAt,
+                });
             }
+            const heldBy = (link: (typeof walked)[number]) =>
+                settlementsOf(link.invoiceId).filter(
+                    (settlement) =>
+                        link.upTo === null ||
+                        settlement.recordedAt.getTime() <= link.upTo.getTime(),
+                );
+            // A payment taken back is a refusal of the link it was recorded
+            // on, as long as nothing in the chain gave it back.
+            const takenBack = new Set(reversalsStillTakenBack(walked.flatMap(heldBy)));
+            const standings = walked.flatMap((link) => {
+                const own = standingsOf(link.invoiceId, link.dueOn);
+                const reversed = heldBy(link).some(
+                    (settlement) =>
+                        settlement.kind === 'REVERSAL' &&
+                        settlement.reversal !== null &&
+                        takenBack.has(settlement.reversal.id),
+                );
+                if (!reversed) return own;
+                const takenBackHere: CollectionAttemptStanding = {
+                    status: 'REVERSED',
+                    sentOn: null,
+                    dueOn: link.dueOn,
+                };
+                return [...own, takenBackHere];
+            });
             return unpaidInvoiceHoldsBack(invoice.dueDate, standings, today) ? [invoice] : [];
         });
     }

@@ -629,6 +629,63 @@ describe('a chain of corrections', () => {
     });
 });
 
+describe('a payment taken back on a corrected invoice', () => {
+    clockFrom(FIRST_RUN);
+
+    test('keeps the tenant held through the next correction, until it is paid', async () => {
+        quietLog();
+        const holds = new FakeTenantAccessHoldRepository();
+        const installation = aCollectingInstallation({ holds });
+        const { subscriber } = await installation.aPayingSubscriber('t1', 'card');
+        const invoice = await installation.anInvoiceMailed(subscriber.id, ISSUED);
+        await installation.collect(FIRST_RUN);
+        const [paid] = installation.collections.attempts;
+        assert.equal(paid.status, 'SUCCEEDED', 'the premise: A paid');
+        const access = new TenantAccessService(holds, new Reflector());
+
+        const firstCorrection = berlinMidnight('2026-02-20');
+        const { replacement: second } = await installation.cancellation.cancel(
+            invoice.id,
+            { reason: 'The billing address was wrong.' },
+            'operator:anna',
+            firstCorrection,
+        );
+        clockAt(berlinMidnight('2026-02-25'));
+        await installation.callbacks.handle(
+            MAIN_ACCOUNT,
+            signedCallback(
+                reversalReported('evt_cb_a', paid.attemptKey, {
+                    reversalRef: 'du_a',
+                    paymentRef: paid.paymentRef,
+                    withdrawnCents: toCents(invoice.totalGross),
+                    reinstatedCents: 0,
+                }),
+            ),
+        );
+        assert.ok((await installation.payments.owedBy(second.id)) > 0, 'the premise: B owes');
+        await installation.overdue.holdBackDue(clockAt(berlinMidnight(second.dueDate)));
+        assert.equal(
+            await stateOf(access, 't1'),
+            'read-only',
+            'the premise: held from B’s due date',
+        );
+
+        const secondCorrection = berlinMidnight('2026-03-08');
+        installation.mailed(second.id, firstCorrection);
+        const { replacement: third } = await installation.cancellation.cancel(
+            second.id,
+            { reason: 'The company name was wrong.' },
+            'operator:anna',
+            secondCorrection,
+        );
+        assert.ok(third.dueDate > '2026-03-08', 'the premise: C is due later');
+
+        await installation.overdue.holdBackDue(clockAt(later(secondCorrection, 15)));
+
+        assert.equal(await stateOf(access, 't1'), 'read-only', 'a correction is not a payment');
+    });
+});
+
 describe('a payment taken back', () => {
     clockFrom(FIRST_RUN);
 
