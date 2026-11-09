@@ -100,6 +100,7 @@ export function useTenantPaymentMethod(
             available.value = true;
         } catch (err) {
             paymentMethod.value = null;
+            directDebitCollectedOn.value = null;
             available.value = !isHiddenFromThisUser(httpStatusOf(err));
             if (available.value) error.value = err instanceof Error ? err : new Error(String(err));
         } finally {

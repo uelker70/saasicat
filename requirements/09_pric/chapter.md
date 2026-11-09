@@ -2860,6 +2860,7 @@ _Tested by:_
 - `packages/ui-vue/tests/a-payment-method-is-shown-to-whoever-may-see-it.test.js`
     - the day a direct debit entered now is collected on
         - is carried as the server says it
+        - is none again once a later read fails
         - is none where the server does not say
 - `packages/ui-vue-tenant/tests/component/a-payment-method-is-changed-in-the-providers-form.test.ts`
     - before it is replaced

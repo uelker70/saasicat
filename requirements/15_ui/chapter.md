@@ -1861,6 +1861,7 @@ _Tested by:_
         - the prefix the billing routes sit under is used as given
     - the day a direct debit entered now is collected on
         - is carried as the server says it
+        - is none again once a later read fails
         - is none where the server does not say
     - changing the payment method
         - asks for the gateway form with both URLs, and answers where to go

@@ -123,6 +123,20 @@ describe('the day a direct debit entered now is collected on', () => {
         assert.equal(method.directDebitCollectedOn.value, '2026-11-23');
     });
 
+    test('is none again once a later read fails', async () => {
+        const { client } = scriptedHttp(
+            [200, { paymentMethod: CARD, directDebitCollectedOn: '2026-11-23' }],
+            [500, {}],
+        );
+        const method = useTenantPaymentMethod({ http: client, autoLoad: false });
+        await method.reload();
+
+        await method.reload();
+
+        assert.ok(method.error.value, 'the premise: the second read failed');
+        assert.equal(method.directDebitCollectedOn.value, null);
+    });
+
     test('is none where the server does not say', async () => {
         const { client } = scriptedHttp([200, { paymentMethod: CARD }]);
         const method = useTenantPaymentMethod({ http: client, autoLoad: false });
