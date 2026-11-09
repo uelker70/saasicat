@@ -519,7 +519,7 @@ export interface TenantBillingModuleOptions {
             /**
              * Where what the subscriber is told about collecting an invoice is
              * recorded — a failure, and a direct debit announced again — so
-             * each is sent once (`SC-PRIC-080`). Required with `collections`;
+             * each is sent once (`SC-PRIC-101`). Required with `collections`;
              * `SaaSiCatModule` takes `persistence.tenantBilling.subscriptionNotices`
              * unless this names another.
              */

@@ -397,7 +397,7 @@ describe('collecting starts', () => {
         assert.doesNotThrow(() => installation.collection.onModuleInit());
     });
 
-    // @requirement SC-PRIC-080 — A failed collection is tried once more, and the subscriber is told of every failure
+    // @requirement SC-PRIC-101 — After a failure, nothing is tried past the due date, and read-only is told
     test('not without the record of what the subscriber is told, which it names', () => {
         const installation = aCollectingInstallation();
         const untold = new InvoiceCollectionService(

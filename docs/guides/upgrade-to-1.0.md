@@ -2050,8 +2050,9 @@ names `payments`: an invoice that announced how it is paid
 ([above](#an-invoice-says-how-it-is-paid)) is collected through the gateway account its payment
 method is held at, as the fourth step of the quarter-hourly run, once it was mailed — by card at
 once, by direct debit from the collection date it announced (`SC-PRIC-099`). A collection that fails
-is told to the subscriber and, where its reason can pass, tried once more; a payment method that
-replaced the one an invoice named, or the one that failed, collects it (`SC-PRIC-080`).
+is told to the subscriber and, where its reason can pass and that falls by the due date, tried once
+more; past the due date the subscriber starts it again — paying now, or entering a payment method,
+which collects it (`SC-PRIC-101`).
 
 1. Add `SubscriptionInvoiceCollection` from `prisma-fragments/23-subscription-invoice-collection.prisma`
    to your schema, with the `collections` back-relation it names on `SubscriptionInvoice`. With
@@ -2161,7 +2162,7 @@ gateway or a transfer recorded on the tenant's page (`SC-PRIC-083`).
 Where payments are [recorded](#a-payment-is-recorded-and-a-credit-paid-out): a direct debit the
 bank returned and a chargeback are recorded as reversals that take back what the payment brought,
 the credit it left first and then what it settled of its invoice (`SC-PRIC-084`); the subscriber
-is told, and the invoice is collected again only with another payment method (`SC-PRIC-085`); a
+is told, and the invoice is collected again only with another payment method (`SC-PRIC-102`); a
 dispute won takes its reversal back, and what was paid meanwhile becomes a credit (`SC-PRIC-086`).
 What the gateway reports and no credit matches is a case the operator closes with a note
 (`SC-ADM-033`).
@@ -4358,6 +4359,15 @@ adopt it:
   once its subscriber has one in use and the invoice still owes something, so the quarter-hourly
   run collects what a confirmation did not reach. The shipped adapters do; an adapter of your own
   follows, and the persistence contract checks it.
+- **Nothing is collected past the due date of the platform's own** (`SC-PRIC-101`, `SC-PRIC-102`):
+  a second card charge only where it falls by the due date, a refused direct debit not announced
+  again, and a payment method in use after a reversal only where it reaches the account by then.
+  Past it the subscriber pays now or enters a payment method. What was planned before the upgrade is
+  taken up as planned, past the due date included. Your `InvoiceMailPort.tell` words two
+  more things: `next.action` `pay-now` on a failure and a reversal notice — the payment method in
+  use can still pay it, in the billing area — and `readOnlyFrom`, the day the tenant is read-only
+  from until it is paid, or `null`. Say both plainly; an exhaustive switch over `next.action` stops
+  compiling until it handles `pay-now`.
 
 ## What the codemod leaves to you
 

@@ -3,7 +3,7 @@
 // since it goes to a subscriber, and its day decides when an account is
 // debited.
 
-// @requirement SC-PRIC-080 — A failed collection is tried once more, and the subscriber is told of every failure
+// @requirement SC-PRIC-101 — After a failure, nothing is tried past the due date, and read-only is told
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -26,6 +26,7 @@ const FAILED = {
     paymentMethodType: 'card',
     reason: 'insufficient-funds',
     next: { action: 'charged-again', on: '2026-02-08' },
+    readOnlyFrom: null,
 };
 
 const ANNOUNCED = {
@@ -41,12 +42,29 @@ describe('a failure notice', () => {
         for (const next of [
             { action: 'charged-again', on: '2026-02-08' },
             { action: 'announced-again' },
+            { action: 'pay-now' },
             { action: 'replace-payment-method' },
         ]) {
             const recorded = JSON.parse(JSON.stringify({ ...FAILED, next }));
 
             assert.deepEqual(toCollectionFailedNotice(recorded, 'notice-1'), { ...FAILED, next });
         }
+    });
+
+    test('reads back the day the tenant is read-only from', () => {
+        const recorded = { ...FAILED, next: { action: 'pay-now' }, readOnlyFrom: '2026-02-15' };
+
+        assert.deepEqual(toCollectionFailedNotice(recorded, 'notice-1'), recorded);
+    });
+
+    test('recorded before it named that day, reads as naming none', () => {
+        const recorded = { ...FAILED };
+        delete recorded.readOnlyFrom;
+
+        assert.deepEqual(toCollectionFailedNotice(recorded, 'notice-1'), {
+            ...recorded,
+            readOnlyFrom: null,
+        });
     });
 
     for (const [what, content, message] of [
@@ -76,6 +94,11 @@ describe('a failure notice', () => {
             'an empty invoice number',
             { ...FAILED, invoiceNumber: '' },
             /content.invoiceNumber of notice-1 is not a text/,
+        ],
+        [
+            'a read-only day that is not one',
+            { ...FAILED, readOnlyFrom: 'soon' },
+            /content.readOnlyFrom of notice-1 is not a day/,
         ],
     ]) {
         test(`refuses ${what}`, () => {

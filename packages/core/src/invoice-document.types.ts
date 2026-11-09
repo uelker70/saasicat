@@ -123,7 +123,7 @@ export interface InvoiceNoticeMail {
 /**
  * Sends an invoice to the subscriber with its file attached (`SC-PRIC-094`),
  * and what the subscriber is told about collecting it (`SC-PRIC-028`,
- * `SC-PRIC-080`).
+ * `SC-PRIC-101`).
  *
  * The application words the message — in the subscriber's language, with a
  * link to the tenant's sign-in rather than to the file itself — and sends it

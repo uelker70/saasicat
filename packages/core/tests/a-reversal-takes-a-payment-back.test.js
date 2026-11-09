@@ -664,7 +664,7 @@ describe('a case to reconcile', () => {
     }
 });
 
-// @requirement SC-PRIC-085 — A reversal is told, and the payment method it reversed collects nothing again
+// @requirement SC-PRIC-102 — A reversal is told, with read-only, and its payment method collects nothing again
 describe('a recorded collection-reversed notice', () => {
     const content = {
         kind: 'collection-reversed',
@@ -678,12 +678,25 @@ describe('a recorded collection-reversed notice', () => {
         paymentMethodType: 'sepa_debit',
         owed: 99,
         next: { action: 'replace-payment-method' },
+        readOnlyFrom: '2026-03-03',
     };
 
     test('reads back as it was recorded', () => {
         assert.deepEqual(toCollectionReversedNotice(content, 'n-1'), content);
-        const replaced = { ...content, next: { action: 'collected-with-payment-method-in-use' } };
-        assert.deepEqual(toCollectionReversedNotice(replaced, 'n-1'), replaced);
+        for (const action of ['collected-with-payment-method-in-use', 'pay-now']) {
+            const replaced = { ...content, next: { action }, readOnlyFrom: null };
+            assert.deepEqual(toCollectionReversedNotice(replaced, 'n-1'), replaced);
+        }
+    });
+
+    test('recorded before it named the day the tenant is read-only from, reads as naming none', () => {
+        const recorded = { ...content };
+        delete recorded.readOnlyFrom;
+
+        assert.deepEqual(toCollectionReversedNotice(recorded, 'n-1'), {
+            ...recorded,
+            readOnlyFrom: null,
+        });
     });
 
     test('with what follows unknown, or without what it owes, stops the read', () => {

@@ -433,7 +433,7 @@ export class InvoicePaymentService
      * — or the gateway giving it back, recorded against the payment it takes
      * back. Where it opens the payment's invoice again, the attempt that
      * collected it is marked reversed in the same transaction, so the invoice
-     * is collected anew only with another payment method (`SC-PRIC-085`). A
+     * is collected anew only with another payment method (`SC-PRIC-102`). A
      * payment of SaaSiCat's that is not recorded yet is answered with an
      * error, so the gateway delivers the reversal again once it is.
      */
@@ -487,7 +487,7 @@ export class InvoicePaymentService
      * attempts whose payments the lifted covers stood for, and every attempt of
      * that invoice that succeeded: none of them settles it any more, and one
      * that succeeded would keep every other attempt from being made
-     * (`SC-PRIC-085`, `SC-PRIC-090`).
+     * (`SC-PRIC-102`, `SC-PRIC-090`).
      */
     private async markWhatOpened(
         reversal: SubscriberReversalRecord,

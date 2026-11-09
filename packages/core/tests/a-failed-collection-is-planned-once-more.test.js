@@ -1,8 +1,10 @@
 // The rules that decide what follows a failed collection, read without a run:
-// whether the payment method is charged once more, on which day, and the day a
-// direct debit announced again is collected.
+// whether the payment method is charged once more, on which day, the day a
+// direct debit announced again is collected, which collections the platform
+// starts of its own, and the day an invoice nothing collects by its due date
+// makes its tenant read-only from.
 
-// @requirement SC-PRIC-080 — A failed collection is tried once more, and the subscriber is told of every failure
+// @requirement SC-PRIC-101 — After a failure, nothing is tried past the due date, and read-only is told
 // @requirement SC-PRIC-028 — A direct debit is announced before it is collected
 
 import { describe, test } from 'node:test';
@@ -13,6 +15,9 @@ import {
     announcedCollectionDay,
     chargedAgainOn,
     isChargedAgain,
+    isStartedByThePlatform,
+    plannedCollectionReaches,
+    readOnlyFromFor,
 } from '../dist/index.js';
 
 /** An attempt of one invoice, failed for `reason` with `paymentMethodId` unless `status` says otherwise. */
@@ -102,4 +107,65 @@ describe('the day a direct debit announced again is collected', () => {
     test('counts the lead time across a month and a year', () => {
         assert.equal(announcedCollectionDay('2026-12-20', '2026-12-25', 14), '2027-01-08');
     });
+});
+
+describe('a collection the platform starts of its own', () => {
+    for (const [reaches, started] of [
+        ['2026-02-14', true],
+        ['2026-02-15', true],
+        ['2026-02-16', false],
+    ]) {
+        test(`reaching the account on ${reaches} is ${started ? '' : 'not '}started, the due date being 2026-02-15`, () => {
+            assert.equal(isStartedByThePlatform(reaches, '2026-02-15'), started);
+        });
+    }
+});
+
+describe('the day a planned collection reaches the account', () => {
+    test('is the day planned for a card', () => {
+        assert.equal(
+            plannedCollectionReaches('card', '2026-02-08', '2026-02-01', 14),
+            '2026-02-08',
+        );
+    });
+
+    test('is today for a card whose day planned has passed, since it is charged at once', () => {
+        assert.equal(
+            plannedCollectionReaches('card', '2026-02-08', '2026-02-16', 14),
+            '2026-02-16',
+        );
+    });
+
+    test('is the day planned for a card planned for today', () => {
+        assert.equal(
+            plannedCollectionReaches('card', '2026-02-08', '2026-02-08', 14),
+            '2026-02-08',
+        );
+    });
+
+    test('is the lead time after today for a direct debit announced today', () => {
+        assert.equal(
+            plannedCollectionReaches('sepa_debit', '2026-02-08', '2026-02-01', 14),
+            '2026-02-15',
+        );
+    });
+
+    test('is the day planned for a direct debit where the lead time ends before it', () => {
+        assert.equal(
+            plannedCollectionReaches('sepa_debit', '2026-02-20', '2026-02-01', 14),
+            '2026-02-20',
+        );
+    });
+});
+
+describe('the day an invoice nothing collects by its due date makes its tenant read-only from', () => {
+    for (const [today, from] of [
+        ['2026-02-14', '2026-02-15'],
+        ['2026-02-15', '2026-02-15'],
+        ['2026-02-16', '2026-02-16'],
+    ]) {
+        test(`is ${from} where it is learned on ${today}, the due date being 2026-02-15`, () => {
+            assert.equal(readOnlyFromFor('2026-02-15', today), from);
+        });
+    }
 });

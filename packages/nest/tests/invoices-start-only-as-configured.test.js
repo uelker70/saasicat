@@ -218,7 +218,7 @@ describe('the payment methods invoices are collected with', () => {
         );
     });
 
-    // @requirement SC-PRIC-080 — A failed collection is tried once more, and the subscriber is told of every failure
+    // @requirement SC-PRIC-101 — After a failure, nothing is tried past the due date, and read-only is told
     test('refuse the start where the invoices are collected and nothing records what the subscriber is told', async () => {
         const message = await refusal(installation({ payments: 'wired', notices: false }));
 

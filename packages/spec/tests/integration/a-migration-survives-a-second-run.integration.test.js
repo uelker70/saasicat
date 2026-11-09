@@ -2880,7 +2880,7 @@ describe('an invoice is collected through its payment gateway', () => {
         await anAttempt(1, 'FAILED');
     }
 
-    // @requirement SC-PRIC-080 — A failed collection is tried once more, and the subscriber is told of every failure
+    // @requirement SC-PRIC-101 — After a failure, nothing is tried past the due date, and read-only is told
     test('a table without the columns of a planned attempt is brought to the shape the fragments declare, twice, keeping its attempts', async () => {
         await freshGround();
         const reference = await fingerprint(client);

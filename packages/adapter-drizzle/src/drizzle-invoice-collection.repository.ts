@@ -108,7 +108,7 @@ async function owedIn(db: ReturnType<typeof resolveDb>, invoiceId: string): Prom
  * invoice of a chain is collected while one submitted for any of them is
  * unresolved —, or a reversal was made on `paymentMethodId` — nothing of a
  * chain is collected again with a payment method one of its payments was
- * reversed on (`SC-PRIC-036`, `SC-PRIC-085`). The invoice's own attempts are
+ * reversed on (`SC-PRIC-036`, `SC-PRIC-102`). The invoice's own attempts are
  * its own `refuses`'s.
  */
 async function heldBackByItsChain(

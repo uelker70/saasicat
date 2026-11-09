@@ -83,7 +83,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 100     |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 102     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 683 entries: 🟢 595 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
-🔵 50 superseded, 🔴 7 withdrawn.
+Of 685 entries: 🟢 595 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+🔵 52 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -161,8 +161,10 @@ Of 683 entries: 🟢 595 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-PRIC-026](#sc-pric-026--an-invoice-carries-the-issuer-and-the-subscriber-as-they-were-on-the-day-it-was-issued),
 [SC-PRIC-077](#sc-pric-077--an-invoice-carries-the-issuers-footer-as-it-was-on-the-day-it-was-issued),
 [SC-PRIC-031](#sc-pric-031--a-returned-debit-or-a-chargeback-is-recorded-and-what-the-payment-settled-opens-again),
+[SC-PRIC-085](#sc-pric-085--a-reversal-is-told-and-the-payment-method-it-reversed-collects-nothing-again),
 [SC-PRIC-088](#sc-pric-088--reversals-of-an-invoice-end-alike-in-any-order-and-it-is-collected-again),
 [SC-PRIC-079](#sc-pric-079--an-invoice-is-collected-once-it-has-reached-the-subscriber),
+[SC-PRIC-080](#sc-pric-080--a-failed-collection-is-tried-once-more-and-the-subscriber-is-told-of-every-failure),
 [SC-PRIC-082](#sc-pric-082--an-invoice-is-collected-as-it-or-an-announcement-after-it-says),
 [SC-PRIC-035](#sc-pric-035--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-081](#sc-pric-081--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
