@@ -2012,8 +2012,11 @@ collected yet; collecting follows in this release line.
 
     It adds `payment` and `collectionDate` to `subscription_invoices`, both nullable; take the two
     fields of `prisma-fragments/20-subscription-invoice.prisma` into your schema as well. An invoice
-    issued before records no payment method: it is not collected, and it stays due on the day it
-    states. The file does nothing on a second run, nor without the table.
+    issued before records no payment method and stays due on the day it states. It is collected
+    once its subscriber has a payment method in use and it still owes something (`SC-PRIC-099`) —
+    from the first quarter-hourly run after the upgrade where the subscriber has one already.
+    Nothing in SaaSiCat records a payment made outside it, so an invoice settled that way counts as
+    owed and is collected as well. The file does nothing on a second run, nor without the table.
 
 2. Name the lead time under `invoicing` in `config/saas.yaml` where it is not fourteen days:
    `directDebitLeadDays`, in calendar days. **It has to be what the mandate your subscribers accepted
@@ -2046,7 +2049,7 @@ Where you adopted [invoices](#an-invoice-is-issued-from-the-charge-journal) and 
 names `payments`: an invoice that announced how it is paid
 ([above](#an-invoice-says-how-it-is-paid)) is collected through the gateway account its payment
 method is held at, as the fourth step of the quarter-hourly run, once it was mailed — by card at
-once, by direct debit from the collection date it announced (`SC-PRIC-082`). A collection that fails
+once, by direct debit from the collection date it announced (`SC-PRIC-099`). A collection that fails
 is told to the subscriber and, where its reason can pass, tried once more; a payment method that
 replaced the one an invoice named, or the one that failed, collects it (`SC-PRIC-080`).
 
@@ -4226,7 +4229,7 @@ are on. Every installation with version notices on has to do this:
 
 Required wherever `tenantBilling` is on. SaaSiCat keeps the reasons a tenant is held back — a
 suspension, an invoice unpaid on its due date, a subscription that ended, a deletion under
-way — and every tenant request is checked against the strictest of them (`SC-ADM-024`): read-only
+way — and every tenant request is checked against the strictest of them (`SC-ADM-052`): read-only
 refuses a write, a suspension refuses everything, and the operator acting as the tenant is held
 back only by a deletion. Each reason is recorded by what brings it, as the sections below say. To
 adopt it:
@@ -4283,7 +4286,7 @@ tenant passes there too; one your guard did not check is checked as a tenant use
 ### A suspension is the platform's own record
 
 Suspending and reactivating a tenant in the administration now record and lift a `suspended`
-reason in `tenant_access_holds` (`SC-ADM-024`), and the check of the previous section holds the
+reason in `tenant_access_holds` (`SC-ADM-052`), and the check of the previous section holds the
 tenant to it. Nothing of the application's is written any more: `AdminResourcesPort.setTenantActive`
 is gone, and with it the subscription status a suspension used to set — a suspension is not an
 overdue invoice, and reactivating no longer sets every subscription of the tenant to `ACTIVE`, a
@@ -4336,12 +4339,25 @@ adopt it:
 3. Deploy knowing that the first run after it holds back every tenant whose invoice is unpaid on or
    after its due date already.
 
-- **Replacing the payment method** stays open under read-only while one of the subscriber's
-  invoices is open, for a user holding the billing permission: the platform's
-  `POST billing/payment-method/setup` carries the mark the check reads, so your guard's `enforce`
-  lets it through as the platform does. Nothing to wire; a suspended tenant cannot.
-- **`TenantAccessService.assertAllowed`** takes `replacesPaymentMethod: true` beside
+- **Starting a payment** stays open under read-only while one of the subscriber's invoices is
+  open, for a user holding the billing permission: paying now, the new
+  `POST billing/account/pay`, and replacing the payment method, `POST billing/payment-method/setup`.
+  Both carry the mark the check reads, so your guard's `enforce` lets them through as the platform
+  does. Nothing to wire; a suspended tenant cannot.
+- **`TenantAccessService.assertAllowed`** takes `startsPayment: true` beside
   `writes: true` for the same exception where there is no request to read the route from.
+- **Paying now** collects every open invoice at once with the payment method in use, and a payment
+  method the subscriber confirms collects them too, from the day each invoice named or at once where
+  it has passed, an invoice issued while none was in use included.
+  `TenantAccountCard` shows the button; a page of your own calls `useTenantAccount().payNow()` and
+  reads `started` (`TenantPaymentStarted`). Texts of your own for the tenant section gain the
+  `accountPay…` keys, of which `accountPayNowHint` names `{date}`, the day a direct debit announced
+  now is collected on (`directDebitCollectedOn` on the account); the shipped English and German
+  stand in where you leave them out.
+- **`InvoiceCollectionRepository.listDue`** also answers an invoice issued without a payment method,
+  once its subscriber has one in use and the invoice still owes something, so the quarter-hourly
+  run collects what a confirmation did not reach. The shipped adapters do; an adapter of your own
+  follows, and the persistence contract checks it.
 
 ## What the codemod leaves to you
 

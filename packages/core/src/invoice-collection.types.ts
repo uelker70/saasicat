@@ -12,7 +12,7 @@
 // An attempt after a failure, or with a payment method that replaced the one
 // the invoice named, is planned first, for a day: a card's for the day it is
 // charged, a direct debit's for the day its own announcement names
-// (`SC-PRIC-028`, `SC-PRIC-080`, `SC-PRIC-082`).
+// (`SC-PRIC-028`, `SC-PRIC-080`, `SC-PRIC-099`).
 
 import type {
     CollectionFailureReason,

@@ -94,7 +94,17 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
               FROM "subscription_invoices" i
               JOIN "subscription_invoice_documents" d ON d."invoiceId" = i."id"
              WHERE i."id" > ${after}
-               AND i."payment" IS NOT NULL
+               AND (i."payment" IS NOT NULL
+                    OR (EXISTS (
+                            SELECT 1 FROM "subscriber_payment_methods" m
+                             WHERE m."subscriberId" = i."subscriberId" AND m."status" = 'ACTIVE'
+                        )
+                        AND i."totalGross" > COALESCE((
+                            SELECT SUM(CASE WHEN s."kind" = ANY(${REOPENING}) THEN -s."amount"
+                                            ELSE s."amount" END)
+                              FROM "subscription_invoice_settlements" s
+                             WHERE s."invoiceId" = i."id"
+                        ), 0)))
                AND d."deliveredAt" IS NOT NULL
                AND (i."collectionDate" IS NULL OR i."collectionDate" <= ${today}::date)
                AND NOT EXISTS (

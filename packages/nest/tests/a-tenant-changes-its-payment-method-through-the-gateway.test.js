@@ -22,6 +22,7 @@ import {
 import {
     DevPaymentGateway,
     PaymentWebhookController,
+    SubscriberPaymentMethodService,
     TenantBillingDetailsController,
     TenantPaymentMethodController,
 } from '../dist/payments/index.js';
@@ -325,6 +326,104 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
             ctx.methods.writes.at(-1).tx !== undefined,
             true,
             'recorded outside the claim',
+        );
+    });
+
+    // @requirement SC-PRIC-099 — An invoice is collected as it says, and an entered payment method collects it
+    test('a confirmed payment method is told to what follows it once it is recorded, and once only', async () => {
+        const ctx = await withSubscriber();
+        await inUse(ctx, MAIN_ACCOUNT, 'cus_known');
+        const told = [];
+        ctx.app.get(SubscriberPaymentMethodService).afterConfirming(async (subscriberId) => {
+            told.push([subscriberId, ctx.methods.rows.at(-1)?.paymentMethodRef]);
+        });
+        await ctx.routes.startSetup(adminOf('tenant-1'), URLS);
+        const callback = signedCallback(
+            confirmation({
+                eventId: 'evt_told',
+                sessionRef: 'cs_1',
+                subject: { kind: 'subscriber', subscriberId: ctx.subscriber.id },
+                paymentMethodRef: 'pm_new',
+                customerRef: 'cus_known',
+                occurredAt: '2026-09-15T10:00:00.000Z',
+            }),
+        );
+
+        await ctx.callbacks.handle(MAIN_ACCOUNT, callback);
+        await ctx.callbacks.handle(MAIN_ACCOUNT, callback);
+
+        assert.deepEqual(told, [[ctx.subscriber.id, 'pm_new']]);
+    });
+
+    // @requirement SC-PRIC-099 — An invoice is collected as it says, and an entered payment method collects it
+    test('the gateway is answered without waiting for what follows the confirmation', async () => {
+        const ctx = await withSubscriber();
+        await inUse(ctx, MAIN_ACCOUNT, 'cus_known');
+        let release;
+        const held = new Promise((resolve) => {
+            release = resolve;
+        });
+        let told = 0;
+        ctx.app.get(SubscriberPaymentMethodService).afterConfirming(async () => {
+            told += 1;
+            await held;
+        });
+        await ctx.routes.startSetup(adminOf('tenant-1'), URLS);
+        const answered = ctx.callbacks.handle(
+            MAIN_ACCOUNT,
+            signedCallback(
+                confirmation({
+                    eventId: 'evt_slow',
+                    sessionRef: 'cs_1',
+                    subject: { kind: 'subscriber', subscriberId: ctx.subscriber.id },
+                    customerRef: 'cus_known',
+                }),
+            ),
+        );
+        const stillWaiting = new Promise((resolve) => setTimeout(resolve, 2_000, 'still waiting'));
+
+        const first = await Promise.race([answered, stillWaiting]);
+
+        release();
+        assert.equal(first, 'handled');
+        assert.equal(told, 1);
+    });
+
+    // @requirement SC-PRIC-099 — An invoice is collected as it says, and an entered payment method collects it
+    test('what follows a confirmation and fails is logged, and the payment method stays recorded', async (t) => {
+        const ctx = await withSubscriber();
+        await inUse(ctx, MAIN_ACCOUNT, 'cus_known');
+        const warned = t.mock.method(Logger.prototype, 'warn', () => {});
+        ctx.app.get(SubscriberPaymentMethodService).afterConfirming(async () => {
+            throw new Error('the gateway timed out');
+        });
+        await ctx.routes.startSetup(adminOf('tenant-1'), URLS);
+
+        const answer = await ctx.callbacks.handle(
+            MAIN_ACCOUNT,
+            signedCallback(
+                confirmation({
+                    eventId: 'evt_listener_fails',
+                    sessionRef: 'cs_1',
+                    subject: { kind: 'subscriber', subscriberId: ctx.subscriber.id },
+                    paymentMethodRef: 'pm_new',
+                    customerRef: 'cus_known',
+                }),
+            ),
+        );
+        await new Promise((resolve) => setImmediate(resolve));
+
+        assert.equal(answer, 'handled');
+        assert.equal(ctx.methods.rows.at(-1)?.paymentMethodRef, 'pm_new');
+        const lines = warned.mock.calls.map((call) => call.arguments.map(String).join(' | '));
+        assert.ok(
+            lines.some(
+                (line) =>
+                    line.includes(ctx.subscriber.id) &&
+                    line.includes('the gateway timed out') &&
+                    line.includes('next collection run'),
+            ),
+            `not logged: ${lines.join(' / ')}`,
         );
     });
 

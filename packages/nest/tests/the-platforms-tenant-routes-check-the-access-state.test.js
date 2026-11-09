@@ -1,5 +1,5 @@
 // The platform's own tenant routes hold a tenant to its state, behind the
-// application's guards (`SC-ADM-024`).
+// application's guards (`SC-ADM-052`).
 //
 // Every tenant route of the platform passes through `ComposedTenantAuthGuard`,
 // which runs the application's guards and then the access check, so the check
@@ -9,7 +9,7 @@
 // reads the tenant from the request — so a tenant route added without it fails
 // here. The routes a read-only tenant may still call with a writing method are
 // named, because each of them is a decision somebody has to have made, and so
-// is the one route that replaces the payment method.
+// are the routes that start a payment.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -71,7 +71,7 @@ const guardWith = ({ appGuards = [{ canActivate: () => true }], store, resolver 
 
 const asTenant = (tenantId, method = 'GET') => ({ method, user: { tenantId }, headers: {} });
 
-// @requirement SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
+// @requirement SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
 describe("the platform's tenant guard asks the state once the application let the request in", () => {
     test('an application guard that refuses ends it before the state is read', async () => {
         const store = countedStore();
@@ -214,7 +214,7 @@ function handlersOf(controller) {
         }));
 }
 
-// @requirement SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
+// @requirement SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
 describe('which routes the check reaches', () => {
     // Add-on bookings are switched on here as well: the shared fixture leaves
     // them off, and a derivation over it would never see their tenant routes.
@@ -251,14 +251,18 @@ describe('which routes the check reaches', () => {
         ]);
     });
 
-    // A write all the same, let through under read-only only while one of the
+    // Writes all the same, let through under read-only only while one of the
     // subscriber's invoices is open (`a-read-only-tenant-replaces-its-payment-method`).
-    test('exactly this route replaces the payment method', () => {
-        const replacing = tenantControllers
+    test('exactly these routes start a payment', () => {
+        const starting = tenantControllers
             .flatMap(handlersOf)
-            .filter((handler) => handler.mark === 'replaces-payment-method')
-            .map((handler) => `${handler.method} ${handler.path}`);
-        assert.deepEqual(replacing, ['POST billing/payment-method/setup']);
+            .filter((handler) => handler.mark === 'starts-payment')
+            .map((handler) => `${handler.method} ${handler.path}`)
+            .sort();
+        assert.deepEqual(starting, [
+            'POST billing/account/pay',
+            'POST billing/payment-method/setup',
+        ]);
     });
 });
 

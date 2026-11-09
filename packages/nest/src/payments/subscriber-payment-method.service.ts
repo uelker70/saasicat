@@ -26,6 +26,9 @@ export interface StartPaymentMethodChange {
     fallbackEmail: string | null;
 }
 
+/** What follows a payment method a subscriber confirmed, once it is recorded. */
+export type PaymentMethodConfirmedListener = (subscriberId: string) => Promise<unknown>;
+
 /**
  * A subscriber's payment method: the one in use, and replacing it through the
  * gateway's form.
@@ -37,6 +40,15 @@ export interface StartPaymentMethodChange {
 @Injectable()
 export class SubscriberPaymentMethodService implements OnModuleInit {
     private readonly logger = new Logger(SubscriberPaymentMethodService.name);
+
+    /**
+     * Told of every payment method a subscriber confirmed, once the
+     * transaction that records it committed, and not waited for. Registered
+     * by the invoices, which collect what is open with it (`SC-PRIC-099`),
+     * rather than injected: payments are composed before them and know
+     * nothing of invoices.
+     */
+    private readonly confirmedListeners: PaymentMethodConfirmedListener[] = [];
 
     constructor(
         @Inject(SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN)
@@ -53,6 +65,11 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
             // the payment method in use stays, and the claim keeps the event.
             failed: async () => undefined,
         });
+    }
+
+    /** Lets `listener` act on every payment method a subscriber confirms, once it is recorded. */
+    afterConfirming(listener: PaymentMethodConfirmedListener): void {
+        this.confirmedListeners.push(listener);
     }
 
     /** The payment method in use for the tenant's subscriber, or `null` when it has none. */
@@ -138,6 +155,21 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
             },
             context.tx,
         );
+        for (const listener of this.confirmedListeners) {
+            context.afterCommit(async () => {
+                // Not awaited: the gateway waits for the answer to its
+                // callback, and what follows can take a charge or a mail per
+                // open invoice. A redelivery would find the claim taken and
+                // change nothing; what a listener does not finish, the
+                // quarter-hourly collection takes up (`SC-PRIC-099`).
+                void listener(subscriberId).catch((error: unknown) => {
+                    const reason = error instanceof Error ? error.message : String(error);
+                    this.logger.warn(
+                        `A payment method of subscriber ${subscriberId} is recorded, and what follows it failed; the next collection run takes it up: ${reason}`,
+                    );
+                });
+            });
+        }
         return 'took-effect';
     }
 

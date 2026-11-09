@@ -5,7 +5,7 @@ export interface TenantDetailData {
     slug: string;
     name: string;
     isActive: boolean;
-    /** The platform's state of the tenant (`SC-ADM-024`), where the server says it. */
+    /** The platform's state of the tenant (`SC-ADM-052`), where the server says it. */
     access?: TenantAccessState;
     vatId?: string | null;
     subscription?: {

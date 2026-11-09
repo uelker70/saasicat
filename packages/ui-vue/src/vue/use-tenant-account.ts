@@ -1,6 +1,7 @@
 // useTenantAccount — what the tenant's subscriber owes and is owed, in its
 // billing area: `GET /billing/account`, per currency what is open and of that
-// overdue, and beside it the credit to be paid out (`SC-PRIC-049`).
+// overdue, and beside it the credit to be paid out (`SC-PRIC-049`); and paying
+// what is open now, `POST /billing/account/pay` (`SC-PRIC-100`).
 //
 // Behind the billing permission like the invoices, so a refusal that says this
 // part is not for the user (`isHiddenFromThisUser`) turns `available` false,
@@ -8,11 +9,16 @@
 // the standings the invoice list shows; this only carries it to the page.
 
 import { ref, type Ref } from 'vue';
-import type { TenantAccount, TenantAccountBalance } from '@saasicat/core';
+import type {
+    CalendarDay,
+    TenantAccount,
+    TenantAccountBalance,
+    TenantPaymentStarted,
+} from '@saasicat/core';
 
 import { httpStatusOf } from '../client/admin-error.js';
 import { isHiddenFromThisUser } from '../client/billing-area.js';
-import { getJson, trimTrailingSlashes } from '../client/http-json.js';
+import { getJson, postJson, trimTrailingSlashes } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
 export interface UseTenantAccountOptions {
@@ -26,12 +32,29 @@ export interface UseTenantAccountOptions {
 export interface UseTenantAccountResult {
     /** One balance per currency in which anything is open; empty where nothing is. */
     balances: Ref<TenantAccountBalance[]>;
+    /**
+     * The day a direct debit announced now is collected on, which paying now
+     * by direct debit waits for; `null` until the account is read, or where
+     * the server does not say.
+     */
+    directDebitCollectedOn: Ref<CalendarDay | null>;
     /** Whether this user may see it here at all — false without the route or the permission. */
     available: Ref<boolean>;
     loading: Ref<boolean>;
     error: Ref<Error | null>;
     /** Reads the account again. */
     reload(): Promise<void>;
+    /** Whether paying now is on its way to the server. */
+    paying: Ref<boolean>;
+    /** What the last payment started now set going; `null` until one was started. */
+    started: Ref<TenantPaymentStarted | null>;
+    /** Why the last payment could not be started; `null` where it could. */
+    payError: Ref<Error | null>;
+    /**
+     * Pays every invoice still open now, with the payment method in use, then
+     * reads the account again (`SC-PRIC-100`).
+     */
+    payNow(): Promise<void>;
 }
 
 function isAccount(value: unknown): value is TenantAccount {
@@ -48,6 +71,7 @@ export function useTenantAccount(options: UseTenantAccountOptions = {}): UseTena
     const http = options.http ?? defaultHttpClient();
 
     const balances = ref<TenantAccountBalance[]>([]);
+    const directDebitCollectedOn = ref<CalendarDay | null>(null);
     const available = ref(false);
     const loading = ref(false);
     const error = ref<Error | null>(null);
@@ -63,6 +87,10 @@ export function useTenantAccount(options: UseTenantAccountOptions = {}): UseTena
                 throw new Error(`${prefix}/account did not answer with { balances }.`);
             }
             balances.value = answer.balances;
+            directDebitCollectedOn.value =
+                typeof answer.directDebitCollectedOn === 'string'
+                    ? answer.directDebitCollectedOn
+                    : null;
             available.value = true;
         } catch (err) {
             available.value = !isHiddenFromThisUser(httpStatusOf(err));
@@ -72,9 +100,37 @@ export function useTenantAccount(options: UseTenantAccountOptions = {}): UseTena
         }
     }
 
+    const paying = ref(false);
+    const started = ref<TenantPaymentStarted | null>(null);
+    const payError = ref<Error | null>(null);
+
+    async function payNow(): Promise<void> {
+        paying.value = true;
+        payError.value = null;
+        try {
+            started.value = await postJson<TenantPaymentStarted>(http, `${prefix}/account/pay`, {});
+            await reload();
+        } catch (err) {
+            payError.value = err instanceof Error ? err : new Error(String(err));
+        } finally {
+            paying.value = false;
+        }
+    }
+
     if (options.autoLoad !== false) {
         queueMicrotask(() => void reload());
     }
 
-    return { balances, available, loading, error, reload };
+    return {
+        balances,
+        directDebitCollectedOn,
+        available,
+        loading,
+        error,
+        reload,
+        paying,
+        started,
+        payError,
+        payNow,
+    };
 }

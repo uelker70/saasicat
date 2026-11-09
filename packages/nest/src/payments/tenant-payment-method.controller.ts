@@ -20,7 +20,7 @@ import {
     type UserEmailResolver,
 } from '../billing/tenant-billing.tokens.js';
 import { tenantIdOf } from '../billing/tenant-id.js';
-import { ReplacesPaymentMethod } from '../tenant-access/tenant-access-marks.js';
+import { StartsPayment } from '../tenant-access/tenant-access-marks.js';
 import { StartPaymentMethodSetupDto } from './dto/start-payment-method-setup.dto.js';
 import { SubscriberPaymentMethodService } from './subscriber-payment-method.service.js';
 
@@ -39,9 +39,9 @@ export interface TenantPaymentMethodView {
 /**
  * `GET /billing/payment-method` and `POST /billing/payment-method/setup` — the
  * tenant's view of what its subscriber pays with, behind the billing
- * permission for reading and changing alike. Replacing it is the one write a
- * read-only tenant makes, while one of its subscriber's invoices is open
- * (`SC-ADM-024`).
+ * permission for reading and changing alike. Replacing it is one of the two
+ * writes a read-only tenant makes, beside paying now, while one of its
+ * subscriber's invoices is open (`SC-ADM-052`).
  */
 @Controller('billing/payment-method')
 @UseGuards(ComposedTenantAuthGuard, BillingPermissionGuard)
@@ -66,7 +66,7 @@ export class TenantPaymentMethodController {
 
     @Post('setup')
     @HttpCode(200)
-    @ReplacesPaymentMethod()
+    @StartsPayment()
     startSetup(
         @Req() request: unknown,
         @Body() body: StartPaymentMethodSetupDto,

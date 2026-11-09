@@ -184,8 +184,13 @@ export function collectionStore(
             const due = store.invoices.filter((invoice) => {
                 const document = store.documents.get(invoice.id);
                 const chain = chainOf(invoice.id);
+                const entered =
+                    paymentMethods.rows.some(
+                        (row) =>
+                            row.subscriberId === invoice.subscriberId && row.status === 'ACTIVE',
+                    ) && owes(invoice.id);
                 return (
-                    invoice.payment !== null &&
+                    (invoice.payment !== null || entered) &&
                     document?.deliveredAt &&
                     (invoice.collectionDate === null || invoice.collectionDate <= today) &&
                     !attempts.some((attempt) => attempt.invoiceId === invoice.id) &&
@@ -389,13 +394,15 @@ export function collectionStore(
  * file; the first `failingAuditWrites` writes to the audit log fail. `holds`
  * is where the tenants' reasons are kept, where a test reads them: an invoice
  * unpaid on its due date is recorded there by `overdue`, and a payment that
- * settles it lifts it.
+ * settles it lifts it. `paymentMethodChanges` is where a confirmed payment
+ * method is told to, as `SubscriberPaymentMethodService` tells it.
  */
 export function aCollectingInstallation({
     settings = COLLECTING_SETTINGS,
     failingAuditWrites = 0,
     mail = aMailbox(),
     holds = null,
+    paymentMethodChanges = null,
 } = {}) {
     const paymentMethods = new MemoryPaymentMethods();
     const installation = anInvoicingInstallation({ settings, paymentMethods, mail });
@@ -448,6 +455,7 @@ export function aCollectingInstallation({
         installation.subscribers,
         money,
         transactions,
+        paymentMethodChanges,
     );
     // Corrects an issued invoice: the journal as the ledger reads it, and the
     // platform's transaction, which the invoices in memory need none of.

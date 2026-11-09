@@ -148,7 +148,7 @@ export interface SaaSiCatPersistenceCore {
      */
     maintenanceWindows?: PersistenceProvider<MaintenanceWindowPort>;
     /**
-     * Where the reasons a tenant is held back are kept (`SC-ADM-024`): a
+     * Where the reasons a tenant is held back are kept (`SC-ADM-052`): a
      * suspension, an overdue invoice, an ended subscription. Optional so an
      * adapter written before it existed still compiles; an installation that
      * serves tenants without one is refused at start-up, since a state that is

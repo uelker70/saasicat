@@ -1,5 +1,5 @@
 // An invoice unpaid on its due date holds its tenant back to reading, and
-// stops once it no longer owes (`SC-PRIC-098`, `SC-ADM-024`).
+// stops once it no longer owes (`SC-PRIC-098`, `SC-ADM-052`).
 //
 // The quarter-hourly run compares the invoices that hold their tenant back
 // with the open `overdue` reasons and records and lifts the difference, so a

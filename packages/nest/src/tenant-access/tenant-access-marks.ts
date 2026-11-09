@@ -27,13 +27,14 @@ export const Writes = (): ClassDecorator & MethodDecorator =>
     SetMetadata(TENANT_ACCESS_MARK_KEY, 'writes' satisfies TenantAccessMark);
 
 /**
- * The one write read-only lets through: replacing the payment method, while
- * one of the subscriber's invoices is open (`SC-ADM-024`). The platform's own
- * route carries it, and nothing else should — whether the user may change the
- * payment method at all is still the billing permission's to say.
+ * The one kind of write read-only lets through: starting a payment — paying
+ * now, or replacing the payment method —, while one of the subscriber's
+ * invoices is open (`SC-ADM-052`). The platform's own routes carry it, and
+ * nothing else should — whether the user may pay at all is still the billing
+ * permission's to say.
  */
-export const ReplacesPaymentMethod = (): MethodDecorator =>
-    SetMetadata(TENANT_ACCESS_MARK_KEY, 'replaces-payment-method' satisfies TenantAccessMark);
+export const StartsPayment = (): MethodDecorator =>
+    SetMetadata(TENANT_ACCESS_MARK_KEY, 'starts-payment' satisfies TenantAccessMark);
 
 /** The mark on the current endpoint, the handler's before its class's, or null. */
 export function tenantAccessMarkOf(

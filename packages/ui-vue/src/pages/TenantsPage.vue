@@ -553,7 +553,7 @@ function resolvedPills(row: TenantRow): StatusPillDef[] {
 }
 
 /**
- * The platform's state where the row carries it (`SC-ADM-024`); otherwise, and
+ * The platform's state where the row carries it (`SC-ADM-052`); otherwise, and
  * for a tenant the application deactivated, what `isActive` says.
  */
 function tenantStatePill(row: { isActive: boolean; access?: unknown }): StatusPillDef {

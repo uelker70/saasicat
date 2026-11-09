@@ -228,7 +228,7 @@ describe('the payment methods invoices are collected with', () => {
         );
     });
 
-    // @requirement SC-PRIC-082 — An invoice is collected as it, or an announcement after it, says
+    // @requirement SC-PRIC-099 — An invoice is collected as it says, and an entered payment method collects it
     test('refuse the start where the file names payment accounts and nothing collects the invoices', async () => {
         const message = await refusal(installation({ payments: 'uncollected' }));
 

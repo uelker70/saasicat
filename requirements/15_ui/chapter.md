@@ -1850,7 +1850,7 @@ _Tested by:_
         - a tenant without a subscriber, and a request without a tenant, are refused
 - `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
     - every route of the invoices and confirmations is behind authentication and the permission,
-      reading included
+      reading and paying included
 - `packages/ui-vue/tests/a-payment-method-is-shown-to-whoever-may-see-it.test.js`
     - loading the payment method
         - a user holding the permission sees the one in use

@@ -255,7 +255,7 @@ describe('a direct debit that failed for a reason that can pass', () => {
     });
 });
 
-// @requirement SC-PRIC-082 — An invoice is collected as it, or an announcement after it, says
+// @requirement SC-PRIC-099 — An invoice is collected as it says, and an entered payment method collects it
 describe('a payment method that replaced the one an invoice named, or the one that failed', () => {
     clockFrom(FIRST_RUN);
 
@@ -443,7 +443,7 @@ describe('a payment method that replaced the one an invoice named, or the one th
 });
 
 // @requirement SC-PRIC-028 — A direct debit is announced before it is collected
-// @requirement SC-PRIC-082 — An invoice is collected as it, or an announcement after it, says
+// @requirement SC-PRIC-099 — An invoice is collected as it says, and an entered payment method collects it
 describe('a direct debit whose invoice reached the subscriber too late for its day', () => {
     clockFrom(ISSUED);
 

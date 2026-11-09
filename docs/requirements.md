@@ -115,12 +115,12 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 98      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 100     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 51      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 52      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 680 entries: 🟢 594 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
-🔵 48 superseded, 🔴 7 withdrawn.
+Of 683 entries: 🟢 595 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+🔵 50 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -156,7 +156,7 @@ Of 680 entries: 🟢 594 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
-[SC-ADM-024](#sc-adm-024--a-suspended-tenants-users-cannot-act-and-a-read-only-tenant-cannot-write),
+[SC-ADM-052](#sc-adm-052--a-suspended-tenant-cannot-act-and-a-read-only-one-writes-nothing-but-a-payment),
 [SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
 [SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
@@ -195,6 +195,7 @@ Of 680 entries: 🟢 594 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-PRIC-031](#sc-pric-031--a-returned-debit-or-a-chargeback-is-recorded-and-what-the-payment-settled-opens-again),
 [SC-PRIC-088](#sc-pric-088--reversals-of-an-invoice-end-alike-in-any-order-and-it-is-collected-again),
 [SC-PRIC-079](#sc-pric-079--an-invoice-is-collected-once-it-has-reached-the-subscriber),
+[SC-PRIC-082](#sc-pric-082--an-invoice-is-collected-as-it-or-an-announcement-after-it-says),
 [SC-PRIC-035](#sc-pric-035--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-081](#sc-pric-081--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
@@ -206,6 +207,7 @@ Of 680 entries: 🟢 594 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
 [SC-ADM-022](#sc-adm-022--an-operator-lists-every-invoice-with-totals-per-period-and-tax-rate-and-exports-it),
 [SC-ADM-023](#sc-adm-023--an-operator-can-list-open-items-and-every-contract-including-former-subscribers),
+[SC-ADM-024](#sc-adm-024--a-suspended-tenants-users-cannot-act-and-a-read-only-tenant-cannot-write),
 [SC-ADM-028](#sc-adm-028--an-operator-reads-a-subscribers-charges-beside-its-tenant),
 [SC-ADM-032](#sc-adm-032--the-operator-reads-a-subscribers-history-with-who-when-and-why),
 [SC-ADM-033](#sc-adm-033--the-operator-reconciles-what-no-credit-matched-and-closes-each-case-with-a-note),
@@ -224,7 +226,7 @@ Of 680 entries: 🟢 594 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 680 requirements. Do not edit by hand:
+Generated from `requirements/` — 683 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -8023,7 +8025,7 @@ ends without one, by a trial running out or by an operator ending it on the spot
 gets its date computed from the period at the moment it ends. A later change to the period moves
 neither, and the one way to delete earlier is `SC-ADM-020`'s. A new subscription for the tenant
 before that date lifts it, and that subscription ending records a date of its own. What a tenant may
-do during the period is `SC-ADM-024`'s to enforce, and how the deletion runs is `SC-PRIV-014`'s.
+do during the period is `SC-ADM-052`'s to enforce, and how the deletion runs is `SC-PRIV-014`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -10044,7 +10046,7 @@ _Tested by:_
 details `SC-PRIV-005` allows, never the IBAN or the card number. Adding or changing a payment
 method needs the billing permission (`SC-UI-023`) and is taken in the subscriber's one live tenant
 (`SC-SCOPE-012`), or, once that tenant is deleted, on the gateway's payment page for an open invoice
-(`SC-ADM-024`). A reference is only meaningful to the gateway account that issued it,
+(`SC-ADM-052`). A reference is only meaningful to the gateway account that issued it,
 the provider and the merchant account there, so each payment method and each payment records that
 account. `config/saas.yaml` names the account that takes new payment methods; one that still holds
 a payment method in use, an open collection, a credit to refund, a payment inside its reversal
@@ -10085,6 +10087,9 @@ _Tested by:_
         - without an invoice email, the gateway is given the requesting user's address
         - the confirmation makes the new payment method the one in use, and keeps the one it
           replaced
+        - a confirmed payment method is told to what follows it once it is recorded, and once only
+        - the gateway is answered without waiting for what follows the confirmation
+        - what follows a confirmation and fails is logged, and the payment method stays recorded
         - a confirmation whose recording fails leaves the claim and the setup open for the retry
         - a return URL at another origin is refused, and neither the gateway nor a setup is touched
         - opening the form records the setup for this subscriber and this session
@@ -10802,7 +10807,7 @@ failure, a direct debit on the day its new announcement names, which is seven da
 failure at the earliest and the lead time after the announcement reached the subscriber
 (`SC-PRIC-028`). A second failure of the same payment method, and a failure for a reason that cannot
 pass, is not tried again: the subscriber is asked to replace the payment method, and the
-replacement collects the invoice (`SC-PRIC-082`). A gateway tries nothing again of its own. The
+replacement collects the invoice (`SC-PRIC-099`). A gateway tries nothing again of its own. The
 invoice stays as it was issued, its due date included (`SC-PRIC-046`).
 
 _Source:_ #333 (decided 2026-10-13 and 2026-10-14) · #276
@@ -10945,19 +10950,39 @@ _Tested by:_
 
 ### SC-PRIC-082 — An invoice is collected as it, or an announcement after it, says
 
+🔵 _(Superseded on 2026-11-09 by `SC-PRIC-099`.)_ 💰 An invoice that names the payment method it is
+collected with (`SC-PRIC-028`) is collected through the gateway account that payment method is held
+at once it was handed to the mail: by card at once, by direct debit from the collection date it
+announced. Where the subscriber's payment method in use is another than the invoice named, the
+invoice is collected with the one in use: a card at once, a direct debit from the date a new
+announcement names (`SC-PRIC-028`); so is an invoice that could not be collected (`SC-PRIC-080`)
+once its payment method is replaced. A direct debit whose invoice reached the subscriber less than
+the lead time before the date it announced is announced again rather than collected early. Without a
+payment method in use nothing is collected, and the operator is shown why. Collecting is the fourth
+step of the quarter-hourly run that issues, archives and mails invoices, so nothing is collected
+before the subscriber was sent what it is collected for.
+
+_Source:_ #333 (decided 2026-10-13 and 2026-10-14) · #276
+
+### SC-PRIC-099 — An invoice is collected as it says, and an entered payment method collects it
+
 🟢 💰 An invoice that names the payment method it is collected with (`SC-PRIC-028`) is collected
 through the gateway account that payment method is held at once it was handed to the mail: by card
 at once, by direct debit from the collection date it announced. Where the subscriber's payment
 method in use is another than the invoice named, the invoice is collected with the one in use: a
-card at once, a direct debit from the date a new announcement names (`SC-PRIC-028`); so is an
-invoice that could not be collected (`SC-PRIC-080`) once its payment method is replaced. A direct
-debit whose invoice reached the subscriber less than the lead time before the date it announced is
-announced again rather than collected early. Without a payment method in use nothing is collected,
-and the operator is shown why. Collecting is the fourth step of the quarter-hourly run that issues,
-archives and mails invoices, so nothing is collected before the subscriber was sent what it is
-collected for.
+card at once, a direct debit from the date a new announcement names (`SC-PRIC-028`). A direct debit
+whose invoice reached the subscriber less than the lead time before the date it announced is
+announced again rather than collected early. A payment method the subscriber enters collects every
+invoice still open that was handed to the subscriber — one that could not be collected
+(`SC-PRIC-080`) and one issued while no payment method was in use included — as the invoice says:
+from the day it named, or at once where that day has passed, so replacing a payment method early
+brings no payment forward; paying now is what does (`SC-PRIC-100`). An invoice whose collection is
+on its way is left to it, and a payment method a payment was taken back on collects nothing again
+(`SC-PRIC-085`). Without a payment method in use nothing is collected, and the operator is shown
+why. Collecting is the fourth step of the quarter-hourly run that issues, archives and mails
+invoices, so nothing is collected before the subscriber was sent what it is collected for.
 
-_Source:_ #333 (decided 2026-10-13 and 2026-10-14) · #276
+_Source:_ #333 (decided 2026-10-13 and 2026-10-14) · #276 · #337 (decided 2026-11-09)
 
 <!-- BEGIN proof -->
 
@@ -10979,6 +11004,11 @@ _Tested by:_
     - a direct debit whose invoice reached the subscriber too late for its day
         - is announced again for the lead time after, and debited then rather than on the day it
           named
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - changing it opens the gateway form, and the confirmation replaces the one in use
+        - a confirmed payment method is told to what follows it once it is recorded, and once only
+        - the gateway is answered without waiting for what follows the confirmation
+        - what follows a confirmation and fails is logged, and the payment method stays recorded
 - `packages/nest/tests/an-invoice-is-collected.test.js`
     - an invoice that reached the subscriber
         - by card is collected at once, through the account its payment method is held at, under its
@@ -10992,6 +11022,75 @@ _Tested by:_
 - `packages/nest/tests/invoices-start-only-as-configured.test.js`
     - the payment methods invoices are collected with
         - refuse the start where the file names payment accounts and nothing collects the invoices
+
+<!-- END proof -->
+
+### SC-PRIC-100 — A subscriber pays what is open now
+
+🟢 💰 A user of the tenant holding the billing permission (`SC-UI-023`) can pay every invoice still
+open at once with the payment method in use, read-only included (`SC-ADM-052`), from the account
+that shows what is open (`SC-PRIC-049`): a card is charged at once, and the tenant is let go once
+the payment is there (`SC-PRIC-098`); a direct debit is announced and collected the lead time after
+(`SC-PRIC-028`), and the tenant stays read-only until the bank confirms it. Before paying, the user
+is told that a card opens the account again at once and a direct debit only once it is collected and
+the bank confirms it, with the day a direct debit announced then is collected on — the lead time
+this installation sets, not a fixed span; afterwards, what was set going — paid, on its way,
+announced, refused, or that a payment method has to be entered or replaced first. A card charge
+planned for a later day gives way to paying now; a direct debit already announced with the payment
+method in use keeps the day the subscriber was told and is not announced again; an invoice whose
+collection is on its way is not collected twice; and a payment method a payment was taken back on
+collects nothing again (`SC-PRIC-085`).
+
+_Source:_ #337 (decided 2026-11-09)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-pays-what-is-open-now.test.js`
+    - paying now
+        - charges the card in use at once, and a tenant held back is let go
+        - with the same card, once it has funds again, pays before the second attempt was due
+        - answered later leaves the tenant read-only until the payment is there
+        - by direct debit announces it, and collects it the lead time after
+        - with a card entered since, charges a direct debit’s invoice at once, before the day it
+          names
+        - leaves a direct debit the invoice announced with the payment method in use to its day
+        - leaves a direct debit planned with the payment method in use to the day it was announced
+          for
+        - leaves an invoice on its way to that collection
+        - does not collect again with a payment method a payment was taken back on
+        - without a payment method in use starts nothing, and says so
+        - leaves an invoice not handed to the subscriber yet to the run that mails it
+        - pays nothing twice for an invoice already paid
+    - a payment method the subscriber enters
+        - collects at once an invoice issued while none was in use
+        - where its confirmation collected nothing, leaves an invoice issued while none was in use
+          to the run
+        - leaves an invoice that reaches the mail only after it to the run
+        - before the day a direct debit’s invoice names, charges a card on that day and not earlier
+    - the route a tenant pays on
+        - answers that nothing can be paid where invoices are not collected
+        - pays for the session’s tenant
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - the day a direct debit paid now is collected on, beside the account
+        - is the lead time the installation sets after its own today
+        - is fourteen days after today where the installation sets no lead time
+        - is answered for a tenant without a subscriber as well
+- `packages/ui-vue/tests/a-tenant-reads-its-account.test.js`
+    - the day a direct debit paid now is collected on
+        - is carried as the server says it
+        - is none where the server does not say
+    - paying what is open now
+        - pays under the prefix the app gives, keeps what it set going, and reads the account again
+        - that the server refuses is kept as an error, and the account is not read again
+- `packages/ui-vue-tenant/tests/component/a-tenant-pays-what-is-open-now.test.ts`
+    - paying now, on the account
+        - is offered where something is open, with when the account opens again said beside it
+        - is not offered where nothing is open, a credit included
+        - pays, reads the account again, and says it is paid
+        - says what follows ${what}
+        - that could not be started says so
 
 <!-- END proof -->
 
@@ -11031,7 +11130,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-PRIC-098 — An invoice unpaid on its due date makes the tenant read-only until it is paid
 
 🟢 💰 An invoice still open on its due date (`SC-PRIC-046`) makes the tenant its subscriber is live
-for read-only (`SC-ADM-024`) from that day, within the quarter of an hour the run takes, until it
+for read-only (`SC-ADM-052`) from that day, within the quarter of an hour the run takes, until it
 is paid; there is no grace period, and before its due date an invoice holds nobody back, unless an
 invoice it replaced had come due, was refused and still owed when it was replaced: a correction is
 not a payment, and the tenant stays read-only until the replacement is paid, whatever day the
@@ -11863,6 +11962,12 @@ _Tested by:_
         - that fails otherwise is an error the page reports
         - answered without balances is an error, not a subscriber that owes nothing
         - is read once without being asked
+    - the day a direct debit paid now is collected on
+        - is carried as the server says it
+        - is none where the server does not say
+    - paying what is open now
+        - pays under the prefix the app gives, keeps what it set going, and reads the account again
+        - that the server refuses is kept as an error, and the account is not read again
 - `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
     - the account, at the top of the billing section
         - says what is open, of that what is overdue, and beside it the credit to be refunded
@@ -16446,6 +16551,28 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
 
+🔵 _(Superseded on 2026-11-09 by `SC-ADM-052`.)_ 🔒 SaaSiCat decides the state, and records it with
+every reason that holds, such as an ended subscription (`SC-CANC-020`), an invoice unpaid on its due
+date (`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a
+deletion under way before a suspension and a suspension before read-only, and ending one reason
+lifts only that one. The application checks it on every request through a port, sign-in included, so
+a session that was already open when the state changed is held to it on its next request; SaaSiCat
+does the same on the routes it protects. A state that is recorded and not enforced is a switch that
+looks like protection. The operator acting as the tenant (`SC-ADM-005`) is not one of its users and
+is not held to the state, except once the tenant is being deleted (`SC-PRIV-018`), so support and an
+export stay possible on a suspended tenant; that access requires the second factor and is recorded.
+Read-only stops at one write: while one of the subscriber's invoices is open, a user of the tenant
+holding the billing permission (`SC-UI-023`) can still replace the payment method (`SC-PRIC-030`),
+because the claim outlives the subscription (`SC-PRIV-013`) and nobody else can enter a means of
+payment for it. A suspended tenant has no such exception, and lifting a suspension is the operator's
+(`SC-ADM-005`). Once the tenant is deleted nobody is left to act in it, so an invoice still open is
+settled through a payment page of the gateway that the operator sends to the contact address
+`SC-PRIV-013` keeps, where the subscriber can pay it with a new payment method and needs no tenant.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
+
 🟡 _(Decided, not yet delivered.)_ 🔒 SaaSiCat decides the state, and records it with every reason
 that holds, such as an ended subscription (`SC-CANC-020`), an invoice unpaid on its due date
 (`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a deletion
@@ -16456,15 +16583,16 @@ same on the routes it protects. A state that is recorded and not enforced is a s
 like protection. The operator acting as the tenant (`SC-ADM-005`) is not one of its users and is not
 held to the state, except once the tenant is being deleted (`SC-PRIV-018`), so support and an export
 stay possible on a suspended tenant; that access requires the second factor and is recorded.
-Read-only stops at one write: while one of the subscriber's invoices is open, a user of the tenant
-holding the billing permission (`SC-UI-023`) can still replace the payment method (`SC-PRIC-030`),
-because the claim outlives the subscription (`SC-PRIV-013`) and nobody else can enter a means of
-payment for it. A suspended tenant has no such exception, and lifting a suspension is the operator's
-(`SC-ADM-005`). Once the tenant is deleted nobody is left to act in it, so an invoice still open is
-settled through a payment page of the gateway that the operator sends to the contact address
-`SC-PRIV-013` keeps, where the subscriber can pay it with a new payment method and needs no tenant.
+Read-only stops at one kind of write, starting a payment: while one of the subscriber's invoices is
+open, a user of the tenant holding the billing permission (`SC-UI-023`) can still pay it now
+(`SC-PRIC-100`) and replace the payment method (`SC-PRIC-030`), because the claim outlives the
+subscription (`SC-PRIV-013`) and nobody else can pay it. A suspended tenant has no such exception,
+and lifting a suspension is the operator's (`SC-ADM-005`). Once the tenant is deleted nobody is left
+to act in it, so an invoice still open is settled through a payment page of the gateway that the
+operator sends to the contact address `SC-PRIV-013` keeps, where the subscriber can pay it with a
+new payment method and needs no tenant.
 
-_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #337
 
 <!-- BEGIN proof -->
 
@@ -16499,6 +16627,7 @@ _Tested by:_
 - `packages/nest/tests/a-read-only-tenant-replaces-its-payment-method.test.js`
     - a read-only tenant replacing its payment method
         - is let through while one of its invoices is open
+        - pays now as it replaces the payment method: let through while an invoice is open
         - is refused once none is open
         - is refused where nothing can say whether an invoice is open: no invoices are issued
         - writes nothing else: another write is refused, invoice open or not
@@ -16554,7 +16683,7 @@ _Tested by:_
         - there are tenant controllers to look at
         - every controller that reads the tenant from the request passes through the guard
         - exactly these routes let a read-only tenant through with a writing method
-        - exactly this route replaces the payment method
+        - exactly these routes start a payment
 - `packages/ui-vue/tests/a-tenant-action-follows-the-platforms-state.test.js`
     - a tenant row offers what the platform's state allows
         - an open or read-only tenant can be suspended, not reactivated
@@ -16566,6 +16695,8 @@ _Tested by:_
         - other actions are not the state’s to decide
 
 <!-- END proof -->
+
+(decided 2026-11-09)
 
 ### SC-ADM-025 — An operator gets a description of the invoicing procedure to document its own on
 
@@ -20119,7 +20250,7 @@ _Tested by:_
         - a tenant without a subscriber, and a request without a tenant, are refused
 - `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
     - every route of the invoices and confirmations is behind authentication and the permission,
-      reading included
+      reading and paying included
 - `packages/ui-vue/tests/a-payment-method-is-shown-to-whoever-may-see-it.test.js`
     - loading the payment method
         - a user holding the permission sees the one in use
@@ -23090,7 +23221,7 @@ _Tested by:_
       included
 - `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
     - every route of the invoices and confirmations is behind authentication and the permission,
-      reading included
+      reading and paying included
 - `packages/nest/tests/public-route.test.js`
     - SaaSiCat public route metadata
         - ${controller.name} is recognized by global auth guards
@@ -23784,7 +23915,7 @@ out after it has already erased. Each eraser treats what is already gone as done
 partway is reported and repeated rather than left half-finished, and the deletion record
 (`SC-PRIV-015`) is written only when every store has confirmed. Once a run has begun the tenant is
 being deleted: nobody writes to it any more, the operator acting as the tenant included
-(`SC-ADM-024`). Before its first destructive call, each store counts what it is about to erase and
+(`SC-ADM-052`). Before its first destructive call, each store counts what it is about to erase and
 keeps those counts with the run, so a call whose answer was lost, and a repeat that finds the store
 already empty, still leave the counts that were erased rather than a record that nothing was
 deleted.

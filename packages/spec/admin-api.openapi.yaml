@@ -3909,7 +3909,7 @@ components:
         TenantAccessState:
             type: string
             enum: [open, read-only, suspended, deleting]
-            description: "What the tenant's users may do (SC-ADM-024): the strictest of the open reasons the platform keeps"
+            description: "What the tenant's users may do (SC-ADM-052): the strictest of the open reasons the platform keeps"
 
         AdminTenantStateResult:
             type: object

@@ -58,7 +58,13 @@ function invoiceOf(id, subscriber, tenantId, day, overrides = {}) {
  * policy, the archived documents and the confirmations — and the service
  * reading them.
  */
-function billingArea({ invoices = [], contracts = {}, bypass = true, credits = [] } = {}) {
+function billingArea({
+    invoices = [],
+    contracts = {},
+    bypass = true,
+    credits = [],
+    invoicing,
+} = {}) {
     const state = { tenant: null, lifted: false, documents: [], confirmations: [] };
     const subscriberOf = { 'tenant-meier-2026': MEIER, 'tenant-schulz': SCHULZ };
     const visible = (invoice) => state.lifted || invoice.tenantId === state.tenant;
@@ -123,7 +129,7 @@ function billingArea({ invoices = [], contracts = {}, bypass = true, credits = [
         payments,
         confirmations,
         rlsBypass,
-        { timeZone: 'Europe/Berlin' },
+        { timeZone: 'Europe/Berlin', invoicing },
     );
     return { service, state };
 }
@@ -137,7 +143,7 @@ const refusedAs = (status, code) => (error) => {
 
 // @requirement SC-UI-023 — A tenant's invoices, payment method and billing details need the billing permission
 // @requirement SC-SEC-004 — Every decision that matters is made where the request is served
-test('every route of the invoices and confirmations is behind authentication and the permission, reading included', () => {
+test('every route of the invoices and confirmations is behind authentication and the permission, reading and paying included', () => {
     assert.deepEqual(Reflect.getMetadata(GUARDS, TenantInvoicesController), [
         ComposedTenantAuthGuard,
         BillingPermissionGuard,
@@ -152,6 +158,7 @@ test('every route of the invoices and confirmations is behind authentication and
         'confirmations',
         'documentOf',
         'page',
+        'pay',
     ]);
     for (const name of handlers) {
         assert.equal(
@@ -292,9 +299,9 @@ describe("a tenant's account", () => {
             credits: [creditOf('meier', MEIER, 12), creditOf('schulz', SCHULZ, 99)],
         });
 
-        assert.deepEqual(await service.accountOf('tenant-meier-2026'), {
-            balances: [{ currency: 'EUR', owed: 69, overdue: 49, credit: 12 }],
-        });
+        assert.deepEqual((await service.accountOf('tenant-meier-2026')).balances, [
+            { currency: 'EUR', owed: 69, overdue: 49, credit: 12 },
+        ]);
     });
 
     test('counts an earlier tenant’s invoices joined into the subscriber, read past the tenant policy', async () => {
@@ -315,7 +322,7 @@ describe("a tenant's account", () => {
             invoices: [invoiceOf('meier-1', MEIER, 'tenant-meier-2026', 1)],
         });
 
-        assert.deepEqual(await service.accountOf('tenant-without-one'), { balances: [] });
+        assert.deepEqual((await service.accountOf('tenant-without-one')).balances, []);
     });
 
     test('is served for the tenant of the session, and a request that carries none is refused', async () => {
@@ -324,13 +331,42 @@ describe("a tenant's account", () => {
         });
         const controller = new TenantInvoicesController(service, null);
 
-        assert.deepEqual(await controller.account({ user: { tenantId: 'tenant-meier-2026' } }), {
-            balances: [{ currency: 'EUR', owed: 49, overdue: 0, credit: 0 }],
-        });
+        const answer = await controller.account({ user: { tenantId: 'tenant-meier-2026' } });
+        assert.deepEqual(answer.balances, [{ currency: 'EUR', owed: 49, overdue: 0, credit: 0 }]);
         await assert.rejects(
             async () => controller.account({ user: {} }),
             refusedAs(404, 'TENANT_CONTEXT_MISSING'),
         );
+    });
+});
+
+// @requirement SC-PRIC-100 — A subscriber pays what is open now
+describe('the day a direct debit paid now is collected on, beside the account', () => {
+    // Half past midnight in Berlin on 10 November: the installation's day, not UTC's.
+    const AFTER_MIDNIGHT_IN_BERLIN = new Date('2026-11-09T23:30:00.000Z');
+
+    test('is the lead time the installation sets after its own today', async () => {
+        const { service } = billingArea({ invoicing: { directDebitLeadDays: 2 } });
+
+        const account = await service.accountOf('tenant-meier-2026', AFTER_MIDNIGHT_IN_BERLIN);
+
+        assert.equal(account.directDebitCollectedOn, '2026-11-12');
+    });
+
+    test('is fourteen days after today where the installation sets no lead time', async () => {
+        const { service } = billingArea();
+
+        const account = await service.accountOf('tenant-meier-2026', AFTER_MIDNIGHT_IN_BERLIN);
+
+        assert.equal(account.directDebitCollectedOn, '2026-11-24');
+    });
+
+    test('is answered for a tenant without a subscriber as well', async () => {
+        const { service } = billingArea({ invoicing: { directDebitLeadDays: 2 } });
+
+        const account = await service.accountOf('tenant-without-one', AFTER_MIDNIGHT_IN_BERLIN);
+
+        assert.deepEqual(account, { balances: [], directDebitCollectedOn: '2026-11-12' });
     });
 });
 

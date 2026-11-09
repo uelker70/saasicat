@@ -83,12 +83,12 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 98      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 100     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 51      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 52      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 680 entries: 🟢 594 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
-🔵 48 superseded, 🔴 7 withdrawn.
+Of 683 entries: 🟢 595 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+🔵 50 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -124,7 +124,7 @@ Of 680 entries: 🟢 594 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
-[SC-ADM-024](#sc-adm-024--a-suspended-tenants-users-cannot-act-and-a-read-only-tenant-cannot-write),
+[SC-ADM-052](#sc-adm-052--a-suspended-tenant-cannot-act-and-a-read-only-one-writes-nothing-but-a-payment),
 [SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
 [SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
@@ -163,6 +163,7 @@ Of 680 entries: 🟢 594 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-PRIC-031](#sc-pric-031--a-returned-debit-or-a-chargeback-is-recorded-and-what-the-payment-settled-opens-again),
 [SC-PRIC-088](#sc-pric-088--reversals-of-an-invoice-end-alike-in-any-order-and-it-is-collected-again),
 [SC-PRIC-079](#sc-pric-079--an-invoice-is-collected-once-it-has-reached-the-subscriber),
+[SC-PRIC-082](#sc-pric-082--an-invoice-is-collected-as-it-or-an-announcement-after-it-says),
 [SC-PRIC-035](#sc-pric-035--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-081](#sc-pric-081--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
@@ -174,6 +175,7 @@ Of 680 entries: 🟢 594 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
 [SC-ADM-022](#sc-adm-022--an-operator-lists-every-invoice-with-totals-per-period-and-tax-rate-and-exports-it),
 [SC-ADM-023](#sc-adm-023--an-operator-can-list-open-items-and-every-contract-including-former-subscribers),
+[SC-ADM-024](#sc-adm-024--a-suspended-tenants-users-cannot-act-and-a-read-only-tenant-cannot-write),
 [SC-ADM-028](#sc-adm-028--an-operator-reads-a-subscribers-charges-beside-its-tenant),
 [SC-ADM-032](#sc-adm-032--the-operator-reads-a-subscribers-history-with-who-when-and-why),
 [SC-ADM-033](#sc-adm-033--the-operator-reconciles-what-no-credit-matched-and-closes-each-case-with-a-note),

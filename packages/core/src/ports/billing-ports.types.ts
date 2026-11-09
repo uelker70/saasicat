@@ -972,10 +972,12 @@ export interface SubscriptionInvoiceRepository {
 export interface InvoiceCollectionRepository {
     /**
      * The invoices to collect on `today`, by id, at most `limit`, after `after`
-     * where it is given: issued with a payment method to collect with, handed
-     * to the mail — so their announcement has reached the subscriber — with no
-     * collection date or one on or before `today`, and no attempt yet, planned
-     * or sent.
+     * where it is given: issued with a payment method to collect with — or
+     * without one, where the subscriber has a payment method in use now and
+     * the invoice still owes something, its total more than what is settled
+     * against it —, handed to the mail — so their announcement has reached
+     * the subscriber — with no collection date or one on or before `today`,
+     * and no attempt yet, planned or sent.
      */
     listDue(
         today: CalendarDay,

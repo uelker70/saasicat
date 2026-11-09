@@ -88,3 +88,76 @@ describe("the tenant's account", () => {
         assert.equal(account.available.value, true);
     });
 });
+
+// @requirement SC-PRIC-100 — A subscriber pays what is open now
+describe('the day a direct debit paid now is collected on', () => {
+    test('is carried as the server says it', async () => {
+        const { account } = accountAnswering(200, {
+            balances: [BALANCE],
+            directDebitCollectedOn: '2026-11-24',
+        });
+
+        await account.reload();
+
+        assert.equal(account.directDebitCollectedOn.value, '2026-11-24');
+    });
+
+    test('is none where the server does not say', async () => {
+        const { account } = accountAnswering(200, { balances: [BALANCE] });
+
+        await account.reload();
+
+        assert.equal(account.directDebitCollectedOn.value, null);
+    });
+});
+
+// @requirement SC-PRIC-100 — A subscriber pays what is open now
+describe('paying what is open now', () => {
+    /** A client answering each `METHOD url` in turn, and the requests it was asked. */
+    function routing(routes) {
+        const asked = [];
+        const http = async (url, init) => {
+            const key = `${init?.method ?? 'GET'} ${url}`;
+            asked.push(key);
+            const [status, body] = routes[key]?.shift() ?? [404, {}];
+            return {
+                status,
+                headers: { get: () => 'application/json' },
+                json: async () => body,
+                text: async () => JSON.stringify(body),
+            };
+        };
+        return { http, asked };
+    }
+
+    test('pays under the prefix the app gives, keeps what it set going, and reads the account again', async () => {
+        const started = { paymentMethod: true, collected: 1 };
+        const { http, asked } = routing({
+            'POST /api/billing/account/pay': [[200, started]],
+            'GET /api/billing/account': [[200, { balances: [] }]],
+        });
+        const account = useTenantAccount({ http, autoLoad: false, apiPrefix: '/api/billing' });
+
+        await account.payNow();
+
+        assert.deepEqual(asked, ['POST /api/billing/account/pay', 'GET /api/billing/account']);
+        assert.deepEqual(account.started.value, started);
+        assert.deepEqual(account.balances.value, []);
+        assert.equal(account.payError.value, null);
+        assert.equal(account.paying.value, false);
+    });
+
+    test('that the server refuses is kept as an error, and the account is not read again', async () => {
+        const { http, asked } = routing({
+            'POST /billing/account/pay': [[409, { code: 'PAYMENTS_NOT_CONFIGURED' }]],
+        });
+        const account = useTenantAccount({ http, autoLoad: false });
+
+        await account.payNow();
+
+        assert.deepEqual(asked, ['POST /billing/account/pay']);
+        assert.ok(account.payError.value instanceof Error);
+        assert.equal(account.started.value, null);
+        assert.equal(account.paying.value, false);
+    });
+});

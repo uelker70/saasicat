@@ -8577,7 +8577,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             return { ...account, collections, ids };
         }
 
-        // @requirement SC-PRIC-082
+        // @requirement SC-PRIC-099
         // @requirement SC-PRIC-028
         test('an invoice is due once it was mailed: by card at once, by direct debit from the day it announced, until it has an attempt', async (t) => {
             const account = await collectable(t, 'tenant-collect-due', [
@@ -8604,6 +8604,32 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             await collections.startAttempt(attemptOf(byCard!));
 
             assert.deepEqual(await due('2026-02-15'), [byDebit!]);
+        });
+
+        // @requirement SC-PRIC-099
+        test('an invoice issued without a payment method is due once its subscriber has one in use, mailed, until it has an attempt', async (t) => {
+            const account = await collectable(t, 'tenant-collect-entered', [
+                { payment: null },
+                { payment: null, delivered: false },
+            ]);
+            if (!account) return;
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            if (!methods) return;
+            const { collections, ids, subscriberId } = account;
+            const [mailed, notMailed] = ids;
+            const due = () =>
+                collections
+                    .listDue('2026-02-01', { limit: 50 })
+                    .then((found) => found.filter((id) => ids.includes(id)));
+            assert.deepEqual(await due(), [], 'due with no payment method in use');
+
+            await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_entered', '2026-02-02T10:00:00.000Z'),
+            );
+
+            assert.deepEqual(await due(), [mailed!], `due: ${notMailed} before it was mailed`);
+            await collections.plan(planOf(mailed!));
+            assert.deepEqual(await due(), [], 'due with an attempt planned');
         });
 
         test('the invoices due are read page by page', async (t) => {
@@ -8949,7 +8975,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-PRIC-080
-        // @requirement SC-PRIC-082
+        // @requirement SC-PRIC-099
         test('an attempt is planned for its day with nothing sent, keeps the invoice from another, and is taken up as sent by one run', async (t) => {
             const account = await collectable(t, 'tenant-collect-plan');
             if (!account) return;
@@ -9108,7 +9134,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(await collections.announce(sent!.id, '2026-03-01', announcedAt), false);
         });
 
-        // @requirement SC-PRIC-082
+        // @requirement SC-PRIC-099
         test('a planned attempt is withdrawn once, is never sent, and the invoice can be planned again', async (t) => {
             const account = await collectable(t, 'tenant-collect-withdraw');
             if (!account) return;
@@ -9155,7 +9181,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(first.length, 1);
         });
 
-        // @requirement SC-PRIC-082
+        // @requirement SC-PRIC-099
         test('the invoices another payment method can collect are those whose last attempt failed and was followed up, or was withdrawn, and no others', async (t) => {
             const account = await collectable(t, 'tenant-collect-again', [{}, {}, {}, {}, {}, {}]);
             if (!account) return;
@@ -11610,6 +11636,52 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 invoices.holdChain(invoiceId, tx),
             );
             assert.deepEqual(chain?.cancellations, []);
+        });
+
+        // @requirement SC-PRIC-099
+        test('a replacement the moved payment settles is not due, though issued without a payment method and one is in use', async (t) => {
+            const account = await payable(t, 'tenant-due-replacements', 2);
+            if (!account) return;
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            if (!methods) return;
+            const { collections, payments, attempts, grosses, paymentOf, ids, subscriberId } =
+                account;
+            await collections.recordOutcome(
+                attempts[0]!.id,
+                {
+                    status: 'succeeded',
+                    paymentRef: 'pi_paid',
+                    amountCents: Math.round(grosses[0]! * 100),
+                    currency: 'EUR',
+                },
+                PAID_AT,
+            );
+            await payments.recordPayment(paymentOf(attempts[0]!, 'pi_paid', grosses[0]!));
+            await collections.recordOutcome(attempts[1]!.id, FAILURE, STARTED_AT);
+            const paid = await cancelInvoice(ids[0]!);
+            const owing = await cancelInvoice(ids[1]!);
+            const roles = new Map([
+                [paid.cancellationInvoice.id, 'the cancellation of the paid invoice'],
+                [paid.replacement!.id, 'the replacement the moved payment settles'],
+                [owing.cancellationInvoice.id, 'the cancellation of the invoice still owed'],
+                [owing.replacement!.id, 'the replacement still owed'],
+            ]);
+            for (const id of roles.keys()) await deliver(id);
+            assert.equal(
+                paid.replacement!.payment,
+                null,
+                'the premise: a replacement paid on issue names no payment method',
+            );
+            await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_entered', '2026-03-03T10:00:00.000Z'),
+            );
+
+            const due = await collections.listDue('2026-12-31', { limit: 50 });
+
+            assert.deepEqual(
+                due.flatMap((id) => roles.get(id) ?? []),
+                ['the replacement still owed'],
+            );
         });
 
         // @requirement SC-PRIC-095

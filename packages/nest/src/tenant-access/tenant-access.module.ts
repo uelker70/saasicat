@@ -1,5 +1,5 @@
 // TenantAccessModule — the store of the reasons a tenant is held back, and the
-// service every tenant request is checked against (`SC-ADM-024`).
+// service every tenant request is checked against (`SC-ADM-052`).
 //
 // Composed by `SaaSiCatModule` wherever tenants are served, which refuses to
 // start without a store. Global, so that the application's own authentication

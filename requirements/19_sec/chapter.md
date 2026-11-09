@@ -129,7 +129,7 @@ _Tested by:_
       included
 - `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
     - every route of the invoices and confirmations is behind authentication and the permission,
-      reading included
+      reading and paying included
 - `packages/nest/tests/public-route.test.js`
     - SaaSiCat public route metadata
         - ${controller.name} is recognized by global auth guards

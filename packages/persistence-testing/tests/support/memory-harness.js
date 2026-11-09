@@ -2881,8 +2881,14 @@ export function createMemoryHarness() {
             const due = state.invoices.filter((invoice) => {
                 const document = state.invoiceDocuments.find((row) => row.invoiceId === invoice.id);
                 const chain = chainInvoiceIdsOf(invoice.id);
+                const entered =
+                    state.paymentMethods.some(
+                        (method) =>
+                            method.subscriberId === invoice.subscriberId &&
+                            method.status === 'ACTIVE',
+                    ) && stillOwes(invoice);
                 return (
-                    invoice.payment !== null &&
+                    (invoice.payment !== null || entered) &&
                     document?.deliveredAt &&
                     (invoice.collectionDate === null || invoice.collectionDate <= today) &&
                     !state.invoiceCollections.some((row) => row.invoiceId === invoice.id) &&

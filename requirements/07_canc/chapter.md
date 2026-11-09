@@ -616,7 +616,7 @@ ends without one, by a trial running out or by an operator ending it on the spot
 gets its date computed from the period at the moment it ends. A later change to the period moves
 neither, and the one way to delete earlier is `SC-ADM-020`'s. A new subscription for the tenant
 before that date lifts it, and that subscription ending records a date of its own. What a tenant may
-do during the period is `SC-ADM-024`'s to enforce, and how the deletion runs is `SC-PRIV-014`'s.
+do during the period is `SC-ADM-052`'s to enforce, and how the deletion runs is `SC-PRIV-014`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 

@@ -92,7 +92,7 @@ const PLATFORMS = [
 ];
 
 for (const platform of PLATFORMS) {
-    // @requirement SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
+    // @requirement SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
     describe(`a tenant's state on its requests, on ${platform.name}`, () => {
         const holds = new FakeTenantAccessHoldRepository();
         let app;
