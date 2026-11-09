@@ -21,7 +21,11 @@ counts what was set going.
 A payment method the subscriber confirms in the gateway's form now collects
 what is open as each invoice says — from the day it named, or at once where
 that day has passed —, an invoice issued while no payment method was in use
-included, which nothing collected before.
+included, which nothing collected before. The quarter-hourly run takes up
+what the confirmation does not reach: `InvoiceCollectionRepository.listDue`
+now also answers an invoice issued without a payment method once its
+subscriber has one in use and the invoice still owes something — an adapter
+of your own follows that.
 
 `TenantAccountCard` offers "Pay now" where something is open, says beside it
 that a card opens the account again at once and a direct debit once it is

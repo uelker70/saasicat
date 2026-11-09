@@ -1302,7 +1302,10 @@ payment method a payment was taken back on collects nothing again (`SC-PRIC-085`
 the subscriber confirms in the gateway's form collects what is open too, but as each invoice says:
 from the day it named, or at once where that day has passed (`SC-PRIC-099`).
 `InvoiceCollectionService` registers with `SubscriberPaymentMethodService` at the start, and is
-told of each confirmation once it is recorded. The shipped `TenantAccountCard` offers the button
+told of each confirmation once it is recorded; what that does not reach — a collection that failed,
+an invoice handed to the mail only later — the quarter-hourly run takes up, since it reads an
+invoice issued without a payment method as due once one is in use and the invoice still owes
+something. The shipped `TenantAccountCard` offers the button
 where something is open; a page of your own calls `useTenantAccount().payNow()`.
 
 ### The confirmation of each contract

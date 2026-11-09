@@ -178,6 +178,8 @@ type PlannedBecause =
     | 'retry'
     /** The payment method in use is another than the invoice named, or than the one tried. */
     | 'payment-method-replaced'
+    /** The invoice named no payment method, and the subscriber entered one since (`SC-PRIC-099`). */
+    | 'payment-method-entered'
     /** The invoice reached the subscriber less than the lead time before its direct debit's day. */
     | 'announced-too-late'
     /** The subscriber paid now, or entered a payment method (`SC-PRIC-099`, `SC-PRIC-100`). */
@@ -496,7 +498,11 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     /**
      * Collects an invoice that has no attempt yet, as it announced: with the
      * payment method it named, from the day it named. Where that is not how
-     * it can be collected, the collection is planned instead.
+     * it can be collected, the collection is planned instead — so is one
+     * issued without a payment method, once the subscriber entered one: what
+     * the confirmation of it collects at once is collected here where that
+     * did not happen, its collection having failed or the invoice reaching
+     * the mail only later (`SC-PRIC-099`).
      */
     private async collectOne(
         invoiceId: string,
@@ -505,14 +511,16 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     ): Promise<void> {
         const invoice = await this.invoiceOf(invoiceId);
         const document = await this.invoices.findDocument(invoiceId);
-        if (!invoice.payment || !document) {
-            throw new Error(
-                `Invoice ${invoiceId} is due for collection and has no payment or mail.`,
-            );
+        if (!document) {
+            throw new Error(`Invoice ${invoiceId} is due for collection and has no mail.`);
         }
         const method = await this.paymentMethods!.findActive(invoice.subscriberId);
         if (!method) {
             await this.recordWaiting(invoice, noPaymentMethod(invoice), run);
+            return;
+        }
+        if (!invoice.payment) {
+            await this.planWith(invoice, 0, method, today, 'payment-method-entered', run);
             return;
         }
         if (method.id !== invoice.payment.paymentMethodId) {

@@ -4351,6 +4351,10 @@ adopt it:
   `accountPay…` keys, of which `accountPayNowHint` names `{date}`, the day a direct debit announced
   now is collected on (`directDebitCollectedOn` on the account); the shipped English and German
   stand in where you leave them out.
+- **`InvoiceCollectionRepository.listDue`** also answers an invoice issued without a payment method,
+  once its subscriber has one in use and the invoice still owes something, so the quarter-hourly
+  run collects what a confirmation did not reach. The shipped adapters do; an adapter of your own
+  follows, and the persistence contract checks it.
 
 ## What the codemod leaves to you
 

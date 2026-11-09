@@ -11061,6 +11061,9 @@ _Tested by:_
         - pays nothing twice for an invoice already paid
     - a payment method the subscriber enters
         - collects at once an invoice issued while none was in use
+        - where its confirmation collected nothing, leaves an invoice issued while none was in use
+          to the run
+        - leaves an invoice that reaches the mail only after it to the run
         - before the day a direct debit’s invoice names, charges a card on that day and not earlier
     - the route a tenant pays on
         - answers that nothing can be paid where invoices are not collected

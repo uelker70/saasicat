@@ -328,6 +328,50 @@ describe('a payment method the subscriber enters', () => {
         assert.equal(await installation.payments.owedBy(invoice.id), 0);
     });
 
+    test('where its confirmation collected nothing, leaves an invoice issued while none was in use to the run', async () => {
+        quietLog();
+        const installation = aCollectingInstallation();
+        const subscriber = await installation.aSubscriber('t1', { invoiceEmail: 'b@t1.example' });
+        installation.charge(await installation.aContract(subscriber), 'plan');
+        const invoice = await installation.anInvoiceMailed(subscriber.id, ISSUED);
+        await installation.collect(clockAt(FIRST_RUN));
+        assert.deepEqual(
+            installation.collections.attempts,
+            [],
+            'the premise: nothing to collect with',
+        );
+        await replaceWith(installation, subscriber.id, 'card', DUE_DAY);
+
+        await installation.collect(clockAt(LATER));
+
+        assert.equal(await installation.payments.owedBy(invoice.id), 0);
+        assert.ok(
+            installation.audits.some(
+                (entry) =>
+                    entry.action === 'SUBSCRIPTION_INVOICE_COLLECTION_PLANNED' &&
+                    entry.changes.because === 'payment-method-entered',
+            ),
+        );
+    });
+
+    test('leaves an invoice that reaches the mail only after it to the run', async () => {
+        quietLog();
+        const installation = anInstallationTold();
+        const subscriber = await installation.aSubscriber('t1', { invoiceEmail: 'b@t1.example' });
+        installation.charge(await installation.aContract(subscriber), 'plan');
+        await installation.run(ISSUED);
+        const [invoice] = installation.store.invoices;
+        await replaceWith(installation, subscriber.id, 'card', DUE_DAY);
+        clockAt(LATER);
+        await installation.confirmed(subscriber.id);
+        assert.deepEqual(installation.gateway.collections, [], 'the premise: not mailed yet');
+
+        installation.mailed(invoice.id, LATER);
+        await installation.collect(clockAt(new Date(LATER.getTime() + 15 * 60_000)));
+
+        assert.equal(await installation.payments.owedBy(invoice.id), 0);
+    });
+
     test('before the day a direct debit’s invoice names, charges a card on that day and not earlier', async () => {
         quietLog();
         const installation = anInstallationTold();

@@ -184,8 +184,13 @@ export function collectionStore(
             const due = store.invoices.filter((invoice) => {
                 const document = store.documents.get(invoice.id);
                 const chain = chainOf(invoice.id);
+                const entered =
+                    paymentMethods.rows.some(
+                        (row) =>
+                            row.subscriberId === invoice.subscriberId && row.status === 'ACTIVE',
+                    ) && owes(invoice.id);
                 return (
-                    invoice.payment !== null &&
+                    (invoice.payment !== null || entered) &&
                     document?.deliveredAt &&
                     (invoice.collectionDate === null || invoice.collectionDate <= today) &&
                     !attempts.some((attempt) => attempt.invoiceId === invoice.id) &&

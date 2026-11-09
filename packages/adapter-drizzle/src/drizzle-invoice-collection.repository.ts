@@ -4,6 +4,7 @@ import {
     and,
     asc,
     eq,
+    exists,
     gt,
     inArray,
     isNotNull,
@@ -166,7 +167,26 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
             .where(
                 and(
                     page.after === undefined ? undefined : gt(subscriptionInvoices.id, page.after),
-                    isNotNull(subscriptionInvoices.payment),
+                    or(
+                        isNotNull(subscriptionInvoices.payment),
+                        and(
+                            exists(
+                                db
+                                    .select({ one: sql`1` })
+                                    .from(subscriberPaymentMethods)
+                                    .where(
+                                        and(
+                                            eq(
+                                                subscriberPaymentMethods.subscriberId,
+                                                subscriptionInvoices.subscriberId,
+                                            ),
+                                            eq(subscriberPaymentMethods.status, 'ACTIVE'),
+                                        ),
+                                    ),
+                            ),
+                            stillOwes,
+                        ),
+                    ),
                     isNotNull(subscriptionInvoiceDocuments.deliveredAt),
                     or(
                         isNull(subscriptionInvoices.collectionDate),
