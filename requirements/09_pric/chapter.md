@@ -2732,6 +2732,12 @@ _Tested by:_
         - are the reversal given back in part
         - are the one of two reversals not given back
         - count in cents, not in binary fractions
+    - a chain of corrections holds its tenant back
+        - a payment taken back on B holds C’s tenant before C’s own due date
+        - given back on C, where the gateway writes it, it holds C’s tenant back no more
+        - a refusal A made good before its correction counts no more on B
+        - a refusal A had come due with and still owed holds B’s tenant before B’s due date
+        - an empty chain holds nobody back
 - `packages/nest/tests/an-invoice-unpaid-on-its-due-date-holds-its-tenant-back.test.js`
     - an invoice left unpaid
         - is open and due on 15 February, its card refused on the day it was issued
@@ -2765,7 +2771,7 @@ _Tested by:_
     - a chain of corrections
         - forgets a refusal behind an invoice that was paid before it was replaced
     - a payment taken back on a corrected invoice
-        - keeps the tenant held through the next correction, until it is paid
+        - keeps the tenant held through the next correction, until the money comes back
     - a payment taken back
         - opens the invoice again, and the next run holds the tenant back until it is paid again
     - the quarter-hourly run

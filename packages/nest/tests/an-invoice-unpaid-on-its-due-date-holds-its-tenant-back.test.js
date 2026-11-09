@@ -632,7 +632,7 @@ describe('a chain of corrections', () => {
 describe('a payment taken back on a corrected invoice', () => {
     clockFrom(FIRST_RUN);
 
-    test('keeps the tenant held through the next correction, until it is paid', async () => {
+    test('keeps the tenant held through the next correction, until the money comes back', async () => {
         quietLog();
         const holds = new FakeTenantAccessHoldRepository();
         const installation = aCollectingInstallation({ holds });
@@ -681,8 +681,25 @@ describe('a payment taken back on a corrected invoice', () => {
         assert.ok(third.dueDate > '2026-03-08', 'the premise: C is due later');
 
         await installation.overdue.holdBackDue(clockAt(later(secondCorrection, 15)));
-
         assert.equal(await stateOf(access, 't1'), 'read-only', 'a correction is not a payment');
+
+        // The dispute is won: the gateway gives the payment back, onto C.
+        const givenBackAt = berlinMidnight('2026-03-10');
+        clockAt(givenBackAt);
+        await installation.callbacks.handle(
+            MAIN_ACCOUNT,
+            signedCallback(
+                reversalReported('evt_cb_a_won', paid.attemptKey, {
+                    reversalRef: 'du_a',
+                    paymentRef: paid.paymentRef,
+                    withdrawnCents: toCents(invoice.totalGross),
+                    reinstatedCents: toCents(invoice.totalGross),
+                }),
+            ),
+        );
+        await installation.overdue.holdBackDue(clockAt(later(givenBackAt, 15)));
+
+        assert.equal(await stateOf(access, 't1'), 'open');
     });
 });
 

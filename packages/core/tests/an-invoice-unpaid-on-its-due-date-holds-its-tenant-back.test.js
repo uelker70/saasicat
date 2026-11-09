@@ -7,6 +7,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    invoiceChainHoldsBack,
     overdueHoldChanges,
     owedWhenReplaced,
     reversalsStillTakenBack,
@@ -385,5 +386,87 @@ describe('the reversals that still take a payment back', () => {
             ]),
             [],
         );
+    });
+});
+
+describe('a chain of corrections holds its tenant back', () => {
+    const ZONE = 'Europe/Berlin';
+    const at = (iso) => new Date(iso);
+    // A (119, due 15 Feb) paid on 8 Feb, cancelled on 20 Feb into B (due 6 Mar);
+    // the payment taken back on 25 Feb lands on B; B cancelled on 8 Mar into C
+    // (due 22 Mar), which a higher correction leaves owing 20.
+    const A = {
+        id: 'A',
+        dueDate: '2026-02-15',
+        totalGross: 119,
+        replacedBy: { cancellationId: 'cA', cancelledAt: at('2026-02-20T09:00:00Z') },
+    };
+    const B = {
+        id: 'B',
+        dueDate: '2026-03-06',
+        totalGross: 119,
+        replacedBy: { cancellationId: 'cB', cancelledAt: at('2026-03-08T09:00:00Z') },
+    };
+    const C = { id: 'C', dueDate: '2026-03-22', totalGross: 139, replacedBy: null };
+    const settled = (invoiceId, kind, amount, recordedAt, extra = {}) => ({
+        invoiceId,
+        kind,
+        amount,
+        recordedAt: at(recordedAt),
+        cancellationId: null,
+        reversal: null,
+        ...extra,
+    });
+    const paidA = [
+        settled('A', 'PAYMENT', 119, '2026-02-08T06:00:00Z'),
+        settled('A', 'MOVED_OUT', 119, '2026-02-20T09:00:00Z', { cancellationId: 'cA' }),
+        settled('B', 'MOVED_IN', 119, '2026-02-20T09:00:00Z', { cancellationId: 'cA' }),
+        settled('B', 'REVERSAL', 119, '2026-02-25T06:00:00Z', { reversal: { id: 'du-1' } }),
+    ];
+    const attempts = [
+        { invoiceId: 'A', status: 'REVERSED', submittedAt: at('2026-02-08T06:00:00Z') },
+    ];
+    const on = (today) => ({ today, timeZone: ZONE });
+
+    test('a payment taken back on B holds C’s tenant before C’s own due date', () => {
+        assert.equal(invoiceChainHoldsBack([C, B, A], paidA, attempts, on('2026-03-09')), true);
+    });
+
+    test('given back on C, where the gateway writes it, it holds C’s tenant back no more', () => {
+        const givenBack = [
+            ...paidA,
+            settled('C', 'REINSTATEMENT', 119, '2026-03-10T06:00:00Z', {
+                reversal: { id: 'du-1' },
+            }),
+        ];
+        assert.equal(
+            invoiceChainHoldsBack([C, B, A], givenBack, attempts, on('2026-03-11')),
+            false,
+        );
+    });
+
+    test('a refusal A made good before its correction counts no more on B', () => {
+        const refusedThenPaid = [
+            { invoiceId: 'A', status: 'FAILED', submittedAt: at('2026-02-01T06:00:00Z') },
+            { invoiceId: 'A', status: 'SUCCEEDED', submittedAt: at('2026-02-08T06:00:00Z') },
+        ];
+        const owingB = { ...B, replacedBy: null, totalGross: 139 };
+        const settledB = paidA.filter((each) => each.kind !== 'REVERSAL');
+        assert.equal(
+            invoiceChainHoldsBack([owingB, A], settledB, refusedThenPaid, on('2026-02-21')),
+            false,
+        );
+    });
+
+    test('a refusal A had come due with and still owed holds B’s tenant before B’s due date', () => {
+        const refused = [
+            { invoiceId: 'A', status: 'FAILED', submittedAt: at('2026-02-15T06:00:00Z') },
+        ];
+        const owingB = { ...B, replacedBy: null };
+        assert.equal(invoiceChainHoldsBack([owingB, A], [], refused, on('2026-02-21')), true);
+    });
+
+    test('an empty chain holds nobody back', () => {
+        assert.equal(invoiceChainHoldsBack([], [], [], on('2026-03-09')), false);
     });
 });

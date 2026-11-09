@@ -26,13 +26,16 @@
 // again leaves one that should hold again.
 
 import { UNSETTLED_COLLECTION_STATUSES } from './invoice-collection-mapping.js';
-import type { InvoiceCollectionStatus } from './invoice-collection.types.js';
+import type {
+    InvoiceCollectionRecord,
+    InvoiceCollectionStatus,
+} from './invoice-collection.types.js';
 import type { InvoiceSettlementRecord } from './invoice-export.types.js';
 import { toCents } from './money.js';
 import { REOPENING_SETTLEMENT_KINDS } from './subscriber-payment-mapping.js';
 import { owedOn } from './subscriber-payment-rules.js';
 import type { TenantAccessHold } from './tenant-access.types.js';
-import type { CalendarDay } from './zoned-day.js';
+import { dayInZone, type CalendarDay } from './zoned-day.js';
 
 /** An open invoice that holds its tenant back, with that tenant. */
 export interface OverdueInvoice {
@@ -124,6 +127,76 @@ export function reversalsStillTakenBack(
         standing.set(reversal.id, (standing.get(reversal.id) ?? 0) + cents);
     }
     return [...standing].filter(([, cents]) => cents > 0).map(([reversalId]) => reversalId);
+}
+
+/** An invoice of a chain: the open invoice first, then each it replaced in turn. */
+export interface ChainedInvoice {
+    id: string;
+    dueDate: CalendarDay;
+    totalGross: number;
+    /** The cancellation that replaced it; `null` for the open invoice, which stands. */
+    replacedBy: { cancellationId: string; cancelledAt: Date } | null;
+}
+
+/**
+ * Whether the open invoice heading `chain` holds its tenant back on
+ * `clock.today`. The rule walks back from it through the invoices it
+ * replaced, as far as the first that was paid when it was replaced — a refusal
+ * before that was made good —, each counting with what it held when it was
+ * replaced and with the due date it had come to by then. A payment taken back
+ * is a refusal of the invoice it was recorded on, as long as nothing in the
+ * chain gave it back: a give-back lands on the invoice that stands by then.
+ */
+export function invoiceChainHoldsBack(
+    chain: readonly ChainedInvoice[],
+    settlements: readonly Pick<
+        InvoiceSettlementRecord,
+        'invoiceId' | 'kind' | 'amount' | 'recordedAt' | 'cancellationId' | 'reversal'
+    >[],
+    attempts: readonly Pick<InvoiceCollectionRecord, 'invoiceId' | 'status' | 'submittedAt'>[],
+    clock: { today: CalendarDay; timeZone: string },
+): boolean {
+    const [open, ...earlier] = chain;
+    if (!open) return false;
+    const settlementsOf = (invoiceId: string) =>
+        settlements.filter((settlement) => settlement.invoiceId === invoiceId);
+    const walked: { invoiceId: string; dueOn: CalendarDay | null; upTo: Date | null }[] = [
+        { invoiceId: open.id, dueOn: open.dueDate, upTo: null },
+    ];
+    for (const invoice of earlier) {
+        const replaced = invoice.replacedBy;
+        if (!replaced) break;
+        if (owedWhenReplaced(invoice.totalGross, settlementsOf(invoice.id), replaced) <= 0) break;
+        const cameDue = invoice.dueDate <= dayInZone(replaced.cancelledAt, clock.timeZone);
+        walked.push({
+            invoiceId: invoice.id,
+            dueOn: cameDue ? invoice.dueDate : null,
+            upTo: replaced.cancelledAt,
+        });
+    }
+    const heldBy = (link: (typeof walked)[number]) =>
+        settlementsOf(link.invoiceId).filter(
+            (settlement) =>
+                link.upTo === null || settlement.recordedAt.getTime() <= link.upTo.getTime(),
+        );
+    const takenBack = new Set(reversalsStillTakenBack(walked.flatMap(heldBy)));
+    const standings = walked.flatMap((link): CollectionAttemptStanding[] => {
+        const own = attempts
+            .filter((attempt) => attempt.invoiceId === link.invoiceId)
+            .map((attempt) => ({
+                status: attempt.status,
+                sentOn: attempt.submittedAt ? dayInZone(attempt.submittedAt, clock.timeZone) : null,
+                dueOn: link.dueOn,
+            }));
+        const reversed = heldBy(link).some(
+            (settlement) =>
+                settlement.kind === 'REVERSAL' &&
+                settlement.reversal !== null &&
+                takenBack.has(settlement.reversal.id),
+        );
+        return reversed ? [...own, { status: 'REVERSED', sentOn: null, dueOn: link.dueOn }] : own;
+    });
+    return unpaidInvoiceHoldsBack(open.dueDate, standings, clock.today);
 }
 
 /** The reasons to record and to lift so that the open ones are `overdue`, and only those. */
