@@ -1,6 +1,7 @@
 // Tells the tenant's access check whether an invoice is open, so a read-only
 // tenant can start a payment — pay now, or replace its payment method — while
-// it owes something (`SC-ADM-052`).
+// it owes something (`SC-ADM-052`), and what an invoice a reason names is
+// called, so the operator reads it by its number (`SC-ADM-053`).
 //
 // The check is global and composed before tenant billing, so it cannot inject
 // the invoices; they answer it from here, at the start, as the invoice
@@ -25,5 +26,6 @@ export class OpenInvoicesForTenantAccess implements OnModuleInit {
 
     onModuleInit(): void {
         this.access?.answerOpenInvoicesFrom(this.invoices);
+        this.access?.nameInvoicesFrom(this.invoices);
     }
 }

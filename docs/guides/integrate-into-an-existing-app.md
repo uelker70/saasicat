@@ -163,7 +163,10 @@ this option `false` and retain its own controllers — or implement
 
 Turning it on also costs pagination (`AdminTenantListFilter` has no page size,
 hard cap 200) and MFA on the write routes. A suspension is kept by the platform
-(`TenantAccessHold`) and writes nothing of the application's.
+(`TenantAccessHold`) and writes nothing of the application's. The tenant's detail
+answers `accessReasons` beside `access`: every reason the tenant is held back
+for, the oldest first, with an unpaid invoice named by its number where invoices
+are wired (`SC-ADM-053`); `TenantDetailPage` lists them under "Access".
 
 ---
 

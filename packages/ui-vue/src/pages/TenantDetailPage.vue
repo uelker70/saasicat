@@ -53,6 +53,16 @@
                     </slot>
                 </AdminSection>
 
+                <!-- Every reason the tenant is held back for, where the server says them -->
+                <AdminSection v-if="data.accessReasons" :title="msg.detail.access" class="q-mb-md">
+                    <TenantAccessReasons
+                        :reasons="data.accessReasons"
+                        :labels="accessLabels"
+                        :day-of="days.ofMoment"
+                        :record-route="subscriberRecordRoute"
+                    />
+                </AdminSection>
+
                 <!-- Whom the tenant's contracts are concluded with, and the way into its record -->
                 <TenantSubscriberCard
                     v-if="subscriber.available.value"
@@ -118,11 +128,16 @@ import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router';
 import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { tenantsResource } from '../client/resources/tenants.resource.js';
-import type { TenantDetailData, UsageField } from '../internal/tenant-detail/types.js';
+import type {
+    TenantAccessLabels,
+    TenantDetailData,
+    UsageField,
+} from '../internal/tenant-detail/types.js';
 import type { QTableColumn } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import type { AdminManifest, TenantAccessState, TenantActionDef, TenantDto } from '@saasicat/core';
 import { formatMessage } from '../client/i18n/format.js';
+import TenantAccessReasons from '../internal/tenant-detail/TenantAccessReasons.vue';
 import TenantMasterData from '../internal/tenant-detail/TenantMasterData.vue';
 import TenantSubscriberCard from '../internal/tenant-detail/TenantSubscriberCard.vue';
 import TenantUsage from '../internal/tenant-detail/TenantUsage.vue';
@@ -209,6 +224,17 @@ const labels = computed(() => ({
     vatId: props.options?.vatIdLabel ?? msg.value.detail.vatId,
     usage: props.options?.usageLabel ?? msg.value.detail.usage,
     users: props.options?.usersLabel ?? msg.value.detail.users,
+}));
+
+const accessLabels = computed<TenantAccessLabels>(() => ({
+    open: msg.value.detail.accessOpen,
+    since: msg.value.detail.accessSince,
+    suspended: msg.value.detail.accessSuspended,
+    overdue: msg.value.detail.accessOverdue,
+    overdueUnnamed: msg.value.detail.accessOverdueUnnamed,
+    ended: msg.value.detail.accessEnded,
+    deleting: msg.value.detail.accessDeleting,
+    note: msg.value.detail.accessNote,
 }));
 
 const notify = useSuperAdminNotify();

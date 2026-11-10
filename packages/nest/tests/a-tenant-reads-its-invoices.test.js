@@ -75,6 +75,8 @@ function billingArea({
                 .sort((a, b) => b.issuedAt - a.issuedAt),
         findById: async (id) =>
             invoices.find((invoice) => invoice.id === id && visible(invoice)) ?? null,
+        findByIds: async (ids) =>
+            invoices.filter((invoice) => ids.includes(invoice.id) && visible(invoice)),
         listArchivedDocuments: async (ids) => ids.filter((id) => id !== 'not-archived'),
     };
     const subscribers = {
@@ -337,6 +339,21 @@ describe("a tenant's account", () => {
             async () => controller.account({ user: {} }),
             refusedAs(404, 'TENANT_CONTEXT_MISSING'),
         );
+    });
+});
+
+// @requirement SC-ADM-053 — The operator sees every reason a tenant is held back for
+describe('an invoice a reason names', () => {
+    test('is named by its number and subscriber, read past the tenant policy, and one not found is left out', async () => {
+        const { service } = billingArea({
+            invoices: [invoiceOf('meier-2025', MEIER, 'tenant-meier-2025', 1)],
+        });
+
+        const named = await service.invoicesNamed(['meier-2025', 'no-such-invoice']);
+
+        assert.deepEqual(named, [
+            { id: 'meier-2025', number: 'R-meier-2025', subscriberId: MEIER.id },
+        ]);
     });
 });
 

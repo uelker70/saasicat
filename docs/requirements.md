@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 52      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 53      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 686 entries: 🟢 596 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+Of 687 entries: 🟢 597 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
 🔵 52 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -228,7 +228,7 @@ Of 686 entries: 🟢 596 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 686 requirements. Do not edit by hand:
+Generated from `requirements/` — 687 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -16131,6 +16131,10 @@ _Tested by:_
         - a status the platform does not answer goes to the application as it was
         - the platform's own filters cannot be set by the caller
         - the detail carries the state too
+    - the detail names every reason a tenant is held back for
+        - the oldest first, a suspension with its note and an invoice by its number and subscriber
+        - an invoice where invoices cannot be read is named as none, and the reason stays
+        - none for a tenant held back by nothing
 - `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
     - where the cancellation is served
         - beside the invoices’ documents, announced as invoices.cancel with its audit action
@@ -16781,6 +16785,7 @@ _Tested by:_
     - the platform as it starts
         - asks the tenant’s invoices, which ${open ? 'let it through while one is open' : 'refuse it
           where none is'}
+        - asks the tenant’s invoices what an invoice a reason names is called
     - an invoice is open for the exception
         - where it was refused, and where it was paid in part
         - not where it was paid, nor for a tenant without a subscriber
@@ -16833,7 +16838,44 @@ _Tested by:_
 
 <!-- END proof -->
 
-(decided 2026-11-09)
+### SC-ADM-053 — The operator sees every reason a tenant is held back for
+
+🟢 🔒 The operator's page for a tenant names every reason it is held back for (`SC-ADM-052`), the
+oldest first: what it is, the day it began in the installation's days, the operator's own note on
+a suspension, and an invoice unpaid on its due date by its number, with the way into the record of
+the subscriber it belongs to (`SC-PRIC-098`). A tenant held back by nothing says so. Where the
+installation cannot read invoices, an unpaid invoice is still listed as a reason, without a number.
+The list beside it keeps showing only the state.
+
+_Source:_ #337 (decided 2026-11-09)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-read-only-tenant-replaces-its-payment-method.test.js`
+    - the platform as it starts
+        - asks the tenant’s invoices what an invoice a reason names is called
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - an invoice a reason names
+        - is named by its number and subscriber, read past the tenant policy, and one not found is
+          left out
+- `packages/nest/tests/admin-resources.test.js`
+    - the detail names every reason a tenant is held back for
+        - the oldest first, a suspension with its note and an invoice by its number and subscriber
+        - an invoice where invoices cannot be read is named as none, and the reason stays
+        - none for a tenant held back by nothing
+- `packages/ui-vue/tests/component/tenant-detail-shows-why-a-tenant-is-held-back.test.ts`
+    - the tenant detail's access section
+        - names each reason, the oldest first, with its day in the installation, the note and the
+          invoice linked to its record
+        - an invoice the server could not name is still a reason
+        - a tenant held back by nothing says so
+        - is not shown where the server names no reasons
+    - two reasons of one kind that began at the same moment
+        - stay two rows when the list is read again, each by its own reason
+
+<!-- END proof -->
 
 ### SC-ADM-025 — An operator gets a description of the invoicing procedure to document its own on
 

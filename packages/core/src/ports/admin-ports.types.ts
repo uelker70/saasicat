@@ -1,6 +1,6 @@
 import type { AdminManifest } from '../admin-manifest.types.js';
 import type { AuditEntry, AuditQuery } from '../audit-event.types.js';
-import type { TenantAccessState } from '../tenant-access.types.js';
+import type { TenantAccessHoldKind, TenantAccessState } from '../tenant-access.types.js';
 
 // -----------------------------------------------------------------------------
 // Admin stats and platform operation ports
@@ -249,8 +249,35 @@ export interface TenantAccessOverlay {
 /** A tenant row as the administration's list reads it. */
 export type AdminTenantListEntry = AdminTenantListRow & TenantAccessOverlay;
 
-/** A tenant as the administration's detail page reads it. */
-export type AdminTenantDetailEntry = AdminTenantDetail & TenantAccessOverlay;
+/** An invoice a reason names, as the administration shows it. */
+export interface AdminTenantAccessInvoice {
+    id: string;
+    number: string;
+    /** Whose record lists it, where the operator finds it. */
+    subscriberId: string;
+}
+
+/** One reason a tenant is held back, as the administration's detail page shows it (`SC-ADM-053`). */
+export interface AdminTenantAccessReason {
+    /** The reason's own id: two reasons of one kind can begin at the same moment. */
+    id: string;
+    kind: TenantAccessHoldKind;
+    /** ISO 8601: when it began to hold. */
+    since: string;
+    /** The operator's words for a suspension; `null` for every other kind. */
+    note: string | null;
+    /**
+     * The invoice unpaid on its due date, for that kind; `null` for every
+     * other kind, and where the installation cannot read invoices.
+     */
+    invoice: AdminTenantAccessInvoice | null;
+    /** The subscription that ended, for that kind; `null` for every other kind. */
+    subscriptionId: string | null;
+}
+
+/** A tenant as the administration's detail page reads it: with every reason it is held back for, the oldest first. */
+export type AdminTenantDetailEntry = AdminTenantDetail &
+    TenantAccessOverlay & { accessReasons: AdminTenantAccessReason[] };
 
 /** What suspending or reactivating a tenant answers: its state afterwards. */
 export interface AdminTenantStateResult {
