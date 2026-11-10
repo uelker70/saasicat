@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 309 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 310 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -223,6 +223,7 @@ Subscriptions, plan changes, entitlements.
 | `SUBSCRIPTION_PK_MISSING`                            | The adapter returned a subscription usage record without an id. Pass the subscription primary key through (see SubscriptionUsageRecord.id).                                                                                     |
 | `SUBSCRIPTION_TENANT_MISMATCH`                       | Subscription does not belong to the tenant                                                                                                                                                                                      |
 | `TENANT_NOT_FOUND`                                   | Tenant {slug} not found                                                                                                                                                                                                         |
+| `TRIAL_NOT_RUN_OUT`                                  | Only a trial whose end has passed is ended this way, and this subscription is not one.                                                                                                                                          |
 | `VERSION_ENDS_BEFORE_SWITCH`                         | This version stops being sold before it would take effect, so it cannot be switched to.                                                                                                                                         |
 | `VERSION_OFFER_CHANGED`                              | The offer changed since it was shown. Look at the current one before switching.                                                                                                                                                 |
 | `VERSION_SWITCH_AFTER_CANCELLATION`                  | This subscription ends before this version would take effect, so it cannot be switched to.                                                                                                                                      |

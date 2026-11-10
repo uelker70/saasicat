@@ -273,6 +273,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     RETIREMENT_SWITCH_CHANGED:
         'Die Einstellung hat sich seit der Anzeige geändert. Sehen Sie sie sich noch einmal an, bevor Sie wechseln.',
     SUBSCRIPTION_ENDED: 'Dieses Abonnement ist beendet und lässt sich nicht mehr ändern.',
+    TRIAL_NOT_RUN_OUT:
+        'Auf diesem Weg endet nur eine Testphase, deren Ende vorbei ist, und dieses Abonnement ist keine.',
     PLAN_LOCKED:
         'Aktiver Sondervertrag {planName} — für einen Paketwechsel wenden Sie sich bitte an die Vertragsverwaltung.',
     QUOTA_OVER_TARGET:

@@ -107,6 +107,7 @@ import {
 } from './tenant-audit-actor.js';
 import {
     contractUnlessTrialOf,
+    endContractAfter,
     freezeContractAfter,
     intendedContractOf,
 } from './freeze-contract-after.js';
@@ -1168,16 +1169,13 @@ export class TenantBillingController {
             // the request that wins the cancellation write reaches the hook
             // below. Ending it again is a no-op: the lookup asks as of the
             // effective date, and a contract already capped there is gone.
-            if (this.contractFreeze) {
-                try {
-                    await this.contractFreeze.endOnCancellation(tenantId, existing);
-                } catch (err) {
-                    this.logger.error(
-                        `Ending the contract for an existing cancellation failed ` +
-                            `(tenant ${tenantId}): ${String(err)}`,
-                    );
-                }
-            }
+            await endContractAfter(
+                this.contractFreeze,
+                tenantId,
+                existing,
+                'an existing cancellation',
+                this.logger,
+            );
             return {
                 canceledAt: sub.canceledAt ?? null,
                 canceledEffectiveAt: existing,
@@ -1296,15 +1294,13 @@ export class TenantBillingController {
         // The frozen contract ends when the subscription does. Non-fatal, like
         // every other use of this port: the cancellation is already recorded,
         // and a consumer without contracts has nothing to end.
-        if (this.contractFreeze) {
-            try {
-                await this.contractFreeze.endOnCancellation(tenantId, decision.effectiveAt);
-            } catch (err) {
-                this.logger.error(
-                    `Ending the contract after a cancellation failed (tenant ${tenantId}): ${String(err)}`,
-                );
-            }
-        }
+        await endContractAfter(
+            this.contractFreeze,
+            tenantId,
+            decision.effectiveAt,
+            'a cancellation',
+            this.logger,
+        );
         await this.auditLog(req, userId, 'Subscription', tenantId, 'CANCEL_SUBSCRIPTION', {
             canceledAt: now.toISOString(),
             effectiveAt: decision.effectiveAt.toISOString(),

@@ -269,6 +269,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     RETIREMENT_SWITCH_CHANGED:
         'The retirement changed since it was shown. Look at it again before switching.',
     SUBSCRIPTION_ENDED: 'This subscription has ended, so it can no longer be changed.',
+    TRIAL_NOT_RUN_OUT:
+        'Only a trial whose end has passed is ended this way, and this subscription is not one.',
     PLAN_LOCKED:
         'Active {planName} special contract — please contact the contract manager to change plans.',
     QUOTA_OVER_TARGET:

@@ -4414,7 +4414,8 @@ adopt it:
    nobody is given less than the period's notice. The day is kept; nothing is deleted on it by this
    release.
 
-- **A trial that runs out unbought** ends only when your application lands its cancellation; a
+- **A trial that runs out unbought** ends when your application calls
+  `TrialEndService.endRanOut(tenantId, actor)` from the run that decides it does not convert: a
   `PAST_DUE` status of your own holds nobody back since the platform keeps the tenant's state.
 - **Your own tests** that compose `SaaSiCatModule` with `tenantBilling` need the store in
   `persistence.core`: `FakeSubscriptionEndRepository` from `@saasicat/nest/testing` keeps it in

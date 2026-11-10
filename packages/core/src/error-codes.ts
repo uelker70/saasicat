@@ -504,6 +504,12 @@ export const BILLING_ERROR_CODES = {
 
     /** The subscription has ended, so nothing changes it any more: no plan change, no booking, no activation. */
     SUBSCRIPTION_ENDED: 'SUBSCRIPTION_ENDED',
+    /**
+     * Only a trial whose end has passed is ended by the application this way
+     * (`TrialEndService.endRanOut`): a running trial is not cut short, and a
+     * subscription that is no trial ends by its own cancellation.
+     */
+    TRIAL_NOT_RUN_OUT: 'TRIAL_NOT_RUN_OUT',
     /** An active special contract blocks self-service plan changes. */
     PLAN_LOCKED: 'PLAN_LOCKED',
     /** Current usage of one quota exceeds what the target plan allows. */

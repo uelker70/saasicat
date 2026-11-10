@@ -76,3 +76,29 @@ export async function freezeContractAfter(
         logger.error(`Contract freeze after ${change} failed (tenant ${tenantId}): ${String(err)}`);
     }
 }
+
+/**
+ * Ends the frozen contract at `endsAt`, the moment the subscription's
+ * cancellation lands.
+ *
+ * Non-fatal, as freezing is: the cancellation is already written, and a
+ * contract the port could not end is logged. Ending one already ended there is
+ * a no-op, so a repeat repairs rather than doubles. Without a freeze port there
+ * is no contract to end.
+ */
+export async function endContractAfter(
+    contractFreeze: ContractFreezePort | null,
+    tenantId: string,
+    endsAt: Date,
+    cancellation: string,
+    logger: Logger,
+): Promise<void> {
+    if (!contractFreeze) return;
+    try {
+        await contractFreeze.endOnCancellation(tenantId, endsAt);
+    } catch (err) {
+        logger.error(
+            `Ending the contract for ${cancellation} failed (tenant ${tenantId}): ${String(err)}`,
+        );
+    }
+}
