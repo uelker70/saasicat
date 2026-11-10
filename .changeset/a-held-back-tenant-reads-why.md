@@ -12,7 +12,8 @@ application: the state in the words a refused request uses, and each reason
 with the day it began in the installation. A user holding the billing
 permission reads an unpaid invoice by its number and can pay it there while
 the tenant is read-only; anybody else is told who can pay it. It shows nothing
-while the tenant is open.
+while the tenant is open, and reads the state again every minute, so a hold
+begun or lifted while a page is open shows without a reload.
 
 It reads two new routes, `GET billing/access` for every user and
 `GET billing/account/access` behind the billing permission

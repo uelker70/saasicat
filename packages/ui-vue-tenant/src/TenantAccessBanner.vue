@@ -53,6 +53,9 @@ import './ui/tenant-ui.css';
 // told before pressing when the account opens again by card and by direct
 // debit (`SC-PRIC-100`); anybody else is told who can pay it.
 //
+// The state is read on mount and again every minute, so a hold begun or lifted
+// while the page is open shows without a reload.
+//
 // Paying is offered only while the tenant is read-only: a suspension and a
 // deletion under way let no payment through, and paying would be refused.
 // While the state is being read, where the tenant is open, and where it cannot

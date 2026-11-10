@@ -9,8 +9,14 @@
 // this user (`isHiddenFromThisUser`) is answered by the route every user
 // reads. Where that one is not there either, there is nothing to show, which
 // is not an error; anything else is.
+//
+// The state moves while a page is open — an operator suspends the tenant, an
+// invoice comes due, a payment lifts the hold —, so a page reads it on mount
+// and again every `pollMs`, as `useMaintenanceStatus` reads the lock. Only the
+// answer to the latest read is kept: one that arrives after a newer one does
+// not put back what the newer one replaced.
 
-import { ref, type Ref } from 'vue';
+import { getCurrentScope, onScopeDispose, ref, type Ref } from 'vue';
 import type { TenantAccessState, TenantAccessView } from '@saasicat/core';
 
 import { httpStatusOf } from '../client/admin-error.js';
@@ -18,12 +24,21 @@ import { isHiddenFromThisUser } from '../client/billing-area.js';
 import { getJson, trimTrailingSlashes } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
+/** How often a page reads the state again while it is open. */
+export const TENANT_ACCESS_POLL_MS = 60_000;
+
 export interface UseTenantAccessStateOptions {
     http?: HttpClient;
     /** The prefix the billing routes sit under, as for `useTenantBilling`. Default `/billing`. */
     apiPrefix?: string;
-    /** Default `true`: loads once on the next tick. */
+    /**
+     * Default `true`: loads on the next tick, and again every `pollMs` for as
+     * long as the component — the effect scope — it was created in lives.
+     * `false` reads only when `reload` is called.
+     */
     autoLoad?: boolean;
+    /** Default `TENANT_ACCESS_POLL_MS`. */
+    pollMs?: number;
 }
 
 export interface UseTenantAccessStateResult {
@@ -64,9 +79,22 @@ export function useTenantAccessState(
     const prefix = trimTrailingSlashes(options.apiPrefix ?? '/billing');
     const http = options.http ?? defaultHttpClient();
 
+    const pollMs = options.pollMs ?? TENANT_ACCESS_POLL_MS;
+    // Outside a scope nothing would ever stop the timer, so it reads once.
+    const polls = options.autoLoad !== false && getCurrentScope() !== undefined;
+
     const view = ref<TenantAccessView | null>(null);
     const loading = ref(false);
     const error = ref<Error | null>(null);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let disposed = false;
+    let latestRead = 0;
+
+    function schedule(): void {
+        if (!polls || disposed) return;
+        if (timer !== null) clearTimeout(timer);
+        timer = setTimeout(() => void reload(), pollMs);
+    }
 
     /** The answer of `path`, or `null` where it says it is not for this user. */
     async function answerOf(path: string): Promise<TenantAccessView | null> {
@@ -85,19 +113,31 @@ export function useTenantAccessState(
     }
 
     async function reload(): Promise<void> {
+        latestRead += 1;
+        const read = latestRead;
         loading.value = true;
         error.value = null;
         try {
-            view.value = (await answerOf('account/access')) ?? (await answerOf('access'));
+            const answer = (await answerOf('account/access')) ?? (await answerOf('access'));
+            if (read === latestRead) view.value = answer;
         } catch (err) {
-            error.value = err instanceof Error ? err : new Error(String(err));
+            if (read === latestRead) {
+                error.value = err instanceof Error ? err : new Error(String(err));
+            }
         } finally {
-            loading.value = false;
+            if (read === latestRead) loading.value = false;
+            schedule();
         }
     }
 
     if (options.autoLoad !== false) {
         queueMicrotask(() => void reload());
+    }
+    if (polls) {
+        onScopeDispose(() => {
+            disposed = true;
+            if (timer !== null) clearTimeout(timer);
+        });
     }
 
     return { view, loading, error, reload };

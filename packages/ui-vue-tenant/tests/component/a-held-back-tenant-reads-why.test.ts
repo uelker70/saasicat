@@ -1,9 +1,9 @@
 // @requirement SC-ADM-054 — A tenant's users read why it is held back
 
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import type { TenantAccessView } from '@saasicat/core';
-import type { HttpClient } from '@saasicat/ui-vue';
+import { TENANT_ACCESS_POLL_MS, type HttpClient } from '@saasicat/ui-vue';
 
 import TenantAccessBanner from '../../src/TenantAccessBanner.vue';
 
@@ -48,6 +48,7 @@ const ACCOUNT = {
 const mounted: Array<{ unmount(): void }> = [];
 afterEach(() => {
     for (const wrapper of mounted.splice(0)) wrapper.unmount();
+    vi.useRealTimers();
 });
 
 async function mountBanner(http: HttpClient) {
@@ -224,5 +225,30 @@ describe('the banner of a tenant held back', () => {
         expect(lines(wrapper)[0]).toBe('Since 10.11.2026: the subscription has ended.');
         expect(payButton(wrapper).exists()).toBe(true);
         expect(wrapper.text()).not.toContain('collected on');
+    });
+
+    test('a hold begun while the page is open shows on the next read, and goes once lifted', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        const open = toBilling({ state: 'open', reasons: [] });
+        const { http } = httpRouting({
+            'GET /billing/account/access': [
+                [200, open],
+                [200, toBilling()],
+                [200, open],
+            ],
+            'GET /billing/account': [[200, ACCOUNT]],
+        });
+        const wrapper = await mountBanner(http);
+        expect(wrapper.find('.sp-access-banner').exists()).toBe(false);
+
+        await vi.advanceTimersByTimeAsync(TENANT_ACCESS_POLL_MS);
+        await flushPromises();
+        expect(lines(wrapper)).toEqual([
+            'Since 16.11.2026: invoice RE-2026-0042 was not paid by its due date.',
+        ]);
+
+        await vi.advanceTimersByTimeAsync(TENANT_ACCESS_POLL_MS);
+        await flushPromises();
+        expect(wrapper.find('.sp-access-banner').exists()).toBe(false);
     });
 });

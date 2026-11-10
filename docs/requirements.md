@@ -16934,6 +16934,10 @@ _Tested by:_
         - where neither route is there, nothing to show and no error
         - a failure is an error, and the state read before stays
         - an answer without a state it knows is an error, not an open tenant
+    - while the page is open
+        - reads again every minute, and not once the page is gone
+        - a hold begun during the session shows on the next read, and goes once lifted
+        - an answer that arrives after a newer one does not put back what it replaced
 - `packages/ui-vue-tenant/tests/component/a-held-back-tenant-reads-why.test.ts`
     - the banner of a tenant held back
         - shows nothing where the tenant is open
@@ -16947,6 +16951,7 @@ _Tested by:_
         - suspended, nothing is offered to pay, since a suspension lets no payment through
         - where an ended subscription holds it back as well, paying is offered without promising it
           opens again
+        - a hold begun while the page is open shows on the next read, and goes once lifted
 
 <!-- END proof -->
 
