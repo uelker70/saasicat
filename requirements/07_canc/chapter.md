@@ -780,11 +780,13 @@ _Tested by:_
         - takes the cancellation the tenant declared in its trial once it has landed, without
           writing another
         - refuses while the cancellation the tenant declared has not landed yet
+        - refuses ${what}: the run records that end, not the trial's
+        - refuses a converted trial whose paid term was cancelled meanwhile and has landed
         - refuses a tenant without a subscription
         - a trial that converted between the read and the write is left running, and nothing is
           recorded
         - a cancellation declared meanwhile with time still to run is no end yet
-        - a cancellation that landed meanwhile ends it at the moment stored, and tells nobody twice
+        - a trial another caller ended meanwhile ends at the moment stored, and tells nobody twice
         - refuses over a write port that cannot end a trial conditionally, naming the method
         - reads and writes across tenants, as a job of the application asks without a request
         - where the application names nobody, a job of the platform’s ended it

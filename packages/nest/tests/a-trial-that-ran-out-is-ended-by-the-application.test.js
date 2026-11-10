@@ -212,6 +212,52 @@ describe('a trial that ran out, ended by the application', () => {
         );
     });
 
+    for (const [what, subscription] of [
+        [
+            'a paid term whose cancellation landed after the trial',
+            trialOf({
+                status: 'ACTIVE',
+                trialEndsAt: new Date('2026-10-01T00:00:00.000Z'),
+                canceledAt: new Date('2026-10-05T08:00:00.000Z'),
+                canceledEffectiveAt: new Date('2026-10-31T23:00:00.000Z'),
+            }),
+        ],
+        [
+            'a subscription that never had a trial, whose cancellation landed',
+            trialOf({
+                status: 'CANCELED',
+                trialEndsAt: null,
+                canceledAt: new Date('2026-10-05T08:00:00.000Z'),
+                canceledEffectiveAt: new Date('2026-10-31T23:00:00.000Z'),
+            }),
+        ],
+    ]) {
+        test(`refuses ${what}: the run records that end, not the trial's`, async () => {
+            const run = ending(subscription);
+            await assert.rejects(
+                run.service.endRanOut('t-1', OPERATOR, NOW),
+                refusedAs('TRIAL_NOT_RUN_OUT'),
+            );
+            assert.deepEqual(run.ends.ends, []);
+            assert.deepEqual(await run.holds.listOpen('t-1'), []);
+        });
+    }
+
+    test('refuses a converted trial whose paid term was cancelled meanwhile and has landed', async () => {
+        const run = ending(trialOf(), {
+            storedMeanwhile: {
+                status: 'CANCELED',
+                canceledAt: new Date('2026-11-09T08:00:00.000Z'),
+                canceledEffectiveAt: new Date('2026-11-09T09:00:00.000Z'),
+            },
+        });
+        await assert.rejects(
+            run.service.endRanOut('t-1', OPERATOR, NOW),
+            refusedAs('TRIAL_NOT_RUN_OUT'),
+        );
+        assert.deepEqual(run.ends.ends, []);
+    });
+
     test('refuses a tenant without a subscription', async () => {
         const run = ending(trialOf());
         await assert.rejects(
@@ -253,19 +299,18 @@ describe('a trial that ran out, ended by the application', () => {
         assert.deepEqual(await run.holds.listOpen('t-1'), []);
     });
 
-    test('a cancellation that landed meanwhile ends it at the moment stored, and tells nobody twice', async () => {
-        const stored = new Date('2026-11-05T12:00:00.000Z');
+    test('a trial another caller ended meanwhile ends at the moment stored, and tells nobody twice', async () => {
         const run = ending(trialOf(), {
             storedMeanwhile: {
                 status: 'CANCELED',
-                canceledAt: stored,
-                canceledEffectiveAt: stored,
+                canceledAt: new Date('2026-11-10T09:14:00.000Z'),
+                canceledEffectiveAt: TRIAL_ENDED,
             },
         });
 
         const end = await run.service.endRanOut('t-1', OPERATOR, NOW);
 
-        assert.equal(end.endsAt, stored);
+        assert.equal(end.endsAt, TRIAL_ENDED);
         assert.deepEqual(run.invalidated, []);
         assert.deepEqual(run.audited, []);
     });

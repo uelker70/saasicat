@@ -124,7 +124,7 @@ export class TrialEndService {
         by: AuditActor,
         now: Date,
     ): Promise<Date> {
-        const declared = landedBy(sub, now);
+        const declared = landedInTrial(sub, sub.trialEndsAt, now);
         if (declared !== undefined) return declared;
         const trialEndsAt = sub.status === 'TRIAL' ? sub.trialEndsAt : null;
         if (!trialEndsAt || trialEndsAt > now) throw notRunOut();
@@ -141,7 +141,7 @@ export class TrialEndService {
         // left as it is, and what is stored now decides.
         const result = await endTrial(tenantId, { at: now, trialEndsAt });
         if (!result.ended) {
-            const stored = landedBy(result, now);
+            const stored = landedInTrial(result, trialEndsAt, now);
             if (stored === undefined) throw notRunOut();
             return stored;
         }
@@ -170,14 +170,23 @@ export class TrialEndService {
 }
 
 /**
- * When a declared cancellation of `dates` landed, where one was declared;
- * `undefined` where none was, and a refusal where it lands after `now` — a
- * cancellation with time still to run is not an end yet.
+ * When a declared cancellation of `dates` landed, where one was declared and
+ * it ended the trial that ran out at `trialEndsAt`; `undefined` where none was
+ * declared. A refusal for one that lands after `now` — with time still to run
+ * it is not an end yet — and for one that lands after the trial's end, or of a
+ * subscription that had no trial: that is a paid term's end, which the run
+ * records, and not a trial's. A cancellation declared in the trial lands at
+ * its end, and so does the one this service writes, so a repeat call still
+ * finds it.
  */
-function landedBy(dates: CancellationDates, now: Date): Date | undefined {
+function landedInTrial(
+    dates: CancellationDates,
+    trialEndsAt: Date | null,
+    now: Date,
+): Date | undefined {
     const landsAt = cancellationLandsAt(dates);
     if (landsAt === null) return undefined;
-    if (landsAt > now) throw notRunOut();
+    if (landsAt > now || !trialEndsAt || landsAt > trialEndsAt) throw notRunOut();
     return landsAt;
 }
 
