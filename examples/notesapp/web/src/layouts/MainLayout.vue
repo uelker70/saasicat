@@ -24,6 +24,13 @@
                 />
                 <q-btn flat dense icon="logout" label="Logout" class="q-ml-sm" @click="onLogout" />
             </q-toolbar>
+            <!-- Why the tenant is held back, on every page behind the sign-in: shows
+                 nothing while it is open. -->
+            <TenantAccessBanner
+                :http="platformHttp"
+                api-prefix="/billing"
+                :format-date="formatDate"
+            />
         </q-header>
 
         <q-page-container>
@@ -33,8 +40,11 @@
 </template>
 
 <script setup lang="ts">
+import TenantAccessBanner from '@saasicat/ui-vue-tenant/TenantAccessBanner.vue';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
+import { formatDate } from '../formats';
+import { platformHttp } from '../services/http';
 import { useSessionStore } from '../stores/session';
 
 const session = useSessionStore();

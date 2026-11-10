@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 53      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 54      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 687 entries: 🟢 597 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+Of 688 entries: 🟢 598 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
 🔵 52 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -228,7 +228,7 @@ Of 687 entries: 🟢 597 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 687 requirements. Do not edit by hand:
+Generated from `requirements/` — 688 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -16750,6 +16750,7 @@ _Tested by:_
         - every other method writes
         - a mark wins over the method, both ways
         - replacing the payment method is a write, whatever the method
+        - reading the tenant's own state is a read, whatever the method
     - who is refused, and for what
         - an open tenant is refused nothing
         - read-only refuses a write and lets a read through
@@ -16820,12 +16821,15 @@ _Tested by:_
           stand for this one
         - where the application already checked the request › a check on another request does not
           stand for this one
+        - a route that answers the tenant's own state is let through in every state, unread
+        - the application's own check lets the same route through
         - without the service, as in a module wired by hand, the application guards decide alone
     - which routes the check reaches
         - there are tenant controllers to look at
         - every controller that reads the tenant from the request passes through the guard
         - exactly these routes let a read-only tenant through with a writing method
         - exactly these routes start a payment
+        - exactly these routes answer the tenant's own state
 - `packages/ui-vue/tests/a-tenant-action-follows-the-platforms-state.test.js`
     - a tenant row offers what the platform's state allows
         - an open or read-only tenant can be suspended, not reactivated
@@ -16874,6 +16878,82 @@ _Tested by:_
         - is not shown where the server names no reasons
     - two reasons of one kind that began at the same moment
         - stay two rows when the list is read again, each by its own reason
+
+<!-- END proof -->
+
+### SC-ADM-054 — A tenant's users read why it is held back
+
+🟢 🔒 Every user of a tenant held back (`SC-ADM-052`) reads why above the application, in every
+state a session of theirs is in, a suspension and a deletion under way included: the state in the
+words a refused request uses for it, and beneath it every reason, the oldest first, each with the
+day it began in the installation's days. A sign-in the state refuses says why itself. An invoice
+unpaid on its due date is named by its number only to a user holding the billing permission
+(`SC-UI-023`), who can pay it there while the tenant is read-only (`SC-PRIC-100`) and is told before
+paying when the account opens again; every other user is told who can pay it. The operator's note on
+a suspension stays with the operator (`SC-ADM-053`). Of the routes the access check guards, those
+that answer the state are the only ones a suspension lets the tenant's users through, and they
+answer nothing but the state.
+
+_Source:_ #337 (decided 2026-11-09)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tenant-is-held-back-by-its-strictest-reason.test.js`
+    - a request writes by its method, unless its route says otherwise
+        - reading the tenant's own state is a read, whatever the method
+- `packages/core/tests/a-tenant-reads-why-it-is-held-back.test.js`
+    - a tenant's users read why it is held back
+        - nothing where the tenant is open
+        - every reason, the oldest first, each from its day in the installation and nothing more
+        - the invoice by its number where the numbers are handed over, and only an overdue one
+        - a user without the billing permission is told no number, and cannot pay, whatever is
+          handed over
+        - an invoice the numbers do not name is named as none, and the reason stays
+- `packages/nest/tests/a-tenant-reads-why-it-is-held-back.test.js`
+    - a tenant's users read why it is held back
+        - every user: the session's tenant, each reason from its day in the installation, no invoice
+          by number
+        - whoever holds the billing permission: the invoice by its number, and paying where it is
+          collected
+        - where nothing is collected through a gateway, the invoice is named and nothing can be paid
+        - the day is UTC's where the installation names no zone
+        - without the access service, as in a module wired by hand, the tenant is open
+- `packages/nest/tests/the-platforms-tenant-routes-check-the-access-state.test.js`
+    - the platform's tenant guard asks the state once the application let the request in
+        - a route that answers the tenant's own state is let through in every state, unread
+        - the application's own check lets the same route through
+    - which routes the check reaches
+        - exactly these routes answer the tenant's own state
+- `packages/ui-vue/tests/a-tenant-reads-why-it-is-held-back.test.js`
+    - the tenant's state, as its users read it
+        - a user with the billing permission reads it from that route, under the prefix the app
+          gives
+        - where that route answers ${status}, from the route every user reads
+        - where neither route is there, nothing to show and no error
+        - a failure is an error, and the state read before stays
+        - an answer without a state it knows is an error, not an open tenant
+    - while the page is open
+        - reads again every minute, and not once the page is gone
+        - a hold begun during the session shows on the next read, and goes once lifted
+        - an answer that arrives after a newer one does not put back what it replaced
+- `packages/ui-vue-tenant/tests/component/a-held-back-tenant-reads-why.test.ts`
+    - the banner of a tenant held back
+        - shows nothing where the tenant is open
+        - shows nothing where no route answers
+        - to a user who may pay: the state, the invoice by number from its day, and paying with when
+          it opens again
+        - paying starts the payment, says what it set going, and reads the state again
+        - to a user without the billing permission: no number, nothing to press, and who can pay
+        - to a user with the permission where nothing is collected here: the number, and nothing to
+          press
+        - suspended, nothing is offered to pay, since a suspension lets no payment through
+        - suspended, a user without the billing permission is not sent to somebody who cannot pay
+          either
+        - where an ended subscription holds it back as well, paying is offered without promising it
+          opens again
+        - a hold begun while the page is open shows on the next read, and goes once lifted
 
 <!-- END proof -->
 

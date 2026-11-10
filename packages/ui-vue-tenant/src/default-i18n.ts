@@ -515,6 +515,22 @@ export interface TenantPlanSectionI18n {
     maintenanceRefused: string;
     maintenanceResumes: string;
     /**
+     * Why the tenant is held back, one line per reason under the state
+     * (`SC-ADM-054`). An invoice unpaid on its due date: `{date}`, the day
+     * the tenant became read-only for it, and `{number}`, the invoice's.
+     */
+    accessReasonOverdue: string;
+    /** As `accessReasonOverdue`, to a user not told the number: `{date}`. */
+    accessReasonOverdueUnnamed: string;
+    /** Suspended by the operator: `{date}`. */
+    accessReasonSuspended: string;
+    /** The subscription ended: `{date}`. */
+    accessReasonEnded: string;
+    /** The deletion began: `{date}`. */
+    accessReasonDeleting: string;
+    /** To a user without the billing permission, under an unpaid invoice: who can pay it. */
+    accessAskBilling: string;
+    /**
      * Texts for the coded blockers and warnings a plan-change preview returns,
      * keyed by `BILLING_ERROR_CODES`. Sits here rather than in a prop of its
      * own so that an app translating this map translates its blockers in the
@@ -947,6 +963,14 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     maintenanceRefused:
         'Was gerade getan wurde, ist nicht ausgeführt worden. Bitte nach der Wartung wiederholen.',
     maintenanceResumes: 'Diese Seite geht von selbst weiter, sobald die Wartung vorbei ist.',
+    accessReasonOverdue:
+        'Seit {date}: Die Rechnung {number} wurde bis zur Fälligkeit nicht bezahlt.',
+    accessReasonOverdueUnnamed:
+        'Seit {date}: Eine Rechnung wurde bis zur Fälligkeit nicht bezahlt.',
+    accessReasonSuspended: 'Seit {date}: von Ihrem Anbieter gesperrt.',
+    accessReasonEnded: 'Seit {date}: Das Abonnement ist beendet.',
+    accessReasonDeleting: 'Seit {date}: Das Konto wird gelöscht.',
+    accessAskBilling: 'Bezahlen kann sie, wer bei Ihnen die Abrechnung betreut.',
     issueMessages: ERROR_MESSAGES_DE,
 };
 
@@ -1365,6 +1389,12 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     maintenanceRefused:
         'What was just done was not carried out. Please repeat it once maintenance is over.',
     maintenanceResumes: 'This page carries on by itself once the maintenance is over.',
+    accessReasonOverdue: 'Since {date}: invoice {number} was not paid by its due date.',
+    accessReasonOverdueUnnamed: 'Since {date}: an invoice was not paid by its due date.',
+    accessReasonSuspended: 'Since {date}: suspended by your provider.',
+    accessReasonEnded: 'Since {date}: the subscription has ended.',
+    accessReasonDeleting: 'Since {date}: the account is being deleted.',
+    accessAskBilling: 'Whoever looks after billing in your organisation can pay it.',
     issueMessages: ERROR_MESSAGES_EN,
 };
 

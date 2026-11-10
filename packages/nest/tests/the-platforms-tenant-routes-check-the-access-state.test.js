@@ -62,6 +62,13 @@ function contextFor(request) {
     };
 }
 
+/** An execution context for one request to a handler carrying `mark`. */
+function contextMarked(request, mark) {
+    const context = contextFor(request);
+    Reflect.defineMetadata(TENANT_ACCESS_MARK_KEY, mark, context.getHandler());
+    return context;
+}
+
 const guardWith = ({ appGuards = [{ canActivate: () => true }], store, resolver = null }) =>
     new ComposedTenantAuthGuard(
         appGuards,
@@ -181,6 +188,30 @@ describe("the platform's tenant guard asks the state once the application let th
         });
     });
 
+    // @requirement SC-ADM-054 — A tenant's users read why it is held back
+    test("a route that answers the tenant's own state is let through in every state, unread", async () => {
+        for (const kind of ['suspended', 'deleting', 'overdue']) {
+            const store = countedStore();
+            await held(store, 't-1', kind);
+            const guard = guardWith({ store });
+            assert.equal(
+                await guard.canActivate(contextMarked(asTenant('t-1'), 'reads-its-state')),
+                true,
+                kind,
+            );
+            assert.equal(store.asked, 0, kind);
+        }
+    });
+
+    // @requirement SC-ADM-054 — A tenant's users read why it is held back
+    test("the application's own check lets the same route through", async () => {
+        const store = countedStore();
+        await held(store, 't-1', 'suspended');
+        const service = new TenantAccessService(store, new Reflector());
+        await service.enforce(contextMarked(asTenant('t-1'), 'reads-its-state'), 't-1');
+        assert.equal(store.asked, 0);
+    });
+
     test('without the service, as in a module wired by hand, the application guards decide alone', async () => {
         assert.equal(
             await guardWith({ store: null }).canActivate(contextFor(asTenant('t-1'))),
@@ -263,6 +294,19 @@ describe('which routes the check reaches', () => {
             'POST billing/account/pay',
             'POST billing/payment-method/setup',
         ]);
+    });
+
+    // Let through in every state, so each of them is a decision somebody has
+    // to have made: a route carrying the mark that reads anything else of the
+    // tenant's would let a suspended tenant read it.
+    // @requirement SC-ADM-054 — A tenant's users read why it is held back
+    test("exactly these routes answer the tenant's own state", () => {
+        const answering = tenantControllers
+            .flatMap(handlersOf)
+            .filter((handler) => handler.mark === 'reads-its-state')
+            .map((handler) => `${handler.method} ${handler.path}`)
+            .sort();
+        assert.deepEqual(answering, ['GET billing/access', 'GET billing/account/access']);
     });
 });
 

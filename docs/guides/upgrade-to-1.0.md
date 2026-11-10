@@ -4376,6 +4376,15 @@ adopt it:
 - **`TenantDetailPage`** lists under "Access" every reason a tenant is held back for, from
   `accessReasons` on the tenant's detail (`SC-ADM-053`). An `AdminResourcesPort` of your own changes
   nothing: the platform adds the reasons to what the port answers.
+- **The tenant's users read why** (`SC-ADM-054`): mount `TenantAccessBanner` behind your sign-in.
+  It reads `GET billing/account/access` — the invoice by its number and whether it can be paid
+  there, for a user holding the billing permission — and `GET billing/access` for everyone else,
+  again every minute while the page is open; `useTenantAccessState` from `@saasicat/ui-vue` does the
+  same for a banner of your own. Both routes carry the new mark `reads-its-state`, which lets them
+  through in every state, suspended and being deleted included; your guard's `enforce` reads it as
+  the platform does, so nothing to wire. Texts of your own for the tenant section gain the
+  `accessReason…` keys and `accessAskBilling`; the state's own sentence is the refusal's
+  (`TENANT_READ_ONLY`, `TENANT_SUSPENDED`, `TENANT_BEING_DELETED`).
 
 ## What the codemod leaves to you
 

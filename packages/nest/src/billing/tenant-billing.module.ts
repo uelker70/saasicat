@@ -44,6 +44,7 @@ import {
 import { BillingPermissionGuard } from './billing-permission.guard.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
+import { TenantAccessStateController } from './tenant-access-state.controller.js';
 import { TenantBillingController } from './tenant-billing.controller.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
@@ -910,6 +911,7 @@ export class TenantBillingModule {
             imports: options.imports ?? [],
             controllers: [
                 TenantBillingController,
+                TenantAccessStateController,
                 ...(featureWithdrawals ? [FeatureWithdrawalTenantController] : []),
                 // The tenant reads its invoices where their documents are archived.
                 ...(invoices?.renderer && invoices.archive && invoices.mail

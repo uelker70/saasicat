@@ -19,6 +19,11 @@
 // open, because the claim outlives the subscription and nobody else can pay it.
 // The routes that do it say so with a mark of their own, and are still writes
 // everywhere else.
+//
+// One kind of read passes every state, a suspension and a deletion under way
+// included: the tenant's own state, which is what tells its users why they
+// cannot act. Its routes say so with a mark too; a plain `GET` stops where
+// the state says nothing is let through.
 
 /** Why a tenant is held back. */
 export type TenantAccessHoldKind = 'suspended' | 'overdue' | 'ended' | 'deleting';
@@ -91,18 +96,25 @@ export function tenantAccessOf(holds: readonly TenantAccessHold[]): TenantAccess
     return { state, holds: open };
 }
 
+/** `holds` in the order they began to hold, the oldest first. */
+export function holdsOldestFirst(holds: readonly TenantAccessHold[]): TenantAccessHold[] {
+    return [...holds].sort((a, b) => a.since.getTime() - b.since.getTime());
+}
+
 /**
  * How a route declares what it does, where its method would say otherwise:
  * it writes nothing, it writes, or it starts a payment — a write that
- * read-only lets through while an invoice is open.
+ * read-only lets through while an invoice is open —, or it answers the
+ * tenant's own state, which every state lets through, a suspension and a
+ * deletion under way included: being told why one cannot act is not acting.
  */
-export type TenantAccessMark = 'writes-nothing' | 'writes' | 'starts-payment';
+export type TenantAccessMark = 'writes-nothing' | 'writes' | 'starts-payment' | 'reads-its-state';
 
 const READING_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** Whether a request writes: its route's mark where it has one, otherwise its method. */
 export function requestWrites(method: string, mark: TenantAccessMark | null): boolean {
-    if (mark === 'writes-nothing') return false;
+    if (mark === 'writes-nothing' || mark === 'reads-its-state') return false;
     if (mark === 'writes' || mark === 'starts-payment') return true;
     return !READING_METHODS.has(method.toUpperCase());
 }

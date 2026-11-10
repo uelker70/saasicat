@@ -37,7 +37,12 @@ import type {
     TenantAccessHold,
     TenantAccessState,
 } from '@saasicat/core';
-import { BILLING_ERROR_CODES, TENANT_ACCESS_ERROR_CODES, holdsEveryoneBack } from '@saasicat/core';
+import {
+    BILLING_ERROR_CODES,
+    TENANT_ACCESS_ERROR_CODES,
+    holdsEveryoneBack,
+    holdsOldestFirst,
+} from '@saasicat/core';
 import { actorTagOf } from '../core/web-audit.js';
 import { codedError } from '../errors/coded-error.js';
 import { TenantAccessService, type NamedInvoice } from '../tenant-access/tenant-access.service.js';
@@ -118,9 +123,7 @@ export class AdminResourcesService {
         );
         return {
             ...withAccess(tenant, access),
-            accessReasons: [...access.holds]
-                .sort((a, b) => a.since.getTime() - b.since.getTime())
-                .map((hold) => reasonOf(hold, named)),
+            accessReasons: holdsOldestFirst(access.holds).map((hold) => reasonOf(hold, named)),
         };
     }
 

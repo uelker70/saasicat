@@ -1698,6 +1698,13 @@ makes the tenant read-only in that run.
   collects it — a card at once. Your own authentication guard, which calls
   `TenantAccessService.enforce`, lets both routes through as the platform does, since they carry the
   mark the check reads (`starts-payment`). A suspended tenant, and one being deleted, cannot.
+- **The tenant's users read why** (`SC-ADM-054`): `GET billing/access` answers every user of the
+  tenant its state and each reason with the day it began in the installation;
+  `GET billing/account/access`, behind the billing permission where invoices are mounted, adds the
+  invoice by its number and whether it can be paid there (`mayPay`, where a gateway collects).
+  Both are let through in every state, suspended and being deleted included, since they carry the
+  mark `reads-its-state`, which your guard's `enforce` reads as the platform does. Mount
+  `TenantAccessBanner` from `@saasicat/ui-vue-tenant` behind your sign-in to show it.
 
 ## Telling Subscribers of a Newer Version
 

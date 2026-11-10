@@ -19,7 +19,7 @@
                         {{ i18n.accountPayNow }}
                     </TenantButton>
                 </div>
-                <p class="sp-account__hint">{{ payNowHint }}</p>
+                <p class="sp-account__hint">{{ hint }}</p>
             </template>
             <p v-if="account.payError.value" class="sp-account__error" role="alert">
                 {{ i18n.accountPayFailed }}
@@ -35,13 +35,12 @@
 import { useTenantAccount, type HttpClient } from '@saasicat/ui-vue';
 import { computed, useId, watch } from 'vue';
 
-import { writeDay } from '../day-as-instant.js';
 import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantCardSection from '../ui/TenantCardSection.vue';
 import '../ui/tenant-ui.css';
 import { accountLinesOf } from './account-lines.js';
-import { paymentStartedMessage } from './payment-started.js';
+import { payNowHint, paymentStartedMessage } from './payment-started.js';
 
 // TenantAccountCard — what the tenant's subscriber owes and is owed, at the
 // top of its billing section (`SC-PRIC-049`): what is open and of that
@@ -76,11 +75,8 @@ const lines = computed(() =>
     accountLinesOf(account.balances.value, i18n.value, props.formatCurrency),
 );
 const owes = computed(() => account.balances.value.some((balance) => balance.owed > 0));
-const payNowHint = computed(() =>
-    i18n.value.accountPayNowHint.replace(
-        '{date}',
-        writeDay(props.formatDate, account.directDebitCollectedOn.value),
-    ),
+const hint = computed(() =>
+    payNowHint(i18n.value, props.formatDate, account.directDebitCollectedOn.value),
 );
 const startedMessage = computed(() =>
     account.started.value ? paymentStartedMessage(account.started.value, i18n.value) : null,

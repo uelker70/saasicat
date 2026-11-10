@@ -69,6 +69,7 @@ export * from './vue/use-tenant-feature-withdrawals.js';
 export * from './vue/use-tenant-billing-details.js';
 export * from './vue/use-tenant-invoices.js';
 export * from './vue/use-tenant-account.js';
+export * from './vue/use-tenant-access-state.js';
 export * from './vue/use-subscription-draft.js';
 export * from './vue/use-bulk-publish.js';
 export * from './vue/use-plan-editor.js';
