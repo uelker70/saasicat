@@ -126,6 +126,7 @@ export {
 } from './feature-withdrawal.service.js';
 export { EndAtOnceService } from './end-at-once.service.js';
 export { FeatureWithdrawalTenantController } from './feature-withdrawal-tenant.controller.js';
+export { TenantAccessStateController } from './tenant-access-state.controller.js';
 export {
     FeatureWithdrawalContractService,
     type ReductionsRecorded,

@@ -155,6 +155,7 @@ test('every route of the invoices and confirmations is behind authentication and
         (name) => Reflect.getMetadata(ROUTE_METHOD, prototype[name]) !== undefined,
     );
     assert.deepEqual(handlers.sort(), [
+        'accessState',
         'account',
         'confirmationOf',
         'confirmations',

@@ -3,9 +3,11 @@
 // A read-only tenant reads, and a request reads when its method does: `GET`,
 // `HEAD` and `OPTIONS`. A route that writes nothing under another method — a
 // preview, a PDF rendered from data already there, an export's test run —
-// carries `@WritesNothing()`; a `GET` that writes carries `@Writes()`. A mark
-// rather than a list of paths, for the reason `@AllowDuringMaintenance()`
-// gives: the platform does not know where an application mounts its routes.
+// carries `@WritesNothing()`; a `GET` that writes carries `@Writes()`. A route
+// that answers the tenant's own state carries `@ReadsItsState()`, and every
+// state lets it through. A mark rather than a list of paths, for the reason
+// `@AllowDuringMaintenance()` gives: the platform does not know where an
+// application mounts its routes.
 
 import { SetMetadata, type ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
@@ -35,6 +37,16 @@ export const Writes = (): ClassDecorator & MethodDecorator =>
  */
 export const StartsPayment = (): MethodDecorator =>
     SetMetadata(TENANT_ACCESS_MARK_KEY, 'starts-payment' satisfies TenantAccessMark);
+
+/**
+ * Lets every user of a tenant through to a route that answers the tenant's own
+ * state, in every state — suspended and being deleted included —, since it is
+ * what tells them why they cannot act (`SC-ADM-054`). It skips the access
+ * check altogether, so it belongs only on a route that reads the state and
+ * nothing else of the tenant's; the platform's own routes carry it.
+ */
+export const ReadsItsState = (): MethodDecorator =>
+    SetMetadata(TENANT_ACCESS_MARK_KEY, 'reads-its-state' satisfies TenantAccessMark);
 
 /** The mark on the current endpoint, the handler's before its class's, or null. */
 export function tenantAccessMarkOf(

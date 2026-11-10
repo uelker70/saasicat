@@ -66,6 +66,7 @@ export * from './retirement-switch.js';
 export * from './retirement-reminder.js';
 export * from './maintenance-window-mapping.js';
 export * from './tenant-access-mapping.js';
+export * from './tenant-access-view.js';
 export * from './maintenance-window-views.js';
 export * from './zoned-instant.js';
 export * from './zoned-day.js';

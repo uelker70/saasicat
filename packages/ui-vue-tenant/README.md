@@ -131,6 +131,14 @@ Hand each refused response to `reportMaintenanceRefusal(status, body)` from `@sa
 the page appears the moment a request is refused rather than at the next poll. The guide is
 [Take the application offline for a deploy](../../docs/guides/take-the-application-offline-for-a-deploy.md).
 
+Behind the sign-in, put `TenantAccessBanner` above the pages. It shows nothing while the tenant is
+open; held back, it tells every user why and since when, and lets a user holding the billing
+permission pay an unpaid invoice from there:
+
+```vue
+<TenantAccessBanner :http="http" api-prefix="/billing" :format-date="formatDate" />
+```
+
 Import the platform theme once in your app so these components pick up the
 design tokens:
 

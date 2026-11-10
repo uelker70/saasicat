@@ -89,6 +89,12 @@ describe('a request writes by its method, unless its route says otherwise', () =
         assert.equal(requestWrites('GET', 'starts-payment'), true);
         assert.equal(requestWrites('POST', 'starts-payment'), true);
     });
+
+    // @requirement SC-ADM-054 — A tenant's users read why it is held back
+    test("reading the tenant's own state is a read, whatever the method", () => {
+        assert.equal(requestWrites('GET', 'reads-its-state'), false);
+        assert.equal(requestWrites('POST', 'reads-its-state'), false);
+    });
 });
 
 // @requirement SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment

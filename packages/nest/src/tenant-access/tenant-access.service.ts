@@ -19,9 +19,12 @@ import {
     type TenantAccessActor,
     type TenantAccessHoldPort,
     type TenantAccessState,
+    type TenantAccessView,
+    type TenantAccessViewOptions,
     requestWrites,
     tenantAccessOf,
     tenantAccessRefusal,
+    tenantAccessViewOf,
 } from '@saasicat/core';
 
 import { codedError } from '../errors/coded-error.js';
@@ -125,6 +128,28 @@ export class TenantAccessService {
         return tenantAccessOf(await this.holds.listOpen(tenantId));
     }
 
+    /**
+     * What a user of `tenantId` is told of its state (`SC-ADM-054`), as
+     * `asked` says who they are: the invoices its reasons name are read by
+     * number only for a user who holds the billing permission.
+     */
+    async viewOf(
+        tenantId: string,
+        asked: Omit<TenantAccessViewOptions, 'invoiceNumbers'>,
+    ): Promise<TenantAccessView> {
+        const access = await this.accessOf(tenantId);
+        if (!asked.holdsBillingPermission) return tenantAccessViewOf(access, asked);
+        const named = await this.invoicesNamed(
+            access.holds.flatMap((hold) =>
+                hold.kind === 'overdue' && hold.reference !== null ? [hold.reference] : [],
+            ),
+        );
+        return tenantAccessViewOf(access, {
+            ...asked,
+            invoiceNumbers: new Map(named.map((invoice) => [invoice.id, invoice.number])),
+        });
+    }
+
     /** Every tenant nobody of which acts at all: suspended, or being deleted. */
     async tenantsHeldBack(): Promise<string[]> {
         return this.holds.listTenantIdsHeldBy(KINDS_HOLDING_EVERYONE_BACK);
@@ -180,7 +205,8 @@ export class TenantAccessService {
     /**
      * Refuses the current request where `tenantId`'s state does not allow it.
      * Whether it writes is its route's mark, or else its method; a request
-     * whose method cannot be read counts as a write.
+     * whose method cannot be read counts as a write. A route marked
+     * `@ReadsItsState()` passes in every state, without the state being read.
      */
     async enforce(
         context: ExecutionContext,
@@ -189,6 +215,10 @@ export class TenantAccessService {
     ): Promise<void> {
         const request = context.switchToHttp().getRequest<RequestLike>();
         const mark = tenantAccessMarkOf(this.reflector, context);
+        if (mark === 'reads-its-state') {
+            this.passedFor(request, tenantId);
+            return;
+        }
         const writes =
             typeof request.method === 'string'
                 ? requestWrites(request.method, mark)
@@ -198,6 +228,10 @@ export class TenantAccessService {
             writes,
             startsPayment: mark === 'starts-payment',
         });
+        this.passedFor(request, tenantId);
+    }
+
+    private passedFor(request: unknown, tenantId: string): void {
         if (typeof request === 'object' && request !== null) this.passed.set(request, { tenantId });
     }
 
