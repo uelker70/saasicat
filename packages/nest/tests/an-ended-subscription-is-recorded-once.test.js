@@ -197,6 +197,25 @@ describe('the run that records the subscriptions that ended', () => {
         assert.equal((await endedHolds(holds, 't-1')).length, 1);
     });
 
+    test('reads the ends a thousand subscriptions at a time, however many ended before', async () => {
+        const many = Array.from({ length: 2500 }, (_, i) => cancelled(`t-${i}`, NEW_YEAR));
+        const ends = new FakeSubscriptionEndRepository();
+        const listFor = ends.listFor.bind(ends);
+        const asked = [];
+        ends.listFor = async (ids) => {
+            asked.push(ids.length);
+            return listFor(ids);
+        };
+        const { service } = runOver(many, { ends });
+
+        assert.deepEqual(await service.recordEnded(FIRST_RUN), { ended: 2500 });
+        assert.deepEqual(asked, [1000, 1000, 500]);
+
+        asked.length = 0;
+        assert.deepEqual(await service.recordEnded(FIRST_RUN), { ended: 0 }, 'each found again');
+        assert.deepEqual(asked, [1000, 1000, 500]);
+    });
+
     test("holds each subscription's own tenant, and no other", async () => {
         const { service, holds } = runOver([
             cancelled('t-1', NEW_YEAR),

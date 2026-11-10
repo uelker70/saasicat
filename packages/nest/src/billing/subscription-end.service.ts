@@ -44,6 +44,14 @@ import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
 } from './tenant-billing.tokens.js';
 
+/**
+ * How many subscriptions one read of the ends asks about. Every subscription
+ * ever cancelled is read again on every run, and a store binds each id as a
+ * parameter of its own: in one statement, years of churn would pass the
+ * database's limit on them and stop every run after.
+ */
+const ENDS_READ_AT_ONCE = 1000;
+
 /** Who records the ends, as the audit log tags a run. */
 const SUBSCRIPTION_END_RUN = actorTagOf(platformJobActor('subscription-ends'));
 
@@ -106,11 +114,7 @@ export class SubscriptionEndService implements OnModuleInit {
                 return endsAt !== null && endsAt <= now ? [{ ...subscription, endsAt }] : [];
             });
             if (landed.length === 0) return { ended: 0 };
-            const recorded = new Set(
-                (await this.ends.listFor(landed.map((sub) => sub.subscriptionId))).map(
-                    (end) => end.subscriptionId,
-                ),
-            );
+            const recorded = await this.recordedOf(landed.map((sub) => sub.subscriptionId));
             const timeZone = installationZoneOf(this.settings);
             let ended = 0;
             for (const subscription of landed) {
@@ -146,5 +150,17 @@ export class SubscriptionEndService implements OnModuleInit {
             }
             return { ended };
         });
+    }
+
+    /** Which of `subscriptionIds` have an end already, read `ENDS_READ_AT_ONCE` at a time. */
+    private async recordedOf(subscriptionIds: readonly string[]): Promise<Set<string>> {
+        const recorded = new Set<string>();
+        for (let from = 0; from < subscriptionIds.length; from += ENDS_READ_AT_ONCE) {
+            const ends = await this.ends.listFor(
+                subscriptionIds.slice(from, from + ENDS_READ_AT_ONCE),
+            );
+            for (const end of ends) recorded.add(end.subscriptionId);
+        }
+        return recorded;
     }
 }

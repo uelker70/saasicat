@@ -782,6 +782,7 @@ _Tested by:_
         - moves no day already recorded when the period changes
         - finishes what a run that stopped after holding the tenant left, without holding it twice
         - a run that fails while holding the tenant records no end, so the next one records both
+        - reads the ends a thousand subscriptions at a time, however many ended before
         - holds each subscription's own tenant, and no other
         - where nothing keeps the reasons, as in a module wired by hand, records the end alone
         - refuses to start over a port that cannot list the cancelled subscriptions, naming it
