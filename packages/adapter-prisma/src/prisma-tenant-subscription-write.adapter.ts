@@ -5,6 +5,7 @@ import type {
     CancelSubscriptionResult,
     ApplyOnboardingSelectionResult,
     EndNowInput,
+    EndTrialInput,
     EndSubscriptionNowResult,
     ImmediatePlanChangeInput,
     PromoCodeRedemptionRecord,
@@ -426,6 +427,40 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             data: {
                 canceledAt: input.at,
                 canceledEffectiveAt: input.at,
+                status: 'CANCELED',
+            },
+        });
+        const current = await subscription.findUnique({ where: { tenantId } });
+        if (!current) {
+            throw subscriptionGone(tenantId);
+        }
+        return {
+            ended: claimed.count === 1,
+            canceledAt: current.canceledAt ?? null,
+            canceledEffectiveAt: current.canceledEffectiveAt ?? null,
+            status: current.status,
+        };
+    }
+
+    /**
+     * The same conditional claim, on the trial the caller read: still a trial,
+     * still ending at `input.trialEndsAt`, and not cancelled. A trial that
+     * converted or was cancelled in between leaves the count at zero, and the
+     * caller reads back what is stored.
+     */
+    async endTrial(tenantId: string, input: EndTrialInput): Promise<EndSubscriptionNowResult> {
+        const subscription = this.subscription(this.prisma);
+        const claimed = await subscription.updateMany({
+            where: {
+                tenantId,
+                status: 'TRIAL',
+                trialEndsAt: input.trialEndsAt,
+                canceledAt: null,
+                canceledEffectiveAt: null,
+            },
+            data: {
+                canceledAt: input.at,
+                canceledEffectiveAt: input.trialEndsAt,
                 status: 'CANCELED',
             },
         });

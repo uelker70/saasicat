@@ -8183,6 +8183,27 @@ _Tested by:_
 - `packages/nest/tests/a-setting-comes-from-the-file.test.js`
     - the value the code runs on is the value in the file
         - the end of a subscription reaches its token from the catalogue
+- `packages/nest/tests/a-trial-that-ran-out-is-ended-by-the-application.test.js`
+    - a trial that ran out, ended by the application
+        - lands at the trial’s end, and its end is recorded at once with the day its data goes
+        - lets the entitlements, the contract and the audit log know, as a cancellation does
+        - called again, answers the same end and writes nothing more
+        - a trial ending this very moment has run out; one ending a millisecond later has not
+        - refuses ${what}, and writes nothing
+        - takes the cancellation the tenant declared in its trial once it has landed, without
+          writing another
+        - refuses while the cancellation the tenant declared has not landed yet
+        - refuses ${what}: the run records that end, not the trial's
+        - leaves a trial its tenant cancelled after it ran out to the run, which records that end
+        - refuses a converted trial whose paid term was cancelled meanwhile and has landed
+        - refuses a tenant without a subscription
+        - a trial that converted between the read and the write is left running, and nothing is
+          recorded
+        - a cancellation declared meanwhile with time still to run is no end yet
+        - a trial another caller ended meanwhile ends at the moment stored, and tells nobody twice
+        - refuses over a write port that cannot end a trial conditionally, naming the method
+        - reads and writes across tenants, as a job of the application asks without a request
+        - where the application names nobody, a job of the platform’s ended it
 - `packages/nest/tests/an-ended-subscription-is-recorded-once.test.js`
     - the run that records the subscriptions that ended
         - records a landed cancellation once: its end, its deletion day, and the reason that holds

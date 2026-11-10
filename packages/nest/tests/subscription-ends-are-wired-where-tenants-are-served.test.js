@@ -7,7 +7,11 @@ import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 
-import { SubscriptionEndCron, SubscriptionEndService } from '../dist/billing/index.js';
+import {
+    SubscriptionEndCron,
+    SubscriptionEndService,
+    TrialEndService,
+} from '../dist/billing/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
 import { SaaSiCatModule, findViolations } from '../dist/platform/index.js';
 import { bootable, everythingOnOptions } from './helpers/operator-routes.js';
@@ -67,13 +71,18 @@ describe('an installation that serves tenants', () => {
                 throw error;
             }
         };
-        return { service: find(SubscriptionEndService), cron: find(SubscriptionEndCron) };
+        return {
+            service: find(SubscriptionEndService),
+            cron: find(SubscriptionEndCron),
+            trials: find(TrialEndService),
+        };
     }
 
     test('records the ends every quarter of an hour unless told not to', async () => {
         const on = await compiled(withEnds(undefined));
         assert.ok(on.service instanceof SubscriptionEndService);
         assert.ok(on.cron instanceof SubscriptionEndCron);
+        assert.ok(on.trials instanceof TrialEndService, 'and the way an application ends a trial');
 
         const own = await compiled(withEnds({ includeCron: false }));
         assert.ok(

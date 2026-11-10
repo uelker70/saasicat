@@ -368,6 +368,17 @@ export interface EndNowInput {
     readonly expectedCanceledEffectiveAt: Date;
 }
 
+/** What ending a trial that ran out takes. */
+export interface EndTrialInput {
+    /** The moment the end is declared. */
+    readonly at: Date;
+    /**
+     * The end of the trial the caller read, which the cancellation lands at:
+     * the write is conditional on the trial still ending then.
+     */
+    readonly trialEndsAt: Date;
+}
+
 /**
  * Append-only repository for V3 SubscriptionContracts. Contracts are the
  * contractually binding source for billing and entitlement; catalog FKs are only
@@ -1924,6 +1935,21 @@ export interface TenantSubscriptionWritePort {
      * for a later date cannot be ended at once.
      */
     endNow?(tenantId: string, input: EndNowInput): Promise<EndSubscriptionNowResult>;
+
+    /**
+     * Ends the trial of `tenantId` that ran out at `input.trialEndsAt`,
+     * provided it is still that trial: status `TRIAL`, its end still
+     * `input.trialEndsAt`, and no cancellation declared. `canceledAt` becomes
+     * `input.at`, `canceledEffectiveAt` the trial's end, and the status
+     * `CANCELED`. Answers `ended: false`, with the stored fields, where any of
+     * that changed meanwhile — the trial converted, its end moved, or a
+     * cancellation was declared — so a subscription that is paid for is never
+     * ended in its trial's name. One conditional statement, like `endNow`.
+     *
+     * Optional, so a port written before it keeps working; without it,
+     * `TrialEndService.endRanOut` refuses to end a trial (`SC-CANC-027`).
+     */
+    endTrial?(tenantId: string, input: EndTrialInput): Promise<EndSubscriptionNowResult>;
 
     /**
      * Atomic onboarding creation: sets plan + cycle + period window

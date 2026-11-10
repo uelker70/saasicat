@@ -710,6 +710,10 @@ const CONTRACT_GAPS: Record<
         reason: 'adapter provides no TenantSubscriptionWritePort that ends a cancelled subscription at once',
         present: ({ adapter }) => typeof adapter.tenantSubscriptionWrite?.endNow === 'function',
     },
+    trialsEnded: {
+        reason: 'adapter provides no TenantSubscriptionWritePort that ends a trial that ran out',
+        present: ({ adapter }) => typeof adapter.tenantSubscriptionWrite?.endTrial === 'function',
+    },
 };
 
 function sleep(ms: number): Promise<void> {
@@ -14891,6 +14895,122 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 );
                 assert.equal(running.canceledEffectiveAt, null);
                 assert.equal(running.status, 'ACTIVE');
+            });
+        });
+
+        // @requirement SC-CANC-027
+        describe('a trial that ran out, ended', () => {
+            const TRIAL_ENDED = new Date('2026-11-01T09:00:00.000Z');
+            const AT = new Date('2026-11-10T09:15:00.250Z');
+            /** A trial of `tenantId`, ending at `trialEndsAt`, with `overrides`. */
+            async function trialIn(
+                tenantId: string,
+                overrides: { status?: string; trialEndsAt?: Date } = {},
+            ): Promise<void> {
+                const { planVersionId } = await harness.seed.createPlanVersion({
+                    planKey: `TRIAL_${tenantId}`,
+                    version: 1,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                });
+                await harness.seed.createSubscription({
+                    tenantId,
+                    plan: `TRIAL_${tenantId}`,
+                    planVersionId,
+                    status: overrides.status ?? 'TRIAL',
+                    trialEndsAt: overrides.trialEndsAt ?? TRIAL_ENDED,
+                });
+            }
+
+            test('lands at the trial’s end, once, and only while it is still the trial read', async (t) => {
+                const writer = harness.adapter.tenantSubscriptionWrite;
+                if (!writer?.endTrial) {
+                    missing(t, 'trialsEnded');
+                    return;
+                }
+                await trialIn('tenant-trial');
+
+                const ended = await writer.endTrial('tenant-trial', {
+                    at: AT,
+                    trialEndsAt: TRIAL_ENDED,
+                });
+                assert.deepEqual(
+                    {
+                        ended: ended.ended,
+                        canceledAt: ended.canceledAt?.toISOString(),
+                        canceledEffectiveAt: ended.canceledEffectiveAt?.toISOString(),
+                        status: ended.status,
+                    },
+                    {
+                        ended: true,
+                        canceledAt: AT.toISOString(),
+                        canceledEffectiveAt: TRIAL_ENDED.toISOString(),
+                        status: 'CANCELED',
+                    },
+                );
+                const again = await writer.endTrial('tenant-trial', {
+                    at: new Date('2026-11-11T00:00:00.000Z'),
+                    trialEndsAt: TRIAL_ENDED,
+                });
+                assert.equal(again.ended, false, 'a second end claims nothing');
+                assert.equal(
+                    again.canceledAt?.toISOString(),
+                    AT.toISOString(),
+                    'and moves nothing',
+                );
+            });
+
+            test('leaves a trial that converted, one whose end moved and one cancelled meanwhile', async (t) => {
+                const writer = harness.adapter.tenantSubscriptionWrite;
+                if (!writer?.endTrial) {
+                    missing(t, 'trialsEnded');
+                    return;
+                }
+                await trialIn('tenant-converted', { status: 'ACTIVE' });
+                await trialIn('tenant-extended', {
+                    trialEndsAt: new Date('2026-11-15T09:00:00.000Z'),
+                });
+                await trialIn('tenant-cancelled');
+                const declaredFor = new Date('2026-12-01T00:00:00.000Z');
+                await writer.cancelSubscription('tenant-cancelled', {
+                    canceledAt: new Date('2026-11-09T08:00:00.000Z'),
+                    effectiveAt: declaredFor,
+                    terminateNow: false,
+                });
+                const read = { at: AT, trialEndsAt: TRIAL_ENDED };
+
+                const converted = await writer.endTrial('tenant-converted', read);
+                assert.deepEqual(
+                    [converted.ended, converted.status, converted.canceledAt],
+                    [false, 'ACTIVE', null],
+                    'a subscription paid for is never ended in its trial’s name',
+                );
+                const extended = await writer.endTrial('tenant-extended', read);
+                assert.deepEqual([extended.ended, extended.status], [false, 'TRIAL']);
+                const cancelled = await writer.endTrial('tenant-cancelled', read);
+                assert.equal(cancelled.ended, false);
+                assert.equal(
+                    cancelled.canceledEffectiveAt?.toISOString(),
+                    declaredFor.toISOString(),
+                );
+            });
+
+            test('is claimed once, however many end it at once', async (t) => {
+                const writer = harness.adapter.tenantSubscriptionWrite;
+                if (!writer?.endTrial) {
+                    missing(t, 'trialsEnded');
+                    return;
+                }
+                await trialIn('tenant-raced');
+                const ends = await Promise.all([
+                    writer.endTrial('tenant-raced', { at: AT, trialEndsAt: TRIAL_ENDED }),
+                    writer.endTrial('tenant-raced', {
+                        at: new Date(AT.getTime() + 1),
+                        trialEndsAt: TRIAL_ENDED,
+                    }),
+                ]);
+                assert.equal(ends.filter((end) => end.ended).length, 1);
             });
         });
 

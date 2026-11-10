@@ -1730,6 +1730,20 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   (`subscription-ends.requires-store`). A `SubscriptionUsagePort` of your own adds
   `listCancelled()`: every subscription with either cancellation date set, landed or not, with its
   tenant. The platform decides which have landed; the start refuses a port without it.
+- **A trial that ran out unbought** is yours to end: whether one converts is your application's
+  rule, and SaaSiCat does not end a trial by itself. Once your run has decided that one ends, call
+  `TrialEndService.endRanOut(tenantId, actor)`. It lands the trial's cancellation at the moment the
+  trial ran out, records the end at once — the tenant is read-only from then, and its deletion day
+  is fixed — and answers that end. It refuses with `TRIAL_NOT_RUN_OUT` where there is no trial that
+  ran out unbought to end — one still running, one that converted, a subscription that never was a
+  trial, and one that ended another way, such as a trial its tenant cancelled after it had run out
+  (nothing stored tells that cancellation from a paid term's end). It cuts nothing short: a trial
+  still running is ended by a later call once it has run out. For the others there is nothing to
+  retry, since an end that landed is recorded by the quarter-hourly run on its own. Called again
+  after an end, it answers the same end. The write is one conditional statement,
+  `TenantSubscriptionWritePort.endTrial`: a trial that converted, moved its end or was cancelled
+  since it was read is left as it is, and what is stored then decides. Both shipped adapters have
+  it; a write port of your own adds it.
 
 The day is recorded and kept; nothing is deleted on it by this release.
 

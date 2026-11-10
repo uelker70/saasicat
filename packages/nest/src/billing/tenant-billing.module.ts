@@ -76,6 +76,7 @@ import { PlansAheadService } from './plans-ahead.js';
 import { VersionNoticeService } from './version-notice.service.js';
 import { SubscriptionEndService } from './subscription-end.service.js';
 import { SubscriptionEndCron } from './subscription-end.cron.js';
+import { TrialEndService } from './trial-end.service.js';
 import {
     VersionRetirementService,
     retirementTermsConfirmed,
@@ -826,6 +827,7 @@ export class TenantBillingModule {
                     inject: [PLAN_CATALOG_SETTINGS_TOKEN],
                 },
                 SubscriptionEndService,
+                TrialEndService,
                 ...(subscriptionEnds.includeCron === false ? [] : [SubscriptionEndCron]),
             );
         }
@@ -966,7 +968,7 @@ export class TenantBillingModule {
                 TenantAdminGuard,
                 PlanChangePreviewService,
                 PLANS_AHEAD_TOKEN,
-                ...(subscriptionEnds ? [SubscriptionEndService] : []),
+                ...(subscriptionEnds ? [SubscriptionEndService, TrialEndService] : []),
                 SUBSCRIPTION_USAGE_PORT_TOKEN,
                 USAGE_SNAPSHOT_PORT_TOKEN,
                 SUBSCRIPTION_WRITE_PORT_TOKEN,

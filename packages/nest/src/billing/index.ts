@@ -95,8 +95,13 @@ export type { PlanAhead, PlanBeside } from './add-on-fits-plan.js';
 export * from './version-offer.service.js';
 export * from './version-switch.service.js';
 export { VersionNoticeService, type VersionNoticeRun } from './version-notice.service.js';
-export { SubscriptionEndService, type SubscriptionEndRun } from './subscription-end.service.js';
+export {
+    SubscriptionEndService,
+    type LandedSubscription,
+    type SubscriptionEndRun,
+} from './subscription-end.service.js';
 export { SubscriptionEndCron } from './subscription-end.cron.js';
+export { TrialEndService } from './trial-end.service.js';
 export { VersionNoticeCron } from './version-notice.cron.js';
 export {
     VersionRetirementService,

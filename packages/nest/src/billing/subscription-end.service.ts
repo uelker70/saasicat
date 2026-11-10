@@ -26,6 +26,7 @@ import {
     type EndOfSubscriptionSettings,
     type PlanCatalogSettings,
     type RlsBypassPort,
+    type SubscriptionEnd,
     type SubscriptionEndPort,
     type SubscriptionUsagePort,
     type TenantAccessHoldPort,
@@ -54,6 +55,13 @@ const ENDS_READ_AT_ONCE = 1000;
 
 /** Who records the ends, as the audit log tags a run. */
 const SUBSCRIPTION_END_RUN = actorTagOf(platformJobActor('subscription-ends'));
+
+/** A subscription whose cancellation landed at `endsAt`. */
+export interface LandedSubscription {
+    tenantId: string;
+    subscriptionId: string;
+    endsAt: Date;
+}
 
 /** What one run recorded. */
 export interface SubscriptionEndRun {
@@ -115,40 +123,71 @@ export class SubscriptionEndService implements OnModuleInit {
             });
             if (landed.length === 0) return { ended: 0 };
             const recorded = await this.recordedOf(landed.map((sub) => sub.subscriptionId));
-            const timeZone = installationZoneOf(this.settings);
             let ended = 0;
             for (const subscription of landed) {
                 if (recorded.has(subscription.subscriptionId)) continue;
-                // The reason first: a run that stops between the two finds no
-                // end next time and records both again, where the store answers
-                // the reason already open with null. In the other order a run
-                // that stopped would leave an end whose tenant nothing holds.
-                await this.holds?.record({
-                    tenantId: subscription.tenantId,
-                    kind: 'ended',
-                    reference: subscription.subscriptionId,
-                    note: null,
-                    since: subscription.endsAt,
-                    recordedBy: SUBSCRIPTION_END_RUN,
-                });
                 // Another instance running at the same moment may record the
                 // end first; the store answers null then, and it is not counted.
-                const end = await this.ends.record({
-                    tenantId: subscription.tenantId,
-                    subscriptionId: subscription.subscriptionId,
-                    endsAt: subscription.endsAt,
-                    deletesOn: deletionDayOf(
-                        subscription.endsAt,
-                        now,
-                        this.period.readOnlyDays,
-                        timeZone,
-                    ),
-                    recordedAt: now,
-                    recordedBy: SUBSCRIPTION_END_RUN,
-                });
-                if (end) ended += 1;
+                if (await this.recordOne(subscription, now, SUBSCRIPTION_END_RUN)) ended += 1;
             }
             return { ended };
+        });
+    }
+
+    /**
+     * Records the end of `subscription` at `now`, as `recordEnded` records each
+     * one it finds, and answers it as stored — the one recorded before, where
+     * there is one. `recordedBy` is who ended it, as the audit log tags an actor.
+     */
+    async recordEndOf(
+        subscription: LandedSubscription,
+        now: Date,
+        recordedBy: string,
+    ): Promise<SubscriptionEnd> {
+        const recorded = await this.recordOne(subscription, now, recordedBy);
+        if (recorded) return recorded;
+        const [kept] = await this.ends.listFor([subscription.subscriptionId]);
+        if (!kept) {
+            throw new Error(
+                `The store refused the end of subscription ${subscription.subscriptionId} ` +
+                    'as recorded already, and answers none for it.',
+            );
+        }
+        return kept;
+    }
+
+    /**
+     * The reason first, then the end, and null where the end was recorded
+     * already. A caller that stops between the two finds no end next time and
+     * records both again, where the store answers the reason already open with
+     * null; in the other order one that stopped would leave an end whose tenant
+     * nothing holds.
+     */
+    private async recordOne(
+        subscription: LandedSubscription,
+        now: Date,
+        recordedBy: string,
+    ): Promise<SubscriptionEnd | null> {
+        await this.holds?.record({
+            tenantId: subscription.tenantId,
+            kind: 'ended',
+            reference: subscription.subscriptionId,
+            note: null,
+            since: subscription.endsAt,
+            recordedBy,
+        });
+        return this.ends.record({
+            tenantId: subscription.tenantId,
+            subscriptionId: subscription.subscriptionId,
+            endsAt: subscription.endsAt,
+            deletesOn: deletionDayOf(
+                subscription.endsAt,
+                now,
+                this.period.readOnlyDays,
+                installationZoneOf(this.settings),
+            ),
+            recordedAt: now,
+            recordedBy,
         });
     }
 
