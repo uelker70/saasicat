@@ -160,6 +160,16 @@ export interface PendingPlanQueryPort {
  */
 export const CANCELLATION_NOTICE_DAYS_TOKEN = Symbol.for('saasicat/nest/CancellationNoticeDays');
 
+/**
+ * What follows when a subscription ends, from `config/saas.yaml#tenantBilling`
+ * (`EndOfSubscriptionSettings`): the days the tenant stays read-only before its
+ * data is deleted.
+ */
+export const END_OF_SUBSCRIPTION_TOKEN = Symbol.for('saasicat/nest/EndOfSubscription');
+
+/** Adapter token: where the end of each subscription is kept (`SubscriptionEndPort`). */
+export const SUBSCRIPTION_END_PORT_TOKEN = Symbol.for('saasicat/nest/SubscriptionEndPort');
+
 /** Adapter token: where the record of each subscriber notice is kept. */
 export const SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN = Symbol.for(
     'saasicat/nest/SubscriptionNoticeRepository',

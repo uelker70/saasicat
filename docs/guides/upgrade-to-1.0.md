@@ -4386,6 +4386,40 @@ adopt it:
   `accessReason…` keys and `accessAskBilling`; the state's own sentence is the refusal's
   (`TENANT_READ_ONLY`, `TENANT_SUSPENDED`, `TENANT_BEING_DELETED`).
 
+### A subscription that ended is recorded with the day its data goes
+
+Required wherever `tenantBilling` is on. Once a subscription's cancellation lands, the platform
+records its end with a deletion day and holds the tenant read-only until then (`SC-CANC-027`,
+`SC-ADM-052`): whichever path declared the cancellation, the tenant's own or your application's. To
+adopt it:
+
+1. Add `tenantBilling.endOfSubscription.readOnlyDays` to `config/saas.yaml`. It is required and has
+   no default; the loader refuses a file without it. The deletion day is the first day after it.
+2. Add `SubscriptionEnd` from `prisma-fragments/29-subscription-end.prisma` to your schema and run
+   the migration once, before `db push` where you use one:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-subscription-ends-are-kept.postgres.sql
+    ```
+
+3. Both shipped adapters provide `persistence.core.subscriptionEnds`; a bundle without it is refused
+   at start (`subscription-ends.requires-store`). A `SubscriptionUsagePort` of your own adds
+   `listCancelled()`, every subscription with either cancellation date set, landed or not; the start
+   refuses a port without it.
+4. Import `ScheduleModule` in your application: the end is recorded by a quarter-hourly run. Where
+   you schedule your own runs, set `tenantBilling.subscriptionEnds.includeCron: false` and call
+   `SubscriptionEndService.recordEnded(new Date())`.
+5. Deploy knowing that the first run after it records every subscription whose cancellation landed
+   before: its tenant becomes read-only, and its deletion day is counted from the day of that run, so
+   nobody is given less than the period's notice. The day is kept; nothing is deleted on it by this
+   release.
+
+- **A trial that runs out unbought** ends only when your application lands its cancellation; a
+  `PAST_DUE` status of your own holds nobody back since the platform keeps the tenant's state.
+- **Your own tests** that compose `SaaSiCatModule` with `tenantBilling` need the store in
+  `persistence.core`: `FakeSubscriptionEndRepository` from `@saasicat/nest/testing` keeps it in
+  memory, and a catalogue built in code needs `tenantBilling.endOfSubscription`.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

@@ -344,6 +344,21 @@ const RULE_SPECS: readonly RuleSpec[] = [
             'from the `TenantAccessHold` model of `@saasicat/spec`.',
     },
     {
+        id: 'subscription-ends.requires-store',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) =>
+            Boolean(
+                optionsOf(c.options.tenantBilling)?.subscriptionEnds?.store ??
+                bundle(c)?.core?.subscriptionEnds,
+            ),
+        message:
+            'tenantBilling is on, but there is nowhere to keep the end of each subscription ' +
+            '(SC-CANC-027): a deletion day that is not recorded cannot be told or kept. Set ' +
+            '`tenantBilling.subscriptionEnds.store` or use a bundle providing ' +
+            '`persistence.core.subscriptionEnds` — both shipped adapters do, from the ' +
+            '`SubscriptionEnd` model of `@saasicat/spec`.',
+    },
+    {
         id: 'subscriber-joins.requires-join-repository',
         when: (c) => c.options.subscriberJoins === true,
         assert: (c) =>

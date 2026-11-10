@@ -1,0 +1,43 @@
+// =============================================================================
+// SaaS platform Prisma fragment: SubscriptionEnd
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// One row per subscription that ended, with the day its tenant's data is
+// deleted (`SC-CANC-027`). A subscription ends when its cancellation lands —
+// whichever path declared it — and the platform records the end once it learns
+// of it, together with the reason that makes the tenant read-only until that
+// day (`tenant_access_holds`, kind `ended`).
+//
+// The deletion day is fixed when it is recorded and never moves: a later
+// change to the read-only period in `config/saas.yaml` applies to ends recorded
+// after it.
+//
+// At most ONE row per subscription: the unique key on `subscriptionId` is what
+// makes a repeated run, or two runs at once, record an end once.
+//
+// Required wherever tenants are served: the platform refuses to start without
+// a place to keep the ends, since a deletion day that is not recorded cannot be
+// told or kept.
+
+model SubscriptionEnd {
+    id             String   @id @default(uuid())
+    // The tenant whose subscription ended. Not a relation: the tenant model is
+    // the application's, and the record outlives the subscription row.
+    tenantId       String
+    subscriptionId String   @unique
+    // The moment the cancellation landed.
+    endsAt         DateTime
+    // The installation's day the tenant's data is deleted on: the first day
+    // after the read-only period.
+    deletesOn      DateTime @db.Date
+    // When the end was recorded, and who recorded it (an actor tag, as the audit
+    // log writes it, or the run that did).
+    recordedAt     DateTime
+    recordedBy     String
+    createdAt      DateTime @default(now())
+
+    @@index([tenantId])
+    @@map("subscription_ends")
+}

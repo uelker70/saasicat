@@ -28,6 +28,7 @@ import type {
     ContractConfirmationRenderer,
     ContractConfirmationRepository,
     SubscriptionNoticePort,
+    SubscriptionEndPort,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
@@ -73,6 +74,8 @@ import {
 } from '../catalog/catalog.tokens.js';
 import { PlansAheadService } from './plans-ahead.js';
 import { VersionNoticeService } from './version-notice.service.js';
+import { SubscriptionEndService } from './subscription-end.service.js';
+import { SubscriptionEndCron } from './subscription-end.cron.js';
 import {
     VersionRetirementService,
     retirementTermsConfirmed,
@@ -135,6 +138,8 @@ import {
     FEATURE_WITHDRAWAL_TRANSACTION_RUNNER_TOKEN,
     PENDING_PLAN_QUERY_PORT_TOKEN,
     SUBSCRIPTION_NOTICE_PORT_TOKEN,
+    SUBSCRIPTION_END_PORT_TOKEN,
+    END_OF_SUBSCRIPTION_TOKEN,
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
@@ -296,6 +301,19 @@ function assertNoMovedOptions(options: TenantBillingModuleOptions): void {
             'second home that change exists to close. ' +
             'See docs/guides/upgrade-to-1.0.md.',
     );
+}
+
+/** Where the end of each subscription is kept, and how its run is started (`SC-CANC-027`). */
+export interface SubscriptionEndsOptions {
+    /** Where each end is kept, with its deletion day. */
+    store: ProviderSpec<SubscriptionEndPort>;
+    /**
+     * Default `true`: a run every quarter of an hour records the subscriptions
+     * that ended. Needs `ScheduleModule`; set `false` where none runs, or where
+     * the application calls `SubscriptionEndService.recordEnded` from a
+     * scheduler of its own.
+     */
+    includeCron?: boolean;
 }
 
 export interface VersionNoticesOptions {
@@ -556,6 +574,15 @@ export interface TenantBillingModuleOptions {
      */
     versionNotices?: VersionNoticesOptions;
 
+    /**
+     * Records each subscription that ended, with the day its tenant's data is
+     * deleted on, and holds the tenant to reading until then
+     * (`SubscriptionEndService`, `SC-CANC-027`). `SaaSiCatModule` passes the
+     * bundle's store; without this no end is recorded, which only a module
+     * wired by hand does.
+     */
+    subscriptionEnds?: SubscriptionEndsOptions;
+
     /** Optional tenant ID resolver. Default: `req.user.tenantId`. */
     tenantIdResolver?: TenantIdResolver;
     /** Optional user ID resolver. Default: `req.user.sub ?? req.user.id`. */
@@ -787,6 +814,21 @@ export class TenantBillingModule {
             },
             inject: [PLAN_CATALOG_SETTINGS_TOKEN, { token: TAX_TREATMENTS_TOKEN, optional: true }],
         });
+        const subscriptionEnds = options.subscriptionEnds;
+        if (subscriptionEnds) {
+            providers.push(
+                asProvider(SUBSCRIPTION_END_PORT_TOKEN, subscriptionEnds.store),
+                // From `config/saas.yaml`, as the two settings above it are.
+                {
+                    provide: END_OF_SUBSCRIPTION_TOKEN,
+                    useFactory: (catalog: PlanCatalogSettings) =>
+                        settingFromCatalog(catalog, 'endOfSubscription'),
+                    inject: [PLAN_CATALOG_SETTINGS_TOKEN],
+                },
+                SubscriptionEndService,
+                ...(subscriptionEnds.includeCron === false ? [] : [SubscriptionEndCron]),
+            );
+        }
         const versionNotices = options.versionNotices;
         if (versionNotices) {
             providers.push(
@@ -924,6 +966,7 @@ export class TenantBillingModule {
                 TenantAdminGuard,
                 PlanChangePreviewService,
                 PLANS_AHEAD_TOKEN,
+                ...(subscriptionEnds ? [SubscriptionEndService] : []),
                 SUBSCRIPTION_USAGE_PORT_TOKEN,
                 USAGE_SNAPSHOT_PORT_TOKEN,
                 SUBSCRIPTION_WRITE_PORT_TOKEN,

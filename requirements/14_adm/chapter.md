@@ -773,8 +773,8 @@ _Tested by:_
 cancelling an invoice and joining a returning customer's tenant to the subscriber it had
 (`SC-ADM-027`). Each also needs an explicit confirmation, and deleting a tenant early asks the
 operator to type the tenant's name. A deletion date is not scheduled or withdrawn by hand: it is
-recorded when a subscription ends and lifted by a new one (`SC-CANC-020`). The actions that were
-there before are `SC-ADM-005`'s.
+recorded when a subscription ends and lifted by a new one (`SC-CANC-027`, `SC-CANC-028`). The
+actions that were there before are `SC-ADM-005`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -824,7 +824,7 @@ _Tested by:_
 🟡 _(Decided, not yet delivered.)_ Resetting somebody's password, deactivating a user, cancelling an
 invoice, correcting a subscriber's legal identity (`SC-SUB-017`), joining a tenant to the subscriber
 a returning customer had (`SC-ADM-027`), and deleting a tenant before the
-deletion date recorded when its subscription ended (`SC-CANC-020`, `SC-CANC-021`). The reason is
+deletion date recorded when its subscription ended (`SC-CANC-027`, `SC-CANC-021`). The reason is
 part of the record. An early deletion is for a legal reason, such as abuse or an order from an
 authority, and only once the export was offered (`SC-PRIV-017`): the operator is shown the announced
 date, and nothing is deleted until the operator confirms the deletion against it. Cancelling an
@@ -954,7 +954,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
 
 🟡 _(Decided, not yet delivered.)_ 🔒 SaaSiCat decides the state, and records it with every reason
-that holds, such as an ended subscription (`SC-CANC-020`), an invoice unpaid on its due date
+that holds, such as an ended subscription (`SC-CANC-027`), an invoice unpaid on its due date
 (`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a deletion
 under way before a suspension and a suspension before read-only, and ending one reason lifts only
 that one. The application checks it on every request through a port, sign-in included, so a session

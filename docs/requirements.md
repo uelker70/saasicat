@@ -113,7 +113,7 @@ properties it has while doing it.
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 66      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 46      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
-| 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
+| 7   | Cancelling                                   | `SC-CANC-…`  | 28      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 103     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
@@ -132,16 +132,17 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 688 entries: 🟢 598 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
-🔵 52 superseded, 🔴 7 withdrawn.
+Of 690 entries: 🟢 598 stand today, 🟡 32 decided but not yet delivered, ⚪ 0 drafts,
+🔵 53 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
 [SC-SUB-017](#sc-sub-017--a-subscribers-legal-identity-can-be-corrected-not-replaced-under-a-running-contract),
-[SC-CANC-020](#sc-canc-020--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
 [SC-CANC-021](#sc-canc-021--the-read-only-period-and-the-deletion-date-are-stated-before-a-tenant-cancels),
 [SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
+[SC-CANC-027](#sc-canc-027--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
+[SC-CANC-028](#sc-canc-028--a-new-subscription-before-the-deletion-day-keeps-the-tenant),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
 [SC-PRIC-095](#sc-pric-095--an-issued-invoice-is-never-edited-its-cancellation-corrects-what-was-not-owed),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
@@ -181,6 +182,7 @@ Of 688 entries: 🟢 598 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-SUB-041](#sc-sub-041--the-operator-corrects-a-subscribers-identity-and-business-status-with-a-reason),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
 [SC-CANC-025](#sc-canc-025--a-cancellation-is-judged-by-the-notice-period-its-contract-recorded),
+[SC-CANC-020](#sc-canc-020--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
 [SC-PRIC-003](#sc-pric-003--this-platform-never-pays-money-back),
 [SC-PRIC-008](#sc-pric-008--gross-net-and-tax-are-one-calculation-stated-once),
 [SC-PRIC-009](#sc-pric-009--an-installation-sells-in-one-currency-and-applies-one-tax-rate-both-named-once),
@@ -228,7 +230,7 @@ Of 688 entries: 🟢 598 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 688 requirements. Do not edit by hand:
+Generated from `requirements/` — 690 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -8019,15 +8021,16 @@ _Tested by:_
 
 ### SC-CANC-020 — An ended subscription leaves the tenant a period to read and export before its deletion
 
-🟡 _(Decided, not yet delivered.)_ 🔒 A subscription that ends while still a trial, with no contract
-ever frozen (`SC-SPEC-005`), ends the same way. The period is named in `config/saas.yaml`. Every
-subscription that ends has one deletion date, recorded and told to the tenant. A cancellation the
-tenant confirmed carries the date announced at confirmation (`SC-CANC-021`); a subscription that
-ends without one, by a trial running out or by an operator ending it on the spot (`SC-CANC-003`),
-gets its date computed from the period at the moment it ends. A later change to the period moves
-neither, and the one way to delete earlier is `SC-ADM-020`'s. A new subscription for the tenant
-before that date lifts it, and that subscription ending records a date of its own. What a tenant may
-do during the period is `SC-ADM-052`'s to enforce, and how the deletion runs is `SC-PRIV-014`'s.
+🔵 _(Superseded on 2026-11-10 by `SC-CANC-027`.)_ 🔒 A subscription that ends while still a trial,
+with no contract ever frozen (`SC-SPEC-005`), ends the same way. The period is named in
+`config/saas.yaml`. Every subscription that ends has one deletion date, recorded and told to the
+tenant. A cancellation the tenant confirmed carries the date announced at confirmation
+(`SC-CANC-021`); a subscription that ends without one, by a trial running out or by an operator
+ending it on the spot (`SC-CANC-003`), gets its date computed from the period at the moment it ends.
+A later change to the period moves neither, and the one way to delete earlier is `SC-ADM-020`'s. A
+new subscription for the tenant before that date lifts it, and that subscription ending records a
+date of its own. What a tenant may do during the period is `SC-ADM-052`'s to enforce, and how the
+deletion runs is `SC-PRIV-014`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -8045,7 +8048,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 🟡 _(Decided, not yet delivered.)_ 🔒 By email to the tenant's administrators, who can take the export
 (`SC-PRIV-017`), at each lead time `config/saas.yaml` names in days before the deletion date
-(`SC-CANC-020`). Lead times that have already passed when the subscription ends are covered by one
+(`SC-CANC-027`). Lead times that have already passed when the subscription ends are covered by one
 reminder sent at once rather than skipped, so a period shorter than a lead time still gives notice,
 and a run that repeats sends no reminder twice. Each reminder sent is part of the deletion record
 (`SC-PRIV-017`).
@@ -8145,6 +8148,80 @@ _Tested by:_
         - tells of the withdrawal too, and reads the bookings again once one ended at once
 
 <!-- END proof -->
+
+### SC-CANC-027 — An ended subscription leaves the tenant a period to read and export before its deletion
+
+🟡 _(Decided, not yet delivered.)_ 🔒 A subscription ends when its cancellation lands, whichever
+path declared it: the tenant's own cancellation, one the application declares for a trial that ran
+out unbought, or the operator's own path in the application (`SC-CANC-003`). SaaSiCat learns of it
+within a quarter of an hour. The period is named in `config/saas.yaml`, with no default. Every
+subscription that ends has one deletion day, recorded and told to the tenant: a cancellation the
+tenant confirmed carries the day announced at confirmation (`SC-CANC-021`); one that ends without it
+gets its day from the period, counted from the day it ended, or from the day SaaSiCat records the
+end where that is later, so nobody is given less than the period's notice. A later change to the
+period moves no day already recorded, and the one way to delete earlier is `SC-ADM-020`'s. From the
+moment it ended until that day the tenant is read-only (`SC-ADM-052`); a new subscription before it
+is `SC-CANC-028`'s, and how the deletion runs is `SC-PRIV-014`'s.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #337
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-ended-subscription-is-deleted-on-a-fixed-day.test.js`
+    - the deletion day
+        - is the first day after the period, counted from the day the subscription ended
+        - is counted in the installation's days, not in UTC's
+        - ${days} read-only day(s) delete on ${expected}
+        - an end recorded on a later day counts from that day, so nobody gets less notice
+        - an end recorded on the next day by a minute counts from the next day
+        - an end recorded before it lands counts from the day it lands
+    - an end read back from a store
+        - takes its day from Prisma's date at midnight UTC and from Drizzle's text alike
+        - refuses a column that holds no day, naming it
+- `packages/nest/tests/a-setting-comes-from-the-file.test.js`
+    - the value the code runs on is the value in the file
+        - the end of a subscription reaches its token from the catalogue
+- `packages/nest/tests/an-ended-subscription-is-recorded-once.test.js`
+    - the run that records the subscriptions that ended
+        - records a landed cancellation once: its end, its deletion day, and the reason that holds
+          its tenant
+        - reads across tenants through the bypass
+        - leaves a cancellation that has not landed yet, and records it once it has
+        - reads a row written before the two dates separated by its first date
+        - records nothing twice when it runs again
+        - counts an end it learns of late from its own day, so nobody gets less notice
+        - moves no day already recorded when the period changes
+        - finishes what a run that stopped after holding the tenant left, without holding it twice
+        - a run that fails while holding the tenant records no end, so the next one records both
+        - reads the ends a thousand subscriptions at a time, however many ended before
+        - holds each subscription's own tenant, and no other
+        - where nothing keeps the reasons, as in a module wired by hand, records the end alone
+        - refuses to start over a port that cannot list the cancelled subscriptions, naming it
+    - the quarter-hourly run
+        - records nothing under a maintenance lock; the next run catches up
+        - lets a failed run pass to the next one
+- `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
+    - the configuration the ends need
+        - serving tenants with nowhere to keep the ends, the start is refused, naming the rule
+        - the bundle's store, or one named, is enough
+        - without tenant billing, nothing is asked for
+    - an installation that serves tenants
+        - records the ends every quarter of an hour unless told not to
+        - refuses to start where the file says nothing of the end, naming the setting
+
+<!-- END proof -->
+
+(decided 2026-11-10)
+
+### SC-CANC-028 — A new subscription before the deletion day keeps the tenant
+
+🟡 _(Decided, not yet delivered.)_ 🔒 A tenant whose subscription ended can take out a new one before
+its deletion day (`SC-CANC-027`). The new subscription lifts that day and the read-only state, and
+its own end records a day of its own.
+
+_Source:_ #276 · #337 (decided 2026-11-10)
 
 ## 8. Trials, pilots and negotiated arrangements
 
@@ -11280,7 +11357,7 @@ payment method at all leave the tenant read-only, and so does a collection start
 refusal while it waits for the bank: the tenant is let go when the payment is there, not before. A
 user holding the billing permission (`SC-UI-023`) can still replace the payment method, and the
 replacement collects the invoice. The payment that settles an invoice lifts that reason at once and
-no other: a tenant whose subscription has ended (`SC-CANC-020`), that the operator suspended or
+no other: a tenant whose subscription has ended (`SC-CANC-027`), that the operator suspended or
 that is being deleted (`SC-PRIV-014`) stays as restricted as that reason makes it, and with two
 invoices unpaid the tenant stays read-only until both are paid. Suspending the tenant stays the
 operator's decision (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a
@@ -16534,8 +16611,8 @@ _Tested by:_
 cancelling an invoice and joining a returning customer's tenant to the subscriber it had
 (`SC-ADM-027`). Each also needs an explicit confirmation, and deleting a tenant early asks the
 operator to type the tenant's name. A deletion date is not scheduled or withdrawn by hand: it is
-recorded when a subscription ends and lifted by a new one (`SC-CANC-020`). The actions that were
-there before are `SC-ADM-005`'s.
+recorded when a subscription ends and lifted by a new one (`SC-CANC-027`, `SC-CANC-028`). The
+actions that were there before are `SC-ADM-005`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -16585,7 +16662,7 @@ _Tested by:_
 🟡 _(Decided, not yet delivered.)_ Resetting somebody's password, deactivating a user, cancelling an
 invoice, correcting a subscriber's legal identity (`SC-SUB-017`), joining a tenant to the subscriber
 a returning customer had (`SC-ADM-027`), and deleting a tenant before the
-deletion date recorded when its subscription ended (`SC-CANC-020`, `SC-CANC-021`). The reason is
+deletion date recorded when its subscription ended (`SC-CANC-027`, `SC-CANC-021`). The reason is
 part of the record. An early deletion is for a legal reason, such as abuse or an order from an
 authority, and only once the export was offered (`SC-PRIV-017`): the operator is shown the announced
 date, and nothing is deleted until the operator confirms the deletion against it. Cancelling an
@@ -16715,7 +16792,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
 
 🟡 _(Decided, not yet delivered.)_ 🔒 SaaSiCat decides the state, and records it with every reason
-that holds, such as an ended subscription (`SC-CANC-020`), an invoice unpaid on its due date
+that holds, such as an ended subscription (`SC-CANC-027`), an invoice unpaid on its due date
 (`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a deletion
 under way before a suspension and a suspension before read-only, and ending one reason lifts only
 that one. The application checks it on every request through a port, sign-in included, so a session
@@ -21002,6 +21079,7 @@ _Tested by:_
 - `packages/nest/tests/a-setting-comes-from-the-file.test.js`
     - the value the code runs on is the value in the file
         - the notice period reaches the token from the catalogue
+        - the end of a subscription reaches its token from the catalogue
         - the blocked plans reach their token from the catalogue
         - a second catalogue gives a second answer — nothing is baked in
 
@@ -21023,6 +21101,7 @@ _Tested by:_
 - `packages/nest/tests/a-setting-comes-from-the-file.test.js`
     - the value the code runs on is the value in the file
         - the notice period reaches the token from the catalogue
+        - the end of a subscription reaches its token from the catalogue
         - the blocked plans reach their token from the catalogue
         - a second catalogue gives a second answer — nothing is baked in
 
@@ -24145,7 +24224,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 records it locks against deletion included, and provides a full export. Beforehand it reports
 what the tenant has to keep for obligations of its own, such as receipts under a retention
 period, and that report does not stop the deletion: keeping those records is the tenant's
-obligation, not the operator's, and the read-only period of `SC-CANC-020` is the time to take
+obligation, not the operator's, and the read-only period of `SC-CANC-027` is the time to take
 them along. SaaSiCat decides when, asks for confirmation and records that it happened. Deleting
 a single record inside the application, such as a member or a case, still honours the
 application's own locks.

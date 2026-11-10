@@ -6,7 +6,10 @@ import { Test } from '@nestjs/testing';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import { PlanChangePreviewService, TenantBillingModule } from '../dist/billing/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
-import { FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
+import {
+    FakeSubscriptionEndRepository,
+    FakeTenantAccessHoldRepository,
+} from '../dist/testing/index.js';
 
 // A rule that reads an optional dependency is only as real as its wiring.
 //
@@ -37,6 +40,7 @@ const CATALOG = {
     tenantBilling: {
         cancellationNoticeDays: { monthly: 0, yearly: 0 },
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+        endOfSubscription: { readOnlyDays: 30 },
     },
     plans: [
         // Ranked below Pro, so a move from Pro to Basic lands at the end of the term.
@@ -186,6 +190,7 @@ function persistenceWith(repo) {
         },
         core: {
             tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+            subscriptionEnds: new FakeSubscriptionEndRepository(),
             mfa: spec,
             audit: spec,
             rlsBypass: spec,

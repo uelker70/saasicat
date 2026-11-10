@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 30 rules, in 17 areas.
+There are 31 rules, in 18 areas.
 
 ## core
 
@@ -122,6 +122,16 @@ a tenant is held back (SC-ADM-052): a state that is not recorded cannot be
 enforced, and a suspension has nowhere to go. Use a bundle providing
 `persistence.core.tenantAccessHolds` — both shipped adapters do, from the
 `TenantAccessHold` model of `@saasicat/spec`.
+
+## subscription-ends
+
+### subscription-ends.requires-store
+
+TenantBilling is on, but there is nowhere to keep the end of each subscription
+(SC-CANC-027): a deletion day that is not recorded cannot be told or kept. Set
+`tenantBilling.subscriptionEnds.store` or use a bundle providing
+`persistence.core.subscriptionEnds` — both shipped adapters do, from the
+`SubscriptionEnd` model of `@saasicat/spec`.
 
 ## subscriber-joins
 

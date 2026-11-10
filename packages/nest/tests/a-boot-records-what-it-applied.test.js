@@ -28,7 +28,10 @@ import {
 } from '../dist/index.js';
 import { settingsSubtreeOf } from '@saasicat/core';
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
-import { FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
+import {
+    FakeSubscriptionEndRepository,
+    FakeTenantAccessHoldRepository,
+} from '../dist/testing/index.js';
 
 const NOTICE = { monthly: 14, yearly: 90 };
 const BLOCKED = { asTarget: ['ENTERPRISE'], asSource: [] };
@@ -38,7 +41,11 @@ const catalogWith = (overrides = {}) => ({
     app: { name: 'TestApp' },
     currency: 'EUR',
     vatRate: 19,
-    tenantBilling: { cancellationNoticeDays: NOTICE, selfServiceBlockedPlans: BLOCKED },
+    tenantBilling: {
+        cancellationNoticeDays: NOTICE,
+        selfServiceBlockedPlans: BLOCKED,
+        endOfSubscription: { readOnlyDays: 30 },
+    },
     plans: [{ id: 'PRO', name: 'Pro', monthlyNet: 9, yearlyNet: 90, features: [], quotas: {} }],
     ...overrides,
 });
@@ -59,6 +66,7 @@ const persistenceWith = (appliedSettings) => ({
     },
     core: {
         tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+        subscriptionEnds: new FakeSubscriptionEndRepository(),
         mfa: spec,
         audit: spec,
         rlsBypass: spec,
@@ -372,6 +380,7 @@ describe('where the record says the values came from', () => {
                 '  cancellationNoticeDays: { monthly: 14, yearly: 90 }',
                 '  selfServiceBlockedPlans: { asTarget: [], asSource: [] }',
                 '  orderlyRetirement: { termsConfirmed: false }',
+                '  endOfSubscription: { readOnlyDays: 30 }',
                 'plans:',
                 '  - { id: PRO, name: Pro, monthlyNet: 9, yearlyNet: 90, features: [], quotas: { users: 1 } }',
             ].join('\n'),
@@ -400,6 +409,7 @@ describe('the record is a mirror, never a source', () => {
                     cancellationNoticeDays: { monthly: 99, yearly: 99 },
                     selfServiceBlockedPlans: { asTarget: [], asSource: [] },
                     orderlyRetirement: { termsConfirmed: false },
+                    endOfSubscription: { readOnlyDays: 30 },
                 },
             }),
         );
@@ -429,7 +439,10 @@ describe('the record is a mirror, never a source', () => {
                     },
                     tenantBilling: {
                         authGuards: { jwt: FakeJwtGuard },
-                        subscriptionUsagePort: { findForTenant: async () => null },
+                        subscriptionUsagePort: {
+                            findForTenant: async () => null,
+                            listCancelled: async () => [],
+                        },
                         usageSnapshotPort: { snapshot: async () => ({}) },
                         subscriptionWritePort: {},
                     },

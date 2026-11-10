@@ -24,6 +24,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
+  endOfSubscription: { readOnlyDays: 30 }
 features:
   - { key: VEHICLE_INVENTORY, label: Fahrzeugbestand, tier: CORE }
   - { key: DMS,               label: Dokumentenablage, tier: PRO }
@@ -71,6 +72,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
+  endOfSubscription: { readOnlyDays: 30 }
 plans:
   - id: BASIC
     quotas: { users: 1 }
@@ -93,6 +95,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
+  endOfSubscription: { readOnlyDays: 30 }
 plans:
   - id: BASIC
     quotas: { users: 1 }
@@ -121,6 +124,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
+  endOfSubscription: { readOnlyDays: 30 }
 features:
   - { key: F1 }
 plans:
@@ -145,6 +149,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
+  endOfSubscription: { readOnlyDays: 30 }
 plans:
   - id: BASIC
     quotas: { users: 1 }
@@ -173,6 +178,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
+  endOfSubscription: { readOnlyDays: 30 }
 features:
   - { key: F1 }
   - { key: F2_PLANNED, plannedOnly: true }
@@ -196,6 +202,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
+  endOfSubscription: { readOnlyDays: 30 }
 features:
   - { key: F1 }
 plans:
@@ -254,7 +261,8 @@ test('a catalogue without tenantBilling is refused, and the field is named', () 
                 !line.startsWith('tenantBilling:') &&
                 !line.trimStart().startsWith('cancellationNoticeDays:') &&
                 !line.trimStart().startsWith('selfServiceBlockedPlans:') &&
-                !line.trimStart().startsWith('orderlyRetirement:'),
+                !line.trimStart().startsWith('orderlyRetirement:') &&
+                !line.trimStart().startsWith('endOfSubscription:'),
         )
         .join('\n');
     assert.throws(

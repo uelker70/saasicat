@@ -11,7 +11,10 @@ import {
     SaaSiCatModule,
     storeSecretsInPlainText,
 } from '../../dist/platform/index.js';
-import { FakeTenantAccessHoldRepository } from '../../dist/testing/index.js';
+import {
+    FakeSubscriptionEndRepository,
+    FakeTenantAccessHoldRepository,
+} from '../../dist/testing/index.js';
 import { aConfirmationRenderer, aMailbox, aRenderer, anArchive } from './invoice-documents.js';
 import { ISSUER, invoicingAdapter } from './invoice-run.js';
 import { MAIN_ACCOUNT, ScriptedGateway, paymentsCatalog } from './payments.js';
@@ -57,6 +60,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             auditStats: PORT,
             maintenanceWindows: PORT,
             tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+            subscriptionEnds: new FakeSubscriptionEndRepository(),
             appliedSettings: PORT,
             termsArchive: PORT,
         },
@@ -90,6 +94,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             revenueAggregator: REPO,
         },
         tenantBilling: {
+            subscriptionUsagePort: PORT,
             subscriptionWritePort: PORT,
             usageSnapshotPort: PORT,
             subscriptionNotices: REPO,
@@ -113,6 +118,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             tenantBilling: {
                 cancellationNoticeDays: { monthly: 0, yearly: 0 },
                 selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+                endOfSubscription: { readOnlyDays: 30 },
             },
             plans: [],
         },

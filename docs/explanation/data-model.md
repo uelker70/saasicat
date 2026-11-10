@@ -196,6 +196,21 @@ invoice's subscriber is live for, and lifts each whose invoice that no longer
 describes; the payment that settles an invoice lifts its reason at once
 (`SC-PRIC-098`).
 
+### Subscription ends
+
+| Entity                                  | Identity / uniqueness              | Notes                                                                                                                                                                                    |
+| --------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SubscriptionEnd` (`subscription_ends`) | `id`; one row per `subscriptionId` | One row per subscription that ended (`SC-CANC-027`): `endsAt`, the moment its cancellation landed, and `deletesOn`, the installation's day its tenant's data is deleted on. Never moved. |
+
+**Recorded by a run, beside an `ended` reason.** Nothing marks the moment a
+cancellation lands, so the quarter-hourly run reads the subscriptions a
+cancellation was declared for (`SubscriptionUsagePort.listCancelled`), and for
+each one that has landed and has no row here it records the `ended` reason on
+its tenant first, then the end. A run that stops between the two records the end
+the next time and finds the reason already open. `deletesOn` is the first day
+after `tenantBilling.endOfSubscription.readOnlyDays`, counted from the day the
+subscription ended or from the day the end is recorded, where that is later.
+
 ## Transactional invariants (what adapters must guarantee)
 
 These are the behaviors `@saasicat/persistence-testing` verifies against a
@@ -363,6 +378,10 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
     not open — a suspension has no reference, and the partial unique index
     reads it as empty, so two operators suspending at once record one — and
     `lift` closes a reason only while it is still open.
+21. **A subscription has one end.** `SubscriptionEndPort.record` inserts only
+    where the subscription has none — the unique key on `subscriptionId` holds
+    it — and answers null otherwise, leaving the first end and its deletion day
+    as they were.
 
 ## Capability requirements
 

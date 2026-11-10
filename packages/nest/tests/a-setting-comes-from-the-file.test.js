@@ -20,14 +20,19 @@ import { SaaSiCatModule } from '../dist/platform/index.js';
 import {
     CANCELLATION_NOTICE_DAYS_TOKEN,
     SELF_SERVICE_BLOCKED_PLANS_TOKEN,
+    END_OF_SUBSCRIPTION_TOKEN,
     PLAN_CATALOG_SETTINGS_TOKEN,
     noticeDaysFor,
 } from '../dist/billing/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
-import { FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
+import {
+    FakeSubscriptionEndRepository,
+    FakeTenantAccessHoldRepository,
+} from '../dist/testing/index.js';
 
 const NOTICE = { monthly: 14, yearly: 90 };
 const BLOCKED = { asTarget: ['ENTERPRISE'], asSource: ['ENTERPRISE'] };
+const END = { readOnlyDays: 45 };
 
 class FakeJwtGuard {
     canActivate() {
@@ -54,6 +59,7 @@ const PERSISTENCE = {
     },
     core: {
         tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+        subscriptionEnds: new FakeSubscriptionEndRepository(),
         mfa: spec,
         audit: spec,
         rlsBypass: spec,
@@ -94,7 +100,11 @@ async function boot(catalog, tenantBillingExtras = {}) {
 describe('the value the code runs on is the value in the file', () => {
     test('the notice period reaches the token from the catalogue', async () => {
         const app = await boot(
-            catalogWith({ cancellationNoticeDays: NOTICE, selfServiceBlockedPlans: BLOCKED }),
+            catalogWith({
+                cancellationNoticeDays: NOTICE,
+                selfServiceBlockedPlans: BLOCKED,
+                endOfSubscription: END,
+            }),
         );
         assert.deepEqual(app.get(CANCELLATION_NOTICE_DAYS_TOKEN), NOTICE);
         // And through the function that reads it, per rhythm — a token holding
@@ -103,9 +113,25 @@ describe('the value the code runs on is the value in the file', () => {
         assert.equal(noticeDaysFor(app.get(CANCELLATION_NOTICE_DAYS_TOKEN), 'YEARLY'), 90);
     });
 
+    // @requirement SC-CANC-027 — An ended subscription leaves the tenant a period to read and export before its deletion
+    test('the end of a subscription reaches its token from the catalogue', async () => {
+        const app = await boot(
+            catalogWith({
+                cancellationNoticeDays: NOTICE,
+                selfServiceBlockedPlans: BLOCKED,
+                endOfSubscription: END,
+            }),
+        );
+        assert.deepEqual(app.get(END_OF_SUBSCRIPTION_TOKEN), END);
+    });
+
     test('the blocked plans reach their token from the catalogue', async () => {
         const app = await boot(
-            catalogWith({ cancellationNoticeDays: NOTICE, selfServiceBlockedPlans: BLOCKED }),
+            catalogWith({
+                cancellationNoticeDays: NOTICE,
+                selfServiceBlockedPlans: BLOCKED,
+                endOfSubscription: END,
+            }),
         );
         assert.deepEqual(app.get(SELF_SERVICE_BLOCKED_PLANS_TOKEN), BLOCKED);
     });
@@ -115,6 +141,7 @@ describe('the value the code runs on is the value in the file', () => {
             catalogWith({
                 cancellationNoticeDays: { monthly: 0, yearly: 0 },
                 selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+                endOfSubscription: { readOnlyDays: 30 },
             }),
         );
         assert.deepEqual(app.get(CANCELLATION_NOTICE_DAYS_TOKEN), { monthly: 0, yearly: 0 });
@@ -134,6 +161,7 @@ describe('an option that moved refuses the boot', () => {
     for (const [option, value] of [
         ['cancellationNoticeDays', { monthly: 30, yearly: 30 }],
         ['selfServiceBlockedPlans', { asTarget: ['ENTERPRISE'], asSource: [] }],
+        ['endOfSubscription', { readOnlyDays: 30 }],
     ]) {
         test(`${option} is refused, and the message says where it went`, async () => {
             await assert.rejects(
@@ -142,6 +170,7 @@ describe('an option that moved refuses the boot', () => {
                         catalogWith({
                             cancellationNoticeDays: NOTICE,
                             selfServiceBlockedPlans: BLOCKED,
+                            endOfSubscription: END,
                         }),
                         { [option]: value },
                     ),
@@ -163,6 +192,7 @@ describe('an option that moved refuses the boot', () => {
                     catalogWith({
                         cancellationNoticeDays: NOTICE,
                         selfServiceBlockedPlans: BLOCKED,
+                        endOfSubscription: END,
                     }),
                     {
                         cancellationNoticeDays: { monthly: 30, yearly: 30 },
@@ -182,7 +212,11 @@ describe('an option that moved refuses the boot', () => {
     // set, and the refusal would read as a platform bug.
     test('an explicitly undefined option is not a passed option', async () => {
         const app = await boot(
-            catalogWith({ cancellationNoticeDays: NOTICE, selfServiceBlockedPlans: BLOCKED }),
+            catalogWith({
+                cancellationNoticeDays: NOTICE,
+                selfServiceBlockedPlans: BLOCKED,
+                endOfSubscription: END,
+            }),
             { cancellationNoticeDays: undefined },
         );
         assert.deepEqual(app.get(CANCELLATION_NOTICE_DAYS_TOKEN), NOTICE);

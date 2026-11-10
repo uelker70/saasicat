@@ -165,6 +165,7 @@ describe('addresses in the file and an email port bound', () => {
             cancellationNoticeDays: NOTICE,
             selfServiceBlockedPlans: BLOCKED,
             orderlyRetirement: { termsConfirmed },
+            endOfSubscription: { readOnlyDays: 30 },
         });
         const notifications = { settingsChanged: ['ops@example.com'] };
         const port = portRecording(catalogWith({ tenantBilling: terms(false), notifications }));

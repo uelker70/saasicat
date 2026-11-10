@@ -1706,6 +1706,33 @@ makes the tenant read-only in that run.
   mark `reads-its-state`, which your guard's `enforce` reads as the platform does. Mount
   `TenantAccessBanner` from `@saasicat/ui-vue-tenant` behind your sign-in to show it.
 
+### A subscription that ended
+
+A subscription ends when its cancellation lands — the tenant's own, or one your application
+declares for a trial that ran out unbought or through the operator's path in your administration.
+From that moment the tenant is read-only until the day its data is deleted (`SC-CANC-027`,
+`SC-ADM-052`).
+
+- **The period** is `tenantBilling.endOfSubscription.readOnlyDays` in `config/saas.yaml`. It is
+  required and has no default: how long a former customer's data is kept is yours to decide and to
+  state in your terms. The deletion day is the first day after it, in the installation's zone,
+  counted from the day the subscription ended — or from the day the platform records the end, where
+  that is later. It is fixed when it is recorded: a change to the period applies to subscriptions
+  that end after it.
+- **Recorded by a run.** Nothing marks the moment a cancellation lands, so every quarter of an hour
+  `SubscriptionEndCron` reads the subscriptions a cancellation was declared for, across tenants, and
+  for each one that has landed and has no end yet records the `ended` reason and one row in
+  `subscription_ends`. It needs `ScheduleModule` in your application. With
+  `tenantBilling.subscriptionEnds.includeCron: false` your own scheduler calls
+  `SubscriptionEndService.recordEnded(new Date())` instead.
+- **The store** is `persistence.core.subscriptionEnds`, which both shipped adapters provide from the
+  `SubscriptionEnd` model of `@saasicat/spec`; a start without one is refused
+  (`subscription-ends.requires-store`). A `SubscriptionUsagePort` of your own adds
+  `listCancelled()`: every subscription with either cancellation date set, landed or not, with its
+  tenant. The platform decides which have landed; the start refuses a port without it.
+
+The day is recorded and kept; nothing is deleted on it by this release.
+
 ## Telling Subscribers of a Newer Version
 
 A subscription keeps the plan version it was sold, and a newer one sits beside the plan as an offer

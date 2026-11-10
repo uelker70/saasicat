@@ -31,6 +31,7 @@
 --   prisma-fragments/26-contract-confirmation.prisma
 --   prisma-fragments/27-subscriber-join.prisma
 --   prisma-fragments/28-tenant-access-hold.prisma
+--   prisma-fragments/29-subscription-end.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -1171,6 +1172,20 @@ CREATE TABLE "tenant_access_holds" (
     CONSTRAINT "tenant_access_holds_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "subscription_ends" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "endsAt" TIMESTAMP(3) NOT NULL,
+    "deletesOn" DATE NOT NULL,
+    "recordedAt" TIMESTAMP(3) NOT NULL,
+    "recordedBy" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "subscription_ends_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -1566,6 +1581,12 @@ CREATE INDEX "subscriber_joins_intoSubscriberId_idx" ON "subscriber_joins"("into
 
 -- CreateIndex
 CREATE INDEX "tenant_access_holds_tenantId_liftedAt_idx" ON "tenant_access_holds"("tenantId", "liftedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscription_ends_subscriptionId_key" ON "subscription_ends"("subscriptionId");
+
+-- CreateIndex
+CREATE INDEX "subscription_ends_tenantId_idx" ON "subscription_ends"("tenantId");
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

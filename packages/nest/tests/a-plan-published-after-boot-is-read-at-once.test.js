@@ -33,6 +33,7 @@ const SETTINGS = {
     tenantBilling: {
         cancellationNoticeDays: { monthly: 0, yearly: 0 },
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+        endOfSubscription: { readOnlyDays: 30 },
     },
 };
 

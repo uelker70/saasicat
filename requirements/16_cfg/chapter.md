@@ -20,6 +20,7 @@ _Tested by:_
 - `packages/nest/tests/a-setting-comes-from-the-file.test.js`
     - the value the code runs on is the value in the file
         - the notice period reaches the token from the catalogue
+        - the end of a subscription reaches its token from the catalogue
         - the blocked plans reach their token from the catalogue
         - a second catalogue gives a second answer — nothing is baked in
 
@@ -41,6 +42,7 @@ _Tested by:_
 - `packages/nest/tests/a-setting-comes-from-the-file.test.js`
     - the value the code runs on is the value in the file
         - the notice period reaches the token from the catalogue
+        - the end of a subscription reaches its token from the catalogue
         - the blocked plans reach their token from the catalogue
         - a second catalogue gives a second answer — nothing is baked in
 

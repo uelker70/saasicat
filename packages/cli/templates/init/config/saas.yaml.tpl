@@ -42,6 +42,13 @@ tenantBilling:
     # that your terms carry it; until then the admin does not offer it.
     orderlyRetirement:
         termsConfirmed: false
+    # What follows when a subscription ends: the tenant can still read and
+    # export its data for these days, and the data is deleted on the day after
+    # them. There is no default — how long you keep a former customer's data is
+    # yours to decide and to state in your terms. The day is fixed when the end
+    # is recorded, so a change here applies to subscriptions that end after it.
+    endOfSubscription:
+        readOnlyDays: 30
 
 marketing:
     availableLocales: [en]

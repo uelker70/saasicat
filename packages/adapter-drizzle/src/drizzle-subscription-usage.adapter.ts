@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, inArray, lt } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, lt, or } from 'drizzle-orm';
 import type {
+    CancelledSubscription,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
     TenantSubscriptionUsage,
@@ -135,6 +136,26 @@ export class DrizzleSubscriptionUsageAdapter implements SubscriptionUsagePort {
             tenantId: subscription.tenantId,
             subscription: toRecord(subscription, planVersion),
         }));
+    }
+
+    /** One read: the subscriptions with either cancellation date set, landed or not. */
+    async listCancelled(): Promise<CancelledSubscription[]> {
+        const rows = await this.db
+            .select({
+                tenantId: subscriptions.tenantId,
+                subscriptionId: subscriptions.id,
+                canceledAt: subscriptions.canceledAt,
+                canceledEffectiveAt: subscriptions.canceledEffectiveAt,
+            })
+            .from(subscriptions)
+            .where(
+                or(
+                    isNotNull(subscriptions.canceledAt),
+                    isNotNull(subscriptions.canceledEffectiveAt),
+                ),
+            )
+            .orderBy(asc(subscriptions.id));
+        return rows;
     }
 }
 
