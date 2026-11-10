@@ -88,7 +88,8 @@ export class TrialEndService {
      * tenant cancelled after it had run out — its cancellation lands after the
      * trial's end, and nothing stored tells it from a paid term's end. Its end
      * is recorded by the quarter-hourly run all the same, so a caller does not
-     * try again. `by` is who ended it, for the audit log; a job of the
+     * try again for it; a trial still running is ended by a later call once
+     * it has run out. `by` is who ended it, for the audit log; a job of the
      * platform's where the application names nobody.
      */
     async endRanOut(

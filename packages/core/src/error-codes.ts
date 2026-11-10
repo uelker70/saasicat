@@ -506,11 +506,12 @@ export const BILLING_ERROR_CODES = {
     SUBSCRIPTION_ENDED: 'SUBSCRIPTION_ENDED',
     /**
      * There is no trial that ran out unbought for `TrialEndService.endRanOut`
-     * to end: the trial is still running, it converted, it never was one, or
-     * it ended another way — a cancellation that lands after the trial's end,
-     * such as one its tenant declared once it had run out, cannot be told from
-     * a paid term's end. An end that landed is recorded by the quarter-hourly
-     * run on its own, so the caller does not try again.
+     * to end. Either the trial is still running, and a later call ends it once
+     * it has run out; or it converted, it never was one, or it ended another
+     * way — a cancellation that lands after the trial's end, such as one its
+     * tenant declared once it had run out, cannot be told from a paid term's
+     * end. For those an end that landed is recorded by the quarter-hourly run
+     * on its own, and the caller does not try again.
      */
     TRIAL_NOT_RUN_OUT: 'TRIAL_NOT_RUN_OUT',
     /** An active special contract blocks self-service plan changes. */

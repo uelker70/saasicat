@@ -1737,9 +1737,10 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   is fixed — and answers that end. It refuses with `TRIAL_NOT_RUN_OUT` where there is no trial that
   ran out unbought to end — one still running, one that converted, a subscription that never was a
   trial, and one that ended another way, such as a trial its tenant cancelled after it had run out
-  (nothing stored tells that cancellation from a paid term's end). It cuts nothing short, and an end
-  that landed is recorded by the quarter-hourly run on its own, so do not retry on the refusal.
-  Called again after an end, it answers the same end. The write is one conditional statement,
+  (nothing stored tells that cancellation from a paid term's end). It cuts nothing short: a trial
+  still running is ended by a later call once it has run out. For the others there is nothing to
+  retry, since an end that landed is recorded by the quarter-hourly run on its own. Called again
+  after an end, it answers the same end. The write is one conditional statement,
   `TenantSubscriptionWritePort.endTrial`: a trial that converted, moved its end or was cancelled
   since it was read is left as it is, and what is stored then decides. Both shipped adapters have
   it; a write port of your own adds it.
