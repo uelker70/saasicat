@@ -28,7 +28,11 @@ import {
 } from '../dist/payments/index.js';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import { SubscriberService } from '../dist/subscriber/index.js';
-import { FakeSubscriberRepository, FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
+import {
+    FakeSubscriberRepository,
+    FakeSubscriptionEndRepository,
+    FakeTenantAccessHoldRepository,
+} from '../dist/testing/index.js';
 import {
     AllowAll,
     MAIN_ACCOUNT,
@@ -1030,6 +1034,7 @@ describe('SaaSiCatModule composes payments', () => {
         },
         core: {
             tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+            subscriptionEnds: new FakeSubscriptionEndRepository(),
             mfa: {},
             audit: {},
             rlsBypass: {},

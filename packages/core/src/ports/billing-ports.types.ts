@@ -1541,6 +1541,18 @@ export interface TenantSubscriptionUsage {
     readonly subscription: SubscriptionUsageRecord & { readonly id: string };
 }
 
+/**
+ * A subscription with a cancellation declared, landed or not, with the tenant
+ * it belongs to: the two dates as stored, which the platform reads as
+ * `canceledEffectiveAt ?? canceledAt`, the moment it lands.
+ */
+export interface CancelledSubscription {
+    readonly tenantId: string;
+    readonly subscriptionId: string;
+    readonly canceledAt: Date | null;
+    readonly canceledEffectiveAt: Date | null;
+}
+
 export interface SubscriptionUsagePort {
     findForTenant(tenantId: string): Promise<SubscriptionUsageRecord | null>;
     /**
@@ -1575,6 +1587,17 @@ export interface SubscriptionUsagePort {
      * version over a port without it is refused at start-up.
      */
     listByIds?(subscriptionIds: readonly string[]): Promise<TenantSubscriptionUsage[]>;
+    /**
+     * Every subscription, in every tenant, with a cancellation declared —
+     * either date set —, whether it has landed or not. The platform reads it
+     * inside the RLS bypass to find the subscriptions that ended, and decides
+     * itself which of them have (`SC-CANC-027`).
+     *
+     * Optional, so a port written before it keeps working; an installation
+     * that serves tenants over a port without it is refused at start-up, since
+     * an end nobody can find is never recorded.
+     */
+    listCancelled?(): Promise<CancelledSubscription[]>;
 }
 
 /**

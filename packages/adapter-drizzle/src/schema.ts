@@ -675,6 +675,20 @@ export const subscriberLedgerEntries = pgTable('subscriber_ledger_entries', {
 /** A calendar day, read and written as its `YYYY-MM-DD` text. */
 const day = (name: string) => date(name, { mode: 'string' });
 
+// One end per subscription that ended, with the day its tenant's data is
+// deleted on. The DDL authority, the unique key a second end of one
+// subscription collides with, is `subscription_ends_subscriptionId_key`.
+export const subscriptionEnds = pgTable('subscription_ends', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenantId').notNull(),
+    subscriptionId: text('subscriptionId').notNull().unique('subscription_ends_subscriptionId_key'),
+    endsAt: ts('endsAt').notNull(),
+    deletesOn: day('deletesOn').notNull(),
+    recordedAt: ts('recordedAt').notNull(),
+    recordedBy: text('recordedBy').notNull(),
+    createdAt: writtenAt('createdAt'),
+});
+
 // The invoices issued from the charge journal. The DDL authority, the unique
 // keys a second issue of the same charges and a second draw of one number
 // collide with, are `subscription_invoice_lines_chargeId_chainStep_key` and

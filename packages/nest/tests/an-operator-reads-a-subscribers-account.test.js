@@ -18,7 +18,10 @@ import { AdminManifestService, SaaSiCatModule } from '../dist/platform/index.js'
 import { ARCHIVE, anAccount, discountLine, line, utc } from './helpers/charge-journal.js';
 import { controllersIn, handlersOf } from './helpers/operator-routes.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
-import { FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
+import {
+    FakeSubscriptionEndRepository,
+    FakeTenantAccessHoldRepository,
+} from '../dist/testing/index.js';
 
 const STANDARD = () => line('plan', 'STANDARD', 49, { titleSnapshot: 'Standard' });
 const WELCOME = () => ({
@@ -206,6 +209,7 @@ const PLAN_CATALOG = {
     tenantBilling: {
         cancellationNoticeDays: { monthly: 0, yearly: 0 },
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+        endOfSubscription: { readOnlyDays: 30 },
     },
     plans: [],
 };
@@ -279,6 +283,7 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
             },
             core: {
                 tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+                subscriptionEnds: new FakeSubscriptionEndRepository(),
                 mfa: {},
                 audit: { write: async () => {} },
                 rlsBypass,

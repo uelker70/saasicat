@@ -59,6 +59,7 @@ import type { PlanCatalogImportSink, PlanCatalogReadSink } from '../plan-catalog
 import type { AppliedSettingsPort, TermsArchivePort } from './settings-ports.types.js';
 import type { MaintenanceWindowPort } from './maintenance-ports.types.js';
 import type { TenantAccessHoldPort } from './tenant-access-ports.types.js';
+import type { SubscriptionEndPort } from './subscription-end-ports.types.js';
 import type { SubscriptionNoticeRepository } from './subscription-notice-ports.types.js';
 import type { BundleVersionRetirementRepository } from './bundle-version-retirement-ports.types.js';
 import type { VersionRetirementRepository } from './version-retirement-ports.types.js';
@@ -155,6 +156,14 @@ export interface SaaSiCatPersistenceCore {
      * not recorded cannot be enforced.
      */
     tenantAccessHolds?: PersistenceProvider<TenantAccessHoldPort>;
+    /**
+     * Where the end of each subscription is kept, with the day its tenant's
+     * data is deleted on (`SC-CANC-027`). Optional so an adapter written before
+     * it existed still compiles; an installation that serves tenants without
+     * one is refused at start-up, since a deletion day that is not recorded
+     * cannot be told or kept.
+     */
+    subscriptionEnds?: PersistenceProvider<SubscriptionEndPort>;
     /**
      * Where the versions of the operator's terms are kept (`config/saas.yaml#terms`,
      * `SC-CFG-038`). Absent where the schema leaves `TermsVersion` out; an

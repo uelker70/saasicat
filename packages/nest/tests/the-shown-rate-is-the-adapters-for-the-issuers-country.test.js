@@ -78,6 +78,7 @@ async function composedWithAdapterCharging(rate) {
                     tenantBilling: {
                         cancellationNoticeDays: { monthly: 0, yearly: 0 },
                         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+                        endOfSubscription: { readOnlyDays: 30 },
                     },
                     plans: [{ id: 'PRO', name: 'Pro', monthlyNet: 9, yearlyNet: 90, features: [] }],
                 },

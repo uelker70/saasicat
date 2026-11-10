@@ -9,7 +9,7 @@ them against the canonical schema already.
 Why the seam is here, and what an adapter may and may not decide:
 [ADR 0007](../explanation/adr/0007-ports-and-adapters.md).
 
-Generated from `packages/core/src/ports` — 24 ports. Do not edit by hand:
+Generated from `packages/core/src/ports` — 25 ports. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Administration
@@ -94,6 +94,7 @@ Adapter for the RLS bypass context.
 | `listBoundToEarlierVersions?( planKey: string, version: number, ): Promise<TenantSubscriptionUsage[]>` | Every subscription of `planKey`, in every tenant, bound to a version of that plan numbered below `version`.                      |
 | `listBoundToVersion?(planVersionId: string): Promise<TenantSubscriptionUsage[]>`                       | Every subscription, in every tenant, bound to the plan version `planVersionId`, whatever its status.                             |
 | `listByIds?(subscriptionIds: readonly string[]): Promise<TenantSubscriptionUsage[]>`                   | The subscriptions `subscriptionIds`, in whichever tenant, each with the tenant it belongs to; an id that names none is left out. |
+| `listCancelled?(): Promise<CancelledSubscription[]>`                                                   | Every subscription, in every tenant, with a cancellation declared — either date set —, whether it has landed or not.             |
 
 ### `UsageSnapshotPort`
 
@@ -234,6 +235,17 @@ Where the versions of the terms are kept, unalterably: a contract names the vers
 | `store(terms: TermsVersionToArchive): Promise<void>`           | Stores the version.                                                                               |
 | `read(version: string): Promise<ArchivedTermsVersion \| null>` | The version as it was archived, or `null` where it was not.                                       |
 | `protectionProblem(): Promise<string \| null>`                 | Why the archive would let a version it keeps be changed or removed, or `null` where it would not. |
+
+## Subscription ends
+
+### `SubscriptionEndPort`
+
+Keeps one end per subscription that ended, in the application's own database.
+
+| Member                                                                    | What it does                                                                |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `record(end: NewSubscriptionEnd): Promise<SubscriptionEnd \| null>`       | Records `end` and returns it as stored — the id is the adapter's to assign. |
+| `listFor(subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]>` | The ends of those of `subscriptionIds` that have one, in one read.          |
 
 ## Subscriber notices
 

@@ -58,6 +58,7 @@ import {
 } from '../billing/subscription-bundles.module.js';
 import {
     type TenantBillingModuleOptions,
+    type SubscriptionEndsOptions,
     type VersionNoticesOptions,
 } from '../billing/tenant-billing.module.js';
 import {
@@ -181,6 +182,7 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
     | 'usageSnapshotPort'
     | 'subscriptionWritePort'
     | 'versionNotices'
+    | 'subscriptionEnds'
     | 'global'
 > {
     /**
@@ -201,6 +203,15 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
     versionNotices?: Omit<VersionNoticesOptions, 'notices'> & {
         notices?: ProviderSpec<SubscriptionNoticeRepository>;
     };
+    /**
+     * Records each subscription that ended, with the day its tenant's data is
+     * deleted on (`SC-CANC-027`). The store comes from
+     * `persistence.core.subscriptionEnds` unless `store` names another; a start
+     * with neither is refused. Always on: `includeCron: false` leaves out only
+     * the quarter-hourly run, for an application that calls
+     * `SubscriptionEndService.recordEnded` from a scheduler of its own.
+     */
+    subscriptionEnds?: Partial<SubscriptionEndsOptions>;
 }
 
 /**

@@ -47,6 +47,8 @@ tenantBilling:
     asSource: []
   orderlyRetirement:
     termsConfirmed: false
+  endOfSubscription:
+    readOnlyDays: 30
 features:
   - { key: CORE }
 plans:
@@ -127,6 +129,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 7, yearly: 7 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
+  endOfSubscription: { readOnlyDays: 30 }
 plans:
   - { id: BASIC, quotas: { users: 1 }, features: [] }
 `;

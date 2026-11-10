@@ -34,6 +34,7 @@ const catalogWith = (overrides = {}) => ({
     tenantBilling: {
         cancellationNoticeDays: { monthly: 14, yearly: 90 },
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+        endOfSubscription: { readOnlyDays: 30 },
     },
     notifications: { settingsChanged: ADDRESSES },
     plans: [{ id: 'PRO', name: 'Pro', monthlyNet: 9, yearlyNet: 90, features: [], quotas: {} }],

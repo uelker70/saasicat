@@ -198,6 +198,7 @@ export function createMemoryHarness() {
         settingsChanges: [],
         maintenanceWindows: [],
         tenantAccessHolds: [],
+        subscriptionEnds: [],
         subscriptionNotices: [],
         versionRetirements: [],
         bundleVersionRetirements: [],
@@ -1787,6 +1788,8 @@ export function createMemoryHarness() {
                 billingCycle: input.billingCycle ?? 'YEARLY',
                 startedAt: input.startedAt ?? null,
                 customLimits: input.customLimits ?? null,
+                canceledAt: input.canceledAt ?? null,
+                canceledEffectiveAt: input.canceledEffectiveAt ?? null,
             };
             state.subscriptions.push(row);
             return { subscriptionId: row.id };
@@ -1960,6 +1963,25 @@ export function createMemoryHarness() {
             row.liftedAt = liftedAt;
             row.liftedBy = liftedBy;
             return structuredClone(row);
+        },
+    };
+
+    /** Subscription ends: one per subscription, as the unique key keeps it. */
+    const subscriptionEnds = {
+        async record(end) {
+            if (state.subscriptionEnds.some((row) => row.subscriptionId === end.subscriptionId)) {
+                return null;
+            }
+            const row = { id: nextId('end'), ...structuredClone(end) };
+            state.subscriptionEnds.push(row);
+            return structuredClone(row);
+        },
+        async listFor(subscriptionIds) {
+            return structuredClone(
+                state.subscriptionEnds
+                    .filter((row) => subscriptionIds.includes(row.subscriptionId))
+                    .sort((a, b) => (a.subscriptionId < b.subscriptionId ? -1 : 1)),
+            );
         },
     };
 
@@ -2192,6 +2214,17 @@ export function createMemoryHarness() {
                 .filter((row) => subscriptionIds.includes(row.id))
                 .sort((a, b) => (a.id < b.id ? -1 : 1))
                 .map((row) => ({ tenantId: row.tenantId, subscription: usageOf(row) }));
+        },
+        async listCancelled() {
+            return state.subscriptions
+                .filter((row) => row.canceledAt || row.canceledEffectiveAt)
+                .sort((a, b) => (a.id < b.id ? -1 : 1))
+                .map((row) => ({
+                    tenantId: row.tenantId,
+                    subscriptionId: row.id,
+                    canceledAt: row.canceledAt ?? null,
+                    canceledEffectiveAt: row.canceledEffectiveAt ?? null,
+                }));
         },
     };
 
@@ -3880,6 +3913,7 @@ export function createMemoryHarness() {
             appliedSettings,
             maintenanceWindows,
             tenantAccessHolds,
+            subscriptionEnds,
             subscriptionNotices,
             versionRetirements,
             bundleVersionRetirements,

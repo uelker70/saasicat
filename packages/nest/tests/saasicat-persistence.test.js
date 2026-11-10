@@ -17,7 +17,10 @@ import {
 } from '../dist/platform/index.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from '../dist/billing/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
-import { FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
+import {
+    FakeSubscriptionEndRepository,
+    FakeTenantAccessHoldRepository,
+} from '../dist/testing/index.js';
 
 // forRoot wiring of the `persistence` bundle option (adapter bundles from
 // e.g. @saasicat/adapter-prisma) incl. the capability fail-fast.
@@ -31,6 +34,7 @@ const planCatalog = {
         cancellationNoticeDays: { monthly: 0, yearly: 0 },
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
         orderlyRetirement: { termsConfirmed: false },
+        endOfSubscription: { readOnlyDays: 30 },
     },
     plans: [],
 };
@@ -47,6 +51,7 @@ function fakeBundle(capabilityOverrides = {}) {
         },
         core: {
             tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+            subscriptionEnds: new FakeSubscriptionEndRepository(),
             mfa: spec,
             audit: spec,
             rlsBypass: spec,
@@ -141,6 +146,7 @@ describe('SaaSiCatModule persistence bundle', () => {
                     '  cancellationNoticeDays: { monthly: 0, yearly: 0 }',
                     '  selfServiceBlockedPlans: { asTarget: [], asSource: [] }',
                     '  orderlyRetirement: { termsConfirmed: false }',
+                    '  endOfSubscription: { readOnlyDays: 30 }',
                 ].join('\n'),
             );
             let loads = 0;
@@ -211,6 +217,7 @@ describe('SaaSiCatModule persistence bundle', () => {
             },
             core: {
                 tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+                subscriptionEnds: new FakeSubscriptionEndRepository(),
                 mfa: {
                     getSecret: async () => null,
                     setSecret: async () => {},
@@ -353,6 +360,7 @@ describe('SaaSiCatModule persistence bundle', () => {
             },
             core: {
                 tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+                subscriptionEnds: new FakeSubscriptionEndRepository(),
                 mfa: {
                     getSecret: async () => null,
                     setSecret: async () => {},

@@ -31,6 +31,7 @@ const AREA = {
     'version-retirement-ports.types.ts': 'Version retirements',
     'bundle-version-retirement-ports.types.ts': 'Version retirements',
     'tenant-access-ports.types.ts': 'Tenant access',
+    'subscription-end-ports.types.ts': 'Subscription ends',
 };
 
 /**

@@ -119,10 +119,21 @@ export interface OrderlyRetirementSettings {
     termsConfirmed: boolean;
 }
 
+/**
+ * What follows when a subscription ends (`SC-CANC-027`): the tenant is
+ * read-only for `readOnlyDays`, and its data is deleted on the day after them.
+ * No default — how long a former customer's data is kept is the operator's to
+ * decide and to state in its terms.
+ */
+export interface EndOfSubscriptionSettings {
+    readOnlyDays: number;
+}
+
 export interface PlanCatalogTenantBilling {
     cancellationNoticeDays: CancellationNoticePeriods;
     selfServiceBlockedPlans: SelfServiceBlockedPlans;
     orderlyRetirement: OrderlyRetirementSettings;
+    endOfSubscription: EndOfSubscriptionSettings;
 }
 
 /**

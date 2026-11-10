@@ -41,6 +41,7 @@ const CATALOG = {
     tenantBilling: {
         cancellationNoticeDays: { monthly: 0, yearly: 0 },
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+        endOfSubscription: { readOnlyDays: 30 },
     },
     plans: [STANDARD],
     issuer: ISSUER,

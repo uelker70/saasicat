@@ -59,6 +59,7 @@ function catalogFileNamed(name) {
             '  cancellationNoticeDays: { monthly: 0, yearly: 0 }',
             '  selfServiceBlockedPlans: { asTarget: [], asSource: [] }',
             '  orderlyRetirement: { termsConfirmed: false }',
+            '  endOfSubscription: { readOnlyDays: 30 }',
         ].join('\n'),
     );
     return path;

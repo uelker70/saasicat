@@ -11,6 +11,7 @@ import { AdminManifestService, SaaSiCatModule } from '../../dist/platform/index.
 import {
     FakeSubscriberJoinRepository,
     FakeSubscriberRepository,
+    FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../../dist/testing/index.js';
 import { storeSecretsInPlainText } from '../../dist/index.js';
@@ -57,6 +58,7 @@ const CATALOG = {
     tenantBilling: {
         cancellationNoticeDays: { monthly: 0, yearly: 0 },
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+        endOfSubscription: { readOnlyDays: 30 },
     },
 };
 
@@ -197,6 +199,7 @@ export async function aPlatform({
                 rlsBypass,
                 transactionRunner: { run: (fn) => fn({}) },
                 tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+                subscriptionEnds: new FakeSubscriptionEndRepository(),
             },
             entitlement,
             adminResources: { resources: tenants },

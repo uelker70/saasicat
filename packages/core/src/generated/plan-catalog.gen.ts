@@ -101,6 +101,15 @@ export interface PlanCatalog {
              */
             termsConfirmed: boolean;
         };
+        /**
+         * What follows when a subscription ends. The tenant is read-only for a period in which it can still read and export its data, and its data is deleted on the day after it. There is no default: how long a former customer's data is kept is the operator's to decide and to state in its terms, and a period read from nowhere would be a promise nobody made.
+         */
+        endOfSubscription: {
+            /**
+             * Days the tenant stays read-only after its subscription ended. The deletion day is the first day after them, in the installation's zone, and is fixed when the end is recorded: a later change applies to subscriptions that end after it.
+             */
+            readOnlyDays: number;
+        };
     };
     /**
      * App-wide marketing configuration..

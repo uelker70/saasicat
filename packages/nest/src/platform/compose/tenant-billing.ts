@@ -6,6 +6,7 @@ import type {
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriberPaymentRepository,
+    SubscriptionEndPort,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
@@ -45,6 +46,7 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
         usageSnapshotPort,
         subscriptionWritePort,
         versionNotices,
+        subscriptionEnds,
         imports: tenantImports,
         extraProviders,
         extraExports,
@@ -124,6 +126,15 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
                 tenantSlice?.subscriptionNotices) as ProviderSpec<SubscriptionNoticeRepository>,
             retirements: versionRetirementsOf(ctx),
             featureWithdrawals: featureWithdrawalsOf(ctx),
+        },
+        subscriptionEnds: {
+            ...subscriptionEnds,
+            // SAFETY: `subscription-ends.requires-store` has refused a
+            // configuration that reaches here with no store named and none in
+            // the bundle, and the bundle's member is the provider spec
+            // `PersistenceProvider` types it as.
+            store: (subscriptionEnds?.store ??
+                ctx.persistence?.core.subscriptionEnds) as ProviderSpec<SubscriptionEndPort>,
         },
         imports: tenantImports ?? ctx.options.imports,
         extraProviders: [...quotaProviders, ...(extraProviders ?? [])],

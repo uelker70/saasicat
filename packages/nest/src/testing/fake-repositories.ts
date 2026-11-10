@@ -6,6 +6,9 @@
 
 import type {
     NewTenantAccessHold,
+    NewSubscriptionEnd,
+    SubscriptionEnd,
+    SubscriptionEndPort,
     TenantAccessHold,
     TenantAccessHoldKind,
     TenantAccessHoldPort,
@@ -1044,6 +1047,30 @@ export class FakeTenantAccessHoldRepository implements TenantAccessHoldPort {
         return this.holds
             .filter((hold) => hold.liftedAt === null)
             .sort((a, b) => a.since.getTime() - b.since.getTime());
+    }
+}
+
+/**
+ * In-memory `SubscriptionEndPort` for tests: one end per subscription, as the
+ * unique key holds it in the database. Starts empty.
+ */
+export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
+    readonly ends: SubscriptionEnd[] = [];
+    private nextId = 1;
+
+    async record(end: NewSubscriptionEnd): Promise<SubscriptionEnd | null> {
+        if (this.ends.some((recorded) => recorded.subscriptionId === end.subscriptionId)) {
+            return null;
+        }
+        const recorded: SubscriptionEnd = { ...end, id: `end-${this.nextId++}` };
+        this.ends.push(recorded);
+        return { ...recorded };
+    }
+
+    async listFor(subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]> {
+        return this.ends
+            .filter((end) => subscriptionIds.includes(end.subscriptionId))
+            .map((end) => ({ ...end }));
     }
 }
 

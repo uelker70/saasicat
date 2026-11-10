@@ -1,5 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import type {
+    CancelledSubscription,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
     TenantSubscriptionUsage,
@@ -138,6 +139,20 @@ export class PrismaSubscriptionUsageAdapter implements SubscriptionUsagePort {
                 subscription: await this.toRecord(subscription, planVersion),
             })),
         );
+    }
+
+    /** One read: the subscriptions with either cancellation date set, landed or not. */
+    async listCancelled(): Promise<CancelledSubscription[]> {
+        const subscriptions = await this.subscriptions().findMany({
+            where: { OR: [{ canceledAt: { not: null } }, { canceledEffectiveAt: { not: null } }] },
+            orderBy: { id: 'asc' },
+        });
+        return subscriptions.map((subscription) => ({
+            tenantId: subscription.tenantId,
+            subscriptionId: subscription.id,
+            canceledAt: subscription.canceledAt ?? null,
+            canceledEffectiveAt: subscription.canceledEffectiveAt ?? null,
+        }));
     }
 
     private async toRecord(

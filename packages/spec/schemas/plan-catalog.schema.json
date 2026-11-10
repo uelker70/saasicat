@@ -82,7 +82,12 @@
             "type": "object",
             "additionalProperties": false,
             "description": "Commercial settings for the tenant-facing self-service routes. Required, and required member by member: every one of these has a money or a legal consequence, and a value left out is still a decision — just an invisible one. The file is read at boot, so a change lands on the next restart.",
-            "required": ["cancellationNoticeDays", "selfServiceBlockedPlans", "orderlyRetirement"],
+            "required": [
+                "cancellationNoticeDays",
+                "selfServiceBlockedPlans",
+                "orderlyRetirement",
+                "endOfSubscription"
+            ],
             "properties": {
                 "cancellationNoticeDays": {
                     "type": "object",
@@ -133,6 +138,19 @@
                         "termsConfirmed": {
                             "type": "boolean",
                             "description": "true states that the operator's terms carry that clause. Only then does the admin offer a retirement and the server accept one; false refuses it."
+                        }
+                    }
+                },
+                "endOfSubscription": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "What follows when a subscription ends. The tenant is read-only for a period in which it can still read and export its data, and its data is deleted on the day after it. There is no default: how long a former customer's data is kept is the operator's to decide and to state in its terms, and a period read from nowhere would be a promise nobody made.",
+                    "required": ["readOnlyDays"],
+                    "properties": {
+                        "readOnlyDays": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Days the tenant stays read-only after its subscription ended. The deletion day is the first day after them, in the installation's zone, and is fixed when the end is recorded: a later change applies to subscriptions that end after it."
                         }
                     }
                 }

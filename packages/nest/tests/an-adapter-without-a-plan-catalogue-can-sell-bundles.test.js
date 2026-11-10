@@ -6,7 +6,10 @@ import 'reflect-metadata';
 
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
-import { FakeTenantAccessHoldRepository } from '../dist/testing/index.js';
+import {
+    FakeSubscriptionEndRepository,
+    FakeTenantAccessHoldRepository,
+} from '../dist/testing/index.js';
 
 // Where a bundle repository may come from.
 //
@@ -47,6 +50,7 @@ function persistenceWithoutPlanCatalogue({ bundleRepository = {} } = {}) {
         },
         core: {
             tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+            subscriptionEnds: new FakeSubscriptionEndRepository(),
             mfa: spec,
             audit: spec,
             rlsBypass: spec,

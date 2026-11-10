@@ -15,6 +15,7 @@ import { DrizzleAuditQueryAdapter } from './drizzle-audit-query.adapter.js';
 import { DrizzleAuditStatsAdapter } from './drizzle-audit-stats.adapter.js';
 import { DrizzleMaintenanceWindowRepository } from './drizzle-maintenance-window.repository.js';
 import { DrizzleTenantAccessHoldRepository } from './drizzle-tenant-access-hold.repository.js';
+import { DrizzleSubscriptionEndRepository } from './drizzle-subscription-end.repository.js';
 import { DrizzleSubscriptionNoticeRepository } from './drizzle-subscription-notice.repository.js';
 import { DrizzleVersionRetirementRepository } from './drizzle-version-retirement.repository.js';
 import { DrizzleBundleVersionRetirementRepository } from './drizzle-bundle-version-retirement.repository.js';
@@ -156,6 +157,7 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
                 provide((client) => new DrizzleMaintenanceWindowRepository(client)),
             ),
             tenantAccessHolds: provide((client) => new DrizzleTenantAccessHoldRepository(client)),
+            subscriptionEnds: provide((client) => new DrizzleSubscriptionEndRepository(client)),
             termsArchive: unless(
                 'core.termsArchive',
                 provide((client) => new DrizzleTermsArchive(client)),

@@ -45,6 +45,7 @@ import {
     PrismaAppliedSettingsRepository,
     PrismaMaintenanceWindowRepository,
     PrismaTenantAccessHoldRepository,
+    PrismaSubscriptionEndRepository,
     PrismaSubscriptionNoticeRepository,
     PrismaMarketingProjectionRepository,
     PrismaPaymentEventLog,
@@ -113,6 +114,7 @@ const PLATFORM_TABLES = [
     'settings_changes',
     'maintenance_windows',
     'tenant_access_holds',
+    'subscription_ends',
     'subscription_notices',
     'version_retirements',
     'bundle_version_retirements',
@@ -170,6 +172,7 @@ function createHarness() {
             appliedSettings: new PrismaAppliedSettingsRepository(prisma),
             maintenanceWindows: new PrismaMaintenanceWindowRepository(prisma),
             tenantAccessHolds: new PrismaTenantAccessHoldRepository(prisma),
+            subscriptionEnds: new PrismaSubscriptionEndRepository(prisma),
             subscriptionNotices: new PrismaSubscriptionNoticeRepository(prisma),
             versionRetirements: new PrismaVersionRetirementRepository(prisma),
             bundleVersionRetirements: new PrismaBundleVersionRetirementRepository(prisma),
@@ -207,6 +210,8 @@ function createHarness() {
                         ...(input.customLimits !== undefined
                             ? { customLimits: input.customLimits }
                             : {}),
+                        canceledAt: input.canceledAt ?? null,
+                        canceledEffectiveAt: input.canceledEffectiveAt ?? null,
                     },
                 });
                 return { subscriptionId: row.id };

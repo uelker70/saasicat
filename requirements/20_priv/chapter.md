@@ -160,7 +160,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 records it locks against deletion included, and provides a full export. Beforehand it reports
 what the tenant has to keep for obligations of its own, such as receipts under a retention
 period, and that report does not stop the deletion: keeping those records is the tenant's
-obligation, not the operator's, and the read-only period of `SC-CANC-020` is the time to take
+obligation, not the operator's, and the read-only period of `SC-CANC-027` is the time to take
 them along. SaaSiCat decides when, asks for confirmation and records that it happened. Deleting
 a single record inside the application, such as a member or a case, still honours the
 application's own locks.

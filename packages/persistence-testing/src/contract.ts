@@ -18,6 +18,7 @@ import type {
     CreateCheckoutOfferData,
     NewMaintenanceWindow,
     NewTenantAccessHold,
+    NewSubscriptionEnd,
     CreateSubscriberData,
     SubscriberSearch,
     SubscriberJoinState,
@@ -637,6 +638,14 @@ const CONTRACT_GAPS: Record<
     tenantAccessHolds: {
         reason: 'adapter provides no TenantAccessHoldPort',
         present: ({ adapter }) => Boolean(adapter.tenantAccessHolds),
+    },
+    subscriptionEnds: {
+        reason: 'adapter provides no SubscriptionEndPort',
+        present: ({ adapter }) => Boolean(adapter.subscriptionEnds),
+    },
+    cancelledSubscriptions: {
+        reason: 'adapter provides no SubscriptionUsagePort that lists the cancelled subscriptions',
+        present: ({ adapter }) => typeof adapter.subscriptionUsage?.listCancelled === 'function',
     },
     subscriptionNotices: {
         reason: 'adapter provides no SubscriptionNoticeRepository',
@@ -13748,6 +13757,156 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ]);
             assert.deepEqual(await port.listTenantIdsHeldBy(['overdue']), ['tenant-c']);
             assert.deepEqual(await port.listTenantIdsHeldBy([]), []);
+        });
+
+        // -------------------------------------------------------------
+        // Subscription ends — one per subscription, and the subscriptions
+        // a cancellation was declared for, read across tenants
+        // -------------------------------------------------------------
+
+        // @requirement SC-CANC-027
+        describe('the end of a subscription', () => {
+            const ENDS_AT = new Date('2026-12-31T23:00:00.123Z');
+            const RECORDED_AT = new Date('2027-01-01T00:05:00.456Z');
+            const RUN = 'job:platform:subscription-ends';
+            const endOf = (overrides: Partial<NewSubscriptionEnd> = {}): NewSubscriptionEnd => ({
+                tenantId: 'tenant-ended',
+                subscriptionId: 'sub-ended',
+                endsAt: ENDS_AT,
+                deletesOn: '2027-01-31',
+                recordedAt: RECORDED_AT,
+                recordedBy: RUN,
+                ...overrides,
+            });
+
+            test('comes back as written, its deletion day a day', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                assert.deepEqual(await port.listFor(['sub-ended']), []);
+                const recorded = await port.record(endOf());
+                assert.ok(recorded?.id, 'the adapter assigns the id');
+                assert.deepEqual(await port.listFor(['sub-ended', 'no-such-subscription']), [
+                    {
+                        id: recorded.id,
+                        tenantId: 'tenant-ended',
+                        subscriptionId: 'sub-ended',
+                        endsAt: ENDS_AT,
+                        deletesOn: '2027-01-31',
+                        recordedAt: RECORDED_AT,
+                        recordedBy: RUN,
+                    },
+                ]);
+                assert.deepEqual(await port.listFor([]), []);
+            });
+
+            test('is recorded once, however many record it at once, and the first one stays', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const ends = await Promise.all([
+                    port.record(endOf()),
+                    port.record(endOf({ deletesOn: '2027-02-28' })),
+                    port.record(endOf({ deletesOn: '2027-03-31' })),
+                ]);
+                const landed = ends.filter(Boolean);
+                assert.equal(landed.length, 1, 'one end lands');
+                assert.equal(await port.record(endOf({ deletesOn: '2027-04-30' })), null);
+                const [kept] = await port.listFor(['sub-ended']);
+                assert.equal(kept?.deletesOn, landed[0]?.deletesOn, 'a later record moves no day');
+            });
+
+            test('another subscription is another end', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                assert.ok(await port.record(endOf()));
+                assert.ok(
+                    await port.record(
+                        endOf({ tenantId: 'tenant-other', subscriptionId: 'sub-other' }),
+                    ),
+                );
+                assert.deepEqual(
+                    (await port.listFor(['sub-other', 'sub-ended'])).map(
+                        (end) => `${end.tenantId}/${end.subscriptionId}`,
+                    ),
+                    ['tenant-ended/sub-ended', 'tenant-other/sub-other'],
+                );
+            });
+        });
+
+        // @requirement SC-CANC-027
+        describe('the subscriptions a cancellation was declared for', () => {
+            test('are read across tenants with both dates as stored, landed or not, and nothing else', async (t) => {
+                const usage = harness.adapter.subscriptionUsage;
+                if (!usage?.listCancelled) {
+                    missing(t, 'cancelledSubscriptions');
+                    return;
+                }
+                const { seed } = harness;
+                const { planVersionId } = await seed.createPlanVersion({
+                    planKey: 'CANCELLED',
+                    version: 1,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                });
+                const landed = await seed.createSubscription({
+                    tenantId: 'tenant-landed',
+                    plan: 'CANCELLED',
+                    planVersionId,
+                    status: 'CANCELED',
+                    canceledAt: new Date('2026-04-10T08:00:00.000Z'),
+                    canceledEffectiveAt: new Date('2026-05-01T00:00:00.000Z'),
+                });
+                const ahead = await seed.createSubscription({
+                    tenantId: 'tenant-ahead',
+                    plan: 'CANCELLED',
+                    planVersionId,
+                    canceledAt: new Date('2026-04-10T08:00:00.000Z'),
+                    canceledEffectiveAt: new Date('2099-01-01T00:00:00.000Z'),
+                });
+                // Written before the two columns separated: the first is the
+                // effective date, the second is genuinely empty.
+                const legacy = await seed.createSubscription({
+                    tenantId: 'tenant-legacy',
+                    plan: 'CANCELLED',
+                    planVersionId,
+                    canceledAt: new Date('2025-03-01T00:00:00.000Z'),
+                });
+                await seed.createSubscription({
+                    tenantId: 'tenant-running',
+                    plan: 'CANCELLED',
+                    planVersionId,
+                });
+
+                const read = await usage.listCancelled();
+                const byTenant = new Map(read.map((row) => [row.tenantId, row]));
+                assert.deepEqual(
+                    [...byTenant.keys()].sort(),
+                    ['tenant-ahead', 'tenant-landed', 'tenant-legacy'],
+                    'a subscription without a cancellation is left out',
+                );
+                assert.deepEqual(byTenant.get('tenant-landed'), {
+                    tenantId: 'tenant-landed',
+                    subscriptionId: landed.subscriptionId,
+                    canceledAt: new Date('2026-04-10T08:00:00.000Z'),
+                    canceledEffectiveAt: new Date('2026-05-01T00:00:00.000Z'),
+                });
+                assert.equal(byTenant.get('tenant-ahead')?.subscriptionId, ahead.subscriptionId);
+                assert.deepEqual(byTenant.get('tenant-legacy'), {
+                    tenantId: 'tenant-legacy',
+                    subscriptionId: legacy.subscriptionId,
+                    canceledAt: new Date('2025-03-01T00:00:00.000Z'),
+                    canceledEffectiveAt: null,
+                });
+            });
         });
 
         // -------------------------------------------------------------

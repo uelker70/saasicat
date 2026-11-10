@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { prismaPersistence } from '@saasicat/adapter-prisma';
 import { LimitExceededFilter, loadPlanCatalogFromFile } from '@saasicat/nest/billing';
 import { DevPaymentGateway } from '@saasicat/nest/payments';
@@ -21,6 +22,9 @@ import { germanTaxAdapterFactory } from '@saasicat/tax-de';
     imports: [
         PrismaModule,
         DemoAuthModule,
+        // The platform's runs — here, the one that records each subscription
+        // that ended and the day its data goes — are scheduled by this module.
+        ScheduleModule.forRoot(),
 
         SaaSiCatModule.forRoot(
             defineSaaSiCat({

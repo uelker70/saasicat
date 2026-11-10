@@ -14,6 +14,7 @@ import type {
     SubscriberPaymentRepository,
     MaintenanceWindowPort,
     TenantAccessHoldPort,
+    SubscriptionEndPort,
     MfaPort,
     PaymentEventLog,
     PersistenceCapabilities,
@@ -236,6 +237,13 @@ export interface ContractAdapterInstances {
      */
     tenantAccessHolds?: TenantAccessHoldPort;
     /**
+     * Enables the subscription end scenarios: one end per subscription however
+     * many runs record it at once, and the ends of many subscriptions read in
+     * one go. The platform records an end once it learns of it, so an adapter
+     * that let a second one land would leave two deletion days for one tenant.
+     */
+    subscriptionEnds?: SubscriptionEndPort;
+    /**
      * Enables the subscriber notice scenarios: one record per subscription,
      * kind and subject however many runs claim it at once, and a claim, a
      * confirmation and a release each guarded on the claim the caller holds.
@@ -301,6 +309,9 @@ export interface ContractSeed {
          * scenario asks the adapter to read, whatever its shape. Defaults to null.
          */
         customLimits?: unknown;
+        /** The cancellation's two dates, as stored; both default to null. */
+        canceledAt?: Date;
+        canceledEffectiveAt?: Date;
     }): Promise<{ subscriptionId: string }>;
     /**
      * A published BundleVersion to book against.
@@ -428,6 +439,8 @@ export type ContractGap =
     | 'appliedSettings'
     | 'maintenanceWindows'
     | 'tenantAccessHolds'
+    | 'subscriptionEnds'
+    | 'cancelledSubscriptions'
     | 'subscriptionNotices'
     | 'versionRetirements'
     | 'boundSubscriptions'

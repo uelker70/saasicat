@@ -1751,3 +1751,17 @@ model TenantAccessHold {
     @@index([tenantId, liftedAt])
     @@map("tenant_access_holds")
 }
+
+model SubscriptionEnd {
+    id             String   @id @default(uuid())
+    tenantId       String
+    subscriptionId String   @unique
+    endsAt         DateTime
+    deletesOn      DateTime @db.Date
+    recordedAt     DateTime
+    recordedBy     String
+    createdAt      DateTime @default(now())
+
+    @@index([tenantId])
+    @@map("subscription_ends")
+}
