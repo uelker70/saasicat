@@ -205,6 +205,30 @@ describe('the banner of a tenant held back', () => {
         expect(payButton(wrapper).exists()).toBe(false);
     });
 
+    test('suspended, a user without the billing permission is not sent to somebody who cannot pay either', async () => {
+        const { http } = httpRouting({
+            'GET /billing/account/access': [[403, {}]],
+            'GET /billing/access': [
+                [
+                    200,
+                    toBilling({
+                        state: 'suspended',
+                        reasons: [
+                            { ...OVERDUE, invoiceNumber: null },
+                            { kind: 'suspended', since: '2026-11-17', invoiceNumber: null },
+                        ],
+                        holdsBillingPermission: false,
+                        mayPay: false,
+                    }),
+                ],
+            ],
+        });
+        const wrapper = await mountBanner(http);
+
+        expect(lines(wrapper)).toHaveLength(2);
+        expect(wrapper.text()).not.toContain('Whoever looks after billing');
+    });
+
     test('where an ended subscription holds it back as well, paying is offered without promising it opens again', async () => {
         const { http } = httpRouting({
             'GET /billing/account/access': [

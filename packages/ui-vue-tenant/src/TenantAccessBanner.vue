@@ -24,7 +24,7 @@
             </p>
             <p v-else-if="startedMessage" class="sp-access-banner__hint">{{ startedMessage }}</p>
         </template>
-        <p v-else-if="unpaid && !held.holdsBillingPermission" class="sp-access-banner__hint">
+        <p v-else-if="askBilling" class="sp-access-banner__hint">
             {{ i18n.accessAskBilling }}
         </p>
     </div>
@@ -56,8 +56,9 @@ import './ui/tenant-ui.css';
 // The state is read on mount and again every minute, so a hold begun or lifted
 // while the page is open shows without a reload.
 //
-// Paying is offered only while the tenant is read-only: a suspension and a
-// deletion under way let no payment through, and paying would be refused.
+// Paying is offered, and a user without the permission told who can pay, only
+// while the tenant is read-only: a suspension and a deletion under way let no
+// payment through, and paying would be refused.
 // While the state is being read, where the tenant is open, and where it cannot
 // be read, the banner shows nothing — a refused request still says why on its
 // own, and a banner announcing that it failed would sit above every page.
@@ -88,12 +89,16 @@ const reasonLines = computed(() =>
         accessReasonLine(reason, i18n.value, (day) => writeDay(props.formatDate, day)),
     ),
 );
-const unpaid = computed(
-    () => held.value?.reasons.some((reason) => reason.kind === 'overdue') ?? false,
+// An unpaid invoice can be paid now only while the tenant is read-only: a
+// suspension and a deletion under way let no payment through. Both what is
+// offered to a user who may pay and what anybody else is told follow from it.
+const payableNow = computed(
+    () =>
+        held.value?.state === 'read-only' &&
+        held.value.reasons.some((reason) => reason.kind === 'overdue'),
 );
-const payable = computed(
-    () => held.value?.state === 'read-only' && held.value.mayPay && unpaid.value,
-);
+const payable = computed(() => payableNow.value && held.value?.mayPay === true);
+const askBilling = computed(() => payableNow.value && held.value?.holdsBillingPermission === false);
 // Paying opens the account again only where nothing but unpaid invoices holds
 // it back; an ended subscription keeps it read-only after the payment.
 const onlyUnpaid = computed(

@@ -16949,6 +16949,8 @@ _Tested by:_
         - to a user with the permission where nothing is collected here: the number, and nothing to
           press
         - suspended, nothing is offered to pay, since a suspension lets no payment through
+        - suspended, a user without the billing permission is not sent to somebody who cannot pay
+          either
         - where an ended subscription holds it back as well, paying is offered without promising it
           opens again
         - a hold begun while the page is open shows on the next read, and goes once lifted
