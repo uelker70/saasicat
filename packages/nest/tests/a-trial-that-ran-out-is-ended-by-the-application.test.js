@@ -46,7 +46,14 @@ function ending(subscription, { storedMeanwhile = null, withoutEndTrial = false 
     };
     const usage = {
         findForTenant: async (tenantId) => (tenantId === 't-1' ? seen.subscription : null),
-        listCancelled: async () => [],
+        // What the quarter-hourly run reads: the subscription, once a
+        // cancellation was declared for it.
+        listCancelled: async () => {
+            const { id, canceledAt, canceledEffectiveAt } = seen.subscription;
+            return canceledAt || canceledEffectiveAt
+                ? [{ tenantId: 't-1', subscriptionId: id, canceledAt, canceledEffectiveAt }]
+                : [];
+        },
     };
     const writes = withoutEndTrial
         ? { cancelSubscription: async () => assert.fail('a trial is not ended unconditionally') }
@@ -76,14 +83,15 @@ function ending(subscription, { storedMeanwhile = null, withoutEndTrial = false 
     };
     seen.ends = new FakeSubscriptionEndRepository();
     seen.holds = new FakeTenantAccessHoldRepository();
-    const endService = new SubscriptionEndService(
+    const endService = (seen.endService = new SubscriptionEndService(
         usage,
         seen.ends,
         { readOnlyDays: 30 },
         BERLIN,
         bypass,
         seen.holds,
-    );
+    ));
+    endService.onModuleInit();
     const service = new TrialEndService(
         usage,
         writes,
@@ -242,6 +250,31 @@ describe('a trial that ran out, ended by the application', () => {
             assert.deepEqual(await run.holds.listOpen('t-1'), []);
         });
     }
+
+    test('leaves a trial its tenant cancelled after it ran out to the run, which records that end', async () => {
+        // Run out on 1 November; the tenant cancelled it on the 5th, before the
+        // application's job reached it. That cancellation lands on the 5th,
+        // after the trial's end, as a paid term's would: nothing stored tells
+        // the two apart, so this call refuses and the run records it.
+        const cancelledOn = new Date('2026-11-05T10:00:00.000Z');
+        const run = ending(
+            trialOf({
+                status: 'CANCELED',
+                canceledAt: cancelledOn,
+                canceledEffectiveAt: cancelledOn,
+            }),
+        );
+
+        await assert.rejects(
+            run.service.endRanOut('t-1', OPERATOR, NOW),
+            refusedAs('TRIAL_NOT_RUN_OUT'),
+        );
+        assert.deepEqual(run.ends.ends, []);
+
+        assert.deepEqual(await run.endService.recordEnded(NOW), { ended: 1 });
+        assert.equal(run.ends.ends[0]?.endsAt, cancelledOn);
+        assert.equal(run.ends.ends[0]?.recordedBy, 'job:platform:subscription-ends');
+    });
 
     test('refuses a converted trial whose paid term was cancelled meanwhile and has landed', async () => {
         const run = ending(trialOf(), {

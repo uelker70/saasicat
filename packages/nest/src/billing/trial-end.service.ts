@@ -82,9 +82,14 @@ export class TrialEndService {
      * again, it answers the end recorded the first time.
      *
      * Refuses with `NO_SUBSCRIPTION` a tenant without a subscription, and with
-     * `TRIAL_NOT_RUN_OUT` one that is no trial, or a trial whose end has not
-     * passed. `by` is who ended it, for the audit log; a job of the platform's
-     * where the application names nobody.
+     * `TRIAL_NOT_RUN_OUT` where there is no trial that ran out unbought to end:
+     * one still running, one that converted, a subscription that never was a
+     * trial, and one that ended another way. That last includes a trial its
+     * tenant cancelled after it had run out — its cancellation lands after the
+     * trial's end, and nothing stored tells it from a paid term's end. Its end
+     * is recorded by the quarter-hourly run all the same, so a caller does not
+     * try again. `by` is who ended it, for the audit log; a job of the
+     * platform's where the application names nobody.
      */
     async endRanOut(
         tenantId: string,
@@ -174,10 +179,13 @@ export class TrialEndService {
  * it ended the trial that ran out at `trialEndsAt`; `undefined` where none was
  * declared. A refusal for one that lands after `now` — with time still to run
  * it is not an end yet — and for one that lands after the trial's end, or of a
- * subscription that had no trial: that is a paid term's end, which the run
- * records, and not a trial's. A cancellation declared in the trial lands at
+ * subscription that had no trial. A cancellation declared in the trial lands at
  * its end, and so does the one this service writes, so a repeat call still
  * finds it.
+ *
+ * A cancellation landing after the trial's end may be a paid term's or one
+ * the tenant declared once the trial had run out; nothing stored tells the two
+ * apart, so both are refused, and the run records either end.
  */
 function landedInTrial(
     dates: CancellationDates,

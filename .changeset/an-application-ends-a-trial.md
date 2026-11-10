@@ -12,9 +12,11 @@ An application ends a trial that ran out unbought
 passed, once the application has decided it does not convert: its
 cancellation lands at the moment the trial ran out, the entitlements, the
 contract and the audit log hear of it as of a cancellation, and its end is
-recorded at once with the deletion day. It refuses a trial whose end has not
-passed and a subscription that is no trial with `TRIAL_NOT_RUN_OUT`, and
-answers the same end when called again.
+recorded at once with the deletion day. It refuses with `TRIAL_NOT_RUN_OUT`
+where there is no trial that ran out unbought to end — one still running,
+converted, never a trial, or ended another way, such as one its tenant
+cancelled after it ran out — and the quarter-hourly run records any end that
+landed, so a caller does not retry. Called again, it answers the same end.
 
 The trial is ended through `TenantSubscriptionWritePort.endTrial`, one
 conditional write: a trial that converted, moved its end or was cancelled

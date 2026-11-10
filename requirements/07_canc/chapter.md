@@ -781,6 +781,7 @@ _Tested by:_
           writing another
         - refuses while the cancellation the tenant declared has not landed yet
         - refuses ${what}: the run records that end, not the trial's
+        - leaves a trial its tenant cancelled after it ran out to the run, which records that end
         - refuses a converted trial whose paid term was cancelled meanwhile and has landed
         - refuses a tenant without a subscription
         - a trial that converted between the read and the write is left running, and nothing is

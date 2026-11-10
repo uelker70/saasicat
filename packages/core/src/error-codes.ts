@@ -505,9 +505,12 @@ export const BILLING_ERROR_CODES = {
     /** The subscription has ended, so nothing changes it any more: no plan change, no booking, no activation. */
     SUBSCRIPTION_ENDED: 'SUBSCRIPTION_ENDED',
     /**
-     * Only a trial whose end has passed is ended by the application this way
-     * (`TrialEndService.endRanOut`): a running trial is not cut short, and a
-     * subscription that is no trial ends by its own cancellation.
+     * There is no trial that ran out unbought for `TrialEndService.endRanOut`
+     * to end: the trial is still running, it converted, it never was one, or
+     * it ended another way — a cancellation that lands after the trial's end,
+     * such as one its tenant declared once it had run out, cannot be told from
+     * a paid term's end. An end that landed is recorded by the quarter-hourly
+     * run on its own, so the caller does not try again.
      */
     TRIAL_NOT_RUN_OUT: 'TRIAL_NOT_RUN_OUT',
     /** An active special contract blocks self-service plan changes. */
