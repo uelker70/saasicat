@@ -312,6 +312,8 @@ export interface ContractSeed {
         /** The cancellation's two dates, as stored; both default to null. */
         canceledAt?: Date;
         canceledEffectiveAt?: Date;
+        /** The end of a trial; defaults to null. */
+        trialEndsAt?: Date;
     }): Promise<{ subscriptionId: string }>;
     /**
      * A published BundleVersion to book against.
@@ -451,7 +453,8 @@ export type ContractGap =
     | 'subscriptionsById'
     | 'featureWithdrawals'
     | 'bookingsEndedNow'
-    | 'subscriptionsEndedNow';
+    | 'subscriptionsEndedNow'
+    | 'trialsEnded';
 
 export interface PersistenceAdapterContractOptions {
     /** Display name in the test output, e.g. `'adapter-prisma @ postgres16'`. */

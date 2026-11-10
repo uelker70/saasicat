@@ -430,6 +430,28 @@ export function createMemoryHarness() {
                 alreadyCanceled: !free,
             };
         },
+        // The same conditional claim, on the trial the caller read.
+        async endTrial(tenantId, input) {
+            const row = state.subscriptions.find((s) => s.tenantId === tenantId);
+            if (!row) throw subscriptionGone(tenantId);
+            const ended =
+                row.status === 'TRIAL' &&
+                row.trialEndsAt instanceof Date &&
+                row.trialEndsAt.getTime() === input.trialEndsAt.getTime() &&
+                (row.canceledAt ?? null) === null &&
+                (row.canceledEffectiveAt ?? null) === null;
+            if (ended) {
+                row.canceledAt = input.at;
+                row.canceledEffectiveAt = input.trialEndsAt;
+                row.status = 'CANCELED';
+            }
+            return {
+                ended,
+                canceledAt: row.canceledAt ?? null,
+                canceledEffectiveAt: row.canceledEffectiveAt ?? null,
+                status: row.status,
+            };
+        },
         async endNow(tenantId, input) {
             const row = state.subscriptions.find((s) => s.tenantId === tenantId);
             if (!row) throw subscriptionGone(tenantId);
@@ -1790,6 +1812,7 @@ export function createMemoryHarness() {
                 customLimits: input.customLimits ?? null,
                 canceledAt: input.canceledAt ?? null,
                 canceledEffectiveAt: input.canceledEffectiveAt ?? null,
+                trialEndsAt: input.trialEndsAt ?? null,
             };
             state.subscriptions.push(row);
             return { subscriptionId: row.id };

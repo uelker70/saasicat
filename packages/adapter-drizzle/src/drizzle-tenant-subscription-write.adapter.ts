@@ -6,6 +6,7 @@ import type {
     CancelSubscriptionResult,
     ApplyOnboardingSelectionResult,
     EndNowInput,
+    EndTrialInput,
     EndSubscriptionNowResult,
     ImmediatePlanChangeInput,
     PromoCodeRedemptionRecord,
@@ -229,6 +230,38 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 and(
                     eq(subscriptions.tenantId, tenantId),
                     eq(subscriptions.canceledEffectiveAt, input.expectedCanceledEffectiveAt),
+                ),
+            )
+            .returning({ id: subscriptions.id });
+        const current = await this.requireSubscription(this.db, tenantId);
+        return {
+            ended: claimed.length === 1,
+            canceledAt: current.canceledAt ?? null,
+            canceledEffectiveAt: current.canceledEffectiveAt ?? null,
+            status: current.status,
+        };
+    }
+
+    /**
+     * The same conditional claim, on the trial the caller read: still a trial,
+     * still ending at `input.trialEndsAt`, and not cancelled.
+     */
+    async endTrial(tenantId: string, input: EndTrialInput): Promise<EndSubscriptionNowResult> {
+        const claimed = await this.db
+            .update(subscriptions)
+            .set({
+                canceledAt: input.at,
+                canceledEffectiveAt: input.trialEndsAt,
+                status: 'CANCELED',
+                updatedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(subscriptions.tenantId, tenantId),
+                    eq(subscriptions.status, 'TRIAL'),
+                    eq(subscriptions.trialEndsAt, input.trialEndsAt),
+                    isNull(subscriptions.canceledAt),
+                    isNull(subscriptions.canceledEffectiveAt),
                 ),
             )
             .returning({ id: subscriptions.id });

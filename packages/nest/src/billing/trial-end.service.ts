@@ -36,7 +36,7 @@ import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { actorTagOf } from '../core/web-audit.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import type { EntitlementService } from '../entitlement/entitlement.service.js';
-import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
+import { cancellationLandsAt, type CancellationDates } from '../entitlement/landed-cancellation.js';
 import { codedError } from '../errors/coded-error.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import { endContractAfter } from './freeze-contract-after.js';
@@ -124,25 +124,35 @@ export class TrialEndService {
         by: AuditActor,
         now: Date,
     ): Promise<Date> {
-        const declared = cancellationLandsAt(sub);
-        if (declared !== null) {
-            // A tenant that cancelled in its trial: it lands at the trial's end.
-            if (declared > now) throw notRunOut();
-            return declared;
-        }
+        const declared = landedBy(sub, now);
+        if (declared !== undefined) return declared;
         const trialEndsAt = sub.status === 'TRIAL' ? sub.trialEndsAt : null;
         if (!trialEndsAt || trialEndsAt > now) throw notRunOut();
-        const result = await this.writes.cancelSubscription(tenantId, {
-            canceledAt: now,
-            effectiveAt: trialEndsAt,
-            terminateNow: true,
-        });
-        // Another caller declared it between the read and the write: the store
-        // kept that one, and it is the one that ends the trial.
-        const endsAt = result.canceledEffectiveAt ?? result.canceledAt ?? trialEndsAt;
-        if (result.alreadyCanceled) return endsAt;
+        const endTrial = this.writes.endTrial?.bind(this.writes);
+        if (!endTrial) {
+            throw new Error(
+                'The TenantSubscriptionWritePort has no `endTrial`: the platform cannot end a ' +
+                    'trial without risking one that converted meanwhile. Both shipped adapters ' +
+                    'have it; a port of your own adds it (SC-CANC-027).',
+            );
+        }
+        // One conditional write: the trial read above, still that trial. A
+        // trial that converted or was cancelled between the read and here is
+        // left as it is, and what is stored now decides.
+        const result = await endTrial(tenantId, { at: now, trialEndsAt });
+        if (!result.ended) {
+            const stored = landedBy(result, now);
+            if (stored === undefined) throw notRunOut();
+            return stored;
+        }
         this.entitlements?.invalidateTenant(tenantId);
-        await endContractAfter(this.contractFreeze, tenantId, endsAt, 'a trial ended', this.logger);
+        await endContractAfter(
+            this.contractFreeze,
+            tenantId,
+            trialEndsAt,
+            'a trial ended',
+            this.logger,
+        );
         await this.audit?.log({
             actor: by,
             entity: 'Subscription',
@@ -151,12 +161,24 @@ export class TrialEndService {
             changes: {
                 reason: 'trial-ran-out',
                 canceledAt: now.toISOString(),
-                effectiveAt: endsAt.toISOString(),
+                effectiveAt: trialEndsAt.toISOString(),
                 status: result.status,
             },
         });
-        return endsAt;
+        return trialEndsAt;
     }
+}
+
+/**
+ * When a declared cancellation of `dates` landed, where one was declared;
+ * `undefined` where none was, and a refusal where it lands after `now` — a
+ * cancellation with time still to run is not an end yet.
+ */
+function landedBy(dates: CancellationDates, now: Date): Date | undefined {
+    const landsAt = cancellationLandsAt(dates);
+    if (landsAt === null) return undefined;
+    if (landsAt > now) throw notRunOut();
+    return landsAt;
 }
 
 function notRunOut(): ConflictException {

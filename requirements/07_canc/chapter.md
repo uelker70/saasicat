@@ -781,8 +781,11 @@ _Tested by:_
           writing another
         - refuses while the cancellation the tenant declared has not landed yet
         - refuses a tenant without a subscription
-        - where another caller declared it first, ends at the moment that one stored, and tells
-          nobody twice
+        - a trial that converted between the read and the write is left running, and nothing is
+          recorded
+        - a cancellation declared meanwhile with time still to run is no end yet
+        - a cancellation that landed meanwhile ends it at the moment stored, and tells nobody twice
+        - refuses over a write port that cannot end a trial conditionally, naming the method
         - reads and writes across tenants, as a job of the application asks without a request
         - where the application names nobody, a job of the platform’s ended it
 - `packages/nest/tests/an-ended-subscription-is-recorded-once.test.js`

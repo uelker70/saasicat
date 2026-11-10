@@ -1736,7 +1736,9 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   trial ran out, records the end at once — the tenant is read-only from then, and its deletion day
   is fixed — and answers that end. It refuses a trial whose end has not passed and a subscription
   that is no trial (`TRIAL_NOT_RUN_OUT`), so it cuts nothing short; called again, it answers the
-  same end.
+  same end. The write is one conditional statement, `TenantSubscriptionWritePort.endTrial`: a trial
+  that converted, moved its end or was cancelled since it was read is left as it is, and what is
+  stored then decides. Both shipped adapters have it; a write port of your own adds it.
 
 The day is recorded and kept; nothing is deleted on it by this release.
 
