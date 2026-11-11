@@ -106,6 +106,24 @@ type CancellationAuditChanges = {
     readOnlyDays: number | null;
 };
 
+/** What the audit entry of a deletion day recorded by a repeat names. */
+type DeletionDayAuditChanges = {
+    /** When the cancellation the day was counted from lands. */
+    effectiveAt: string;
+    deletesOn: CalendarDay;
+    readOnlyDays: number;
+};
+
+/**
+ * An audit entry this service writes. A deletion day recorded by a repeat is
+ * its own action rather than a second cancellation: the cancellation was
+ * audited when it was declared, and counting cancellations by their entries
+ * counts it once.
+ */
+type CancellationAuditEntry =
+    | { action: 'CANCEL_SUBSCRIPTION'; changes: CancellationAuditChanges }
+    | { action: 'ANNOUNCE_DELETION_DAY'; changes: DeletionDayAuditChanges };
+
 @Injectable()
 export class SubscriptionCancellationService {
     private readonly logger = new Logger(SubscriptionCancellationService.name);
@@ -251,11 +269,24 @@ export class SubscriptionCancellationService {
                 'an existing cancellation',
                 this.logger,
             );
-            const deletion =
-                told ??
-                (toTell &&
-                    ((await this.subscriptionEnds?.announce(confirming, existing, toTell, now)) ??
-                        null));
+            // A day this repeat records is audited, as made by whoever made
+            // the request, and only then: a day on record already was audited
+            // by the request that recorded it, and where recording fails the
+            // request answers the failure, with no day to name.
+            const recorded =
+                toTell &&
+                (await this.subscriptionEnds?.announce(confirming, existing, toTell, now));
+            if (recorded && !recorded.onRecord) {
+                await this.audit(actor, tenantId, {
+                    action: 'ANNOUNCE_DELETION_DAY',
+                    changes: {
+                        effectiveAt: existing.toISOString(),
+                        deletesOn: recorded.days.deletesOn,
+                        readOnlyDays: recorded.days.readOnlyDays,
+                    },
+                });
+            }
+            const deletion = told ?? recorded?.days ?? null;
             return {
                 canceledAt: sub.canceledAt ?? null,
                 canceledEffectiveAt: existing,
@@ -386,27 +417,30 @@ export class SubscriptionCancellationService {
         // cancellation already written, which stands (`SC-CANC-019`): its
         // audit entry is written all the same, naming no day, and the request
         // answers the failure. A repeat records them while the cancellation
-        // has not landed; one that lands at once has its day counted when its
-        // end is recorded.
+        // has not landed, in an audit entry of their own; one that lands at
+        // once has its day counted when its end is recorded.
         let announced: AnnouncedDeletion | null = null;
         try {
-            announced =
+            const recorded =
                 deletion &&
-                ((await this.subscriptionEnds?.announce(
+                (await this.subscriptionEnds?.announce(
                     confirming,
                     decision.effectiveAt,
                     deletion,
                     now,
-                )) ??
-                    null);
+                ));
+            announced = recorded?.days ?? null;
         } finally {
             await this.audit(actor, tenantId, {
-                canceledAt: now.toISOString(),
-                effectiveAt: decision.effectiveAt.toISOString(),
-                afterNoticeDeadline: decision.afterNoticeDeadline,
-                status: result.status,
-                deletesOn: announced?.deletesOn ?? null,
-                readOnlyDays: announced?.readOnlyDays ?? null,
+                action: 'CANCEL_SUBSCRIPTION',
+                changes: {
+                    canceledAt: now.toISOString(),
+                    effectiveAt: decision.effectiveAt.toISOString(),
+                    afterNoticeDeadline: decision.afterNoticeDeadline,
+                    status: result.status,
+                    deletesOn: announced?.deletesOn ?? null,
+                    readOnlyDays: announced?.readOnlyDays ?? null,
+                },
             });
         }
         return {
@@ -516,14 +550,14 @@ export class SubscriptionCancellationService {
     }
 
     /**
-     * Writes the cancellation's audit entry, best effort: it does not block
-     * the answer, and without `AdminAuditService` — a minimal deploy without
-     * AdminModule — there is nothing to write it to.
+     * Writes an audit entry of the tenant's subscription, best effort: it does
+     * not block the answer, and without `AdminAuditService` — a minimal deploy
+     * without AdminModule — there is nothing to write it to.
      */
     private async audit(
         actor: AdminActor,
         tenantId: string,
-        changes: CancellationAuditChanges,
+        { action, changes }: CancellationAuditEntry,
     ): Promise<void> {
         if (!this.auditService) return;
         try {
@@ -531,7 +565,7 @@ export class SubscriptionCancellationService {
                 actor,
                 entity: 'Subscription',
                 entityId: tenantId,
-                action: 'CANCEL_SUBSCRIPTION',
+                action,
                 changes,
             });
         } catch {

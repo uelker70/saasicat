@@ -20,6 +20,7 @@ import {
     SubscriptionEndService,
     TenantBillingController,
 } from '../dist/billing/index.js';
+import { PLATFORM_CORE_MANIFEST_CONTRIBUTION } from '../dist/admin/index.js';
 import { FakeSubscriptionEndRepository } from '../dist/testing/index.js';
 import { usageRecord } from './helpers/subscription-fixtures.js';
 import { cancellationsOver, tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
@@ -224,7 +225,7 @@ describe('what the account says confirming a cancellation already declared would
         });
 
     test('told no day: the day counted from the date it lands on, which a repeat sent back with it records', async () => {
-        const { cancellations, subscription, ends, claims } = declaredOnTime();
+        const { cancellations, subscription, ends, claims, audited } = declaredOnTime();
 
         const { cancellation } = await cancellations.projectionFor(
             't1',
@@ -245,6 +246,10 @@ describe('what the account says confirming a cancellation already declared would
         assert.deepEqual(
             ends.announcements.map(({ endsAt, deletesOn }) => [endsAt, deletesOn]),
             [[YEAR_ENDS, '2027-03-03']],
+        );
+        assert.deepEqual(
+            audited.map(({ action, changes }) => [action, changes.deletesOn]),
+            [['ANNOUNCE_DELETION_DAY', '2027-03-03']],
         );
         assert.deepEqual(claims, [], 'the cancellation is left as it was');
     });
@@ -411,7 +416,7 @@ describe('confirming a cancellation again', () => {
             announcedAt: CANCELLED_FOR_THE_TERM_END.canceledAt,
             announcedBy: ADMIN_TAG,
         });
-        const { controller, claims } = account({
+        const { controller, claims, audited } = account({
             subscription: subscriptionWith(CANCELLED_FOR_THE_TERM_END),
             ends,
         });
@@ -429,6 +434,7 @@ describe('confirming a cancellation again', () => {
         assert.deepEqual(claims, []);
         assert.equal(ends.announcements.length, 1);
         assert.equal(ends.announcements[0].announcedBy, ADMIN_TAG, 'kept as it was');
+        assert.deepEqual(audited, [], 'and nothing more is audited');
     };
 
     // @requirement SC-CANC-021 — The read-only period and the deletion date are stated before a tenant cancels
@@ -437,8 +443,8 @@ describe('confirming a cancellation again', () => {
         test('the day counted now', () => answersTheDayToldThoughThePageSent('2100-01-31'));
     });
 
-    test('where none was told and it has not landed, tells it now and records it', async () => {
-        const { controller, ends, claims } = account({
+    test('where none was told and it has not landed, tells it now, records it and audits the day as its own entry', async () => {
+        const { controller, ends, claims, audited } = account({
             subscription: subscriptionWith(CANCELLED_FOR_THE_TERM_END),
         });
 
@@ -457,10 +463,61 @@ describe('confirming a cancellation again', () => {
             })),
             [{ endsAt: TERM_ENDS, deletesOn: '2100-01-31', announcedBy: OTHER_ADMIN_TAG }],
         );
+        assert.deepEqual(
+            audited.map(({ actor, entity, entityId, action, changes }) => ({
+                by: [actor.userId, actor.email],
+                entity,
+                entityId,
+                action,
+                changes,
+            })),
+            [
+                {
+                    by: ['u-other', 'other@t1.example'],
+                    entity: 'Subscription',
+                    entityId: 't1',
+                    action: 'ANNOUNCE_DELETION_DAY',
+                    changes: {
+                        effectiveAt: TERM_ENDS.toISOString(),
+                        deletesOn: '2100-01-31',
+                        readOnlyDays: 30,
+                    },
+                },
+            ],
+        );
+        const declared = PLATFORM_CORE_MANIFEST_CONTRIBUTION.audit.actions.find(
+            ({ key }) => key === audited[0].action,
+        );
+        assert.ok(declared?.label, 'the audit page can name it');
+    });
+
+    test('where another repeat records the day first, answers that day and leaves the audit to it', async () => {
+        const ends = new FakeSubscriptionEndRepository();
+        const announce = ends.announce.bind(ends);
+        // The other request records between this one's read and its write.
+        ends.announce = async (announcement) => {
+            await announce({ ...announcement, announcedBy: ADMIN_TAG });
+            return announce(announcement);
+        };
+        const { controller, audited } = account({
+            subscription: subscriptionWith(CANCELLED_FOR_THE_TERM_END),
+            ends,
+        });
+
+        const again = await controller.cancelSubscription(OTHER_ADMIN, {
+            expectedDeletesOn: '2100-01-31',
+        });
+
+        assert.deepEqual(again.deletion, ANNOUNCED_IN_BERLIN);
+        assert.deepEqual(
+            ends.announcements.map(({ announcedBy }) => announcedBy),
+            [ADMIN_TAG],
+        );
+        assert.deepEqual(audited, []);
     });
 
     test('where none was told, refuses a page that showed another day before it writes anything', async () => {
-        const { controller, ends, contractsEnded } = account({
+        const { controller, ends, contractsEnded, audited } = account({
             subscription: subscriptionWith(CANCELLED_FOR_THE_TERM_END),
         });
 
@@ -473,11 +530,12 @@ describe('confirming a cancellation again', () => {
         assert.deepEqual(refusal.effectiveAt, TERM_ENDS);
         assert.deepEqual(ends.announcements, []);
         assert.deepEqual(contractsEnded, [], 'nor repairs the contract');
+        assert.deepEqual(audited, [], 'nor audits anything');
     });
 
-    test('once it has landed, tells nothing and records nothing', async () => {
+    test('once it has landed, tells nothing, records nothing and audits nothing', async () => {
         const landed = new Date('2020-01-31T23:00:00.000Z');
-        const { controller, ends } = account({
+        const { controller, ends, audited } = account({
             subscription: subscriptionWith({
                 canceledAt: new Date('2020-01-02T08:00:00.000Z'),
                 canceledEffectiveAt: landed,
@@ -492,12 +550,13 @@ describe('confirming a cancellation again', () => {
         assert.equal(again.alreadyCanceled, true);
         assert.equal(again.deletion, null);
         assert.deepEqual(ends.announcements, []);
+        assert.deepEqual(audited, []);
     });
 });
 
 // @requirement SC-CANC-032 — A cancellation stands where its deletion day was not recorded; a repeat records it
 describe('a confirmation whose days cannot be recorded', () => {
-    test('leaves the cancellation standing, audits it without a day, answers the failure, and a repeat records the days', async () => {
+    test('leaves the cancellation standing, audits it without a day and answers the failure; a repeat records the days and audits them, once it can', async () => {
         const ends = new FakeSubscriptionEndRepository();
         const announce = ends.announce.bind(ends);
         let failing = true;
@@ -520,6 +579,12 @@ describe('a confirmation whose days cannot be recorded', () => {
         );
         assert.deepEqual(ends.announcements, []);
 
+        await assert.rejects(
+            controller.cancelSubscription(ADMIN, { expectedDeletesOn: '2100-01-31' }),
+            /store unavailable/,
+        );
+        assert.equal(audited.length, 1, 'a repeat that cannot record the day audits none');
+
         failing = false;
         const again = await controller.cancelSubscription(ADMIN, {
             expectedDeletesOn: '2100-01-31',
@@ -527,6 +592,14 @@ describe('a confirmation whose days cannot be recorded', () => {
         assert.deepEqual(again.deletion, ANNOUNCED_IN_BERLIN);
         assert.equal(ends.announcements.length, 1);
         assert.equal(claims.length, 1, 'and is not declared twice');
+        assert.deepEqual(
+            audited.map(({ action, changes }) => [action, changes.deletesOn, changes.readOnlyDays]),
+            [
+                ['CANCEL_SUBSCRIPTION', null, null],
+                ['ANNOUNCE_DELETION_DAY', '2100-01-31', 30],
+            ],
+        );
+        assert.deepEqual(audited[1].actor, audited[0].actor, 'by whoever asked');
     });
 });
 

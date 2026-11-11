@@ -244,16 +244,17 @@ export class SubscriptionEndService implements OnModuleInit {
     /**
      * Records `deletion` as what the tenant was told when `confirmation` was
      * given, at `now`, for an end landing at `endsAt`, and answers what is on
-     * record: `deletion`, or the days announced before where there are some,
-     * which are left as they were. Null where the subscription has no id to
-     * record them under.
+     * record: `deletion`, recorded by this call, or the days announced before
+     * where there are some, which are left as they were and answered as on
+     * record already. Null where the subscription has no id to record them
+     * under.
      */
     async announce(
         confirmation: EndConfirmation,
         endsAt: Date,
         deletion: AnnouncedDeletion,
         now: Date,
-    ): Promise<AnnouncedDeletion | null> {
+    ): Promise<DeletionOnConfirming | null> {
         const { tenantId, subscriptionId, by } = confirmation;
         if (!subscriptionId) return null;
         const recorded = await this.ends.announce({
@@ -265,7 +266,7 @@ export class SubscriptionEndService implements OnModuleInit {
             announcedAt: now,
             announcedBy: by,
         });
-        if (recorded) return announcedDeletionOf(recorded);
+        if (recorded) return { days: announcedDeletionOf(recorded), onRecord: false };
         const kept = await this.announcedFor(subscriptionId);
         if (!kept) {
             throw new Error(
@@ -273,7 +274,7 @@ export class SubscriptionEndService implements OnModuleInit {
                     'as recorded already, and answers none for it.',
             );
         }
-        return kept;
+        return { days: kept, onRecord: true };
     }
 
     /**

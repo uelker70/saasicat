@@ -389,12 +389,13 @@ export class EndAtOnceService {
             return deletion?.days ?? null;
         }
         try {
-            return await this.subscriptionEnds.announce(
+            const recorded = await this.subscriptionEnds.announce(
                 { tenantId, subscriptionId, by },
                 at,
                 deletion.days,
                 at,
             );
+            return recorded?.days ?? null;
         } catch (error) {
             this.logger.error(
                 `Recording the deletion day after an end at once failed (tenant ${tenantId}); ` +
