@@ -13,11 +13,11 @@ import assert from 'node:assert/strict';
 
 import {
     PlanChangePreviewService,
-    TenantBillingController,
     computeNewPeriodCharge,
     computeProration,
     givenPlanCatalogSource,
 } from '../dist/billing/index.js';
+import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 
 const DAY_MS = 86_400_000;
 
@@ -137,25 +137,17 @@ async function changeThroughTheRoute(
     { contractFreeze = null, charges = null } = {},
 ) {
     const writes = writePort();
-    const controller = new TenantBillingController(
+    const controller = tenantBillingRoutes({
         entitlements,
-        previewService(subscription),
-        { findForTenant: async () => subscription },
-        { snapshot: async () => ({}) },
-        writes,
-        () => 't1',
-        () => 'u1',
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
+        planPreview: previewService(subscription),
+        subscriptionUsage: { findForTenant: async () => subscription },
+        usageSnapshot: { snapshot: async () => ({}) },
+        subscriptionWrite: writes,
+        tenantIdResolver: () => 't1',
+        userIdResolver: () => 'u1',
         contractFreeze,
-        null,
-        undefined,
         charges,
-    );
+    });
     await controller.changePlan({ user: { tenantId: 't1', sub: 'u1' }, headers: {} }, target);
     return writes;
 }

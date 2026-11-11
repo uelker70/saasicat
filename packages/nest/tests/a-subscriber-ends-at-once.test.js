@@ -2,7 +2,16 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN, resolveErrorMessage } from '@saasicat/core';
-import { EndAtOnceService, givenPlanCatalogSource } from '../dist/billing/index.js';
+import {
+    EndAtOnceService,
+    FeatureWithdrawalTenantController,
+    SubscriptionEndService,
+    givenPlanCatalogSource,
+} from '../dist/billing/index.js';
+import {
+    FakeSubscriptionEndRepository,
+    FakeTenantAccessHoldRepository,
+} from '../dist/testing/index.js';
 import { CATALOG, refusalOf } from './helpers/feature-withdrawal-fixtures.js';
 import { usageRecord } from './helpers/subscription-fixtures.js';
 import { noticeRecord } from './helpers/version-notices.js';
@@ -20,6 +29,8 @@ const later = (ms) => new Date(NOW.getTime() + ms);
 const NOW_DAYS = { until: '2026-06-15', from: '2026-06-15' };
 /** The days around midnight before 1 July in UTC. */
 const JULY_DAYS = { until: '2026-06-30', from: '2026-07-01' };
+/** The tenant's administrator confirming, as the route passes it on. */
+const CONFIRMED = { by: 'web:admin@t1.example:tenant-self-service' };
 
 function withdrawal(fields = {}) {
     return {
@@ -99,6 +110,7 @@ async function ending({
     writes: writeFields = {},
     bookingStore: bookingFields = {},
     settings = null,
+    ends = null,
 } = {}) {
     const subscription = usageRecord({
         id: 'sub-t1',
@@ -216,8 +228,21 @@ async function ending({
             recordDueCharges: async (tenantId, at) => calls.push(['charge', at.toISOString()]),
         },
         settings,
+        ends && endOfSubscriptionOver(ends, subscription, settings),
     );
     return { service, subscription, bookings, notices, calls };
+}
+
+/** Where `ends` keeps the end of `subscription` and the days its tenant is told: thirty read-only days. */
+function endOfSubscriptionOver(ends, subscription, settings) {
+    const service = new SubscriptionEndService(
+        { findForTenant: async () => subscription, listCancelled: async () => [] },
+        ends,
+        { readOnlyDays: 30 },
+        settings ?? {},
+    );
+    service.onModuleInit();
+    return service;
 }
 
 const kinds = (calls) => calls.map(([kind]) => kind);
@@ -363,7 +388,7 @@ describe('ending a subscription at once', () => {
     test('ends it now, records it first, ends the contract and credits the unused rest', async () => {
         const { service, subscription, notices, calls } = await ending();
 
-        const ended = await service.end('t1', 'fw-1', null, NOW);
+        const ended = await service.end('t1', 'fw-1', null, NOW, CONFIRMED);
 
         assert.deepEqual(ended, {
             withdrawalId: 'fw-1',
@@ -372,6 +397,7 @@ describe('ending a subscription at once', () => {
             endsDays: NOW_DAYS,
             creditNet: 39.34,
             currency: 'EUR',
+            deletion: null,
         });
         assert.equal(subscription.canceledEffectiveAt.toISOString(), NOW.toISOString());
         assert.deepEqual(calls[1], [
@@ -396,6 +422,7 @@ describe('ending a subscription at once', () => {
             featureKey: 'EXPORT',
             featureLabel: 'Data export',
             endedAt: NOW.toISOString(),
+            deletion: null,
         });
     });
 
@@ -404,7 +431,7 @@ describe('ending a subscription at once', () => {
         const { service, subscription, calls } = await ending({
             subscription: { canceledAt: new Date('2026-04-01'), canceledEffectiveAt: declared },
         });
-        await service.end('t1', 'fw-1', null, NOW);
+        await service.end('t1', 'fw-1', null, NOW, CONFIRMED);
         assert.deepEqual(calls[1], ['endNow', { at: NOW, expectedCanceledEffectiveAt: declared }]);
         assert.equal(subscription.canceledEffectiveAt.toISOString(), NOW.toISOString());
     });
@@ -417,7 +444,7 @@ describe('ending a subscription at once', () => {
             },
             writes: { endNow: undefined },
         });
-        const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW));
+        const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW, CONFIRMED));
         assert.deepEqual(
             [refusal.code, refusal.params],
             [
@@ -447,7 +474,7 @@ describe('ending a subscription at once', () => {
             },
             writes: { endNow: null },
         });
-        const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW));
+        const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW, CONFIRMED));
         assert.deepEqual(
             [refusal.code, refusal.params],
             [
@@ -469,7 +496,7 @@ describe('ending a subscription at once', () => {
         });
         for (const attempt of [
             service.preview('t1', 'fw-1', null, NOW),
-            service.end('t1', 'fw-1', null, NOW),
+            service.end('t1', 'fw-1', null, NOW, CONFIRMED),
         ]) {
             const refusal = await refusalOf(attempt);
             assert.deepEqual(
@@ -485,27 +512,37 @@ describe('ending a subscription at once', () => {
 
     test('is refused for a withdrawal it was not told of, or one not in effect now', async () => {
         assert.equal(
-            (await refusalOf((await ending()).service.end('t1', 'fw-other', null, NOW))).code,
+            (await refusalOf((await ending()).service.end('t1', 'fw-other', null, NOW, CONFIRMED)))
+                .code,
             'FEATURE_WITHDRAWAL_DOES_NOT_REACH',
         );
         assert.equal(
-            (await refusalOf((await ending({ notice: null })).service.end('t1', 'fw-1', null, NOW)))
-                .code,
+            (
+                await refusalOf(
+                    (await ending({ notice: null })).service.end(
+                        't1',
+                        'fw-1',
+                        null,
+                        NOW,
+                        CONFIRMED,
+                    ),
+                )
+            ).code,
             'FEATURE_WITHDRAWAL_DOES_NOT_REACH',
         );
         const ahead = await ending({ withdrawals: [withdrawal({ effectiveFrom: later(1) })] });
         assert.equal(
-            (await refusalOf(ahead.service.end('t1', 'fw-1', null, NOW))).code,
+            (await refusalOf(ahead.service.end('t1', 'fw-1', null, NOW, CONFIRMED))).code,
             'FEATURE_WITHDRAWAL_NOT_IN_EFFECT',
         );
         const lifted = await ending({ withdrawals: [withdrawal({ liftedFrom: NOW })] });
         assert.equal(
-            (await refusalOf(lifted.service.end('t1', 'fw-1', null, NOW))).code,
+            (await refusalOf(lifted.service.end('t1', 'fw-1', null, NOW, CONFIRMED))).code,
             'FEATURE_WITHDRAWAL_NOT_IN_EFFECT',
         );
         const effective = await ending({ withdrawals: [withdrawal({ effectiveFrom: NOW })] });
         assert.equal(
-            (await effective.service.end('t1', 'fw-1', null, NOW)).endsAt,
+            (await effective.service.end('t1', 'fw-1', null, NOW, CONFIRMED)).endsAt,
             NOW.toISOString(),
             'from the date on',
         );
@@ -514,19 +551,22 @@ describe('ending a subscription at once', () => {
     test('is refused once it has ended, and where the plan no longer grants the feature', async () => {
         const ended = await ending({ subscription: { canceledAt: NOW, canceledEffectiveAt: NOW } });
         assert.equal(
-            (await refusalOf(ended.service.end('t1', 'fw-1', null, NOW))).code,
+            (await refusalOf(ended.service.end('t1', 'fw-1', null, NOW, CONFIRMED))).code,
             'FEATURE_WITHDRAWAL_ALREADY_ENDED',
         );
         const without = await ending({ planGrants: [] });
         assert.equal(
-            (await refusalOf(without.service.end('t1', 'fw-1', null, NOW))).code,
+            (await refusalOf(without.service.end('t1', 'fw-1', null, NOW, CONFIRMED))).code,
             'FEATURE_WITHDRAWAL_DOES_NOT_REACH',
         );
     });
 
     test('is open to a subscription reached through its special terms alone', async () => {
         const { service } = await ending({ notice: told({ lines: [], specialTerms: true }) });
-        assert.equal((await service.end('t1', 'fw-1', null, NOW)).endsAt, NOW.toISOString());
+        assert.equal(
+            (await service.end('t1', 'fw-1', null, NOW, CONFIRMED)).endsAt,
+            NOW.toISOString(),
+        );
     });
 
     test('a second attempt after a failure ends at its own moment, not the failed one', async () => {
@@ -537,13 +577,13 @@ describe('ending a subscription at once', () => {
                 },
             },
         });
-        await assert.rejects(service.end('t1', 'fw-1', null, NOW), /database gone/);
+        await assert.rejects(service.end('t1', 'fw-1', null, NOW, CONFIRMED), /database gone/);
         assert.equal(subscription.canceledEffectiveAt, null, 'nothing ended');
         const retried = await ending({});
         // The record the first attempt left behind.
         retried.notices.rows.clear();
         for (const [key, row] of notices.rows) retried.notices.rows.set(key, row);
-        const result = await retried.service.end('t1', 'fw-1', null, later(60_000));
+        const result = await retried.service.end('t1', 'fw-1', null, later(60_000), CONFIRMED);
         assert.equal(result.endsAt, later(60_000).toISOString(), 'not backdated to the failure');
         assert.equal(
             retried.subscription.canceledEffectiveAt.toISOString(),
@@ -573,7 +613,7 @@ describe('ending a subscription at once', () => {
             },
         });
         assert.equal(
-            (await refusalOf(service.end('t1', 'fw-1', null, NOW))).code,
+            (await refusalOf(service.end('t1', 'fw-1', null, NOW, CONFIRMED))).code,
             'CANCELLATION_TERMS_CHANGED',
         );
     });
@@ -585,6 +625,7 @@ describe('ending a subscription at once', () => {
             endsDays: NOW_DAYS,
             creditNet: 39.34,
             currency: 'EUR',
+            deletion: null,
         });
         assert.deepEqual(kinds(calls), ['credit'], 'and changes nothing');
         const without = await ending({ planGrants: [] });
@@ -595,11 +636,314 @@ describe('ending a subscription at once', () => {
     });
 });
 
+describe('the day its data is deleted on, where a subscription ends at once', () => {
+    /** Thirty days from `NOW`, in UTC, the zone of an installation that names none. */
+    const COUNTED_FROM_NOW = {
+        readOnlyDays: 30,
+        readOnlyUntil: '2026-07-14',
+        deletesOn: '2026-07-15',
+    };
+    const endedAtOnceNotices = (notices) =>
+        [...notices.rows.values()].filter((row) => row.kind === 'ended-at-once');
+    /** The tenant's administrator, as the request carries them. */
+    const ADMIN = {
+        user: { tenantId: 't1', sub: 'u-admin', email: 'admin@t1.example' },
+        headers: {},
+    };
+    /** The route over `service`, writing its audit entries to `audited`. */
+    const routeOver = (service, audited) =>
+        new FeatureWithdrawalTenantController(
+            service,
+            null,
+            null,
+            (req) => req.user.email,
+            () => 's1',
+            { log: async (entry) => audited.push(entry) },
+        );
+    /** A store that cannot record an announcement, and the errors `service` logs. */
+    const failingToAnnounce = () => {
+        const ends = new FakeSubscriptionEndRepository();
+        ends.announce = async () => {
+            throw new Error('store unavailable');
+        };
+        return ends;
+    };
+    const loggedBy = (service) => {
+        const logged = [];
+        service.logger.error = (message) => logged.push(message);
+        return logged;
+    };
+    const withoutId = (ends) => ends.announcements.map(({ id: _id, ...kept }) => kept);
+
+    // @requirement SC-CANC-029 — A tenant that ends its subscription at once is told the deletion day first
+    test('is stated by the preview and the end, recorded by the end, and named in its notice', async () => {
+        const ends = new FakeSubscriptionEndRepository();
+        const { service, notices } = await ending({ ends });
+
+        const preview = await service.preview('t1', 'fw-1', null, NOW);
+        assert.deepEqual(preview.deletion, COUNTED_FROM_NOW);
+        assert.deepEqual(ends.announcements, [], 'a preview records nothing');
+
+        const ended = await service.end('t1', 'fw-1', null, NOW, {
+            ...CONFIRMED,
+            expectedDeletesOn: '2026-07-15',
+        });
+
+        assert.deepEqual(ended.deletion, COUNTED_FROM_NOW);
+        assert.deepEqual(withoutId(ends), [
+            {
+                tenantId: 't1',
+                subscriptionId: 'sub-t1',
+                endsAt: NOW,
+                readOnlyDays: 30,
+                deletesOn: '2026-07-15',
+                announcedAt: NOW,
+                announcedBy: CONFIRMED.by,
+            },
+        ]);
+        assert.deepEqual(
+            endedAtOnceNotices(notices).map((row) => row.content.deletion),
+            [COUNTED_FROM_NOW],
+        );
+    });
+
+    // @requirement SC-CANC-029 — A tenant that ends its subscription at once is told the deletion day first
+    test('is none for a booking that ends alone, and none is recorded', async () => {
+        const ends = new FakeSubscriptionEndRepository();
+        const { service, notices } = await ending({ ends });
+
+        assert.equal((await service.preview('t1', 'fw-1', 'sb-t1', NOW)).deletion, null);
+        assert.equal((await service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED)).deletion, null);
+
+        assert.deepEqual(ends.announcements, []);
+        assert.deepEqual(
+            endedAtOnceNotices(notices).map((row) => row.content.deletion),
+            [null],
+        );
+    });
+
+    // @requirement SC-CANC-029 — A tenant that ends its subscription at once is told the deletion day first
+    test('is the day the tenant was told when it cancelled for a later date: shown, kept and named', async () => {
+        const declared = new Date('2027-01-01T00:00:00.000Z');
+        const ends = new FakeSubscriptionEndRepository();
+        await ends.announce({
+            tenantId: 't1',
+            subscriptionId: 'sub-t1',
+            endsAt: declared,
+            readOnlyDays: 30,
+            deletesOn: '2027-01-31',
+            announcedAt: new Date('2026-04-01T00:00:00.000Z'),
+            announcedBy: 'web:owner@t1.example:s0',
+        });
+        const { service, notices } = await ending({
+            ends,
+            subscription: { canceledAt: new Date('2026-04-01'), canceledEffectiveAt: declared },
+        });
+        const told = { readOnlyDays: 30, readOnlyUntil: '2027-01-30', deletesOn: '2027-01-31' };
+
+        assert.deepEqual((await service.preview('t1', 'fw-1', null, NOW)).deletion, told);
+        const ended = await service.end('t1', 'fw-1', null, NOW, {
+            ...CONFIRMED,
+            expectedDeletesOn: '2027-01-31',
+        });
+
+        assert.deepEqual(ended.deletion, told);
+        assert.equal(ends.announcements.length, 1);
+        assert.equal(ends.announcements[0].announcedBy, 'web:owner@t1.example:s0', 'kept');
+        assert.deepEqual(
+            endedAtOnceNotices(notices).map((row) => row.content.deletion),
+            [told],
+        );
+    });
+
+    /** Ends at once after a page that showed `shownDay`, which no longer applies. */
+    const askedAgainWhereThePageShowed = async (shownDay) => {
+        const ends = new FakeSubscriptionEndRepository();
+        const { service, subscription, notices, calls } = await ending({ ends });
+
+        const refusal = await refusalOf(
+            service.end('t1', 'fw-1', null, NOW, { ...CONFIRMED, expectedDeletesOn: shownDay }),
+        );
+
+        assert.deepEqual(
+            [refusal.status, refusal.code, refusal.deletion],
+            [409, 'CANCELLATION_TERMS_CHANGED', COUNTED_FROM_NOW],
+        );
+        assert.deepEqual(calls, [], 'no end, no contract, no credit, no message');
+        assert.deepEqual(endedAtOnceNotices(notices), [], 'and no record of the attempt');
+        assert.equal(subscription.canceledEffectiveAt, null);
+        assert.deepEqual(ends.announcements, []);
+    };
+
+    // @requirement SC-CANC-031 — The deletion day a tenant confirmed is the one it was shown
+    describe('is asked again, before anything is written, where the page showed', () => {
+        test('a day earlier', () => askedAgainWhereThePageShowed('2026-07-14'));
+        test('a day later', () => askedAgainWhereThePageShowed('2026-07-16'));
+    });
+
+    // @requirement SC-CANC-031 — The deletion day a tenant confirmed is the one it was shown
+    test('is asked again where the page showed a day and none is recorded here', async () => {
+        const { service, calls } = await ending();
+
+        const refusal = await refusalOf(
+            service.end('t1', 'fw-1', null, NOW, { ...CONFIRMED, expectedDeletesOn: '2026-07-15' }),
+        );
+
+        assert.deepEqual([refusal.code, refusal.deletion], ['CANCELLATION_TERMS_CHANGED', null]);
+        assert.deepEqual(calls, []);
+    });
+
+    // @requirement SC-CANC-032 — A cancellation stands where its deletion day was not recorded; a repeat records it
+    test('that cannot be recorded leaves the end standing, still credits and tells, logs it once and answers that none is on record', async () => {
+        const { service, subscription, calls } = await ending({ ends: failingToAnnounce() });
+        const logged = loggedBy(service);
+
+        const ended = await service.end('t1', 'fw-1', null, NOW, CONFIRMED);
+
+        assert.equal(ended.deletion, null);
+        assert.equal(subscription.canceledEffectiveAt.toISOString(), NOW.toISOString());
+        assert.equal(logged.length, 1);
+        assert.match(
+            logged[0],
+            /deletion day after an end at once failed \(tenant t1\).*store unavailable/s,
+        );
+        assert.deepEqual(kinds(calls), [
+            'credit',
+            'cancelSubscription',
+            'endContract',
+            'invalidate',
+            'charge',
+            'tell',
+        ]);
+    });
+
+    // @requirement SC-CANC-029 — A tenant that ends its subscription at once is told the deletion day first
+    // @requirement SC-CANC-031 — The deletion day a tenant confirmed is the one it was shown
+    test('through the route, is checked against the day sent, recorded as told by the administrator, and audited', async () => {
+        const ends = new FakeSubscriptionEndRepository();
+        const { service } = await ending({ ends });
+        const audited = [];
+        const route = routeOver(service, audited);
+
+        const refusal = await refusalOf(
+            route.end(ADMIN, 'fw-1', { expectedDeletesOn: '2000-01-01' }),
+        );
+        assert.equal(refusal.code, 'CANCELLATION_TERMS_CHANGED');
+        assert.deepEqual(ends.announcements, []);
+
+        const ended = await route.end(ADMIN, 'fw-1', {});
+
+        assert.equal(ends.announcements[0]?.announcedBy, 'web:admin@t1.example:s1');
+        assert.deepEqual(
+            [audited[0]?.changes.deletesOn, audited[0]?.changes.readOnlyDays],
+            [ended.deletion.deletesOn, 30],
+        );
+    });
+
+    // @requirement SC-CANC-032 — A cancellation stands where its deletion day was not recorded; a repeat records it
+    test('through the route, where the day cannot be recorded, the end stands, answers, is audited without a day, credits and tells', async () => {
+        const { service, subscription, calls } = await ending({ ends: failingToAnnounce() });
+        const logged = loggedBy(service);
+        const audited = [];
+
+        const ended = await routeOver(service, audited).end(ADMIN, 'fw-1', {});
+
+        assert.equal(ended.deletion, null);
+        // The route ends it at the moment of the request, which the answer names.
+        assert.equal(subscription.canceledEffectiveAt.toISOString(), ended.endsAt);
+        assert.deepEqual(
+            audited.map(({ action, changes }) => [action, changes.deletesOn, changes.readOnlyDays]),
+            [['END_SUBSCRIPTION_AT_ONCE', null, null]],
+        );
+        assert.deepEqual(
+            kinds(calls).filter((kind) => kind === 'charge' || kind === 'tell'),
+            ['charge', 'tell'],
+        );
+        assert.equal(logged.length, 1);
+    });
+
+    /** Where midnight falls two hours before it does in UTC, in June. */
+    const BERLIN = { timeZone: 'Europe/Berlin' };
+    const MINUTES = 60_000;
+    const heldSince = async (holds) =>
+        (await holds.listOpen('t1'))
+            .filter((hold) => hold.kind === 'ended')
+            .map((hold) => [hold.reference, hold.since]);
+
+    /**
+     * Ends the subscription at once, in an installation in `settings`'s zone,
+     * where its day cannot be recorded, and hands back what its page showed,
+     * the answer, and the run that finds it afterwards: over the same store,
+     * with the reasons that hold its tenant, and the subscription listed as
+     * the shipped adapters list it — by its two cancellation dates.
+     */
+    const endedWithoutADay = async (settings = null) => {
+        const ends = failingToAnnounce();
+        const holds = new FakeTenantAccessHoldRepository();
+        const { service, subscription } = await ending({ ends, settings });
+        loggedBy(service);
+        const shown = (await service.preview('t1', 'fw-1', null, NOW)).deletion;
+        const ended = await service.end('t1', 'fw-1', null, NOW, CONFIRMED);
+        const run = new SubscriptionEndService(
+            {
+                findForTenant: async () => subscription,
+                listCancelled: async () => [
+                    {
+                        tenantId: 't1',
+                        subscriptionId: subscription.id,
+                        canceledAt: subscription.canceledAt,
+                        canceledEffectiveAt: subscription.canceledEffectiveAt,
+                    },
+                ],
+            },
+            ends,
+            { readOnlyDays: 30 },
+            settings ?? {},
+            null,
+            holds,
+        );
+        run.onModuleInit();
+        return { shown, ended, ends, holds, run };
+    };
+
+    // @requirement SC-CANC-032 — A cancellation stands where its deletion day was not recorded; a repeat records it
+    test('that could not be recorded is given by the run: counted from the day it ended, recorded once, and its tenant held from that moment', async () => {
+        const { shown, ended, ends, holds, run } = await endedWithoutADay();
+
+        assert.deepEqual(await run.recordEnded(later(15 * MINUTES)), { ended: 1 });
+
+        assert.equal(ended.deletion, null);
+        assert.deepEqual(ends.announcements, [], 'none announced');
+        assert.equal(shown.deletesOn, '2026-07-15');
+        assert.deepEqual(
+            ends.ends.map(({ endsAt, deletesOn }) => [endsAt, deletesOn]),
+            [[NOW, '2026-07-15']],
+        );
+        assert.deepEqual(await heldSince(holds), [['sub-t1', NOW]]);
+
+        assert.deepEqual(await run.recordEnded(later(30 * MINUTES)), { ended: 0 });
+        assert.equal(ends.ends.length, 1, 'recorded once');
+        assert.deepEqual(await heldSince(holds), [['sub-t1', NOW]], 'held once');
+    });
+
+    // @requirement SC-CANC-032 — A cancellation stands where its deletion day was not recorded; a repeat records it
+    test('that could not be recorded, given by a run after midnight in the zone, is a day later than its page showed: the gap keeps the data longer, never shorter', async () => {
+        const { shown, ends, holds, run } = await endedWithoutADay(BERLIN);
+
+        // 00:05 on 16 June in Berlin, while it is still 15 June in UTC.
+        await run.recordEnded(new Date('2026-06-15T22:05:00.000Z'));
+
+        assert.equal(shown.deletesOn, '2026-07-15');
+        assert.equal(ends.ends[0]?.deletesOn, '2026-07-16');
+        assert.deepEqual(await heldSince(holds), [['sub-t1', NOW]], 'held from when it ended');
+    });
+});
+
 // @requirement SC-BUN-062 — An add-on that grants a withdrawn feature can be ended at once on its own
 describe('ending a booking at once', () => {
     test('ends it alone, now, writes the contract again and credits its unused rest', async () => {
         const { service, bookings, subscription, calls } = await ending();
-        const ended = await service.end('t1', 'fw-1', 'sb-t1', NOW);
+        const ended = await service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED);
         assert.equal(ended.subscriptionBundleId, 'sb-t1');
         assert.equal(ended.creditNet, 6.67);
         assert.deepEqual(calls[1], [
@@ -626,7 +970,7 @@ describe('ending a booking at once', () => {
                 booking({ canceledAt: new Date('2026-06-10'), canceledEffectiveAt: declared }),
             ],
         });
-        await service.end('t1', 'fw-1', 'sb-t1', NOW);
+        await service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED);
         assert.deepEqual(calls[1], [
             'endBookingNow',
             'sb-t1',
@@ -637,12 +981,12 @@ describe('ending a booking at once', () => {
     test('is refused for a booking it did not reach, or whose version no longer grants it', async () => {
         const other = await ending({ bookings: [booking({ id: 'sb-other' })] });
         assert.equal(
-            (await refusalOf(other.service.end('t1', 'fw-1', 'sb-other', NOW))).code,
+            (await refusalOf(other.service.end('t1', 'fw-1', 'sb-other', NOW, CONFIRMED))).code,
             'FEATURE_WITHDRAWAL_DOES_NOT_REACH',
         );
         const switched = await ending({ bookings: [booking({ bundleVersionId: 'bv-lite' })] });
         assert.equal(
-            (await refusalOf(switched.service.end('t1', 'fw-1', 'sb-t1', NOW))).code,
+            (await refusalOf(switched.service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED))).code,
             'FEATURE_WITHDRAWAL_DOES_NOT_REACH',
         );
     });
@@ -652,7 +996,7 @@ describe('ending a booking at once', () => {
             bookings: [booking({ canceledAt: NOW, canceledEffectiveAt: NOW })],
         });
         assert.equal(
-            (await refusalOf(service.end('t1', 'fw-1', 'sb-t1', NOW))).code,
+            (await refusalOf(service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED))).code,
             'FEATURE_WITHDRAWAL_ALREADY_ENDED',
         );
     });
@@ -715,7 +1059,7 @@ describe('the days a tenant is shown of a withdrawal', () => {
             },
             writes: { endNow: undefined },
         });
-        const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW));
+        const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW, CONFIRMED));
         assert.deepEqual(refusal.params, { date: '2027-01-01', lastDay: '2026-12-31' });
         assert.deepEqual(refusal.dayParams, ['date', 'lastDay']);
     });
@@ -731,7 +1075,7 @@ describe('the days a tenant is shown of a withdrawal', () => {
             },
             writes: { endNow: undefined },
         });
-        const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW));
+        const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW, CONFIRMED));
         const english =
             'Your cancellation is recorded and cannot be brought forward here: it runs until 2026-12-01, and until then the reduction applies.';
         assert.deepEqual(refusal.params, { date: '2026-12-01', lastDay: '2026-12-01' });
@@ -749,7 +1093,7 @@ describe('the days a tenant is shown of a withdrawal', () => {
         assert.deepEqual(preview.endsDays, AROUND_MIDNIGHT);
 
         const done = await ending({ settings: BERLIN });
-        const ended = await done.service.end('t1', 'fw-1', null, MIDNIGHT_IN_BERLIN);
+        const ended = await done.service.end('t1', 'fw-1', null, MIDNIGHT_IN_BERLIN, CONFIRMED);
         assert.deepEqual(ended.endsDays, AROUND_MIDNIGHT);
     });
 });

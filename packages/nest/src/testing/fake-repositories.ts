@@ -7,7 +7,9 @@
 import type {
     NewTenantAccessHold,
     NewSubscriptionEnd,
+    NewSubscriptionEndAnnouncement,
     SubscriptionEnd,
+    SubscriptionEndAnnouncement,
     SubscriptionEndPort,
     TenantAccessHold,
     TenantAccessHoldKind,
@@ -1051,11 +1053,12 @@ export class FakeTenantAccessHoldRepository implements TenantAccessHoldPort {
 }
 
 /**
- * In-memory `SubscriptionEndPort` for tests: one end per subscription, as the
- * unique key holds it in the database. Starts empty.
+ * In-memory `SubscriptionEndPort` for tests: one end and one announcement per
+ * subscription, as the unique keys hold them in the database. Starts empty.
  */
 export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
     readonly ends: SubscriptionEnd[] = [];
+    readonly announcements: SubscriptionEndAnnouncement[] = [];
     private nextId = 1;
 
     async record(end: NewSubscriptionEnd): Promise<SubscriptionEnd | null> {
@@ -1071,6 +1074,32 @@ export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
         return this.ends
             .filter((end) => subscriptionIds.includes(end.subscriptionId))
             .map((end) => ({ ...end }));
+    }
+
+    async announce(
+        announcement: NewSubscriptionEndAnnouncement,
+    ): Promise<SubscriptionEndAnnouncement | null> {
+        if (
+            this.announcements.some(
+                (announced) => announced.subscriptionId === announcement.subscriptionId,
+            )
+        ) {
+            return null;
+        }
+        const announced: SubscriptionEndAnnouncement = {
+            ...announcement,
+            id: `announcement-${this.nextId++}`,
+        };
+        this.announcements.push(announced);
+        return { ...announced };
+    }
+
+    async listAnnouncedFor(
+        subscriptionIds: readonly string[],
+    ): Promise<SubscriptionEndAnnouncement[]> {
+        return this.announcements
+            .filter((announced) => subscriptionIds.includes(announced.subscriptionId))
+            .map((announced) => ({ ...announced }));
     }
 }
 

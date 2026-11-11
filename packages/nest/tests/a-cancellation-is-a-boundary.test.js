@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 import {
     PendingPlanMaterializationService,
     PlanChangePreviewService,
-    TenantBillingController,
     givenPlanCatalogSource,
 } from '../dist/billing/index.js';
+import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 
 // A cancellation is a boundary, and two writes used to cross it.
 //
@@ -92,22 +92,22 @@ function writePort({ canceledAtInStore } = {}) {
 }
 
 function buildController(subscription, port, preview) {
-    return new TenantBillingController(
-        {
+    return tenantBillingRoutes({
+        entitlements: {
             computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
-        {
+        planPreview: {
             async preview() {
                 return preview;
             },
         },
-        { findForTenant: async () => subscription },
-        { snapshot: async () => ({}) },
-        port,
-        () => 't1',
-        () => 'u1',
-    );
+        subscriptionUsage: { findForTenant: async () => subscription },
+        usageSnapshot: { snapshot: async () => ({}) },
+        subscriptionWrite: port,
+        tenantIdResolver: () => 't1',
+        userIdResolver: () => 'u1',
+    });
 }
 
 const IMMEDIATE_UPGRADE = {
@@ -401,24 +401,24 @@ describe('a boundary that passes while the request is being decided', () => {
                 return IMMEDIATE_UPGRADE;
             },
         };
-        const controller = new TenantBillingController(
-            {
+        const controller = tenantBillingRoutes({
+            entitlements: {
                 computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
                 invalidateTenant() {},
             },
-            slowPreview,
-            {
+            planPreview: slowPreview,
+            subscriptionUsage: {
                 findForTenant: async () => ({
                     ...SUBSCRIPTION,
                     canceledAt: new Date(Date.now() - 30 * DAY),
                     canceledEffectiveAt: landingShortly,
                 }),
             },
-            { snapshot: async () => ({}) },
-            port,
-            () => 't1',
-            () => 'u1',
-        );
+            usageSnapshot: { snapshot: async () => ({}) },
+            subscriptionWrite: port,
+            tenantIdResolver: () => 't1',
+            userIdResolver: () => 'u1',
+        });
 
         await assert.rejects(
             changeTo(controller),

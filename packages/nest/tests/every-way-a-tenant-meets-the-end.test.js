@@ -1,11 +1,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-    PendingPlanMaterializationService,
-    TenantBillingController,
-    decideCancellationFor,
-} from '../dist/billing/index.js';
+import { PendingPlanMaterializationService, decideCancellationFor } from '../dist/billing/index.js';
+import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 import {
     FLAT_ENTITLEMENTS,
     REQUEST,
@@ -148,9 +145,9 @@ function routes(subscription) {
     const port = recordingWritePort();
     return {
         port,
-        api: new TenantBillingController(
-            FLAT_ENTITLEMENTS,
-            {
+        api: tenantBillingRoutes({
+            entitlements: FLAT_ENTITLEMENTS,
+            planPreview: {
                 async preview() {
                     return { isImmediate: false, effectiveAt: null, blockers: [] };
                 },
@@ -158,12 +155,12 @@ function routes(subscription) {
                     return [];
                 },
             },
-            { findForTenant: async () => subscription },
-            { snapshot: async () => ({}) },
-            port,
-            () => 't1',
-            () => 'u1',
-        ),
+            subscriptionUsage: { findForTenant: async () => subscription },
+            usageSnapshot: { snapshot: async () => ({}) },
+            subscriptionWrite: port,
+            tenantIdResolver: () => 't1',
+            userIdResolver: () => 'u1',
+        }),
     };
 }
 
@@ -223,38 +220,32 @@ describe('what else ends when the subscription does', () => {
         // resolution grants nothing — the answer that bills says yes.
         const ended = [];
         const port = recordingWritePort();
-        const api = new TenantBillingController(
-            FLAT_ENTITLEMENTS,
-            {
+        const api = tenantBillingRoutes({
+            entitlements: FLAT_ENTITLEMENTS,
+            planPreview: {
                 async preview() {
                     return { isImmediate: false, effectiveAt: null, blockers: [] };
                 },
             },
-            {
+            subscriptionUsage: {
                 findForTenant: async () =>
                     usageRecord({
                         currentPeriodEnd: new Date(Date.now() + 20 * DAY),
                         minimumTermUntil: new Date(Date.now() + 20 * DAY),
                     }),
             },
-            { snapshot: async () => ({}) },
-            port,
-            () => 't1',
-            () => 'u1',
-            null, // blockedPlans
-            null, // promoCodes
-            null, // auditService
-            null, // userEmailResolver
-            null, // auditContextResolver
-            null, // subscriptionBundles
-            {
+            usageSnapshot: { snapshot: async () => ({}) },
+            subscriptionWrite: port,
+            tenantIdResolver: () => 't1',
+            userIdResolver: () => 'u1',
+            contractFreeze: {
                 async assertPartyFor() {},
                 async freezeOnPlanChange() {},
                 async endOnCancellation(tenantId, effectiveAt) {
                     ended.push({ tenantId, effectiveAt });
                 },
             },
-        );
+        });
 
         const result = await api.cancelSubscription(REQUEST, {});
 
@@ -272,14 +263,14 @@ describe('what else ends when the subscription does', () => {
         // handled.
         const ended = [];
         const alreadyCanceledAt = new Date(Date.now() + 20 * DAY);
-        const api = new TenantBillingController(
-            FLAT_ENTITLEMENTS,
-            {
+        const api = tenantBillingRoutes({
+            entitlements: FLAT_ENTITLEMENTS,
+            planPreview: {
                 async preview() {
                     return { isImmediate: false, effectiveAt: null, blockers: [] };
                 },
             },
-            {
+            subscriptionUsage: {
                 findForTenant: async () =>
                     usageRecord({
                         currentPeriodEnd: alreadyCanceledAt,
@@ -287,24 +278,18 @@ describe('what else ends when the subscription does', () => {
                         canceledEffectiveAt: alreadyCanceledAt,
                     }),
             },
-            { snapshot: async () => ({}) },
-            recordingWritePort(),
-            () => 't1',
-            () => 'u1',
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            {
+            usageSnapshot: { snapshot: async () => ({}) },
+            subscriptionWrite: recordingWritePort(),
+            tenantIdResolver: () => 't1',
+            userIdResolver: () => 'u1',
+            contractFreeze: {
                 async assertPartyFor() {},
                 async freezeOnPlanChange() {},
                 async endOnCancellation(tenantId, effectiveAt) {
                     ended.push(effectiveAt);
                 },
             },
-        );
+        });
 
         const result = await api.cancelSubscription(REQUEST, {});
 
@@ -315,22 +300,22 @@ describe('what else ends when the subscription does', () => {
     test('and a consumer without contracts is unaffected', async () => {
         // The premise: the port is optional, and its absence is not an error.
         const port = recordingWritePort();
-        const api = new TenantBillingController(
-            FLAT_ENTITLEMENTS,
-            {
+        const api = tenantBillingRoutes({
+            entitlements: FLAT_ENTITLEMENTS,
+            planPreview: {
                 async preview() {
                     return { isImmediate: false, effectiveAt: null, blockers: [] };
                 },
             },
-            {
+            subscriptionUsage: {
                 findForTenant: async () =>
                     usageRecord({ currentPeriodEnd: new Date(Date.now() + 20 * DAY) }),
             },
-            { snapshot: async () => ({}) },
-            port,
-            () => 't1',
-            () => 'u1',
-        );
+            usageSnapshot: { snapshot: async () => ({}) },
+            subscriptionWrite: port,
+            tenantIdResolver: () => 't1',
+            userIdResolver: () => 'u1',
+        });
 
         const result = await api.cancelSubscription(REQUEST, {});
 

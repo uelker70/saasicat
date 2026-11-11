@@ -6,7 +6,10 @@
 // would grant it; a booking it reached may end alone, for as long as its
 // version would. Whatever was declared before — a cancellation for the end of
 // the term included — the end is the moment it is declared, and the unused
-// rest of what was charged is credited to the account. Everything here is
+// rest of what was charged is credited to the account. Where the subscription
+// ends, its tenant is told the day its data is deleted on before it confirms,
+// and that day is recorded (`SC-CANC-021`) — where recording it fails, the end
+// stands and is given its day when the run records it. Everything here is
 // decided by the server from what the subscription was told, never by what the
 // request claims.
 
@@ -25,7 +28,9 @@ import {
     installationZoneOf,
     isFeatureWithdrawnAt,
     withWithdrawalDays,
+    type AnnouncedDeletion,
     type BillingCycle,
+    type CalendarDay,
     type BundleRepository,
     type EndAtOncePreview,
     type EndedAtOnce,
@@ -55,6 +60,7 @@ import { freezeContractAfter } from './freeze-contract-after.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN, PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { rhythmTheChangeLandsIn } from './scheduled-change.js';
+import { deletionDayDiffersFromShown, SubscriptionEndService } from './subscription-end.service.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import {
     FEATURE_WITHDRAWAL_REPOSITORY_TOKEN,
@@ -62,6 +68,20 @@ import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
 } from './tenant-billing.tokens.js';
+
+/** Who confirms an end at once, and what their page showed. */
+export interface EndAtOnceConfirmation {
+    /** Who confirmed, as the audit log tags an actor. */
+    readonly by: string;
+    /** The deletion day the page showed, where it showed one; checked, not trusted. */
+    readonly expectedDeletesOn?: CalendarDay | null;
+}
+
+/** What ending the subscription at once tells its tenant, and whether it was told that already. */
+interface Deletion {
+    readonly days: AnnouncedDeletion;
+    readonly onRecord: boolean;
+}
 
 /** One withdrawal the subscription was told of, with the withdrawal as it stands. */
 interface Told {
@@ -117,6 +137,11 @@ export class EndAtOnceService {
         @Optional()
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
         private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
+        // Optional: where no end of a subscription is recorded, no deletion
+        // day is told.
+        @Optional()
+        @Inject(SubscriptionEndService)
+        private readonly subscriptionEnds: SubscriptionEndService | null = null,
     ) {}
 
     /** The installation's zone, which every day handed out here is read in. */
@@ -140,7 +165,11 @@ export class EndAtOnceService {
             .map((told) => withWithdrawalDays(viewOf(told, situation, now), this.zone()));
     }
 
-    /** What ending the subscription — or the booking named — at once now would credit. */
+    /**
+     * What ending the subscription — or the booking named — at once now would
+     * credit, and where the subscription ends, the day its tenant's data is
+     * deleted on.
+     */
     async preview(
         tenantId: string,
         withdrawalId: string,
@@ -150,22 +179,32 @@ export class EndAtOnceService {
         const situation = await this.situationOf(tenantId);
         const { booking } = this.assertMayEnd(situation, withdrawalId, subscriptionBundleId, now);
         this.declaredEndToBringForward(situation!.subscription, booking);
+        const deletion = await this.deletionOf(situation!.subscription, booking, now);
         const credit = await this.creditOf(tenantId, subscriptionBundleId, now);
-        return { endsAt: now.toISOString(), endsDays: daysAround(now, this.zone()), ...credit };
+        return {
+            endsAt: now.toISOString(),
+            endsDays: daysAround(now, this.zone()),
+            ...credit,
+            deletion: deletion?.days ?? null,
+        };
     }
 
     /**
      * Ends the subscription — or the booking named — at once, at `now`: the
      * end is recorded as ending at once under the withdrawal before it is
      * written, so the account can credit the unused rest whatever fails after;
-     * then the contract is ended, the account brought up to date, and the
-     * subscriber told.
+     * then the contract is ended, the deletion day its tenant was shown
+     * recorded where the subscription ended, the account brought up to date,
+     * and the subscriber told. Nothing after the end makes the request fail:
+     * the end has happened and cannot be repeated, so a step that fails there
+     * is logged instead.
      */
     async end(
         tenantId: string,
         withdrawalId: string,
         subscriptionBundleId: string | null,
         now: Date,
+        confirmation: EndAtOnceConfirmation,
     ): Promise<EndedAtOnce> {
         const situation = await this.situationOf(tenantId);
         const { told, booking } = this.assertMayEnd(
@@ -177,8 +216,18 @@ export class EndAtOnceService {
         const { subscription } = situation!;
         // Refused before anything is written.
         const declared = this.declaredEndToBringForward(subscription, booking);
+        const deletion = await this.deletionOf(subscription, booking, now);
+        if (deletionDayDiffersFromShown(confirmation.expectedDeletesOn, deletion?.days ?? null)) {
+            throw changedMeanwhile({ deletion: deletion?.days ?? null });
+        }
         const credit = await this.creditOf(tenantId, subscriptionBundleId, now);
-        const { content: notice, subject } = await this.recordEnd(told, subscription, booking, now);
+        const { content: notice, subject } = await this.recordEnd(
+            told,
+            subscription,
+            booking,
+            deletion?.days ?? null,
+            now,
+        );
         const at = now;
         if (booking) {
             await this.endBooking(booking, declared, at);
@@ -199,6 +248,13 @@ export class EndAtOnceService {
             await this.endContract(tenantId, at);
         }
         this.entitlements.invalidateTenant(tenantId);
+        const onRecord = await this.recordDeletion(
+            deletion,
+            tenantId,
+            subscription.id,
+            at,
+            confirmation,
+        );
         await this.recordCharges(tenantId, at);
         await this.tell(notice, subject);
         return {
@@ -207,6 +263,7 @@ export class EndAtOnceService {
             endsAt: at.toISOString(),
             endsDays: daysAround(at, this.zone()),
             ...credit,
+            deletion: onRecord,
         };
     }
 
@@ -299,6 +356,57 @@ export class EndAtOnceService {
     // ── the end ──────────────────────────────────────────────────────────
 
     /**
+     * What ending the subscription at once at `now` tells its tenant of its
+     * deletion: the days it was told when it cancelled for a later date, which
+     * never move, or else the ones counted from `now`. Null for a booking,
+     * which deletes nothing, and where no end of a subscription is recorded.
+     */
+    private async deletionOf(
+        subscription: Situation['subscription'],
+        booking: SubscriptionBundleRecord | null,
+        now: Date,
+    ): Promise<Deletion | null> {
+        if (booking || !this.subscriptionEnds) return null;
+        const announced = await this.subscriptionEnds.announcedFor(subscription.id);
+        if (announced) return { days: announced, onRecord: true };
+        const days = this.subscriptionEnds.deletionFor(subscription.id, now, now);
+        return days && { days, onRecord: false };
+    }
+
+    /**
+     * Records the days the tenant was shown where they are not on record yet,
+     * by the request that ended the subscription, and answers what is on
+     * record. Logged, not thrown: the end stands and an end at once has no
+     * repeat, so a failure here answers null — nothing is on record — and the
+     * run gives the end its day when it records it.
+     */
+    private async recordDeletion(
+        deletion: Deletion | null,
+        tenantId: string,
+        subscriptionId: string,
+        at: Date,
+        { by }: EndAtOnceConfirmation,
+    ): Promise<AnnouncedDeletion | null> {
+        if (!deletion || deletion.onRecord || !this.subscriptionEnds) {
+            return deletion?.days ?? null;
+        }
+        try {
+            return await this.subscriptionEnds.announce(
+                { tenantId, subscriptionId, by },
+                at,
+                deletion.days,
+                at,
+            );
+        } catch (error) {
+            this.logger.error(
+                `Recording the deletion day after an end at once failed (tenant ${tenantId}); ` +
+                    `the end stands and is given its day when the run records it: ${String(error)}`,
+            );
+            return null;
+        }
+    }
+
+    /**
      * The end a cancellation declared for a later date names, which ending at
      * once brings forward — null where none is declared — or the refusal where
      * it cannot be brought forward here: the store has no `endNow`, or only
@@ -336,12 +444,14 @@ export class EndAtOnceService {
      * credits from this record, so it must exist wherever the end does. An
      * attempt that fails below leaves its record behind; nothing sends,
      * counts or credits a record whose end did not happen, and a later
-     * attempt records its own moment.
+     * attempt records its own moment. It names the days of `deletion`, so the
+     * subscriber's message can say them.
      */
     private async recordEnd(
         { notice, withdrawal }: Told,
         subscription: Situation['subscription'],
         booking: SubscriptionBundleRecord | null,
+        deletion: AnnouncedDeletion | null,
         now: Date,
     ): Promise<{ content: EndedAtOnceNotice; subject: string }> {
         const content: EndedAtOnceNotice = {
@@ -353,6 +463,7 @@ export class EndAtOnceService {
             featureKey: withdrawal.featureKey,
             featureLabel: notice.featureLabel,
             endedAt: now.toISOString(),
+            deletion,
         };
         const subject = endedAtOnceSubjectOf(booking?.id ?? subscription.id, now);
         await this.notices.record(
@@ -569,11 +680,17 @@ function alreadyEnded(): ConflictException {
     });
 }
 
-/** The cancellation moved between the read and the write; nothing was ended. Ask again. */
-function changedMeanwhile(): ConflictException {
+/**
+ * The cancellation moved between the read and the write, or the deletion day
+ * the page showed is not the one ending at once would tell; nothing was ended.
+ * Ask again — with `deletion`, the days that apply now, where they are what
+ * moved.
+ */
+function changedMeanwhile(now: { deletion?: AnnouncedDeletion | null } = {}): ConflictException {
     return new ConflictException({
         code: BILLING_ERROR_CODES.CANCELLATION_TERMS_CHANGED,
         message: 'The cancellation changed meanwhile. Look at it again before ending at once.',
         params: {},
+        ...now,
     });
 }

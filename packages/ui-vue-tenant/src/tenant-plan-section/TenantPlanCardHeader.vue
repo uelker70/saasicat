@@ -62,6 +62,7 @@
             <strong>{{ i18n.canceledHeading }}</strong>
             {{ i18n.canceledUntil }} {{ writeDay(formatDate, landsDays?.until) }}.
             {{ i18n.canceledUnchanged }}
+            <template v-if="announced">{{ announced }}</template>
         </p>
         <div class="sp-plan-section__actions">
             <!--
@@ -99,6 +100,7 @@ import type { BadgeTone } from '../ui/badge-tone.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantCardSection from '../ui/TenantCardSection.vue';
 import { writeDay } from '../day-as-instant.js';
+import { deletionSentence } from '../announced-deletion.js';
 import { cancellationLandsAt } from '../subscription-ended.js';
 import { useSubscriptionHasEnded } from '../use-subscription-ended.js';
 import '../ui/tenant-ui.css';
@@ -128,6 +130,11 @@ const emit = defineEmits<{
 
 /** When the cancellation lands, or null while none was declared. */
 const landsAt = computed(() => cancellationLandsAt(props.usage));
+
+/** The deletion day the tenant was told when it confirmed, repeated as it was told. */
+const announced = computed(() =>
+    deletionSentence(i18n.value.deletionAnnounced, props.usage.announcedDeletion, props.formatDate),
+);
 
 /** The days of that moment, read off the same field it is. */
 const landsDays = computed(() => props.usage.canceledEffectiveDays ?? props.usage.canceledDays);

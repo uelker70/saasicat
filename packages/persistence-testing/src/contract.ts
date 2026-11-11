@@ -19,6 +19,7 @@ import type {
     NewMaintenanceWindow,
     NewTenantAccessHold,
     NewSubscriptionEnd,
+    NewSubscriptionEndAnnouncement,
     CreateSubscriberData,
     SubscriberSearch,
     SubscriberJoinState,
@@ -13764,8 +13765,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // -------------------------------------------------------------
-        // Subscription ends — one per subscription, and the subscriptions
-        // a cancellation was declared for, read across tenants
+        // Subscription ends — one per subscription, one announced day per
+        // subscription beside it, and the subscriptions a cancellation was
+        // declared for, read across tenants
         // -------------------------------------------------------------
 
         // @requirement SC-CANC-027
@@ -13812,6 +13814,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     missing(t, 'subscriptionEnds');
                     return;
                 }
+                // A store that opens its connections on demand runs the first
+                // racer to its end while the others wait for theirs, and a
+                // read-then-insert would pass. Reading at once first opens one
+                // connection per racer, so the three below do race.
+                await Promise.all([1, 2, 3].map(() => port.listFor(['sub-ended'])));
                 const ends = await Promise.all([
                     port.record(endOf()),
                     port.record(endOf({ deletesOn: '2027-02-28' })),
@@ -13841,6 +13848,158 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         (end) => `${end.tenantId}/${end.subscriptionId}`,
                     ),
                     ['tenant-ended/sub-ended', 'tenant-other/sub-other'],
+                );
+            });
+        });
+
+        describe('the day announced when a cancellation is confirmed', () => {
+            const ENDS_AT = new Date('2027-03-31T22:00:00.123Z');
+            const ANNOUNCED_AT = new Date('2026-11-10T09:15:00.456Z');
+            const TENANT_ADMIN = 'user:admin-1';
+            const announcementOf = (
+                overrides: Partial<NewSubscriptionEndAnnouncement> = {},
+            ): NewSubscriptionEndAnnouncement => ({
+                tenantId: 'tenant-ending',
+                subscriptionId: 'sub-ending',
+                endsAt: ENDS_AT,
+                readOnlyDays: 30,
+                deletesOn: '2027-05-01',
+                announcedAt: ANNOUNCED_AT,
+                announcedBy: TENANT_ADMIN,
+                ...overrides,
+            });
+            const endOf = (overrides: Partial<NewSubscriptionEnd> = {}): NewSubscriptionEnd => ({
+                tenantId: 'tenant-ending',
+                subscriptionId: 'sub-ending',
+                endsAt: ENDS_AT,
+                deletesOn: '2027-05-01',
+                recordedAt: new Date('2027-03-31T22:05:00.000Z'),
+                recordedBy: 'job:platform:subscription-ends',
+                ...overrides,
+            });
+
+            test('comes back as written, its deletion day a day, and only for the subscriptions asked', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                assert.deepEqual(await port.listAnnouncedFor(['sub-ending']), []);
+                const announced = await port.announce(announcementOf());
+                assert.ok(announced?.id, 'the adapter assigns the id');
+                const asWritten = {
+                    id: announced.id,
+                    tenantId: 'tenant-ending',
+                    subscriptionId: 'sub-ending',
+                    endsAt: ENDS_AT,
+                    readOnlyDays: 30,
+                    deletesOn: '2027-05-01',
+                    announcedAt: ANNOUNCED_AT,
+                    announcedBy: TENANT_ADMIN,
+                };
+                assert.deepEqual(announced, asWritten, 'the answer is the row as stored');
+                assert.ok(
+                    await port.announce(
+                        announcementOf({ tenantId: 'tenant-other', subscriptionId: 'sub-other' }),
+                    ),
+                );
+                assert.deepEqual(
+                    await port.listAnnouncedFor(['sub-ending', 'no-such-subscription']),
+                    [asWritten],
+                    'a subscription not asked about is left out',
+                );
+                assert.deepEqual(await port.listAnnouncedFor([]), []);
+            });
+
+            test('is announced once, however many announce it at once, and the one kept is left as it was', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                // One connection per racer first, as for the end's race above.
+                await Promise.all([1, 2, 3].map(() => port.listAnnouncedFor(['sub-ending'])));
+                const answers = await Promise.all([
+                    port.announce(announcementOf()),
+                    port.announce(announcementOf({ readOnlyDays: 60, deletesOn: '2027-05-31' })),
+                    port.announce(announcementOf({ readOnlyDays: 90, deletesOn: '2027-06-30' })),
+                ]);
+                const landed = answers.filter((answer) => answer !== null);
+                assert.equal(landed.length, 1, 'one announcement lands');
+                assert.deepEqual(await port.listAnnouncedFor(['sub-ending']), landed);
+
+                const later = announcementOf({
+                    endsAt: new Date('2027-01-31T23:00:00.000Z'),
+                    readOnlyDays: 1,
+                    deletesOn: '2027-02-02',
+                    announcedAt: new Date('2027-01-15T12:00:00.000Z'),
+                    announcedBy: 'user:admin-2',
+                });
+                assert.equal(
+                    await port.announce(later),
+                    null,
+                    'a second announcement answers null',
+                );
+                assert.deepEqual(
+                    await port.listAnnouncedFor(['sub-ending']),
+                    landed,
+                    'a second announcement changes no field of the first',
+                );
+            });
+
+            test("leaves another tenant's subscription as it was", async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const other = await port.announce(
+                    announcementOf({
+                        tenantId: 'tenant-other',
+                        subscriptionId: 'sub-other',
+                        readOnlyDays: 14,
+                        deletesOn: '2027-04-15',
+                    }),
+                );
+                assert.ok(other);
+                assert.ok(await port.announce(announcementOf()));
+                assert.equal(await port.announce(announcementOf({ readOnlyDays: 7 })), null);
+                assert.deepEqual(await port.listAnnouncedFor(['sub-other']), [other]);
+            });
+
+            test('is not an end, and an end neither needs it nor takes it away', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const announced = await port.announce(announcementOf());
+                assert.ok(announced);
+                assert.deepEqual(
+                    await port.listFor(['sub-ending']),
+                    [],
+                    'an announced subscription has not ended',
+                );
+
+                assert.ok(
+                    await port.record(endOf()),
+                    'the end is recorded beside the announcement',
+                );
+                assert.deepEqual(
+                    await port.listAnnouncedFor(['sub-ending']),
+                    [announced],
+                    'recording the end keeps the announcement',
+                );
+
+                const unannounced = endOf({
+                    tenantId: 'tenant-unannounced',
+                    subscriptionId: 'sub-unannounced',
+                });
+                assert.ok(await port.record(unannounced), 'an end needs no announcement');
+                assert.deepEqual(
+                    await port.listAnnouncedFor(['sub-unannounced']),
+                    [],
+                    'recording an end announces nothing',
                 );
             });
         });

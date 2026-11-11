@@ -246,6 +246,172 @@ describe('the run that records the subscriptions that ended', () => {
     });
 });
 
+describe('the end of a subscription its tenant was told a day for', () => {
+    /** What the tenant of `tenantId` was told when it confirmed a cancellation landing at `endsAt`. */
+    const told = (ends, tenantId, endsAt, deletesOn) =>
+        ends.announce({
+            tenantId,
+            subscriptionId: `sub-${tenantId}`,
+            endsAt,
+            readOnlyDays: 30,
+            deletesOn,
+            announcedAt: new Date('2026-10-01T09:00:00.000Z'),
+            announcedBy: 'web:admin@example.com:s1',
+        });
+
+    /** Records an end its tenant was told a day for, where the period is now `readOnlyDays`. */
+    const recordedWithTheDayToldUnder = async (readOnlyDays) => {
+        const ends = new FakeSubscriptionEndRepository();
+        await told(ends, 't-1', NEW_YEAR, '2027-01-31');
+        const { service } = runOver([cancelled('t-1', NEW_YEAR)], {
+            period: { readOnlyDays },
+            ends,
+        });
+
+        assert.deepEqual(await service.recordEnded(FIRST_RUN), { ended: 1 });
+
+        assert.equal(ends.ends[0]?.deletesOn, '2027-01-31');
+    };
+
+    // @requirement SC-CANC-021 — The read-only period and the deletion date are stated before a tenant cancels
+    describe('is recorded with that day though the period since was', () => {
+        test('shortened', () => recordedWithTheDayToldUnder(10));
+        test('lengthened', () => recordedWithTheDayToldUnder(90));
+    });
+
+    // @requirement SC-CANC-021 — The read-only period and the deletion date are stated before a tenant cancels
+    test('beside one told no day, which is counted with the period in force', async () => {
+        const ends = new FakeSubscriptionEndRepository();
+        await told(ends, 't-1', NEW_YEAR, '2027-01-31');
+        const { service } = runOver([cancelled('t-1', NEW_YEAR), cancelled('t-2', NEW_YEAR)], {
+            period: { readOnlyDays: 90 },
+            ends,
+        });
+
+        await service.recordEnded(FIRST_RUN);
+
+        assert.deepEqual(
+            ends.ends.map(({ subscriptionId, deletesOn }) => [subscriptionId, deletesOn]),
+            [
+                ['sub-t-1', '2027-01-31'],
+                ['sub-t-2', '2027-04-01'],
+            ],
+        );
+    });
+
+    // @requirement SC-CANC-030 — A subscription that ends earlier than announced keeps the day its tenant was told
+    test('ended earlier than it was told, at once, is recorded with the day it was told', async () => {
+        // Cancelled for the end of the year and told 31 January; ended at once
+        // on 15 November, which counted would give 15 December.
+        const ends = new FakeSubscriptionEndRepository();
+        await told(ends, 't-1', NEW_YEAR, '2027-01-31');
+        const endedAtOnce = new Date('2026-11-15T10:00:00.000Z');
+        const { service } = runOver([cancelled('t-1', endedAtOnce)], { ends });
+
+        await service.recordEnded(new Date('2026-11-15T10:15:00.000Z'));
+
+        assert.deepEqual(
+            [ends.ends[0]?.endsAt, ends.ends[0]?.deletesOn],
+            [endedAtOnce, '2027-01-31'],
+        );
+    });
+
+    // @requirement SC-CANC-021 — The read-only period and the deletion date are stated before a tenant cancels
+    test('recorded a day late, keeps the day it was told, and holds its tenant from when it ended', async () => {
+        const { service, ends, holds } = runOver([cancelled('t-1', NEW_YEAR)]);
+        // Told the way a confirmation tells it, through the service that later records the end.
+        const confirmedAt = new Date('2026-10-01T09:00:00.000Z');
+        await service.announce(
+            { tenantId: 't-1', subscriptionId: 'sub-t-1', by: 'web:admin@example.com:s1' },
+            NEW_YEAR,
+            service.deletionFor('sub-t-1', NEW_YEAR, confirmedAt),
+            confirmedAt,
+        );
+        // Half past midnight into 2 January in Berlin: counted then, the day would be 1 February.
+        const aDayLate = new Date('2027-01-01T23:30:00.000Z');
+
+        assert.deepEqual(await service.recordEnded(aDayLate), { ended: 1 });
+
+        assert.equal(ends.ends.length, 1);
+        assert.equal(ends.ends[0]?.deletesOn, '2027-01-31');
+        const [hold] = await endedHolds(holds, 't-1');
+        assert.deepEqual(
+            { reference: hold?.reference, since: hold?.since },
+            { reference: 'sub-t-1', since: NEW_YEAR },
+            'told a day is no end: the run still holds the tenant',
+        );
+    });
+
+    // @requirement SC-CANC-030 — A subscription that ends earlier than announced keeps the day its tenant was told
+    test('keeps that day only for an end that landed no later than announced, and holds its tenant whichever day it gets', async () => {
+        // Each was told 31 January for an end at midnight into the new year.
+        // The period in force is ninety days, so a day counted now is 1 April.
+        const ends = new FakeSubscriptionEndRepository();
+        const aMillisecondLater = new Date(NEW_YEAR.getTime() + 1);
+        const atOnceBefore = new Date('2026-12-15T10:00:00.000Z');
+        const landed = [
+            ['t-at', NEW_YEAR],
+            ['t-later', aMillisecondLater],
+            ['t-earlier', atOnceBefore],
+        ];
+        for (const [tenantId] of landed) await told(ends, tenantId, NEW_YEAR, '2027-01-31');
+        const { service, holds } = runOver(
+            landed.map(([tenantId, endsAt]) => cancelled(tenantId, endsAt)),
+            { period: { readOnlyDays: 90 }, ends },
+        );
+
+        assert.deepEqual(await service.recordEnded(FIRST_RUN), { ended: 3 });
+
+        assert.deepEqual(
+            Object.fromEntries(ends.ends.map((end) => [end.subscriptionId, end.deletesOn])),
+            {
+                'sub-t-at': '2027-01-31',
+                'sub-t-later': '2027-04-01',
+                'sub-t-earlier': '2027-01-31',
+            },
+        );
+        for (const [tenantId, endsAt] of landed) {
+            const [hold] = await endedHolds(holds, tenantId);
+            assert.equal(hold?.since, endsAt, `${tenantId} is held from when it ended`);
+        }
+    });
+
+    test('a store that refuses a day as told already, and answers none, is named rather than taken as told', async () => {
+        const ends = new FakeSubscriptionEndRepository();
+        ends.announce = async () => null;
+        const { service } = runOver([], { ends });
+
+        await assert.rejects(
+            service.announce(
+                { tenantId: 't-1', subscriptionId: 'sub-t-1', by: 'web:admin@example.com:s1' },
+                NEW_YEAR,
+                service.deletionFor('sub-t-1', NEW_YEAR, FIRST_RUN),
+                FIRST_RUN,
+            ),
+            /refused the announcement for subscription sub-t-1/,
+        );
+    });
+
+    test('reads the days told a thousand subscriptions at a time, and only for the ends still to record', async () => {
+        const many = Array.from({ length: 2500 }, (_, i) => cancelled(`t-${i}`, NEW_YEAR));
+        const ends = new FakeSubscriptionEndRepository();
+        const listAnnouncedFor = ends.listAnnouncedFor.bind(ends);
+        const asked = [];
+        ends.listAnnouncedFor = async (ids) => {
+            asked.push(ids.length);
+            return listAnnouncedFor(ids);
+        };
+        const { service } = runOver(many, { ends });
+
+        await service.recordEnded(FIRST_RUN);
+        assert.deepEqual(asked, [1000, 1000, 500]);
+
+        asked.length = 0;
+        await service.recordEnded(FIRST_RUN);
+        assert.deepEqual(asked, [], 'every end is recorded, so no day is asked for');
+    });
+});
+
 // @requirement SC-CANC-027 — An ended subscription leaves the tenant a period to read and export before its deletion
 describe('the quarter-hourly run', () => {
     const quietly = (cron) => {

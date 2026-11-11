@@ -5,11 +5,8 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-    PlanChangePreviewService,
-    TenantBillingController,
-    givenPlanCatalogSource,
-} from '../dist/billing/index.js';
+import { PlanChangePreviewService, givenPlanCatalogSource } from '../dist/billing/index.js';
+import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 
 function buildEntitlement() {
     return {
@@ -98,25 +95,24 @@ function buildPromoStub({ shouldFail = false } = {}) {
 }
 
 function buildController(overrides = {}) {
-    return new TenantBillingController(
-        overrides.entitlements ?? buildEntitlement(),
-        overrides.planPreview ?? buildPlanPreview(),
-        overrides.subscriptionUsage ?? { findForTenant: async () => buildSub() },
-        overrides.usageSnapshot ?? { snapshot: async () => ({}) },
-        overrides.subscriptionWrite ?? buildWritePort(),
-        overrides.tenantIdResolver ?? (() => 't1'),
-        overrides.userIdResolver ?? (() => 'u1'),
-        overrides.blockedPlans ?? null,
-        overrides.promoCodes ?? null,
-        overrides.auditService ?? null,
-        overrides.userEmailResolver ?? null,
-        overrides.auditContextResolver ?? null,
-        overrides.subscriptionBundles ?? null,
-        overrides.contractFreeze ?? null,
-        overrides.trialProjection ?? null,
-        undefined,
-        overrides.charges ?? null,
-    );
+    return tenantBillingRoutes({
+        entitlements: overrides.entitlements ?? buildEntitlement(),
+        planPreview: overrides.planPreview ?? buildPlanPreview(),
+        subscriptionUsage: overrides.subscriptionUsage ?? { findForTenant: async () => buildSub() },
+        usageSnapshot: overrides.usageSnapshot ?? { snapshot: async () => ({}) },
+        subscriptionWrite: overrides.subscriptionWrite ?? buildWritePort(),
+        tenantIdResolver: overrides.tenantIdResolver ?? (() => 't1'),
+        userIdResolver: overrides.userIdResolver ?? (() => 'u1'),
+        blockedPlans: overrides.blockedPlans ?? null,
+        promoCodes: overrides.promoCodes ?? null,
+        auditService: overrides.auditService ?? null,
+        userEmailResolver: overrides.userEmailResolver ?? null,
+        auditContextResolver: overrides.auditContextResolver ?? null,
+        subscriptionBundles: overrides.subscriptionBundles ?? null,
+        contractFreeze: overrides.contractFreeze ?? null,
+        trialProjection: overrides.trialProjection ?? null,
+        charges: overrides.charges ?? null,
+    });
 }
 
 function buildAudit() {

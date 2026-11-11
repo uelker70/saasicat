@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { TenantBillingController } from '../dist/billing/index.js';
+import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 
 // The caller says what to change to. The server says when.
 //
@@ -73,35 +73,19 @@ function buildWritePort() {
 }
 
 function buildController(planPreview, writePort, subscription = SUBSCRIPTION, settings = null) {
-    return new TenantBillingController(
-        {
+    return tenantBillingRoutes({
+        entitlements: {
             computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
         planPreview,
-        { findForTenant: async () => subscription },
-        { snapshot: async () => ({}) },
-        writePort,
-        () => 't1',
-        () => 'u1',
-        // The positions between, up to the settings of `config/saas.yaml`.
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        undefined,
-        null,
-        undefined,
-        undefined,
-        null,
-        null,
-        null,
+        subscriptionUsage: { findForTenant: async () => subscription },
+        usageSnapshot: { snapshot: async () => ({}) },
+        subscriptionWrite: writePort,
+        tenantIdResolver: () => 't1',
+        userIdResolver: () => 'u1',
         settings,
-    );
+    });
 }
 
 const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };

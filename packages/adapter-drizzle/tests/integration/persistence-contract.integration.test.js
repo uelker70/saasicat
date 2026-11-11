@@ -121,6 +121,7 @@ const PLATFORM_TABLES = [
     'maintenance_windows',
     'tenant_access_holds',
     'subscription_ends',
+    'subscription_end_announcements',
     'subscription_notices',
     'version_retirements',
     'bundle_version_retirements',

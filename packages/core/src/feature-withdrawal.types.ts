@@ -13,6 +13,7 @@
 import { withDays } from './days-beside-moments.js';
 import type { FeatureWithdrawalMark } from './feature-ui-registry.types.js';
 import type { BillingCycle } from './promo-code.types.js';
+import type { AnnouncedDeletion } from './subscription-end.types.js';
 import type { DaysAround } from './zoned-day.js';
 
 /** What a reduction is named for: a plan, or an add-on, by its key. */
@@ -201,6 +202,14 @@ export interface EndedAtOnceNotice {
     readonly featureLabel: string;
     /** ISO 8601. */
     readonly endedAt: string;
+    /**
+     * Where the subscription ended, the read-only period, the last day its
+     * tenant can still read on and the day its data is deleted on, as the
+     * tenant was shown them; null where a booking ended alone, which deletes
+     * nothing, or where the installation records no end of a subscription.
+     * Absent from a notice recorded before it named them.
+     */
+    readonly deletion?: AnnouncedDeletion | null;
 }
 
 /** A blocker or a refusal a person reads: a stable code and the values its sentence names. */
@@ -440,6 +449,15 @@ export interface EndAtOncePreview {
     /** ISO 4217, where anything is credited. */
     readonly currency: string | null;
     /**
+     * What ending the subscription at once tells its tenant: the read-only
+     * period, the last day it can still read on and the day its data is
+     * deleted on. The days announced already where it was told them when it
+     * cancelled — they never move —, otherwise counted from the moment it
+     * ends. Null for a booking, which deletes nothing, and where the
+     * installation records no end of a subscription.
+     */
+    readonly deletion: AnnouncedDeletion | null;
+    /**
      * Whether the reader may end it: the preview is open to every signed-in
      * user of the tenant, ending to its administrator (`SC-ADM-026`). Absent
      * where a server answers that predates it.
@@ -452,6 +470,13 @@ export interface EndedAtOnce extends EndAtOncePreview {
     readonly withdrawalId: string;
     /** The booking that ended; null where the subscription did. */
     readonly subscriptionBundleId: string | null;
+    /**
+     * The days on record for the subscription that ended: the ones its tenant
+     * is told, which its end is recorded with. Null for a booking, where the
+     * installation records no end of a subscription, and where recording the
+     * days failed — the end stands, and is given its day when it is recorded.
+     */
+    readonly deletion: AnnouncedDeletion | null;
 }
 
 /**

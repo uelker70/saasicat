@@ -4421,6 +4421,80 @@ adopt it:
   `persistence.core`: `FakeSubscriptionEndRepository` from `@saasicat/nest/testing` keeps it in
   memory, and a catalogue built in code needs `tenantBilling.endOfSubscription`.
 
+### A tenant is told its deletion day before it ends its subscription
+
+Required wherever `tenantBilling` is on. Before a tenant confirms its cancellation, or ends its
+subscription at once while a feature is withdrawn, it reads the last day it can still read its data
+on and the day the data is deleted, and the day it confirmed is the one its end is recorded with
+(`SC-CANC-021`, `SC-CANC-029`). A later change to `tenantBilling.endOfSubscription.readOnlyDays`
+moves no day a tenant was told, and neither does an end that lands earlier than announced
+(`SC-CANC-030`). The day is kept in a record of its own, apart from the end, because it is told
+before the subscription has ended. To adopt it:
+
+1. Add `SubscriptionEndAnnouncement` from `prisma-fragments/30-subscription-end-announcement.prisma`
+   to your schema and run the migration of the previous section, before `db push` where you use one.
+   It creates `subscription_end_announcements` beside `subscription_ends`, and where it ran before
+   it creates only what is missing:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-subscription-ends-are-kept.postgres.sql
+    ```
+
+2. Both shipped adapters keep the announcements in `persistence.core.subscriptionEnds`. A
+   `SubscriptionEndPort` of your own adds `announce`, which records one per subscription and answers
+   `null` where the subscription has one already, and `listAnnouncedFor`; a persistence contract
+   harness that wires `subscriptionEnds` checks both. `FakeSubscriptionEndRepository` from
+   `@saasicat/nest/testing` keeps them in memory for your own tests.
+3. The shipped tenant pages state the days by themselves: the cancellation dialog of
+   `TenantPlanSection`, the plan card of a cancelled subscription, and the dialog that ends at once.
+   Texts of your own for the tenant section gain `deletionAnnounced`, which names `{readOnlyUntil}`
+   and `{deletesOn}`; the shipped English and German stand in where you leave it out.
+4. A cancellation screen of your own reads `cancellation.deletion` from `GET billing/usage` —
+   `readOnlyDays`, `readOnlyUntil` and `deletesOn`, days in the installation's zone — and sends the
+   day it showed as `expectedDeletesOn` with `POST billing/cancel`, as
+   `useTenantBilling().cancelSubscription(expectedEffectiveAt, expectedDeletesOn)` does. Where the
+   server works out another day — the period changed, or a midnight passed on a cancellation that
+   lands at once — it refuses with `409 CANCELLATION_TERMS_CHANGED` and the days that apply now as
+   `deletion`, and writes nothing: show the new day and ask again (`SC-CANC-031`). A repeat of a
+   cancellation already told a day is not refused, whatever day it sends: it changes nothing and
+   answers the day on record. The answer's `deletion` is the day recorded. For a subscription
+   already cancelled, `announcedDeletion` in `GET billing/usage` is the day it was told, or `null`.
+   Ending at once works the same way: the preview's `deletion`, `expectedDeletesOn` with
+   `POST billing/feature-withdrawals/:id/end`, as
+   `useTenantFeatureWithdrawals().end(withdrawalId, null, expectedDeletesOn)` sends it, and the same
+   refusal. A booking that ends alone deletes nothing: its preview and its answer carry
+   `deletion: null`, and it is sent no day.
+5. Name both days in the message your `SubscriptionNoticePort` sends for an `ended-at-once` notice:
+   where the subscription ended, `EndedAtOnceNotice` carries them as `deletion`. It is `null` for a
+   booking, and absent from a notice recorded before this release.
+
+- **Code that calls into the platform** changes in two places. `EndAtOnceService.end` takes who
+  confirms as a fifth argument, `EndAtOnceConfirmation`: `by`, an actor tag as the audit log writes
+  one, and the optional `expectedDeletesOn`. `TenantBillingController`'s constructor no longer takes
+  the notice periods, the retirements or the contract store, and takes
+  `SubscriptionCancellationService` last; only code that builds the controller by hand, such as a
+  test, notices.
+- **The audit entries** `CANCEL_SUBSCRIPTION` and `END_SUBSCRIPTION_AT_ONCE` name `deletesOn` and
+  `readOnlyDays`, `null` where no day was recorded.
+- **A day is recorded under the subscription's `id`.** A `SubscriptionUsagePort` of your own that
+  answers a subscription without it tells its tenant no day, and says so once in the log; the end is
+  given its day when it is recorded.
+- **Recording the day can fail** after the cancellation is written. The cancellation stands and the
+  request answers the failure; declaring it again records the day, after the same check of what the
+  page showed (`SC-CANC-032`). Ending at once has no repeat, and its request does not fail for it:
+  where its day cannot be recorded, the end stands, the request answers it with `deletion: null`,
+  its audit entry names no day, one error line is logged, and the end is given its day when the run
+  records it. Its `ended-at-once` notice still names the days its page showed; the run counts the
+  day from the day the subscription ended, so the day recorded is that one, or a later one where the
+  run records the end after midnight.
+- **A cancellation declared before this release** has been told no day. Its tenant is told one when
+  it declares the cancellation again before it lands; otherwise its end is given its day when it is
+  recorded, as before. Nothing is backfilled, and nothing is deleted on any day by this release.
+- **A cancellation your application moves later** than the end announced is recorded with a day
+  counted from the period, as one told none (`SC-CANC-030`): the day announced could come before the
+  end itself. `announcedDeletion` goes on answering the day announced; only the recorded end follows
+  the move.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

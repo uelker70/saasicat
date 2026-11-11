@@ -1,4 +1,5 @@
 import { IsISO8601, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+import { CALENDAR_DAY_PATTERN, type CalendarDay } from '@saasicat/core';
 
 // DTOs for tenant self-service mutations. Plan and cycle IDs are validated as
 // strings (no hard enum), because the allowed values come from the consumer's
@@ -90,4 +91,16 @@ export class CancelSubscriptionDto {
     @IsOptional()
     @IsISO8601()
     expectedEffectiveAt?: string;
+
+    /**
+     * The day the page showed the tenant's data is deleted on, `YYYY-MM-DD`.
+     * Checked the same way: where the server would announce another day, or
+     * none, the request is refused with the days that apply now, and nothing
+     * is written.
+     */
+    @IsOptional()
+    @IsString()
+    @Matches(CALENDAR_DAY_PATTERN, { message: 'expectedDeletesOn must be a day, YYYY-MM-DD' })
+    @IsISO8601({ strict: true })
+    expectedDeletesOn?: CalendarDay;
 }

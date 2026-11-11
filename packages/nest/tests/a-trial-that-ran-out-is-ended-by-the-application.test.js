@@ -206,6 +206,26 @@ describe('a trial that ran out, ended by the application', () => {
         assert.deepEqual(run.audited, []);
     });
 
+    // @requirement SC-CANC-021 — The read-only period and the deletion date are stated before a tenant cancels
+    test('a trial its tenant cancelled, and was told a day for, ends with that day', async () => {
+        const cancelledOn = new Date('2026-10-20T08:00:00.000Z');
+        const run = ending(trialOf({ canceledAt: cancelledOn, canceledEffectiveAt: TRIAL_ENDED }));
+        await run.ends.announce({
+            tenantId: 't-1',
+            subscriptionId: 'sub-1',
+            endsAt: TRIAL_ENDED,
+            readOnlyDays: 30,
+            deletesOn: '2026-12-01',
+            announcedAt: cancelledOn,
+            announcedBy: 'web:admin@example.com:s1',
+        });
+
+        const end = await run.service.endRanOut('t-1', OPERATOR, NOW);
+
+        // Recorded on the 10th, it would have been counted to 10 December.
+        assert.equal(end.deletesOn, '2026-12-01');
+    });
+
     test('refuses while the cancellation the tenant declared has not landed yet', async () => {
         const run = ending(
             trialOf({

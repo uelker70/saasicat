@@ -19,7 +19,6 @@ import {
 import type {
     BillingCycle,
     PlanCatalogSettings,
-    SubscriptionContractRepository,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
     TenantSubscriptionWritePort,
@@ -47,7 +46,6 @@ import { initialPeriodWindow } from './billing-period.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
 import { VersionSwitchService } from './version-switch.service.js';
-import { VersionRetirementService } from './version-retirement.service.js';
 import { RetirementSwitchService } from './retirement-switch.service.js';
 import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
@@ -59,7 +57,6 @@ import {
     type TenantIdResolver,
     type TrialProjectionPort,
     type UserIdResolver,
-    CANCELLATION_NOTICE_DAYS_TOKEN,
 } from './tenant-billing.tokens.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
@@ -76,7 +73,6 @@ import {
 } from './dto/tenant-billing.dto.js';
 import { CompleteOnboardingSubscriptionDto } from './dto/onboarding-subscription.dto.js';
 import { PromoCodesService } from '../promo/promo.service.js';
-import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
 import type {
     AdminActor,
@@ -86,10 +82,8 @@ import type {
     VersionRetiredNotice,
 } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
-import { decideCancellationFor, type CancellationDecision } from './cancellation.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { answerRefusal, answeringRefusals } from '../errors/answering-refusals.js';
-import { NO_NOTICE_PERIOD, noticeDaysFor, type CancellationNoticePeriods } from './cancellation.js';
 import { CancelSubscriptionDto } from './dto/tenant-billing.dto.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
@@ -107,7 +101,6 @@ import {
 } from './tenant-audit-actor.js';
 import {
     contractUnlessTrialOf,
-    endContractAfter,
     freezeContractAfter,
     intendedContractOf,
 } from './freeze-contract-after.js';
@@ -117,6 +110,10 @@ import {
 } from '../subscription-contract/contract-agreement.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import { WritesNothing } from '../tenant-access/tenant-access-marks.js';
+import {
+    SubscriptionCancellationService,
+    type ProjectedCancellation,
+} from './subscription-cancellation.service.js';
 
 // TenantBillingController — tenant self-service endpoints for plan
 // management. Phase B: reads only (`/entitlement` + `/usage`). Phase C
@@ -164,8 +161,19 @@ interface UsageMomentsAnswer {
      * A projection, not a state: it is recomputed on every read, and it says
      * nothing about whether a cancellation exists. `canceledEffectiveAt` above
      * is the one that does.
+     *
+     * `deletion` is what confirming it now would tell the tenant: the
+     * read-only period, the last day it can still read on and the day its
+     * data is deleted on. Null where the installation records no end of a
+     * subscription, or the subscription has no id to record the day under.
      */
-    cancellation: CancellationDecision;
+    cancellation: ProjectedCancellation;
+    /**
+     * What the tenant was told of its deletion when its cancellation was
+     * confirmed: the days its end is recorded with. Null where it was told
+     * none.
+     */
+    announcedDeletion: ProjectedCancellation['deletion'];
     /**
      * The retirement announced for the version the subscription is on, while it
      * has not taken effect — what the subscriber was told. Until then
@@ -268,23 +276,14 @@ export class TenantBillingController {
         @Optional()
         @Inject(TRIAL_PROJECTION_PORT_TOKEN)
         private readonly trialProjection: TrialProjectionPort | null = null,
-        // Zero unless an installation asked for a notice period. See the token.
+        // Only where `chargeJournal` is configured.
         //
-        // LAST, and that is not stylistic: this list is also a positional
-        // signature, and inserting a parameter in the middle of it shifts every
-        // argument after it. Doing that here moved `promoCodes` into this slot
-        // and broke eleven tests in ways that read as unrelated logic errors,
-        // because nothing type-checks a boolean landing where a service was.
-        // `TenantBillingModule` always registers this, read from
-        // `config/saas.yaml#tenantBilling`. `NO_NOTICE_PERIOD` is not a
-        // configuration default — an application that omits the setting does
-        // not boot — it is what lets this controller be built directly in a
-        // test that does not exercise a notice period.
-        @Optional()
-        @Inject(CANCELLATION_NOTICE_DAYS_TOKEN)
-        private readonly cancellationNoticeDays: CancellationNoticePeriods = NO_NOTICE_PERIOD,
-        // Appended after the notice periods for the reason given above. Only
-        // where `chargeJournal` is configured.
+        // Appended LAST, as every parameter from here on, and that is not
+        // stylistic: this list is also a positional signature, and inserting a
+        // parameter in the middle of it shifts every argument after it — into
+        // slots where nothing type-checks a boolean landing where a service
+        // was, so the tests that build this controller directly fail in ways
+        // that read as unrelated logic errors.
         @Optional()
         @Inject(SubscriberChargeService)
         private readonly charges: SubscriberChargeService | null = null,
@@ -298,22 +297,8 @@ export class TenantBillingController {
         // Appended last for the same reason. Only where an operator may retire
         // versions.
         @Optional()
-        @Inject(VersionRetirementService)
-        private readonly retirements: VersionRetirementService | null = null,
-        // Appended last for the same reason, and present with it.
-        @Optional()
         @Inject(RetirementSwitchService)
         private readonly retirementSwitches: RetirementSwitchService | null = null,
-        // Appended last for the same reason. Where the installation keeps
-        // contracts, the one in force says the notice a cancellation is owed;
-        // read from the store, which `contractFreeze` or the option of the
-        // same name brings, whichever module writes them.
-        @Optional()
-        @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
-        private readonly contracts: Pick<
-            SubscriptionContractRepository,
-            'findActiveByTenantId'
-        > | null = null,
         // Appended last for the same reason. What a change scheduled now
         // records as agreed; optional only so a test can build the controller
         // directly.
@@ -321,6 +306,10 @@ export class TenantBillingController {
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
         private readonly settings:
             (AgreementSettings & Pick<PlanCatalogSettings, 'timeZone'>) | null = null,
+        // Appended last for the same reason. Not optional:
+        // `TenantBillingModule` always registers it.
+        @Inject(SubscriptionCancellationService)
+        private readonly cancellations: SubscriptionCancellationService,
     ) {}
 
     /** The installation's zone, which every day handed out here is read in. */
@@ -361,7 +350,8 @@ export class TenantBillingController {
         }
         const planPriceNet = await this.planPreview.planPriceNet(sub);
         const now = new Date();
-        const retirement = await this.pendingRetirement(sub, now);
+        const { cancellation, announcedDeletion, retirement } =
+            await this.cancellations.projectionFor(tenantId, sub, now);
         const retirementSwitch = retirement
             ? ((await this.retirementSwitches?.openFor(sub, now))?.terms ?? null)
             : null;
@@ -397,8 +387,11 @@ export class TenantBillingController {
             // produces it lives on this side: the minimum term and the notice
             // period are not visible to a browser. With a window configured,
             // four days of delay cost a whole period — a sentence that has to
-            // be read in the confirmation, not discovered in the receipt.
-            cancellation: await this.projectCancellation(tenantId, sub, now, retirement),
+            // be read in the confirmation, not discovered in the receipt. The
+            // day the tenant's data is deleted on is read there too, for the
+            // same reason (`SC-CANC-021`).
+            cancellation,
+            announcedDeletion,
             retirement,
             retirementSwitch,
             limits: toEffectiveLimitsSnapshot(limits),
@@ -1132,256 +1125,18 @@ export class TenantBillingController {
     @Post('cancel')
     @UseGuards(TenantAdminGuard)
     async cancelSubscription(@Req() req: RequestLike, @Body() dto: CancelSubscriptionDto) {
+        const tenantId = this.requireTenantId(req);
+        const actor = this.buildActor(req, this.requireUserId(req));
         return withDays(
-            await this.declareCancellation(req, dto),
+            await this.cancellations.declare(tenantId, dto, actor, new Date()),
             CANCELLATION_RESULT_MOMENTS,
             this.zone(),
         );
     }
 
-    private async declareCancellation(req: RequestLike, dto: CancelSubscriptionDto) {
-        const tenantId = this.requireTenantId(req);
-        const userId = this.requireUserId(req);
-        const now = new Date();
-
-        const noSubscription = () =>
-            new NotFoundException({
-                code: BILLING_ERROR_CODES.NO_SUBSCRIPTION,
-                message: 'This tenant has no subscription to cancel.',
-            });
-        const sub = await this.subscriptionUsage.findForTenant(tenantId);
-        if (!sub) throw noSubscription();
-
-        // Already cancelled? Say so and change nothing.
-        //
-        // Not politeness — arithmetic. With a notice period configured, running
-        // the decision again against a later `now` can land the cancellation a
-        // whole period further out: an on-time declaration landing January 2027,
-        // retried after the deadline, becomes January 2028. The customer pressed
-        // the same button twice and bought another year. A cancellation is
-        // declared once; a repeat is a question about it, not a new one.
-        const existing = sub.canceledEffectiveAt ?? sub.canceledAt ?? null;
-        if (existing) {
-            // Repairing rather than merely reporting. A legacy row was written
-            // before this hook existed, and a retry means the subscription
-            // write succeeded while the non-fatal contract call did not — in
-            // both cases nothing else will ever cap that contract, because only
-            // the request that wins the cancellation write reaches the hook
-            // below. Ending it again is a no-op: the lookup asks as of the
-            // effective date, and a contract already capped there is gone.
-            await endContractAfter(
-                this.contractFreeze,
-                tenantId,
-                existing,
-                'an existing cancellation',
-                this.logger,
-            );
-            return {
-                canceledAt: sub.canceledAt ?? null,
-                canceledEffectiveAt: existing,
-                status: sub.status,
-                // Null rather than recomputed, because the three below explain a
-                // decision that was taken once and is not stored. Deriving them
-                // from the effective date tells the wrong story exactly where it
-                // matters: a declaration that landed a period late has an
-                // earlier term end and `afterNoticeDeadline: true`, and a retry
-                // would report the effective date as the term end and the late
-                // declaration as on time. Null says "not recomputed", which is
-                // the truth; the date, which is stored, is above.
-                termEndsAt: null,
-                noticeDeadline: null,
-                afterNoticeDeadline: null,
-                alreadyCanceled: true,
-            };
-        }
-
-        // A tenant declares; the rules decide when it lands. The request body
-        // used to carry `immediately`, and honouring it let a customer end a
-        // term they were still inside — the one thing this route may not do.
-        // Ending a contract on the spot is an operator's act, and it goes
-        // through the operator's own path.
-        const decision = await this.projectCancellation(
-            tenantId,
-            sub,
-            now,
-            await this.pendingRetirement(sub, now),
-        );
-
-        // What the page showed has to be what the customer agreed to. Refused
-        // rather than silently applied, with the new date in the error so the
-        // page can re-ask instead of guessing why.
-        //
-        // Equality is the wrong test where the answer IS the moment of asking.
-        // A subscription with nothing left to run lands its cancellation now,
-        // and "now" is read once when the page is drawn and again when the
-        // button is pressed — never the same number, seconds apart. Comparing
-        // them for equality refuses every confirmation, the retry included,
-        // because the retry moves the date it is compared against. What the
-        // reader agreed to there is "immediately", and every reading of the
-        // clock up to this one says that. A date still in the FUTURE does not:
-        // no projection of this route produced it, so it is refused as before.
-        const expected = dto.expectedEffectiveAt ? new Date(dto.expectedEffectiveAt) : null;
-        const landsImmediately = decision.effectiveAt <= now;
-        const disagrees =
-            expected !== null &&
-            (landsImmediately
-                ? expected.getTime() > decision.effectiveAt.getTime()
-                : expected.getTime() !== decision.effectiveAt.getTime());
-        if (disagrees) {
-            throw new ConflictException({
-                code: BILLING_ERROR_CODES.CANCELLATION_TERMS_CHANGED,
-                message: 'The effective date changed since it was shown. Confirm the new one.',
-                effectiveAt: decision.effectiveAt,
-                termEndsAt: decision.termEndsAt,
-                noticeDeadline: decision.noticeDeadline,
-                afterNoticeDeadline: decision.afterNoticeDeadline,
-            });
-        }
-
-        // Two further writes the decision implies, and neither is the client's
-        // to ask for.
-        //
-        // `terminateNow` follows the DATE the rules returned, not a flag: it is
-        // true exactly when they found nothing left to run — no period, no term,
-        // as on a trial or a subscription still waiting for sales — and there
-        // `effectiveAt` is `now`. Without it the row keeps saying ACTIVE for
-        // good, because nothing downstream would ever transition it:
-        // `computeNextPeriod` returns early on a subscription whose period end
-        // is null, and there is no other materialisation path.
-        //
-        // What it does NOT do is stop the entitlements. Measured, not assumed:
-        // `EntitlementService.computeLimits` grants a CANCELED subscription
-        // whose cancellation landed eight months ago exactly what it granted
-        // while active. Nothing on that path reads the status or the effective
-        // date. That gap is general rather than particular to this route, and
-        // it is issue #219.
-        //
-        // A declaration made after the notice deadline is the mirror image. It
-        // buys the following period, and the commitment has to say so, because
-        // every reader of the term end looks at `minimumTermUntil` rather than
-        // at this cancellation — a downgrade scheduled meanwhile would otherwise
-        // land at the old term end, inside the period just paid for.
-        const result = await answeringRefusals(
-            () =>
-                this.subscriptionWrite.cancelSubscription(tenantId, {
-                    canceledAt: now,
-                    effectiveAt: decision.effectiveAt,
-                    terminateNow: decision.effectiveAt <= now,
-                    minimumTermUntil: decision.afterNoticeDeadline
-                        ? decision.effectiveAt
-                        : undefined,
-                }),
-            { [BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND]: noSubscription },
-            this.zone(),
-        );
-        // The check above and this write are two moments, and a second request
-        // can arrive between them. The store settles it — the claim either took
-        // the row or found it taken — and a claim that lost neither audits a
-        // cancellation that did not happen nor explains its own decision, which
-        // was never applied.
-        if (result.alreadyCanceled) {
-            return {
-                canceledAt: result.canceledAt,
-                canceledEffectiveAt: result.canceledEffectiveAt,
-                status: result.status,
-                termEndsAt: null,
-                noticeDeadline: null,
-                afterNoticeDeadline: null,
-                alreadyCanceled: true,
-            };
-        }
-        this.entitlements.invalidateTenant(tenantId);
-        // The frozen contract ends when the subscription does. Non-fatal, like
-        // every other use of this port: the cancellation is already recorded,
-        // and a consumer without contracts has nothing to end.
-        await endContractAfter(
-            this.contractFreeze,
-            tenantId,
-            decision.effectiveAt,
-            'a cancellation',
-            this.logger,
-        );
-        await this.auditLog(req, userId, 'Subscription', tenantId, 'CANCEL_SUBSCRIPTION', {
-            canceledAt: now.toISOString(),
-            effectiveAt: decision.effectiveAt.toISOString(),
-            afterNoticeDeadline: decision.afterNoticeDeadline,
-            status: result.status,
-        });
-        return {
-            canceledAt: result.canceledAt,
-            canceledEffectiveAt: result.canceledEffectiveAt,
-            status: result.status,
-            // What the page needs to say which period it landed in, and why.
-            termEndsAt: decision.termEndsAt,
-            noticeDeadline: decision.noticeDeadline,
-            afterNoticeDeadline: decision.afterNoticeDeadline,
-            alreadyCanceled: false,
-        };
-    }
-
     // ---------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------
-
-    /**
-     * What a cancellation declared at `now` would do. One method, because the
-     * page states the date and this route applies it, and two constructions of
-     * the same input are two chances to disagree about a rule the customer
-     * meets once.
-     */
-    private async projectCancellation(
-        tenantId: string,
-        sub: SubscriptionUsageRecord,
-        now: Date,
-        retirement: VersionRetiredNotice | null,
-    ): Promise<CancellationDecision> {
-        return decideCancellationFor(
-            {
-                status: sub.status,
-                billingCycle: sub.billingCycle as BillingCycle,
-                currentPeriodEnd: sub.currentPeriodEnd ?? null,
-                // A retirement on its way lets the subscriber leave for the end
-                // of the period they are in, whatever term they committed to:
-                // the terms are what the operator is changing.
-                minimumTermUntil: retirement ? null : (sub.minimumTermUntil ?? null),
-                trialEndsAt: sub.trialEndsAt ?? null,
-                billingAnchorDay: sub.billingAnchorDay ?? null,
-            },
-            now,
-            // None while a retirement is on its way: it is left without notice.
-            retirement ? 0 : await this.noticeDaysOf(tenantId, sub, now),
-        );
-    }
-
-    /**
-     * The notice a cancellation declared at `now` is owed: what the contract
-     * in force recorded when the subscriber concluded or changed it
-     * (`SC-CANC-026`), and
-     * never what the file names since. Without a contract in force — an
-     * installation that keeps none, or a subscription nothing was confirmed
-     * for — the file's, for the rhythm of the subscription rather than of the
-     * plan somebody is looking at: a customer on a yearly subscription is owed
-     * the yearly notice even where the same plan is also sold monthly.
-     */
-    private async noticeDaysOf(
-        tenantId: string,
-        sub: SubscriptionUsageRecord,
-        now: Date,
-    ): Promise<number> {
-        const contract = await this.contracts?.findActiveByTenantId(tenantId, now);
-        return contract
-            ? contract.cancellationNoticeDays
-            : noticeDaysFor(this.cancellationNoticeDays, sub.billingCycle);
-    }
-
-    /** The retirement reaching the subscription that has not taken effect yet, or null. */
-    private async pendingRetirement(
-        sub: SubscriptionUsageRecord,
-        now: Date,
-    ): Promise<VersionRetiredNotice | null> {
-        if (!this.retirements || !sub.id) return null;
-        return this.retirements.pendingFor({ id: sub.id, planVersion: sub.planVersion }, now);
-    }
 
     private requireTenantId(req: RequestLike): string {
         const resolver: TenantIdResolver =

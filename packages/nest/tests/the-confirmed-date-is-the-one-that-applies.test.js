@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { TenantBillingController } from '../dist/billing/index.js';
+import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 
 // The date the page showed is the date the customer agreed to.
 //
@@ -45,22 +45,22 @@ function build() {
             };
         },
     };
-    const controller = new TenantBillingController(
-        {
+    const controller = tenantBillingRoutes({
+        entitlements: {
             computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
-        {
+        planPreview: {
             async preview() {
                 return { isImmediate: false, effectiveAt: null, blockers: [] };
             },
         },
-        { findForTenant: async () => SUB },
-        { snapshot: async () => ({}) },
-        port,
-        () => 't1',
-        () => 'u1',
-    );
+        subscriptionUsage: { findForTenant: async () => SUB },
+        usageSnapshot: { snapshot: async () => ({}) },
+        subscriptionWrite: port,
+        tenantIdResolver: () => 't1',
+        userIdResolver: () => 'u1',
+    });
     return { controller, port };
 }
 

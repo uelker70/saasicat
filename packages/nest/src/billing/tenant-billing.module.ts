@@ -50,6 +50,7 @@ import { TenantBillingController } from './tenant-billing.controller.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
 import { VersionSwitchService } from './version-switch.service.js';
+import { SubscriptionCancellationService } from './subscription-cancellation.service.js';
 import { VersionNoticeCron } from './version-notice.cron.js';
 import { RetirementMoveService } from './retirement-move.service.js';
 import { RetirementReminderService } from './retirement-reminder.service.js';
@@ -632,6 +633,8 @@ export class TenantBillingModule {
             PlanChangePreviewService,
             VersionOfferService,
             VersionSwitchService,
+            // What the cancel route and the account read of ending the subscription.
+            SubscriptionCancellationService,
             PlansAheadService,
             { provide: PLANS_AHEAD_TOKEN, useExisting: PlansAheadService },
         ];

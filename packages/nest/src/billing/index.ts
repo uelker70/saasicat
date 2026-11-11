@@ -101,6 +101,13 @@ export {
     type SubscriptionEndRun,
 } from './subscription-end.service.js';
 export { SubscriptionEndCron } from './subscription-end.cron.js';
+export {
+    SubscriptionCancellationService,
+    type CancellationProjection,
+    type DeclaredCancellation,
+    type ProjectedCancellation,
+    type ShownCancellation,
+} from './subscription-cancellation.service.js';
 export { TrialEndService } from './trial-end.service.js';
 export { VersionNoticeCron } from './version-notice.cron.js';
 export {
@@ -131,7 +138,7 @@ export {
     type FeatureWithdrawalAnnouncement,
     type FeatureWithdrawalNoticeRun,
 } from './feature-withdrawal.service.js';
-export { EndAtOnceService } from './end-at-once.service.js';
+export { EndAtOnceService, type EndAtOnceConfirmation } from './end-at-once.service.js';
 export { FeatureWithdrawalTenantController } from './feature-withdrawal-tenant.controller.js';
 export { TenantAccessStateController } from './tenant-access-state.controller.js';
 export {

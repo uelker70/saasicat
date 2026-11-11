@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 
-import { TenantBillingController } from '../dist/billing/index.js';
+import { SubscriptionCancellationService } from '../dist/billing/index.js';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import { SubscriptionContractService } from '../dist/subscription-contract/index.js';
 import { FakeSubscriptionContractRepository } from '../dist/testing/index.js';
@@ -193,17 +193,18 @@ describe('a cancellation is judged by the notice period its contract recorded', 
 // @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
 describe('the cancellation reads the contracts whichever module writes them', () => {
     /**
-     * Whether the cancellation route of `options` can read the contracts —
-     * the dependency it was built with, since what is under test is the
-     * composition: a sibling module's exports never reach it.
+     * Whether the cancellation of `options` can read the contracts — the
+     * dependency the service the cancel route declares through was built
+     * with, since what is under test is the composition: a sibling module's
+     * exports never reach it.
      */
     async function readsContracts(options) {
         const moduleRef = await Test.createTestingModule({
             imports: [SaaSiCatModule.forRoot(bootable(options))],
         }).compile();
         try {
-            const route = moduleRef.get(TenantBillingController, { strict: false });
-            return route.contracts !== null && route.contracts !== undefined;
+            const cancellations = moduleRef.get(SubscriptionCancellationService, { strict: false });
+            return cancellations.contracts !== null && cancellations.contracts !== undefined;
         } finally {
             await moduleRef.close();
         }

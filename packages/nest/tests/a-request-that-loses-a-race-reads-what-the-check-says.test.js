@@ -12,7 +12,7 @@ import {
     subscriptionBundleGone,
     subscriptionGone,
 } from '@saasicat/core';
-import { SubscriptionBundlesService, TenantBillingController } from '../dist/billing/index.js';
+import { SubscriptionBundlesService } from '../dist/billing/index.js';
 import {
     BundlesService,
     MarketingProjectionsService,
@@ -24,6 +24,7 @@ import {
     FakeMarketingProjectionRepository,
     FakePlanRepository,
 } from '../dist/testing/index.js';
+import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 
 // Every case here stages the moment two requests pass the platform's check
 // together: the check finds nothing in the way, and the store refuses because
@@ -245,22 +246,19 @@ function billingOver(
     },
     settings = null,
 ) {
-    return new TenantBillingController(
-        {
+    return tenantBillingRoutes({
+        entitlements: {
             computeLimits: async () => ({ plan: 'STANDARD', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
-        { preview: async () => decision, assertChangeAllowed: async () => [] },
-        { findForTenant: async () => SUBSCRIPTION },
-        { snapshot: async () => ({}) },
-        port,
-        () => 't1',
-        () => 'u1',
-        // The positions between, left to their defaults, up to the settings of
-        // `config/saas.yaml`.
-        ...Array(15).fill(undefined),
+        planPreview: { preview: async () => decision, assertChangeAllowed: async () => [] },
+        subscriptionUsage: { findForTenant: async () => SUBSCRIPTION },
+        usageSnapshot: { snapshot: async () => ({}) },
+        subscriptionWrite: port,
+        tenantIdResolver: () => 't1',
+        userIdResolver: () => 'u1',
         settings,
-    );
+    });
 }
 
 const PLAN_CHANGE = { plan: 'PRO', billingCycle: 'MONTHLY', planVersionId: 'pv-quoted' };

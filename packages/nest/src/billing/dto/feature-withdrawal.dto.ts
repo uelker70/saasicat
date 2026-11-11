@@ -8,10 +8,15 @@ import {
     IsOptional,
     IsPositive,
     IsString,
+    Matches,
     MaxLength,
     ValidateNested,
 } from 'class-validator';
-import { FEATURE_WITHDRAWAL_REASON_MAX_LENGTH } from '@saasicat/core';
+import {
+    CALENDAR_DAY_PATTERN,
+    FEATURE_WITHDRAWAL_REASON_MAX_LENGTH,
+    type CalendarDay,
+} from '@saasicat/core';
 
 /** The longest feature, plan or add-on key the routes accept. */
 const KEY_MAX_LENGTH = 100;
@@ -82,4 +87,18 @@ export class LiftFeatureWithdrawalDto {
     @IsOptional()
     @IsISO8601({ strict: true })
     liftedFrom?: string;
+}
+
+/**
+ * Ending a subscription at once: the day the page showed its tenant's data is
+ * deleted on, `YYYY-MM-DD`, where it showed one. Checked rather than trusted:
+ * where the server would announce another day, or none, the end is refused
+ * with the days that apply now, and nothing is written.
+ */
+export class EndAtOnceDto {
+    @IsOptional()
+    @IsString()
+    @Matches(CALENDAR_DAY_PATTERN, { message: 'expectedDeletesOn must be a day, YYYY-MM-DD' })
+    @IsISO8601({ strict: true })
+    expectedDeletesOn?: CalendarDay;
 }

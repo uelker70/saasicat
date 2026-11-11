@@ -13,11 +13,13 @@
 
 import {
     BUNDLE_PRICE_LOOKUP_LIMIT,
+    type AnnouncedDeletion,
     type BundleRetirementSwitchResult,
     type BundleRetirementSwitchTerms,
     type BundleVersionOfferWithDays,
     type BundleVersionRetiredNoticeWithDays,
     type BundleVersionSwitchWithDays,
+    type CalendarDay,
     type DaysAround,
     type SubscriptionBundleDays,
     type SubscriptionUsageDays,
@@ -87,7 +89,21 @@ export interface UsageSnapshotShape extends SubscriptionUsageDays {
         effectiveDays: DaysAround;
         termEndsDays: DaysAround;
         noticeDeadlineDays: DaysAround | null;
+        /**
+         * What confirming it now would tell the tenant: the read-only period,
+         * the last day it can still read on and the day its data is deleted
+         * on, as days in the installation's zone. Null where the installation
+         * records no end of a subscription; absent where a server answers that
+         * predates it.
+         */
+        deletion?: AnnouncedDeletion | null;
     };
+    /**
+     * What the tenant was told of its deletion when it confirmed its
+     * cancellation — the days its end is recorded with. Null where it was told
+     * none; absent where a server answers that predates it.
+     */
+    announcedDeletion?: AnnouncedDeletion | null;
     /**
      * The retirement announced for the version the subscription is on, while
      * it has not taken effect — what the subscriber was told. Until then
@@ -369,6 +385,12 @@ export interface CancellationResultShape {
     canceledEffectiveDays: DaysAround | null;
     termEndsDays: DaysAround | null;
     noticeDeadlineDays: DaysAround | null;
+    /**
+     * The days the tenant was told of its deletion: what this confirmation
+     * recorded, or on a repeat the ones on record. Null where none is recorded;
+     * absent where a server answers that predates it.
+     */
+    deletion?: AnnouncedDeletion | null;
 }
 
 export interface BundlePreviewIssueShape {
@@ -557,15 +579,21 @@ export interface UseTenantBillingResult {
      */
     switchToReplacement: (planVersionId: string) => Promise<RetirementSwitchResult>;
     /**
-     * Declares a cancellation. Takes no argument, and that is the point.
+     * Declares a cancellation, and reloads.
      *
-     * It used to take `immediately`, which the platform honoured — and a tenant
-     * could end a term they were still inside. When a cancellation lands is now
-     * decided from the minimum term and the configured notice period, so there
-     * is nothing here to pass. Ending a contract on the spot is an operator's
-     * act and goes through the operator's own path.
+     * When it lands is decided by the server from the minimum term and the
+     * configured notice period, so nothing here chooses it. What is passed is
+     * what the page showed — the date it lands on and the day the tenant's
+     * data is deleted on —, for the server to check: it refuses with
+     * `CANCELLATION_TERMS_CHANGED`, the terms that apply now beside the code,
+     * where its own answer differs. Leave out what the page did not show.
+     * Ending a contract on the spot is an operator's act and goes through the
+     * operator's own path.
      */
-    cancelSubscription: (expectedEffectiveAt?: string) => Promise<CancellationResultShape>;
+    cancelSubscription: (
+        expectedEffectiveAt?: string,
+        expectedDeletesOn?: CalendarDay,
+    ) => Promise<CancellationResultShape>;
     /** True if `usage.value.features` contains the FeatureKey. */
     hasFeature: (key: string) => boolean;
 
@@ -864,14 +892,21 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
 
     async function cancelSubscription(
         expectedEffectiveAt?: string,
+        expectedDeletesOn?: CalendarDay,
     ): Promise<CancellationResultShape> {
-        // The date the page showed, sent back for the server to check. It
-        // refuses with `CANCELLATION_TERMS_CHANGED` if its own answer differs —
-        // a dialog opened before a notice deadline and confirmed after it would
-        // otherwise deliver a date a year past the one on the button.
+        // What the page showed, sent back for the server to check. It refuses
+        // with `CANCELLATION_TERMS_CHANGED` if its own answer differs — a
+        // dialog opened before a notice deadline and confirmed after it would
+        // otherwise deliver a date a year past the one on the button, and one
+        // left open across a change of the read-only period would record a
+        // deletion day the tenant never read. A day the page did not show is
+        // not sent: the server refuses one where it announces none.
+        const shown: { expectedEffectiveAt?: string; expectedDeletesOn?: CalendarDay } = {};
+        if (expectedEffectiveAt) shown.expectedEffectiveAt = expectedEffectiveAt;
+        if (expectedDeletesOn) shown.expectedDeletesOn = expectedDeletesOn;
         const result = await fetchOrThrow<CancellationResultShape>('/cancel', {
             method: 'POST',
-            body: expectedEffectiveAt ? { expectedEffectiveAt } : undefined,
+            body: Object.keys(shown).length > 0 ? shown : undefined,
         });
         await reload();
         return result;

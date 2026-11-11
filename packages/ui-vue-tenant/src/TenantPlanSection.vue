@@ -208,77 +208,16 @@
                 </template>
             </TenantDialog>
 
-            <!--
-                Cancellation confirmation. The date is stated BEFORE the click,
-                not reported after it: with a notice period configured, a
-                declaration four days late lands a whole period further out, and
-                that is the sentence a customer disputes if they meet it in the
-                receipt instead of in the question.
-            -->
-            <TenantDialog
-                :model-value="showCancelConfirm"
-                :title="effectiveI18n.cancelConfirmTitle"
-                size="sm"
-                @update:model-value="
-                    (open: boolean) => {
-                        if (!open) showCancelConfirm = false;
-                    }
-                "
-            >
-                <p v-if="cancelError" class="sp-plan-section__warn">{{ cancelError }}</p>
-                <p v-if="cancellationPlan?.afterNoticeDeadline" class="sp-plan-section__warn">
-                    {{
-                        effectiveI18n.cancelConfirmLate
-                            .replace(
-                                '{deadline}',
-                                writeDay(formatDate, cancellationPlan.noticeDeadlineDays?.until),
-                            )
-                            .replace(
-                                '{date}',
-                                writeDay(formatDate, cancellationPlan.effectiveDays?.until),
-                            )
-                    }}
-                </p>
-                <p v-if="usage.retirement">
-                    {{
-                        effectiveI18n.cancelConfirmRetirement
-                            .replace('{version}', String(usage.retirement.retired.version))
-                            .replace(
-                                '{date}',
-                                writeDay(formatDate, usage.retirement.lastDayToCancel),
-                            )
-                    }}
-                </p>
-                <p v-if="cancellationPlan">
-                    {{
-                        effectiveI18n.cancelConfirmBody.replace(
-                            '{date}',
-                            writeDay(formatDate, cancellationPlan.effectiveDays?.until),
-                        )
-                    }}
-                </p>
-
-                <template #footer>
-                    <TenantButton :disabled="canceling" @click="showCancelConfirm = false">
-                        {{ effectiveI18n.bundlePreviewClose }}
-                    </TenantButton>
-                    <TenantButton
-                        variant="solid"
-                        tone="danger"
-                        :loading="canceling"
-                        @click="confirmCancelSubscription"
-                    >
-                        {{
-                            cancellationPlan
-                                ? effectiveI18n.cancelConfirmAction.replace(
-                                      '{date}',
-                                      writeDay(formatDate, cancellationPlan.effectiveDays?.until),
-                                  )
-                                : effectiveI18n.cancelSubscriptionButton
-                        }}
-                    </TenantButton>
-                </template>
-            </TenantDialog>
+            <!-- The cancellation, confirmed on what it would do now. -->
+            <CancelSubscriptionDialog
+                v-model="showCancelConfirm"
+                :cancellation="cancellationPlan"
+                :retirement="usage.retirement"
+                :submitting="canceling"
+                :error="cancelError"
+                :format-date="formatDate"
+                @confirm="confirmCancelSubscription"
+            />
 
             <!-- P11.4: Frozen CheckoutOffer snapshot (read-only) — only
                  when the subscription originates from a website offer (#20).
@@ -332,6 +271,9 @@ import {
     type TenantPlanSectionI18n,
 } from './default-i18n.js';
 import BundlePreviewDialog from './tenant-plan-section/BundlePreviewDialog.vue';
+import CancelSubscriptionDialog, {
+    type CancellationShown,
+} from './tenant-plan-section/CancelSubscriptionDialog.vue';
 import TenantBundleStore from './tenant-plan-section/TenantBundleStore.vue';
 import TenantPaymentMethodCard from './TenantPaymentMethodCard.vue';
 import TenantFeatureMatrix from './tenant-plan-section/TenantFeatureMatrix.vue';
@@ -470,13 +412,13 @@ async function openCancelConfirm(): Promise<void> {
     await billing.reload();
 }
 
-async function confirmCancelSubscription(): Promise<void> {
+async function confirmCancelSubscription(shown: CancellationShown): Promise<void> {
     canceling.value = true;
     try {
-        // The date the dialog showed travels with the request. If the server's
+        // What the dialog showed travels with the request. If the server's
         // answer has since moved, it refuses rather than applying a date the
         // customer never saw, and the reload below brings the new one in.
-        await billing.cancelSubscription(cancellationPlan.value?.effectiveAt);
+        await billing.cancelSubscription(shown.expectedEffectiveAt, shown.expectedDeletesOn);
         showCancelConfirm.value = false;
     } catch (err) {
         cancelError.value = refusalText(err);

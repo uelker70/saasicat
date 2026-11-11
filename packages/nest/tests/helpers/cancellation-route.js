@@ -1,7 +1,7 @@
 // The tenant's cancellation route over one running subscription, for a test
 // about which notice a cancellation is owed.
 
-import { TenantBillingController } from '../../dist/billing/index.js';
+import { tenantBillingRoutes } from './tenant-billing-routes.js';
 
 // Forty days of period left: a fourteen-day notice is served by it, a ninety-day
 // one is not. Relative to now, because the controller reads the clock — a fixed
@@ -51,36 +51,23 @@ export function cancellationRoute({ billingCycle = 'MONTHLY', notice, contracts 
             };
         },
     };
-    const controller = new TenantBillingController(
-        {
+    const controller = tenantBillingRoutes({
+        entitlements: {
             computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
-        {
+        planPreview: {
             async preview() {
                 return { isImmediate: false, effectiveAt: null, blockers: [] };
             },
         },
-        { findForTenant: async () => subscription(billingCycle) },
-        { snapshot: async () => ({}) },
-        port,
-        () => 't1',
-        () => 'u1',
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        notice,
-        null,
-        undefined,
-        undefined,
-        null,
-        null,
+        subscriptionUsage: { findForTenant: async () => subscription(billingCycle) },
+        usageSnapshot: { snapshot: async () => ({}) },
+        subscriptionWrite: port,
+        tenantIdResolver: () => 't1',
+        userIdResolver: () => 'u1',
+        noticeDays: notice,
         contracts,
-    );
+    });
     return { controller, port };
 }

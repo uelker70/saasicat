@@ -1,0 +1,43 @@
+// =============================================================================
+// SaaS platform Prisma fragment: SubscriptionEndAnnouncement
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// One row per subscription whose cancellation was confirmed with a deletion
+// day: the day the tenant was told, and the read-only period it was counted
+// with. Written when the cancellation is confirmed, before it lands; the end
+// itself is a row in `subscription_ends` (fragment 29), written once the
+// cancellation has landed and recorded with the day announced here.
+//
+// The day is fixed when it is announced and never moves: neither a later
+// change to the read-only period in `config/saas.yaml` nor a cancellation that
+// lands earlier than it was to gives a tenant another day.
+//
+// At most ONE row per subscription: the unique key on `subscriptionId` is what
+// makes a repeated confirmation, or two at once, announce a day once.
+//
+// Required wherever tenants are served, together with fragment 29.
+
+model SubscriptionEndAnnouncement {
+    id             String   @id @default(uuid())
+    // The tenant whose subscription is ending. Not a relation: the tenant model
+    // is the application's, and the record outlives the subscription row.
+    tenantId       String
+    subscriptionId String   @unique
+    // The moment the cancellation was to land when it was confirmed.
+    endsAt         DateTime
+    // The read-only period, in days, the deletion day was counted with.
+    readOnlyDays   Int
+    // The installation's day the tenant's data is deleted on: the first day
+    // after the read-only period.
+    deletesOn      DateTime @db.Date
+    // When the cancellation was confirmed, and who confirmed it (an actor tag,
+    // as the audit log writes it).
+    announcedAt    DateTime
+    announcedBy    String
+    createdAt      DateTime @default(now())
+
+    @@index([tenantId])
+    @@map("subscription_end_announcements")
+}
