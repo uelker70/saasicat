@@ -4459,6 +4459,9 @@ before the subscription has ended. To adopt it:
    cancellation already told a day is not refused, whatever day it sends: it changes nothing and
    answers the day on record. The answer's `deletion` is the day recorded. For a subscription
    already cancelled, `announcedDeletion` in `GET billing/usage` is the day it was told, or `null`.
+   Once a cancellation is declared, `cancellation.deletion` is the day confirming it again leaves on
+   record — the day it was told, or else the one counted from the date it lands on, which is the day
+   a repeat is held to — and `null` once it has landed.
    Ending at once works the same way: the preview's `deletion`, `expectedDeletesOn` with
    `POST billing/feature-withdrawals/:id/end`, as
    `useTenantFeatureWithdrawals().end(withdrawalId, null, expectedDeletesOn)` sends it, and the same
@@ -4475,7 +4478,9 @@ before the subscription has ended. To adopt it:
   `SubscriptionCancellationService` last; only code that builds the controller by hand, such as a
   test, notices.
 - **The audit entries** `CANCEL_SUBSCRIPTION` and `END_SUBSCRIPTION_AT_ONCE` name `deletesOn` and
-  `readOnlyDays`, `null` where no day was recorded.
+  `readOnlyDays`, `null` where no day was recorded. Declaring a cancellation again writes
+  `ANNOUNCE_DELETION_DAY` where it records the day, with `effectiveAt`, `deletesOn` and
+  `readOnlyDays`; the manifest names it for the audit page.
 - **A day is recorded under the subscription's `id`.** A `SubscriptionUsagePort` of your own that
   answers a subscription without it tells its tenant no day, and says so once in the log; the end is
   given its day when it is recorded.

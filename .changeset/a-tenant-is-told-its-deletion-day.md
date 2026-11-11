@@ -23,7 +23,8 @@ is written; a repeat of a cancellation already told a day changes nothing and
 answers the day on record. A booking that ends alone deletes nothing and states
 no day. The plan card of a cancelled subscription repeats the day, the
 `ended-at-once` notice of a subscription names both days as `deletion`, and the
-audit entries of a cancellation and of an end at once name the day and the
+audit entries of a cancellation, of an end at once and of a day recorded by
+declaring a cancellation again, `ANNOUNCE_DELETION_DAY`, name the day and the
 period.
 
 Adopt the `SubscriptionEndAnnouncement` model (fragment 30) and run

@@ -1725,7 +1725,10 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   change to the period moves no day already told or recorded.
 - **Told before it is confirmed.** `GET billing/usage` answers what cancelling now would tell as
   `cancellation.deletion` — `readOnlyDays`, `readOnlyUntil` and `deletesOn` — and what was told as
-  `announcedDeletion`. `POST billing/cancel` takes the day shown as `expectedDeletesOn` and refuses
+  `announcedDeletion`. Once a cancellation is declared, `cancellation.deletion` is the day
+  confirming it again leaves on record and checks the page against — the day it was told, or else
+  the one counted from the date it lands on — and `null` once it has landed.
+  `POST billing/cancel` takes the day shown as `expectedDeletesOn` and refuses
   with `CANCELLATION_TERMS_CHANGED` and the days that apply now where the server works out another,
   before anything is written (`SC-CANC-031`) — a repeat of a cancellation already told a day answers
   that day instead, whatever the page sent; ending at once does the same through its preview and
