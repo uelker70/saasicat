@@ -60,7 +60,11 @@ import { freezeContractAfter } from './freeze-contract-after.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN, PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { rhythmTheChangeLandsIn } from './scheduled-change.js';
-import { deletionDayDiffersFromShown, SubscriptionEndService } from './subscription-end.service.js';
+import {
+    deletionDayDiffersFromShown,
+    SubscriptionEndService,
+    type DeletionOnConfirming,
+} from './subscription-end.service.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import {
     FEATURE_WITHDRAWAL_REPOSITORY_TOKEN,
@@ -75,12 +79,6 @@ export interface EndAtOnceConfirmation {
     readonly by: string;
     /** The deletion day the page showed, where it showed one; checked, not trusted. */
     readonly expectedDeletesOn?: CalendarDay | null;
-}
-
-/** What ending the subscription at once tells its tenant, and whether it was told that already. */
-interface Deletion {
-    readonly days: AnnouncedDeletion;
-    readonly onRecord: boolean;
 }
 
 /** One withdrawal the subscription was told of, with the withdrawal as it stands. */
@@ -365,7 +363,7 @@ export class EndAtOnceService {
         subscription: Situation['subscription'],
         booking: SubscriptionBundleRecord | null,
         now: Date,
-    ): Promise<Deletion | null> {
+    ): Promise<DeletionOnConfirming | null> {
         if (booking || !this.subscriptionEnds) return null;
         const announced = await this.subscriptionEnds.announcedFor(subscription.id);
         if (announced) return { days: announced, onRecord: true };
@@ -381,7 +379,7 @@ export class EndAtOnceService {
      * run gives the end its day when it records it.
      */
     private async recordDeletion(
-        deletion: Deletion | null,
+        deletion: DeletionOnConfirming | null,
         tenantId: string,
         subscriptionId: string,
         at: Date,

@@ -43,7 +43,11 @@ import { cancellationTermsChanged } from './cancellation-terms-changed.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import { endContractAfter } from './freeze-contract-after.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
-import { deletionDayDiffersFromShown, SubscriptionEndService } from './subscription-end.service.js';
+import {
+    deletionDayDiffersFromShown,
+    SubscriptionEndService,
+    type DeletionOnConfirming,
+} from './subscription-end.service.js';
 import {
     CANCELLATION_NOTICE_DAYS_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
@@ -53,7 +57,14 @@ import { VersionRetirementService } from './version-retirement.service.js';
 
 /** What cancelling now would do, and what confirming it would tell the tenant of its deletion. */
 export type ProjectedCancellation = CancellationDecision & {
-    /** Null where the end of a subscription is not recorded, or the subscription has no id. */
+    /**
+     * The deletion day confirming now leaves on record, which is the day a
+     * confirmation sent back with it is held to: counted from where cancelling
+     * now would land; once a cancellation is declared, the day it was told, or
+     * else the one counted from the date it lands on; once it has landed, null.
+     * Null as well where the end of a subscription is not recorded, or the
+     * subscription has no id.
+     */
     deletion: AnnouncedDeletion | null;
 };
 
@@ -164,16 +175,16 @@ export class SubscriptionCancellationService {
     ): Promise<CancellationProjection> {
         const retirement = await this.pendingRetirement(sub, now);
         const decision = await this.projectCancellation(tenantId, sub, now, retirement);
-        const canceled = (sub.canceledEffectiveAt ?? sub.canceledAt ?? null) !== null;
+        const told = declaredCancellationOf(sub)
+            ? ((await this.subscriptionEnds?.announcedFor(sub.id)) ?? null)
+            : null;
         return {
             cancellation: {
                 ...decision,
                 deletion:
-                    this.subscriptionEnds?.deletionFor(sub.id, decision.effectiveAt, now) ?? null,
+                    this.deletionOnConfirming(sub, decision.effectiveAt, told, now)?.days ?? null,
             },
-            announcedDeletion: canceled
-                ? ((await this.subscriptionEnds?.announcedFor(sub.id)) ?? null)
-                : null,
+            announcedDeletion: told,
             retirement,
         };
     }
@@ -205,7 +216,7 @@ export class SubscriptionCancellationService {
         // retried after the deadline, becomes January 2028. The customer pressed
         // the same button twice and bought another year. A cancellation is
         // declared once; a repeat is a question about it, not a new one.
-        const existing = sub.canceledEffectiveAt ?? sub.canceledAt ?? null;
+        const existing = declaredCancellationOf(sub);
         if (existing) {
             // What the tenant was told is answered as it stands. Where it was
             // told nothing and the cancellation has not landed, it is told now,
@@ -213,11 +224,9 @@ export class SubscriptionCancellationService {
             // the request that won the cancellation can fail after it, and
             // only a repeat comes back. One that has landed is never announced
             // afterwards — its end is recorded with a day counted then.
-            const told = await this.subscriptionEnds?.announcedFor(sub.id);
-            const toTell =
-                told || cancellationHasLanded(sub, now)
-                    ? null
-                    : (this.subscriptionEnds?.deletionFor(sub.id, existing, now) ?? null);
+            const told = (await this.subscriptionEnds?.announcedFor(sub.id)) ?? null;
+            const onConfirming = this.deletionOnConfirming(sub, existing, told, now);
+            const toTell = onConfirming && !onConfirming.onRecord ? onConfirming.days : null;
             if (toTell && deletionDayDiffersFromShown(shown.expectedDeletesOn, toTell)) {
                 throw cancellationTermsChanged({
                     effectiveAt: existing,
@@ -304,7 +313,7 @@ export class SubscriptionCancellationService {
                 ? expected.getTime() > decision.effectiveAt.getTime()
                 : expected.getTime() !== decision.effectiveAt.getTime());
         const deletion =
-            this.subscriptionEnds?.deletionFor(sub.id, decision.effectiveAt, now) ?? null;
+            this.deletionOnConfirming(sub, decision.effectiveAt, null, now)?.days ?? null;
         if (disagrees || deletionDayDiffersFromShown(shown.expectedDeletesOn, deletion)) {
             throw cancellationTermsChanged({ ...decision, deletion });
         }
@@ -414,6 +423,36 @@ export class SubscriptionCancellationService {
     }
 
     /**
+     * The deletion day confirming the cancellation of `sub` at `now` leaves on
+     * record, and whether it is there already. The account states it as
+     * `cancellation.deletion` and a confirmation is held to it, by this one
+     * rule, so the day a page is shown is the day it is checked against:
+     *
+     * - before a cancellation is declared, the day counted from `landsAt`,
+     *   where declaring one now would land;
+     * - once one is declared and until it lands, `told`, the day it was told,
+     *   or else the day counted from the date it lands on, which a repeat
+     *   records;
+     * - once it has landed, none: nothing is told afterwards, and its end is
+     *   recorded with a day counted then.
+     *
+     * None as well where the end of a subscription is not recorded, or the
+     * subscription has no id to record the day under.
+     */
+    private deletionOnConfirming(
+        sub: SubscriptionUsageRecord,
+        landsAt: Date,
+        told: AnnouncedDeletion | null,
+        now: Date,
+    ): DeletionOnConfirming | null {
+        const declared = declaredCancellationOf(sub);
+        if (declared && cancellationHasLanded(sub, now)) return null;
+        if (declared && told) return { days: told, onRecord: true };
+        const days = this.subscriptionEnds?.deletionFor(sub.id, declared ?? landsAt, now) ?? null;
+        return days && { days, onRecord: false };
+    }
+
+    /**
      * What a cancellation declared at `now` would do. One method, because the
      * account states the date and the declaration applies it, and two
      * constructions of the same input are two chances to disagree about a
@@ -500,4 +539,13 @@ export class SubscriptionCancellationService {
             // (An observability gap is better than an operations outage.)
         }
     }
+}
+
+/**
+ * The date the cancellation of `sub` lands on, where one is declared — its
+ * effective date, or the date it was declared where the row names none — and
+ * null where none is.
+ */
+function declaredCancellationOf(sub: SubscriptionUsageRecord): Date | null {
+    return sub.canceledEffectiveAt ?? sub.canceledAt ?? null;
 }

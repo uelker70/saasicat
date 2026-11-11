@@ -86,6 +86,15 @@ export interface EndConfirmation {
     by: string;
 }
 
+/**
+ * What confirming the end of a subscription tells its tenant of its deletion,
+ * and whether it was told that already.
+ */
+export interface DeletionOnConfirming {
+    readonly days: AnnouncedDeletion;
+    readonly onRecord: boolean;
+}
+
 /** What one run recorded. */
 export interface SubscriptionEndRun {
     /** Subscriptions recorded as ended, each with its deletion day. */

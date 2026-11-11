@@ -37,7 +37,9 @@ export interface CancellationMoments {
     termEndsAt: Moment;
     noticeDeadline: Moment | null;
     /**
-     * What confirming it now would tell the tenant of its deletion. Days
+     * The deletion day confirming now leaves on record, and the day a
+     * confirmation is held to: once a cancellation is declared, the day it was
+     * told or the one a repeat records, and null once it has landed. Days
      * already, so it is carried as it is.
      */
     deletion?: AnnouncedDeletion | null;

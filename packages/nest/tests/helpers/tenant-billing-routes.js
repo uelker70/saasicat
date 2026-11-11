@@ -8,12 +8,12 @@ import {
 } from '../../dist/billing/index.js';
 
 /**
- * The controller over `ports`, each named as the module provides it. A port
- * left out is absent, as where the application wires none; `noticeDays` left
- * out is no notice period.
+ * The cancellation service over `ports`, each named as the module provides it.
+ * A port left out is absent, as where the application wires none;
+ * `noticeDays` left out is no notice period.
  */
-export function tenantBillingRoutes(ports) {
-    const cancellations = new SubscriptionCancellationService(
+export function cancellationsOver(ports) {
+    return new SubscriptionCancellationService(
         ports.subscriptionUsage,
         ports.subscriptionWrite,
         ports.entitlements,
@@ -25,6 +25,15 @@ export function tenantBillingRoutes(ports) {
         ports.settings,
         ports.subscriptionEnds,
     );
+}
+
+/**
+ * The controller over `ports`, as `cancellationsOver` reads them, and over
+ * `ports.cancellations` where a test holds the service it projects and
+ * declares through.
+ */
+export function tenantBillingRoutes(ports) {
+    const cancellations = ports.cancellations ?? cancellationsOver(ports);
     return new TenantBillingController(
         ports.entitlements,
         ports.planPreview,

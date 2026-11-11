@@ -22,7 +22,7 @@ import {
 } from '../dist/billing/index.js';
 import { FakeSubscriptionEndRepository } from '../dist/testing/index.js';
 import { usageRecord } from './helpers/subscription-fixtures.js';
-import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
+import { cancellationsOver, tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 
 const BERLIN = { timeZone: 'Europe/Berlin' };
 const UTC = { timeZone: 'UTC' };
@@ -67,17 +67,20 @@ const CANCELLED_FOR_THE_TERM_END = {
 };
 
 /**
- * The tenant's routes over one subscription, and what they wrote: the
- * cancellation claims, the announcements, the audit entries and the contracts
- * ended. The write claims the cancellation the way a store's conditional write
- * does — the first takes it, any later one finds it taken. `withEnds: false`
- * stands for a module wired without the end of a subscription.
+ * The tenant's routes over one subscription, the cancellation service they
+ * project and declare through, and what they wrote: the cancellation claims,
+ * the announcements, the audit entries and the contracts ended. The write
+ * claims the cancellation the way a store's conditional write does — the first
+ * takes it, any later one finds it taken. `withEnds: false` stands for a module
+ * wired without the end of a subscription; `noticeDays` is the notice the
+ * file names, none unless a case is about it.
  */
 function account({
     subscription = subscriptionWith(),
     settings = BERLIN,
     withEnds = true,
     ends = new FakeSubscriptionEndRepository(),
+    noticeDays = { monthly: 0, yearly: 0 },
 } = {}) {
     const seen = { subscription, ends, claims: [], audited: [], contractsEnded: [] };
     const usage = {
@@ -114,7 +117,7 @@ function account({
     endService.onModuleInit();
     seen.endService = endService;
     seen.writes = writes;
-    seen.controller = tenantBillingRoutes({
+    const ports = {
         entitlements: {
             computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
             invalidateTenant() {},
@@ -135,10 +138,12 @@ function account({
         contractFreeze: {
             endOnCancellation: async (_tenantId, at) => seen.contractsEnded.push(at),
         },
-        noticeDays: { monthly: 0, yearly: 0 },
+        noticeDays,
         settings,
         subscriptionEnds: withEnds ? endService : null,
-    });
+    };
+    seen.cancellations = cancellationsOver(ports);
+    seen.controller = tenantBillingRoutes({ ...ports, cancellations: seen.cancellations });
     return seen;
 }
 
@@ -186,6 +191,114 @@ describe('what the account says cancelling now would tell the tenant', () => {
     test('and says nothing was told while nothing was confirmed', async () => {
         const usage = await account().controller.getUsage(ADMIN);
         assert.equal(usage.announcedDeletion, null);
+    });
+});
+
+// @requirement SC-CANC-031 — The deletion day a tenant confirmed is the one it was shown
+describe('what the account says confirming a cancellation already declared would leave on record', () => {
+    /** The end of a yearly term, at midnight in UTC: its last day is 31 January 2027. */
+    const YEAR_ENDS = new Date('2027-02-01T00:00:00.000Z');
+    /** Past the ninety days' notice before it: cancelling now would land a year later. */
+    const AFTER_THE_DEADLINE = new Date('2027-01-15T10:00:00.000Z');
+    /** Thirty days from the date the declared cancellation lands on. */
+    const COUNTED_FROM_ITS_DATE = {
+        readOnlyDays: 30,
+        readOnlyUntil: '2027-03-02',
+        deletesOn: '2027-03-03',
+    };
+    /** The tenant's administrator, as the routes build them into the audit log. */
+    const ACTOR = { userId: 'u-admin', email: 'admin@t1.example', source: 'web', context: 's1' };
+
+    /** Cancelled on time for `YEAR_ENDS`, with ninety days' notice in the file. */
+    const declaredOnTime = ({ ends } = {}) =>
+        account({
+            subscription: subscriptionWith({
+                billingCycle: 'YEARLY',
+                currentPeriodEnd: YEAR_ENDS,
+                canceledAt: new Date('2026-09-01T08:00:00.000Z'),
+                canceledEffectiveAt: YEAR_ENDS,
+            }),
+            settings: UTC,
+            noticeDays: { monthly: 0, yearly: 90 },
+            ends,
+        });
+
+    test('told no day: the day counted from the date it lands on, which a repeat sent back with it records', async () => {
+        const { cancellations, subscription, ends, claims } = declaredOnTime();
+
+        const { cancellation } = await cancellations.projectionFor(
+            't1',
+            subscription,
+            AFTER_THE_DEADLINE,
+        );
+        assert.deepEqual(cancellation.effectiveAt, new Date('2028-02-01T00:00:00.000Z'));
+        assert.deepEqual(cancellation.deletion, COUNTED_FROM_ITS_DATE);
+
+        const again = await cancellations.declare(
+            't1',
+            { expectedDeletesOn: cancellation.deletion.deletesOn },
+            ACTOR,
+            AFTER_THE_DEADLINE,
+        );
+
+        assert.deepEqual(again.deletion, COUNTED_FROM_ITS_DATE);
+        assert.deepEqual(
+            ends.announcements.map(({ endsAt, deletesOn }) => [endsAt, deletesOn]),
+            [[YEAR_ENDS, '2027-03-03']],
+        );
+        assert.deepEqual(claims, [], 'the cancellation is left as it was');
+    });
+
+    test('told no day: a repeat sent the day counted from where cancelling now would land is refused, with the day counted from its date', async () => {
+        const { cancellations, ends } = declaredOnTime();
+
+        const refusal = await refusalOf(
+            cancellations.declare(
+                't1',
+                { expectedDeletesOn: '2028-03-02' },
+                ACTOR,
+                AFTER_THE_DEADLINE,
+            ),
+        );
+
+        assert.equal(refusal.code, 'CANCELLATION_TERMS_CHANGED');
+        assert.deepEqual(refusal.deletion, COUNTED_FROM_ITS_DATE);
+        assert.deepEqual(ends.announcements, []);
+    });
+
+    test('told a day: that day, as announcedDeletion names it', async () => {
+        const ends = new FakeSubscriptionEndRepository();
+        await ends.announce({
+            tenantId: 't1',
+            subscriptionId: 'sub-t1',
+            endsAt: YEAR_ENDS,
+            readOnlyDays: 90,
+            deletesOn: '2027-05-02',
+            announcedAt: new Date('2026-09-01T08:00:00.000Z'),
+            announcedBy: ADMIN_TAG,
+        });
+        const { cancellations, subscription } = declaredOnTime({ ends });
+
+        const projected = await cancellations.projectionFor('t1', subscription, AFTER_THE_DEADLINE);
+
+        assert.deepEqual(projected.cancellation.deletion, {
+            readOnlyDays: 90,
+            readOnlyUntil: '2027-05-01',
+            deletesOn: '2027-05-02',
+        });
+        assert.deepEqual(projected.cancellation.deletion, projected.announcedDeletion);
+    });
+
+    test('landed: none, since nothing is told afterwards', async () => {
+        const { cancellations, subscription } = declaredOnTime();
+
+        const projected = await cancellations.projectionFor(
+            't1',
+            subscription,
+            new Date('2027-03-01T10:00:00.000Z'),
+        );
+
+        assert.equal(projected.cancellation.deletion, null);
     });
 });
 

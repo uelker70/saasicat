@@ -90,11 +90,13 @@ export interface UsageSnapshotShape extends SubscriptionUsageDays {
         termEndsDays: DaysAround;
         noticeDeadlineDays: DaysAround | null;
         /**
-         * What confirming it now would tell the tenant: the read-only period,
-         * the last day it can still read on and the day its data is deleted
-         * on, as days in the installation's zone. Null where the installation
-         * records no end of a subscription; absent where a server answers that
-         * predates it.
+         * The deletion day confirming now leaves on record, and the day to send
+         * back as `expectedDeletesOn`: the read-only period, the last day it
+         * can still read on and the day its data is deleted on, as days in the
+         * installation's zone. Once a cancellation is declared, the day it was
+         * told or the one a repeat records; null once it has landed, and where
+         * the installation records no end of a subscription; absent where a
+         * server answers that predates it.
          */
         deletion?: AnnouncedDeletion | null;
     };

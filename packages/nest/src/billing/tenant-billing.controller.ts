@@ -162,10 +162,10 @@ interface UsageMomentsAnswer {
      * nothing about whether a cancellation exists. `canceledEffectiveAt` above
      * is the one that does.
      *
-     * `deletion` is what confirming it now would tell the tenant: the
-     * read-only period, the last day it can still read on and the day its
-     * data is deleted on. Null where the installation records no end of a
-     * subscription, or the subscription has no id to record the day under.
+     * `deletion` is the day confirming now leaves on record, with the period
+     * and the last readable day — once one is declared, the day it was told
+     * or the one a repeat records, and null once it has landed. Null as well
+     * where no end of a subscription is recorded, or the subscription has no id.
      */
     cancellation: ProjectedCancellation;
     /**
