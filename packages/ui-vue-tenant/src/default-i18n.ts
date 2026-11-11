@@ -63,6 +63,13 @@ export interface TenantPlanSectionI18n {
      * retired, `{date}` that last day.
      */
     cancelConfirmRetirement: string;
+    /**
+     * Wherever a subscription's end is confirmed or was confirmed — the
+     * cancellation's confirmation, the plan card of a cancelled subscription
+     * and ending it at once: its data can only be read, no longer changed, up
+     * to and including `{readOnlyUntil}`, and is deleted on `{deletesOn}`.
+     */
+    deletionAnnounced: string;
     usageTitle: string;
     /** #18 — feature / scope-of-services matrix (included + locked). */
     featuresOverviewTitle: string;
@@ -598,6 +605,8 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     cancelConfirmAction: 'Zum {date} kündigen',
     cancelConfirmRetirement:
         'Weil Version {version} Ihres Pakets eingestellt wird, gilt bis einschließlich {date} keine Kündigungsfrist.',
+    deletionAnnounced:
+        'Danach können Sie Ihre Daten bis einschließlich {readOnlyUntil} nur noch lesen, nicht mehr ändern. Am {deletesOn} werden sie gelöscht.',
     usageTitle: 'Verbrauch',
     featuresOverviewTitle: 'Leistungsumfang',
     featuresActive: 'Enthalten',
@@ -1027,6 +1036,8 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     cancelConfirmAction: 'Cancel at the end of {date}',
     cancelConfirmRetirement:
         'Because version {version} of your plan is being retired, no notice period applies up to and including {date}.',
+    deletionAnnounced:
+        'After that you can still read your data until the end of {readOnlyUntil}, but no longer change it. On {deletesOn} it is deleted.',
     usageTitle: 'Usage',
     featuresOverviewTitle: 'Features',
     featuresActive: 'Included',

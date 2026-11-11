@@ -689,6 +689,24 @@ export const subscriptionEnds = pgTable('subscription_ends', {
     createdAt: writtenAt('createdAt'),
 });
 
+// One announcement per subscription whose cancellation was confirmed with a
+// deletion day. The DDL authority, the unique key a second announcement for one
+// subscription collides with, is
+// `subscription_end_announcements_subscriptionId_key`.
+export const subscriptionEndAnnouncements = pgTable('subscription_end_announcements', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenantId').notNull(),
+    subscriptionId: text('subscriptionId')
+        .notNull()
+        .unique('subscription_end_announcements_subscriptionId_key'),
+    endsAt: ts('endsAt').notNull(),
+    readOnlyDays: integer('readOnlyDays').notNull(),
+    deletesOn: day('deletesOn').notNull(),
+    announcedAt: ts('announcedAt').notNull(),
+    announcedBy: text('announcedBy').notNull(),
+    createdAt: writtenAt('createdAt'),
+});
+
 // The invoices issued from the charge journal. The DDL authority, the unique
 // keys a second issue of the same charges and a second draw of one number
 // collide with, are `subscription_invoice_lines_chargeId_chainStep_key` and

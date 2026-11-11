@@ -82,6 +82,7 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     maintenanceWindow: unknown;
     tenantAccessHold: unknown;
     subscriptionEnd: unknown;
+    subscriptionEndAnnouncement: unknown;
     termsVersion: unknown;
     subscriber: unknown;
     subscriberTenant: unknown;

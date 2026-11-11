@@ -8,13 +8,21 @@ import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 
 import {
+    EndAtOnceService,
+    PlanCatalogModule,
+    SubscriptionCancellationService,
     SubscriptionEndCron,
     SubscriptionEndService,
+    TenantBillingController,
+    TenantBillingModule,
     TrialEndService,
 } from '../dist/billing/index.js';
+import { ENTITLEMENT_SERVICE_TOKEN } from '../dist/entitlement/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
 import { SaaSiCatModule, findViolations } from '../dist/platform/index.js';
+import { FakeSubscriptionEndRepository } from '../dist/testing/index.js';
 import { bootable, everythingOnOptions } from './helpers/operator-routes.js';
+import { usageRecord } from './helpers/subscription-fixtures.js';
 
 /** The platform's options with `subscriptionEnds` as given, and the bundle's store kept or not. */
 function withEnds(subscriptionEnds, { bundleKeepsEnds = true } = {}) {
@@ -100,4 +108,101 @@ describe('an installation that serves tenants', () => {
             /tenantBilling\.endOfSubscription/,
         );
     });
+});
+
+describe('the routes a tenant ends its subscription through', () => {
+    // @requirement SC-CANC-021 — The read-only period and the deletion date are stated before a tenant cancels
+    // @requirement SC-CANC-029 — A tenant that ends its subscription at once is told the deletion day first
+    test('are handed the service that records the ends, where serving tenants composes it', async () => {
+        const moduleRef = await Test.createTestingModule({
+            imports: [SaaSiCatModule.forRoot(bootable(withEnds(undefined)))],
+        }).compile();
+        const service = moduleRef.get(SubscriptionEndService, { strict: false });
+
+        assert.ok(service instanceof SubscriptionEndService);
+        assert.equal(
+            moduleRef.get(SubscriptionCancellationService, { strict: false }).subscriptionEnds,
+            service,
+        );
+        assert.equal(moduleRef.get(EndAtOnceService, { strict: false }).subscriptionEnds, service);
+        await moduleRef.close();
+    });
+
+    /** Tenant billing wired by hand over one running subscription, with `subscriptionEnds` or without. */
+    async function handWired(subscriptionEnds) {
+        const moduleRef = await Test.createTestingModule({
+            imports: [
+                PlanCatalogModule.forRootWithCatalog(HAND_WIRED_CATALOG),
+                {
+                    module: class FakeEntitlementModule {},
+                    global: true,
+                    providers: [
+                        {
+                            provide: ENTITLEMENT_SERVICE_TOKEN,
+                            useValue: {
+                                computeLimits: async () => ({
+                                    plan: 'STARTER',
+                                    quotas: {},
+                                    features: new Set(),
+                                }),
+                                invalidateTenant() {},
+                            },
+                        },
+                    ],
+                    exports: [ENTITLEMENT_SERVICE_TOKEN],
+                },
+                TenantBillingModule.forRoot({
+                    authGuards: [class Guard {}],
+                    subscriptionUsagePort: {
+                        findForTenant: async () => RUNNING,
+                        listCancelled: async () => [],
+                    },
+                    usageSnapshotPort: { snapshot: async () => ({}) },
+                    subscriptionWritePort: {},
+                    subscriptionEnds,
+                }),
+            ],
+        }).compile();
+        return moduleRef.get(TenantBillingController, { strict: false });
+    }
+
+    test('wired by hand without the ends, start, and the account tells no deletion day', async () => {
+        const route = await handWired(undefined);
+        const usage = await route.getUsage({ user: { tenantId: 't1', sub: 'u1' }, headers: {} });
+        assert.equal(usage.cancellation.deletion, null);
+        assert.equal(usage.announcedDeletion, null);
+    });
+
+    // @requirement SC-CANC-021 — The read-only period and the deletion date are stated before a tenant cancels
+    test('wired by hand with them, the account tells the day', async () => {
+        const route = await handWired({ store: new FakeSubscriptionEndRepository() });
+        const usage = await route.getUsage({ user: { tenantId: 't1', sub: 'u1' }, headers: {} });
+        assert.deepEqual(usage.cancellation.deletion, {
+            readOnlyDays: 30,
+            readOnlyUntil: '2100-01-30',
+            deletesOn: '2100-01-31',
+        });
+    });
+});
+
+/** A catalogue as `config/saas.yaml` gives it to a module wired by hand, in Berlin. */
+const HAND_WIRED_CATALOG = {
+    schemaVersion: 1,
+    app: { name: 'Probe', version: '0.0.1' },
+    currency: 'EUR',
+    vatRate: 19,
+    timeZone: 'Europe/Berlin',
+    tenantBilling: {
+        cancellationNoticeDays: { monthly: 0, yearly: 0 },
+        selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+        endOfSubscription: { readOnlyDays: 30 },
+    },
+    plans: [],
+};
+
+/** A running subscription whose term ends half past midnight into 1 January 2100 in Berlin. */
+const RUNNING = usageRecord({
+    id: 'sub-t1',
+    billingCycle: 'MONTHLY',
+    currentPeriodEnd: new Date('2099-12-31T23:30:00.000Z'),
 });

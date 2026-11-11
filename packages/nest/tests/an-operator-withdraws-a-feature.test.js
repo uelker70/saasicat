@@ -1282,8 +1282,8 @@ function endedAtOnce(tenantId, withdrawalId, at, subscriptionBundleId = null) {
     };
 }
 
-// @requirement SC-CANC-024 — While a feature it holds is withdrawn, a subscription may end at once
 describe('an end at once, sent by the run', () => {
+    // @requirement SC-CANC-024 — While a feature it holds is withdrawn, a subscription may end at once
     test('is told where the subscription or the booking ended at its moment, and never where the end failed', async () => {
         const notices = noticeRecord();
         const port = sendingPort();
@@ -1330,6 +1330,40 @@ describe('an end at once, sent by the run', () => {
             (await harness.service.sendUndelivered(ms(NOW, 7_200_000))).told,
             0,
             'and the failed ones are not tried again as if they were due',
+        );
+    });
+
+    // @requirement SC-CANC-029 — A tenant that ends its subscription at once is told the deletion day first
+    test('hands the application the deletion day a notice names, and one recorded before notices named it as it was recorded', async () => {
+        const notices = noticeRecord();
+        const port = sendingPort();
+        const ended = ms(NOW, 60_000);
+        const harness = withdrawing({
+            subscriptions: [
+                subscriptionOf('t1', { canceledAt: ended, canceledEffectiveAt: ended }),
+                subscriptionOf('t2', { canceledAt: ended, canceledEffectiveAt: ended }),
+            ],
+            notices,
+            port,
+        });
+        const deletion = { readOnlyDays: 30, readOnlyUntil: '2026-07-14', deletesOn: '2026-07-15' };
+        const naming = endedAtOnce('t1', 'fw-1', ended);
+        await notices.record(
+            [
+                { ...naming, content: { ...naming.content, deletion } },
+                endedAtOnce('t2', 'fw-1', ended),
+            ],
+            NOW,
+        );
+
+        await harness.service.sendUndelivered(ms(NOW, 3_600_000));
+
+        assert.deepEqual(
+            port.sent.map((notice) => [notice.tenantId, notice.deletion]),
+            [
+                ['t1', deletion],
+                ['t2', undefined],
+            ],
         );
     });
 });

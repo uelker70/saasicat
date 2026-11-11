@@ -1444,7 +1444,9 @@ export interface SubscriptionUsageRecord {
      * yet pass the column through — the platform service uses it
      * only for downstream steps such as atomic promo-redeem in the
      * onboarding endpoint. Adapters that want to support `POST /billing/onboarding/initial-subscription`
-     * with a promo code must set `id`.
+     * with a promo code must set `id`. The deletion day a cancellation
+     * announces is recorded under it too: without it a tenant is told no day
+     * before its subscription ends, and its end is given one when it lands.
      */
     id?: string;
     plan: string;

@@ -74,6 +74,7 @@
             <template v-else-if="preview">
                 <p class="sp-feature-withdrawn__text">{{ dialogBody }}</p>
                 <p class="sp-feature-withdrawn__text">{{ creditText }}</p>
+                <p v-if="deletionText" class="sp-feature-withdrawn__text">{{ deletionText }}</p>
                 <p v-if="preview.mayEnd === false" class="sp-feature-withdrawn__text" role="note">
                     {{ i18n.endAtOnceByAdministration }}
                 </p>
@@ -117,11 +118,13 @@ import type {
     TenantFeatureWithdrawal,
     TenantFeatureWithdrawalLine,
 } from '@saasicat/core';
+import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { useTenantFeatureWithdrawals, type HttpClient } from '@saasicat/ui-vue';
 
+import { deletionSentence } from '../announced-deletion.js';
 import { writeDay } from '../day-as-instant.js';
 import { messageText } from '../message-parts.js';
-import { refusalMessage } from '../refusal-of.js';
+import { refusalMessage, refusalOf } from '../refusal-of.js';
 import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantCard from '../ui/TenantCard.vue';
@@ -227,14 +230,22 @@ async function ask(
     withdrawal: TenantFeatureWithdrawal,
     subscriptionBundleId: string | null,
 ): Promise<void> {
-    const asked = ++question;
     asking.value = { withdrawal, subscriptionBundleId };
-    preview.value = null;
     dialogError.value = null;
     note.value = null;
+    await readPreview(withdrawal.withdrawalId, subscriptionBundleId);
+}
+
+/** Reads what ending at once now would do into the open question, leaving its error as it is. */
+async function readPreview(
+    withdrawalId: string,
+    subscriptionBundleId: string | null,
+): Promise<void> {
+    const asked = ++question;
+    preview.value = null;
     previewing.value = true;
     try {
-        const answer = await state.previewEnd(withdrawal.withdrawalId, subscriptionBundleId);
+        const answer = await state.previewEnd(withdrawalId, subscriptionBundleId);
         if (asked === question) preview.value = answer;
     } catch (err) {
         if (asked === question) dialogError.value = refused(err);
@@ -270,6 +281,11 @@ const dialogBody = computed(() => {
         : messageText(i18n.value.endAtOnceBodyAddOn, { addOn: askedAddOn.value, date: endsOn });
 });
 
+/** Until when the data can only be read after the end, and the day it is deleted on; null for a booking. */
+const deletionText = computed(() =>
+    deletionSentence(i18n.value.deletionAnnounced, preview.value?.deletion, props.formatDate),
+);
+
 const creditText = computed(() =>
     preview.value && preview.value.creditNet > 0
         ? messageText(i18n.value.endAtOnceCredit, {
@@ -284,7 +300,13 @@ async function confirm(): Promise<void> {
     ending.value = true;
     dialogError.value = null;
     try {
-        const ended = await state.end(asked.withdrawal.withdrawalId, asked.subscriptionBundleId);
+        // The deletion day the dialog showed travels with the request, so the
+        // day recorded is the one the tenant read.
+        const ended = await state.end(
+            asked.withdrawal.withdrawalId,
+            asked.subscriptionBundleId,
+            preview.value.deletion?.deletesOn,
+        );
         const addOn = askedAddOn.value;
         ending.value = false;
         asking.value = null;
@@ -293,6 +315,12 @@ async function confirm(): Promise<void> {
     } catch (err) {
         dialogError.value = refused(err);
         ending.value = false;
+        // What ending would do changed since it was shown: read it again, so
+        // the next confirmation is given on the days that apply now rather
+        // than refused again on the ones already refused.
+        if (refusalOf(err)?.code === BILLING_ERROR_CODES.CANCELLATION_TERMS_CHANGED) {
+            await readPreview(asked.withdrawal.withdrawalId, asked.subscriptionBundleId);
+        }
     }
 }
 </script>

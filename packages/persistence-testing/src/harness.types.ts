@@ -238,9 +238,13 @@ export interface ContractAdapterInstances {
     tenantAccessHolds?: TenantAccessHoldPort;
     /**
      * Enables the subscription end scenarios: one end per subscription however
-     * many runs record it at once, and the ends of many subscriptions read in
-     * one go. The platform records an end once it learns of it, so an adapter
-     * that let a second one land would leave two deletion days for one tenant.
+     * many runs record it at once, one announced deletion day per subscription
+     * however many confirmations announce it at once, each read for many
+     * subscriptions in one go, and the two kept apart. The platform records an
+     * end once it learns of it and announces a day once a cancellation is
+     * confirmed, so an adapter that let a second one land would leave two
+     * deletion days for one tenant, and one that counted an announcement as an
+     * end would hold a tenant read-only before its subscription ended.
      */
     subscriptionEnds?: SubscriptionEndPort;
     /**

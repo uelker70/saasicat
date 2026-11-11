@@ -158,7 +158,8 @@ export interface SaaSiCatPersistenceCore {
     tenantAccessHolds?: PersistenceProvider<TenantAccessHoldPort>;
     /**
      * Where the end of each subscription is kept, with the day its tenant's
-     * data is deleted on (`SC-CANC-027`). Optional so an adapter written before
+     * data is deleted on (`SC-CANC-027`), and the day a tenant was told when
+     * it confirmed its cancellation. Optional so an adapter written before
      * it existed still compiles; an installation that serves tenants without
      * one is refused at start-up, since a deletion day that is not recorded
      * cannot be told or kept.

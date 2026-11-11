@@ -1715,10 +1715,29 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
 
 - **The period** is `tenantBilling.endOfSubscription.readOnlyDays` in `config/saas.yaml`. It is
   required and has no default: how long a former customer's data is kept is yours to decide and to
-  state in your terms. The deletion day is the first day after it, in the installation's zone,
-  counted from the day the subscription ended — or from the day the platform records the end, where
-  that is later. It is fixed when it is recorded: a change to the period applies to subscriptions
-  that end after it.
+  state in your terms. The deletion day is the first day after it, in the installation's zone. Where
+  a tenant confirmed its cancellation, or ended its subscription at once, it was told that day,
+  counted from the day the subscription was to end or the day it confirmed, whichever is later, and
+  its end is recorded with it, provided the end landed no later than announced (`SC-CANC-021`,
+  `SC-CANC-030`). Otherwise — a cancellation your application declared, one told no day, one whose
+  day could not be recorded, or one that landed later than announced — it is counted from the day
+  the subscription ended, or from the day the platform records the end, where that is later. A
+  change to the period moves no day already told or recorded.
+- **Told before it is confirmed.** `GET billing/usage` answers what cancelling now would tell as
+  `cancellation.deletion` — `readOnlyDays`, `readOnlyUntil` and `deletesOn` — and what was told as
+  `announcedDeletion`. Once a cancellation is declared, `cancellation.deletion` is the day
+  confirming it again leaves on record and checks the page against — the day it was told, or else
+  the one counted from the date it lands on — and `null` once it has landed.
+  `POST billing/cancel` takes the day shown as `expectedDeletesOn` and refuses
+  with `CANCELLATION_TERMS_CHANGED` and the days that apply now where the server works out another,
+  before anything is written (`SC-CANC-031`) — a repeat of a cancellation already told a day answers
+  that day instead, whatever the page sent; ending at once does the same through its preview and
+  `POST billing/feature-withdrawals/:id/end` (`SC-CANC-029`). The day told is kept in
+  `subscription_end_announcements`, through the same store, once, by the request that confirmed it
+  or by a repeat that finds none. Where that write fails the cancellation stands, and declaring it
+  again records the day; an end at once stands too, is answered and audited without a day, and is
+  given its day when the run records its end (`SC-CANC-032`). `TenantPlanSection` states the days in
+  both dialogs and on the plan card of a cancelled subscription.
 - **Recorded by a run.** Nothing marks the moment a cancellation lands, so every quarter of an hour
   `SubscriptionEndCron` reads the subscriptions a cancellation was declared for, across tenants, and
   for each one that has landed and has no end yet records the `ended` reason and one row in
@@ -2184,14 +2203,15 @@ not lifted at a time. "Lift" names the date from which the feature is granted ag
 
 **What your port is handed.** One `feature-withdrawn` notice per subscription, recorded once the
 withdrawal is and then sent through the same `SubscriptionNoticePort` — read after the withdrawal is
-recorded, so a change concluded while it was being announced is reached: the feature,
-the reason, `effectiveFrom`, each line it reached with its `reductionNet` (`null` where none was
-named), and `specialTerms` where the subscription holds the feature only through them — then no
-reduction applies by itself, which is yours to agree in the special contract. Lifting sends one
+recorded, so a change concluded while it was being announced is reached: the feature, the reason,
+`effectiveFrom`, each line it reached with its `reductionNet` (`null` where none was named), and
+`specialTerms` where the subscription holds the feature only through them — then no reduction
+applies by itself, which is yours to agree in the special contract. Lifting sends one
 `feature-withdrawal-lifted` to every subscription still running, and ending at once one
-`ended-at-once`, the confirmation of what ended. A notice that cannot be sent at once is sent by the
-next quarter-hourly run; with `versionNotices.includeCron: false`, call
-`FeatureWithdrawalService.sendUndelivered(new Date())` from your scheduler. Nobody is reminded:
+`ended-at-once`, the confirmation of what ended — where the subscription ended, with the last day
+its data can be read and the day it is deleted as `deletion` (`SC-CANC-029`). A notice that cannot
+be sent at once is sent by the next quarter-hourly run; with `versionNotices.includeCron: false`,
+call `FeatureWithdrawalService.sendUndelivered(new Date())` from your scheduler. Nobody is reminded:
 doing nothing costs the subscriber nothing.
 
 **What it costs.** The reductions are written into each subscription's contract as generated
@@ -2208,18 +2228,18 @@ SaaSiCat starts no refund.
 **What the tenant sees.** `TenantPlanSection` shows each withdrawal beside the plan: why, from when,
 what each line is reduced by, and — for the tenant's administrators — "End subscription now" and,
 where an add-on grants the feature, "End … now" for that booking, each with what ends and what is
-credited read before the click (`SC-CANC-024`, `SC-BUN-062`). `MySubscriptionBundlesPage` shows the
-same notices above the add-ons. The routes are `GET /billing/feature-withdrawals` and `GET`/`POST
-/billing/feature-withdrawals/:id/end` and `…/:id/bookings/:subscriptionBundleId/end`, audited as
-`END_SUBSCRIPTION_AT_ONCE` and `END_ADD_ON_AT_ONCE`. Wherever the section names a feature as part of
-a plan or an add-on, a withdrawn one is marked with its reason and date rather than shown as
-included or not (`SC-CAT-017`). `OnboardingConfigurator` and `MySubscriptionBundlesPage` mark it
+credited read before the click — and, where the subscription ends, the last day its data can be read
+and the day it is deleted (`SC-CANC-024`, `SC-BUN-062`, `SC-CANC-029`). `MySubscriptionBundlesPage`
+shows the same notices above the add-ons. The routes are `GET /billing/feature-withdrawals` and
+`GET`/`POST /billing/feature-withdrawals/:id/end` and `…/:id/bookings/:subscriptionBundleId/end`,
+audited as `END_SUBSCRIPTION_AT_ONCE` and `END_ADD_ON_AT_ONCE`. Wherever the section names a feature
+as part of a plan or an add-on, a withdrawn one is marked with its reason and date rather than shown
+as included or not (`SC-CAT-017`). `OnboardingConfigurator` and `MySubscriptionBundlesPage` mark it
 once you hand them the registry from `/billing/feature-registry` as `featureRegistry`; a marketing
 page of your own reads the same field there, `withdrawn` — a list, because a feature can be
 withdrawn again from the day it returns, each entry with `effectiveFromDays` and `liftedFromDays`,
-the days of its dates in the installation's zone (`SC-UI-028`). Whoever concludes while a feature
-is withdrawn does so at the price offered, without a reduction and without the right to end at
-once.
+the days of its dates in the installation's zone (`SC-UI-028`). Whoever concludes while a feature is
+withdrawn does so at the price offered, without a reduction and without the right to end at once.
 
 ## Admin Module
 

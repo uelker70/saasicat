@@ -1,7 +1,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { TenantBillingController, computeNextPeriod } from '../dist/billing/index.js';
+import { computeNextPeriod } from '../dist/billing/index.js';
+import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 
 // Two things a cancellation must survive: being repeated, and being older than
 // the fields that describe it.
@@ -37,22 +38,22 @@ const CANCELLED = {
 };
 
 function buildController(subscription, writePort) {
-    return new TenantBillingController(
-        {
+    return tenantBillingRoutes({
+        entitlements: {
             computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
-        {
+        planPreview: {
             async preview() {
                 return { isImmediate: false, effectiveAt: null, blockers: [] };
             },
         },
-        { findForTenant: async () => subscription },
-        { snapshot: async () => ({}) },
-        writePort,
-        () => 't1',
-        () => 'u1',
-    );
+        subscriptionUsage: { findForTenant: async () => subscription },
+        usageSnapshot: { snapshot: async () => ({}) },
+        subscriptionWrite: writePort,
+        tenantIdResolver: () => 't1',
+        userIdResolver: () => 'u1',
+    });
 }
 
 function writePort() {

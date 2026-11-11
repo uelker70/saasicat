@@ -198,18 +198,33 @@ describes; the payment that settles an invoice lifts its reason at once
 
 ### Subscription ends
 
-| Entity                                  | Identity / uniqueness              | Notes                                                                                                                                                                                    |
-| --------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SubscriptionEnd` (`subscription_ends`) | `id`; one row per `subscriptionId` | One row per subscription that ended (`SC-CANC-027`): `endsAt`, the moment its cancellation landed, and `deletesOn`, the installation's day its tenant's data is deleted on. Never moved. |
+| Entity                                                           | Identity / uniqueness              | Notes                                                                                                                                                                                                                                                                                                    |
+| ---------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SubscriptionEnd` (`subscription_ends`)                          | `id`; one row per `subscriptionId` | One row per subscription that ended (`SC-CANC-027`): `endsAt`, the moment its cancellation landed, and `deletesOn`, the installation's day its tenant's data is deleted on. Never moved.                                                                                                                 |
+| `SubscriptionEndAnnouncement` (`subscription_end_announcements`) | `id`; one row per `subscriptionId` | One row per subscription whose end its tenant confirmed with a deletion day (`SC-CANC-021`, `SC-CANC-029`): `endsAt`, the moment the end was to land then, `deletesOn`, the day the tenant was told, `readOnlyDays`, the period it was counted with, and who confirmed it when. Not an end. Never moved. |
 
 **Recorded by a run, beside an `ended` reason.** Nothing marks the moment a
 cancellation lands, so the quarter-hourly run reads the subscriptions a
 cancellation was declared for (`SubscriptionUsagePort.listCancelled`), and for
 each one that has landed and has no row here it records the `ended` reason on
 its tenant first, then the end. A run that stops between the two records the end
-the next time and finds the reason already open. `deletesOn` is the first day
-after `tenantBilling.endOfSubscription.readOnlyDays`, counted from the day the
+the next time and finds the reason already open. `deletesOn` is the day the
+tenant was told where it has an announcement and the end landed no later than
+the one announced (`SC-CANC-030`); otherwise the first day after
+`tenantBilling.endOfSubscription.readOnlyDays`, counted from the day the
 subscription ended or from the day the end is recorded, where that is later.
+
+**Announced at confirmation, beside the end.** The days a tenant's page showed
+when it confirmed its cancellation, or ended its subscription at once, are
+recorded once as an announcement — by the request that won the cancellation or
+ended the subscription, or by a repeat that finds none recorded — before the end
+is recorded, which is why it is a row of its own: a row in `subscription_ends`
+would read as an end, and the run would never hold the tenant. A cancellation
+declared again before it lands records the announcement where it has none
+(`SC-CANC-032`); one the application declared, or one declared before the table
+was adopted, has none until its tenant declares it again, and an end at once
+whose announcement could not be recorded has none: the end is given its day when
+it is recorded.
 
 ## Transactional invariants (what adapters must guarantee)
 
@@ -382,6 +397,11 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
     where the subscription has none — the unique key on `subscriptionId` holds
     it — and answers null otherwise, leaving the first end and its deletion day
     as they were.
+22. **A subscription is told one deletion day.** `SubscriptionEndPort.announce`
+    inserts only where the subscription has no announcement — the unique key on
+    `subscriptionId` holds it — and answers null otherwise, leaving the first as
+    it was. An announcement is not an end: recording an end neither needs one
+    nor removes it.
 
 ## Capability requirements
 

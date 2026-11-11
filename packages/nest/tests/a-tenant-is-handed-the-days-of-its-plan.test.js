@@ -11,7 +11,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
 
-import { TenantBillingController } from '../dist/billing/index.js';
+import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 
 /** Settings as `config/saas.yaml` gives them, in a Berlin installation. */
 const BERLIN = { timeZone: 'Europe/Berlin', tenantBilling: {} };
@@ -86,35 +86,21 @@ const WRITES = {
 
 /** The routes over t1's subscription, reading days in `settings`' zone. */
 function routeIn(settings, { subscription = subscriptionWith(), noticeDays, retirement } = {}) {
-    return new TenantBillingController(
-        {
+    return tenantBillingRoutes({
+        entitlements: {
             computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
-        DEFERRED_PREVIEW,
-        { findForTenant: async () => subscription },
-        { snapshot: async () => ({}) },
-        WRITES,
-        () => 't1',
-        () => 'u1',
-        // The positions between, up to the settings of `config/saas.yaml`.
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
+        planPreview: DEFERRED_PREVIEW,
+        subscriptionUsage: { findForTenant: async () => subscription },
+        usageSnapshot: { snapshot: async () => ({}) },
+        subscriptionWrite: WRITES,
+        tenantIdResolver: () => 't1',
+        userIdResolver: () => 'u1',
         noticeDays,
-        null,
-        undefined,
-        undefined,
-        retirement ? { pendingFor: async () => retirement } : null,
-        null,
-        null,
+        retirements: retirement ? { pendingFor: async () => retirement } : null,
         settings,
-    );
+    });
 }
 
 describe('the days of the subscription', () => {

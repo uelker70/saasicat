@@ -241,12 +241,14 @@ Where the versions of the terms are kept, unalterably: a contract names the vers
 
 ### `SubscriptionEndPort`
 
-Keeps one end per subscription that ended, in the application's own database.
+Keeps one end per subscription that ended, and one announcement per subscription whose cancellation was confirmed with a deletion day, in the application's own database.
 
-| Member                                                                    | What it does                                                                |
-| ------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `record(end: NewSubscriptionEnd): Promise<SubscriptionEnd \| null>`       | Records `end` and returns it as stored — the id is the adapter's to assign. |
-| `listFor(subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]>` | The ends of those of `subscriptionIds` that have one, in one read.          |
+| Member                                                                                                    | What it does                                                                         |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `record(end: NewSubscriptionEnd): Promise<SubscriptionEnd \| null>`                                       | Records `end` and returns it as stored — the id is the adapter's to assign.          |
+| `listFor(subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]>`                                 | The ends of those of `subscriptionIds` that have one, in one read.                   |
+| `announce( announcement: NewSubscriptionEndAnnouncement, ): Promise<SubscriptionEndAnnouncement \| null>` | Records `announcement` and returns it as stored — the id is the adapter's to assign. |
+| `listAnnouncedFor(subscriptionIds: readonly string[]): Promise<SubscriptionEndAnnouncement[]>`            | The announcements of those of `subscriptionIds` that have one, in one read.          |
 
 ## Subscriber notices
 

@@ -199,6 +199,7 @@ export function createMemoryHarness() {
         maintenanceWindows: [],
         tenantAccessHolds: [],
         subscriptionEnds: [],
+        subscriptionEndAnnouncements: [],
         subscriptionNotices: [],
         versionRetirements: [],
         bundleVersionRetirements: [],
@@ -1989,7 +1990,7 @@ export function createMemoryHarness() {
         },
     };
 
-    /** Subscription ends: one per subscription, as the unique key keeps it. */
+    /** Subscription ends and their announcements: one of each per subscription, as the unique keys keep them. */
     const subscriptionEnds = {
         async record(end) {
             if (state.subscriptionEnds.some((row) => row.subscriptionId === end.subscriptionId)) {
@@ -2002,6 +2003,25 @@ export function createMemoryHarness() {
         async listFor(subscriptionIds) {
             return structuredClone(
                 state.subscriptionEnds
+                    .filter((row) => subscriptionIds.includes(row.subscriptionId))
+                    .sort((a, b) => (a.subscriptionId < b.subscriptionId ? -1 : 1)),
+            );
+        },
+        async announce(announcement) {
+            if (
+                state.subscriptionEndAnnouncements.some(
+                    (row) => row.subscriptionId === announcement.subscriptionId,
+                )
+            ) {
+                return null;
+            }
+            const row = { id: nextId('announcement'), ...structuredClone(announcement) };
+            state.subscriptionEndAnnouncements.push(row);
+            return structuredClone(row);
+        },
+        async listAnnouncedFor(subscriptionIds) {
+            return structuredClone(
+                state.subscriptionEndAnnouncements
                     .filter((row) => subscriptionIds.includes(row.subscriptionId))
                     .sort((a, b) => (a.subscriptionId < b.subscriptionId ? -1 : 1)),
             );

@@ -11,7 +11,12 @@
 // nothing.
 
 import { getCurrentScope, onScopeDispose, ref, type Ref } from 'vue';
-import type { EndAtOncePreview, EndedAtOnce, TenantFeatureWithdrawal } from '@saasicat/core';
+import type {
+    CalendarDay,
+    EndAtOncePreview,
+    EndedAtOnce,
+    TenantFeatureWithdrawal,
+} from '@saasicat/core';
 
 import { httpStatusOf } from '../client/admin-error.js';
 import { isHiddenFromThisUser } from '../client/billing-area.js';
@@ -42,8 +47,18 @@ export interface UseTenantFeatureWithdrawalsResult {
         withdrawalId: string,
         subscriptionBundleId: string | null,
     ): Promise<EndAtOncePreview>;
-    /** Ends at once what `previewEnd` was asked about, and reads the list again. */
-    end(withdrawalId: string, subscriptionBundleId: string | null): Promise<EndedAtOnce>;
+    /**
+     * Ends at once what `previewEnd` was asked about, and reads the list
+     * again. `expectedDeletesOn` is the deletion day the preview showed, where
+     * it showed one, for the server to check: it refuses with
+     * `CANCELLATION_TERMS_CHANGED` where the day that applies now is another,
+     * and nothing is ended.
+     */
+    end(
+        withdrawalId: string,
+        subscriptionBundleId: string | null,
+        expectedDeletesOn?: CalendarDay,
+    ): Promise<EndedAtOnce>;
 }
 
 /** The longest delay a timer keeps; a moment further off is looked at again then. */
@@ -167,11 +182,12 @@ export function useTenantFeatureWithdrawals(
     async function end(
         withdrawalId: string,
         subscriptionBundleId: string | null,
+        expectedDeletesOn?: CalendarDay,
     ): Promise<EndedAtOnce> {
         const ended = await postJson<EndedAtOnce>(
             http,
             endUrl(withdrawalId, subscriptionBundleId),
-            {},
+            expectedDeletesOn ? { expectedDeletesOn } : {},
         );
         await reload();
         return ended;

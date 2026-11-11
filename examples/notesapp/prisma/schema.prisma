@@ -1765,3 +1765,18 @@ model SubscriptionEnd {
     @@index([tenantId])
     @@map("subscription_ends")
 }
+
+model SubscriptionEndAnnouncement {
+    id             String   @id @default(uuid())
+    tenantId       String
+    subscriptionId String   @unique
+    endsAt         DateTime
+    readOnlyDays   Int
+    deletesOn      DateTime @db.Date
+    announcedAt    DateTime
+    announcedBy    String
+    createdAt      DateTime @default(now())
+
+    @@index([tenantId])
+    @@map("subscription_end_announcements")
+}

@@ -9,6 +9,7 @@
 // rule rather than by one it made up.
 
 import { withDays, type WithDays } from './days-beside-moments.js';
+import type { AnnouncedDeletion } from './subscription-end.types.js';
 import { SUBSCRIPTION_USAGE_MOMENTS, type SubscriptionUsageDays } from './subscription.types.js';
 import type {
     VersionRetiredNotice,
@@ -35,6 +36,13 @@ export interface CancellationMoments {
     effectiveAt: Moment;
     termEndsAt: Moment;
     noticeDeadline: Moment | null;
+    /**
+     * The deletion day confirming now leaves on record, and the day a
+     * confirmation is held to: once a cancellation is declared, the day it was
+     * told or the one a repeat records, and null once it has landed. Days
+     * already, so it is carried as it is.
+     */
+    deletion?: AnnouncedDeletion | null;
 }
 
 /** What `withUsageDays` reads the days of. */
@@ -44,6 +52,11 @@ export type UsageMoments = {
     cancellation: CancellationMoments;
     retirement: VersionRetiredNotice | null;
     packageSnapshot: unknown;
+    /**
+     * What the tenant was told of its deletion when it confirmed its
+     * cancellation. Days already, so it is carried as it is.
+     */
+    announcedDeletion?: AnnouncedDeletion | null;
 };
 
 /** The days of what cancelling now would do. */

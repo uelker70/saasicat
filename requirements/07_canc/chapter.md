@@ -623,13 +623,79 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-CANC-021 — The read-only period and the deletion date are stated before a tenant cancels
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Beside the period the cancellation lands in, which
+🟢 🔒 Beside the period the cancellation lands in, which
 `SC-CANC-017` states. The deletion date stated when the tenant confirms is recorded with the
 cancellation, and a later change to the period in `config/saas.yaml` applies to cancellations
 confirmed after it, never moving a date already announced. The one way a tenant is deleted before
 that date is an early deletion the operator confirms for a legal reason (`SC-ADM-020`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-cancellation-announces-its-deletion-day.test.js`
+    - the days a confirmed cancellation announces
+        - landing at midnight in the zone, its first day without the subscription is the next one
+        - landing a millisecond before midnight in the zone, the day it lands on is the earlier one
+        - in a zone behind UTC, the day is the one the zone shows
+        - the same moment read in UTC lands a day later
+        - a period across the change back from summer time counts days, not 24-hour spans
+        - one read-only day leaves the day it lands on as the last readable day
+        - confirmed on the day it lands, hours before it lands, counts from that day
+        - confirmed after it lands, on the same day, still counts from that day
+        - confirmed days after it lands counts from the day it is confirmed
+        - confirmed a minute into the next day counts from the next day
+        - never leaves less than the period from the day it is confirmed, nor from the day it lands
+    - an announcement read back from a store
+        - takes its day from Prisma's date at midnight UTC and from Drizzle's text alike, and keeps
+          its period
+        - reads back as what the tenant was told: its period, its deletion day and the day before it
+- `packages/nest/tests/a-cancellation-announces-the-day-its-data-is-deleted.test.js`
+    - what the account says cancelling now would tell the tenant
+        - for a cancellation landing at the term end: the days counted from that end, in the
+          installation’s zone
+        - for one landing at once: the days counted from the moment it would land
+        - and says nothing was told while nothing was confirmed
+    - confirming a cancellation
+        - records exactly the days the account stated, and the answer, the audit entry and the
+          account afterwards repeat them
+        - landing at once records the days counted from the moment it landed
+    - confirming a cancellation again
+        - where a day was told, changes nothing and answers that day, though the page sent › the day
+          on record
+        - where a day was told, changes nothing and answers that day, though the page sent › the day
+          counted now
+- `packages/nest/tests/a-trial-that-ran-out-is-ended-by-the-application.test.js`
+    - a trial that ran out, ended by the application
+        - a trial its tenant cancelled, and was told a day for, ends with that day
+- `packages/nest/tests/an-ended-subscription-is-recorded-once.test.js`
+    - the end of a subscription its tenant was told a day for
+        - is recorded with that day though the period since was › shortened
+        - is recorded with that day though the period since was › lengthened
+        - beside one told no day, which is counted with the period in force
+        - recorded a day late, keeps the day it was told, and holds its tenant from when it ended
+- `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
+    - the routes a tenant ends its subscription through
+        - are handed the service that records the ends, where serving tenants composes it
+        - wired by hand with them, the account tells the day
+- `packages/ui-vue-tenant/tests/component/the-deletion-day-confirmed-is-the-one-shown.test.ts`
+    - the confirmation of a cancellation
+        - says until when the data can only be read and the day it is deleted, as the server named
+          them
+        - says it after a notice deadline as well
+        - and while a retirement of the version is pending
+        - sends the deletion day it showed beside the date
+        - where the server works out another day, shows the new one, and the next confirmation sends
+          it
+        - where the server answers no deletion, says nothing of deletion and sends no day
+        - where the server predates the days, says nothing of deletion and sends no day
+    - in either language
+        - in German: the cancellation and the end at once fill in both days
+        - in English: the cancellation and the end at once fill in both days
+
+<!-- END proof -->
 
 ### SC-CANC-022 — A tenant is reminded before its data is deleted
 
@@ -641,6 +707,192 @@ and a run that repeats sends no reminder twice. Each reminder sent is part of th
 (`SC-PRIV-017`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-CANC-029 — A tenant that ends its subscription at once is told the deletion day first
+
+🟢 🔒 Ending at once while a feature is withdrawn (`SC-CANC-024`) is the other way a tenant ends its
+own subscription, and it follows `SC-CANC-021`: before confirming, the tenant reads the last day it
+can still read on and the day its data is deleted, and the confirmation records that day. A
+subscription that was cancelled for a later date and told a day then is shown that day again, and
+keeps it. A booking that ends alone deletes nothing, and states no day. The message that tells the
+subscriber of the end names both days.
+
+_Source:_ #276 · #337 (decided 2026-11-10)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - the day its data is deleted on, where a subscription ends at once
+        - is stated by the preview and the end, recorded by the end, and named in its notice
+        - is none for a booking that ends alone, and none is recorded
+        - is the day the tenant was told when it cancelled for a later date: shown, kept and named
+        - through the route, is checked against the day sent, recorded as told by the administrator,
+          and audited
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - an end at once, sent by the run
+        - hands the application the deletion day a notice names, and one recorded before notices
+          named it as it was recorded
+- `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
+    - the routes a tenant ends its subscription through
+        - are handed the service that records the ends, where serving tenants composes it
+- `packages/ui-vue-tenant/tests/component/the-deletion-day-confirmed-is-the-one-shown.test.ts`
+    - ending at once
+        - the subscription: says until when the data can only be read and the day it is deleted, and
+          sends that day
+        - one booking: says nothing of deletion, and sends no day
+        - where the installation names no deletion day, says nothing of deletion and sends none
+        - where the server works out another day, reads it again, shows the new one, and the next
+          confirmation sends it
+        - the subscription: says what happens to the data last, after what is credited for the time
+          after the end
+        - a user who may not end reads the same days
+    - in either language
+        - in German: the cancellation and the end at once fill in both days
+        - in English: the cancellation and the end at once fill in both days
+
+<!-- END proof -->
+
+### SC-CANC-030 — A subscription that ends earlier than announced keeps the day its tenant was told
+
+🟢 🔒 A cancellation confirmed for the end of a term can still end sooner: its tenant ends it at
+once (`SC-CANC-024`), or the operator ends it through the application's own path (`SC-CANC-003`).
+The end is recorded with the day announced at confirmation all the same (`SC-CANC-021`), so the
+tenant reads for longer rather than losing its data sooner than it was told. Only an end that lands
+later than the one announced is given a day counted from the period (`SC-CANC-027`), as a
+subscription told none is: the announcement was made for an end that did not happen, and its day
+could come before the end itself.
+
+_Source:_ #276 · #337 (decided 2026-11-10)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-cancellation-announces-its-deletion-day.test.js`
+    - the end an announced day is kept for
+        - landing at the very moment announced keeps it
+        - landing a millisecond later does not
+        - landing a millisecond earlier keeps it
+        - landing months earlier, ended at once, keeps it
+- `packages/nest/tests/an-ended-subscription-is-recorded-once.test.js`
+    - the end of a subscription its tenant was told a day for
+        - ended earlier than it was told, at once, is recorded with the day it was told
+        - keeps that day only for an end that landed no later than announced, and holds its tenant
+          whichever day it gets
+
+<!-- END proof -->
+
+### SC-CANC-031 — The deletion day a tenant confirmed is the one it was shown
+
+🟢 🔒 The confirmation of a cancellation, and of an end at once, carries the deletion day its dialog
+stated. Where SaaSiCat works out another day — the read-only period changed in between, or midnight
+passed on an end that lands at once — it refuses with `CANCELLATION_TERMS_CHANGED` before anything
+is written and answers the day that would apply now, so the dialog asks again with it. A caller that
+sends no day is not checked, and its answer names the day recorded.
+
+_Source:_ #276 · #337 (decided 2026-11-10)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-announces-the-day-its-data-is-deleted.test.js`
+    - what the account says confirming a cancellation already declared would leave on record
+        - told no day: the day counted from the date it lands on, which a repeat sent back with it
+          records
+        - told no day: a repeat sent the day counted from where cancelling now would land is
+          refused, with the day counted from its date
+        - told a day: that day, as announcedDeletion names it
+        - landed: none, since nothing is told afterwards
+    - confirming a cancellation
+        - records exactly the days the account stated, and the answer, the audit entry and the
+          account afterwards repeat them
+        - is refused, with the days that apply now and nothing written, where the page showed › a
+          day earlier
+        - is refused, with the days that apply now and nothing written, where the page showed › a
+          day later
+        - is taken, and records the days the server counts, from a page that › sends no day
+        - is taken, and records the days the server counts, from a page that › sends the day as null
+    - where no deletion day can be recorded
+        - a page that showed a day there is asked again, and nothing is written
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - the day its data is deleted on, where a subscription ends at once
+        - is asked again, before anything is written, where the page showed › a day earlier
+        - is asked again, before anything is written, where the page showed › a day later
+        - is asked again where the page showed a day and none is recorded here
+        - through the route, is checked against the day sent, recorded as told by the administrator,
+          and audited
+- `packages/ui-vue/tests/the-deletion-day-shown-is-sent.test.js`
+    - a cancellation sends what the page showed
+        - the date and the deletion day, where both were shown
+        - the date alone, where no deletion day was shown
+        - nothing, where nothing was shown
+    - ending at once sends the deletion day the preview showed
+        - where it showed one
+- `packages/ui-vue-tenant/tests/component/the-deletion-day-confirmed-is-the-one-shown.test.ts`
+    - the confirmation of a cancellation
+        - sends the deletion day it showed beside the date
+        - where the server works out another day, shows the new one, and the next confirmation sends
+          it
+    - ending at once
+        - the subscription: says until when the data can only be read and the day it is deleted, and
+          sends that day
+        - where the server works out another day, reads it again, shows the new one, and the next
+          confirmation sends it
+
+<!-- END proof -->
+
+### SC-CANC-032 — A cancellation stands where its deletion day was not recorded; a repeat records it
+
+🟢 🔒 The cancellation is written first and decides which of two requests declared it. The one that
+lost records no day (`SC-CANC-013`), and the day is recorded once: by the request that won, or by a
+repeat that finds none recorded. Where recording the day fails, the cancellation stands
+(`SC-CANC-019`) and the request answers the failure. Declaring it again changes no date
+(`SC-CANC-012`) and records the day for a cancellation that has none and has not landed yet — one
+whose day failed to be recorded, one declared before SaaSiCat announced days, or one declared
+through the application's own path — under the same check of what the page showed (`SC-CANC-031`). A
+cancellation that has landed is announced no day afterwards: its end is recorded with a day counted
+then (`SC-CANC-027`). An end at once has no repeat (`SC-CANC-029`): where its day cannot be
+recorded, the end stands and is audited without a day, its answer names none, and it is given its
+day when its end is recorded.
+
+_Source:_ #276 · #337 (decided 2026-11-10)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-announces-the-day-its-data-is-deleted.test.js`
+    - confirming a cancellation again
+        - where a day was told, changes nothing and answers that day, though the page sent › the day
+          on record
+        - where a day was told, changes nothing and answers that day, though the page sent › the day
+          counted now
+        - where none was told and it has not landed, tells it now, records it and audits the day as
+          its own entry
+        - where another repeat records the day first, answers that day and leaves the audit to it
+        - where none was told, refuses a page that showed another day before it writes anything
+        - once it has landed, tells nothing, records nothing and audits nothing
+    - a confirmation whose days cannot be recorded
+        - leaves the cancellation standing, audits it without a day and answers the failure; a
+          repeat records the days and audits them, once it can
+    - two confirmations at the same moment
+        - make one cancellation and one announcement, and it is the one the winner recorded
+        - the one that lost the cancellation announces nothing, and answers what the winner recorded
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - the day its data is deleted on, where a subscription ends at once
+        - that cannot be recorded leaves the end standing, still credits and tells, logs it once and
+          answers that none is on record
+        - through the route, where the day cannot be recorded, the end stands, answers, is audited
+          without a day, credits and tells
+        - that could not be recorded is given by the run: counted from the day it ended, recorded
+          once, and its tenant held from that moment
+        - that could not be recorded, given by a run after midnight in the zone, is a day later than
+          its page showed: the gap keeps the data longer, never shorter
+
+<!-- END proof -->
 
 ### SC-CANC-023 — A plan retirement lets a subscription cancel without notice until it takes effect
 
@@ -779,6 +1031,7 @@ _Tested by:_
         - refuses ${what}, and writes nothing
         - takes the cancellation the tenant declared in its trial once it has landed, without
           writing another
+        - a trial its tenant cancelled, and was told a day for, ends with that day
         - refuses while the cancellation the tenant declared has not landed yet
         - refuses ${what}: the run records that end, not the trial's
         - leaves a trial its tenant cancelled after it ran out to the run, which records that end

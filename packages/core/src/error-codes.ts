@@ -225,11 +225,20 @@ export const BILLING_ERROR_CODES = {
      */
     NO_SUBSCRIPTION: 'NO_SUBSCRIPTION',
     /**
-     * The cancellation the reader was shown is no longer the one the rules
-     * return — its date moved, or it changed while ending at once was being
-     * decided —, so the confirmation is refused rather than silently applied.
-     * Where the date moved it carries the recomputed dates, so the page can
-     * re-ask instead of guessing.
+     * What the reader was shown before confirming the end of a subscription is
+     * no longer what would apply — the date of a cancellation or the deletion
+     * day it announces moved, the deletion day an end at once announces moved,
+     * or the cancellation changed while ending at once was being decided —, so
+     * the confirmation is refused rather than silently applied, and nothing is
+     * written. Each route carries what it can say would apply now, so the page
+     * can re-ask instead of guessing:
+     *
+     * - a cancellation: `effectiveAt`, `termEndsAt`, `noticeDeadline` and
+     *   `afterNoticeDeadline` (the last three null on a repeat, which explains
+     *   no decision), and as `deletion` the read-only period, the last readable
+     *   day and the deletion day, or null where no day is announced;
+     * - an end at once: `params: {}`, and `deletion` where the deletion day is
+     *   what moved. No dates: it ends now.
      */
     CANCELLATION_TERMS_CHANGED: 'CANCELLATION_TERMS_CHANGED',
     /**

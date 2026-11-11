@@ -7,7 +7,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { TenantBillingController } from '../dist/billing/index.js';
+import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 // Relative to now, because the controller reads the clock. Forty days of the
@@ -82,22 +82,22 @@ function buildController(retirement, switches = null) {
                           : null;
                   },
               };
-    const args = [
-        {
+    const controller = tenantBillingRoutes({
+        entitlements: {
             computeLimits: async () => ({ plan: 'STANDARD', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
-        { planPriceNet: async () => '490.00' },
-        { findForTenant: async () => subscription() },
-        { snapshot: async () => ({}) },
-        port,
-        () => 't1',
-        () => 'u1',
-    ];
-    // Every optional collaborator between the resolvers and the notice periods.
-    while (args.length < 15) args.push(null);
-    args.push(NOTICE, null, null, null, retirements, switches);
-    return { controller: new TenantBillingController(...args), port, asked };
+        planPreview: { planPriceNet: async () => '490.00' },
+        subscriptionUsage: { findForTenant: async () => subscription() },
+        usageSnapshot: { snapshot: async () => ({}) },
+        subscriptionWrite: port,
+        tenantIdResolver: () => 't1',
+        userIdResolver: () => 'u1',
+        noticeDays: NOTICE,
+        retirements,
+        retirementSwitches: switches,
+    });
+    return { controller, port, asked };
 }
 
 // @requirement SC-CANC-023 — A plan retirement lets a subscription cancel without notice until it takes effect

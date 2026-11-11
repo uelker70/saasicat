@@ -4,7 +4,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ComposedTenantAuthGuard, TenantBillingController } from '../dist/billing/index.js';
+import { ComposedTenantAuthGuard } from '../dist/billing/index.js';
+import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 
 function buildEntitlement(stub) {
     return {
@@ -44,14 +45,12 @@ test('getEntitlement returns EffectiveLimitsSnapshot generically (quotas map)', 
         quotas: { users: 8, members: 1000, storageGb: 10, resources: 5 },
         features: new Set(['CORE_IDENTITY', 'WHATSAPP']),
     };
-    const ctrl = new TenantBillingController(
-        buildEntitlement(limits),
-        null,
-        { findForTenant: async () => null },
-        { snapshot: async () => ({}) },
-        null,
-        () => 't1',
-    );
+    const ctrl = tenantBillingRoutes({
+        entitlements: buildEntitlement(limits),
+        subscriptionUsage: { findForTenant: async () => null },
+        usageSnapshot: { snapshot: async () => ({}) },
+        tenantIdResolver: () => 't1',
+    });
     const result = await ctrl.getEntitlement({ user: { tenantId: 't1' } });
     assert.equal(result.plan, 'STANDARD');
     assert.deepEqual(result.quotas, { users: 8, members: 1000, storageGb: 10, resources: 5 });
@@ -64,14 +63,13 @@ test('getUsage joins Subscription + Limits + Usage and fills missing quotaKeys w
         quotas: { users: 8, members: 1000, storageGb: 10, resources: 5 },
         features: new Set(['CORE_IDENTITY']),
     };
-    const ctrl = new TenantBillingController(
-        buildEntitlement(limits),
-        PRICING,
-        { findForTenant: async () => buildSub() },
-        { snapshot: async () => ({ users: 4, members: 850 }) }, // storageGb + resources are missing
-        null,
-        () => 't1',
-    );
+    const ctrl = tenantBillingRoutes({
+        entitlements: buildEntitlement(limits),
+        planPreview: PRICING,
+        subscriptionUsage: { findForTenant: async () => buildSub() },
+        usageSnapshot: { snapshot: async () => ({ users: 4, members: 850 }) },
+        tenantIdResolver: () => 't1',
+    });
     const result = await ctrl.getUsage({ user: { tenantId: 't1' } });
     assert.equal(result.plan, 'STANDARD');
     assert.equal(result.effectivePlan, 'STANDARD');
@@ -104,14 +102,13 @@ test('getUsage passes packageSnapshot + checkoutOfferId through 1:1 (P11.4)', as
         packageSnapshot: snapshot,
         checkoutOfferId: 'offer-123',
     };
-    const ctrl = new TenantBillingController(
-        buildEntitlement(limits),
-        PRICING,
-        { findForTenant: async () => sub },
-        { snapshot: async () => ({}) },
-        null,
-        () => 't1',
-    );
+    const ctrl = tenantBillingRoutes({
+        entitlements: buildEntitlement(limits),
+        planPreview: PRICING,
+        subscriptionUsage: { findForTenant: async () => sub },
+        usageSnapshot: { snapshot: async () => ({}) },
+        tenantIdResolver: () => 't1',
+    });
     const result = await ctrl.getUsage({ user: { tenantId: 't1' } });
     assert.deepEqual(result.packageSnapshot, snapshot);
     assert.equal(result.checkoutOfferId, 'offer-123');
@@ -123,47 +120,44 @@ test('getUsage returns packageSnapshot=null when the Subscription has no snapsho
         quotas: { users: 8, members: 1000, storageGb: 10, resources: 5 },
         features: new Set(),
     };
-    const ctrl = new TenantBillingController(
-        buildEntitlement(limits),
-        PRICING,
-        { findForTenant: async () => buildSub() },
-        { snapshot: async () => ({}) },
-        null,
-        () => 't1',
-    );
+    const ctrl = tenantBillingRoutes({
+        entitlements: buildEntitlement(limits),
+        planPreview: PRICING,
+        subscriptionUsage: { findForTenant: async () => buildSub() },
+        usageSnapshot: { snapshot: async () => ({}) },
+        tenantIdResolver: () => 't1',
+    });
     const result = await ctrl.getUsage({ user: { tenantId: 't1' } });
     assert.equal(result.packageSnapshot, null);
     assert.equal(result.checkoutOfferId, null);
 });
 
 test('getUsage throws NotFoundException when the Subscription is missing', async () => {
-    const ctrl = new TenantBillingController(
-        buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
-        PRICING,
-        { findForTenant: async () => null },
-        { snapshot: async () => ({}) },
-        null,
-        () => 't404',
-    );
+    const ctrl = tenantBillingRoutes({
+        entitlements: buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
+        planPreview: PRICING,
+        subscriptionUsage: { findForTenant: async () => null },
+        usageSnapshot: { snapshot: async () => ({}) },
+        tenantIdResolver: () => 't404',
+    });
     await assert.rejects(() => ctrl.getUsage({ user: { tenantId: 't404' } }), /No subscription/);
 });
 
 // @requirement SC-SUB-019 — A subscriber is shown the price of the version they are bound to
 test('getUsage states the price the subscription pays, as the plan preview reads it off the version bound', async () => {
     let askedFor = null;
-    const ctrl = new TenantBillingController(
-        buildEntitlement({ plan: 'STANDARD', quotas: {}, features: new Set() }),
-        {
+    const ctrl = tenantBillingRoutes({
+        entitlements: buildEntitlement({ plan: 'STANDARD', quotas: {}, features: new Set() }),
+        planPreview: {
             planPriceNet: async (sub) => {
                 askedFor = sub;
                 return 39;
             },
         },
-        { findForTenant: async () => buildSub() },
-        { snapshot: async () => ({}) },
-        null,
-        () => 't1',
-    );
+        subscriptionUsage: { findForTenant: async () => buildSub() },
+        usageSnapshot: { snapshot: async () => ({}) },
+        tenantIdResolver: () => 't1',
+    });
     const result = await ctrl.getUsage({ user: { tenantId: 't1' } });
     assert.equal(result.planPriceNet, 39);
     assert.equal(askedFor.planVersion.id, 'pv-1', 'the subscription as read, with its binding');
@@ -175,18 +169,17 @@ test('the tenant is taken from the session, not from what the caller sent', asyn
     // it does not. Reading any of the three would let a tenant name somebody
     // else's data and be served it, which is the whole of what this refuses.
     let asked = null;
-    const ctrl = new TenantBillingController(
-        buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
-        PRICING,
-        {
+    const ctrl = tenantBillingRoutes({
+        entitlements: buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
+        planPreview: PRICING,
+        subscriptionUsage: {
             findForTenant: async (tenantId) => {
                 asked = tenantId;
                 return buildSub();
             },
         },
-        { snapshot: async () => ({}) },
-        null,
-    );
+        usageSnapshot: { snapshot: async () => ({}) },
+    });
 
     await ctrl.getUsage({
         user: { tenantId: 'the-session' },
@@ -203,13 +196,11 @@ test('and a session that names none is refused rather than falling back', async 
     // The counter-check that matters: refusing is only right if there is no
     // second place to look. A resolver that fell through to the body would
     // pass the case above and hand over another tenant's data here.
-    const ctrl = new TenantBillingController(
-        buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
-        null,
-        { findForTenant: async () => buildSub() },
-        { snapshot: async () => ({}) },
-        null,
-    );
+    const ctrl = tenantBillingRoutes({
+        entitlements: buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
+        subscriptionUsage: { findForTenant: async () => buildSub() },
+        usageSnapshot: { snapshot: async () => ({}) },
+    });
 
     await assert.rejects(
         () => ctrl.getUsage({ body: { tenantId: 'the-body' }, query: { tenantId: 'the-query' } }),
@@ -218,14 +209,12 @@ test('and a session that names none is refused rather than falling back', async 
 });
 
 test('getUsage throws NotFoundException when tenantIdResolver yields no ID', async () => {
-    const ctrl = new TenantBillingController(
-        buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
-        null,
-        { findForTenant: async () => buildSub() },
-        { snapshot: async () => ({}) },
-        null,
-        () => null,
-    );
+    const ctrl = tenantBillingRoutes({
+        entitlements: buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
+        subscriptionUsage: { findForTenant: async () => buildSub() },
+        usageSnapshot: { snapshot: async () => ({}) },
+        tenantIdResolver: () => null,
+    });
     await assert.rejects(() => ctrl.getUsage({}), /No tenant ID found on the request/);
 });
 

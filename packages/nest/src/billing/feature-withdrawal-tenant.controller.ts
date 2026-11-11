@@ -1,12 +1,14 @@
 // The tenant's side of a feature withdrawal: what its subscription was told
 // and what that means now, and ending at once — the subscription, or one
-// booking — with what it would credit shown first.
+// booking — with what it would credit shown first, and where the subscription
+// ends, the day its data is deleted on.
 //
 // The tenant comes from the authenticated request, never from the body, and
 // whether an end is open is decided by `EndAtOnceService` from what the
 // subscription was told.
 
 import {
+    Body,
     Controller,
     Get,
     HttpCode,
@@ -29,8 +31,10 @@ import {
 } from '@saasicat/core';
 
 import { AdminAuditService } from '../admin/admin-audit.service.js';
+import { actorTagOf } from '../core/web-audit.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
-import { EndAtOnceService } from './end-at-once.service.js';
+import { EndAtOnceDto } from './dto/feature-withdrawal.dto.js';
+import { EndAtOnceService, type EndAtOnceConfirmation } from './end-at-once.service.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { mayChangeWhatTheTenantPays } from './tenant-roles.js';
 import {
@@ -103,14 +107,25 @@ export class FeatureWithdrawalTenantController {
         return { ...preview, mayEnd: mayChangeWhatTheTenantPays(req) };
     }
 
-    /** Ends the subscription at once, and every add-on with it. */
+    /**
+     * Ends the subscription at once, and every add-on with it, where the
+     * deletion day its page showed, if it sent one, is still the one that
+     * applies.
+     */
     @Post(':id/end')
     @UseGuards(TenantAdminGuard)
     @HttpCode(HttpStatus.OK)
-    async end(@Req() req: unknown, @Param('id') withdrawalId: string): Promise<EndedAtOnce> {
+    async end(
+        @Req() req: unknown,
+        @Param('id') withdrawalId: string,
+        @Body() dto: EndAtOnceDto,
+    ): Promise<EndedAtOnce> {
         const tenantId = this.tenantOf(req);
         const userId = requireTenantUserId(req, this.resolvers());
-        const ended = await this.endings.end(tenantId, withdrawalId, null, new Date());
+        const ended = await this.endings.end(tenantId, withdrawalId, null, new Date(), {
+            ...this.confirmedBy(req, userId),
+            expectedDeletesOn: dto.expectedDeletesOn,
+        });
         await this.record(req, userId, 'Subscription', tenantId, 'END_SUBSCRIPTION_AT_ONCE', ended);
         return ended;
     }
@@ -147,6 +162,7 @@ export class FeatureWithdrawalTenantController {
             withdrawalId,
             subscriptionBundleId,
             new Date(),
+            this.confirmedBy(req, userId),
         );
         await this.record(
             req,
@@ -170,6 +186,11 @@ export class FeatureWithdrawalTenantController {
             });
         }
         return tenantId;
+    }
+
+    /** Who confirms, as the audit log tags the user `req` carries. */
+    private confirmedBy(req: unknown, userId: string): EndAtOnceConfirmation {
+        return { by: actorTagOf(tenantActorOf(req, userId, this.resolvers())) };
     }
 
     private resolvers(): TenantAuditResolvers {
@@ -201,6 +222,8 @@ export class FeatureWithdrawalTenantController {
                     endsAt: ended.endsAt,
                     creditNet: ended.creditNet,
                     currency: ended.currency,
+                    deletesOn: ended.deletion?.deletesOn ?? null,
+                    readOnlyDays: ended.deletion?.readOnlyDays ?? null,
                 },
             });
         } catch (error) {

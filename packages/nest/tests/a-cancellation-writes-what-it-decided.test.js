@@ -1,11 +1,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-    PlanChangePreviewService,
-    TenantBillingController,
-    givenPlanCatalogSource,
-} from '../dist/billing/index.js';
+import { PlanChangePreviewService, givenPlanCatalogSource } from '../dist/billing/index.js';
+import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 
 // A cancellation decides two things beyond its own date, and both have to reach
 // the store, because nothing downstream can work them out again.
@@ -66,12 +63,12 @@ function buildController(subscription, port, noticePeriodDays = 0) {
     // `billingCycle` keeps the notice the case is about. Which of the two is
     // read is proved on its own, next door.
     const notice = { monthly: noticePeriodDays, yearly: noticePeriodDays };
-    return new TenantBillingController(
-        {
+    return tenantBillingRoutes({
+        entitlements: {
             computeLimits: async () => ({ plan: 'STANDARD', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
-        {
+        planPreview: {
             async preview() {
                 return { isImmediate: false, effectiveAt: null, blockers: [] };
             },
@@ -79,21 +76,13 @@ function buildController(subscription, port, noticePeriodDays = 0) {
                 return 49;
             },
         },
-        { findForTenant: async () => subscription },
-        { snapshot: async () => ({}) },
-        port,
-        () => 't1',
-        () => 'u1',
-        null, // blockedPlans
-        null, // promoCodes
-        null, // auditService
-        null, // userEmailResolver
-        null, // auditContextResolver
-        null, // subscriptionBundles
-        null, // contractFreeze
-        null, // trialProjection
-        notice,
-    );
+        subscriptionUsage: { findForTenant: async () => subscription },
+        usageSnapshot: { snapshot: async () => ({}) },
+        subscriptionWrite: port,
+        tenantIdResolver: () => 't1',
+        userIdResolver: () => 'u1',
+        noticeDays: notice,
+    });
 }
 
 const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
