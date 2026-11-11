@@ -799,6 +799,13 @@ _Source:_ #276 · #337 (decided 2026-11-10)
 _Tested by:_
 
 - `packages/nest/tests/a-cancellation-announces-the-day-its-data-is-deleted.test.js`
+    - what the account says confirming a cancellation already declared would leave on record
+        - told no day: the day counted from the date it lands on, which a repeat sent back with it
+          records
+        - told no day: a repeat sent the day counted from where cancelling now would land is
+          refused, with the day counted from its date
+        - told a day: that day, as announcedDeletion names it
+        - landed: none, since nothing is told afterwards
     - confirming a cancellation
         - records exactly the days the account stated, and the answer, the audit entry and the
           account afterwards repeat them
@@ -863,12 +870,14 @@ _Tested by:_
           on record
         - where a day was told, changes nothing and answers that day, though the page sent › the day
           counted now
-        - where none was told and it has not landed, tells it now and records it
+        - where none was told and it has not landed, tells it now, records it and audits the day as
+          its own entry
+        - where another repeat records the day first, answers that day and leaves the audit to it
         - where none was told, refuses a page that showed another day before it writes anything
-        - once it has landed, tells nothing and records nothing
+        - once it has landed, tells nothing, records nothing and audits nothing
     - a confirmation whose days cannot be recorded
-        - leaves the cancellation standing, audits it without a day, answers the failure, and a
-          repeat records the days
+        - leaves the cancellation standing, audits it without a day and answers the failure; a
+          repeat records the days and audits them, once it can
     - two confirmations at the same moment
         - make one cancellation and one announcement, and it is the one the winner recorded
         - the one that lost the cancellation announces nothing, and answers what the winner recorded
