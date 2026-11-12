@@ -1,8 +1,13 @@
-// Canonical row -> record mapping for subscription ends and their announcements. Pure, and shared by both
-// adapters for the reason `subscription-contract-mapping.ts` gives.
+// Canonical row -> record mapping for subscription ends, their announcements and the downloads of the
+// tenant's export. Pure, and shared by both adapters for the reason `subscription-contract-mapping.ts`
+// gives.
 
 import { dayOf } from './column-day.js';
-import type { SubscriptionEnd, SubscriptionEndAnnouncement } from './subscription-end.types.js';
+import type {
+    SubscriptionEnd,
+    SubscriptionEndAnnouncement,
+    TenantExportDownload,
+} from './subscription-end.types.js';
 
 /**
  * A `subscription_ends` row as either adapter reads it back: `deletesOn` is a
@@ -58,5 +63,20 @@ export function toSubscriptionEndAnnouncement(
         }),
         announcedAt: row.announcedAt,
         announcedBy: row.announcedBy,
+    };
+}
+
+/**
+ * Reads a `tenant_export_downloads` row back as a download, naming each column
+ * rather than spreading the row, so a column the record does not carry — the
+ * row's `createdAt` — is left behind.
+ */
+export function toTenantExportDownload(row: TenantExportDownload): TenantExportDownload {
+    return {
+        id: row.id,
+        tenantId: row.tenantId,
+        subscriptionId: row.subscriptionId,
+        downloadedAt: row.downloadedAt,
+        downloadedBy: row.downloadedBy,
     };
 }

@@ -1,12 +1,17 @@
-// Where the end of each subscription is kept (`SC-CANC-027`), and the day a
-// tenant was told when it confirmed it.
+// Where the end of each subscription is kept (`SC-CANC-027`), the day a tenant
+// was told when it confirmed it, and each download of the tenant's export taken
+// after it ended — and the port through which the application hands that
+// export over.
 
 import type {
     NewSubscriptionEnd,
     NewSubscriptionEndAnnouncement,
+    NewTenantExportDownload,
     SubscriptionEnd,
     SubscriptionEndAnnouncement,
+    TenantExportDownload,
 } from '../subscription-end.types.js';
+import type { TenantDataExport } from '../tenant-data-export.types.js';
 
 /**
  * Keeps one end per subscription that ended, and one announcement per
@@ -16,9 +21,14 @@ import type {
  * it has landed; an end is written once it has, with the announced day where
  * there is one.
  *
+ * Beside them it keeps every download of the tenant's export, as many per
+ * subscription as were taken.
+ *
  * An adapter translates. It does not decide whether a subscription ended or
- * which day its data goes; it keeps one row of each per subscription, so that
- * a run or a request repeated, or two at once, record each once.
+ * which day its data goes; it keeps one end and one announcement per
+ * subscription, so that a run or a request repeated, or two at once, record
+ * each once. A download it records every time it is asked: each is a download
+ * of its own.
  */
 export interface SubscriptionEndPort {
     /**
@@ -39,4 +49,29 @@ export interface SubscriptionEndPort {
     ): Promise<SubscriptionEndAnnouncement | null>;
     /** The announcements of those of `subscriptionIds` that have one, in one read. */
     listAnnouncedFor(subscriptionIds: readonly string[]): Promise<SubscriptionEndAnnouncement[]>;
+    /**
+     * Records `download` and returns it as stored — the id is the adapter's to
+     * assign. Never merged with an earlier download of the same subscription.
+     */
+    recordExportDownload(download: NewTenantExportDownload): Promise<TenantExportDownload>;
+    /**
+     * The downloads of `subscriptionIds`, in one read, oldest first: by
+     * `downloadedAt`, and by id where two share a moment.
+     */
+    listExportDownloadsFor(subscriptionIds: readonly string[]): Promise<TenantExportDownload[]>;
+}
+
+/**
+ * Hands over a tenant's full export: everything the application keeps for the
+ * tenant, every user's data included, as one file. Implemented by the
+ * application, which alone knows what it keeps.
+ *
+ * The platform asks it only for the tenant of the session that requests the
+ * download, and only once an end of that tenant's subscription is recorded. It
+ * asks again for every download and keeps nothing of the answer. A rejection
+ * is a refusal: the platform records no download and sends no file.
+ */
+export interface TenantDataExportPort {
+    /** The full export of `tenantId`, produced now. */
+    export(tenantId: string): Promise<TenantDataExport>;
 }

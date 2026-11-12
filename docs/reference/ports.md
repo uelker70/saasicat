@@ -9,7 +9,7 @@ them against the canonical schema already.
 Why the seam is here, and what an adapter may and may not decide:
 [ADR 0007](../explanation/adr/0007-ports-and-adapters.md).
 
-Generated from `packages/core/src/ports` — 25 ports. Do not edit by hand:
+Generated from `packages/core/src/ports` — 26 ports. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Administration
@@ -243,12 +243,22 @@ Where the versions of the terms are kept, unalterably: a contract names the vers
 
 Keeps one end per subscription that ended, and one announcement per subscription whose cancellation was confirmed with a deletion day, in the application's own database.
 
-| Member                                                                                                    | What it does                                                                         |
-| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `record(end: NewSubscriptionEnd): Promise<SubscriptionEnd \| null>`                                       | Records `end` and returns it as stored — the id is the adapter's to assign.          |
-| `listFor(subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]>`                                 | The ends of those of `subscriptionIds` that have one, in one read.                   |
-| `announce( announcement: NewSubscriptionEndAnnouncement, ): Promise<SubscriptionEndAnnouncement \| null>` | Records `announcement` and returns it as stored — the id is the adapter's to assign. |
-| `listAnnouncedFor(subscriptionIds: readonly string[]): Promise<SubscriptionEndAnnouncement[]>`            | The announcements of those of `subscriptionIds` that have one, in one read.          |
+| Member                                                                                                    | What it does                                                                                                          |
+| --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `record(end: NewSubscriptionEnd): Promise<SubscriptionEnd \| null>`                                       | Records `end` and returns it as stored — the id is the adapter's to assign.                                           |
+| `listFor(subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]>`                                 | The ends of those of `subscriptionIds` that have one, in one read.                                                    |
+| `announce( announcement: NewSubscriptionEndAnnouncement, ): Promise<SubscriptionEndAnnouncement \| null>` | Records `announcement` and returns it as stored — the id is the adapter's to assign.                                  |
+| `listAnnouncedFor(subscriptionIds: readonly string[]): Promise<SubscriptionEndAnnouncement[]>`            | The announcements of those of `subscriptionIds` that have one, in one read.                                           |
+| `recordExportDownload(download: NewTenantExportDownload): Promise<TenantExportDownload>`                  | Records `download` and returns it as stored — the id is the adapter's to assign.                                      |
+| `listExportDownloadsFor(subscriptionIds: readonly string[]): Promise<TenantExportDownload[]>`             | The downloads of `subscriptionIds`, in one read, oldest first: by `downloadedAt`, and by id where two share a moment. |
+
+### `TenantDataExportPort`
+
+Hands over a tenant's full export: everything the application keeps for the tenant, every user's data included, as one file.
+
+| Member                                                | What it does                                 |
+| ----------------------------------------------------- | -------------------------------------------- |
+| `export(tenantId: string): Promise<TenantDataExport>` | The full export of `tenantId`, produced now. |
 
 ## Subscriber notices
 

@@ -33,6 +33,7 @@
 --   prisma-fragments/28-tenant-access-hold.prisma
 --   prisma-fragments/29-subscription-end.prisma
 --   prisma-fragments/30-subscription-end-announcement.prisma
+--   prisma-fragments/31-tenant-export-download.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -1202,6 +1203,18 @@ CREATE TABLE "subscription_end_announcements" (
     CONSTRAINT "subscription_end_announcements_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "tenant_export_downloads" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "downloadedAt" TIMESTAMP(3) NOT NULL,
+    "downloadedBy" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "tenant_export_downloads_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -1609,6 +1622,9 @@ CREATE UNIQUE INDEX "subscription_end_announcements_subscriptionId_key" ON "subs
 
 -- CreateIndex
 CREATE INDEX "subscription_end_announcements_tenantId_idx" ON "subscription_end_announcements"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "tenant_export_downloads_subscriptionId_idx" ON "tenant_export_downloads"("subscriptionId");
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

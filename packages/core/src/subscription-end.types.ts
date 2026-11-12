@@ -139,3 +139,27 @@ export function announcedDeletionOf(
         deletesOn: announced.deletesOn,
     };
 }
+
+/**
+ * One download of a tenant's export, taken after its subscription ended, as a
+ * store reads it back — kept beside the end it was offered for, and the
+ * tenant's acknowledgement that `SC-PRIV-017` names.
+ *
+ * It is written once the application has handed the export over and before
+ * the file is sent, so it shows that the application produced the export for
+ * one of the tenant's administrators at that moment. It cannot show that the
+ * browser saved the file. Every download is its own record: two downloads are
+ * two rows, neither replacing the other.
+ */
+export interface TenantExportDownload {
+    id: string;
+    tenantId: string;
+    /** The subscription whose end the export was offered for. */
+    subscriptionId: string;
+    /** When the export was handed out, and to whom, as the audit log tags an actor. */
+    downloadedAt: Date;
+    downloadedBy: string;
+}
+
+/** A download to record: the id is the store's to assign. */
+export type NewTenantExportDownload = Omit<TenantExportDownload, 'id'>;

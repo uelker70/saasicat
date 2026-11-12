@@ -1780,3 +1780,15 @@ model SubscriptionEndAnnouncement {
     @@index([tenantId])
     @@map("subscription_end_announcements")
 }
+
+model TenantExportDownload {
+    id             String   @id @default(uuid())
+    tenantId       String
+    subscriptionId String
+    downloadedAt   DateTime
+    downloadedBy   String
+    createdAt      DateTime @default(now())
+
+    @@index([subscriptionId])
+    @@map("tenant_export_downloads")
+}

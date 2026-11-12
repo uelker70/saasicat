@@ -8,9 +8,11 @@ import type {
     NewTenantAccessHold,
     NewSubscriptionEnd,
     NewSubscriptionEndAnnouncement,
+    NewTenantExportDownload,
     SubscriptionEnd,
     SubscriptionEndAnnouncement,
     SubscriptionEndPort,
+    TenantExportDownload,
     TenantAccessHold,
     TenantAccessHoldKind,
     TenantAccessHoldPort,
@@ -1054,11 +1056,13 @@ export class FakeTenantAccessHoldRepository implements TenantAccessHoldPort {
 
 /**
  * In-memory `SubscriptionEndPort` for tests: one end and one announcement per
- * subscription, as the unique keys hold them in the database. Starts empty.
+ * subscription, as the unique keys hold them in the database, and every
+ * download of the export, as no key refuses one. Starts empty.
  */
 export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
     readonly ends: SubscriptionEnd[] = [];
     readonly announcements: SubscriptionEndAnnouncement[] = [];
+    readonly downloads: TenantExportDownload[] = [];
     private nextId = 1;
 
     async record(end: NewSubscriptionEnd): Promise<SubscriptionEnd | null> {
@@ -1100,6 +1104,21 @@ export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
         return this.announcements
             .filter((announced) => subscriptionIds.includes(announced.subscriptionId))
             .map((announced) => ({ ...announced }));
+    }
+
+    async recordExportDownload(download: NewTenantExportDownload): Promise<TenantExportDownload> {
+        const recorded: TenantExportDownload = { ...download, id: `download-${this.nextId++}` };
+        this.downloads.push(recorded);
+        return { ...recorded };
+    }
+
+    async listExportDownloadsFor(
+        subscriptionIds: readonly string[],
+    ): Promise<TenantExportDownload[]> {
+        return this.downloads
+            .filter((download) => subscriptionIds.includes(download.subscriptionId))
+            .sort((a, b) => a.downloadedAt.getTime() - b.downloadedAt.getTime())
+            .map((download) => ({ ...download }));
     }
 }
 

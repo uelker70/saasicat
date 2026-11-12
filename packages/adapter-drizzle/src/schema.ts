@@ -707,6 +707,17 @@ export const subscriptionEndAnnouncements = pgTable('subscription_end_announceme
     createdAt: writtenAt('createdAt'),
 });
 
+// Every download of a tenant's export taken after its subscription ended. No
+// unique key: a second download is a row of its own.
+export const tenantExportDownloads = pgTable('tenant_export_downloads', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenantId').notNull(),
+    subscriptionId: text('subscriptionId').notNull(),
+    downloadedAt: ts('downloadedAt').notNull(),
+    downloadedBy: text('downloadedBy').notNull(),
+    createdAt: writtenAt('createdAt'),
+});
+
 // The invoices issued from the charge journal. The DDL authority, the unique
 // keys a second issue of the same charges and a second draw of one number
 // collide with, are `subscription_invoice_lines_chargeId_chainStep_key` and

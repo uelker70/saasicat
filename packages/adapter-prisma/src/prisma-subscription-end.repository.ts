@@ -5,11 +5,14 @@ import {
     type CanonicalSubscriptionEndRow,
     type NewSubscriptionEnd,
     type NewSubscriptionEndAnnouncement,
+    type NewTenantExportDownload,
     type SubscriptionEnd,
     type SubscriptionEndAnnouncement,
     type SubscriptionEndPort,
+    type TenantExportDownload,
     toSubscriptionEnd,
     toSubscriptionEndAnnouncement,
+    toTenantExportDownload,
     utcMidnightOf,
 } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
@@ -18,16 +21,18 @@ import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-clie
 interface SubscriptionEndPrisma {
     subscriptionEnd: PrismaModelDelegateLike<CanonicalSubscriptionEndRow>;
     subscriptionEndAnnouncement: PrismaModelDelegateLike<CanonicalSubscriptionEndAnnouncementRow>;
+    tenantExportDownload: PrismaModelDelegateLike<TenantExportDownload>;
 }
 
 /**
- * What the constructor takes: a client that has both delegates. A client
- * generated from a schema without fragment 29 or 30 fails to compile here
+ * What the constructor takes: a client that has all three delegates. A client
+ * generated from a schema without fragment 29, 30 or 31 fails to compile here
  * rather than at the first run.
  */
 interface SubscriptionEndRepositoryClient {
     subscriptionEnd: unknown;
     subscriptionEndAnnouncement: unknown;
+    tenantExportDownload: unknown;
 }
 
 /** The columns a read asks for, named, so a column a later release adds is not read. */
@@ -53,9 +58,18 @@ const ANNOUNCEMENT_COLUMNS = {
     announcedBy: true,
 } as const;
 
+/** The columns a download read asks for, named for the same reason. */
+const DOWNLOAD_COLUMNS = {
+    id: true,
+    tenantId: true,
+    subscriptionId: true,
+    downloadedAt: true,
+    downloadedBy: true,
+} as const;
+
 /**
- * `SubscriptionEndPort` against the canonical `subscription_ends` and
- * `subscription_end_announcements` tables.
+ * `SubscriptionEndPort` against the canonical `subscription_ends`,
+ * `subscription_end_announcements` and `tenant_export_downloads` tables.
  */
 @Injectable()
 export class PrismaSubscriptionEndRepository implements SubscriptionEndPort {
@@ -64,11 +78,12 @@ export class PrismaSubscriptionEndRepository implements SubscriptionEndPort {
     ) {}
 
     private get db(): SubscriptionEndPrisma {
-        // SAFETY: `subscriptionEnd` and `subscriptionEndAnnouncement` are the
-        // delegates of fragment 29's and fragment 30's models, whose rows are
-        // `CanonicalSubscriptionEndRow` and
-        // `CanonicalSubscriptionEndAnnouncementRow`; the bundle hands this
-        // repository the canonical client.
+        // SAFETY: `subscriptionEnd`, `subscriptionEndAnnouncement` and
+        // `tenantExportDownload` are the delegates of fragment 29's, 30's and
+        // 31's models, whose rows are `CanonicalSubscriptionEndRow`,
+        // `CanonicalSubscriptionEndAnnouncementRow` and `TenantExportDownload`
+        // plus its `createdAt`; the bundle hands this repository the canonical
+        // client.
         return this.prisma as SubscriptionEndPrisma;
     }
 
@@ -127,5 +142,26 @@ export class PrismaSubscriptionEndRepository implements SubscriptionEndPort {
             orderBy: { subscriptionId: 'asc' },
         });
         return rows.map(toSubscriptionEndAnnouncement);
+    }
+
+    /** A plain insert: no key refuses a second download of one subscription. */
+    async recordExportDownload(download: NewTenantExportDownload): Promise<TenantExportDownload> {
+        const row = await this.db.tenantExportDownload.create({
+            data: { id: randomUUID(), ...download },
+            select: DOWNLOAD_COLUMNS,
+        });
+        return toTenantExportDownload(row);
+    }
+
+    async listExportDownloadsFor(
+        subscriptionIds: readonly string[],
+    ): Promise<TenantExportDownload[]> {
+        if (subscriptionIds.length === 0) return [];
+        const rows = await this.db.tenantExportDownload.findMany({
+            where: { subscriptionId: { in: [...subscriptionIds] } },
+            select: DOWNLOAD_COLUMNS,
+            orderBy: [{ downloadedAt: 'asc' }, { id: 'asc' }],
+        });
+        return rows.map(toTenantExportDownload);
     }
 }

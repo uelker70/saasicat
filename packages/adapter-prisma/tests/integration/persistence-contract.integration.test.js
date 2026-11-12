@@ -116,6 +116,7 @@ const PLATFORM_TABLES = [
     'tenant_access_holds',
     'subscription_ends',
     'subscription_end_announcements',
+    'tenant_export_downloads',
     'subscription_notices',
     'version_retirements',
     'bundle_version_retirements',

@@ -83,6 +83,7 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     tenantAccessHold: unknown;
     subscriptionEnd: unknown;
     subscriptionEndAnnouncement: unknown;
+    tenantExportDownload: unknown;
     termsVersion: unknown;
     subscriber: unknown;
     subscriberTenant: unknown;
