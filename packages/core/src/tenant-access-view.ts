@@ -4,7 +4,7 @@
 // on a suspension and the subscriber whose record lists an invoice; a tenant's
 // users are told neither. They are told what holds them back and from which
 // day, and the invoice by its number only where they hold the billing
-// permission — the permission that lets them pay it (`SC-ADM-052`).
+// permission — the permission that lets them pay it (`SC-ADM-055`).
 
 import {
     holdsOldestFirst,

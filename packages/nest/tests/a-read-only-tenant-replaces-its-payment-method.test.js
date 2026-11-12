@@ -1,6 +1,6 @@
-// Read-only stops at one write: while one of the subscriber's invoices is
-// open, a user of the tenant can still replace the payment method
-// (`SC-ADM-052`, `SC-PRIC-098`). A suspension and a deletion under way have no
+// Read-only lets a payment be started: while one of the subscriber's invoices
+// is open, a user of the tenant can still replace the payment method
+// (`SC-ADM-055`, `SC-PRIC-098`). A suspension and a deletion under way have no
 // such exception, and whether the user may change the payment method at all
 // is still the billing permission's.
 //
@@ -9,7 +9,7 @@
 // on the same handler, lets the request through as the platform's does. The
 // handler is the platform's own route, with the mark it carries.
 
-// @requirement SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
+// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -111,7 +111,7 @@ import type { PlansAhead } from './plans-ahead.js';
 import { resolvePlanAnchorDay } from './bundle-period.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
-import { WritesNothing } from '../tenant-access/tenant-access-marks.js';
+import { Leaves, WritesNothing } from '../tenant-access/tenant-access-marks.js';
 
 interface RequestLike {
     user?: { tenantId?: string | null } | null;
@@ -397,6 +397,7 @@ export function buildTenantSubscriptionBundlesController(
 
         @Delete(':id')
         @UseGuards(TenantAdminGuard)
+        @Leaves()
         @HttpCode(HttpStatus.OK)
         async cancel(
             @Req() req: RequestLike,

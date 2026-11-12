@@ -109,7 +109,7 @@ import {
     type AgreementSettings,
 } from '../subscription-contract/contract-agreement.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
-import { WritesNothing } from '../tenant-access/tenant-access-marks.js';
+import { Leaves, WritesNothing } from '../tenant-access/tenant-access-marks.js';
 import {
     SubscriptionCancellationService,
     type ProjectedCancellation,
@@ -1124,6 +1124,7 @@ export class TenantBillingController {
 
     @Post('cancel')
     @UseGuards(TenantAdminGuard)
+    @Leaves()
     async cancelSubscription(@Req() req: RequestLike, @Body() dto: CancelSubscriptionDto) {
         const tenantId = this.requireTenantId(req);
         const actor = this.buildActor(req, this.requireUserId(req));

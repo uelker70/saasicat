@@ -4,7 +4,7 @@
 //
 // REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
 //
-// One row per reason a tenant is held back (`SC-ADM-052`): an operator's
+// One row per reason a tenant is held back (`SC-ADM-055`): an operator's
 // suspension, an invoice unpaid on its due date, a subscription that ended, a
 // deletion under way. A reason is open until `liftedAt` is set, and
 // lifting one leaves the others as they are; the tenant's state is the strictest

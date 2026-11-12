@@ -5,7 +5,8 @@
 //
 // The tenant comes from the authenticated request, never from the body, and
 // whether an end is open is decided by `EndAtOnceService` from what the
-// subscription was told.
+// subscription was told. Ending at once is leaving, which a tenant that is
+// read-only for an unpaid invoice may still do (`SC-ADM-055`).
 
 import {
     Body,
@@ -32,6 +33,7 @@ import {
 
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { actorTagOf } from '../core/web-audit.js';
+import { Leaves } from '../tenant-access/tenant-access-marks.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { EndAtOnceDto } from './dto/feature-withdrawal.dto.js';
 import { EndAtOnceService, type EndAtOnceConfirmation } from './end-at-once.service.js';
@@ -114,6 +116,7 @@ export class FeatureWithdrawalTenantController {
      */
     @Post(':id/end')
     @UseGuards(TenantAdminGuard)
+    @Leaves()
     @HttpCode(HttpStatus.OK)
     async end(
         @Req() req: unknown,
@@ -149,6 +152,7 @@ export class FeatureWithdrawalTenantController {
     /** Ends one booking at once. */
     @Post(':id/bookings/:subscriptionBundleId/end')
     @UseGuards(TenantAdminGuard)
+    @Leaves()
     @HttpCode(HttpStatus.OK)
     async endBooking(
         @Req() req: unknown,

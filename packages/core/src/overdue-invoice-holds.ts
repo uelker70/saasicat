@@ -1,5 +1,5 @@
 // When an unpaid invoice holds its tenant back, and when it stops holding it
-// (`SC-PRIC-098`, `SC-ADM-052`).
+// (`SC-PRIC-098`, `SC-ADM-055`).
 //
 // An invoice still open on its due date (`SC-PRIC-046`) makes the tenant its
 // subscriber is live for read-only on that day: a subscription is paid on its

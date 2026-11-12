@@ -1669,7 +1669,7 @@ application issuing for the same issuer is not supported.
 ### An invoice unpaid on its due date
 
 An invoice still open on its due date makes the tenant its subscriber is live for read-only from
-that day until it is paid (`SC-PRIC-098`, `SC-ADM-052`); there is no grace period, and before its due
+that day until it is paid (`SC-PRIC-098`, `SC-ADM-055`); there is no grace period, and before its due
 date an invoice holds nobody back. A subscription paid on its date sets `invoicing.paymentTermDays`
 to `0`: the invoice is then due the day it is issued, and a card declined in the run that issues it
 makes the tenant read-only in that run.
@@ -1698,6 +1698,12 @@ makes the tenant read-only in that run.
   collects it — a card at once. Your own authentication guard, which calls
   `TenantAccessService.enforce`, lets both routes through as the platform does, since they carry the
   mark the check reads (`starts-payment`). A suspended tenant, and one being deleted, cannot.
+- **Leaving is left too** (`SC-ADM-055`, `SC-CANC-001`): the tenant's administrator declares the
+  cancellation of its subscription, cancels an add-on, and ends either at once while a feature is
+  withdrawn, whatever it owes, since a tenant is never told it may not leave. The four routes carry
+  the mark `leaves`, which your guard's `enforce` reads as the platform does; a route of your own
+  through which a tenant leaves carries `@Leaves()` too. A suspended tenant, and one being deleted,
+  cannot; reinstating an add-on, booking one and changing the plan stay refused.
 - **The tenant's users read why** (`SC-ADM-054`): `GET billing/access` answers every user of the
   tenant its state and each reason with the day it began in the installation;
   `GET billing/account/access`, behind the billing permission where invoices are mounted, adds the
@@ -1711,7 +1717,7 @@ makes the tenant read-only in that run.
 A subscription ends when its cancellation lands — the tenant's own, or one your application
 declares for a trial that ran out unbought or through the operator's path in your administration.
 From that moment the tenant is read-only until the day its data is deleted (`SC-CANC-027`,
-`SC-ADM-052`).
+`SC-ADM-055`).
 
 - **The period** is `tenantBilling.endOfSubscription.readOnlyDays` in `config/saas.yaml`. It is
   required and has no default: how long a former customer's data is kept is yours to decide and to

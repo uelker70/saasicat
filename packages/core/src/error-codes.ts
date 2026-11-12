@@ -1107,7 +1107,7 @@ export type MaintenanceErrorCode =
     (typeof MAINTENANCE_ERROR_CODES)[keyof typeof MAINTENANCE_ERROR_CODES];
 
 /**
- * Codes of a tenant's access state (`SC-ADM-052`): the refusals a held-back
+ * Codes of a tenant's access state (`SC-ADM-055`): the refusals a held-back
  * tenant's users meet, and the operator's suspension. A refusal carries the
  * open reasons as `params.reasons`, each with its `kind` and `since`.
  */
