@@ -40,6 +40,9 @@ export const tenantsMessages = defineMessages(
             accessEnded: 'Abonnement beendet',
             accessDeleting: 'Löschung läuft',
             accessNote: 'Notiz: {note}',
+            accessDeletesOn: 'Daten werden am {day} gelöscht',
+            accessExportDownload: 'Export heruntergeladen am {day} von {by}',
+            accessExportNone: 'Der Export wurde noch nicht heruntergeladen.',
         },
         actions: {
             confirmTitle: 'Aktion bestätigen',
@@ -102,6 +105,9 @@ export const tenantsMessages = defineMessages(
             accessEnded: 'Subscription ended',
             accessDeleting: 'Deletion under way',
             accessNote: 'Note: {note}',
+            accessDeletesOn: 'Data is deleted on {day}',
+            accessExportDownload: 'Export downloaded on {day} by {by}',
+            accessExportNone: 'The export has not been downloaded yet.',
         },
         actions: {
             confirmTitle: 'Confirm action',

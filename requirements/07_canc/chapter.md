@@ -936,6 +936,13 @@ _Tested by:_
         - the ends and the downloads are read once each, past the tenants’ policy
         - and not at all where no subscription ended
         - where nothing answers for the ends, the reason stays without a day
+- `packages/ui-vue/tests/component/tenant-detail-shows-why-a-tenant-is-held-back.test.ts`
+    - an ended subscription in the tenant detail's access section
+        - names the deletion day, and every download of the export with its day and who took it, the
+          oldest first
+        - says that nobody has taken the export yet where no download is recorded
+        - names no deletion day while the end is not recorded yet
+        - names neither a deletion day nor downloads beside the reasons of other kinds
 
 <!-- END proof -->
 

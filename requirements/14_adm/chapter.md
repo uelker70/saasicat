@@ -1168,6 +1168,12 @@ _Tested by:_
         - an invoice the server could not name is still a reason
         - a tenant held back by nothing says so
         - is not shown where the server names no reasons
+    - an ended subscription in the tenant detail's access section
+        - names the deletion day, and every download of the export with its day and who took it, the
+          oldest first
+        - says that nobody has taken the export yet where no download is recorded
+        - names no deletion day while the end is not recorded yet
+        - names neither a deletion day nor downloads beside the reasons of other kinds
     - two reasons of one kind that began at the same moment
         - stay two rows when the list is read again, each by its own reason
 

@@ -235,6 +235,9 @@ const accessLabels = computed<TenantAccessLabels>(() => ({
     ended: msg.value.detail.accessEnded,
     deleting: msg.value.detail.accessDeleting,
     note: msg.value.detail.accessNote,
+    deletesOn: msg.value.detail.accessDeletesOn,
+    exportDownload: msg.value.detail.accessExportDownload,
+    exportNone: msg.value.detail.accessExportNone,
 }));
 
 const notify = useSuperAdminNotify();

@@ -55,4 +55,10 @@ export interface TenantAccessLabels {
     deleting: string;
     /** `{note}` is the operator's note on a suspension. */
     note: string;
+    /** Beside an ended subscription: `{day}` is the day the tenant's data is deleted on. */
+    deletesOn: string;
+    /** One download of the tenant's export: `{day}` it was taken on and `{by}` who took it. */
+    exportDownload: string;
+    /** Beside an ended subscription whose export nobody has taken yet. */
+    exportNone: string;
 }
