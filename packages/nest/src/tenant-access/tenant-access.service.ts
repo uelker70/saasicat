@@ -31,6 +31,7 @@ import {
 } from '@saasicat/core';
 
 import { codedError } from '../errors/coded-error.js';
+import { referencesOf } from './hold-references.js';
 import { tenantAccessMarkOf } from './tenant-access-marks.js';
 import { TENANT_ACCESS_HOLDS_TOKEN } from './tenant-access.tokens.js';
 
@@ -352,11 +353,4 @@ export class TenantAccessService {
             }),
         );
     }
-}
-
-/** What the open reasons of `kind` among `holds` are about. */
-function referencesOf(holds: readonly TenantAccessHold[], kind: 'overdue' | 'ended'): string[] {
-    return holds.flatMap((hold) =>
-        hold.kind === kind && hold.reference !== null ? [hold.reference] : [],
-    );
 }

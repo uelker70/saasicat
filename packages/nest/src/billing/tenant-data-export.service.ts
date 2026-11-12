@@ -44,6 +44,7 @@ import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { actorTagOf } from '../core/web-audit.js';
 import { codedError } from '../errors/coded-error.js';
+import { referencesOf } from '../tenant-access/hold-references.js';
 import {
     TenantAccessService,
     type EndedSubscriptionSource,
@@ -169,10 +170,7 @@ export class TenantDataExportService implements OnModuleInit, EndedSubscriptionS
      */
     private async endOffered(tenantId: string): Promise<SubscriptionEnd> {
         const holds = this.access ? (await this.access.accessOf(tenantId)).holds : [];
-        const ended = holds.flatMap((hold) =>
-            hold.kind === 'ended' && hold.reference !== null ? [hold.reference] : [],
-        );
-        const [latest] = (await this.endsOf(tenantId, ended)).sort(
+        const [latest] = (await this.endsOf(tenantId, referencesOf(holds, 'ended'))).sort(
             (a, b) => b.endsAt.getTime() - a.endsAt.getTime(),
         );
         if (!latest) {

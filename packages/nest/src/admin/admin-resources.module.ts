@@ -45,6 +45,7 @@ import {
 } from '@saasicat/core';
 import { actorTagOf } from '../core/web-audit.js';
 import { codedError } from '../errors/coded-error.js';
+import { referencesOf } from '../tenant-access/hold-references.js';
 import {
     TenantAccessService,
     type NamedEnd,
@@ -123,13 +124,9 @@ export class AdminResourcesService {
     async getTenantDetail(slug: string): Promise<AdminTenantDetailEntry> {
         const tenant = await this.tenantNamed(slug);
         const access = await this.access.accessOf(tenant.id);
-        const referenced = (kind: TenantAccessHold['kind']): string[] =>
-            access.holds.flatMap((hold) =>
-                hold.kind === kind && hold.reference ? [hold.reference] : [],
-            );
         const [named, ends] = await Promise.all([
-            this.access.invoicesNamed(referenced('overdue')),
-            this.access.endsNamed(tenant.id, referenced('ended')),
+            this.access.invoicesNamed(referencesOf(access.holds, 'overdue')),
+            this.access.endsNamed(tenant.id, referencesOf(access.holds, 'ended')),
         ]);
         return {
             ...withAccess(tenant, access),
