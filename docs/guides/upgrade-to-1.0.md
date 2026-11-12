@@ -4230,7 +4230,7 @@ are on. Every installation with version notices on has to do this:
 
 Required wherever `tenantBilling` is on. SaaSiCat keeps the reasons a tenant is held back — a
 suspension, an invoice unpaid on its due date, a subscription that ended, a deletion under
-way — and every tenant request is checked against the strictest of them (`SC-ADM-052`): read-only
+way — and every tenant request is checked against the strictest of them (`SC-ADM-055`): read-only
 refuses a write, a suspension refuses everything, and the operator acting as the tenant is held
 back only by a deletion. Each reason is recorded by what brings it, as the sections below say. To
 adopt it:
@@ -4287,7 +4287,7 @@ tenant passes there too; one your guard did not check is checked as a tenant use
 ### A suspension is the platform's own record
 
 Suspending and reactivating a tenant in the administration now record and lift a `suspended`
-reason in `tenant_access_holds` (`SC-ADM-052`), and the check of the previous section holds the
+reason in `tenant_access_holds` (`SC-ADM-055`), and the check of the previous section holds the
 tenant to it. Nothing of the application's is written any more: `AdminResourcesPort.setTenantActive`
 is gone, and with it the subscription status a suspension used to set — a suspension is not an
 overdue invoice, and reactivating no longer sets every subscription of the tenant to `ACTIVE`, a
@@ -4390,7 +4390,7 @@ adopt it:
 
 Required wherever `tenantBilling` is on. Once a subscription's cancellation lands, the platform
 records its end with a deletion day and holds the tenant read-only until then (`SC-CANC-027`,
-`SC-ADM-052`): whichever path declared the cancellation, the tenant's own or your application's. To
+`SC-ADM-055`): whichever path declared the cancellation, the tenant's own or your application's. To
 adopt it:
 
 1. Add `tenantBilling.endOfSubscription.readOnlyDays` to `config/saas.yaml`. It is required and has
@@ -4499,6 +4499,31 @@ before the subscription has ended. To adopt it:
   counted from the period, as one told none (`SC-CANC-030`): the day announced could come before the
   end itself. `announcedDeletion` goes on answering the day announced; only the recorded end follows
   the move.
+
+### A tenant that is read-only may still leave
+
+Nothing to wire. A tenant that is read-only — an invoice unpaid on its due date, or a subscription
+that ended — can still leave in every way it leaves on its own: its administrator declares the
+cancellation of its subscription (`POST billing/cancel`), cancels an add-on
+(`DELETE billing/subscription-bundles/:id`), and ends either at once while a feature is withdrawn
+(`POST billing/feature-withdrawals/:id/end` and `…/bookings/:subscriptionBundleId/end`)
+(`SC-ADM-055`, `SC-CANC-001`). Refusing it would bill a tenant that is behind with a payment for a
+period it does not want. What it owes stays owed, and it stays read-only for as long as its reason
+holds.
+
+- **The four routes carry the mark `leaves`** (`@Leaves()`), which your guard's
+  `TenantAccessService.enforce` reads as the platform's check does, so your own authentication guard
+  lets them through without a change. Who may cancel is still `TenantAdminGuard`'s.
+- **A suspended tenant, and one being deleted, still cannot leave**: lifting a suspension is the
+  operator's.
+- **Everything else a read-only tenant writes stays refused**: reinstating an add-on, booking one,
+  changing the plan.
+- **`TenantAccessService.assertAllowed`** takes `leaves: true` beside `writes: true` for the same
+  exception where there is no request to read the route from.
+- **A route of your own through which a tenant leaves** carries `@Leaves()` from
+  `@saasicat/nest`, as the platform's do, and nothing that does more than leave: everything a marked
+  route writes is let through under read-only.
+- **An exhaustive switch over `TenantAccessMark`** of your own gains the member `'leaves'`.
 
 ## What the codemod leaves to you
 

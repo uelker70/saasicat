@@ -338,7 +338,7 @@ const RULE_SPECS: readonly RuleSpec[] = [
         assert: (c) => Boolean(bundle(c)?.core?.tenantAccessHolds),
         message:
             'tenantBilling or adminResources is on, but there is nowhere to keep the reasons a ' +
-            'tenant is held back (SC-ADM-052): a state that is not recorded cannot be enforced, ' +
+            'tenant is held back (SC-ADM-055): a state that is not recorded cannot be enforced, ' +
             'and a suspension has nowhere to go. Use a ' +
             'bundle providing `persistence.core.tenantAccessHolds` — both shipped adapters do, ' +
             'from the `TenantAccessHold` model of `@saasicat/spec`.',

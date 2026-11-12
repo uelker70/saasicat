@@ -90,7 +90,7 @@ export class TenantInvoicesController {
     /**
      * Pays every invoice still open now, with the payment method in use
      * (`SC-PRIC-100`) — the payment a read-only tenant may still start
-     * (`SC-ADM-052`).
+     * (`SC-ADM-055`).
      */
     @Post('account/pay')
     @HttpCode(200)

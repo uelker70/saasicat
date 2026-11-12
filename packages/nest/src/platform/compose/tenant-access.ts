@@ -1,5 +1,5 @@
 // The reasons a tenant is held back, and the check every tenant request passes
-// (`SC-ADM-052`). Composed wherever tenants are served or the administration
+// (`SC-ADM-055`). Composed wherever tenants are served or the administration
 // suspends them; the rule `tenant-access.requires-holds-port` has refused a
 // configuration that reaches here without a store.
 

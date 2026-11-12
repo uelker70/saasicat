@@ -1,5 +1,5 @@
 // The platform's own tenant routes hold a tenant to its state, behind the
-// application's guards (`SC-ADM-052`).
+// application's guards (`SC-ADM-055`).
 //
 // Every tenant route of the platform passes through `ComposedTenantAuthGuard`,
 // which runs the application's guards and then the access check, so the check
@@ -78,7 +78,7 @@ const guardWith = ({ appGuards = [{ canActivate: () => true }], store, resolver 
 
 const asTenant = (tenantId, method = 'GET') => ({ method, user: { tenantId }, headers: {} });
 
-// @requirement SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
+// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
 describe("the platform's tenant guard asks the state once the application let the request in", () => {
     test('an application guard that refuses ends it before the state is read', async () => {
         const store = countedStore();
@@ -245,7 +245,7 @@ function handlersOf(controller) {
         }));
 }
 
-// @requirement SC-ADM-052 — A suspended tenant cannot act, and a read-only one writes nothing but a payment
+// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
 describe('which routes the check reaches', () => {
     // Add-on bookings are switched on here as well: the shared fixture leaves
     // them off, and a derivation over it would never see their tenant routes.
@@ -293,6 +293,22 @@ describe('which routes the check reaches', () => {
         assert.deepEqual(starting, [
             'POST billing/account/pay',
             'POST billing/payment-method/setup',
+        ]);
+    });
+
+    // Writes all the same, let through under read-only because a tenant is
+    // never told it may not leave (`a-read-only-tenant-may-still-leave`).
+    test('exactly these routes let a tenant leave', () => {
+        const leaving = tenantControllers
+            .flatMap(handlersOf)
+            .filter((handler) => handler.mark === 'leaves')
+            .map((handler) => `${handler.method} ${handler.path}`)
+            .sort();
+        assert.deepEqual(leaving, [
+            'DELETE billing/subscription-bundles/:id',
+            'POST billing/cancel',
+            'POST billing/feature-withdrawals/:id/bookings/:subscriptionBundleId/end',
+            'POST billing/feature-withdrawals/:id/end',
         ]);
     });
 

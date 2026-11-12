@@ -1,6 +1,6 @@
 // A subscription whose cancellation landed is recorded once, with the day its
 // tenant's data is deleted on, and its tenant is held to reading from the
-// moment it ended (`SC-CANC-027`, `SC-ADM-052`).
+// moment it ended (`SC-CANC-027`, `SC-ADM-055`).
 //
 // The run is driven directly: the subscriptions a cancellation was declared
 // for come from a port that answers what the test hands it, the ends and the

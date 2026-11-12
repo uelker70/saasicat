@@ -3,7 +3,7 @@
 -- =============================================================================
 --
 -- One table, additive: `tenant_access_holds` holds one row per reason a tenant
--- is held back (`SC-ADM-052`) — a suspension, an invoice unpaid on its due
+-- is held back (`SC-ADM-055`) — a suspension, an invoice unpaid on its due
 -- date, a subscription that ended, a deletion under way. The platform reads a
 -- tenant's open reasons on every request of that tenant.
 --

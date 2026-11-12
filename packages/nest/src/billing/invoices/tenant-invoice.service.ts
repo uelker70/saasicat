@@ -142,7 +142,7 @@ export class TenantInvoiceService implements OpenInvoiceSource, InvoiceNameSourc
     /**
      * Whether `tenantId`'s subscriber has an invoice that still owes something,
      * as its account shows it: what read-only leaves starting a payment open
-     * for (`SC-ADM-052`). Not for a tenant without a subscriber.
+     * for (`SC-ADM-055`). Not for a tenant without a subscriber.
      */
     async hasOpenInvoice(tenantId: string): Promise<boolean> {
         const { balances } = await this.accountOf(tenantId);

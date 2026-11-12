@@ -22,6 +22,10 @@ _Tested by:_
     - with no notice period, which is the default
         - a cancellation lands at the end of the term
         - the last day of the term is still in time
+- `packages/nest/tests/a-read-only-tenant-may-still-leave.test.js`
+    - a read-only tenant leaving
+        - is let through declaring the cancellation of its subscription, an invoice unpaid
+          notwithstanding
 
 <!-- END proof -->
 
@@ -940,6 +944,9 @@ _Source:_ #357
 
 _Tested by:_
 
+- `packages/nest/tests/a-read-only-tenant-may-still-leave.test.js`
+    - a read-only tenant leaving
+        - is let through ending its subscription at once, an invoice unpaid notwithstanding
 - `packages/nest/tests/a-subscriber-ends-at-once.test.js`
     - what the tenant sees of a withdrawal
         - says what is reduced, and what may end at once
@@ -999,7 +1006,7 @@ tenant confirmed carries the day announced at confirmation (`SC-CANC-021`); one 
 gets its day from the period, counted from the day it ended, or from the day SaaSiCat records the
 end where that is later, so nobody is given less than the period's notice. A later change to the
 period moves no day already recorded, and the one way to delete earlier is `SC-ADM-020`'s. From the
-moment it ended until that day the tenant is read-only (`SC-ADM-052`); a new subscription before it
+moment it ended until that day the tenant is read-only (`SC-ADM-055`); a new subscription before it
 is `SC-CANC-028`'s, and how the deletion runs is `SC-PRIV-014`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #337

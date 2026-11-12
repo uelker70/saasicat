@@ -1,5 +1,5 @@
 // TenantAccessService — what a tenant's users may do, asked on every request
-// (`SC-ADM-052`).
+// (`SC-ADM-055`).
 //
 // The application calls `enforce` at the end of its own authentication guard,
 // once the tenant of the request is known, and `assertAllowed` where there is
@@ -41,11 +41,18 @@ const REFUSAL_CODE: Readonly<Record<Exclude<TenantAccessState, 'open'>, TenantAc
 export interface TenantAccessIntent extends TenantAccessActor {
     writes: boolean;
     /**
-     * It starts a payment — pays now, or replaces the payment method: the one
-     * kind of write a read-only tenant may make, while one of its subscriber's
-     * invoices is open (`SC-ADM-052`).
+     * It starts a payment — pays now, or replaces the payment method: one of
+     * the two kinds of write a read-only tenant may make, while one of its
+     * subscriber's invoices is open (`SC-ADM-055`).
      */
     startsPayment?: boolean;
+    /**
+     * It lets the tenant leave — declares the cancellation of its
+     * subscription, cancels an add-on, or ends either at once while a feature
+     * is withdrawn: the other kind of write a read-only tenant may make
+     * (`SC-ADM-055`, `SC-CANC-001`).
+     */
+    leaves?: boolean;
 }
 
 /**
@@ -227,6 +234,7 @@ export class TenantAccessService {
             ...actor,
             writes,
             startsPayment: mark === 'starts-payment',
+            leaves: mark === 'leaves',
         });
         this.passedFor(request, tenantId);
     }
@@ -255,6 +263,10 @@ export class TenantAccessService {
         const access = await this.accessOf(tenantId);
         const refusal = tenantAccessRefusal(access, intent.writes, intent);
         if (!refusal) return;
+        // A tenant is never told it may not leave, whatever it owes. A
+        // suspension or a deletion under way has no such exception, and who
+        // may cancel is the administrator's guard's.
+        if (refusal === 'read-only' && intent.leaves === true) return;
         // Asked only where it decides: a read-only tenant starting a
         // payment. A suspension or a deletion under way has no such
         // exception, and whether the user may pay at all is the billing

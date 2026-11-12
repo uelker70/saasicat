@@ -5,7 +5,7 @@ export interface TenantDetailData {
     slug: string;
     name: string;
     isActive: boolean;
-    /** The platform's state of the tenant (`SC-ADM-052`), where the server says it. */
+    /** The platform's state of the tenant (`SC-ADM-055`), where the server says it. */
     access?: TenantAccessState;
     /** Every reason it is held back for, the oldest first (`SC-ADM-053`), where the server says them. */
     accessReasons?: AdminTenantAccessReason[];

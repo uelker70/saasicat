@@ -4,7 +4,7 @@
 // application declared for a trial that ran out unbought, or one the operator
 // landed through its own path. The platform learns of it on its next run,
 // records the end with the day the tenant's data is deleted on, and holds the
-// tenant read-only until then (`SC-ADM-052`).
+// tenant read-only until then (`SC-ADM-055`).
 //
 // The deletion day is fixed when the end is recorded. Where the tenant was
 // told a day when it confirmed its cancellation, or ended its subscription at

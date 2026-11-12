@@ -31,7 +31,7 @@ import { isSaaSiCatPublicRoute } from '@saasicat/nest/platform';
  * is what the webhook route checks instead. A JWT guard in the same position
  * does the same.
  *
- * Once the user is known, the tenant's access state is asked (`SC-ADM-052`):
+ * Once the user is known, the tenant's access state is asked (`SC-ADM-055`):
  * a suspended tenant's users are refused, a read-only tenant's writes are. This
  * is the line a real app adds at the end of its own authentication guard. The
  * operator is not one of the tenant's users and passes a suspension or

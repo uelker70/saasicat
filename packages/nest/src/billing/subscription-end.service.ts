@@ -1,6 +1,6 @@
 // A subscription that ended is recorded once, with the day its tenant's data
 // is deleted on, and its tenant is held to reading until then (`SC-CANC-027`,
-// `SC-ADM-052`). Before that, a tenant that ends its subscription is told the
+// `SC-ADM-055`). Before that, a tenant that ends its subscription is told the
 // day, and the day it was told is the one recorded (`SC-CANC-021`).
 //
 // Nothing marks the moment a cancellation lands: the subscription keeps its

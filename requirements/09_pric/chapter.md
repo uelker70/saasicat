@@ -1704,7 +1704,7 @@ _Tested by:_
 details `SC-PRIV-005` allows, never the IBAN or the card number. Adding or changing a payment
 method needs the billing permission (`SC-UI-023`) and is taken in the subscriber's one live tenant
 (`SC-SCOPE-012`), or, once that tenant is deleted, on the gateway's payment page for an open invoice
-(`SC-ADM-052`). A reference is only meaningful to the gateway account that issued it,
+(`SC-ADM-055`). A reference is only meaningful to the gateway account that issued it,
 the provider and the merchant account there, so each payment method and each payment records that
 account. `config/saas.yaml` names the account that takes new payment methods; one that still holds
 a payment method in use, an open collection, a credit to refund, a payment inside its reversal
@@ -2525,7 +2525,7 @@ _Tested by:_
 ### SC-PRIC-100 — A subscriber pays what is open now
 
 🟢 💰 A user of the tenant holding the billing permission (`SC-UI-023`) can pay every invoice still
-open at once with the payment method in use, read-only included (`SC-ADM-052`), from the account
+open at once with the payment method in use, read-only included (`SC-ADM-055`), from the account
 that shows what is open (`SC-PRIC-049`): a card is charged at once, and the tenant is let go once
 the payment is there (`SC-PRIC-098`); a direct debit is announced and collected the lead time after
 (`SC-PRIC-028`), and the tenant stays read-only until the bank confirms it. Before paying, the user
@@ -2907,7 +2907,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-PRIC-098 — An invoice unpaid on its due date makes the tenant read-only until it is paid
 
 🟢 💰 An invoice still open on its due date (`SC-PRIC-046`) makes the tenant its subscriber is live
-for read-only (`SC-ADM-052`) from that day, within the quarter of an hour the run takes, until it
+for read-only (`SC-ADM-055`) from that day, within the quarter of an hour the run takes, until it
 is paid; there is no grace period, and before its due date an invoice holds nobody back, unless an
 invoice it replaced had come due, was refused and still owed when it was replaced: a correction is
 not a payment, and the tenant stays read-only until the replacement is paid, whatever day the

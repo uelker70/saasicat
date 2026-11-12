@@ -86,7 +86,7 @@ export interface PlatformTenantActionsResult<TRow extends TenantRowLike> {
 
 /**
  * Whether a tenant row offers suspending or reactivating it. From the
- * platform's state where the row carries it (`access`, `SC-ADM-052`): a tenant
+ * platform's state where the row carries it (`access`, `SC-ADM-055`): a tenant
  * that is open or read-only can be suspended, and only the platform's own
  * suspension can be reactivated — not a tenant the application deactivated,
  * which reactivating would not change. From `isActive` where the row has no

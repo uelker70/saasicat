@@ -28,7 +28,7 @@ import {
 // subsequent guards.
 //
 // Once the application's guards have let a request through, its tenant is
-// known, and the tenant's access state is checked last (`SC-ADM-052`): every
+// known, and the tenant's access state is checked last (`SC-ADM-055`): every
 // tenant route of the platform passes through here, so this one check covers
 // them all. Where the application's guard already checked the request for the
 // same tenant — saying, where it was, that the operator is acting as the

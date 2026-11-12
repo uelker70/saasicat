@@ -385,6 +385,9 @@ _Tested by:_
         - a booking from before the columns existed still ends with the plan
         - a minimum term still outranks the period when it runs longer
         - and the parent’s end still caps both
+- `packages/nest/tests/a-read-only-tenant-may-still-leave.test.js`
+    - a read-only tenant leaving
+        - is let through cancelling an add-on, an invoice unpaid notwithstanding
 - `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
     - a monthly add-on beside a yearly plan
         - commits to nothing and runs to the plan’s billing day
@@ -2560,6 +2563,9 @@ _Source:_ #357
 
 _Tested by:_
 
+- `packages/nest/tests/a-read-only-tenant-may-still-leave.test.js`
+    - a read-only tenant leaving
+        - is let through ending an add-on at once, an invoice unpaid notwithstanding
 - `packages/nest/tests/a-subscriber-ends-at-once.test.js`
     - ending a booking at once
         - ends it alone, now, writes the contract again and credits its unused rest

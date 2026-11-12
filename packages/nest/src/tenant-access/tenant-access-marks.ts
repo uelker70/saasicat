@@ -29,14 +29,27 @@ export const Writes = (): ClassDecorator & MethodDecorator =>
     SetMetadata(TENANT_ACCESS_MARK_KEY, 'writes' satisfies TenantAccessMark);
 
 /**
- * The one kind of write read-only lets through: starting a payment — paying
- * now, or replacing the payment method —, while one of the subscriber's
- * invoices is open (`SC-ADM-052`). The platform's own routes carry it, and
- * nothing else should — whether the user may pay at all is still the billing
- * permission's to say.
+ * One of the two kinds of write read-only lets through: starting a payment —
+ * paying now, or replacing the payment method —, while one of the
+ * subscriber's invoices is open (`SC-ADM-055`). The platform's own routes
+ * carry it, and nothing else should — whether the user may pay at all is
+ * still the billing permission's to say.
  */
 export const StartsPayment = (): MethodDecorator =>
     SetMetadata(TENANT_ACCESS_MARK_KEY, 'starts-payment' satisfies TenantAccessMark);
+
+/**
+ * The other kind of write read-only lets through: the tenant leaving —
+ * declaring the cancellation of its subscription, cancelling an add-on, or
+ * ending either at once while a feature is withdrawn (`SC-ADM-055`,
+ * `SC-CANC-001`). Refusing it would bill a tenant that is behind with a
+ * payment for a period it does not want. The platform's own routes carry it,
+ * and so does an application's own route through which a tenant leaves —
+ * nothing that does more than leave, since everything a marked route writes
+ * is let through. Who may cancel is still the route's guards' to say.
+ */
+export const Leaves = (): MethodDecorator =>
+    SetMetadata(TENANT_ACCESS_MARK_KEY, 'leaves' satisfies TenantAccessMark);
 
 /**
  * Lets every user of a tenant through to a route that answers the tenant's own

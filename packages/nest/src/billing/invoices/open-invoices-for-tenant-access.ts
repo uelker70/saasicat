@@ -1,6 +1,6 @@
 // Tells the tenant's access check whether an invoice is open, so a read-only
 // tenant can start a payment — pay now, or replace its payment method — while
-// it owes something (`SC-ADM-052`), and what an invoice a reason names is
+// it owes something (`SC-ADM-055`), and what an invoice a reason names is
 // called, so the operator reads it by its number (`SC-ADM-053`).
 //
 // The check is global and composed before tenant billing, so it cannot inject
