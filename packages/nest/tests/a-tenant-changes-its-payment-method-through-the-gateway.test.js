@@ -45,6 +45,7 @@ import {
     providerRefusal,
     signedCallback,
 } from './helpers/payments.js';
+import { anExport } from './helpers/tenant-data-export.js';
 
 const URLS = {
     successUrl: 'https://app.example/plan?payment-method=changed',
@@ -1057,7 +1058,7 @@ describe('SaaSiCatModule composes payments', () => {
             planCatalog: catalog,
             controller: { guards: [AllowAll] },
             persistence,
-            tenantBilling: { authGuards: [AllowAll] },
+            tenantBilling: { authGuards: [AllowAll], subscriptionEnds: { export: anExport() } },
             payments: { gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() } },
         });
 
@@ -1078,7 +1079,11 @@ describe('SaaSiCatModule composes payments', () => {
             planCatalog: catalog,
             controller: { guards: [AllowAll] },
             persistence,
-            tenantBilling: { authGuards: [AllowAll], billingPermissionGuards: accountingOnly },
+            tenantBilling: {
+                authGuards: [AllowAll],
+                billingPermissionGuards: accountingOnly,
+                subscriptionEnds: { export: anExport() },
+            },
             payments: { gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() } },
         });
 
@@ -1096,7 +1101,10 @@ describe('SaaSiCatModule composes payments', () => {
                     planCatalog: catalog,
                     controller: { guards: [AllowAll] },
                     persistence,
-                    tenantBilling: { authGuards: [AllowAll] },
+                    tenantBilling: {
+                        authGuards: [AllowAll],
+                        subscriptionEnds: { export: anExport() },
+                    },
                     payments: {
                         gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },
                         billingPermissionGuards: [{ canActivate: () => true }],

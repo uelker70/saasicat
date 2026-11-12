@@ -18,7 +18,8 @@ const {
 // Who of a tenant's users may do what, held over every tenant route the
 // packages ship (`SC-ADM-026`): reading and previewing are everyone's who is
 // signed in, so a user who cannot change the plan can still see what a change
-// would cost and ask the administrator for it; changing what the tenant pays —
+// would cost and ask the administrator for it — all but the reads named below
+// as the administrator's, such as the tenant's full export; changing what the tenant pays —
 // a plan change, a booking, a cancellation, an end at once — is the tenant's
 // administrator's; and the billing area, reading and changing alike, is
 // whoever's who holds the billing permission.
@@ -39,6 +40,12 @@ const GET = 0;
 
 /** The last path segments that ask a question rather than record an answer. */
 const QUESTIONS = new Set(['preview', 'prices']);
+
+/**
+ * The reads that are the tenant administrator's alone, each for a reason of its
+ * own: the tenant's full export holds every user's data (`SC-PRIV-019`).
+ */
+const ADMINISTRATORS_READS = new Set(['TenantDataExportController.export']);
 
 /** Every tenant controller the entries export, and the one the factory builds. */
 function tenantControllers() {
@@ -120,11 +127,24 @@ describe('who of a tenant may do what', () => {
 
     test('every route that only reads or previews is open to every signed-in user', () => {
         for (const route of outsideBilling) {
-            if (!asks(route)) continue;
+            if (!asks(route) || ADMINISTRATORS_READS.has(route.route)) continue;
             assert.ok(
                 !route.guards.includes(TenantAdminGuard),
                 `${route.route} (${route.path}) only asks, and asks for the role`,
             );
+        }
+    });
+
+    // @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+    test("the reads that are the administrator's alone are these, and ask for the role", () => {
+        const found = outsideBilling.filter((route) => ADMINISTRATORS_READS.has(route.route));
+        assert.deepEqual(
+            found.map((route) => route.route),
+            [...ADMINISTRATORS_READS],
+        );
+        for (const route of found) {
+            assert.ok(asks(route), `${route.route} reads`);
+            assert.ok(route.guards.includes(TenantAdminGuard), `${route.route} asks for the role`);
         }
     });
 

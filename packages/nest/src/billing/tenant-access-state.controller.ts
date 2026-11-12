@@ -12,13 +12,16 @@ import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import { TENANT_ID_RESOLVER_TOKEN, type TenantIdResolver } from './tenant-billing.tokens.js';
 import { tenantIdOf } from './tenant-id.js';
+import { mayTakeTheTenantsExport } from './tenant-roles.js';
 
 /**
  * `GET billing/access` — the tenant's state as every one of its users reads
  * it, in every state, suspended and being deleted included (`SC-ADM-054`):
- * what holds it back and from which day, without the invoices by number and
- * without paying, which are the billing permission's
- * (`GET billing/account/access`). The tenant is the session's.
+ * what holds it back and from which day, the days an ended subscription leaves
+ * (`SC-CANC-033`), and whether this reader can take the export
+ * (`SC-PRIV-019`); without the invoices by number and without paying, which
+ * are the billing permission's (`GET billing/account/access`). The tenant is
+ * the session's.
  */
 @Controller('billing')
 @UseGuards(ComposedTenantAuthGuard)
@@ -45,6 +48,7 @@ export class TenantAccessStateController {
             timeZone: installationZoneOf(this.settings),
             holdsBillingPermission: false,
             mayPay: false,
+            isTenantAdministrator: mayTakeTheTenantsExport(request),
         };
         if (!this.access) return tenantAccessViewOf({ state: 'open', holds: [] }, asked);
         return this.access.viewOf(tenantId, asked);

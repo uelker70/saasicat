@@ -13,6 +13,8 @@ import { Reflector } from '@nestjs/core';
 import {
     KINDS_HOLDING_EVERYONE_BACK,
     TENANT_ACCESS_ERROR_CODES,
+    type CalendarDay,
+    type SubscriptionEnd,
     type TenantAccess,
     type TenantAccessErrorCode,
     type TenantAccessHold,
@@ -21,6 +23,7 @@ import {
     type TenantAccessState,
     type TenantAccessView,
     type TenantAccessViewOptions,
+    type TenantExportDownload,
     requestWrites,
     tenantAccessOf,
     tenantAccessRefusal,
@@ -75,6 +78,30 @@ export interface InvoiceNameSource {
     invoicesNamed(invoiceIds: readonly string[]): Promise<NamedInvoice[]>;
 }
 
+/**
+ * What is kept of the subscriptions the `ended` reasons name: each end with its
+ * deletion day, and every download of the tenant's export taken for it.
+ * Answered by the tenant's export, which the application wires wherever the
+ * ends are kept — so where it answers, the export can be produced.
+ */
+export interface EndedSubscriptionSource {
+    /** The recorded ends of `tenantId` among `subscriptionIds`, as its own users read them, in one read. */
+    endsOf(tenantId: string, subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]>;
+    /**
+     * The same ends as the operator reads them, each with every download of
+     * the export taken for it.
+     */
+    endsWithDownloadsOf(tenantId: string, subscriptionIds: readonly string[]): Promise<NamedEnd[]>;
+}
+
+/** An ended subscription a reason names, as the operator reads it: its deletion day and the downloads of the export. */
+export interface NamedEnd {
+    subscriptionId: string;
+    deletesOn: CalendarDay;
+    /** The oldest first. */
+    downloads: TenantExportDownload[];
+}
+
 interface RequestLike {
     method?: string;
 }
@@ -106,6 +133,13 @@ export class TenantAccessService {
     /** Where an invoice a reason names is looked up by its id, registered as `openInvoices` is. */
     private invoiceNames: InvoiceNameSource | null = null;
 
+    /**
+     * Where an ended subscription a reason names is looked up, registered by
+     * the tenant's export as `openInvoices` is by the invoices; without it no
+     * end is read and no export offered.
+     */
+    private endedSubscriptions: EndedSubscriptionSource | null = null;
+
     constructor(
         @Inject(TENANT_ACCESS_HOLDS_TOKEN) private readonly holds: TenantAccessHoldPort,
         @Inject(Reflector) private readonly reflector: Reflector,
@@ -119,6 +153,11 @@ export class TenantAccessService {
     /** Lets `source` say what the invoices a reason names are called. */
     nameInvoicesFrom(source: InvoiceNameSource): void {
         this.invoiceNames = source;
+    }
+
+    /** Lets `source` say what is kept of the ended subscriptions the reasons name, and offer the export. */
+    answerEndsFrom(source: EndedSubscriptionSource): void {
+        this.endedSubscriptions = source;
     }
 
     /**
@@ -138,23 +177,47 @@ export class TenantAccessService {
     /**
      * What a user of `tenantId` is told of its state (`SC-ADM-054`), as
      * `asked` says who they are: the invoices its reasons name are read by
-     * number only for a user who holds the billing permission.
+     * number only for a user who holds the billing permission, and the ends of
+     * the subscriptions they name, for their days, only where one ended
+     * (`SC-CANC-033`) — once each, whatever the number of reasons.
      */
     async viewOf(
         tenantId: string,
-        asked: Omit<TenantAccessViewOptions, 'invoiceNumbers'>,
+        asked: Omit<TenantAccessViewOptions, 'invoiceNumbers' | 'deletionDays' | 'exportWired'>,
     ): Promise<TenantAccessView> {
         const access = await this.accessOf(tenantId);
-        if (!asked.holdsBillingPermission) return tenantAccessViewOf(access, asked);
-        const named = await this.invoicesNamed(
-            access.holds.flatMap((hold) =>
-                hold.kind === 'overdue' && hold.reference !== null ? [hold.reference] : [],
-            ),
-        );
+        const [named, ends] = await Promise.all([
+            asked.holdsBillingPermission
+                ? this.invoicesNamed(referencesOf(access.holds, 'overdue'))
+                : [],
+            this.endsOf(tenantId, referencesOf(access.holds, 'ended')),
+        ]);
         return tenantAccessViewOf(access, {
             ...asked,
             invoiceNumbers: new Map(named.map((invoice) => [invoice.id, invoice.number])),
+            deletionDays: new Map(ends.map((end) => [end.subscriptionId, end.deletesOn])),
+            exportWired: this.endedSubscriptions !== null,
         });
+    }
+
+    /**
+     * The ended subscriptions among `subscriptionIds` whose end is recorded for
+     * `tenantId`, each with its deletion day and every download of the export
+     * taken for it, as the operator reads them (`SC-CANC-033`, `SC-PRIV-019`);
+     * none where nothing answers for the ends. One read of the ends and one of
+     * the downloads.
+     */
+    async endsNamed(tenantId: string, subscriptionIds: readonly string[]): Promise<NamedEnd[]> {
+        if (subscriptionIds.length === 0 || !this.endedSubscriptions) return [];
+        return this.endedSubscriptions.endsWithDownloadsOf(tenantId, subscriptionIds);
+    }
+
+    private async endsOf(
+        tenantId: string,
+        subscriptionIds: readonly string[],
+    ): Promise<SubscriptionEnd[]> {
+        if (subscriptionIds.length === 0 || !this.endedSubscriptions) return [];
+        return this.endedSubscriptions.endsOf(tenantId, subscriptionIds);
     }
 
     /** Every tenant nobody of which acts at all: suspended, or being deleted. */
@@ -289,4 +352,11 @@ export class TenantAccessService {
             }),
         );
     }
+}
+
+/** What the open reasons of `kind` among `holds` are about. */
+function referencesOf(holds: readonly TenantAccessHold[], kind: 'overdue' | 'ended'): string[] {
+    return holds.flatMap((hold) =>
+        hold.kind === kind && hold.reference !== null ? [hold.reference] : [],
+    );
 }

@@ -69,7 +69,8 @@ export interface SubscriptionEndPort {
  * The platform asks it only for the tenant of the session that requests the
  * download, and only once an end of that tenant's subscription is recorded. It
  * asks again for every download and keeps nothing of the answer. A rejection
- * is a refusal: the platform records no download and sends no file.
+ * is a refusal: the platform records no download and sends no file — and so is
+ * an answer that is not a file, which `TenantDataExport` describes.
  */
 export interface TenantDataExportPort {
     /** The full export of `tenantId`, produced now. */

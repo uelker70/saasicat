@@ -1287,6 +1287,7 @@ _Tested by:_
         - the tenant controllers are found, and each route carries its metadata
         - every route that writes asks for the tenant administrator
         - every route that only reads or previews is open to every signed-in user
+        - the reads that are the administrator's alone are these, and ask for the role
         - the billing area asks for the billing permission and nothing beside it, reading included
         - the routes the split is about are among them, each on its side
 - `packages/nest/tests/a-tenant-is-handed-the-days-of-its-add-ons.test.js`

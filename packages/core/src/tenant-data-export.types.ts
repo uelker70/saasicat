@@ -1,6 +1,6 @@
 // A tenant's full export, as the application hands it to the platform to serve
 // to the tenant's administrators once its subscription has ended
-// (`SC-PRIV-017`).
+// (`SC-PRIV-019`).
 //
 // The platform does not know what an application keeps for a tenant, so it
 // does not assemble the export: it asks the application for the file and
@@ -10,13 +10,17 @@
 /** The tenant's full export as one file. */
 export interface TenantDataExport {
     /**
-     * The file's bytes, or an iterable that yields them in order — a Node
-     * `Readable` is one. Where it is an iterable, the platform has only its
-     * start in hand when it records the download, and a stream that fails
-     * partway ends a download that was recorded.
+     * The whole file, already produced. Bytes rather than a stream: the
+     * download is recorded before the file is sent, and only a file the
+     * application has finished producing can be recorded as handed over. A very
+     * large export is therefore held in memory once while it is served.
      */
-    content: Uint8Array | AsyncIterable<Uint8Array>;
-    /** Such as `application/json` or `application/zip`. */
+    content: Uint8Array;
+    /**
+     * Such as `application/json` or `application/zip`: printable ASCII, since
+     * it goes into the download's header as it is. Any other is refused as an
+     * export the application did not produce.
+     */
     mediaType: string;
     /**
      * What a person saving it would call it, such as `acme-export-2026-11-30.json`.

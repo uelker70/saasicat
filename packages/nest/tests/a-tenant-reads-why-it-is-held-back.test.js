@@ -54,11 +54,24 @@ describe("a tenant's users read why it is held back", () => {
         assert.deepEqual(await controller.state(REQUEST), {
             state: 'suspended',
             reasons: [
-                { kind: 'overdue', since: '2026-11-16', invoiceNumber: null },
-                { kind: 'suspended', since: '2026-11-17', invoiceNumber: null },
+                {
+                    kind: 'overdue',
+                    since: '2026-11-16',
+                    invoiceNumber: null,
+                    readOnlyUntil: null,
+                    deletesOn: null,
+                },
+                {
+                    kind: 'suspended',
+                    since: '2026-11-17',
+                    invoiceNumber: null,
+                    readOnlyUntil: null,
+                    deletesOn: null,
+                },
             ],
             holdsBillingPermission: false,
             mayPay: false,
+            mayExport: false,
         });
     });
 
@@ -108,6 +121,7 @@ describe("a tenant's users read why it is held back", () => {
                 reasons: [],
                 holdsBillingPermission: false,
                 mayPay: false,
+                mayExport: false,
             },
         );
         const view = await new TenantInvoicesController(
@@ -122,6 +136,7 @@ describe("a tenant's users read why it is held back", () => {
             reasons: [],
             holdsBillingPermission: true,
             mayPay: true,
+            mayExport: false,
         });
     });
 });

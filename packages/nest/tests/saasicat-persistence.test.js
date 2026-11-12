@@ -21,6 +21,7 @@ import {
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
+import { anExport } from './helpers/tenant-data-export.js';
 
 // forRoot wiring of the `persistence` bundle option (adapter bundles from
 // e.g. @saasicat/adapter-prisma) incl. the capability fail-fast.
@@ -301,7 +302,7 @@ describe('SaaSiCatModule persistence bundle', () => {
                     featureUiRegistry: {},
                     autoSyncDiscoveryAtBoot: false,
                 },
-                tenantBilling: { authGuards: [] },
+                tenantBilling: { authGuards: [], subscriptionEnds: { export: anExport() } },
                 subscriptionBundles: true,
                 adminResources: true,
                 promoCodes: true,
@@ -424,7 +425,7 @@ describe('SaaSiCatModule persistence bundle', () => {
                         adminControllers: false,
                         autoSyncDiscoveryAtBoot: false,
                     },
-                    tenantBilling: { authGuards: [] },
+                    tenantBilling: { authGuards: [], subscriptionEnds: { export: anExport() } },
                     subscriptionBundles: true,
                     adminResources: true,
                     promoCodes: true,

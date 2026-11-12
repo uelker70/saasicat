@@ -373,6 +373,11 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 label: 'Deletion day recorded by declaring a cancellation again',
                 severity: 'medium',
             },
+            {
+                key: 'TENANT_EXPORT_DOWNLOAD',
+                label: "Tenant's full export downloaded by its administrator after its subscription ended",
+                severity: 'medium',
+            },
             { key: 'USER_RESET_PASSWORD', label: 'Password reset triggered', severity: 'medium' },
             { key: 'USER_DEACTIVATE', label: 'User deactivated', severity: 'high' },
             { key: 'USER_REASSIGN_ADMIN', label: 'Admin role transferred', severity: 'high' },

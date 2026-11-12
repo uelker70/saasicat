@@ -26,7 +26,7 @@ export function holdsTenantAdminRole(context: ExecutionContext): boolean {
             message: 'Not authenticated',
         });
     }
-    return mayChangeWhatTheTenantPays(request);
+    return isTenantAdministrator(request);
 }
 
 /**
@@ -35,6 +35,21 @@ export function holdsTenantAdminRole(context: ExecutionContext): boolean {
  * `TenantAdminGuard` refuses the change by.
  */
 export function mayChangeWhatTheTenantPays(request: unknown): boolean {
+    return isTenantAdministrator(request);
+}
+
+/**
+ * Whether the user a request carries may take the tenant's full export — what
+ * the tenant's state answers as `mayExport` for its reader, by the rule
+ * `TenantAdminGuard` refuses the download by: the export holds every user's
+ * data, so only the tenant's administrator takes it.
+ */
+export function mayTakeTheTenantsExport(request: unknown): boolean {
+    return isTenantAdministrator(request);
+}
+
+/** Whether the user a request carries holds `TENANT_ADMIN` or `SUPER_ADMIN`. */
+function isTenantAdministrator(request: unknown): boolean {
     if (typeof request !== 'object' || request === null || !('user' in request)) return false;
     const { user } = request;
     if (typeof user !== 'object' || user === null) return false;

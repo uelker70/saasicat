@@ -30,7 +30,14 @@ function httpRouting(routes: Record<string, Answer[]>) {
     return { http, calls };
 }
 
-const OVERDUE = { kind: 'overdue', since: '2026-11-16', invoiceNumber: 'RE-2026-0042' } as const;
+/** What a reason other than an ended subscription carries of the days an end leaves. */
+const NO_DAYS = { readOnlyUntil: null, deletesOn: null } as const;
+const OVERDUE = {
+    kind: 'overdue',
+    since: '2026-11-16',
+    invoiceNumber: 'RE-2026-0042',
+    ...NO_DAYS,
+} as const;
 
 /** What a user with the billing permission reads, where it is collected through a gateway. */
 const toBilling = (overrides: Partial<TenantAccessView> = {}): TenantAccessView => ({
@@ -38,6 +45,7 @@ const toBilling = (overrides: Partial<TenantAccessView> = {}): TenantAccessView 
     reasons: [OVERDUE],
     holdsBillingPermission: true,
     mayPay: true,
+    mayExport: false,
     ...overrides,
 });
 const ACCOUNT = {
@@ -186,7 +194,12 @@ describe('the banner of a tenant held back', () => {
                         state: 'suspended',
                         reasons: [
                             OVERDUE,
-                            { kind: 'suspended', since: '2026-11-17', invoiceNumber: null },
+                            {
+                                kind: 'suspended',
+                                since: '2026-11-17',
+                                invoiceNumber: null,
+                                ...NO_DAYS,
+                            },
                         ],
                     }),
                 ],
@@ -215,7 +228,12 @@ describe('the banner of a tenant held back', () => {
                         state: 'suspended',
                         reasons: [
                             { ...OVERDUE, invoiceNumber: null },
-                            { kind: 'suspended', since: '2026-11-17', invoiceNumber: null },
+                            {
+                                kind: 'suspended',
+                                since: '2026-11-17',
+                                invoiceNumber: null,
+                                ...NO_DAYS,
+                            },
                         ],
                         holdsBillingPermission: false,
                         mayPay: false,
@@ -236,7 +254,7 @@ describe('the banner of a tenant held back', () => {
                     200,
                     toBilling({
                         reasons: [
-                            { kind: 'ended', since: '2026-11-10', invoiceNumber: null },
+                            { kind: 'ended', since: '2026-11-10', invoiceNumber: null, ...NO_DAYS },
                             OVERDUE,
                         ],
                     }),

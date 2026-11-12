@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 310 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 312 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -410,12 +410,14 @@ The lock that refuses tenant requests, and the operator routes around it.
 
 ## Tenant access
 
-What a held-back tenant's users meet, with the open reasons in `params.reasons`, and the operator's suspension.
+What a held-back tenant's users meet, with the open reasons in `params.reasons`, the operator's suspension, and the export a tenant takes once its subscription ended.
 
-| Code                       | Shipped English text                                                                            |
-| -------------------------- | ----------------------------------------------------------------------------------------------- |
-| `TENANT_ALREADY_SUSPENDED` | This tenant is suspended already.                                                               |
-| `TENANT_BEING_DELETED`     | This account is being deleted.                                                                  |
-| `TENANT_NOT_SUSPENDED`     | This tenant is not suspended.                                                                   |
-| `TENANT_READ_ONLY`         | This account can be read but not changed at the moment. You can still view and export its data. |
-| `TENANT_SUSPENDED`         | This account is suspended. Please contact your provider.                                        |
+| Code                        | Shipped English text                                                                            |
+| --------------------------- | ----------------------------------------------------------------------------------------------- |
+| `TENANT_ALREADY_SUSPENDED`  | This tenant is suspended already.                                                               |
+| `TENANT_BEING_DELETED`      | This account is being deleted.                                                                  |
+| `TENANT_EXPORT_FAILED`      | The export of this account could not be produced just now. Please try again later.              |
+| `TENANT_EXPORT_NOT_OFFERED` | The export of this account is offered once its subscription has ended.                          |
+| `TENANT_NOT_SUSPENDED`      | This tenant is not suspended.                                                                   |
+| `TENANT_READ_ONLY`          | This account can be read but not changed at the moment. You can still view and export its data. |
+| `TENANT_SUSPENDED`          | This account is suspended. Please contact your provider.                                        |

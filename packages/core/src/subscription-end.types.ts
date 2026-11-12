@@ -146,10 +146,11 @@ export function announcedDeletionOf(
  * tenant's acknowledgement that `SC-PRIV-017` names.
  *
  * It is written once the application has handed the export over and before
- * the file is sent, so it shows that the application produced the export for
- * one of the tenant's administrators at that moment. It cannot show that the
- * browser saved the file. Every download is its own record: two downloads are
- * two rows, neither replacing the other.
+ * the file is sent, so it shows that the application produced the export at
+ * that moment for a user holding the tenant's administrator role, whom
+ * `downloadedBy` names. It cannot show that the browser saved the file. Every
+ * download is its own record: two downloads are two rows, neither replacing
+ * the other.
  */
 export interface TenantExportDownload {
     id: string;

@@ -29,6 +29,8 @@ const OVERDUE: AdminTenantAccessReason = {
     note: null,
     invoice: { id: 'invoice-7', number: 'AHP-2026-000007', subscriberId: 's-1' },
     subscriptionId: null,
+    deletesOn: null,
+    exportDownloads: null,
 };
 const SUSPENDED: AdminTenantAccessReason = {
     id: 'hold-2',
@@ -37,6 +39,8 @@ const SUSPENDED: AdminTenantAccessReason = {
     note: 'chargeback under review',
     invoice: null,
     subscriptionId: null,
+    deletesOn: null,
+    exportDownloads: null,
 };
 
 const mounted: { unmount: () => void }[] = [];

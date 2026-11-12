@@ -205,9 +205,12 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
     };
     /**
      * Records each subscription that ended, with the day its tenant's data is
-     * deleted on (`SC-CANC-027`). The store comes from
+     * deleted on (`SC-CANC-027`), and serves the tenant's full export to its
+     * administrator until then (`SC-PRIV-019`). The store comes from
      * `persistence.core.subscriptionEnds` unless `store` names another; a start
-     * with neither is refused. Always on: `includeCron: false` leaves out only
+     * with neither is refused. `export` is the application's own — no
+     * persistence bundle can know what it keeps for a tenant — and a start
+     * without it is refused. Always on: `includeCron: false` leaves out only
      * the quarter-hourly run, for an application that calls
      * `SubscriptionEndService.recordEnded` from a scheduler of its own.
      */

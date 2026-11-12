@@ -22,6 +22,7 @@ import {
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
+import { anExport } from './helpers/tenant-data-export.js';
 
 const STANDARD = () => line('plan', 'STANDARD', 49, { titleSnapshot: 'Standard' });
 const WELCOME = () => ({
@@ -304,6 +305,7 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
         },
         tenantBilling: {
             authGuards: [],
+            subscriptionEnds: { export: anExport() },
             contractFreeze: {
                 sourcePort: {},
                 subscriptionContractRepository: { list: async () => [] },

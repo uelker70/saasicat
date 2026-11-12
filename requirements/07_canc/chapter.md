@@ -898,6 +898,47 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-CANC-033 — An ended subscription's deletion day is shown to the tenant and to the operator
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Once the end of a subscription is recorded (`SC-CANC-027`),
+every user of its tenant reads, beside the reason that holds the tenant back (`SC-ADM-054`), the last
+day the tenant can still read on and the day its data is deleted on, in the installation's days. The
+operator's page for the tenant names the deletion day beside the same reason (`SC-ADM-053`), and
+every download of the tenant's export (`SC-PRIV-019`) with its day and who took it, or that none was
+taken yet. Until the end is recorded, neither names a day.
+
+_Source:_ #337 (decided 2026-11-12)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-ended-subscription-names-its-days-and-offers-the-export.test.js`
+    - an ended subscription names its days to every user
+        - the last day the tenant can read, and the day its data is deleted on
+        - the last day before a deletion on the first of a year is the last of the year before
+        - every other reason names no days, even where a day is read under its reference
+        - an ended subscription whose end is not recorded yet names no days
+- `packages/nest/tests/the-days-and-downloads-of-an-ended-subscription-are-shown.test.js`
+    - every user of the tenant reads the days its ended subscription leaves
+        - a user without any role reads the last readable day and the deletion day
+        - a user holding the billing permission reads them too, and the administrator is offered the
+          export
+        - the ends are read once, whatever the number of reasons
+        - and not at all where no subscription ended
+        - a tenant's own users read the ends within its own scope
+    - the operator's page names the day and every download of the export
+        - the deletion day, and every download with its moment and who took it, the oldest first
+        - none taken yet is an empty list, not an absent one
+        - every other reason carries neither a day nor downloads
+        - an ended subscription whose end is not recorded yet carries no day and no downloads
+        - another tenant's downloads under the same subscription are not listed
+        - the ends and the downloads are read once each, past the tenants’ policy
+        - and not at all where no subscription ended
+        - where nothing answers for the ends, the reason stays without a day
+
+<!-- END proof -->
+
 ### SC-CANC-023 — A plan retirement lets a subscription cancel without notice until it takes effect
 
 🟢 💰 Neither the notice period nor a minimum term holds it: those are the terms the operator is

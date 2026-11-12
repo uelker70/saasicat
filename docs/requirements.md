@@ -113,7 +113,7 @@ properties it has while doing it.
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 66      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 46      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
-| 7   | Cancelling                                   | `SC-CANC-…`  | 32      |
+| 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 103     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
@@ -126,13 +126,13 @@ properties it has while doing it.
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 18      |
-| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 19      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 20      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 695 entries: 🟢 603 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+Of 697 entries: 🟢 604 stand today, 🟡 32 decided but not yet delivered, ⚪ 0 drafts,
 🔵 54 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -140,6 +140,7 @@ Of 695 entries: 🟢 603 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
 [SC-SUB-017](#sc-sub-017--a-subscribers-legal-identity-can-be-corrected-not-replaced-under-a-running-contract),
 [SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
+[SC-CANC-033](#sc-canc-033--an-ended-subscriptions-deletion-day-is-shown-to-the-tenant-and-to-the-operator),
 [SC-CANC-027](#sc-canc-027--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
 [SC-CANC-028](#sc-canc-028--a-new-subscription-before-the-deletion-day-keeps-the-tenant),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
@@ -230,7 +231,7 @@ Of 695 entries: 🟢 603 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 695 requirements. Do not edit by hand:
+Generated from `requirements/` — 697 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -8314,6 +8315,47 @@ _Tested by:_
           once, and its tenant held from that moment
         - that could not be recorded, given by a run after midnight in the zone, is a day later than
           its page showed: the gap keeps the data longer, never shorter
+
+<!-- END proof -->
+
+### SC-CANC-033 — An ended subscription's deletion day is shown to the tenant and to the operator
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Once the end of a subscription is recorded (`SC-CANC-027`),
+every user of its tenant reads, beside the reason that holds the tenant back (`SC-ADM-054`), the last
+day the tenant can still read on and the day its data is deleted on, in the installation's days. The
+operator's page for the tenant names the deletion day beside the same reason (`SC-ADM-053`), and
+every download of the tenant's export (`SC-PRIV-019`) with its day and who took it, or that none was
+taken yet. Until the end is recorded, neither names a day.
+
+_Source:_ #337 (decided 2026-11-12)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-ended-subscription-names-its-days-and-offers-the-export.test.js`
+    - an ended subscription names its days to every user
+        - the last day the tenant can read, and the day its data is deleted on
+        - the last day before a deletion on the first of a year is the last of the year before
+        - every other reason names no days, even where a day is read under its reference
+        - an ended subscription whose end is not recorded yet names no days
+- `packages/nest/tests/the-days-and-downloads-of-an-ended-subscription-are-shown.test.js`
+    - every user of the tenant reads the days its ended subscription leaves
+        - a user without any role reads the last readable day and the deletion day
+        - a user holding the billing permission reads them too, and the administrator is offered the
+          export
+        - the ends are read once, whatever the number of reasons
+        - and not at all where no subscription ended
+        - a tenant's own users read the ends within its own scope
+    - the operator's page names the day and every download of the export
+        - the deletion day, and every download with its moment and who took it, the oldest first
+        - none taken yet is an empty list, not an absent one
+        - every other reason carries neither a day nor downloads
+        - an ended subscription whose end is not recorded yet carries no day and no downloads
+        - another tenant's downloads under the same subscription are not listed
+        - the ends and the downloads are read once each, past the tenants’ policy
+        - and not at all where no subscription ended
+        - where nothing answers for the ends, the reason stays without a day
 
 <!-- END proof -->
 
@@ -17412,6 +17454,7 @@ _Tested by:_
         - the tenant controllers are found, and each route carries its metadata
         - every route that writes asks for the tenant administrator
         - every route that only reads or previews is open to every signed-in user
+        - the reads that are the administrator's alone are these, and ask for the role
         - the billing area asks for the billing permission and nothing beside it, reading included
         - the routes the split is about are among them, each on its side
 - `packages/nest/tests/a-tenant-is-handed-the-days-of-its-add-ons.test.js`
@@ -24609,6 +24652,105 @@ deleted.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+### SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+
+🟢 🔒 From the moment the end of the tenant's subscription is recorded (`SC-CANC-027`) until its data
+is deleted, a user holding the tenant's administrator role downloads the tenant's full export as
+one file, which the application produces. The tenant's other users cannot, since it holds every
+user's data. Before the end is recorded the export is refused with a stable code, as the tenant
+still works in the application; after the deletion day it is still offered while the data is there.
+A suspension or a deletion under way refuses it as it refuses every request of the tenant's users
+(`SC-ADM-055`). The tenant is always the session's, never one the request names. The application is
+asked on every download; the download is recorded only once the application has handed the whole
+file over, and the file is sent only once its download is recorded, so a file never leaves without
+its record and a record never claims a file the application did not produce. Every download is a
+record of its own, with its moment and who took it, kept beside the end; it is the tenant's
+acknowledgement that `SC-PRIV-017` names. A download shows that the file was produced for that
+request; it cannot show that it was saved.
+
+_Source:_ #337 (decided 2026-11-12)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-ended-subscription-names-its-days-and-offers-the-export.test.js`
+    - the export is offered to the administrator only where the route serves it
+        - read-only for an ended subscription whose end is recorded, the export wired: offered
+        - to a user who is not the administrator: not offered
+        - where the application wired no export: not offered
+        - while the end is not recorded yet: not offered
+        - a suspended tenant whose subscription ended: not offered
+        - a tenant being deleted whose subscription ended: not offered
+        - read-only for an unpaid invoice alone: not offered
+        - an open tenant: not offered
+        - asked without saying who asks, as an untyped caller may: not offered
+- `packages/nest/tests/a-route-that-costs-money-asks-for-the-role.test.js`
+    - who of a tenant may do what
+        - the reads that are the administrator's alone are these, and ask for the role
+- `packages/nest/tests/a-tenant-takes-its-export-before-its-deletion.test.js`
+    - a tenant's administrator takes its export once its subscription ended
+        - the file goes out as the application produced it, under its name
+        - the download is recorded beside the end, with the moment and who took it
+        - and written to the audit log under a key the audit page can name
+        - the route records who took it from the session
+        - every download is a record of its own, the oldest first
+        - the application is asked again for every download
+        - is still offered after the deletion day, while the data is there
+        - of two ended subscriptions, the latest end is the one the download is recorded for
+    - the export is offered only once an end is recorded
+        - a tenant that is open is refused, and the application is not asked
+        - a tenant read-only for an unpaid invoice, with no end, is refused
+        - a tenant held for an ended subscription whose end is not recorded yet is refused
+        - an end whose reason was lifted offers nothing any more
+    - a file never leaves without its record, and no record claims a file not produced
+        - an application that fails is refused with a stable code, and nothing is recorded
+        - an answer whose content is not bytes is refused, and nothing is recorded
+        - a media type a header cannot carry is refused before anything is recorded
+        - an answer without a file name is refused, and nothing is recorded
+        - a download that cannot be recorded sends no file and writes no audit entry
+        - an audit log that fails leaves the download recorded and sent
+    - the export is the session's tenant's alone
+        - a request naming another tenant anywhere but its session is answered for its session
+        - another tenant's end, recorded under a reason of its own, offers its own export only
+        - a reason naming another tenant's subscription offers nothing
+    - the file name the application gives is not trusted for the header
+        - path separators, quotes and line breaks are replaced
+        - an empty name is offered as the export
+    - where the route is checked
+        - it carries no access mark, so a read-only tenant reads it as a GET
+        - it stays behind the tenant's guard and the administrator's
+        - a user of the tenant without the role is refused; the administrator and the operator
+          acting are let through
+        - a tenant read-only because its subscription ended is let through
+        - a tenant whose subscription ended and that is suspended is refused
+        - a tenant whose subscription ended and that is being deleted is refused
+    - the state a user reads offers the export exactly where the route serves it
+        - for the administrator, offered where it is served and nowhere else
+        - for a user without the role, offered nowhere, and served nowhere
+        - where the application wired no export, nothing is offered
+- `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
+    - the application's export, which the ends cannot start without
+        - serving tenants without it, the start is refused with one sentence naming the option, the
+          port and why
+        - given, nothing is refused
+        - without tenant billing, it is not asked for
+        - tenant billing wired by hand with the ends and without it does not start, naming the
+          option and the port
+        - given, the route is mounted and the export is asked through the port given
+- `packages/nest/tests/the-days-and-downloads-of-an-ended-subscription-are-shown.test.js`
+    - the operator's page names the day and every download of the export
+        - the deletion day, and every download with its moment and who took it, the oldest first
+        - none taken yet is an empty list, not an absent one
+        - every other reason carries neither a day nor downloads
+        - an ended subscription whose end is not recorded yet carries no day and no downloads
+        - another tenant's downloads under the same subscription are not listed
+        - the ends and the downloads are read once each, past the tenants’ policy
+        - and not at all where no subscription ended
+        - where nothing answers for the ends, the reason stays without a day
+
+<!-- END proof -->
+
 ## 21. Answering the question afterwards
 
 Prices change, plans are republished, entitlements move. This chapter is about being able to
@@ -27366,6 +27508,10 @@ _Tested by:_
 - `examples/notesapp/tests/notesapp-smoke.test.mjs`
     - notesapp platform wiring (smoke)
         - static entitlement resolves the STARTER plan for every tenant
+- `examples/notesapp/tests/the-tenants-export-is-what-the-app-keeps.test.mjs`
+    - the notes app's export of a tenant
+        - is the tenant, its users and its notes as one JSON file named after it
+        - reads for the tenant it is asked for and no other
 - `tests/the-example-sends-the-role-its-guards-require.test.js`
     - the notesapp clients present a role the platform accepts
         - the guard still names roles

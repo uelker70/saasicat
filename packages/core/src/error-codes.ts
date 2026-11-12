@@ -1108,8 +1108,10 @@ export type MaintenanceErrorCode =
 
 /**
  * Codes of a tenant's access state (`SC-ADM-055`): the refusals a held-back
- * tenant's users meet, and the operator's suspension. A refusal carries the
- * open reasons as `params.reasons`, each with its `kind` and `since`.
+ * tenant's users meet, the operator's suspension, and the export a tenant
+ * whose subscription ended takes before its deletion. A refusal of the state
+ * carries the open reasons as `params.reasons`, each with its `kind` and
+ * `since`.
  */
 export const TENANT_ACCESS_ERROR_CODES = {
     /** The tenant can read and not write: an overdue invoice or an ended subscription. */
@@ -1122,6 +1124,19 @@ export const TENANT_ACCESS_ERROR_CODES = {
     TENANT_ALREADY_SUSPENDED: 'TENANT_ALREADY_SUSPENDED',
     /** The tenant is not suspended, so there is nothing to reactivate. */
     TENANT_NOT_SUSPENDED: 'TENANT_NOT_SUSPENDED',
+    /**
+     * The tenant's full export is offered only once an end of its subscription
+     * is recorded (`SC-PRIV-019`): before that the tenant still works in the
+     * application and has no deadline (`409`).
+     */
+    TENANT_EXPORT_NOT_OFFERED: 'TENANT_EXPORT_NOT_OFFERED',
+    /**
+     * The application did not hand the export over — its port failed, or
+     * answered something that is not a file. No download was recorded and no
+     * file sent; asking again asks the application again (`503`). What it
+     * answered stays in the server log.
+     */
+    TENANT_EXPORT_FAILED: 'TENANT_EXPORT_FAILED',
 } as const;
 export type TenantAccessErrorCode =
     (typeof TENANT_ACCESS_ERROR_CODES)[keyof typeof TENANT_ACCESS_ERROR_CODES];

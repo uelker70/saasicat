@@ -32,6 +32,7 @@ import {
     type SaaSiCatAdapters,
     type SaaSiCatModuleOptions,
 } from '../module-options.js';
+import { exportNotWired } from '../../billing/tenant-data-export.service.js';
 import { resolveBundleRepository } from '../compose/bundle-repository-source.js';
 import { servesTenantAccess } from '../compose/tenant-access.js';
 
@@ -357,6 +358,12 @@ const RULE_SPECS: readonly RuleSpec[] = [
             '`tenantBilling.subscriptionEnds.store` or use a bundle providing ' +
             '`persistence.core.subscriptionEnds` — both shipped adapters do, from the ' +
             '`SubscriptionEnd` model of `@saasicat/spec`.',
+    },
+    {
+        id: 'subscription-ends.requires-export',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) => Boolean(optionsOf(c.options.tenantBilling)?.subscriptionEnds?.export),
+        message: exportNotWired('`tenantBilling.subscriptionEnds.export`'),
     },
     {
         id: 'subscriber-joins.requires-join-repository',

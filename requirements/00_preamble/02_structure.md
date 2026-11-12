@@ -81,7 +81,7 @@ properties it has while doing it.
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 66      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 46      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
-| 7   | Cancelling                                   | `SC-CANC-…`  | 32      |
+| 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 103     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
@@ -94,13 +94,13 @@ properties it has while doing it.
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 18      |
-| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 19      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 20      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 695 entries: 🟢 603 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+Of 697 entries: 🟢 604 stand today, 🟡 32 decided but not yet delivered, ⚪ 0 drafts,
 🔵 54 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -108,6 +108,7 @@ Of 695 entries: 🟢 603 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
 [SC-SUB-017](#sc-sub-017--a-subscribers-legal-identity-can-be-corrected-not-replaced-under-a-running-contract),
 [SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
+[SC-CANC-033](#sc-canc-033--an-ended-subscriptions-deletion-day-is-shown-to-the-tenant-and-to-the-operator),
 [SC-CANC-027](#sc-canc-027--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
 [SC-CANC-028](#sc-canc-028--a-new-subscription-before-the-deletion-day-keeps-the-tenant),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),

@@ -45,7 +45,11 @@ import {
 } from '@saasicat/core';
 import { actorTagOf } from '../core/web-audit.js';
 import { codedError } from '../errors/coded-error.js';
-import { TenantAccessService, type NamedInvoice } from '../tenant-access/tenant-access.service.js';
+import {
+    TenantAccessService,
+    type NamedEnd,
+    type NamedInvoice,
+} from '../tenant-access/tenant-access.service.js';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminAuditService } from './admin-audit.service.js';
 import { EnforceMfa } from './enforce-mfa.decorator.js';
@@ -111,19 +115,27 @@ export class AdminResourcesService {
 
     /**
      * The tenant with its state and every reason it is held back for, the
-     * oldest first, an invoice named by its number (`SC-ADM-053`).
+     * oldest first, an invoice named by its number (`SC-ADM-053`), and an
+     * ended subscription with its deletion day and every download of the
+     * tenant's export (`SC-CANC-033`, `SC-PRIV-019`) — each read once, and
+     * the ends only where one is open.
      */
     async getTenantDetail(slug: string): Promise<AdminTenantDetailEntry> {
         const tenant = await this.tenantNamed(slug);
         const access = await this.access.accessOf(tenant.id);
-        const named = await this.access.invoicesNamed(
+        const referenced = (kind: TenantAccessHold['kind']): string[] =>
             access.holds.flatMap((hold) =>
-                hold.kind === 'overdue' && hold.reference ? [hold.reference] : [],
-            ),
-        );
+                hold.kind === kind && hold.reference ? [hold.reference] : [],
+            );
+        const [named, ends] = await Promise.all([
+            this.access.invoicesNamed(referenced('overdue')),
+            this.access.endsNamed(tenant.id, referenced('ended')),
+        ]);
         return {
             ...withAccess(tenant, access),
-            accessReasons: holdsOldestFirst(access.holds).map((hold) => reasonOf(hold, named)),
+            accessReasons: holdsOldestFirst(access.holds).map((hold) =>
+                reasonOf(hold, named, ends),
+            ),
         };
     }
 
@@ -198,8 +210,20 @@ export class AdminResourcesService {
     }
 }
 
-/** A reason as the administration shows it, an invoice named where it is one of `named`. */
-function reasonOf(hold: TenantAccessHold, named: readonly NamedInvoice[]): AdminTenantAccessReason {
+/**
+ * A reason as the administration shows it: an invoice named where it is one
+ * of `named`, an ended subscription's day and downloads where its end is one
+ * of `ends`.
+ */
+function reasonOf(
+    hold: TenantAccessHold,
+    named: readonly NamedInvoice[],
+    ends: readonly NamedEnd[],
+): AdminTenantAccessReason {
+    const end =
+        hold.kind === 'ended'
+            ? ends.find((one) => one.subscriptionId === hold.reference)
+            : undefined;
     return {
         id: hold.id,
         kind: hold.kind,
@@ -210,6 +234,14 @@ function reasonOf(hold: TenantAccessHold, named: readonly NamedInvoice[]): Admin
                 ? (named.find((invoice) => invoice.id === hold.reference) ?? null)
                 : null,
         subscriptionId: hold.kind === 'ended' ? hold.reference : null,
+        deletesOn: end?.deletesOn ?? null,
+        exportDownloads:
+            hold.kind === 'ended'
+                ? (end?.downloads ?? []).map((download) => ({
+                      at: download.downloadedAt.toISOString(),
+                      by: download.downloadedBy,
+                  }))
+                : null,
     };
 }
 

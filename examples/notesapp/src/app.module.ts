@@ -16,6 +16,7 @@ import { PrismaService } from './prisma/prisma.service';
 import { NOTES_FEATURE_UI_REGISTRY } from './saas/feature-ui-registry';
 import { NotesAdminModule } from './saas/notesapp-admin.module';
 import { NotesQuotaProvider } from './saas/notes-quota.provider';
+import { NotesDataExport } from './saas/notes-data-export';
 import { germanTaxAdapterFactory } from '@saasicat/tax-de';
 
 @Module({
@@ -96,6 +97,17 @@ import { germanTaxAdapterFactory } from '@saasicat/tax-de';
                     // they live in `config/saas.yaml` under `tenantBilling:`,
                     // which is the one place they live. Passing either one
                     // here refuses the boot rather than being ignored.
+                    //
+                    // Once a subscription has ended, its tenant's administrator
+                    // takes everything the app keeps for the tenant as one
+                    // file, until the data is deleted. Only the app knows what
+                    // that is; the platform refuses to start without it.
+                    subscriptionEnds: {
+                        export: {
+                            useFactory: (prisma: PrismaService) => new NotesDataExport(prisma),
+                            inject: [PrismaService],
+                        },
+                    },
                 },
                 subscriptionBundles: true,
                 // One gateway per account in `config/saas.yaml#payments`. An app

@@ -19,6 +19,7 @@ import { PaymentGatewayRegistry } from '../dist/payments/index.js';
 import { CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN } from '../dist/checkout-offer/index.js';
 import { CONTRACT_TRANSACTION_RUNNER_TOKEN } from '../dist/subscription-contract/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
+import { anExport } from './helpers/tenant-data-export.js';
 
 // Two properties the decomposition exists to keep, asked as behaviour.
 //
@@ -100,7 +101,11 @@ function everythingOn() {
             controller: { guards: [] },
             entitlement: {},
             catalog: {},
-            tenantBilling: { authGuards: [], subscriptionUsagePort: PORT },
+            tenantBilling: {
+                authGuards: [],
+                subscriptionUsagePort: PORT,
+                subscriptionEnds: { export: anExport() },
+            },
             subscriptionBundles: true,
             adminResources: true,
             promoCodes: true,
