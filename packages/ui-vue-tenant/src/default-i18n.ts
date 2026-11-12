@@ -538,6 +538,13 @@ export interface TenantPlanSectionI18n {
     /** To a user without the billing permission, under an unpaid invoice: who can pay it. */
     accessAskBilling: string;
     /**
+     * To the tenant's administrator once its subscription has ended: downloads
+     * the tenant's full export (`SC-PRIV-019`).
+     */
+    accessExport: string;
+    /** The export did not arrive, for a reason the platform names no sentence for. */
+    accessExportFailed: string;
+    /**
      * Texts for the coded blockers and warnings a plan-change preview returns,
      * keyed by `BILLING_ERROR_CODES`. Sits here rather than in a prop of its
      * own so that an app translating this map translates its blockers in the
@@ -980,6 +987,8 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     accessReasonEnded: 'Seit {date}: Das Abonnement ist beendet.',
     accessReasonDeleting: 'Seit {date}: Das Konto wird gelöscht.',
     accessAskBilling: 'Bezahlen kann sie, wer bei Ihnen die Abrechnung betreut.',
+    accessExport: 'Daten des Kontos exportieren',
+    accessExportFailed: 'Der Export konnte nicht heruntergeladen werden.',
     issueMessages: ERROR_MESSAGES_DE,
 };
 
@@ -1406,6 +1415,8 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     accessReasonEnded: 'Since {date}: the subscription has ended.',
     accessReasonDeleting: 'Since {date}: the account is being deleted.',
     accessAskBilling: 'Whoever looks after billing in your organisation can pay it.',
+    accessExport: "Export the account's data",
+    accessExportFailed: 'The export could not be downloaded.',
     issueMessages: ERROR_MESSAGES_EN,
 };
 

@@ -301,5 +301,19 @@ _Tested by:_
         - the ends and the downloads are read once each, past the tenants’ policy
         - and not at all where no subscription ended
         - where nothing answers for the ends, the reason stays without a day
+- `packages/ui-vue-tenant/tests/component/a-held-back-tenant-reads-why.test.ts`
+    - the tenant's export, taken from the banner
+        - is offered to its administrator as a button named for what it downloads, reached from the
+          keyboard
+        - downloads the export and saves it under the name the server offers
+        - is busy while it downloads, and cannot be pressed a second time meanwhile
+        - is offered to nobody the server does not say may take it
+        - refused, says why in the sentence each refusal is worded with, never its code
+        - refused in German, says why in German
+        - failed without a code the platform words, says the export did not arrive, and leaves the
+          banner as it was
+        - refused with a code the platform does not word, says the export did not arrive rather than
+          the code
+        - where the connection breaks, says the export did not arrive
 
 <!-- END proof -->

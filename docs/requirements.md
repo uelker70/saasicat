@@ -8363,6 +8363,14 @@ _Tested by:_
         - says that nobody has taken the export yet where no download is recorded
         - names no deletion day while the end is not recorded yet
         - names neither a deletion day nor downloads beside the reasons of other kinds
+- `packages/ui-vue-tenant/tests/component/a-held-back-tenant-reads-why.test.ts`
+    - the banner of a tenant whose subscription ended
+        - tells a user who is not its administrator the last day it can read and the day its data is
+          deleted on, and offers no export
+        - tells its administrator the same two days
+        - names the two days in German to a German reader
+        - names no days while the end is not recorded yet
+        - names the days beside a suspension too, where the server says them, and offers no export
 
 <!-- END proof -->
 
@@ -17426,6 +17434,26 @@ _Tested by:_
         - where an ended subscription holds it back as well, paying is offered without promising it
           opens again
         - a hold begun while the page is open shows on the next read, and goes once lifted
+    - the banner of a tenant whose subscription ended
+        - tells a user who is not its administrator the last day it can read and the day its data is
+          deleted on, and offers no export
+        - tells its administrator the same two days
+        - names the two days in German to a German reader
+        - names no days while the end is not recorded yet
+        - names the days beside a suspension too, where the server says them, and offers no export
+    - the tenant's export, taken from the banner
+        - is offered to its administrator as a button named for what it downloads, reached from the
+          keyboard
+        - downloads the export and saves it under the name the server offers
+        - is busy while it downloads, and cannot be pressed a second time meanwhile
+        - is offered to nobody the server does not say may take it
+        - refused, says why in the sentence each refusal is worded with, never its code
+        - refused in German, says why in German
+        - failed without a code the platform words, says the export did not arrive, and leaves the
+          banner as it was
+        - refused with a code the platform does not word, says the export did not arrive rather than
+          the code
+        - where the connection breaks, says the export did not arrive
 
 <!-- END proof -->
 
@@ -24761,6 +24789,20 @@ _Tested by:_
         - the ends and the downloads are read once each, past the tenants’ policy
         - and not at all where no subscription ended
         - where nothing answers for the ends, the reason stays without a day
+- `packages/ui-vue-tenant/tests/component/a-held-back-tenant-reads-why.test.ts`
+    - the tenant's export, taken from the banner
+        - is offered to its administrator as a button named for what it downloads, reached from the
+          keyboard
+        - downloads the export and saves it under the name the server offers
+        - is busy while it downloads, and cannot be pressed a second time meanwhile
+        - is offered to nobody the server does not say may take it
+        - refused, says why in the sentence each refusal is worded with, never its code
+        - refused in German, says why in German
+        - failed without a code the platform words, says the export did not arrive, and leaves the
+          banner as it was
+        - refused with a code the platform does not word, says the export did not arrive rather than
+          the code
+        - where the connection breaks, says the export did not arrive
 
 <!-- END proof -->
 

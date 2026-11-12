@@ -943,6 +943,14 @@ _Tested by:_
         - says that nobody has taken the export yet where no download is recorded
         - names no deletion day while the end is not recorded yet
         - names neither a deletion day nor downloads beside the reasons of other kinds
+- `packages/ui-vue-tenant/tests/component/a-held-back-tenant-reads-why.test.ts`
+    - the banner of a tenant whose subscription ended
+        - tells a user who is not its administrator the last day it can read and the day its data is
+          deleted on, and offers no export
+        - tells its administrator the same two days
+        - names the two days in German to a German reader
+        - names no days while the end is not recorded yet
+        - names the days beside a suspension too, where the server says them, and offers no export
 
 <!-- END proof -->
 

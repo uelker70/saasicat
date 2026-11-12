@@ -4,6 +4,13 @@ import { writeDay } from './day-as-instant.js';
 import { messageText } from './message-parts.js';
 
 /**
+ * The two days a deletion is announced with: an announced deletion, or the
+ * days an ended subscription's reason names to the tenant's users.
+ */
+export type DeletionDays = Pick<AnnouncedDeletion, 'readOnlyUntil' | 'deletesOn'> &
+    Partial<AnnouncedDeletion>;
+
+/**
  * The sentence that tells a tenant until when it can only read its data once its
  * subscription has ended, and the day it is deleted on — `template` with
  * `{readOnlyUntil}` and `{deletesOn}` written as the application writes a day.
@@ -20,7 +27,7 @@ import { messageText } from './message-parts.js';
  */
 export function deletionSentence(
     template: string,
-    deletion: AnnouncedDeletion | null | undefined,
+    deletion: DeletionDays | null | undefined,
     formatDate: (iso: string) => string,
 ): string | null {
     if (!deletion) return null;
