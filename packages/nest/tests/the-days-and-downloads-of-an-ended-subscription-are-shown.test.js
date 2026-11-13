@@ -108,6 +108,8 @@ const downloaded = (ends, at, tenantId = ACME.id, subscriptionId = 'sub-t1') =>
         subscriptionId,
         downloadedAt: at,
         downloadedBy: `web:admin@${tenantId}.example:s-1`,
+        downloadedByUserId: `u-admin-${tenantId}`,
+        size: 2048,
     });
 
 const asUser = (role) => ({
@@ -199,9 +201,10 @@ describe("the operator's page names the day and every download of the export", (
 
         assert.equal(reason.kind, 'ended');
         assert.equal(reason.deletesOn, '2026-12-31');
+        const taken = { by: 'web:admin@t1.example:s-1', userId: 'u-admin-t1', size: 2048 };
         assert.deepEqual(reason.exportDownloads, [
-            { at: FIRST.toISOString(), by: 'web:admin@t1.example:s-1' },
-            { at: SECOND.toISOString(), by: 'web:admin@t1.example:s-1' },
+            { at: FIRST.toISOString(), ...taken },
+            { at: SECOND.toISOString(), ...taken },
         ]);
     });
 

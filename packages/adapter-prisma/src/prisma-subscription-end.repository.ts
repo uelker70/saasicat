@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
     type CanonicalSubscriptionEndAnnouncementRow,
     type CanonicalSubscriptionEndRow,
+    type CanonicalTenantExportDownloadRow,
     type NewSubscriptionEnd,
     type NewSubscriptionEndAnnouncement,
     type NewTenantExportDownload,
@@ -21,7 +22,7 @@ import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-clie
 interface SubscriptionEndPrisma {
     subscriptionEnd: PrismaModelDelegateLike<CanonicalSubscriptionEndRow>;
     subscriptionEndAnnouncement: PrismaModelDelegateLike<CanonicalSubscriptionEndAnnouncementRow>;
-    tenantExportDownload: PrismaModelDelegateLike<TenantExportDownload>;
+    tenantExportDownload: PrismaModelDelegateLike<CanonicalTenantExportDownloadRow>;
 }
 
 /**
@@ -65,6 +66,8 @@ const DOWNLOAD_COLUMNS = {
     subscriptionId: true,
     downloadedAt: true,
     downloadedBy: true,
+    downloadedByUserId: true,
+    size: true,
 } as const;
 
 /**
@@ -81,9 +84,9 @@ export class PrismaSubscriptionEndRepository implements SubscriptionEndPort {
         // SAFETY: `subscriptionEnd`, `subscriptionEndAnnouncement` and
         // `tenantExportDownload` are the delegates of fragment 29's, 30's and
         // 31's models, whose rows are `CanonicalSubscriptionEndRow`,
-        // `CanonicalSubscriptionEndAnnouncementRow` and `TenantExportDownload`
-        // plus its `createdAt`; the bundle hands this repository the canonical
-        // client.
+        // `CanonicalSubscriptionEndAnnouncementRow` and
+        // `CanonicalTenantExportDownloadRow`; the bundle hands this repository
+        // the canonical client.
         return this.prisma as SubscriptionEndPrisma;
     }
 

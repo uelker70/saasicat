@@ -4602,7 +4602,8 @@ it, records every download, and shows the downloads to the operator. To adopt it
   `application/json` or `application/zip` in printable ASCII, since it goes into the download's
   header as it is, and `fileName` what a person saving it would call it. The platform asks the port
   on every download, for the tenant of the session only — never one the request names — and keeps
-  nothing of the answer. A port that throws, or answers anything else, is refused with
+  nothing of the answer. `content` holds at least one byte: an empty file is no export. A port that
+  throws, or answers anything else, is refused with
   `503 TENANT_EXPORT_FAILED`: nothing is recorded, nothing is sent, and what it answered is in the
   server log. The file is held in memory once while it is served, because a download is recorded
   only for a file produced in full.
@@ -4633,15 +4634,16 @@ it, records every download, and shows the downloads to the operator. To adopt it
   ([A tenant that is read-only may still leave](#a-tenant-that-is-read-only-may-still-leave)); this
   route does not. A `HEAD` is answered `405` with `Allow: GET`, and asks your port nothing and
   records nothing: Express and Fastify would otherwise run the `GET` for it and drop the file.
-- **Every download is recorded**, once your port has handed the file over and before it is sent:
-  one row in `tenant_export_downloads` with the subscription, the moment and who took it, as the
-  audit log tags an actor (`web:<email>:<context>`). Two downloads are two rows. Where the row cannot
-  be written, the request fails and no file is sent. Where the administration's audit log is wired,
-  each download is also written to it as `TENANT_EXPORT_DOWNLOAD` on the tenant, with the
-  subscription, the download's id, the media type and the size; an entry that cannot be written is
-  logged and leaves the download standing. The row is the tenant's acknowledgement that
-  `SC-PRIV-017` names: it shows that your application produced the file for that request, not that
-  the browser saved it.
+- **Every download is recorded**, once your port has handed the file over and before it is sent: one
+  row in `tenant_export_downloads` with the subscription, the moment, who took it — the user's id
+  the session names, and the tag the audit log writes for them (`web:<email>:<context>`), which
+  reads `unknown` without an email and whose context is whatever your resolver reads — and the size
+  of the file in bytes. Two downloads are two rows. Where the row cannot be written, the request
+  fails and no file is sent. Where the administration's audit log is wired, each download is also
+  written to it as `TENANT_EXPORT_DOWNLOAD` on the tenant, with the subscription, the download's id,
+  the media type and the size; an entry that cannot be written is logged and leaves the download
+  standing. The row is the tenant's acknowledgement that `SC-PRIV-017` names: it shows that your
+  application produced the file for that request, not that the browser saved it.
 - **The tenant's banner** (`SC-CANC-033`). `TenantAccessBanner` names, beside an ended
   subscription's reason, the last day the tenant can read and the day its data is deleted, to every
   user of the tenant: while it is read-only in the words of `deletionAnnounced`, the sentence its
@@ -4664,10 +4666,11 @@ it, records every download, and shows the downloads to the operator. To adopt it
 - **The operator's page.** `TenantDetailPage` names under "Access", beside an ended subscription,
   the day the tenant's data is deleted, and every download of the export with its day and who took
   it, the oldest first, or that none has been taken yet. The tenant's detail carries them on each
-  reason of `accessReasons` as `deletesOn` and `exportDownloads` (`{ at, by }[]`): `null` for every
-  other kind and while the end is not recorded yet, and an empty list for an ended subscription
-  whose export nobody has taken. An `AdminResourcesPort` of your own, and screens of your own that
-  read these routes, change nothing: the platform adds both as it adds the reasons.
+  reason of `accessReasons` as `deletesOn` and `exportDownloads` (`{ at, by, userId, size }[]`):
+  `null` for every other kind and while the end is not recorded yet, and an empty list for an ended
+  subscription whose export nobody has taken. The page shows each download's `at` and `by`; `userId`
+  and `size` are in the data. An `AdminResourcesPort` of your own, and screens of your own that read
+  these routes, change nothing: the platform adds both as it adds the reasons.
 - **Code that builds a view itself** follows the types. `TenantAccessService.viewOf` and
   `tenantAccessViewOf` take `isTenantAdministrator`, which is `false` for the operator;
   `TenantAccessService.actsAsOperator(request)` answers whether the check let a request through as

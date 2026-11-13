@@ -30,22 +30,23 @@ application's check let through with `actingAsOperator: true` — so that every
 recorded download is the tenant's own; `mayExport` is `false` for them. The
 platform asks the port on every download, for the session's tenant only. Before
 an end is recorded the route refuses with `409 TENANT_EXPORT_NOT_OFFERED`; a
-port that throws or answers anything but a file is refused with
-`503 TENANT_EXPORT_FAILED`, and nothing is recorded or sent. A `HEAD` is
+port that throws or answers anything but a file of at least one byte is refused
+with `503 TENANT_EXPORT_FAILED`, and nothing is recorded or sent. A `HEAD` is
 answered `405` with `Allow: GET` and asks and records nothing. A suspension and
 a deletion under way refuse it as they refuse every request. The file name is
 cleaned for the header.
 
 Every download is recorded once the application has handed the file over and
-before the file is sent — its moment and who took it, as the audit log tags an
-actor — and audited as `TENANT_EXPORT_DOWNLOAD` where the audit log is wired; a
-download that cannot be recorded sends no file. Adopt the `TenantExportDownload`
-model (fragment 31) and run `1.0-subscription-ends-are-kept.postgres.sql`: it
-now also creates `tenant_export_downloads`, and where it ran before it creates
-only what is missing. Both shipped adapters provide the new
-`SubscriptionEndPort` methods `recordExportDownload` and
-`listExportDownloadsFor`; a port of your own adds them, and the persistence
-contract and `FakeSubscriptionEndRepository` cover them.
+before the file is sent — its moment, who took it by the user's id and as the
+audit log tags an actor, and the file's size in bytes — and audited as
+`TENANT_EXPORT_DOWNLOAD` where the audit log is wired; a download that cannot be
+recorded sends no file. Adopt the `TenantExportDownload` model (fragment 31) and
+run `1.0-subscription-ends-are-kept.postgres.sql`: it now also creates
+`tenant_export_downloads`, and where it ran before it creates only what is
+missing. Both shipped adapters provide the new `SubscriptionEndPort` methods
+`recordExportDownload` and `listExportDownloadsFor`; a port of your own adds
+them, and the persistence contract and `FakeSubscriptionEndRepository` cover
+them.
 
 `TenantAccessBanner` names, beside an ended subscription, the last day the
 tenant can read and the day its data is deleted, to every user of the tenant,

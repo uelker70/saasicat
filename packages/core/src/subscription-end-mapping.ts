@@ -67,16 +67,33 @@ export function toSubscriptionEndAnnouncement(
 }
 
 /**
+ * A `tenant_export_downloads` row as either adapter reads it back: `size` is a
+ * `BIGINT`, which Prisma hands back as a `bigint` and Drizzle in number mode as
+ * a `number`.
+ */
+export type CanonicalTenantExportDownloadRow = Omit<TenantExportDownload, 'size'> & {
+    size: unknown;
+};
+
+/**
  * Reads a `tenant_export_downloads` row back as a download, naming each column
  * rather than spreading the row, so a column the record does not carry — the
  * row's `createdAt` — is left behind.
  */
-export function toTenantExportDownload(row: TenantExportDownload): TenantExportDownload {
+export function toTenantExportDownload(
+    row: CanonicalTenantExportDownloadRow,
+): TenantExportDownload {
+    const size = Number(row.size);
+    if (!Number.isSafeInteger(size) || size < 1) {
+        throw new Error(`tenant_export_downloads.size of ${row.id} is not a size in bytes.`);
+    }
     return {
         id: row.id,
         tenantId: row.tenantId,
         subscriptionId: row.subscriptionId,
         downloadedAt: row.downloadedAt,
         downloadedBy: row.downloadedBy,
+        downloadedByUserId: row.downloadedByUserId,
+        size,
     };
 }

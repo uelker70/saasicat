@@ -1047,8 +1047,18 @@ const TENANT_DETAIL = {
             subscriptionId: 'sub-0001',
             deletesOn: '2026-12-31',
             exportDownloads: [
-                { at: '2026-12-03T09:15:00.000Z', by: 'web:owner@northwind.example:app' },
-                { at: '2026-12-20T16:40:00.000Z', by: 'web:owner@northwind.example:app' },
+                {
+                    at: '2026-12-03T09:15:00.000Z',
+                    by: 'web:owner@northwind.example:app',
+                    userId: 'u-owner',
+                    size: 48_213,
+                },
+                {
+                    at: '2026-12-20T16:40:00.000Z',
+                    by: 'web:owner@northwind.example:app',
+                    userId: 'u-owner',
+                    size: 48_977,
+                },
             ],
         },
     ],

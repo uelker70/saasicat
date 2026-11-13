@@ -237,6 +237,8 @@ function reasonOf(
                 ? (end?.downloads ?? []).map((download) => ({
                       at: download.downloadedAt.toISOString(),
                       by: download.downloadedBy,
+                      userId: download.downloadedByUserId,
+                      size: download.size,
                   }))
                 : null,
     };

@@ -147,19 +147,28 @@ export function announcedDeletionOf(
  *
  * It is written once the application has handed the export over and before
  * the file is sent, so it shows that the application produced the export at
- * that moment for a user holding the tenant's administrator role, whom
- * `downloadedBy` names. It cannot show that the browser saved the file. Every
- * download is its own record: two downloads are two rows, neither replacing
- * the other.
+ * that moment, `size` bytes of it, for the tenant's administrator whom
+ * `downloadedByUserId` and `downloadedBy` name. It cannot show that the browser
+ * saved the file. Every download is its own record: two downloads are two rows,
+ * neither replacing the other.
  */
 export interface TenantExportDownload {
     id: string;
     tenantId: string;
     /** The subscription whose end the export was offered for. */
     subscriptionId: string;
-    /** When the export was handed out, and to whom, as the audit log tags an actor. */
+    /** When the export was handed out. */
     downloadedAt: Date;
+    /**
+     * Who took it, as the audit log tags an actor: `web:<email>:<context>`.
+     * Its email reads `unknown` where the session carries none, and its
+     * context is the application's, so it is read beside `downloadedByUserId`.
+     */
     downloadedBy: string;
+    /** The id of the user who took it, as the session the platform authenticated names them. */
+    downloadedByUserId: string;
+    /** The size of the file handed out, in bytes; never 0, since an empty export is refused. */
+    size: number;
 }
 
 /** A download to record: the id is the store's to assign. */

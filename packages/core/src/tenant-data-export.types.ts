@@ -10,10 +10,12 @@
 /** The tenant's full export as one file. */
 export interface TenantDataExport {
     /**
-     * The whole file, already produced. Bytes rather than a stream: the
-     * download is recorded before the file is sent, and only a file the
-     * application has finished producing can be recorded as handed over. A very
-     * large export is therefore held in memory once while it is served.
+     * The whole file, already produced, at least one byte of it. Bytes rather
+     * than a stream: the download is recorded before the file is sent, and only
+     * a file the application has finished producing can be recorded as handed
+     * over. A very large export is therefore held in memory once while it is
+     * served. An empty one is refused as an export the application did not
+     * produce.
      */
     content: Uint8Array;
     /**

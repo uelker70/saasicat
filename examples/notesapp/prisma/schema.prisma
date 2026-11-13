@@ -1782,12 +1782,14 @@ model SubscriptionEndAnnouncement {
 }
 
 model TenantExportDownload {
-    id             String   @id @default(uuid())
-    tenantId       String
-    subscriptionId String
-    downloadedAt   DateTime
-    downloadedBy   String
-    createdAt      DateTime @default(now())
+    id                 String   @id @default(uuid())
+    tenantId           String
+    subscriptionId     String
+    downloadedAt       DateTime
+    downloadedBy       String
+    downloadedByUserId String
+    size               BigInt
+    createdAt          DateTime @default(now())
 
     @@index([subscriptionId])
     @@map("tenant_export_downloads")

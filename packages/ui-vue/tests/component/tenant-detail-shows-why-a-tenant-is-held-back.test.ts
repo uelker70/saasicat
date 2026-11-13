@@ -157,8 +157,15 @@ describe("an ended subscription in the tenant detail's access section", () => {
                         {
                             at: '2026-12-02T23:30:00.000Z',
                             by: 'web:anna@northwind.example:tenant-self-service',
+                            userId: 'u-anna',
+                            size: 48_213,
                         },
-                        { at: '2026-12-20T10:00:00.000Z', by: 'web:ben@northwind.example:app' },
+                        {
+                            at: '2026-12-20T10:00:00.000Z',
+                            by: 'web:ben@northwind.example:app',
+                            userId: 'u-ben',
+                            size: 48_977,
+                        },
                     ],
                 },
             ],

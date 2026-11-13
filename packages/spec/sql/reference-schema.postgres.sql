@@ -1210,6 +1210,8 @@ CREATE TABLE "tenant_export_downloads" (
     "subscriptionId" TEXT NOT NULL,
     "downloadedAt" TIMESTAMP(3) NOT NULL,
     "downloadedBy" TEXT NOT NULL,
+    "downloadedByUserId" TEXT NOT NULL,
+    "size" BIGINT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "tenant_export_downloads_pkey" PRIMARY KEY ("id")

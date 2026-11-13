@@ -715,6 +715,8 @@ export const tenantExportDownloads = pgTable('tenant_export_downloads', {
     subscriptionId: text('subscriptionId').notNull(),
     downloadedAt: ts('downloadedAt').notNull(),
     downloadedBy: text('downloadedBy').notNull(),
+    downloadedByUserId: text('downloadedByUserId').notNull(),
+    size: bigint('size', { mode: 'number' }).notNull(),
     createdAt: writtenAt('createdAt'),
 });
 

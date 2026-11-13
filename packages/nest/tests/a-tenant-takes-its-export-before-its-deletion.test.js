@@ -193,7 +193,7 @@ describe("a tenant's administrator takes its export once its subscription ended"
         assert.deepEqual(await bytesOf(file), Buffer.from(FILE.content));
     });
 
-    test('the download is recorded beside the end, with the moment and who took it', async () => {
+    test('the download is recorded beside the end, with the moment, who took it and the bytes handed out', async () => {
         const { service, ends } = await installation();
 
         await service.take('t1', ACTOR, NOW);
@@ -206,6 +206,8 @@ describe("a tenant's administrator takes its export once its subscription ended"
                     subscriptionId: 'sub-t1',
                     downloadedAt: NOW,
                     downloadedBy: 'web:admin@acme.example:s-1',
+                    downloadedByUserId: 'u-1',
+                    size: FILE.content.byteLength,
                 },
             ],
         );
@@ -242,6 +244,19 @@ describe("a tenant's administrator takes its export once its subscription ended"
         await route.export(asUser());
 
         assert.equal(ends.downloads[0].downloadedBy, 'web:admin@t1.example:s-1');
+        assert.equal(ends.downloads[0].downloadedByUserId, 'u-1');
+    });
+
+    test('a session without an email is still recorded by the user it names, whatever context the request claims', async () => {
+        const { route, ends } = await installation();
+        const request = asUser();
+        delete request.user.email;
+        request.headers['x-session-id'] = 'anything-a-client-sends';
+
+        await route.export(request);
+
+        assert.equal(ends.downloads[0].downloadedBy, 'web:unknown:anything-a-client-sends');
+        assert.equal(ends.downloads[0].downloadedByUserId, 'u-1');
     });
 
     test('every download is a record of its own, the oldest first', async () => {
@@ -393,6 +408,20 @@ describe('a file never leaves without its record, and no record claims a file no
             ),
         );
         assert.deepEqual(ends.downloads, []);
+    });
+
+    test('an empty file is refused, and nothing is recorded', async () => {
+        const port = exportPort(async () => ({ ...FILE, content: new Uint8Array(0) }));
+        const { route, ends, audited } = await installation({ port });
+
+        await quietly(() =>
+            assert.rejects(
+                route.export(asUser()),
+                refusedWith(ServiceUnavailableException, 'TENANT_EXPORT_FAILED'),
+            ),
+        );
+        assert.deepEqual(ends.downloads, []);
+        assert.deepEqual(audited, []);
     });
 
     test('an answer without a file name is refused, and nothing is recorded', async () => {

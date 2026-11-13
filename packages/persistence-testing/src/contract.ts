@@ -14015,6 +14015,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 subscriptionId: 'sub-ended',
                 downloadedAt: new Date('2027-01-05T09:00:00.123Z'),
                 downloadedBy: ADMIN,
+                downloadedByUserId: 'admin-1',
+                size: 2048,
                 ...overrides,
             });
 
@@ -14042,6 +14044,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         subscriptionId: 'sub-ended',
                         downloadedAt: new Date('2027-01-05T09:00:00.123Z'),
                         downloadedBy: ADMIN,
+                        downloadedByUserId: 'admin-1',
+                        size: 2048,
                     },
                     'the answer is the row as stored',
                 );
@@ -14100,6 +14104,18 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     'oldest first across the subscriptions asked',
                 );
                 assert.deepEqual(await port.listExportDownloadsFor(['sub-without-downloads']), []);
+            });
+
+            test('keep a size beyond what 32 bits hold, as a number', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const large = await port.recordExportDownload(downloadOf({ size: 5_000_000_000 }));
+                assert.equal(large.size, 5_000_000_000);
+                const [listed] = await port.listExportDownloadsFor(['sub-ended']);
+                assert.strictEqual(listed?.size, 5_000_000_000);
             });
 
             test("leave another tenant's downloads out of this one's subscription", async (t) => {

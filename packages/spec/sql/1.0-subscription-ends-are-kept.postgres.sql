@@ -15,8 +15,8 @@
 -- before the cancellation lands, and the end is later recorded with that day.
 --
 -- `tenant_export_downloads` holds one row per download of a tenant's full
--- export taken after its subscription ended: when, and by which of the
--- tenant's administrators. A second download is a row of its own.
+-- export taken after its subscription ended: when, by which of the tenant's
+-- administrators, and how many bytes. A second download is a row of its own.
 --
 -- Run it the same way as the other files in this directory, before `db push`
 -- where you use one:
@@ -83,6 +83,8 @@ CREATE TABLE IF NOT EXISTS "tenant_export_downloads" (
     "subscriptionId" TEXT NOT NULL,
     "downloadedAt" TIMESTAMP(3) NOT NULL,
     "downloadedBy" TEXT NOT NULL,
+    "downloadedByUserId" TEXT NOT NULL,
+    "size" BIGINT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "tenant_export_downloads_pkey" PRIMARY KEY ("id")

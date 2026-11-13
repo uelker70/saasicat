@@ -119,6 +119,8 @@ export class TenantDataExportService implements OnModuleInit, EndedSubscriptionS
             subscriptionId: end.subscriptionId,
             downloadedAt: now,
             downloadedBy: actorTagOf(actor),
+            downloadedByUserId: actor.userId,
+            size: file.content.byteLength,
         });
         await this.audited(actor, download, file);
         return file;
@@ -196,8 +198,8 @@ export class TenantDataExportService implements OnModuleInit, EndedSubscriptionS
         if (!isExportFile(file)) {
             this.logger.error(
                 `The TenantDataExportPort answered tenant ${tenantId} with something that is not ` +
-                    'a file — bytes as a Uint8Array, a media type in printable ASCII and a file ' +
-                    'name; nothing was recorded or sent.',
+                    'a file — at least one byte as a Uint8Array, a media type in printable ASCII ' +
+                    'and a file name; nothing was recorded or sent.',
             );
             throw exportFailed();
         }
@@ -247,11 +249,14 @@ function exportFailed(): ServiceUnavailableException {
 
 /**
  * Whether the application's answer is a file the download can hand out as it
- * is: whole bytes, a media type a header can carry, and a file name.
+ * is: whole bytes, at least one, a media type a header can carry, and a file
+ * name. An empty file exports nothing, and its record would claim an export
+ * the application did not produce.
  */
 function isExportFile(answer: unknown): answer is TenantDataExport {
     if (typeof answer !== 'object' || answer === null) return false;
     if (!('content' in answer) || !(answer.content instanceof Uint8Array)) return false;
+    if (answer.content.byteLength === 0) return false;
     if (!('mediaType' in answer) || typeof answer.mediaType !== 'string') return false;
     if (!HEADER_TEXT.test(answer.mediaType)) return false;
     return 'fileName' in answer && typeof answer.fileName === 'string';

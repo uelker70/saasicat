@@ -294,6 +294,10 @@ export interface AdminTenantExportDownload {
     at: string;
     /** Who took it, as the audit log tags an actor: `web:<email>:<context>`. */
     by: string;
+    /** The id of the tenant's user who took it, as their session named them. */
+    userId: string;
+    /** The size of the file handed out, in bytes. */
+    size: number;
 }
 
 /** A tenant as the administration's detail page reads it: with every reason it is held back for, the oldest first. */

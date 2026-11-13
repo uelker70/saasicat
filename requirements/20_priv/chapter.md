@@ -244,9 +244,12 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-takes-its-export-before-its-deletion.test.js`
     - a tenant's administrator takes its export once its subscription ended
         - the file goes out as the application produced it, under its name
-        - the download is recorded beside the end, with the moment and who took it
+        - the download is recorded beside the end, with the moment, who took it and the bytes handed
+          out
         - and written to the audit log under a key the audit page can name
         - the route records who took it from the session
+        - a session without an email is still recorded by the user it names, whatever context the
+          request claims
         - every download is a record of its own, the oldest first
         - the application is asked again for every download
         - is still offered after the deletion day, while the data is there
@@ -260,6 +263,7 @@ _Tested by:_
         - an application that fails is refused with a stable code, and nothing is recorded
         - an answer whose content is not bytes is refused, and nothing is recorded
         - a media type a header cannot carry is refused before anything is recorded
+        - an empty file is refused, and nothing is recorded
         - an answer without a file name is refused, and nothing is recorded
         - a download that cannot be recorded sends no file and writes no audit entry
         - an audit log that fails leaves the download recorded and sent

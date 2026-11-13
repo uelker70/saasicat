@@ -1819,7 +1819,8 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     refuse every request. Your port is asked on every
     download, for the session's tenant only.
     Once it has handed the file over, the download is recorded in `tenant_export_downloads` — the
-    moment and who took it — and only then sent, and it is audited as `TENANT_EXPORT_DOWNLOAD` where
+    moment, who took it by the user's id and as the audit log tags them, and the file's size — and
+    only then sent, and it is audited as `TENANT_EXPORT_DOWNLOAD` where
     the audit log is wired; the operator reads every download under "Access" on the tenant's page.
     That record is the tenant's acknowledgement (`SC-PRIV-017`): it shows that the file was produced
     for that request, not that it was saved.

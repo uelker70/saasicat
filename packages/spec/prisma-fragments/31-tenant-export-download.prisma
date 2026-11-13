@@ -5,12 +5,12 @@
 // REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
 //
 // One row per download of a tenant's full export taken after its subscription
-// ended: when, and by which of the tenant's administrators. The export itself
-// is the application's, handed over through `TenantDataExportPort`; the row is
-// written once the application has handed it over and before the file is sent,
-// and it is the tenant's acknowledgement that the export was offered
-// (`SC-PRIV-017`). It shows that the export was produced for that person at
-// that moment, not that the browser saved it.
+// ended: when, by which of the tenant's administrators, and how many bytes. The
+// export itself is the application's, handed over through
+// `TenantDataExportPort`; the row is written once the application has handed it
+// over and before the file is sent, and it is the tenant's acknowledgement that
+// the export was offered (`SC-PRIV-017`). It shows that the export was produced
+// for that person at that moment, not that the browser saved it.
 //
 // As many rows per subscription as downloads were taken: there is no unique
 // key, and a second download is a row of its own. They are read by the
@@ -19,18 +19,21 @@
 // Required wherever tenants are served, together with fragments 29 and 30.
 
 model TenantExportDownload {
-    id             String   @id @default(uuid())
+    id                 String   @id @default(uuid())
     // The tenant whose export was taken. Not a relation: the tenant model is the
     // application's.
-    tenantId       String
+    tenantId           String
     // The subscription whose end the export was offered for. Not a relation:
     // the record outlives the subscription row.
-    subscriptionId String
-    // When the export was handed out, and to whom (an actor tag, as the audit
-    // log writes it).
-    downloadedAt   DateTime
-    downloadedBy   String
-    createdAt      DateTime @default(now())
+    subscriptionId     String
+    // When the export was handed out, and to whom: an actor tag, as the audit
+    // log writes it, and the user's id, as the session named them.
+    downloadedAt       DateTime
+    downloadedBy       String
+    downloadedByUserId String
+    // In bytes; an export can exceed what a 32-bit column holds.
+    size               BigInt
+    createdAt          DateTime @default(now())
 
     @@index([subscriptionId])
     @@map("tenant_export_downloads")
