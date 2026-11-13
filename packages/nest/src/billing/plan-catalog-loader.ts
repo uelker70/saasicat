@@ -1,8 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import yaml from 'js-yaml';
-import Ajv2020 from 'ajv/dist/2020.js';
-import addFormats from 'ajv-formats';
 import { planCatalogSchema } from '@saasicat/spec';
 import type { PlanCatalog } from '@saasicat/core';
 
@@ -12,6 +10,7 @@ import {
     resolveEnvironmentReferences,
     type SchemaNode,
 } from './plan-catalog-environment.js';
+import { describeCatalogProblem, planCatalogSchemaProblems } from './plan-catalog-schema-check.js';
 import { taxSettingsProblems } from './plan-catalog-tax-settings.js';
 
 // Plan catalog loader — pure function.
@@ -36,29 +35,6 @@ export interface AjvErrorLike {
 }
 
 /**
- * Where in the document the violation is, as the editor of the document sees it.
- *
- * Ajv answers a missing property by pointing at its *parent* and naming the
- * child in `params`, so `/: must have required property 'tenantBilling'` is
- * what an integrator gets for a field two levels down. Joining the two gives
- * `tenantBilling.cancellationNoticeDays` — the thing to go and type.
- *
- * This is not decoration. Making `tenantBilling` required breaks every existing
- * config/saas.yaml on upgrade, so this message is the first thing every
- * integrator meets.
- *
- * A member the schema does not know is reported the same way: Ajv points at the
- * parent and names the offender in `params`, and `must NOT have additional
- * properties` without the name sends the editor hunting through the block.
- */
-function locate(error: AjvErrorLike): string {
-    const segments = (error.instancePath ?? '').split('/').filter(Boolean);
-    const named = error.params?.missingProperty ?? error.params?.additionalProperty;
-    if (named) segments.push(named);
-    return segments.length > 0 ? segments.join('.') : '(document root)';
-}
-
-/**
  * `Error.name` for a document that could not be read as a catalog at all.
  *
  * A name rather than a class because the other failure of this kind comes from
@@ -72,7 +48,7 @@ export class PlanCatalogValidationError extends Error {
         public readonly source: string,
         public readonly errors: AjvErrorLike[],
     ) {
-        const messages = errors.map((e) => `${locate(e)}: ${e.message ?? 'unknown'}`).join('\n  ');
+        const messages = errors.map(describeCatalogProblem).join('\n  ');
         super(`Plan catalog validation failed for ${source}:\n  ${messages}`);
         this.name = 'PlanCatalogValidationError';
     }
@@ -170,12 +146,9 @@ export function loadPlanCatalogFromString(
 
     const resolved = resolveReferences(parsed, opts.source, opts.env ?? null);
 
-    const ajv = new Ajv2020({ strict: false, allErrors: true });
-    addFormats.default(ajv);
-    const validate = ajv.compile(planCatalogSchema);
-
-    if (!validate(resolved)) {
-        throw new PlanCatalogValidationError(opts.source, validate.errors ?? []);
+    const schemaProblems = planCatalogSchemaProblems(resolved);
+    if (schemaProblems.length > 0) {
+        throw new PlanCatalogValidationError(opts.source, schemaProblems);
     }
     // Not a cross-field check: a document with neither rate source, or both,
     // is not a catalogue, whichever checks the caller asked for.

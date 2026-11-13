@@ -4425,7 +4425,8 @@ adopt it:
   `PAST_DUE` status of your own holds nobody back since the platform keeps the tenant's state.
 - **Your own tests** that compose `SaaSiCatModule` with `tenantBilling` need the store in
   `persistence.core`: `FakeSubscriptionEndRepository` from `@saasicat/nest/testing` keeps it in
-  memory, and a catalogue built in code needs `tenantBilling.endOfSubscription`.
+  memory, and a catalogue built in code needs `tenantBilling.endOfSubscription` with both its
+  members.
 
 ### A tenant is told its deletion day before it ends its subscription
 
@@ -4757,7 +4758,10 @@ To adopt it:
    has no default — when a former customer is warned is yours to decide and to state in your terms.
    The loader refuses a file without it
    (`tenantBilling.endOfSubscription.reminderDaysBefore: must have required property 'reminderDaysBefore'`),
-   and a list that is empty, names a lead time twice or holds one below 1, naming the field.
+   and a list that is empty, names a lead time twice or holds one below 1, naming the field. A
+   catalogue built in code and passed as `planCatalog` is held to the same schema for the
+   `tenantBilling` sections the platform reads, and a start with a malformed one is refused, naming
+   the field.
 
     ```yaml
     tenantBilling:

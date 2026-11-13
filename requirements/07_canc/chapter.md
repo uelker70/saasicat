@@ -790,6 +790,11 @@ _Tested by:_
     - lead times nobody named are refused, and the field is named
     - a list of lead times that promises no reminder, or one twice, is refused
     - lead times in any order, the period shorter than some, are read as written
+- `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
+    - the lead times of a catalogue built in code
+        - left out, the start is refused, naming the field
+        - given as ${JSON.stringify(given)}, the start is refused, naming the field
+        - given as [1], the smallest the schema takes, the application starts
 - `packages/nest/tests/the-notices-are-wired-where-tenants-are-served.test.js`
     - the notice port, which serving tenants cannot start without
         - left out, the start is refused with one sentence naming the option, the port and why
@@ -1250,6 +1255,12 @@ _Tested by:_
     - an installation that serves tenants
         - records the ends every quarter of an hour unless told not to
         - refuses to start where the file says nothing of the end, naming the setting
+    - the read-only period of a catalogue built in code
+        - left out, the start is refused, naming the field
+        - given as ${given}, the start is refused, naming the field
+        - given as 1, the smallest the schema takes, the application starts
+        - beside a member the schema does not know, the start is refused, naming the member
+        - malformed, it is refused while the application starts, before any run could read it
 
 <!-- END proof -->
 

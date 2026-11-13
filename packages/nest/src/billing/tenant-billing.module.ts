@@ -82,6 +82,10 @@ import { SubscriptionEndService } from './subscription-end.service.js';
 import { SubscriptionEndCron } from './subscription-end.cron.js';
 import { DeletionReminderService } from './deletion-reminder.service.js';
 import { movedNoticeOptionsIn, noticeRecordNotWired, noticesNotWired } from './notice-sender.js';
+import {
+    describeCatalogProblem,
+    tenantBillingSectionProblems,
+} from './plan-catalog-schema-check.js';
 import { TrialEndService } from './trial-end.service.js';
 import {
     VersionRetirementService,
@@ -231,15 +235,18 @@ function confirmationProviders(invoices: InvoicesOptions): Provider[] {
 }
 
 /**
- * One commercial setting out of the catalogue, or a sentence saying where it
+ * One commercial setting out of the catalogue, held to the schema's
+ * definition of its section, or a sentence saying what is wrong and where it
  * should have come from.
  *
- * The loader refuses a `config/saas.yaml` without `tenantBilling`, so a
- * catalogue arriving here without one was assembled in code — an object
- * handed straight to `planCatalog`; the database path reads the file too,
- * since `dbCatalog` names it. Without this the failure is
- * `Cannot read properties of undefined`, thrown from a Nest factory, which
- * names neither the file nor the field.
+ * The loader refuses a `config/saas.yaml` without the section, or with one the
+ * schema does not accept, so a catalogue arriving here with either was
+ * assembled in code — an object handed straight to `planCatalog`; the
+ * database path reads the file too, since `dbCatalog` names it. Without this a
+ * missing section fails as `Cannot read properties of undefined`, thrown from
+ * a Nest factory, which names neither the file nor the field, and a malformed
+ * one starts the application and fails, or does nothing, when it is read.
+ * Asked when the provider is built, so the start is what is refused.
  */
 function settingFromCatalog<K extends keyof PlanCatalogSettings['tenantBilling']>(
     catalog: PlanCatalogSettings,
@@ -253,6 +260,15 @@ function settingFromCatalog<K extends keyof PlanCatalogSettings['tenantBilling']
                 'section of config/saas.yaml and the loader refuses a file without it, ' +
                 'so a catalogue that reaches here without one was built in code: check ' +
                 'the object passed to `planCatalog`.',
+        );
+    }
+    const problems = tenantBillingSectionProblems(key, value);
+    if (problems.length > 0) {
+        throw new Error(
+            `The plan catalogue's tenantBilling.${key} does not hold to the schema of ` +
+                'config/saas.yaml, and the loader refuses a file with it, so it was built ' +
+                'in code: check the object passed to `planCatalog`.\n  ' +
+                problems.map(describeCatalogProblem).join('\n  '),
         );
     }
     return value;
