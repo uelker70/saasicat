@@ -119,7 +119,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             tenantBilling: {
                 cancellationNoticeDays: { monthly: 0, yearly: 0 },
                 selfServiceBlockedPlans: { asTarget: [], asSource: [] },
-                endOfSubscription: { readOnlyDays: 30 },
+                endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
             },
             plans: [],
         },

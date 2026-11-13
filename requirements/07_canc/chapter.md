@@ -738,6 +738,10 @@ _Tested by:_
     - the day a reminder is decided on
         - is the installation's day ahead of UTC, not UTC's
         - is the installation's day behind UTC, not UTC's
+- `packages/nest/tests/plan-catalog-loader.test.js`
+    - lead times nobody named are refused, and the field is named
+    - a list of lead times that promises no reminder, or one twice, is refused
+    - lead times in any order, the period shorter than some, are read as written
 
 <!-- END proof -->
 

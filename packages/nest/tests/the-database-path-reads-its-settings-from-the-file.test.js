@@ -47,7 +47,7 @@ const LINES = [
     '  cancellationNoticeDays: { monthly: 14, yearly: 90 }',
     '  selfServiceBlockedPlans: { asTarget: [ENTERPRISE], asSource: [] }',
     '  orderlyRetirement: { termsConfirmed: false }',
-    '  endOfSubscription: { readOnlyDays: 30 }',
+    '  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }',
     'marketing: { availableLocales: [en, de] }',
     'notifications: { settingsChanged: [ops@example.com] }',
     'issuer: { legalName: Example Software GmbH, country: DE, vatId: DE123456789 }',
@@ -244,7 +244,7 @@ describe('a dbCatalog that still carries the values', () => {
             cancellationNoticeDays: { monthly: 0, yearly: 0 },
             selfServiceBlockedPlans: { asTarget: [], asSource: [] },
             orderlyRetirement: { termsConfirmed: false },
-            endOfSubscription: { readOnlyDays: 30 },
+            endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
         },
     };
 

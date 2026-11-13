@@ -33,7 +33,7 @@ import { anExport } from './helpers/tenant-data-export.js';
 
 const NOTICE = { monthly: 14, yearly: 90 };
 const BLOCKED = { asTarget: ['ENTERPRISE'], asSource: ['ENTERPRISE'] };
-const END = { readOnlyDays: 45 };
+const END = { readOnlyDays: 45, reminderDaysBefore: [44, 7] };
 
 class FakeJwtGuard {
     canActivate() {
@@ -143,7 +143,7 @@ describe('the value the code runs on is the value in the file', () => {
             catalogWith({
                 cancellationNoticeDays: { monthly: 0, yearly: 0 },
                 selfServiceBlockedPlans: { asTarget: [], asSource: [] },
-                endOfSubscription: { readOnlyDays: 30 },
+                endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
             }),
         );
         assert.deepEqual(app.get(CANCELLATION_NOTICE_DAYS_TOKEN), { monthly: 0, yearly: 0 });

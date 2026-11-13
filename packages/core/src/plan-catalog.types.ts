@@ -121,12 +121,20 @@ export interface OrderlyRetirementSettings {
 
 /**
  * What follows when a subscription ends (`SC-CANC-027`): the tenant is
- * read-only for `readOnlyDays`, and its data is deleted on the day after them.
- * No default — how long a former customer's data is kept is the operator's to
- * decide and to state in its terms.
+ * read-only for `readOnlyDays`, and its data is deleted on the day after them;
+ * its administrators are reminded `reminderDaysBefore` days before that day
+ * (`SC-CANC-022`). No default for either — how long a former customer's data
+ * is kept, and when it is warned, are the operator's to decide and to state in
+ * its terms.
  */
 export interface EndOfSubscriptionSettings {
     readOnlyDays: number;
+    /**
+     * The lead times, in days before the deletion day, each at least 1, none
+     * twice, at least one; in any order. When each is due is
+     * `deletionReminderDue`'s to answer.
+     */
+    reminderDaysBefore: number[];
 }
 
 export interface PlanCatalogTenantBilling {

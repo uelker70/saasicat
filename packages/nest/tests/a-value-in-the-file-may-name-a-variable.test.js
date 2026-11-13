@@ -49,6 +49,7 @@ tenantBilling:
     termsConfirmed: false
   endOfSubscription:
     readOnlyDays: 30
+    reminderDaysBefore: [29, 10, 3]
 features:
   - { key: CORE }
 plans:
@@ -129,7 +130,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 7, yearly: 7 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
-  endOfSubscription: { readOnlyDays: 30 }
+  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }
 plans:
   - { id: BASIC, quotas: { users: 1 }, features: [] }
 `;

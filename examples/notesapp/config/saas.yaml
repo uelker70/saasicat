@@ -60,6 +60,13 @@ tenantBilling:
     # recorded, so a change here applies to subscriptions that end after it.
     endOfSubscription:
         readOnlyDays: 30
+        # The tenant's administrators are reminded on each of these days
+        # before the deletion day, and told where to take the export. A lead
+        # time that has passed when the subscription ends — or that the period
+        # is too short for — is covered by one reminder sent at once; none goes
+        # twice. No default either: when a former customer is warned is yours
+        # to decide. A change here applies from the next run.
+        reminderDaysBefore: [29, 10, 3]
 
 marketing:
     availableLocales: [en]

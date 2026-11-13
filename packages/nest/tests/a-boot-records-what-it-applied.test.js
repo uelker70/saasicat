@@ -45,7 +45,7 @@ const catalogWith = (overrides = {}) => ({
     tenantBilling: {
         cancellationNoticeDays: NOTICE,
         selfServiceBlockedPlans: BLOCKED,
-        endOfSubscription: { readOnlyDays: 30 },
+        endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
     },
     plans: [{ id: 'PRO', name: 'Pro', monthlyNet: 9, yearlyNet: 90, features: [], quotas: {} }],
     ...overrides,
@@ -381,7 +381,7 @@ describe('where the record says the values came from', () => {
                 '  cancellationNoticeDays: { monthly: 14, yearly: 90 }',
                 '  selfServiceBlockedPlans: { asTarget: [], asSource: [] }',
                 '  orderlyRetirement: { termsConfirmed: false }',
-                '  endOfSubscription: { readOnlyDays: 30 }',
+                '  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }',
                 'plans:',
                 '  - { id: PRO, name: Pro, monthlyNet: 9, yearlyNet: 90, features: [], quotas: { users: 1 } }',
             ].join('\n'),
@@ -410,7 +410,7 @@ describe('the record is a mirror, never a source', () => {
                     cancellationNoticeDays: { monthly: 99, yearly: 99 },
                     selfServiceBlockedPlans: { asTarget: [], asSource: [] },
                     orderlyRetirement: { termsConfirmed: false },
-                    endOfSubscription: { readOnlyDays: 30 },
+                    endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
                 },
             }),
         );
