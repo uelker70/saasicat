@@ -2011,6 +2011,21 @@ export function createMemoryHarness() {
                     .sort((a, b) => (a.subscriptionId < b.subscriptionId ? -1 : 1)),
             );
         },
+        async listDeletingAfter(day) {
+            return structuredClone(
+                state.subscriptionEnds
+                    .filter((row) => row.deletesOn > day)
+                    .sort((a, b) =>
+                        a.deletesOn !== b.deletesOn
+                            ? a.deletesOn < b.deletesOn
+                                ? -1
+                                : 1
+                            : a.subscriptionId < b.subscriptionId
+                              ? -1
+                              : 1,
+                    ),
+            );
+        },
         async announce(announcement) {
             if (
                 state.subscriptionEndAnnouncements.some(

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import {
+    type CalendarDay,
     type CanonicalSubscriptionEndAnnouncementRow,
     type CanonicalSubscriptionEndRow,
     type CanonicalTenantExportDownloadRow,
@@ -110,6 +111,16 @@ export class PrismaSubscriptionEndRepository implements SubscriptionEndPort {
             where: { subscriptionId: { in: [...subscriptionIds] } },
             select: COLUMNS,
             orderBy: { subscriptionId: 'asc' },
+        });
+        return rows.map(toSubscriptionEnd);
+    }
+
+    /** `deletesOn` is a `@db.Date`, so the day is compared as its midnight UTC. */
+    async listDeletingAfter(day: CalendarDay): Promise<SubscriptionEnd[]> {
+        const rows = await this.db.subscriptionEnd.findMany({
+            where: { deletesOn: { gt: utcMidnightOf(day) } },
+            select: COLUMNS,
+            orderBy: [{ deletesOn: 'asc' }, { subscriptionId: 'asc' }],
         });
         return rows.map(toSubscriptionEnd);
     }

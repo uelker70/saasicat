@@ -5,6 +5,7 @@
 // without running against a real DB.
 
 import type {
+    CalendarDay,
     NewTenantAccessHold,
     NewSubscriptionEnd,
     NewSubscriptionEndAnnouncement,
@@ -1077,6 +1078,21 @@ export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
     async listFor(subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]> {
         return this.ends
             .filter((end) => subscriptionIds.includes(end.subscriptionId))
+            .map((end) => ({ ...end }));
+    }
+
+    async listDeletingAfter(day: CalendarDay): Promise<SubscriptionEnd[]> {
+        return this.ends
+            .filter((end) => end.deletesOn > day)
+            .sort((a, b) =>
+                a.deletesOn !== b.deletesOn
+                    ? a.deletesOn < b.deletesOn
+                        ? -1
+                        : 1
+                    : a.subscriptionId < b.subscriptionId
+                      ? -1
+                      : 1,
+            )
             .map((end) => ({ ...end }));
     }
 

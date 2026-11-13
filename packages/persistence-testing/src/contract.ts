@@ -13853,6 +13853,77 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
         });
 
+        describe('the ends whose deletion day is after a day', () => {
+            const DAY = '2027-01-31';
+            const RUN = 'job:platform:subscription-ends';
+            const endDeletedOn = (
+                tenantId: string,
+                subscriptionId: string,
+                deletesOn: string,
+            ): NewSubscriptionEnd => ({
+                tenantId,
+                subscriptionId,
+                endsAt: new Date('2026-12-31T23:00:00.123Z'),
+                deletesOn,
+                recordedAt: new Date('2027-01-01T00:05:00.456Z'),
+                recordedBy: RUN,
+            });
+
+            test('are none where no end is recorded', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                assert.deepEqual(await port.listDeletingAfter(DAY), []);
+            });
+
+            test('are listed for every tenant, the soonest deletion first, by subscription on one day', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                // Recorded in neither order, and the subscriptions' own order is
+                // not the deletions', so only the order asked for lists them so.
+                assert.ok(await port.record(endDeletedOn('tenant-c', 'sub-a', '2028-01-01')));
+                assert.ok(await port.record(endDeletedOn('tenant-b', 'sub-c', '2027-03-01')));
+                const recorded = await port.record(endDeletedOn('tenant-a', 'sub-d', '2027-02-01'));
+                assert.ok(recorded);
+                assert.ok(await port.record(endDeletedOn('tenant-a', 'sub-b', '2027-03-01')));
+                const listed = await port.listDeletingAfter(DAY);
+                assert.deepEqual(
+                    listed.map((end) => `${end.tenantId}/${end.subscriptionId} ${end.deletesOn}`),
+                    [
+                        'tenant-a/sub-d 2027-02-01',
+                        'tenant-a/sub-b 2027-03-01',
+                        'tenant-b/sub-c 2027-03-01',
+                        'tenant-c/sub-a 2028-01-01',
+                    ],
+                );
+                assert.deepEqual(listed[0], {
+                    ...endDeletedOn('tenant-a', 'sub-d', '2027-02-01'),
+                    id: recorded.id,
+                });
+            });
+
+            test('leave the end deleted on the day itself, and every one before it', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                assert.ok(await port.record(endDeletedOn('tenant-a', 'sub-a', '2026-12-31')));
+                assert.ok(await port.record(endDeletedOn('tenant-b', 'sub-b', '2027-01-30')));
+                assert.ok(await port.record(endDeletedOn('tenant-c', 'sub-c', DAY)));
+                assert.ok(await port.record(endDeletedOn('tenant-d', 'sub-d', '2027-02-01')));
+                assert.deepEqual(
+                    (await port.listDeletingAfter(DAY)).map((end) => end.subscriptionId),
+                    ['sub-d'],
+                );
+            });
+        });
+
         describe('the day announced when a cancellation is confirmed', () => {
             const ENDS_AT = new Date('2027-03-31T22:00:00.123Z');
             const ANNOUNCED_AT = new Date('2026-11-10T09:15:00.456Z');
