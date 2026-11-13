@@ -1117,7 +1117,11 @@ export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
     ): Promise<TenantExportDownload[]> {
         return this.downloads
             .filter((download) => subscriptionIds.includes(download.subscriptionId))
-            .sort((a, b) => a.downloadedAt.getTime() - b.downloadedAt.getTime())
+            .sort(
+                (a, b) =>
+                    a.downloadedAt.getTime() - b.downloadedAt.getTime() ||
+                    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+            )
             .map((download) => ({ ...download }));
     }
 }

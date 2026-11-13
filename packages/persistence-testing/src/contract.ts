@@ -14067,12 +14067,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 const listed = await port.listExportDownloadsFor(['sub-ended']);
                 assert.equal(listed.length, 3, 'no download replaces another');
                 assert.deepEqual(
-                    listed
-                        .slice(0, 2)
-                        .map((download) => download.id)
-                        .sort(),
+                    listed.slice(0, 2).map((download) => download.id),
                     [first.id, second.id].sort(),
-                    'the two taken at one moment come before the later one',
+                    'the two taken at one moment come before the later one, in the order of their ids',
                 );
                 assert.deepEqual(listed[2], third);
             });
