@@ -950,7 +950,10 @@ _Tested by:_
         - tells its administrator the same two days
         - names the two days in German to a German reader
         - names no days while the end is not recorded yet
-        - names the days beside a suspension too, where the server says them, and offers no export
+        - while suspended, names the two days as days and says nothing of reading now, and offers no
+          export
+        - while being deleted, names the two days as days and says nothing of reading now
+        - while suspended, names the two days as days in German to a German reader
 
 <!-- END proof -->
 

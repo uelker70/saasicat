@@ -107,11 +107,13 @@ const held = computed(() => heldBackView(access.view.value));
 const stateSentence = computed(() =>
     held.value ? accessStateSentence(held.value.state, i18n.value) : '',
 );
-const reasonLines = computed(() =>
-    (held.value?.reasons ?? []).map((reason) =>
-        accessReasonLine(reason, i18n.value, props.formatDate),
-    ),
-);
+const reasonLines = computed(() => {
+    const view = held.value;
+    if (!view) return [];
+    return view.reasons.map((reason) =>
+        accessReasonLine(reason, view.state, i18n.value, props.formatDate),
+    );
+});
 // An unpaid invoice can be paid now only while the tenant is read-only: a
 // suspension and a deletion under way let no payment through. Both what is
 // offered to a user who may pay and what anybody else is told follow from it.

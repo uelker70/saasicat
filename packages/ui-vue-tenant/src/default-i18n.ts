@@ -533,6 +533,13 @@ export interface TenantPlanSectionI18n {
     accessReasonSuspended: string;
     /** The subscription ended: `{date}`. */
     accessReasonEnded: string;
+    /**
+     * After it, where the tenant is suspended or being deleted and so can read
+     * nothing now: the last day of its read-only period, `{readOnlyUntil}`,
+     * and the day its data is deleted on, `{deletesOn}` — stated as days, not
+     * as what the tenant can do today.
+     */
+    accessReasonEndedDays: string;
     /** The deletion began: `{date}`. */
     accessReasonDeleting: string;
     /** To a user without the billing permission, under an unpaid invoice: who can pay it. */
@@ -985,6 +992,7 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
         'Seit {date}: Eine Rechnung wurde bis zur Fälligkeit nicht bezahlt.',
     accessReasonSuspended: 'Seit {date}: von Ihrem Anbieter gesperrt.',
     accessReasonEnded: 'Seit {date}: Das Abonnement ist beendet.',
+    accessReasonEndedDays: 'Lesefrist bis einschließlich {readOnlyUntil}, Löschung am {deletesOn}.',
     accessReasonDeleting: 'Seit {date}: Das Konto wird gelöscht.',
     accessAskBilling: 'Bezahlen kann sie, wer bei Ihnen die Abrechnung betreut.',
     accessExport: 'Daten des Kontos exportieren',
@@ -1413,6 +1421,8 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     accessReasonOverdueUnnamed: 'Since {date}: an invoice was not paid by its due date.',
     accessReasonSuspended: 'Since {date}: suspended by your provider.',
     accessReasonEnded: 'Since {date}: the subscription has ended.',
+    accessReasonEndedDays:
+        'Read-only period until the end of {readOnlyUntil}, deletion on {deletesOn}.',
     accessReasonDeleting: 'Since {date}: the account is being deleted.',
     accessAskBilling: 'Whoever looks after billing in your organisation can pay it.',
     accessExport: "Export the account's data",

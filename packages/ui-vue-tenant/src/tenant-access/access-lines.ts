@@ -2,8 +2,9 @@
 // words a refused request uses for it, so a user reads one sentence for it
 // wherever they meet it, and beneath it one line per reason, each from its day.
 // An ended subscription's line goes on with the last day the tenant can read
-// and the day its data is deleted on, in the words its end was confirmed with
-// (`SC-CANC-033`).
+// and the day its data is deleted on (`SC-CANC-033`): while the tenant is
+// read-only, in the words its end was confirmed with, which say it can still
+// read; in any other state, which lets nothing be read, as the two days alone.
 
 import {
     ERROR_MESSAGES_EN,
@@ -28,6 +29,7 @@ type AccessTexts = Pick<
     | 'accessReasonEnded'
     | 'accessReasonDeleting'
     | 'deletionAnnounced'
+    | 'accessReasonEndedDays'
     | 'issueMessages'
 >;
 
@@ -48,9 +50,13 @@ export function accessStateSentence(
     return resolveErrorMessage({ code: CODE_OF_STATE[state] }, i18n.issueMessages);
 }
 
-/** One line for `reason`, each day written as `formatDate` writes a day. */
+/**
+ * One line for `reason` while the tenant is in `state`, each day written as
+ * `formatDate` writes a day.
+ */
 export function accessReasonLine(
     reason: TenantAccessReasonView,
+    state: Exclude<TenantAccessState, 'open'>,
     i18n: AccessTexts,
     formatDate: (iso: string) => string,
 ): string {
@@ -65,12 +71,24 @@ export function accessReasonLine(
         case 'ended': {
             const ended = formatMessage(i18n.accessReasonEnded, { date });
             const days = endedDaysOf(reason);
-            const deletion = deletionSentence(i18n.deletionAnnounced, days, formatDate);
+            const deletion = deletionSentence(endedDaysTemplate(state, i18n), days, formatDate);
             return deletion === null ? ended : `${ended} ${deletion}`;
         }
         case 'deleting':
             return formatMessage(i18n.accessReasonDeleting, { date });
     }
+}
+
+/**
+ * The sentence an ended subscription's two days are named in: that the tenant
+ * can still read until the first only where it is read-only; a suspension or
+ * a deletion under way lets nothing be read, so there the days stand alone.
+ */
+export function endedDaysTemplate(
+    state: Exclude<TenantAccessState, 'open'>,
+    i18n: Pick<AccessTexts, 'deletionAnnounced' | 'accessReasonEndedDays'>,
+): string {
+    return state === 'read-only' ? i18n.deletionAnnounced : i18n.accessReasonEndedDays;
 }
 
 /** The two days an ended subscription leaves, where its end is recorded; `null` until then. */

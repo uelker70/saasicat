@@ -319,6 +319,10 @@ const ENDED = {
 const ENDED_LINE =
     'Since 10.11.2026: the subscription has ended. After that you can still read your data until the end of 9.12.2026, but no longer change it. On 10.12.2026 it is deleted.';
 
+/** The same two days where the tenant is suspended or being deleted and can read nothing now. */
+const ENDED_DAYS_LINE =
+    'Since 10.11.2026: the subscription has ended. Read-only period until the end of 9.12.2026, deletion on 10.12.2026.';
+
 /** What a user who is not the tenant's administrator reads of an ended subscription. */
 const endedToAnyone = (overrides: Partial<TenantAccessView> = {}): TenantAccessView => ({
     state: 'read-only',
@@ -416,7 +420,7 @@ describe('the banner of a tenant whose subscription ended', () => {
         expect(lines(wrapper)).toEqual(['Since 10.11.2026: the subscription has ended.']);
     });
 
-    test('names the days beside a suspension too, where the server says them, and offers no export', async () => {
+    test('while suspended, names the two days as days and says nothing of reading now, and offers no export', async () => {
         const { http } = httpRouting({
             'GET /billing/account/access': [
                 [
@@ -440,10 +444,51 @@ describe('the banner of a tenant whose subscription ended', () => {
         const wrapper = await mountBanner(http);
 
         expect(lines(wrapper)).toEqual([
-            ENDED_LINE,
+            ENDED_DAYS_LINE,
             'Since 17.11.2026: suspended by your provider.',
         ]);
+        expect(wrapper.text()).not.toContain('you can still read');
         expect(exportButton(wrapper)).toBeUndefined();
+    });
+
+    test('while being deleted, names the two days as days and says nothing of reading now', async () => {
+        const { http } = httpRouting({
+            'GET /billing/access': [
+                [
+                    200,
+                    endedToAnyone({
+                        state: 'deleting',
+                        reasons: [
+                            ENDED,
+                            {
+                                kind: 'deleting',
+                                since: '2026-12-10',
+                                invoiceNumber: null,
+                                ...NO_DAYS,
+                            },
+                        ],
+                    }),
+                ],
+            ],
+        });
+        const wrapper = await mountBanner(http);
+
+        expect(lines(wrapper)).toEqual([
+            ENDED_DAYS_LINE,
+            'Since 10.12.2026: the account is being deleted.',
+        ]);
+        expect(wrapper.text()).not.toContain('you can still read');
+    });
+
+    test('while suspended, names the two days as days in German to a German reader', async () => {
+        const { http } = httpRouting({
+            'GET /billing/access': [[200, endedToAnyone({ state: 'suspended' })]],
+        });
+        const wrapper = await mountBanner(http, { german: true });
+
+        expect(lines(wrapper)).toEqual([
+            'Seit 10.11.2026: Das Abonnement ist beendet. Lesefrist bis einschließlich 9.12.2026, Löschung am 10.12.2026.',
+        ]);
     });
 });
 
