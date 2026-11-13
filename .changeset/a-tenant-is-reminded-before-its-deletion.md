@@ -15,14 +15,16 @@ without `tenantBilling.notices.port`** (`subscription-notices.requires-port`).
 It is the application's `SubscriptionNoticePort`, and every notice the platform
 decides is due goes through it. The option is required in `SaaSiCatModule`'s
 types, so the compiler asks for it; a start without it, from code the compiler
-did not check, is refused, and where a port is still passed under
-`versionNotices` the refusal says where it goes.
+did not check, is refused.
 
 **Breaking: the notice port and its record move.** `versionNotices.port` is now
 `notices.port`, and `versionNotices.notices` is `notices.record`;
 `versionNotices: {}` keeps the version notices on.
 `chargeJournal.invoices.notices` is gone: what collecting an invoice tells its
-subscriber is kept in `notices.record` too. The record defaults to the bundle's
+subscriber is kept in `notices.record` too. A start that still passes any of the
+three where it was is refused, naming where it moved
+(`subscription-notices.no-moved-options`), and so is `TenantBillingModule`
+wired by hand. The record defaults to the bundle's
 `persistence.tenantBilling.subscriptionNotices` and is now required wherever
 `tenantBilling` is on (`subscription-notices.requires-record`, which replaces
 `version-notices.requires-notice-record`), so adopt `SubscriptionNotice`

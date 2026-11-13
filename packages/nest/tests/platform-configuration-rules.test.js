@@ -417,6 +417,18 @@ describe('every rule can actually fail', () => {
             },
             adapters: CORE_ADAPTERS,
         },
+        // Notice options given where tenant billing no longer reads them.
+        {
+            options: {
+                planCatalog: MINIMAL_CATALOG,
+                controller: { guards: [] },
+                tenantBilling: {
+                    versionNotices: { port: {}, notices: {} },
+                    chargeJournal: { invoices: { notices: {} } },
+                },
+            },
+            adapters: CORE_ADAPTERS,
+        },
     ];
 
     test('every rule fails in at least one probe', () => {

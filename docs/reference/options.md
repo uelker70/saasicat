@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 33 rules, in 18 areas.
+There are 34 rules, in 18 areas.
 
 ## core
 
@@ -148,6 +148,16 @@ day exists for the tenant to take it (SC-PRIV-019).
 application sends the notices the platform decides are due through a
 SubscriptionNoticePort, and a tenant's administrators learn the day its data is
 deleted from them once nobody signs in any more (SC-CANC-022).
+
+### subscription-notices.no-moved-options
+
+`tenantBilling.versionNotices.port` is not read any more: the one port every
+notice goes through is `tenantBilling.notices.port`. Move it there.
+`tenantBilling.versionNotices.notices` is not read any more: the one record
+every notice is kept in is `tenantBilling.notices.record`. Move it there.
+`tenantBilling.chargeJournal.invoices.notices` is not read any more: the one
+record every notice is kept in, those of a collection included, is
+`tenantBilling.notices.record`. Move it there.
 
 ### subscription-notices.requires-record
 

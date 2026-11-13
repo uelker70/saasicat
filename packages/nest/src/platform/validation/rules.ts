@@ -32,7 +32,11 @@ import {
     type SaaSiCatAdapters,
     type SaaSiCatModuleOptions,
 } from '../module-options.js';
-import { noticesNotWired } from '../../billing/notice-sender.js';
+import {
+    everyMovedNoticeOption,
+    movedNoticeOptionsIn,
+    noticesNotWired,
+} from '../../billing/notice-sender.js';
 import { exportNotWired } from '../../billing/tenant-data-export.service.js';
 import { resolveBundleRepository } from '../compose/bundle-repository-source.js';
 import { servesTenantAccess } from '../compose/tenant-access.js';
@@ -155,17 +159,12 @@ export const resolvesPlans = (c: PlatformConfiguration): boolean =>
         (c.options.tenantBilling && c.adapters.subscriptionRepository),
     );
 
-/**
- * Whether the version notices are given a port of their own, which they do
- * not take: an application that passes one there and none under
- * `tenantBilling.notices` is told where it goes.
- */
-function versionNoticesCarryAPort(c: PlatformConfiguration): boolean {
-    const versionNotices = optionsOf(c.options.tenantBilling)?.versionNotices;
-    return (
-        typeof versionNotices === 'object' && versionNotices !== null && 'port' in versionNotices
-    );
-}
+/** An option below tenant billing, as the application writes it. */
+const tenantBillingOption = (path: string): string => `\`tenantBilling.${path}\``;
+
+/** The notice options tenant billing is still given where they moved from, as refusals. */
+const movedNoticeOptions = (c: PlatformConfiguration): string[] =>
+    movedNoticeOptionsIn(optionsOf(c.options.tenantBilling) ?? {}, tenantBillingOption);
 
 /** Names the entries of `required` that are absent, in declaration order. */
 function absent<T extends Record<string, unknown>>(required: T): string[] {
@@ -382,12 +381,18 @@ const RULE_SPECS: readonly RuleSpec[] = [
         id: 'subscription-notices.requires-port',
         when: (c) => Boolean(c.options.tenantBilling),
         assert: (c) => Boolean(optionsOf(c.options.tenantBilling)?.notices?.port),
+        message: noticesNotWired('`tenantBilling.notices.port`'),
+    },
+    {
+        id: 'subscription-notices.no-moved-options',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) => movedNoticeOptions(c).length === 0,
+        // Every one where none is given: what the reference page lists.
         message: (c) =>
-            noticesNotWired('`tenantBilling.notices.port`') +
-            (versionNoticesCarryAPort(c)
-                ? ' `tenantBilling.versionNotices` takes no port: the one port every notice goes ' +
-                  'through is `tenantBilling.notices.port`.'
-                : ''),
+            (movedNoticeOptions(c).length > 0
+                ? movedNoticeOptions(c)
+                : everyMovedNoticeOption(tenantBillingOption)
+            ).join(' '),
     },
     {
         id: 'subscription-notices.requires-record',

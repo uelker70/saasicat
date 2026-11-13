@@ -81,7 +81,7 @@ import { VersionNoticeService } from './version-notice.service.js';
 import { SubscriptionEndService } from './subscription-end.service.js';
 import { SubscriptionEndCron } from './subscription-end.cron.js';
 import { DeletionReminderService } from './deletion-reminder.service.js';
-import { noticeRecordNotWired, noticesNotWired } from './notice-sender.js';
+import { movedNoticeOptionsIn, noticeRecordNotWired, noticesNotWired } from './notice-sender.js';
 import { TrialEndService } from './trial-end.service.js';
 import {
     VersionRetirementService,
@@ -678,6 +678,10 @@ export class TenantBillingModule {
         ];
 
         assertNoMovedOptions(options);
+        const movedNotices = movedNoticeOptionsIn(options, (path) => `\`${path}\``);
+        if (movedNotices.length > 0) {
+            throw new Error(`TenantBillingModule: ${movedNotices.join(' ')}`);
+        }
 
         // Both come from `config/saas.yaml`, which the catalogue carries, and
         // from nowhere else. A `useValue` here would be the second home this

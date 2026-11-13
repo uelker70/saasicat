@@ -62,13 +62,17 @@ describe('the notice port, which serving tenants cannot start without', () => {
         assert.equal(message.split('. ').length, 1, 'one sentence');
     });
 
-    test('passed to the version notices instead, the refusal says where it goes', () => {
-        const [violation] = violationsOf(
+    test('passed to the version notices instead, the start is refused for both: the port missing, and given where it is not read', () => {
+        const violations = violationsOf(
             withNotices(undefined, { versionNotices: { port: sendingPort() } }),
         );
+        assert.deepEqual(
+            violations.map((violation) => violation.id),
+            ['subscription-notices.requires-port', 'subscription-notices.no-moved-options'],
+        );
         assert.match(
-            String(violation?.message),
-            /`tenantBilling\.versionNotices` takes no port: the one port every notice goes through is `tenantBilling\.notices\.port`/,
+            String(violations[1]?.message),
+            /`tenantBilling\.versionNotices\.port` is not read any more: the one port every notice goes through is `tenantBilling\.notices\.port`/,
         );
     });
 
@@ -179,6 +183,101 @@ describe('the port and the record, named once', () => {
             assert.equal(service.notices, record, `${name} records in the bundle's record`);
         }
         await moduleRef.close();
+    });
+});
+
+/**
+ * Each notice option tenant billing no longer reads, set on tenant billing's
+ * `options`, with the one read in its place.
+ */
+const MOVED = [
+    {
+        was: 'versionNotices.port',
+        now: 'notices.port',
+        give: (options) => ({ ...options, versionNotices: { port: sendingPort() } }),
+    },
+    {
+        was: 'versionNotices.notices',
+        now: 'notices.record',
+        give: (options) => ({ ...options, versionNotices: { notices: noticeRecord() } }),
+    },
+    {
+        was: 'chargeJournal.invoices.notices',
+        now: 'notices.record',
+        give: (options) => ({
+            ...options,
+            chargeJournal: {
+                ...options.chargeJournal,
+                invoices: { ...options.chargeJournal?.invoices, notices: noticeRecord() },
+            },
+        }),
+    },
+];
+
+/** The platform's options with the port and the record named, and tenant billing's passed through `change`. */
+function withMoved(change) {
+    const options = withNotices({ port: sendingPort(), record: noticeRecord() });
+    return { ...options, tenantBilling: change(options.tenantBilling) };
+}
+
+/** `option` as the refusal writes it, matched literally. */
+const named = (option) => `\`tenantBilling.${option}\``;
+
+// @requirement SC-CANC-022 — A tenant is reminded before its data is deleted
+describe('a notice option given where it is no longer read', () => {
+    for (const { was, now, give } of MOVED) {
+        test(`\`${was}\` refuses the start, naming where it moved`, () => {
+            const violations = violationsOf(withMoved(give));
+            assert.deepEqual(
+                violations.map((violation) => violation.id),
+                ['subscription-notices.no-moved-options'],
+            );
+            const message = String(violations[0]?.message);
+            assert.ok(message.startsWith(`${named(was)} is not read any more: `), message);
+            assert.ok(message.includes(` is ${named(now)}. Move it there.`), message);
+        });
+
+        test(`\`${was}\` refuses tenant billing wired by hand, naming where it moved`, () => {
+            const given = give({
+                ...HAND_WIRED,
+                notices: { port: sendingPort(), record: noticeRecord() },
+            });
+            assert.throws(
+                () => TenantBillingModule.forRoot(given),
+                (error) =>
+                    error.message.startsWith(
+                        `TenantBillingModule: \`${was}\` is not read any more: `,
+                    ) && error.message.includes(` is \`${now}\`. Move it there.`),
+            );
+        });
+    }
+
+    test('all three at once refuse the start with a sentence each', () => {
+        const options = withMoved((tenantBilling) =>
+            MOVED.reduce((given, { give }) => give(given), tenantBilling),
+        );
+        options.tenantBilling.versionNotices = {
+            port: sendingPort(),
+            notices: noticeRecord(),
+        };
+        const [violation] = violationsOf(options);
+        const message = String(violation?.message);
+        for (const { was } of MOVED) {
+            assert.ok(message.includes(`${named(was)} is not read any more`), was);
+        }
+        assert.equal(message.split('Move it there.').length, MOVED.length + 1);
+    });
+
+    test('set to undefined, as a spread may leave it, names nothing and is not refused', () => {
+        const options = withMoved((tenantBilling) => ({
+            ...tenantBilling,
+            versionNotices: { port: undefined, notices: undefined },
+            chargeJournal: {
+                ...tenantBilling.chargeJournal,
+                invoices: { ...tenantBilling.chargeJournal.invoices, notices: undefined },
+            },
+        }));
+        assert.deepEqual(violationsOf(options), []);
     });
 });
 

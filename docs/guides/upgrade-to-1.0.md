@@ -4727,14 +4727,18 @@ To adopt it:
     "`tenantBilling.notices.port` is missing: wherever tenants are served, the application sends the
     notices the platform decides are due through a SubscriptionNoticePort, and a tenant's
     administrators learn the day its data is deleted from them once nobody signs in any more
-    (SC-CANC-022)." Where a port is still passed under `versionNotices`, the refusal adds:
-    "`tenantBilling.versionNotices` takes no port: the one port every notice goes through is
-    `tenantBilling.notices.port`."
+    (SC-CANC-022)." A port still passed under `versionNotices` refuses the start as well, whether or
+    not `notices.port` is given beside it (`subscription-notices.no-moved-options`):
+    "`tenantBilling.versionNotices.port` is not read any more: the one port every notice goes through
+    is `tenantBilling.notices.port`. Move it there."
 
 2. Name the record in one place, or nowhere. `tenantBilling.versionNotices.notices` is now
    `tenantBilling.notices.record`, and `tenantBilling.chargeJournal.invoices.notices` is gone: what
-   collecting an invoice tells its subscriber is kept in the same record. Without either, the record
-   is `persistence.tenantBilling.subscriptionNotices`, which both shipped bundles provide. It is now
+   collecting an invoice tells its subscriber is kept in the same record. A start that still names a
+   record at either old place is refused, naming where it moved
+   (`subscription-notices.no-moved-options`), rather than leaving the notices in a record the
+   application did not name. Without either, the record is
+   `persistence.tenantBilling.subscriptionNotices`, which both shipped bundles provide. It is now
    required wherever `tenantBilling` is on, not only with version notices: adopt
    `SubscriptionNotice` from `prisma-fragments/17-subscription-notice.prisma` and run its migration
    once, before `db push` where you use one, if you have not —

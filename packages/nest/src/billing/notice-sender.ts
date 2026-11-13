@@ -50,6 +50,67 @@ export function noticeRecordNotWired(option: string): string {
     );
 }
 
+/** A notice option tenant billing no longer reads, and the one it reads in its place. */
+interface MovedNoticeOption {
+    /** Where it was given, below tenant billing's options. */
+    readonly was: readonly string[];
+    /** Where it is read, below the same options. */
+    readonly now: string;
+    /** What the option read in its place is, as the refusal says it. */
+    readonly what: string;
+}
+
+const MOVED_NOTICE_OPTIONS: readonly MovedNoticeOption[] = [
+    {
+        was: ['versionNotices', 'port'],
+        now: 'notices.port',
+        what: 'the one port every notice goes through',
+    },
+    {
+        was: ['versionNotices', 'notices'],
+        now: 'notices.record',
+        what: 'the one record every notice is kept in',
+    },
+    {
+        was: ['chargeJournal', 'invoices', 'notices'],
+        now: 'notices.record',
+        what: 'the one record every notice is kept in, those of a collection included,',
+    },
+];
+
+/** The member `key` of `value`, where `value` is an object that has it as its own; otherwise undefined. */
+function memberOf(value: unknown, key: string): unknown {
+    if (typeof value !== 'object' || value === null) return undefined;
+    return Object.getOwnPropertyDescriptor(value, key)?.value;
+}
+
+/**
+ * The refusals of the notice options tenant billing's `options` still give
+ * where they no longer are read, one sentence each, naming the option and the
+ * one read in its place as `written` writes an option's path; empty where
+ * there is none. Refused rather than ignored: from code the compiler did not
+ * check, an ignored port or record leaves notices going somewhere other than
+ * where the application named them. A value counts, not a key: a spread that
+ * sets one to `undefined` named nothing.
+ */
+export function movedNoticeOptionsIn(options: object, written: (path: string) => string): string[] {
+    return MOVED_NOTICE_OPTIONS.filter(
+        (moved) => moved.was.reduce<unknown>(memberOf, options) !== undefined,
+    ).map((moved) => refusalOf(moved, written));
+}
+
+/** The refusal of every notice option tenant billing no longer reads, for the page that lists them. */
+export function everyMovedNoticeOption(written: (path: string) => string): string[] {
+    return MOVED_NOTICE_OPTIONS.map((moved) => refusalOf(moved, written));
+}
+
+function refusalOf(moved: MovedNoticeOption, written: (path: string) => string): string {
+    return (
+        `${written(moved.was.join('.'))} is not read any more: ${moved.what} is ` +
+        `${written(moved.now)}. Move it there.`
+    );
+}
+
 /**
  * What an attempt came to: told; failed, for the next run to try again;
  * `untold` where the application named nobody and the notice waits for

@@ -793,7 +793,8 @@ _Tested by:_
 - `packages/nest/tests/the-notices-are-wired-where-tenants-are-served.test.js`
     - the notice port, which serving tenants cannot start without
         - left out, the start is refused with one sentence naming the option, the port and why
-        - passed to the version notices instead, the refusal says where it goes
+        - passed to the version notices instead, the start is refused for both: the port missing,
+          and given where it is not read
         - given, nothing is refused
         - without tenant billing, it is not asked for
         - tenant billing wired by hand with the ends and without it does not start, naming the
@@ -802,6 +803,11 @@ _Tested by:_
     - the port and the record, named once
         - reach every service that sends or records a notice
         - where no record is named, the bundle's is the one every service records in
+    - a notice option given where it is no longer read
+        - \
+        - \
+        - all three at once refuse the start with a sentence each
+        - set to undefined, as a spread may leave it, names nothing and is not refused
 
 <!-- END proof -->
 
