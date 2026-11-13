@@ -1,20 +1,24 @@
 // FeatureGuard configuration. Consumers register an object under
 // FEATURE_GUARD_CONFIG_TOKEN when they:
-//   - need a tenant context (RLS) inside the limits computation
-//     (e.g. `runWithTenant`),
+//   - need a tenant context (RLS) inside the limits computation where no
+//     `RlsBypassPort` is in scope (e.g. `runWithTenant`),
 //   - use a user-role source other than `user.role`/`user.platformRole`,
 //   - want to read the `tenantId` from a request field other than `request.tenantId` /
 //     `request.user.tenantId`.
 //
-// Without a config entry the guard behaves like the original app-local
-// implementation — just without RLS wrapping. Apps without Postgres RLS do not need this.
+// Without a config entry the guard asks `EntitlementService` as it stands,
+// which reads through the bypass where one is in scope.
 
 export interface FeatureGuardConfig {
     /**
-     * Wraps `EntitlementService.computeLimits` in a tenant context.
-     * Consumers with RLS pass `runWithTenant(tenantId, fn)` here
-     * — so that the repository queries see the tenant in the DB session
-     * variables. Without RLS: omit the field, the default is identity.
+     * Wraps `EntitlementService.computeLimits` in a tenant context, such as
+     * `runWithTenant(tenantId, fn)`. Where an `RlsBypassPort` is in scope —
+     * `SaaSiCatModule` provides it — `computeLimits` reads the tenant's
+     * subscription through it, by the tenant asked about, whatever frame it
+     * runs in (`SC-SEC-019`), so the platform's reads need no runner. One
+     * still serves where no bypass is in scope, or where the bound port only
+     * calls through while a policy guards the tables. Without row-level
+     * security: omit the field, the default is identity.
      */
     tenantContextRunner?: <T>(tenantId: string, fn: () => Promise<T>) => Promise<T>;
 

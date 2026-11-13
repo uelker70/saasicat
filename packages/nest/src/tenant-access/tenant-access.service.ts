@@ -7,8 +7,23 @@
 // does the same behind the application's guards on its own tenant routes. A
 // session opened before the state changed is held to it on its next request,
 // since nothing is cached between two.
+//
+// Every read and write here goes through `RlsBypassPort` where one is bound
+// (`SC-SEC-019`). The check runs in guards, and the application opens its
+// tenant frame in an interceptor, after every guard: a policy on the
+// platform's tables does not see the request's tenant before that frame is
+// opened. Read through the bypass, the state is the same in a guard, in a
+// handler, in a job and on an operator's route. Each read names its tenant,
+// the one the session names, and the state follows from that tenant's own
+// reasons alone.
 
-import { type ExecutionContext, ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import {
+    type ExecutionContext,
+    ForbiddenException,
+    Inject,
+    Injectable,
+    Optional,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
     KINDS_HOLDING_EVERYONE_BACK,
@@ -24,12 +39,15 @@ import {
     type TenantAccessView,
     type TenantAccessViewOptions,
     type TenantExportDownload,
+    type RlsBypassPort,
     requestWrites,
     tenantAccessOf,
     tenantAccessRefusal,
     tenantAccessViewOf,
 } from '@saasicat/core';
 
+import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
+import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { codedError } from '../errors/coded-error.js';
 import { referencesOf } from './hold-references.js';
 import { tenantAccessMarkOf } from './tenant-access-marks.js';
@@ -145,7 +163,18 @@ export class TenantAccessService {
     constructor(
         @Inject(TENANT_ACCESS_HOLDS_TOKEN) private readonly holds: TenantAccessHoldPort,
         @Inject(Reflector) private readonly reflector: Reflector,
+        // Absent only where this module is wired by hand without one in
+        // scope; `SaaSiCatModule` provides it. Every read then runs in the
+        // caller's frame.
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
     ) {}
+
+    /** Runs `work` inside the bypass where one is bound, and plainly where none is. */
+    private throughTheBypass<T>(work: () => Promise<T>): Promise<T> {
+        return readAcrossTenants(this.rlsBypass, work);
+    }
 
     /** Lets `source` say whether a tenant's subscriber has an invoice open. */
     answerOpenInvoicesFrom(source: OpenInvoiceSource): void {
@@ -167,13 +196,14 @@ export class TenantAccessService {
      * subscriber whose record lists them; none where invoices are not wired.
      */
     async invoicesNamed(invoiceIds: readonly string[]): Promise<NamedInvoice[]> {
-        if (invoiceIds.length === 0 || !this.invoiceNames) return [];
-        return this.invoiceNames.invoicesNamed(invoiceIds);
+        const names = this.invoiceNames;
+        if (invoiceIds.length === 0 || !names) return [];
+        return this.throughTheBypass(() => names.invoicesNamed(invoiceIds));
     }
 
     /** The state of `tenantId` and the open reasons it follows from. */
     async accessOf(tenantId: string): Promise<TenantAccess> {
-        return tenantAccessOf(await this.holds.listOpen(tenantId));
+        return tenantAccessOf(await this.throughTheBypass(() => this.holds.listOpen(tenantId)));
     }
 
     /**
@@ -210,26 +240,30 @@ export class TenantAccessService {
      * the downloads.
      */
     async endsNamed(tenantId: string, subscriptionIds: readonly string[]): Promise<NamedEnd[]> {
-        if (subscriptionIds.length === 0 || !this.endedSubscriptions) return [];
-        return this.endedSubscriptions.endsWithDownloadsOf(tenantId, subscriptionIds);
+        const ends = this.endedSubscriptions;
+        if (subscriptionIds.length === 0 || !ends) return [];
+        return this.throughTheBypass(() => ends.endsWithDownloadsOf(tenantId, subscriptionIds));
     }
 
     private async endsOf(
         tenantId: string,
         subscriptionIds: readonly string[],
     ): Promise<SubscriptionEnd[]> {
-        if (subscriptionIds.length === 0 || !this.endedSubscriptions) return [];
-        return this.endedSubscriptions.endsOf(tenantId, subscriptionIds);
+        const ends = this.endedSubscriptions;
+        if (subscriptionIds.length === 0 || !ends) return [];
+        return this.throughTheBypass(() => ends.endsOf(tenantId, subscriptionIds));
     }
 
     /** Every tenant nobody of which acts at all: suspended, or being deleted. */
     async tenantsHeldBack(): Promise<string[]> {
-        return this.holds.listTenantIdsHeldBy(KINDS_HOLDING_EVERYONE_BACK);
+        return this.throughTheBypass(() =>
+            this.holds.listTenantIdsHeldBy(KINDS_HOLDING_EVERYONE_BACK),
+        );
     }
 
     /** The state of each of `tenantIds`, from one read; a tenant without an open reason is open. */
     async accessOfEach(tenantIds: readonly string[]): Promise<Map<string, TenantAccess>> {
-        const holds = await this.holds.listOpenFor(tenantIds);
+        const holds = await this.throughTheBypass(() => this.holds.listOpenFor(tenantIds));
         return new Map(
             tenantIds.map((tenantId) => [
                 tenantId,
@@ -241,7 +275,9 @@ export class TenantAccessService {
     /**
      * Records the operator's suspension of `tenantId` with their `note`, or
      * null where the tenant is suspended already: the suspension that stands
-     * keeps its own note and moment.
+     * keeps its own note and moment. Written through the bypass, as the
+     * operator writes for the platform rather than for a tenant: the same
+     * row is written whichever frame the caller is in.
      */
     async suspend(
         tenantId: string,
@@ -249,29 +285,38 @@ export class TenantAccessService {
         recordedBy: string,
         at: Date,
     ): Promise<TenantAccessHold | null> {
-        return this.holds.record({
-            tenantId,
-            kind: 'suspended',
-            reference: null,
-            note,
-            since: at,
-            recordedBy,
-        });
+        return this.throughTheBypass(() =>
+            this.holds.record({
+                tenantId,
+                kind: 'suspended',
+                reference: null,
+                note,
+                since: at,
+                recordedBy,
+            }),
+        );
     }
 
     /**
      * Lifts the suspension of `tenantId` and no other reason, or answers null
      * where the tenant is not suspended. An overdue invoice or an ended
      * subscription keeps the tenant where that reason puts it.
+     *
+     * The suspension is found and lifted in one bypass frame. A lift outside
+     * the frame the read ran in could not reach the row the read found: a
+     * policy hides it from the update, which then changes nothing and raises
+     * nothing, and the tenant would read as not suspended.
      */
     async reactivate(
         tenantId: string,
         liftedBy: string,
         at: Date,
     ): Promise<TenantAccessHold | null> {
-        const open = await this.holds.listOpen(tenantId);
-        const suspension = open.find((hold) => hold.kind === 'suspended');
-        return suspension ? this.holds.lift(suspension.id, at, liftedBy) : null;
+        return this.throughTheBypass(async () => {
+            const open = await this.holds.listOpen(tenantId);
+            const suspension = open.find((hold) => hold.kind === 'suspended');
+            return suspension ? this.holds.lift(suspension.id, at, liftedBy) : null;
+        });
     }
 
     /**
@@ -351,7 +396,7 @@ export class TenantAccessService {
         if (
             refusal === 'read-only' &&
             intent.startsPayment === true &&
-            (await this.openInvoices?.hasOpenInvoice(tenantId)) === true
+            (await this.hasOpenInvoice(tenantId))
         ) {
             return;
         }
@@ -365,5 +410,12 @@ export class TenantAccessService {
                 })),
             }),
         );
+    }
+
+    /** Whether `tenantId`'s subscriber has an invoice open; never where invoices are not wired. */
+    private async hasOpenInvoice(tenantId: string): Promise<boolean> {
+        const invoices = this.openInvoices;
+        if (!invoices) return false;
+        return (await this.throughTheBypass(() => invoices.hasOpenInvoice(tenantId))) === true;
     }
 }

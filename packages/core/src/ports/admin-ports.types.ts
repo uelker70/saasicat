@@ -361,6 +361,12 @@ export interface ManifestAccessPort {
  * at start rather than where it is called. Wrap the call the way it is given —
  * `AsyncLocalStorage.run` is the shape both shipped adapters use, and it is as
  * good at boot as it is in a request.
+ *
+ * **Not only inside a tenant's frame.** The checks of a tenant's request — its
+ * access state, and the subscription behind what its plan allows — read
+ * through it in guards and interceptors, before the application's interceptor
+ * opens the tenant's frame, so an implementation must not assume that frame is
+ * open.
  */
 export interface RlsBypassPort {
     /**

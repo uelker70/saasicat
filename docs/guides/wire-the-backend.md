@@ -1429,7 +1429,7 @@ billing permission (`tenantBilling.billingPermissionGuards`), and are mounted wh
 issued. The subscriber is the session's tenant's: an invoice or a contract of another subscriber is
 answered `404` like one that does not exist. An earlier tenant's invoices keep that tenant's id
 after a join, so the reads run inside `RlsBypassPort`, by the subscriber's id alone — the one read
-a tenant makes past its own boundary (`SC-SEC-018`).
+of a tenant's that reaches another tenant's rows (`SC-SEC-019`).
 
 **The tenant reads its account** at `GET /billing/account`, beside the invoices and behind the same
 guards: per currency, what the subscriber's invoices still owe and of that what is overdue, and
@@ -1859,6 +1859,16 @@ makes the tenant read-only in that run.
   deleted included, since they carry the mark `reads-its-state`, which your guard's `enforce` reads
   as the platform does. Mount `TenantAccessBanner` from `@saasicat/ui-vue-tenant` behind your
   sign-in to show it.
+- **Under row-level security** the check reads through `RlsBypassPort` (`SC-SEC-019`). Your guard
+  asks it before your interceptor opens the tenant's frame, so a policy on `tenant_access_holds` does
+  not see the request's tenant there. The platform therefore reads the tenant's reasons — and what
+  they name: an invoice's number, whether an invoice is open, an ended subscription's deletion day —
+  inside the bypass, by the tenant your guard passes, and the state is the same in a guard, a
+  handler, a job and an operator's route. Your implementation of the port has to lift the policy
+  there, as it does for the administration's reads. A port that only calls through, as an
+  installation without row policies binds, reads in the caller's frame: with a policy on the
+  platform's tables, bind one that lifts it — the Prisma bundle's `rlsIntegration: true` — or the
+  policy has to let the platform's reads through.
 
 ### A subscription that ended
 
@@ -2613,6 +2623,14 @@ export class StorageGbQuotaProvider implements QuotaProvider {
     }
 }
 ```
+
+Under row-level security the limit and the count are read in different places. The platform reads
+the tenant's plan, and with it the limit, through `RlsBypassPort`, by the tenant id it passes
+(`SC-SEC-019`). `count` is yours and runs in whatever frame the quota interceptor runs in — before
+your own interceptor has opened the tenant's frame, unless yours runs first. Count by the `tenantId`
+you are handed, in a frame of your own for that tenant, or register your frame interceptor so that
+it runs before the platform's; the order Nest runs them in is in
+[integrating into an existing app](integrate-into-an-existing-app.md#step-6--global-guards-run-before-controller-local-ones).
 
 > After adding/changing any decorator, the app must restart so the
 > discovery snapshot is rewritten. Only then do the entries appear on the

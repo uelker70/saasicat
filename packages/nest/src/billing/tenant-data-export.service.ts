@@ -161,8 +161,10 @@ export class TenantDataExportService implements OnModuleInit, EndedSubscriptionS
     }
 
     /**
-     * Read within the tenant's own scope, as every read of a tenant's request
-     * is (`SC-SEC-018`), and held to `tenantId` besides.
+     * Read in the frame the caller runs in and held to `tenantId`: the
+     * download reads it within the tenant's own scope, the access check
+     * through the bypass, where `tenantId` is all that bounds it
+     * (`SC-SEC-019`).
      */
     async endsOf(tenantId: string, subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]> {
         if (subscriptionIds.length === 0) return [];
@@ -172,7 +174,7 @@ export class TenantDataExportService implements OnModuleInit, EndedSubscriptionS
 
     /**
      * Read past the tenants' policy, as every read of the administration is
-     * (`SC-SEC-018`): the operator's detail page asks outside any tenant's
+     * (`SC-SEC-019`): the operator's detail page asks outside any tenant's
      * scope. Held to `tenantId`, one read of the ends and one of the downloads.
      */
     async endsWithDownloadsOf(

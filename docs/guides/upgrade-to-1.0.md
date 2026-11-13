@@ -3628,8 +3628,18 @@ that expired nothing and reported success.
   your own there.
 - **A policy you lifted yourself for these routes** — around a repository, say — can go, and should:
   a repository that reads across tenants on every call does so for a tenant's request as well.
-- **A `CatalogModule` or `AdminStatsModule` wired by hand** needs an `RlsBypassPort` in scope under
-  row-level security. `SaaSiCatModule` provides it.
+- **The plan behind `@RequireFeature` and `@EnforceQuota`** is read through the port too
+  (`SC-SEC-019`), by the tenant id the guard or the interceptor is given, since both can run before
+  your interceptor opens the tenant's frame: the subscription `SubscriptionPlanResolver` reads, and
+  what `EntitlementService.computeLimits` reads for `FeatureGuard`. A `tenantContextRunner` you set
+  on `FeatureGuard` for that purpose is no longer needed where the port is in scope.
+  `QuotaProvider.count` and an `adapters.planResolver` of your own stay yours, in whatever frame the
+  platform calls them in: count and read by the `tenantId` passed, or run your frame interceptor
+  first, as
+  [integrating into an existing app](integrate-into-an-existing-app.md#step-6--global-guards-run-before-controller-local-ones)
+  describes. A `SubscriptionPlanResolver` you build yourself takes the port as its fourth argument.
+- **A `CatalogModule`, `AdminStatsModule`, `EntitlementModule` or `TenantAccessModule` wired by
+  hand** needs an `RlsBypassPort` in scope under row-level security. `SaaSiCatModule` provides it.
 
 ### Transactions can wait for a connection
 
@@ -4281,6 +4291,14 @@ tenant passes there too; one your guard did not check is checked as a tenant use
 - **A refusal** is a `403` with `TENANT_READ_ONLY`, `TENANT_SUSPENDED` or `TENANT_BEING_DELETED`
   and the open reasons in `params.reasons`, each with its `kind` and `since`. An operator's note on
   a suspension is not in it. The shipped texts cover English and German.
+- **Under row-level security** the check reads a tenant's reasons, and what they name, through
+  your `RlsBypassPort` (`SC-SEC-019`): it runs in your guard, before your interceptor opens the
+  tenant's frame, where a policy on `tenant_access_holds` does not see the request's tenant. Read
+  through the bypass, by the tenant your guard passes, the state is the same in a guard, a handler
+  and a job. Nothing changes in your guard. A port that only calls through reads in the caller's
+  frame, so with a policy on the platform's tables bind one that lifts it, or let the policy pass the
+  platform's reads. A `TenantAccessModule` wired by hand, without `SaaSiCatModule`, reaches the port
+  through `imports` — the module that provides it, such as your `AdminModule.forRoot(...)`.
 - **A persistence contract harness** gains the `tenantAccessHolds` member; a harness without it
   declares `gaps: ['tenantAccessHolds']`.
 - **Your own tests** that compose `SaaSiCatModule` with `tenantBilling` need the store in

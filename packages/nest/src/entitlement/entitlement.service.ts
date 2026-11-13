@@ -20,6 +20,7 @@ import type {
     PlanCatalog,
     PlanCatalogSettings,
     PlanVersionRepository,
+    RlsBypassPort,
     SubscriptionBundleRepository,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
@@ -35,6 +36,8 @@ import {
     installationZoneOf,
     nextWithdrawalChange,
 } from '@saasicat/core';
+import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
+import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import {
     PLAN_CATALOG_SETTINGS_TOKEN,
@@ -197,6 +200,12 @@ export class EntitlementService {
         @Optional()
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
         private readonly settings: Pick<PlanCatalogSettings, 'timeZone'> | null = null,
+        // Where `computeLimits` reads under row-level security. Absent only
+        // where the module is wired by hand without one in scope; the reads
+        // then run in the caller's frame.
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
     ) {}
 
     // ---------------------------------------------------------------------
@@ -210,6 +219,15 @@ export class EntitlementService {
      * that reading and kept out of the cache in both directions — not taken
      * from it, and not written to it, since a reading the caller holds may be
      * older than the one everybody else should be answered from.
+     *
+     * The tenant's subscription and everything read with it — its contract in
+     * force, its add-on bookings — are read through the bypass where one is
+     * bound (`SC-SEC-019`), by the tenant asked about, in one frame. A feature
+     * guard asks before the application's interceptor opens the tenant's
+     * frame, where a policy does not see the request's tenant; read through
+     * the bypass, the limits are the same in a guard, a handler and a job,
+     * whether or not they are cached. One frame, so that a subscription is
+     * never measured without the contract a policy would hide beside it.
      */
     async computeLimits(
         tenantId: string,
@@ -222,13 +240,18 @@ export class EntitlementService {
         }
 
         const startedAt = this.generationOf(tenantId);
-        const sub = await this.requireSubscription(tenantId);
-        const withdrawals = await this.withdrawalsOnRecord();
-        if (catalog)
-            return (await this.answerFor(sub, now, catalog, undefined, { withdrawals })).limits;
-        const answer = await this.answerFor(sub, now, await this.catalogs.current(), undefined, {
-            withdrawals,
+        const { sub, answer } = await readAcrossTenants(this.rlsBypass, async () => {
+            const subscription = await this.requireSubscription(tenantId);
+            const withdrawals = await this.withdrawalsOnRecord();
+            const reading = catalog ?? (await this.catalogs.current());
+            return {
+                sub: subscription,
+                answer: await this.answerFor(subscription, now, reading, undefined, {
+                    withdrawals,
+                }),
+            };
         });
+        if (catalog) return answer.limits;
         // A cached answer may not outlive the cancellation it was computed
         // before — the subscription's or an add-on's — nor the moment a
         // withdrawal takes effect or is lifted. Every other thing that changes

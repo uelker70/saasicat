@@ -10,6 +10,12 @@
 // `EntitlementService.enforceLimit(...)` remains the preferable path as an
 // imperative API.
 //
+// **Frames.** The limit comes from the plan, which the resolver reads through
+// the RLS bypass where it is given one (`SC-SEC-019`). The count is the
+// application's and runs in whatever frame this interceptor runs in; where the
+// application's own interceptor opens the tenant's frame after this one, the
+// provider counts by the tenant id it is handed.
+//
 
 import {
     type CallHandler,

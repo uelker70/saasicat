@@ -218,6 +218,30 @@ and 403s every `@RequireFeature` route.
 The quota interceptor stays global either way — interceptors run _after_ all
 guards, so it does see the authenticated request.
 
+**Under row-level security** the feature guards and the quota interceptor read
+the tenant's plan through your `RlsBypassPort`, by the tenant id they are given
+(`SC-SEC-019`): `StaticFeatureGuard` and the interceptor through
+`SubscriptionPlanResolver`, `FeatureGuard` through `EntitlementService`. They
+run before your interceptor opens the tenant's frame and read the same plan
+there as inside it; there is nothing to wire. Two reads behind them are yours
+and run in whatever frame the platform calls them in:
+
+- **`QuotaProvider.count(tenantId)`**, which the quota interceptor calls. Count
+  by the `tenantId` it passes, in a frame of your own for that tenant, or
+  register the interceptor that opens the frame so that it runs before the
+  platform's. Nest runs global interceptors in the order it finds them: a
+  singleton `APP_INTERCEPTOR` in your root module's own `providers` runs first,
+  then those of the imported modules in import order, then any added with
+  `app.useGlobalInterceptors(...)` in `main.ts`, and request-scoped ones last.
+  Only the first of these runs before the platform's, which sits in the
+  `SaaSiCatModule` import; a module of yours imported before `SaaSiCatModule`
+  works as well. The platform cannot tell which of your interceptors opens the
+  frame, so it does not check the order for you.
+- **An `adapters.planResolver` of your own**, which `StaticFeatureGuard` calls
+  before any interceptor runs, and the quota interceptor again. Read by the
+  `tenantId` it passes, in a frame of your own for that tenant or through your
+  bypass.
+
 ---
 
 ## Step 7 — do not forget the second bootstrap
