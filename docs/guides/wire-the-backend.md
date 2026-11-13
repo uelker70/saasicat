@@ -1924,9 +1924,11 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   with other lead times and one not, or clocks on either side of the installation's midnight — at
   most one sends: each reads the end's reminders again after claiming its own, and lets go where
   another is held or one was told since it decided; where each sees the other, neither sends, and
-  the next run decides again. A suspended tenant is reminded all the same, since a suspension does
-  not stop the deletion; while it lasts, the suspension refuses the export as it refuses every
-  request.
+  the next run decides again. Two instances that keep running with different lead times — a canary,
+  or a second slot kept warm — reach an end at the same moment every run, so they can keep letting
+  go of the lead times they disagree on until one both name is due. A suspended tenant is reminded
+  all the same, since a suspension does not stop the deletion; while it lasts, the suspension
+  refuses the export as it refuses every request.
 - **Told before it is confirmed.** `GET billing/usage` answers what cancelling now would tell as
   `cancellation.deletion` — `readOnlyDays`, `readOnlyUntil` and `deletesOn` — and what was told as
   `announcedDeletion`. Once a cancellation is declared, `cancellation.deletion` is the day

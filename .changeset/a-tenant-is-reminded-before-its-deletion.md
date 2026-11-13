@@ -61,7 +61,10 @@ one restarted with other lead times and one not, or clocks on either side of
 the installation's midnight — at most one sends: each reads the end's reminders
 again after claiming its own, and lets go where another is held or one was told
 since it decided; where each sees the other, neither sends, and the next run
-decides again. A suspended tenant is reminded all the same. A change to the
+decides again. Two instances that keep running with different lead times — a
+canary, or a second slot kept warm — reach an end at the same moment every
+run, so they can keep letting go of the lead times they disagree on until one
+both name is due. A suspended tenant is reminded all the same. A change to the
 lead times applies once the application has restarted, to ends recorded earlier
 too, and repeats no reminder already sent. A port that switches over
 `notice.kind` exhaustively fails to compile until it handles the new kind; one

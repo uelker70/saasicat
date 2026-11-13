@@ -209,7 +209,12 @@ export class DeletionReminderService {
      * told: where one sees it, that one lets its claim go and the other
      * sends; where both see each other, both let go and nothing goes this
      * run, and the next run decides again on what the record then holds. One
-     * reminder at most, never two from one decision.
+     * reminder at most, never two from one decision. Two instances that keep
+     * running with different lead times — a canary, or a second slot kept
+     * warm — reach the end at the same moment every run, so they can keep
+     * letting go of the lead times they disagree on until one both name is
+     * due: breaking the tie would need an order the database stamps, since
+     * each claim's moment comes from its instance's own clock.
      *
      * A reminder told since the run decided is reason enough to let go, even
      * where the lead time decided on would still be due beside it: under
