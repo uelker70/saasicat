@@ -712,6 +712,115 @@ and a run that repeats sends no reminder twice. Each reminder sent is part of th
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tenant-is-reminded-before-its-deletion.test.js`
+    - the reminder due before a deletion
+        - is none the day before the largest lead time is due
+        - is the largest lead time on its day
+        - is none the day after, once that reminder was told
+        - is none the day before the next lead time is due
+        - is the next lead time on its day
+        - is the smallest lead time on its day, once the others were told
+        - is still the smallest lead time the day before the deletion, where no run told it
+        - is none on the deletion day itself, though nothing was told
+        - is none after the deletion day
+        - covers two lead times that passed between runs with one reminder, for the smaller
+        - covers the lead times a period shorter than them passed with one reminder at once
+        - covers every lead time with one reminder where the period is shorter than all of them
+        - is the same whatever order the file names the lead times in
+        - counts a lead day back across the end of a year
+        - counts a reminder told for a lead time the file no longer names as covering the larger
+          ones
+        - is a lead time added to the file after a larger one was told, on its day
+        - takes a lead time longer than the calendar reaches back as one due long since
+    - the day a reminder is decided on
+        - is the installation's day ahead of UTC, not UTC's
+        - is the installation's day behind UTC, not UTC's
+- `packages/nest/tests/a-tenant-is-reminded-before-its-deletion.test.js`
+    - the reminders before a deletion
+        - on the largest lead time's day, one reminder names the end, both days and the lead time,
+          and is recorded with whom it reached and how
+        - none the day before, by a quarter of an hour
+        - a run that repeats, the same day or the next, sends nothing twice
+        - each later lead time goes on its own day, and none after the deletion day has come
+        - ten days to go when the end is recorded: the 29- and 10-day lead times are covered by one
+          reminder at once, and the 3-day one goes on its day
+        - an end whose deletion day has come, or passed, is reminded of nothing
+        - reads every tenant's ends and reminders in one go, across tenants through the bypass
+        - two instances racing over one end send its reminder once
+        - a port that throws lets the reminder go, and the next run sends it
+        - a port that tells nobody is recorded as told to nobody and not tried again; the next lead
+          time still goes on its day
+        - a reminder that cannot be put together fails for its end alone, and the next run sends it
+    - a reminder another run still holds
+        - holds back the smaller lead time, so no second e-mail goes out alongside it
+        - once delivered, covers what it covers, and the smaller lead time goes by the next run
+        - once let go, covers nothing: the smaller lead time goes, and the larger one never
+        - a claim older than a quarter of an hour holds back nothing
+        - taken on by an instance whose clock runs behind the one that recorded the end, still holds
+          it back
+        - holds back only its own end's reminders
+    - two instances deciding on different lead times at once
+        - never send two reminders, whatever the order of the two claims and the two checks
+        - where each sees the other, both let go and nothing goes; the next run sends exactly one
+        - a fresh read that fails lets the claim go as a failure, and the next run sends the
+          reminder
+    - a reminder of a larger lead time left undelivered
+        - is never sent once a smaller one is due, through every run until the deletion day
+    - the lead times a reminder is decided by
+        - are the file's the application started with: changed and restarted after the end was
+          recorded, the new ones apply to it and nothing is told twice
+        - count the installation's day ahead of UTC, not UTC's
+        - count the installation's day behind UTC, not UTC's
+    - the quarter-hourly run
+        - records the ends first and reminds after
+        - a run whose recording fails still reminds the ends recorded before
+        - a run whose reminding fails lets the next one try again
+        - under a maintenance lock neither records nor reminds; the next run catches up
+        - a run still going when the next is due lets it pass, and nothing is asked twice
+    - the reminders, as the platform wires them
+        - an end the run records is reminded by the same run where a lead time is already due,
+          through the port and into the record named
+        - the run that records the ends reminds after them; without it, the reminders are there for
+          the application to call
+        - a suspended tenant is reminded all the same: a suspension does not stop its deletion
+        - is left alone by the version notice run, which sweeps every other kind's notices left
+          undelivered
+    - a reminder left undelivered, in the record the invoice collections tell from
+        - is not told by the collection run, which tells its own notices left undelivered
+- `packages/nest/tests/plan-catalog-loader.test.js`
+    - lead times nobody named are refused, and the field is named
+    - a list of lead times that promises no reminder, or one twice, is refused
+    - lead times in any order, the period shorter than some, are read as written
+- `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
+    - the lead times of a catalogue built in code
+        - left out, the start is refused, naming the field
+        - given as ${JSON.stringify(given)}, the start is refused, naming the field
+        - given as [1], the smallest the schema takes, the application starts
+- `packages/nest/tests/the-notices-are-wired-where-tenants-are-served.test.js`
+    - the notice port, which serving tenants cannot start without
+        - left out, the start is refused with one sentence naming the option, the port and why
+        - passed to the version notices instead, the start is refused for both: the port missing,
+          and given where it is not read
+        - given, nothing is refused
+        - without tenant billing, it is not asked for
+        - tenant billing wired by hand with the ends and without it does not start, naming the
+          option and the port
+        - tenant billing wired by hand with the version notices and without it does not start
+    - the port and the record, named once
+        - reach every service that sends or records a notice
+        - where no record is named, the bundle's is the one every service records in
+    - a notice option given where it is no longer read
+        - \
+        - \
+        - all three at once refuse the start with a sentence each
+        - set to undefined, as a spread may leave it, names nothing and is not refused
+
+<!-- END proof -->
+
 ### SC-CANC-029 — A tenant that ends its subscription at once is told the deletion day first
 
 🟢 🔒 Ending at once while a feature is withdrawn (`SC-CANC-024`) is the other way a tenant ends its
@@ -1151,6 +1260,12 @@ _Tested by:_
     - an installation that serves tenants
         - records the ends every quarter of an hour unless told not to
         - refuses to start where the file says nothing of the end, naming the setting
+    - the read-only period of a catalogue built in code
+        - left out, the start is refused, naming the field
+        - given as ${given}, the start is refused, naming the field
+        - given as 1, the smallest the schema takes, the application starts
+        - beside a member the schema does not know, the start is refused, naming the member
+        - malformed, it is refused while the application starts, before any run could read it
 
 <!-- END proof -->
 

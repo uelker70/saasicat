@@ -101,6 +101,7 @@ export {
     type SubscriptionEndRun,
 } from './subscription-end.service.js';
 export { SubscriptionEndCron } from './subscription-end.cron.js';
+export { DeletionReminderService, type DeletionReminderRun } from './deletion-reminder.service.js';
 export {
     SubscriptionCancellationService,
     type CancellationProjection,

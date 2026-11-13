@@ -11,6 +11,7 @@ import {
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
 import { anExport } from './helpers/tenant-data-export.js';
+import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
 // Where a bundle repository may come from.
 //
@@ -80,6 +81,7 @@ const boot = (persistence) =>
             subscriptionUsagePort: {},
             usageSnapshotPort: {},
             subscriptionWritePort: {},
+            notices: { port: sendingPort(), record: noticeRecord() },
             subscriptionEnds: { export: anExport() },
         },
         subscriptionBundles: {},

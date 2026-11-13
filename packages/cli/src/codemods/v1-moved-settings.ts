@@ -136,7 +136,8 @@ export const WHERE_IT_GOES: Record<string, string> = {
         '`true` once your terms carry the clause that allows retiring a version for running ' +
         'subscriptions, `false` until they do.',
     endOfSubscription:
-        'config/saas.yaml → tenantBilling.endOfSubscription — `readOnlyDays` is required: the ' +
-        'days a tenant can still read and export its data after its subscription ended, the ' +
-        'deletion day being the one after them.',
+        'config/saas.yaml → tenantBilling.endOfSubscription — `readOnlyDays` and ' +
+        '`reminderDaysBefore` are required: the days a tenant can still read and export its ' +
+        'data after its subscription ended, the deletion day being the one after them, and ' +
+        'the days before that deletion day on which its administrators are reminded.',
 };

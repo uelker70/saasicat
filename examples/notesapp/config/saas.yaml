@@ -57,9 +57,18 @@ tenantBilling:
     # export its data for these days, and the data is deleted on the day after
     # them. No default — how long you keep a former customer's data is yours to
     # decide and to state in your terms. The day is fixed when the end is
-    # recorded, so a change here applies to subscriptions that end after it.
+    # recorded, so a change here applies, once the application has restarted,
+    # to the ends recorded after that.
     endOfSubscription:
         readOnlyDays: 30
+        # The tenant's administrators are reminded on each of these days
+        # before the deletion day, and told where to take the export. A lead
+        # time that has passed when the subscription ends — or that the period
+        # is too short for — is covered by one reminder sent at once; none goes
+        # twice. No default either: when a former customer is warned is yours
+        # to decide. This file is read when the application starts, so a change
+        # here applies once it has restarted, to ends recorded before too.
+        reminderDaysBefore: [29, 10, 3]
 
 marketing:
     availableLocales: [en]

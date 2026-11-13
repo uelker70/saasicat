@@ -22,7 +22,7 @@ const CATALOG = {
     tenantBilling: {
         cancellationNoticeDays: { monthly: 14, yearly: 90 },
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
-        endOfSubscription: { readOnlyDays: 30 },
+        endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
     },
     plans: [{ id: 'PRO', quotas: { users: 1 }, features: [] }],
 };

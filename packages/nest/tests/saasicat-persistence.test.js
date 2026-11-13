@@ -22,6 +22,7 @@ import {
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
 import { anExport } from './helpers/tenant-data-export.js';
+import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
 // forRoot wiring of the `persistence` bundle option (adapter bundles from
 // e.g. @saasicat/adapter-prisma) incl. the capability fail-fast.
@@ -35,7 +36,7 @@ const planCatalog = {
         cancellationNoticeDays: { monthly: 0, yearly: 0 },
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
         orderlyRetirement: { termsConfirmed: false },
-        endOfSubscription: { readOnlyDays: 30 },
+        endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
     },
     plans: [],
 };
@@ -147,7 +148,7 @@ describe('SaaSiCatModule persistence bundle', () => {
                     '  cancellationNoticeDays: { monthly: 0, yearly: 0 }',
                     '  selfServiceBlockedPlans: { asTarget: [], asSource: [] }',
                     '  orderlyRetirement: { termsConfirmed: false }',
-                    '  endOfSubscription: { readOnlyDays: 30 }',
+                    '  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }',
                 ].join('\n'),
             );
             let loads = 0;
@@ -280,6 +281,7 @@ describe('SaaSiCatModule persistence bundle', () => {
         bundle.tenantBilling = {
             subscriptionUsagePort: {},
             subscriptionWritePort: {},
+            subscriptionNotices: noticeRecord(),
         };
         bundle.entitlement.subscriptionBundleRepository = {};
         bundle.entitlement.bundleRepository = bundle.catalog.bundleRepository;
@@ -302,7 +304,11 @@ describe('SaaSiCatModule persistence bundle', () => {
                     featureUiRegistry: {},
                     autoSyncDiscoveryAtBoot: false,
                 },
-                tenantBilling: { authGuards: [], subscriptionEnds: { export: anExport() } },
+                tenantBilling: {
+                    authGuards: [],
+                    notices: { port: sendingPort() },
+                    subscriptionEnds: { export: anExport() },
+                },
                 subscriptionBundles: true,
                 adminResources: true,
                 promoCodes: true,
@@ -394,6 +400,7 @@ describe('SaaSiCatModule persistence bundle', () => {
             tenantBilling: {
                 subscriptionUsagePort: { findForTenant: async () => null },
                 subscriptionWritePort: emptyRepository,
+                subscriptionNotices: noticeRecord(),
             },
             adminResources: {
                 resources: {
@@ -425,7 +432,11 @@ describe('SaaSiCatModule persistence bundle', () => {
                         adminControllers: false,
                         autoSyncDiscoveryAtBoot: false,
                     },
-                    tenantBilling: { authGuards: [], subscriptionEnds: { export: anExport() } },
+                    tenantBilling: {
+                        authGuards: [],
+                        notices: { port: sendingPort() },
+                        subscriptionEnds: { export: anExport() },
+                    },
                     subscriptionBundles: true,
                     adminResources: true,
                     promoCodes: true,

@@ -11,6 +11,7 @@ import {
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
 import { anExport } from './helpers/tenant-data-export.js';
+import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
 // A rule that reads an optional dependency is only as real as its wiring.
 //
@@ -41,7 +42,7 @@ const CATALOG = {
     tenantBilling: {
         cancellationNoticeDays: { monthly: 0, yearly: 0 },
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
-        endOfSubscription: { readOnlyDays: 30 },
+        endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
     },
     plans: [
         // Ranked below Pro, so a move from Pro to Basic lands at the end of the term.
@@ -243,6 +244,7 @@ async function bootWithBookings(bookings, subscription = SUBSCRIPTION) {
                     subscriptionUsagePort: { findForTenant: async () => subscription },
                     usageSnapshotPort: { snapshot: async () => ({ users: 1 }) },
                     subscriptionWritePort: {},
+                    notices: { port: sendingPort(), record: noticeRecord() },
                     subscriptionEnds: { export: anExport() },
                 },
                 subscriptionBundles: {},

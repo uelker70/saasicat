@@ -80,6 +80,12 @@ import { PlansAheadService } from './plans-ahead.js';
 import { VersionNoticeService } from './version-notice.service.js';
 import { SubscriptionEndService } from './subscription-end.service.js';
 import { SubscriptionEndCron } from './subscription-end.cron.js';
+import { DeletionReminderService } from './deletion-reminder.service.js';
+import { movedNoticeOptionsIn, noticeRecordNotWired, noticesNotWired } from './notice-sender.js';
+import {
+    describeCatalogProblem,
+    tenantBillingSectionProblems,
+} from './plan-catalog-schema-check.js';
 import { TrialEndService } from './trial-end.service.js';
 import {
     VersionRetirementService,
@@ -117,7 +123,6 @@ import {
     CONTRACT_CONFIRMATION_REPOSITORY_TOKEN,
 } from './confirmations/contract-confirmation.tokens.js';
 import {
-    INVOICE_COLLECTION_NOTICE_REPOSITORY_TOKEN,
     INVOICE_COLLECTION_REPOSITORY_TOKEN,
     SUBSCRIBER_PAYMENT_REPOSITORY_TOKEN,
 } from './invoices/invoice-collection.tokens.js';
@@ -230,15 +235,18 @@ function confirmationProviders(invoices: InvoicesOptions): Provider[] {
 }
 
 /**
- * One commercial setting out of the catalogue, or a sentence saying where it
+ * One commercial setting out of the catalogue, held to the schema's
+ * definition of its section, or a sentence saying what is wrong and where it
  * should have come from.
  *
- * The loader refuses a `config/saas.yaml` without `tenantBilling`, so a
- * catalogue arriving here without one was assembled in code — an object
- * handed straight to `planCatalog`; the database path reads the file too,
- * since `dbCatalog` names it. Without this the failure is
- * `Cannot read properties of undefined`, thrown from a Nest factory, which
- * names neither the file nor the field.
+ * The loader refuses a `config/saas.yaml` without the section, or with one the
+ * schema does not accept, so a catalogue arriving here with either was
+ * assembled in code — an object handed straight to `planCatalog`; the
+ * database path reads the file too, since `dbCatalog` names it. Without this a
+ * missing section fails as `Cannot read properties of undefined`, thrown from
+ * a Nest factory, which names neither the file nor the field, and a malformed
+ * one starts the application and fails, or does nothing, when it is read.
+ * Asked when the provider is built, so the start is what is refused.
  */
 function settingFromCatalog<K extends keyof PlanCatalogSettings['tenantBilling']>(
     catalog: PlanCatalogSettings,
@@ -252,6 +260,15 @@ function settingFromCatalog<K extends keyof PlanCatalogSettings['tenantBilling']
                 'section of config/saas.yaml and the loader refuses a file without it, ' +
                 'so a catalogue that reaches here without one was built in code: check ' +
                 'the object passed to `planCatalog`.',
+        );
+    }
+    const problems = tenantBillingSectionProblems(key, value);
+    if (problems.length > 0) {
+        throw new Error(
+            `The plan catalogue's tenantBilling.${key} does not hold to the schema of ` +
+                'config/saas.yaml, and the loader refuses a file with it, so it was built ' +
+                'in code: check the object passed to `planCatalog`.\n  ' +
+                problems.map(describeCatalogProblem).join('\n  '),
         );
     }
     return value;
@@ -321,18 +338,38 @@ export interface SubscriptionEndsOptions {
     export: ProviderSpec<TenantDataExportPort>;
     /**
      * Default `true`: a run every quarter of an hour records the subscriptions
-     * that ended. Needs `ScheduleModule`; set `false` where none runs, or where
-     * the application calls `SubscriptionEndService.recordEnded` from a
-     * scheduler of its own.
+     * that ended, then reminds each tenant whose deletion day is near
+     * (`SC-CANC-022`). Needs `ScheduleModule`; set `false` where none runs, or
+     * where the application calls `SubscriptionEndService.recordEnded` and then
+     * `DeletionReminderService.remindDue` from a scheduler of its own — both,
+     * in that order, or a tenant whose subscription ended is never warned.
      */
     includeCron?: boolean;
 }
 
-export interface VersionNoticesOptions {
-    /** Sends a notice to the tenant's administrators, and says to whom and how. */
+/**
+ * How the notices the platform decides are due reach a tenant's
+ * administrators, and where each is recorded (`SC-SUB-023`): the reminders
+ * before a tenant's data is deleted and the version notices where those are
+ * on. What collecting an invoice tells its subscriber goes out by the invoice
+ * mail and is kept in the same record.
+ */
+export interface SubscriptionNoticesOptions {
+    /**
+     * The application's port: finds the tenant's administrators, words the
+     * message and sends it, and says to whom and how.
+     */
     port: ProviderSpec<SubscriptionNoticePort>;
     /** Where the record of each notice is kept. */
-    notices: ProviderSpec<SubscriptionNoticeRepository>;
+    record: ProviderSpec<SubscriptionNoticeRepository>;
+}
+
+/**
+ * Turns the version notices on: a newer plan or add-on version offered, and,
+ * where these are wired, a version retired and a feature withdrawn. They are
+ * sent through `notices.port` and recorded in `notices.record`.
+ */
+export interface VersionNoticesOptions {
     /**
      * Default `true`: a run every quarter of an hour sends what is due. Needs
      * `ScheduleModule`; set `false` where none runs, or where the application
@@ -544,17 +581,13 @@ export interface TenantBillingModuleOptions {
              * gateway are kept — `persistence.entitlement.invoiceCollectionRepository`.
              * Required where `config/saas.yaml` names `payments`: the invoices
              * then announce how they are collected, and the quarter-hourly run
-             * collects them (`SC-PRIC-099`). Needs `PaymentsModule`.
+             * collects them (`SC-PRIC-099`). Needs `PaymentsModule`, and
+             * `notices.record`, where what the subscriber is told about
+             * collecting an invoice — a failure, and a direct debit announced
+             * again — is recorded with the other notices, so each is sent once
+             * (`SC-PRIC-101`).
              */
             collections?: ProviderSpec<InvoiceCollectionRepository>;
-            /**
-             * Where what the subscriber is told about collecting an invoice is
-             * recorded — a failure, and a direct debit announced again — so
-             * each is sent once (`SC-PRIC-101`). Required with `collections`;
-             * `SaaSiCatModule` takes `persistence.tenantBilling.subscriptionNotices`
-             * unless this names another.
-             */
-            notices?: ProviderSpec<SubscriptionNoticeRepository>;
             /**
              * Where what the collections brought is recorded — each payment
              * once, what it settles, the credits a subscriber is owed and the
@@ -577,19 +610,30 @@ export interface TenantBillingModuleOptions {
     };
 
     /**
+     * The application's notice port and the record of each notice. Required
+     * with `subscriptionEnds`, whose tenants are reminded before their data is
+     * deleted (`SC-CANC-022`), with `versionNotices`, and with invoices that
+     * are collected; `SaaSiCatModule` requires it wherever tenant billing is
+     * on.
+     */
+    notices?: SubscriptionNoticesOptions;
+
+    /**
      * Optional notices that a newer version of a subscriber's plan is offered
      * to them (`VersionNoticeService`): once per version and subscription, when
-     * the offer appears beside the plan, through the application's `port`,
-     * which finds the tenant's administrators, words the message and sends it.
-     * `notices` keeps the record of each. Without this nothing is sent, and the
-     * offer is still shown.
+     * the offer appears beside the plan, through `notices.port`, which finds
+     * the tenant's administrators, words the message and sends it, and
+     * recorded in `notices.record`. Without this no version notice is sent, and
+     * the offer is still shown.
      */
     versionNotices?: VersionNoticesOptions;
 
     /**
      * Records each subscription that ended, with the day its tenant's data is
-     * deleted on, and holds the tenant to reading until then
-     * (`SubscriptionEndService`, `SC-CANC-027`). `SaaSiCatModule` passes the
+     * deleted on, holds the tenant to reading until then
+     * (`SubscriptionEndService`, `SC-CANC-027`), and reminds its
+     * administrators before that day through `notices`
+     * (`DeletionReminderService`, `SC-CANC-022`). `SaaSiCatModule` passes the
      * bundle's store; without this no end is recorded, which only a module
      * wired by hand does.
      */
@@ -650,6 +694,10 @@ export class TenantBillingModule {
         ];
 
         assertNoMovedOptions(options);
+        const movedNotices = movedNoticeOptionsIn(options, (path) => `\`${path}\``);
+        if (movedNotices.length > 0) {
+            throw new Error(`TenantBillingModule: ${movedNotices.join(' ')}`);
+        }
 
         // Both come from `config/saas.yaml`, which the catalogue carries, and
         // from nowhere else. A `useValue` here would be the second home this
@@ -799,9 +847,6 @@ export class TenantBillingModule {
                           InvoiceCollectionService,
                       ]
                     : []),
-                ...(invoices.notices
-                    ? [asProvider(INVOICE_COLLECTION_NOTICE_REPOSITORY_TOKEN, invoices.notices)]
-                    : []),
                 ...(invoices.collections && invoices.payments
                     ? [
                           asProvider(SUBSCRIBER_PAYMENT_REPOSITORY_TOKEN, invoices.payments),
@@ -828,10 +873,28 @@ export class TenantBillingModule {
             },
             inject: [PLAN_CATALOG_SETTINGS_TOKEN, { token: TAX_TREATMENTS_TOKEN, optional: true }],
         });
+        // One port and one record for every notice, whatever it is about: each
+        // service that sends or records one finds them under the same tokens.
+        const notices = options.notices;
+        if (notices) {
+            if (!notices.port) {
+                throw new Error(noticesNotWired('TenantBillingModule: `notices.port`'));
+            }
+            if (!notices.record) {
+                throw new Error(noticeRecordNotWired('TenantBillingModule: `notices.record`'));
+            }
+            providers.push(
+                asProvider(SUBSCRIPTION_NOTICE_PORT_TOKEN, notices.port),
+                asProvider(SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN, notices.record),
+            );
+        }
         const subscriptionEnds = options.subscriptionEnds;
         if (subscriptionEnds) {
             if (!subscriptionEnds.export) {
                 throw new Error(exportNotWired('TenantBillingModule: `subscriptionEnds.export`'));
+            }
+            if (!notices) {
+                throw new Error(noticesNotWired('TenantBillingModule: `notices`'));
             }
             providers.push(
                 asProvider(SUBSCRIPTION_END_PORT_TOKEN, subscriptionEnds.store),
@@ -846,14 +909,19 @@ export class TenantBillingModule {
                 },
                 SubscriptionEndService,
                 TrialEndService,
+                DeletionReminderService,
                 ...(subscriptionEnds.includeCron === false ? [] : [SubscriptionEndCron]),
             );
         }
         const versionNotices = options.versionNotices;
         if (versionNotices) {
+            if (!notices) {
+                throw new Error(
+                    'TenantBillingModule: `versionNotices` needs `notices` — the version notices ' +
+                        'are sent through its port and recorded in its record.',
+                );
+            }
             providers.push(
-                asProvider(SUBSCRIPTION_NOTICE_PORT_TOKEN, versionNotices.port),
-                asProvider(SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN, versionNotices.notices),
                 VersionNoticeService,
                 ...(versionNotices.includeCron === false ? [] : [VersionNoticeCron]),
                 // Where bookings are read: the notice of a newer add-on version
@@ -932,9 +1000,9 @@ export class TenantBillingModule {
                     throw new Error(
                         'config/saas.yaml confirms tenantBilling.orderlyRetirement.termsConfirmed, ' +
                             'but nothing can announce a retirement: it needs ' +
-                            '`tenantBilling.versionNotices` (a notice port) and a place to keep ' +
-                            'announcements (`VersionRetirement`, see 18-version-retirement.prisma). ' +
-                            'Wire both, or set termsConfirmed to false.',
+                            '`tenantBilling.versionNotices`, which turns the version notices on, ' +
+                            'and a place to keep announcements (`VersionRetirement`, see ' +
+                            '18-version-retirement.prisma). Wire both, or set termsConfirmed to false.',
                     );
                 }
                 return confirmed;
@@ -987,7 +1055,9 @@ export class TenantBillingModule {
                 TenantAdminGuard,
                 PlanChangePreviewService,
                 PLANS_AHEAD_TOKEN,
-                ...(subscriptionEnds ? [SubscriptionEndService, TrialEndService] : []),
+                ...(subscriptionEnds
+                    ? [SubscriptionEndService, TrialEndService, DeletionReminderService]
+                    : []),
                 SUBSCRIPTION_USAGE_PORT_TOKEN,
                 USAGE_SNAPSHOT_PORT_TOKEN,
                 SUBSCRIPTION_WRITE_PORT_TOKEN,

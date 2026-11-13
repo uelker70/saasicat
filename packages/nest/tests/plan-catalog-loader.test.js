@@ -24,7 +24,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
-  endOfSubscription: { readOnlyDays: 30 }
+  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }
 features:
   - { key: VEHICLE_INVENTORY, label: Fahrzeugbestand, tier: CORE }
   - { key: DMS,               label: Dokumentenablage, tier: PRO }
@@ -72,7 +72,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
-  endOfSubscription: { readOnlyDays: 30 }
+  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }
 plans:
   - id: BASIC
     quotas: { users: 1 }
@@ -95,7 +95,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
-  endOfSubscription: { readOnlyDays: 30 }
+  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }
 plans:
   - id: BASIC
     quotas: { users: 1 }
@@ -124,7 +124,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
-  endOfSubscription: { readOnlyDays: 30 }
+  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }
 features:
   - { key: F1 }
 plans:
@@ -149,7 +149,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
-  endOfSubscription: { readOnlyDays: 30 }
+  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }
 plans:
   - id: BASIC
     quotas: { users: 1 }
@@ -178,7 +178,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
-  endOfSubscription: { readOnlyDays: 30 }
+  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }
 features:
   - { key: F1 }
   - { key: F2_PLANNED, plannedOnly: true }
@@ -202,7 +202,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
-  endOfSubscription: { readOnlyDays: 30 }
+  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }
 features:
   - { key: F1 }
 plans:
@@ -306,6 +306,62 @@ test('a self-service list nobody named is refused too', () => {
             return true;
         },
     );
+});
+
+// @requirement SC-CANC-022 — A tenant is reminded before its data is deleted
+test('lead times nobody named are refused, and the field is named', () => {
+    const yaml = VALID_YAML.replace(
+        'endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }',
+        'endOfSubscription: { readOnlyDays: 30 }',
+    );
+    assert.throws(
+        () => loadPlanCatalogFromString(yaml, { source: 'no-lead-times' }),
+        (error) => {
+            assert.ok(error instanceof PlanCatalogValidationError);
+            assert.match(
+                error.message,
+                /tenantBilling\.endOfSubscription\.reminderDaysBefore: must have required property 'reminderDaysBefore'/,
+            );
+            return true;
+        },
+    );
+});
+
+// @requirement SC-CANC-022 — A tenant is reminded before its data is deleted
+test('a list of lead times that promises no reminder, or one twice, is refused', () => {
+    for (const [list, said] of [
+        ['[]', /reminderDaysBefore: must NOT have fewer than 1 items/],
+        ['[29, 10, 10]', /reminderDaysBefore: must NOT have duplicate items/],
+        ['[29, 0]', /reminderDaysBefore\.1: must be >= 1/],
+        ['[29, 2.5]', /reminderDaysBefore\.1: must be integer/],
+        ['29', /reminderDaysBefore: must be array/],
+    ]) {
+        const yaml = VALID_YAML.replace(
+            'reminderDaysBefore: [29, 10, 3]',
+            `reminderDaysBefore: ${list}`,
+        );
+        assert.throws(
+            () => loadPlanCatalogFromString(yaml, { source: 'bad-lead-times' }),
+            (error) => {
+                assert.ok(error instanceof PlanCatalogValidationError, list);
+                assert.match(error.message, said, list);
+                return true;
+            },
+        );
+    }
+});
+
+// @requirement SC-CANC-022 — A tenant is reminded before its data is deleted
+test('lead times in any order, the period shorter than some, are read as written', () => {
+    const yaml = VALID_YAML.replace(
+        'endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }',
+        'endOfSubscription: { readOnlyDays: 10, reminderDaysBefore: [3, 29, 10] }',
+    );
+    const catalog = loadPlanCatalogFromString(yaml, { source: 'lead-times' });
+    assert.deepEqual(catalog.tenantBilling.endOfSubscription, {
+        readOnlyDays: 10,
+        reminderDaysBefore: [3, 29, 10],
+    });
 });
 
 test('empty lists and zeroes are values, not omissions', () => {

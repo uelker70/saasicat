@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { asc, inArray } from 'drizzle-orm';
+import { asc, gt, inArray } from 'drizzle-orm';
 import {
+    type CalendarDay,
     type NewSubscriptionEnd,
     type NewSubscriptionEndAnnouncement,
     type NewTenantExportDownload,
@@ -46,6 +47,16 @@ export class DrizzleSubscriptionEndRepository implements SubscriptionEndPort {
             .from(subscriptionEnds)
             .where(inArray(subscriptionEnds.subscriptionId, [...subscriptionIds]))
             .orderBy(asc(subscriptionEnds.subscriptionId));
+        return rows.map(toSubscriptionEnd);
+    }
+
+    /** `deletesOn` is a `date` read as its text, compared as a date by the database. */
+    async listDeletingAfter(day: CalendarDay): Promise<SubscriptionEnd[]> {
+        const rows = await this.db
+            .select()
+            .from(subscriptionEnds)
+            .where(gt(subscriptionEnds.deletesOn, day))
+            .orderBy(asc(subscriptionEnds.deletesOn), asc(subscriptionEnds.subscriptionId));
         return rows.map(toSubscriptionEnd);
     }
 

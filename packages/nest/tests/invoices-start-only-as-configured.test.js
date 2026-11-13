@@ -222,10 +222,8 @@ describe('the payment methods invoices are collected with', () => {
     test('refuse the start where the invoices are collected and nothing records what the subscriber is told', async () => {
         const message = await refusal(installation({ payments: 'wired', notices: false }));
 
-        assert.match(
-            message,
-            /collecting invoices tells the subscriber of a failure and announces a direct debit again/,
-        );
+        assert.match(message, /subscription-notices\.requires-record/);
+        assert.match(message, /nowhere to record the notices sent to a tenant/);
     });
 
     // @requirement SC-PRIC-099 — An invoice is collected as it says, and an entered payment method collects it

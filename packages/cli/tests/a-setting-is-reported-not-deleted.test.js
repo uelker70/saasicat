@@ -49,6 +49,7 @@ describe('what init says about the settings it wrote', () => {
             { key: 'tenantBilling.selfServiceBlockedPlans.asSource', value: '[]' },
             { key: 'tenantBilling.orderlyRetirement.termsConfirmed', value: 'false' },
             { key: 'tenantBilling.endOfSubscription.readOnlyDays', value: '30' },
+            { key: 'tenantBilling.endOfSubscription.reminderDaysBefore', value: '[29,10,3]' },
         ]);
     });
 

@@ -26,6 +26,7 @@ import { FakeSubscriptionEndRepository } from '../dist/testing/index.js';
 import { bootable, everythingOnOptions } from './helpers/operator-routes.js';
 import { usageRecord } from './helpers/subscription-fixtures.js';
 import { anExport } from './helpers/tenant-data-export.js';
+import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
 /** The platform's options with `subscriptionEnds` as given, and the bundle's store kept or not. */
 function withEnds(subscriptionEnds, { bundleKeepsEnds = true } = {}) {
@@ -221,6 +222,9 @@ describe('the routes a tenant ends its subscription through', () => {
                     usageSnapshotPort: { snapshot: async () => ({}) },
                     subscriptionWritePort: {},
                     subscriptionEnds,
+                    notices: subscriptionEnds
+                        ? { port: sendingPort(), record: noticeRecord() }
+                        : undefined,
                 }),
             ],
         }).compile();
@@ -259,7 +263,7 @@ const HAND_WIRED_CATALOG = {
     tenantBilling: {
         cancellationNoticeDays: { monthly: 0, yearly: 0 },
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
-        endOfSubscription: { readOnlyDays: 30 },
+        endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
     },
     plans: [],
 };
@@ -269,4 +273,131 @@ const RUNNING = usageRecord({
     id: 'sub-t1',
     billingCycle: 'MONTHLY',
     currentPeriodEnd: new Date('2099-12-31T23:30:00.000Z'),
+});
+
+/**
+ * Starts the platform over a catalogue built in code whose `tenantBilling`
+ * carries `sections` in place of the ones the helper writes.
+ */
+async function startedWith(sections, catalogue = {}) {
+    const options = withEnds(undefined);
+    const planCatalog = {
+        ...options.planCatalog,
+        ...catalogue,
+        tenantBilling: { ...options.planCatalog.tenantBilling, ...sections },
+    };
+    const moduleRef = await Test.createTestingModule({
+        imports: [SaaSiCatModule.forRoot(bootable({ ...options, planCatalog }))],
+    }).compile();
+    await moduleRef.close();
+}
+
+/** `endOfSubscription` with `change` applied to the helper's valid one. */
+const endOfSubscription = (change) => ({
+    endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3], ...change },
+});
+
+/** Asserts that starting with `sections` is refused with `line` among the problems named. */
+async function refusedNaming(sections, line) {
+    await assert.rejects(startedWith(sections), (error) => {
+        assert.ok(
+            error.message.includes('was built in code: check the object passed to `planCatalog`'),
+            error.message,
+        );
+        assert.ok(error.message.includes(`\n  ${line}`), error.message);
+        return true;
+    });
+}
+
+// @requirement SC-CANC-022 — A tenant is reminded before its data is deleted
+describe('the lead times of a catalogue built in code', () => {
+    test('left out, the start is refused, naming the field', async () => {
+        await refusedNaming(
+            { endOfSubscription: { readOnlyDays: 30 } },
+            "tenantBilling.endOfSubscription.reminderDaysBefore: must have required property 'reminderDaysBefore'",
+        );
+    });
+
+    for (const [given, line] of [
+        [
+            [],
+            'tenantBilling.endOfSubscription.reminderDaysBefore: must NOT have fewer than 1 items',
+        ],
+        [[0], 'tenantBilling.endOfSubscription.reminderDaysBefore.0: must be >= 1'],
+        [
+            [3, 3],
+            'tenantBilling.endOfSubscription.reminderDaysBefore: must NOT have duplicate items',
+        ],
+        [[2.5], 'tenantBilling.endOfSubscription.reminderDaysBefore.0: must be integer'],
+        ['29', 'tenantBilling.endOfSubscription.reminderDaysBefore: must be array'],
+    ]) {
+        test(`given as ${JSON.stringify(given)}, the start is refused, naming the field`, async () => {
+            await refusedNaming(endOfSubscription({ reminderDaysBefore: given }), line);
+        });
+    }
+
+    test('given as [1], the smallest the schema takes, the application starts', async () => {
+        await startedWith(endOfSubscription({ reminderDaysBefore: [1] }));
+    });
+});
+
+// @requirement SC-CANC-027 — An ended subscription leaves the tenant a period to read and export before its deletion
+describe('the read-only period of a catalogue built in code', () => {
+    test('left out, the start is refused, naming the field', async () => {
+        await refusedNaming(
+            { endOfSubscription: { reminderDaysBefore: [29, 10, 3] } },
+            "tenantBilling.endOfSubscription.readOnlyDays: must have required property 'readOnlyDays'",
+        );
+    });
+
+    for (const [given, line] of [
+        [0, 'tenantBilling.endOfSubscription.readOnlyDays: must be >= 1'],
+        [1.5, 'tenantBilling.endOfSubscription.readOnlyDays: must be integer'],
+    ]) {
+        test(`given as ${given}, the start is refused, naming the field`, async () => {
+            await refusedNaming(endOfSubscription({ readOnlyDays: given }), line);
+        });
+    }
+
+    test('given as 1, the smallest the schema takes, the application starts', async () => {
+        await startedWith(endOfSubscription({ readOnlyDays: 1 }));
+    });
+
+    test('beside a member the schema does not know, the start is refused, naming the member', async () => {
+        await refusedNaming(
+            endOfSubscription({ deleteAfterDays: 30 }),
+            'tenantBilling.endOfSubscription.deleteAfterDays: must NOT have additional properties',
+        );
+    });
+
+    test('malformed, it is refused while the application starts, before any run could read it', async () => {
+        let compiled = false;
+        await assert.rejects(
+            startedWith(endOfSubscription({ readOnlyDays: 0 })).then(() => {
+                compiled = true;
+            }),
+            /tenantBilling\.endOfSubscription\.readOnlyDays: must be >= 1/,
+        );
+        assert.equal(compiled, false, 'no module came up for a run to be scheduled in');
+    });
+});
+
+describe('the other tenant billing sections of a catalogue built in code', () => {
+    test('a negative notice period refuses the start, naming the field', async () => {
+        await refusedNaming(
+            { cancellationNoticeDays: { monthly: -1, yearly: 90 } },
+            'tenantBilling.cancellationNoticeDays.monthly: must be >= 0',
+        );
+    });
+
+    test('blocked plans without the list of plans not to leave refuse the start, naming the field', async () => {
+        await refusedNaming(
+            { selfServiceBlockedPlans: { asTarget: [] } },
+            "tenantBilling.selfServiceBlockedPlans.asSource: must have required property 'asSource'",
+        );
+    });
+
+    test('the rest of the catalogue is not held to the schema at start: a member it does not know still starts', async () => {
+        await startedWith({}, { notInTheSchema: true });
+    });
 });

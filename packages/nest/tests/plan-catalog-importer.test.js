@@ -49,7 +49,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
-  endOfSubscription: { readOnlyDays: 30 }
+  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }
 features:
   - { key: CORE_IDENTITY, label: Mitglieder, tier: CORE }
   - { key: WHATSAPP, label: WhatsApp, tier: ADVANCED }
@@ -127,7 +127,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
-  endOfSubscription: { readOnlyDays: 30 }
+  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }
 plans:
   - id: ENTERPRISE
     name: Enterprise
@@ -157,7 +157,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
-  endOfSubscription: { readOnlyDays: 30 }
+  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }
 plans:
   - id: SIMPLE
     monthlyNet: 5.50

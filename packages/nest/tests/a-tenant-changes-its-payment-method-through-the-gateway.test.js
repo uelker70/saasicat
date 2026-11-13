@@ -46,6 +46,7 @@ import {
     signedCallback,
 } from './helpers/payments.js';
 import { anExport } from './helpers/tenant-data-export.js';
+import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
 const URLS = {
     successUrl: 'https://app.example/plan?payment-method=changed',
@@ -1058,7 +1059,11 @@ describe('SaaSiCatModule composes payments', () => {
             planCatalog: catalog,
             controller: { guards: [AllowAll] },
             persistence,
-            tenantBilling: { authGuards: [AllowAll], subscriptionEnds: { export: anExport() } },
+            tenantBilling: {
+                authGuards: [AllowAll],
+                notices: { port: sendingPort(), record: noticeRecord() },
+                subscriptionEnds: { export: anExport() },
+            },
             payments: { gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() } },
         });
 
@@ -1082,6 +1087,7 @@ describe('SaaSiCatModule composes payments', () => {
             tenantBilling: {
                 authGuards: [AllowAll],
                 billingPermissionGuards: accountingOnly,
+                notices: { port: sendingPort(), record: noticeRecord() },
                 subscriptionEnds: { export: anExport() },
             },
             payments: { gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() } },
@@ -1103,6 +1109,7 @@ describe('SaaSiCatModule composes payments', () => {
                     persistence,
                     tenantBilling: {
                         authGuards: [AllowAll],
+                        notices: { port: sendingPort(), record: noticeRecord() },
                         subscriptionEnds: { export: anExport() },
                     },
                     payments: {

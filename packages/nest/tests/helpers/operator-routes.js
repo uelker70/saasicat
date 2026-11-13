@@ -119,7 +119,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             tenantBilling: {
                 cancellationNoticeDays: { monthly: 0, yearly: 0 },
                 selfServiceBlockedPlans: { asTarget: [], asSource: [] },
-                endOfSubscription: { readOnlyDays: 30 },
+                endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
             },
             plans: [],
         },
@@ -154,7 +154,8 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
                     payments: REPO,
                 },
             },
-            versionNotices: { port: PORT, includeCron: false },
+            notices: { port: PORT },
+            versionNotices: { includeCron: false },
             subscriptionEnds: { export: anExport() },
         },
         payments: {

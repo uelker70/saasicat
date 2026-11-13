@@ -7,6 +7,7 @@
 // the subscriber's invoice email instead (`invoice-collection-notice.types.ts`).
 
 import type { BundleVersionOfferView } from './bundle-version-offer.types.js';
+import type { DeletionReminderNotice } from './deletion-reminder.types.js';
 import type {
     EndedAtOnceNotice,
     FeatureWithdrawalLiftedNotice,
@@ -35,7 +36,8 @@ export type SubscriptionNoticeKind =
     | 'ended-at-once'
     | 'collection-failed'
     | 'collection-announced'
-    | 'collection-reversed';
+    | 'collection-reversed'
+    | 'deletion-reminder';
 
 /** Which notice: there is one per subscription, kind and subject. */
 export interface SubscriptionNoticeKey {
@@ -60,7 +62,10 @@ export interface SubscriptionNoticeKey {
      * subscription, or the booking — which ends once. For `collection-failed`,
      * the key of the attempt that failed; for `collection-announced`, the key
      * of the attempt announced; for `collection-reversed`, the key of the
-     * attempt whose payment was reversed: each is told once.
+     * attempt whose payment was reversed: each is told once. For
+     * `deletion-reminder`, the id of the end and the lead time,
+     * `deletionReminderSubjectOf`'s `<end id>:<days>`: an end is reminded once
+     * per lead time.
      */
     readonly subject: string;
 }
@@ -127,4 +132,5 @@ export type SubscriptionNotice =
     | BundleVersionOfferedNotice
     | FeatureWithdrawnNotice
     | FeatureWithdrawalLiftedNotice
-    | EndedAtOnceNotice;
+    | EndedAtOnceNotice
+    | DeletionReminderNotice;

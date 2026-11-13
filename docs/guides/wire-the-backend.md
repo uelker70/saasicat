@@ -465,7 +465,7 @@ import { aesGcmSecretSealer, defineSaaSiCat, SaaSiCatModule } from '@saasicat/ne
             defineSaaSiCat({
                 planCatalog: SAAS_CONFIG,
                 controller: { guards: [JwtAuthGuard] },
-                imports: [PrismaModule, AuthModule],
+                imports: [PrismaModule, AuthModule, UsersModule, MailModule],
                 persistence,
                 adapters: { secretSealer: aesGcmSecretSealer(process.env.SECRET_SEALER_KEY) },
                 entitlement: {
@@ -477,6 +477,14 @@ import { aesGcmSecretSealer, defineSaaSiCat, SaaSiCatModule } from '@saasicat/ne
                 },
                 tenantBilling: {
                     authGuards: [JwtAuthGuard, TenantGuard],
+                    // Your application's notice port, which tells a tenant's
+                    // administrators what the platform decides is due; required.
+                    notices: {
+                        port: {
+                            useFactory: (mailer: SubscriptionNoticeMailer) => mailer,
+                            inject: [SubscriptionNoticeMailer],
+                        },
+                    },
                     // Your application's export of a tenant's data; required.
                     subscriptionEnds: {
                         export: {
@@ -484,6 +492,7 @@ import { aesGcmSecretSealer, defineSaaSiCat, SaaSiCatModule } from '@saasicat/ne
                             inject: [PrismaService],
                         },
                     },
+                    extraProviders: [SubscriptionNoticeMailer],
                 },
                 subscriptionBundles: true,
                 setup: true,
@@ -594,6 +603,131 @@ written and the reason the read failed.
 Use the low-level `CatalogModule`, `EntitlementModule`,
 `TenantBillingModule`, `SubscriptionBundleModule` and adapter options only
 when the standard behavior does not fit.
+
+### Notices to a tenant's administrators
+
+Wherever `tenantBilling` is on, the platform has things to tell a tenant's administrators that they
+cannot be expected to find by signing in. Above all: once a tenant's subscription has ended, its
+data is deleted on a fixed day, and by then nobody signs in any more — a message is the only way its
+administrators learn that day (`SC-CANC-022`). So an application that serves tenants binds a notice
+port, and does not start without one.
+
+The platform decides when a notice is due and keeps a record of each: what it said, when it went
+out, to whom and how (`SC-SUB-023`). Your application decides who the administrators are, what the
+message says and how it travels. Adopt `prisma-fragments/17-subscription-notice.prisma`, run
+`sql/1.0-a-subscriber-is-told-once.postgres.sql` once, before `db push` where you use one, and bind
+a `SubscriptionNoticePort` as `tenantBilling.notices.port`, as the example above does:
+
+```ts
+import { Injectable } from '@nestjs/common';
+import type {
+    SubscriptionNotice,
+    SubscriptionNoticeDelivery,
+    SubscriptionNoticePort,
+} from '@saasicat/core';
+
+@Injectable()
+export class SubscriptionNoticeMailer implements SubscriptionNoticePort {
+    constructor(
+        private readonly users: UsersService,
+        private readonly mail: MailService,
+    ) {}
+
+    async deliver(notice: SubscriptionNotice): Promise<SubscriptionNoticeDelivery> {
+        const { template, data } = messageOf(notice);
+        const admins = await this.users.activeAdministratorsOf(notice.tenantId);
+        for (const admin of admins) {
+            await this.mail.send(admin.email, template, data);
+        }
+        return { recipients: admins.map((admin) => admin.email), channel: 'email' };
+    }
+}
+
+/** The template a notice is written with, and what it fills in. */
+function messageOf(notice: SubscriptionNotice): { template: string; data: object } {
+    switch (notice.kind) {
+        case 'deletion-reminder':
+            // Both days, not a count of days, and where to take the export first.
+            return {
+                template: 'data-deletion-reminder',
+                data: { readOnlyUntil: notice.readOnlyUntil, deletesOn: notice.deletesOn },
+            };
+        case 'version-offered':
+        case 'bundle-version-offered':
+            // Both versions side by side, the kind of offer, when a switch takes effect.
+            return { template: 'version-offered', data: { offer: notice.offer } };
+        case 'version-retired':
+        case 'bundle-version-retired':
+            return { template: 'version-retired', data: { retirement: notice } };
+        case 'version-retirement-reminder':
+        case 'bundle-version-retirement-reminder':
+            return { template: 'version-retirement-reminder', data: { reminder: notice } };
+        case 'feature-withdrawn':
+        case 'feature-withdrawal-lifted':
+        case 'ended-at-once':
+            return { template: notice.kind, data: { notice } };
+        default: {
+            // A kind a later release adds fails to compile here, rather than going out as
+            // another kind's message; thrown, the notice waits for the next run.
+            const unhandled: never = notice;
+            throw new Error(`No message for the notice ${JSON.stringify(unhandled)}`);
+        }
+    }
+}
+```
+
+`SubscriptionNotice` is a union on `kind`, and the platform adds a kind in a release that brings
+something new to tell. A `switch` that names every kind and ends in a `never` check, as above, turns
+that into a compile error in your build; a catch-all branch would send the new kind as whatever that
+branch sends. The kinds and where each is described:
+
+- `deletion-reminder` — the tenant's data is deleted soon, at each lead time
+  `config/saas.yaml` names ([A subscription that ended](#a-subscription-that-ended)). Always on.
+- `version-offered` and `bundle-version-offered` — a newer version of the plan or of a booked add-on
+  ([Telling Subscribers of a Newer Version](#telling-subscribers-of-a-newer-version),
+  [Offering a Newer Add-on Version](#offering-a-newer-add-on-version)).
+- `version-retired`, `version-retirement-reminder`, `bundle-version-retired` and
+  `bundle-version-retirement-reminder` — a version retired for running subscriptions, and its one
+  reminder
+  ([Retiring a Version for Running Subscriptions](#retiring-a-version-for-running-subscriptions),
+  [Retiring an Add-on Version](#retiring-an-add-on-version)).
+- `feature-withdrawn`, `feature-withdrawal-lifted` and `ended-at-once` — a feature withdrawn,
+  granted again, and what ended at once under it ([Withdrawing a Feature](#withdrawing-a-feature)).
+
+The kinds after the first come with version notices, which `tenantBilling.versionNotices` turns on.
+What collecting an invoice tells its subscriber — a failure, a direct debit announced again, a
+payment reversed — goes to the subscriber's invoice email through `InvoiceMailPort`, not through
+this port, and is recorded in the same record ([Collecting an invoice](#collecting-an-invoice)).
+
+**The record** comes from `persistence.tenantBilling.subscriptionNotices`, which both shipped
+bundles provide from the `SubscriptionNotice` model, unless `tenantBilling.notices.record` names
+another. The option is required in `SaaSiCatModule`'s types, so the compiler asks for the port; a
+start without it, from code the compiler did not check, is refused
+(`subscription-notices.requires-port`), and so is one with nowhere to keep the record
+(`subscription-notices.requires-record`). `TenantBillingModule` wired by hand takes
+`notices: { port, record }` and refuses `subscriptionEnds`, `versionNotices` or invoices that are
+collected without it.
+
+- **Resolve with to whom and how.** The platform keeps it as the record. An empty list records that
+  nobody could be told, and the notice is not tried again — except a retirement's notice
+  (`version-retired`, `bundle-version-retired`), which counts as not sent and is tried again by
+  every run until somebody is told. A `deletion-reminder` told to nobody is not tried again either:
+  a read-only tenant cannot add an administrator, so a retry would reach nobody again.
+- **Throw where it could not be sent.** The next run tries again.
+- **Answer within a minute.** An answer that takes longer is still awaited: the notice stays held,
+  so no other run sends it meanwhile, and the answer is recorded when it comes — or, where it is a
+  failure, the notice is let go for the next run.
+- **Two cases send a notice twice:** your process stops after the message went out and before the
+  platform recorded it, or your port takes longer than a quarter of an hour to answer, after which
+  another run may take the notice on.
+- **Across tenants.** A run reads every tenant's subscriptions and writes the record inside
+  `RlsBypassPort`, and your port is called inside it too, so it can read the administrators of any
+  tenant.
+- **Where the runs come from.** The reminders before a deletion are sent by the quarter-hourly run
+  that records the ends of subscriptions; the version notices, and every other notice that could not
+  be sent at once, by the version notices' quarter-hourly run. Both need `ScheduleModule` in your
+  application and pause while the application is locked for maintenance; the sections linked above
+  name what an application with a scheduler of its own calls instead.
 
 ## Payment Methods Through a Gateway
 
@@ -1545,10 +1679,10 @@ it announced. Adopt `prisma-fragments/23-subscription-invoice-collection.prisma`
 `collections` back-relation it names on `SubscriptionInvoice`, run
 `sql/1.0-an-invoice-is-collected.postgres.sql` once before `db push`, and pass
 `chargeJournal.invoices.collections`. What the subscriber is told about collecting is recorded with
-the other subscriber notices: `SaaSiCatModule` takes `persistence.tenantBilling.subscriptionNotices`
-for `chargeJournal.invoices.notices` unless you name another. The start refuses invoices that
-announce collections nothing makes, collections without the payments that make them, and
-collections without that record. An application with a scheduler of its
+the other notices, in `tenantBilling.notices.record`
+([Notices to a tenant's administrators](#notices-to-a-tenants-administrators)). The start refuses
+invoices that announce collections nothing makes, and collections without the payments that make
+them. An application with a scheduler of its
 own calls `InvoiceCollectionService.collectDue(now)` after `deliverDue()`: `now` names the day whose
 invoices are due, while whether another run may take an attempt on is judged by the clock, which
 stamps every hold.
@@ -1743,6 +1877,58 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   day could not be recorded, or one that landed later than announced — it is counted from the day
   the subscription ended, or from the day the platform records the end, where that is later. A
   change to the period moves no day already told or recorded.
+- **The reminders before the deletion day** (`SC-CANC-022`) are
+  `tenantBilling.endOfSubscription.reminderDaysBefore`: lead times in days before the deletion day,
+  whole numbers of at least 1, none twice, at least one, in any order. They are required and have no
+  default either — when a former customer is warned is yours to decide and to state in your terms.
+  The loader refuses a file without them, or with a list that is empty, names a lead time twice or
+  holds one below 1, naming the field.
+
+    ```yaml
+    tenantBilling:
+        endOfSubscription:
+            readOnlyDays: 30
+            reminderDaysBefore: [29, 10, 3]
+    ```
+
+    A lead time of N days is due from the installation's day N days before the deletion day. A run
+    reminds each end of one lead time at most: the smallest that is due and that no reminder already
+    told covers — a reminder told covers its own lead time and every larger one. So the lead times
+    that passed before the end was recorded, or while no run ran, go out as one reminder at once,
+    the later ones on their own days, none twice, and from the deletion day on nothing is reminded.
+    With the file above, a subscription that ended on 30 November is deleted on 30 December, and its
+    administrators hear on 1, 20 and 27 December. With `readOnlyDays: 10` it is deleted on
+    10 December: by the time its end is recorded the 29- and 10-day lead times have come, so one
+    reminder goes out then, for 10 days, and the 3-day one on 7 December. The file is read when the
+    application starts, so a change to the lead times applies once it has restarted — to ends
+    recorded before it too — and repeats no reminder already sent: one told for a lead time the file
+    no longer names still covers the larger ones.
+
+- **What your notice port is handed** is one `deletion-reminder` per end and lead time, through the
+  port every notice goes through
+  ([Notices to a tenant's administrators](#notices-to-a-tenants-administrators)): `tenantId`,
+  `subscriptionId`, `subscriptionEndId`, `daysBefore` — the lead time it answers —, `readOnlyUntil`,
+  the last day the tenant can still read and take its export on, and `deletesOn`, both days in the
+  installation's zone. Write the two days rather than a count of days: a reminder that covers lead
+  times passed while no run ran goes out later than `daysBefore` days before the deletion. Tell the
+  administrator to take the export first — `GET /billing/export`, which the tenant's own
+  administrator downloads (below); your application knows the address it serves it at. Each
+  reminder is recorded under the end and the lead time, `<end id>:<days>`, so of several instances
+  one sends it. One your port tells nobody is recorded as told to nobody and not tried again — a
+  read-only tenant cannot add an administrator — and the next lead time still goes on its day; one
+  your port throws for, or that cannot be put together, is tried again by the next run. While one
+  of an end's reminders is held by a run — claimed and not answered yet, for up to a quarter of an
+  hour — no other reminder of that end goes out beside it, and a reminder of a larger lead time that
+  was never delivered is not sent once a smaller one is due: the smaller one says the same, nearer
+  the day. Of two instances that decide on different lead times for one end at once — one restarted
+  with other lead times and one not, or clocks on either side of the installation's midnight — at
+  most one sends: each reads the end's reminders again after claiming its own, and lets go where
+  another is held or one was told since it decided; where each sees the other, neither sends, and
+  the next run decides again. Two instances that keep running with different lead times — a canary,
+  or a second slot kept warm — reach an end at the same moment every run, so they can keep letting
+  go of the lead times they disagree on until one both name is due. A suspended tenant is reminded
+  all the same, since a suspension does not stop the deletion; while it lasts, the suspension
+  refuses the export as it refuses every request.
 - **Told before it is confirmed.** `GET billing/usage` answers what cancelling now would tell as
   `cancellation.deletion` — `readOnlyDays`, `readOnlyUntil` and `deletesOn` — and what was told as
   `announcedDeletion`. Once a cancellation is declared, `cancellation.deletion` is the day
@@ -1761,13 +1947,19 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
 - **Recorded by a run.** Nothing marks the moment a cancellation lands, so every quarter of an hour
   `SubscriptionEndCron` reads the subscriptions a cancellation was declared for, across tenants, and
   for each one that has landed and has no end yet records the `ended` reason and one row in
-  `subscription_ends`. It needs `ScheduleModule` in your application. With
+  `subscription_ends`; then the same run sends the reminders due, so an end it records is reminded
+  in it where a lead time has already come. A run whose recording fails still reminds the ends
+  recorded before. It needs `ScheduleModule` in your application. With
   `tenantBilling.subscriptionEnds.includeCron: false` your own scheduler calls
-  `SubscriptionEndService.recordEnded(new Date())` instead.
+  `SubscriptionEndService.recordEnded(new Date())` and then
+  `DeletionReminderService.remindDue(new Date())` instead, both from `@saasicat/nest/billing` —
+  both, in that order, or a tenant whose subscription ended is never warned.
 - **The store** is `persistence.core.subscriptionEnds`, which both shipped adapters provide from the
   `SubscriptionEnd` model of `@saasicat/spec`; a start without one is refused
   (`subscription-ends.requires-store`). It keeps every download of the tenant's export too, in
-  `tenant_export_downloads`. A `SubscriptionUsagePort` of your own adds
+  `tenant_export_downloads`. A `SubscriptionEndPort` of your own adds `listDeletingAfter(day)`:
+  every end whose deletion day is after that installation day, of every tenant, in one read, the
+  soonest deletion first. A `SubscriptionUsagePort` of your own adds
   `listCancelled()`: every subscription with either cancellation date set, landed or not, with its
   tenant. The platform decides which have landed; the start refuses a port without it.
 - **A trial that ran out unbought** is yours to end: whether one converts is your application's
@@ -1837,97 +2029,26 @@ whose window opens later is told when it opens, and a subscription with a change
 told once it has landed. Each newer version is told once per subscription. There is no reminder,
 because doing nothing costs the subscriber nothing.
 
-The platform decides when a notice is due and keeps a record of each: what it said, when it went out,
-to whom and how (`SC-SUB-023`). Your application decides who the administrators are, what the
-message says and how it travels. Adopt `prisma-fragments/17-subscription-notice.prisma`, run
-`sql/1.0-a-subscriber-is-told-once.postgres.sql` once, and bind a port:
-
-```ts
-import { Injectable } from '@nestjs/common';
-import type {
-    SubscriptionNotice,
-    SubscriptionNoticeDelivery,
-    SubscriptionNoticePort,
-} from '@saasicat/core';
-
-@Injectable()
-export class VersionNoticeMailer implements SubscriptionNoticePort {
-    constructor(
-        private readonly users: UsersService,
-        private readonly mail: MailService,
-    ) {}
-
-    async deliver(notice: SubscriptionNotice): Promise<SubscriptionNoticeDelivery> {
-        const admins = await this.users.activeAdministratorsOf(notice.tenantId);
-        for (const admin of admins) {
-            if (notice.kind === 'version-offered') {
-                // Both versions side by side, the kind of offer, when a switch takes effect.
-                await this.mail.send(admin.email, 'plan-version-offered', { offer: notice.offer });
-            } else if (notice.kind === 'version-retired') {
-                // A retirement: see "Retiring a Version for Running Subscriptions" below.
-                await this.mail.send(admin.email, 'plan-version-retired', { retirement: notice });
-            } else if (notice.kind === 'bundle-version-retired') {
-                // An add-on version's retirement: see "Retiring an Add-on Version" below.
-                await this.mail.send(admin.email, 'add-on-version-retired', { retirement: notice });
-            } else if (notice.kind === 'bundle-version-offered') {
-                // A newer version of a booked add-on: see "Offering a Newer Add-on Version" below.
-                await this.mail.send(admin.email, 'add-on-version-offered', {
-                    offer: notice.offer,
-                });
-            } else if (
-                notice.kind === 'feature-withdrawn' ||
-                notice.kind === 'feature-withdrawal-lifted' ||
-                notice.kind === 'ended-at-once'
-            ) {
-                // A feature withdrawn, granted again, or what ended at once under it:
-                // see "Withdrawing a Feature" below.
-                await this.mail.send(admin.email, notice.kind, { notice });
-            } else {
-                // Its one reminder, 14 days before the date, where staying put costs something.
-                await this.mail.send(admin.email, 'plan-version-reminder', { reminder: notice });
-            }
-        }
-        return { recipients: admins.map((admin) => admin.email), channel: 'email' };
-    }
-}
-```
+The notices go through your notice port and are kept in its record
+([Notices to a tenant's administrators](#notices-to-a-tenants-administrators)); your port is handed
+a `version-offered` notice with the offer as `GET billing/version-offer` answers it: both versions
+side by side, the kind of offer, when a switch takes effect. Turn them on:
 
 ```ts
 tenantBilling: {
     authGuards: [JwtAuthGuard, TenantGuard],
-    versionNotices: {
-        port: {
-            useFactory: (mailer: VersionNoticeMailer) => mailer,
-            inject: [VersionNoticeMailer],
-        },
-    },
-    extraProviders: [VersionNoticeMailer],
-    imports: [UsersModule, MailModule],
+    // notices, subscriptionEnds — as in "Wiring the Standard AppModule"
+    versionNotices: {},
 },
 ```
 
-The record comes from `persistence.tenantBilling.subscriptionNotices`, which both shipped bundles
-provide; a start with version notices and no record is refused
-(`version-notices.requires-notice-record`). A `SubscriptionUsagePort` of your own needs
-`listBoundToEarlierVersions`, and the plan repository `findVersionById`, or the start is refused
-as well — without them the platform cannot find whom to tell.
+A `SubscriptionUsagePort` of your own needs `listBoundToEarlierVersions`, and the plan repository
+`findVersionById`, or the start is refused — without them the platform cannot find whom to tell.
 
-- **Resolve with to whom and how.** The platform keeps it as the record. An empty list records that
-  nobody could be told, and the notice is not tried again.
-- **Throw where it could not be sent.** The next run tries again.
-- **Answer within a minute.** An answer that takes longer is still awaited: the notice stays held,
-  so no other run sends it meanwhile, and the answer is recorded when it comes — or, where it is a
-  failure, the notice is let go for the next run.
-- **Two cases send a notice twice:** your process stops after the message went out and before the
-  platform recorded it, or your port takes longer than a quarter of an hour to answer, after which
-  another run may take the notice on.
 - **Where the run comes from.** The platform runs every quarter of an hour, which needs
   `ScheduleModule` in your application, and pauses while the application is locked for
   maintenance. Set `versionNotices.includeCron: false` to call `VersionNoticeService.sendDue` from a
   scheduler of your own instead.
-- **Across tenants.** A run reads every tenant's subscription and writes the record inside
-  `RlsBypassPort`, and your port is called inside it too, so it can read the administrators of any
-  tenant.
 
 ## Retiring a Version for Running Subscriptions
 

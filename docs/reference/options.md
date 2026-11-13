@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 32 rules, in 18 areas.
+There are 34 rules, in 18 areas.
 
 ## core
 
@@ -140,6 +140,34 @@ subscription is kept, the application hands over the tenant's full export
 through a TenantDataExportPort, because the read-only period before the deletion
 day exists for the tenant to take it (SC-PRIV-019).
 
+## subscription-notices
+
+### subscription-notices.requires-port
+
+`tenantBilling.notices.port` is missing: wherever tenants are served, the
+application sends the notices the platform decides are due through a
+SubscriptionNoticePort, and a tenant's administrators learn the day its data is
+deleted from them once nobody signs in any more (SC-CANC-022).
+
+### subscription-notices.no-moved-options
+
+`tenantBilling.versionNotices.port` is not read any more: the one port every
+notice goes through is `tenantBilling.notices.port`. Move it there.
+`tenantBilling.versionNotices.notices` is not read any more: the one record
+every notice is kept in is `tenantBilling.notices.record`. Move it there.
+`tenantBilling.chargeJournal.invoices.notices` is not read any more: the one
+record every notice is kept in, those of a collection included, is
+`tenantBilling.notices.record`. Move it there.
+
+### subscription-notices.requires-record
+
+TenantBilling is on, but there is nowhere to record the notices sent to a tenant
+(SC-SUB-023): a notice that is not recorded is sent again by every run. Set
+`tenantBilling.notices.record` or use a bundle providing
+`persistence.tenantBilling.subscriptionNotices` — both shipped adapters do, from
+the `SubscriptionNotice` model of `@saasicat/spec`, unless `notAdopted` leaves
+it out.
+
 ## subscriber-joins
 
 ### subscriber-joins.requires-join-repository
@@ -148,15 +176,6 @@ SubscriberJoins is on, but there is nowhere to join subscribers. Use a bundle
 providing `persistence.entitlement.subscriberJoinRepository` and
 `subscriberRepository` — both shipped adapters do, unless `notAdopted` leaves
 `SubscriberJoin` out.
-
-## version-notices
-
-### version-notices.requires-notice-record
-
-Version notices are turned on (`tenantBilling.versionNotices`), but there is
-nowhere to record what each subscriber was told. Set
-`tenantBilling.versionNotices.notices` or use a bundle providing
-`persistence.tenantBilling.subscriptionNotices` — both shipped adapters do.
 
 ## subscription-contract
 

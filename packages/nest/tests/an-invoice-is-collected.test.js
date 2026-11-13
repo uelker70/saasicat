@@ -415,7 +415,7 @@ describe('collecting starts', () => {
 
         assert.throws(
             () => untold.onModuleInit(),
-            /tells the subscriber of a failure and announces a direct debit again: pass chargeJournal\.invoices\.notices/,
+            /tells the subscriber of a failure and announces a direct debit again: it records each in the record of notices \(`notices\.record`\)/,
         );
     });
 

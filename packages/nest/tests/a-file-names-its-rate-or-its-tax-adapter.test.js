@@ -24,7 +24,7 @@ tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
   orderlyRetirement: { termsConfirmed: false }
-  endOfSubscription: { readOnlyDays: 30 }
+  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }
 issuer: { legalName: Example GmbH, country: DE, vatId: DE123456789 }
 plans:
   - { id: BASIC, name: Basic, monthlyNet: 10, yearlyNet: 100, features: [], quotas: { users: 1 } }

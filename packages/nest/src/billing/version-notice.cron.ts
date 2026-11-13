@@ -10,6 +10,7 @@ import { BundleVersionSwitchRunService } from './bundle-version-switch-run.servi
 import { FeatureWithdrawalService } from './feature-withdrawal.service.js';
 import { RetirementMoveService } from './retirement-move.service.js';
 import { RetirementReminderService } from './retirement-reminder.service.js';
+import { runStep } from './run-step.js';
 import { VersionNoticeService } from './version-notice.service.js';
 import { VersionRetirementService } from './version-retirement.service.js';
 
@@ -194,20 +195,8 @@ export class VersionNoticeCron {
         }
     }
 
-    /**
-     * One step of the run. A step that fails is logged and holds up none of the
-     * others: they do not depend on one another, and the next run tries the
-     * failed one again.
-     */
-    private async step<T>(name: string, run: () => Promise<T> | undefined): Promise<T | undefined> {
-        try {
-            return await run();
-        } catch (error) {
-            this.logger.error(
-                `${name}: the step failed; the next run tries again.`,
-                error instanceof Error ? error.stack : String(error),
-            );
-            return undefined;
-        }
+    /** One step of the run: the steps do not depend on one another, so a failed one holds up none. */
+    private step<T>(name: string, run: () => Promise<T> | undefined): Promise<T | undefined> {
+        return runStep(this.logger, name, run);
     }
 }

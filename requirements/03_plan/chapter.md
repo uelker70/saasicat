@@ -1023,6 +1023,9 @@ _Tested by:_
     - a catalogue without tenantBilling is refused, and the field is named
     - a rhythm nobody named is refused, rather than read as zero
     - a self-service list nobody named is refused too
+    - lead times nobody named are refused, and the field is named
+    - a list of lead times that promises no reminder, or one twice, is refused
+    - lead times in any order, the period shorter than some, are read as written
     - empty lists and zeroes are values, not omissions
     - a negative notice period is refused
     - a fractional notice period is refused — days are whole
@@ -1066,6 +1069,9 @@ _Tested by:_
     - a catalogue without tenantBilling is refused, and the field is named
     - a rhythm nobody named is refused, rather than read as zero
     - a self-service list nobody named is refused too
+    - lead times nobody named are refused, and the field is named
+    - a list of lead times that promises no reminder, or one twice, is refused
+    - lead times in any order, the period shorter than some, are read as written
     - empty lists and zeroes are values, not omissions
     - a negative notice period is refused
     - a fractional notice period is refused — days are whole

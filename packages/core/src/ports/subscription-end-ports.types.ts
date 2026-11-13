@@ -12,6 +12,7 @@ import type {
     TenantExportDownload,
 } from '../subscription-end.types.js';
 import type { TenantDataExport } from '../tenant-data-export.types.js';
+import type { CalendarDay } from '../zoned-day.js';
 
 /**
  * Keeps one end per subscription that ended, and one announcement per
@@ -39,6 +40,12 @@ export interface SubscriptionEndPort {
     record(end: NewSubscriptionEnd): Promise<SubscriptionEnd | null>;
     /** The ends of those of `subscriptionIds` that have one, in one read. */
     listFor(subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]>;
+    /**
+     * Every end whose deletion day is after `day`, whichever tenant it is
+     * of, in one read: the soonest deletion first, and by subscription where
+     * two share a day. An end deleted on `day` itself is not one of them.
+     */
+    listDeletingAfter(day: CalendarDay): Promise<SubscriptionEnd[]>;
     /**
      * Records `announcement` and returns it as stored — the id is the
      * adapter's to assign. Returns null where the subscription has an

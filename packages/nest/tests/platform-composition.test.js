@@ -20,6 +20,7 @@ import { CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN } from '../dist/checkout-offer/
 import { CONTRACT_TRANSACTION_RUNNER_TOKEN } from '../dist/subscription-contract/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
 import { anExport } from './helpers/tenant-data-export.js';
+import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
 // Two properties the decomposition exists to keep, asked as behaviour.
 //
@@ -60,7 +61,7 @@ function catalogFileNamed(name) {
             '  cancellationNoticeDays: { monthly: 0, yearly: 0 }',
             '  selfServiceBlockedPlans: { asTarget: [], asSource: [] }',
             '  orderlyRetirement: { termsConfirmed: false }',
-            '  endOfSubscription: { readOnlyDays: 30 }',
+            '  endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] }',
         ].join('\n'),
     );
     return path;
@@ -104,6 +105,7 @@ function everythingOn() {
             tenantBilling: {
                 authGuards: [],
                 subscriptionUsagePort: PORT,
+                notices: { port: sendingPort(), record: noticeRecord() },
                 subscriptionEnds: { export: anExport() },
             },
             subscriptionBundles: true,

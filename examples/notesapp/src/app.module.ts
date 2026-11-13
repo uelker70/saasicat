@@ -17,6 +17,7 @@ import { NOTES_FEATURE_UI_REGISTRY } from './saas/feature-ui-registry';
 import { NotesAdminModule } from './saas/notesapp-admin.module';
 import { NotesQuotaProvider } from './saas/notes-quota.provider';
 import { NotesDataExport } from './saas/notes-data-export';
+import { NotesNoticeLog } from './saas/notes-notice-log';
 import { germanTaxAdapterFactory } from '@saasicat/tax-de';
 
 @Module({
@@ -24,7 +25,8 @@ import { germanTaxAdapterFactory } from '@saasicat/tax-de';
         PrismaModule,
         DemoAuthModule,
         // The platform's runs — here, the one that records each subscription
-        // that ended and the day its data goes — are scheduled by this module.
+        // that ended and the day its data goes, and reminds the tenant before
+        // that day — are scheduled by this module.
         ScheduleModule.forRoot(),
 
         SaaSiCatModule.forRoot(
@@ -105,6 +107,17 @@ import { germanTaxAdapterFactory } from '@saasicat/tax-de';
                     subscriptionEnds: {
                         export: {
                             useFactory: (prisma: PrismaService) => new NotesDataExport(prisma),
+                            inject: [PrismaService],
+                        },
+                    },
+                    // Before the data is deleted, the tenant hears of it at the
+                    // lead times `config/saas.yaml` names — its users no longer
+                    // sign in, so a notice is how they learn the day. The app
+                    // says it in its own words through this port; the platform
+                    // decides when and keeps the record. Required.
+                    notices: {
+                        port: {
+                            useFactory: (prisma: PrismaService) => new NotesNoticeLog(prisma),
                             inject: [PrismaService],
                         },
                     },

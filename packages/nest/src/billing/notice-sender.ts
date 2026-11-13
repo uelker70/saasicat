@@ -7,6 +7,7 @@ import type {
     SubscriptionNotice,
     SubscriptionNoticeDelivery,
     SubscriptionNoticeKind,
+    SubscriptionNoticeRecord,
     SubscriptionNoticeRepository,
 } from '@saasicat/core';
 
@@ -24,6 +25,92 @@ export const NOTICE_DELIVERY_TIMEOUT_MS = 60_000;
 
 /** How often a notice the application keeps telling nobody of is said in the log. */
 const NOBODY_WARNING_INTERVAL_MS = 24 * 60 * 60_000;
+
+/**
+ * The refusal of a start without the application's notice port, naming
+ * `option` as the application writes it. Required wherever tenants are
+ * served: a tenant whose subscription ended is reminded before its data is
+ * deleted, and once nobody signs in any more a notice is the only way its
+ * administrators learn the day.
+ */
+export function noticesNotWired(option: string): string {
+    return (
+        `${option} is missing: wherever tenants are served, the application sends the notices ` +
+        "the platform decides are due through a SubscriptionNoticePort, and a tenant's " +
+        'administrators learn the day its data is deleted from them once nobody signs in any ' +
+        'more (SC-CANC-022).'
+    );
+}
+
+/** The refusal of a start with nowhere to record a notice, naming `option` as the application writes it. */
+export function noticeRecordNotWired(option: string): string {
+    return (
+        `${option} is missing: every notice is recorded before it is sent and confirmed after, so ` +
+        'it goes out once however many instances run, and the record shows when it went out, to ' +
+        'whom and how (SC-SUB-023).'
+    );
+}
+
+/** A notice option tenant billing no longer reads, and the one it reads in its place. */
+interface MovedNoticeOption {
+    /** Where it was given, below tenant billing's options. */
+    readonly was: readonly string[];
+    /** Where it is read, below the same options. */
+    readonly now: string;
+    /** What the option read in its place is, as the refusal says it. */
+    readonly what: string;
+}
+
+const MOVED_NOTICE_OPTIONS: readonly MovedNoticeOption[] = [
+    {
+        was: ['versionNotices', 'port'],
+        now: 'notices.port',
+        what: 'the one port every notice goes through',
+    },
+    {
+        was: ['versionNotices', 'notices'],
+        now: 'notices.record',
+        what: 'the one record every notice is kept in',
+    },
+    {
+        was: ['chargeJournal', 'invoices', 'notices'],
+        now: 'notices.record',
+        what: 'the one record every notice is kept in, those of a collection included,',
+    },
+];
+
+/** The member `key` of `value`, where `value` is an object that has it as its own; otherwise undefined. */
+function memberOf(value: unknown, key: string): unknown {
+    if (typeof value !== 'object' || value === null) return undefined;
+    return Object.getOwnPropertyDescriptor(value, key)?.value;
+}
+
+/**
+ * The refusals of the notice options tenant billing's `options` still give
+ * where they no longer are read, one sentence each, naming the option and the
+ * one read in its place as `written` writes an option's path; empty where
+ * there is none. Refused rather than ignored: from code the compiler did not
+ * check, an ignored port or record leaves notices going somewhere other than
+ * where the application named them. A value counts, not a key: a spread that
+ * sets one to `undefined` named nothing.
+ */
+export function movedNoticeOptionsIn(options: object, written: (path: string) => string): string[] {
+    return MOVED_NOTICE_OPTIONS.filter(
+        (moved) => moved.was.reduce<unknown>(memberOf, options) !== undefined,
+    ).map((moved) => refusalOf(moved, written));
+}
+
+/** The refusal of every notice option tenant billing no longer reads, for the page that lists them. */
+export function everyMovedNoticeOption(written: (path: string) => string): string[] {
+    return MOVED_NOTICE_OPTIONS.map((moved) => refusalOf(moved, written));
+}
+
+function refusalOf(moved: MovedNoticeOption, written: (path: string) => string): string {
+    return (
+        `${written(moved.was.join('.'))} is not read any more: ${moved.what} is ` +
+        `${written(moved.now)}. Move it there.`
+    );
+}
 
 /**
  * What an attempt came to: told; failed, for the next run to try again;
@@ -71,8 +158,17 @@ export class NoticeSender<N extends KeyedNotice = SubscriptionNotice> {
     /**
      * Claims the notice about `subject`, has the application send it, and
      * records to whom. Null where another run holds it or it went out meanwhile.
+     *
+     * Where `stillToSend` is given it is asked once the claim is taken and
+     * before the application is: answering false lets the claim go and sends
+     * nothing, answering null, and a check that throws lets it go as a failure.
      */
-    async tell(notice: N, subject: string, deliveryTimeoutMs: number): Promise<NoticeOutcome> {
+    async tell(
+        notice: N,
+        subject: string,
+        deliveryTimeoutMs: number,
+        stillToSend?: (claimed: SubscriptionNoticeRecord) => Promise<boolean>,
+    ): Promise<NoticeOutcome> {
         // Stamped with the moment it is taken, not with the start of the run: a
         // run that takes longer than the lease would otherwise take claims that
         // every other instance already reads as abandoned.
@@ -102,6 +198,24 @@ export class NoticeSender<N extends KeyedNotice = SubscriptionNotice> {
         }
         if (!claimed) return null;
         const claimedAt = claimed.claimedAt ?? takenAt;
+        if (stillToSend) {
+            let toSend: boolean;
+            try {
+                toSend = await stillToSend(claimed);
+            } catch (error) {
+                this.logger.error(
+                    `Whether the notice ${what} is still to be sent could not be read; the next ` +
+                        'run tries again.',
+                    error instanceof Error ? error.stack : String(error),
+                );
+                await this.letGo(claimed.id, claimedAt);
+                return 'failed';
+            }
+            if (!toSend) {
+                await this.letGo(claimed.id, claimedAt);
+                return null;
+            }
+        }
 
         // A port that throws before it returns a promise fails like one that
         // rejects, rather than escaping the run with its claim still held.

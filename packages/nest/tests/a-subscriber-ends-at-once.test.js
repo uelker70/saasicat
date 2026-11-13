@@ -238,7 +238,7 @@ function endOfSubscriptionOver(ends, subscription, settings) {
     const service = new SubscriptionEndService(
         { findForTenant: async () => subscription, listCancelled: async () => [] },
         ends,
-        { readOnlyDays: 30 },
+        { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
         settings ?? {},
     );
     service.onModuleInit();
@@ -897,7 +897,7 @@ describe('the day its data is deleted on, where a subscription ends at once', ()
                 ],
             },
             ends,
-            { readOnlyDays: 30 },
+            { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
             settings ?? {},
             null,
             holds,

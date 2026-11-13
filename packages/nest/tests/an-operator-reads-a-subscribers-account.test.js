@@ -23,6 +23,7 @@ import {
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
 import { anExport } from './helpers/tenant-data-export.js';
+import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
 const STANDARD = () => line('plan', 'STANDARD', 49, { titleSnapshot: 'Standard' });
 const WELCOME = () => ({
@@ -210,7 +211,7 @@ const PLAN_CATALOG = {
     tenantBilling: {
         cancellationNoticeDays: { monthly: 0, yearly: 0 },
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
-        endOfSubscription: { readOnlyDays: 30 },
+        endOfSubscription: { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
     },
     plans: [],
 };
@@ -305,6 +306,7 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
         },
         tenantBilling: {
             authGuards: [],
+            notices: { port: sendingPort(), record: noticeRecord() },
             subscriptionEnds: { export: anExport() },
             contractFreeze: {
                 sourcePort: {},

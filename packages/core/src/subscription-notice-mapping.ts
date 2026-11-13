@@ -25,6 +25,7 @@ const KINDS: Record<SubscriptionNoticeKind, true> = {
     'collection-failed': true,
     'collection-announced': true,
     'collection-reversed': true,
+    'deletion-reminder': true,
 };
 
 /**

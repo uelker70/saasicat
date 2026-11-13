@@ -3,15 +3,7 @@
 // overdue from the day after it.
 
 import type { InvoiceCollectionRecord } from './invoice-collection.types.js';
-import type { CalendarDay } from './zoned-day.js';
-
-const MS_PER_DAY = 86_400_000;
-
-function utcOf(day: CalendarDay): number {
-    const [year, month, date] = day.split('-').map(Number);
-    if (!year || !month || !date) throw new RangeError(`${day} is not a day.`);
-    return Date.UTC(year, month - 1, date);
-}
+import { calendarDaysBetween, type CalendarDay } from './zoned-day.js';
 
 /** Whether an invoice due on `dueDate` is overdue on `today`: due before it. */
 export function isOverdueOn(dueDate: CalendarDay, today: CalendarDay): boolean {
@@ -21,9 +13,7 @@ export function isOverdueOn(dueDate: CalendarDay, today: CalendarDay): boolean {
 /** Calendar days an invoice due on `dueDate` is overdue on `today`; `0` while it is not. */
 export function daysOverdue(dueDate: CalendarDay, today: CalendarDay): number {
     if (!isOverdueOn(dueDate, today)) return 0;
-    // Both are midnights in UTC, so the difference is whole days, a change of
-    // daylight saving time included.
-    return Math.round((utcOf(today) - utcOf(dueDate)) / MS_PER_DAY);
+    return calendarDaysBetween(dueDate, today);
 }
 
 /** The latest attempt of each invoice among `attempts`, by invoice id. */

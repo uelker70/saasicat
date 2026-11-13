@@ -3,10 +3,10 @@
 -- =============================================================================
 --
 -- One table, additive: `subscription_notices` keeps the record of every notice
--- a subscriber is due — that a newer version of their plan is offered to them —
--- with when it went out, to whom and how. The platform writes it where
--- `tenantBilling.versionNotices` is turned on, and the unique key is what makes
--- each notice once rather than once per run.
+-- a subscriber is due — that a newer version of their plan is offered to them,
+-- that their data is about to be deleted, and the others — with when it went
+-- out, to whom and how. The platform writes it wherever `tenantBilling` is on,
+-- and the unique key is what makes each notice once rather than once per run.
 --
 -- Run it the same way as the other files in this directory, before `db push`
 -- where you use one:

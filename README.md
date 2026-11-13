@@ -96,6 +96,9 @@ SaaSiCatModule.forRoot(
         catalog: { featureUiRegistry },
         tenantBilling: {
             authGuards: [JwtAuthGuard, TenantGuard],
+            // Your app's notice port: it tells a tenant's administrators, in your words,
+            // what the platform decides is due — such as the day its data is deleted.
+            notices: { port: myNoticeMailer },
             // Your app's export of a tenant, taken once its subscription has ended.
             subscriptionEnds: { export: myTenantDataExport },
         },

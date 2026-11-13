@@ -32,6 +32,11 @@ import {
     type SaaSiCatAdapters,
     type SaaSiCatModuleOptions,
 } from '../module-options.js';
+import {
+    everyMovedNoticeOption,
+    movedNoticeOptionsIn,
+    noticesNotWired,
+} from '../../billing/notice-sender.js';
 import { exportNotWired } from '../../billing/tenant-data-export.service.js';
 import { resolveBundleRepository } from '../compose/bundle-repository-source.js';
 import { servesTenantAccess } from '../compose/tenant-access.js';
@@ -153,6 +158,13 @@ export const resolvesPlans = (c: PlatformConfiguration): boolean =>
         c.options.defaultPlanId ||
         (c.options.tenantBilling && c.adapters.subscriptionRepository),
     );
+
+/** An option below tenant billing, as the application writes it. */
+const tenantBillingOption = (path: string): string => `\`tenantBilling.${path}\``;
+
+/** The notice options tenant billing is still given where they moved from, as refusals. */
+const movedNoticeOptions = (c: PlatformConfiguration): string[] =>
+    movedNoticeOptionsIn(optionsOf(c.options.tenantBilling) ?? {}, tenantBillingOption);
 
 /** Names the entries of `required` that are absent, in declaration order. */
 function absent<T extends Record<string, unknown>>(required: T): string[] {
@@ -366,6 +378,38 @@ const RULE_SPECS: readonly RuleSpec[] = [
         message: exportNotWired('`tenantBilling.subscriptionEnds.export`'),
     },
     {
+        id: 'subscription-notices.requires-port',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) => Boolean(optionsOf(c.options.tenantBilling)?.notices?.port),
+        message: noticesNotWired('`tenantBilling.notices.port`'),
+    },
+    {
+        id: 'subscription-notices.no-moved-options',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) => movedNoticeOptions(c).length === 0,
+        // Every one where none is given: what the reference page lists.
+        message: (c) =>
+            (movedNoticeOptions(c).length > 0
+                ? movedNoticeOptions(c)
+                : everyMovedNoticeOption(tenantBillingOption)
+            ).join(' '),
+    },
+    {
+        id: 'subscription-notices.requires-record',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) =>
+            Boolean(
+                optionsOf(c.options.tenantBilling)?.notices?.record ??
+                bundle(c)?.tenantBilling?.subscriptionNotices,
+            ),
+        message:
+            'tenantBilling is on, but there is nowhere to record the notices sent to a tenant ' +
+            '(SC-SUB-023): a notice that is not recorded is sent again by every run. Set ' +
+            '`tenantBilling.notices.record` or use a bundle providing ' +
+            '`persistence.tenantBilling.subscriptionNotices` — both shipped adapters do, from the ' +
+            '`SubscriptionNotice` model of `@saasicat/spec`, unless `notAdopted` leaves it out.',
+    },
+    {
         id: 'subscriber-joins.requires-join-repository',
         when: (c) => c.options.subscriberJoins === true,
         assert: (c) =>
@@ -377,20 +421,6 @@ const RULE_SPECS: readonly RuleSpec[] = [
             'subscriberJoins is on, but there is nowhere to join subscribers. Use a bundle providing ' +
             '`persistence.entitlement.subscriberJoinRepository` and `subscriberRepository` — both ' +
             'shipped adapters do, unless `notAdopted` leaves `SubscriberJoin` out.',
-    },
-    {
-        id: 'version-notices.requires-notice-record',
-        when: (c) => Boolean(optionsOf(c.options.tenantBilling)?.versionNotices),
-        assert: (c) =>
-            Boolean(
-                optionsOf(c.options.tenantBilling)?.versionNotices?.notices ??
-                bundle(c)?.tenantBilling?.subscriptionNotices,
-            ),
-        message:
-            'version notices are turned on (`tenantBilling.versionNotices`), but there is ' +
-            'nowhere to record what each subscriber was told. Set ' +
-            '`tenantBilling.versionNotices.notices` or use a bundle ' +
-            'providing `persistence.tenantBilling.subscriptionNotices` — both shipped adapters do.',
     },
     {
         id: 'subscription-contract.requires-repository',

@@ -243,14 +243,15 @@ Where the versions of the terms are kept, unalterably: a contract names the vers
 
 Keeps one end per subscription that ended, and one announcement per subscription whose cancellation was confirmed with a deletion day, in the application's own database.
 
-| Member                                                                                                    | What it does                                                                                                          |
-| --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `record(end: NewSubscriptionEnd): Promise<SubscriptionEnd \| null>`                                       | Records `end` and returns it as stored — the id is the adapter's to assign.                                           |
-| `listFor(subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]>`                                 | The ends of those of `subscriptionIds` that have one, in one read.                                                    |
-| `announce( announcement: NewSubscriptionEndAnnouncement, ): Promise<SubscriptionEndAnnouncement \| null>` | Records `announcement` and returns it as stored — the id is the adapter's to assign.                                  |
-| `listAnnouncedFor(subscriptionIds: readonly string[]): Promise<SubscriptionEndAnnouncement[]>`            | The announcements of those of `subscriptionIds` that have one, in one read.                                           |
-| `recordExportDownload(download: NewTenantExportDownload): Promise<TenantExportDownload>`                  | Records `download` and returns it as stored — the id is the adapter's to assign.                                      |
-| `listExportDownloadsFor(subscriptionIds: readonly string[]): Promise<TenantExportDownload[]>`             | The downloads of `subscriptionIds`, in one read, oldest first: by `downloadedAt`, and by id where two share a moment. |
+| Member                                                                                                    | What it does                                                                                                                                                |
+| --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `record(end: NewSubscriptionEnd): Promise<SubscriptionEnd \| null>`                                       | Records `end` and returns it as stored — the id is the adapter's to assign.                                                                                 |
+| `listFor(subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]>`                                 | The ends of those of `subscriptionIds` that have one, in one read.                                                                                          |
+| `listDeletingAfter(day: CalendarDay): Promise<SubscriptionEnd[]>`                                         | Every end whose deletion day is after `day`, whichever tenant it is of, in one read: the soonest deletion first, and by subscription where two share a day. |
+| `announce( announcement: NewSubscriptionEndAnnouncement, ): Promise<SubscriptionEndAnnouncement \| null>` | Records `announcement` and returns it as stored — the id is the adapter's to assign.                                                                        |
+| `listAnnouncedFor(subscriptionIds: readonly string[]): Promise<SubscriptionEndAnnouncement[]>`            | The announcements of those of `subscriptionIds` that have one, in one read.                                                                                 |
+| `recordExportDownload(download: NewTenantExportDownload): Promise<TenantExportDownload>`                  | Records `download` and returns it as stored — the id is the adapter's to assign.                                                                            |
+| `listExportDownloadsFor(subscriptionIds: readonly string[]): Promise<TenantExportDownload[]>`             | The downloads of `subscriptionIds`, in one read, oldest first: by `downloadedAt`, and by id where two share a moment.                                       |
 
 ### `TenantDataExportPort`
 
