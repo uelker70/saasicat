@@ -219,7 +219,8 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
      * required here, and a start without it, from code the compiler did not
      * check, is refused as well. Always on: `includeCron: false` leaves out
      * only the quarter-hourly run, for an application that calls
-     * `SubscriptionEndService.recordEnded` from a scheduler of its own.
+     * `SubscriptionEndService.recordEnded` and then
+     * `DeletionReminderService.remindDue` from a scheduler of its own.
      */
     subscriptionEnds: Partial<Omit<SubscriptionEndsOptions, 'export'>> &
         Pick<SubscriptionEndsOptions, 'export'>;

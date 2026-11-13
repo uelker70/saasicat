@@ -80,6 +80,7 @@ import { PlansAheadService } from './plans-ahead.js';
 import { VersionNoticeService } from './version-notice.service.js';
 import { SubscriptionEndService } from './subscription-end.service.js';
 import { SubscriptionEndCron } from './subscription-end.cron.js';
+import { DeletionReminderService } from './deletion-reminder.service.js';
 import { noticeRecordNotWired, noticesNotWired } from './notice-sender.js';
 import { TrialEndService } from './trial-end.service.js';
 import {
@@ -321,9 +322,11 @@ export interface SubscriptionEndsOptions {
     export: ProviderSpec<TenantDataExportPort>;
     /**
      * Default `true`: a run every quarter of an hour records the subscriptions
-     * that ended. Needs `ScheduleModule`; set `false` where none runs, or where
-     * the application calls `SubscriptionEndService.recordEnded` from a
-     * scheduler of its own.
+     * that ended, then reminds each tenant whose deletion day is near
+     * (`SC-CANC-022`). Needs `ScheduleModule`; set `false` where none runs, or
+     * where the application calls `SubscriptionEndService.recordEnded` and then
+     * `DeletionReminderService.remindDue` from a scheduler of its own — both,
+     * in that order, or a tenant whose subscription ended is never warned.
      */
     includeCron?: boolean;
 }
@@ -611,8 +614,10 @@ export interface TenantBillingModuleOptions {
 
     /**
      * Records each subscription that ended, with the day its tenant's data is
-     * deleted on, and holds the tenant to reading until then
-     * (`SubscriptionEndService`, `SC-CANC-027`). `SaaSiCatModule` passes the
+     * deleted on, holds the tenant to reading until then
+     * (`SubscriptionEndService`, `SC-CANC-027`), and reminds its
+     * administrators before that day through `notices`
+     * (`DeletionReminderService`, `SC-CANC-022`). `SaaSiCatModule` passes the
      * bundle's store; without this no end is recorded, which only a module
      * wired by hand does.
      */
@@ -884,6 +889,7 @@ export class TenantBillingModule {
                 },
                 SubscriptionEndService,
                 TrialEndService,
+                DeletionReminderService,
                 ...(subscriptionEnds.includeCron === false ? [] : [SubscriptionEndCron]),
             );
         }
@@ -1029,7 +1035,9 @@ export class TenantBillingModule {
                 TenantAdminGuard,
                 PlanChangePreviewService,
                 PLANS_AHEAD_TOKEN,
-                ...(subscriptionEnds ? [SubscriptionEndService, TrialEndService] : []),
+                ...(subscriptionEnds
+                    ? [SubscriptionEndService, TrialEndService, DeletionReminderService]
+                    : []),
                 SUBSCRIPTION_USAGE_PORT_TOKEN,
                 USAGE_SNAPSHOT_PORT_TOKEN,
                 SUBSCRIPTION_WRITE_PORT_TOKEN,

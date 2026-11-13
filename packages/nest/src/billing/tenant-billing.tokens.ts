@@ -163,7 +163,7 @@ export const CANCELLATION_NOTICE_DAYS_TOKEN = Symbol.for('saasicat/nest/Cancella
 /**
  * What follows when a subscription ends, from `config/saas.yaml#tenantBilling`
  * (`EndOfSubscriptionSettings`): the days the tenant stays read-only before its
- * data is deleted.
+ * data is deleted, and the lead times its administrators are reminded at.
  */
 export const END_OF_SUBSCRIPTION_TOKEN = Symbol.for('saasicat/nest/EndOfSubscription');
 

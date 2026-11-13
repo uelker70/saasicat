@@ -86,7 +86,7 @@ function ending(subscription, { storedMeanwhile = null, withoutEndTrial = false 
     const endService = (seen.endService = new SubscriptionEndService(
         usage,
         seen.ends,
-        { readOnlyDays: 30 },
+        { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] },
         BERLIN,
         bypass,
         seen.holds,

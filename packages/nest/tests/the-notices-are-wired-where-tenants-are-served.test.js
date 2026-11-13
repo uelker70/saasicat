@@ -10,6 +10,7 @@ import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 
 import {
+    DeletionReminderService,
     FeatureWithdrawalService,
     InvoiceCollectionService,
     SubscriberChargeService,
@@ -144,6 +145,7 @@ describe('the port and the record, named once', () => {
         const get = (type) => moduleRef.get(type, { strict: false });
         return {
             moduleRef,
+            reminders: get(DeletionReminderService),
             versionNotices: get(VersionNoticeService),
             retirements: get(VersionRetirementService),
             withdrawals: get(FeatureWithdrawalService),
@@ -161,7 +163,7 @@ describe('the port and the record, named once', () => {
         for (const [name, service] of Object.entries(services)) {
             assert.equal(service.notices, record, `${name} records in the record named`);
         }
-        for (const name of ['versionNotices', 'retirements', 'withdrawals']) {
+        for (const name of ['reminders', 'versionNotices', 'retirements', 'withdrawals']) {
             assert.equal(services[name].sender.port, port, `${name} sends through the port named`);
         }
         await moduleRef.close();

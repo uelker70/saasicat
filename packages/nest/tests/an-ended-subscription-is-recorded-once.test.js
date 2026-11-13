@@ -18,7 +18,7 @@ import {
 } from '../dist/testing/index.js';
 
 const BERLIN = { timeZone: 'Europe/Berlin' };
-const THIRTY_DAYS = { readOnlyDays: 30 };
+const THIRTY_DAYS = { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] };
 const RUN = 'job:platform:subscription-ends';
 
 // Midnight into 1 January in Berlin: the last day of the subscription is
@@ -151,7 +151,7 @@ describe('the run that records the subscriptions that ended', () => {
         await first.service.recordEnded(FIRST_RUN);
 
         const later = runOver(subscriptions, {
-            period: { readOnlyDays: 90 },
+            period: { readOnlyDays: 90, reminderDaysBefore: [29, 10, 3] },
             ends: first.ends,
             holds: first.holds,
         });
@@ -264,7 +264,7 @@ describe('the end of a subscription its tenant was told a day for', () => {
         const ends = new FakeSubscriptionEndRepository();
         await told(ends, 't-1', NEW_YEAR, '2027-01-31');
         const { service } = runOver([cancelled('t-1', NEW_YEAR)], {
-            period: { readOnlyDays },
+            period: { readOnlyDays, reminderDaysBefore: [29, 10, 3] },
             ends,
         });
 
@@ -284,7 +284,7 @@ describe('the end of a subscription its tenant was told a day for', () => {
         const ends = new FakeSubscriptionEndRepository();
         await told(ends, 't-1', NEW_YEAR, '2027-01-31');
         const { service } = runOver([cancelled('t-1', NEW_YEAR), cancelled('t-2', NEW_YEAR)], {
-            period: { readOnlyDays: 90 },
+            period: { readOnlyDays: 90, reminderDaysBefore: [29, 10, 3] },
             ends,
         });
 
@@ -357,7 +357,7 @@ describe('the end of a subscription its tenant was told a day for', () => {
         for (const [tenantId] of landed) await told(ends, tenantId, NEW_YEAR, '2027-01-31');
         const { service, holds } = runOver(
             landed.map(([tenantId, endsAt]) => cancelled(tenantId, endsAt)),
-            { period: { readOnlyDays: 90 }, ends },
+            { period: { readOnlyDays: 90, reminderDaysBefore: [29, 10, 3] }, ends },
         );
 
         assert.deepEqual(await service.recordEnded(FIRST_RUN), { ended: 3 });
@@ -414,6 +414,8 @@ describe('the end of a subscription its tenant was told a day for', () => {
 
 // @requirement SC-CANC-027 — An ended subscription leaves the tenant a period to read and export before its deletion
 describe('the quarter-hourly run', () => {
+    /** The reminders after the ends, which none of these cases is about. */
+    const NO_REMINDERS = { remindDue: async () => ({ told: 0, failed: 0 }) };
     const quietly = (cron) => {
         // Silenced, so the error a failing run logs does not read as a failure here.
         cron.logger = new Logger('test');
@@ -425,9 +427,11 @@ describe('the quarter-hourly run', () => {
     test('records nothing under a maintenance lock; the next run catches up', async () => {
         let asked = 0;
         const service = { recordEnded: async () => ({ ended: (asked += 1) }) };
-        const locked = quietly(new SubscriptionEndCron(service, { isLocked: async () => true }));
+        const locked = quietly(
+            new SubscriptionEndCron(service, NO_REMINDERS, { isLocked: async () => true }),
+        );
 
-        await locked.recordEnded();
+        await locked.recordAndRemind();
 
         assert.equal(asked, 0);
     });
@@ -441,10 +445,10 @@ describe('the quarter-hourly run', () => {
                 return { ended: 0 };
             },
         };
-        const cron = quietly(new SubscriptionEndCron(service, null));
+        const cron = quietly(new SubscriptionEndCron(service, NO_REMINDERS, null));
 
-        await cron.recordEnded();
-        await cron.recordEnded();
+        await cron.recordAndRemind();
+        await cron.recordAndRemind();
 
         assert.equal(asked, 2);
     });

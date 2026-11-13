@@ -738,6 +738,53 @@ _Tested by:_
     - the day a reminder is decided on
         - is the installation's day ahead of UTC, not UTC's
         - is the installation's day behind UTC, not UTC's
+- `packages/nest/tests/a-tenant-is-reminded-before-its-deletion.test.js`
+    - the reminders before a deletion
+        - on the largest lead time's day, one reminder names the end, both days and the lead time,
+          and is recorded with whom it reached and how
+        - none the day before, by a quarter of an hour
+        - a run that repeats, the same day or the next, sends nothing twice
+        - each later lead time goes on its own day, and none after the deletion day has come
+        - a period shorter than every lead time is covered by one reminder at once, and the next
+          goes on its day
+        - an end whose deletion day has come, or passed, is reminded of nothing
+        - reads every tenant's ends and reminders in one go, across tenants through the bypass
+        - two instances racing over one end send its reminder once
+        - a port that throws lets the reminder go, and the next run sends it
+        - a port that tells nobody is recorded as told to nobody and not tried again; the next lead
+          time still goes on its day
+        - a reminder that cannot be put together fails for its end alone, and the next run sends it
+    - a reminder another run still holds
+        - holds back the smaller lead time, so no second e-mail goes out alongside it
+        - once delivered, covers what it covers, and the smaller lead time goes by the next run
+        - once let go, covers nothing: the smaller lead time goes, and the larger one never
+        - a claim older than a quarter of an hour holds back nothing
+        - taken on by an instance whose clock runs behind the one that recorded the end, still holds
+          it back
+        - holds back only its own end's reminders
+    - a reminder of a larger lead time left undelivered
+        - is never sent once a smaller one is due, through every run until the deletion day
+    - the lead times a reminder is decided by
+        - are the file's at the run: changed after the end was recorded, the new ones apply and
+          nothing is told twice
+        - count the installation's day ahead of UTC, not UTC's
+        - count the installation's day behind UTC, not UTC's
+    - the quarter-hourly run
+        - records the ends first and reminds after
+        - a run whose recording fails still reminds the ends recorded before
+        - a run whose reminding fails lets the next one try again
+        - under a maintenance lock neither records nor reminds; the next run catches up
+        - a run still going when the next is due lets it pass, and nothing is asked twice
+    - the reminders, as the platform wires them
+        - an end the run records is reminded by the same run where a lead time is already due,
+          through the port and into the record named
+        - the run that records the ends reminds after them; without it, the reminders are there for
+          the application to call
+        - a suspended tenant is reminded all the same: a suspension does not stop its deletion
+        - is left alone by the version notice run, which sweeps every other kind's notices left
+          undelivered
+    - a reminder left undelivered, in the record the invoice collections tell from
+        - is not told by the collection run, which tells its own notices left undelivered
 - `packages/nest/tests/plan-catalog-loader.test.js`
     - lead times nobody named are refused, and the field is named
     - a list of lead times that promises no reminder, or one twice, is refused

@@ -27,7 +27,7 @@ import { cancellationsOver, tenantBillingRoutes } from './helpers/tenant-billing
 
 const BERLIN = { timeZone: 'Europe/Berlin' };
 const UTC = { timeZone: 'UTC' };
-const THIRTY_DAYS = { readOnlyDays: 30 };
+const THIRTY_DAYS = { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] };
 /** Half past midnight into 1 January 2100 in Berlin: still 31 December 2099 in UTC. */
 const TERM_ENDS = new Date('2099-12-31T23:30:00.000Z');
 /** What cancelling for that end announces in Berlin, with thirty read-only days. */
