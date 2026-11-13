@@ -1,5 +1,25 @@
 # @saasicat/tax-de
 
+## 1.0.0-rc.31
+
+### Patch Changes
+
+- Updated dependencies [9d4be08]
+- Updated dependencies [4520e0c]
+- Updated dependencies [a7801fb]
+- Updated dependencies [a66fa81]
+- Updated dependencies [75a39ff]
+- Updated dependencies [5ba9bd0]
+- Updated dependencies [637e832]
+- Updated dependencies [d6d3551]
+- Updated dependencies [68f5331]
+- Updated dependencies [73c29da]
+- Updated dependencies [c7a6941]
+- Updated dependencies [0a6ac3f]
+- Updated dependencies [ce81f60]
+- Updated dependencies [155bdda]
+    - @saasicat/core@1.0.0-rc.31
+
 ## 1.0.0-rc.30
 
 ### Patch Changes
