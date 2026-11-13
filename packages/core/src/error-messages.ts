@@ -538,6 +538,14 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     TENANT_BEING_DELETED: 'This account is being deleted.',
     TENANT_ALREADY_SUSPENDED: 'This tenant is suspended already.',
     TENANT_NOT_SUSPENDED: 'This tenant is not suspended.',
+    TENANT_EXPORT_NOT_OFFERED:
+        'The export of this account is offered once its subscription has ended.',
+    TENANT_EXPORT_FAILED:
+        'The export of this account could not be produced just now. Please try again later.',
+    TENANT_EXPORT_NOT_FOR_OPERATOR:
+        'Only an administrator of this account can take its export, not the provider acting as the account.',
+    TENANT_EXPORT_IN_PROGRESS:
+        'The export of this account is being produced already. Please try again once it has arrived.',
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED: 'The tax adapter {adapter} does not support this case: {reason}',
     TAX_VAT_ID_CHECK_NOT_COMPLETED:

@@ -4,18 +4,21 @@ import { asc, inArray } from 'drizzle-orm';
 import {
     type NewSubscriptionEnd,
     type NewSubscriptionEndAnnouncement,
+    type NewTenantExportDownload,
     type SubscriptionEnd,
     type SubscriptionEndAnnouncement,
     type SubscriptionEndPort,
+    type TenantExportDownload,
     toSubscriptionEnd,
     toSubscriptionEndAnnouncement,
+    toTenantExportDownload,
 } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
-import { subscriptionEndAnnouncements, subscriptionEnds } from './schema.js';
+import { subscriptionEndAnnouncements, subscriptionEnds, tenantExportDownloads } from './schema.js';
 
 /**
- * `SubscriptionEndPort` against the canonical `subscription_ends` and
- * `subscription_end_announcements` tables.
+ * `SubscriptionEndPort` against the canonical `subscription_ends`,
+ * `subscription_end_announcements` and `tenant_export_downloads` tables.
  */
 @Injectable()
 export class DrizzleSubscriptionEndRepository implements SubscriptionEndPort {
@@ -72,5 +75,26 @@ export class DrizzleSubscriptionEndRepository implements SubscriptionEndPort {
             .where(inArray(subscriptionEndAnnouncements.subscriptionId, [...subscriptionIds]))
             .orderBy(asc(subscriptionEndAnnouncements.subscriptionId));
         return rows.map(toSubscriptionEndAnnouncement);
+    }
+
+    /** A plain insert: no key refuses a second download of one subscription. */
+    async recordExportDownload(download: NewTenantExportDownload): Promise<TenantExportDownload> {
+        const [row] = await this.db
+            .insert(tenantExportDownloads)
+            .values({ id: randomUUID(), ...download })
+            .returning();
+        return toTenantExportDownload(row);
+    }
+
+    async listExportDownloadsFor(
+        subscriptionIds: readonly string[],
+    ): Promise<TenantExportDownload[]> {
+        if (subscriptionIds.length === 0) return [];
+        const rows = await this.db
+            .select()
+            .from(tenantExportDownloads)
+            .where(inArray(tenantExportDownloads.subscriptionId, [...subscriptionIds]))
+            .orderBy(asc(tenantExportDownloads.downloadedAt), asc(tenantExportDownloads.id));
+        return rows.map(toTenantExportDownload);
     }
 }

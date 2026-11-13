@@ -898,6 +898,79 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-CANC-033 — An ended subscription's deletion day is shown to the tenant and to the operator
+
+🟢 🔒 Once the end of a subscription is recorded (`SC-CANC-027`),
+every user of its tenant reads, beside the reason that holds the tenant back (`SC-ADM-054`), the last
+day the tenant can still read on and the day its data is deleted on, in the installation's days. The
+operator's page for the tenant names the deletion day beside the same reason (`SC-ADM-053`), and
+every download of the tenant's export (`SC-PRIV-019`) with its day and who took it, or that none was
+taken yet. Until the end is recorded, neither names a day.
+
+_Source:_ #337 (decided 2026-11-12)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-ended-subscription-names-its-days-and-offers-the-export.test.js`
+    - whether an ended subscription's deletion is due, by the installation's day
+        - the day before the deletion day, it is not due
+        - on the deletion day itself, it is due
+        - and after it, while nothing has deleted the data, still due
+        - where the installation is ahead of UTC, it is due on its own day, while UTC is still on
+          the day before
+        - where the installation is behind UTC, it is not due yet, while UTC is on the day already
+        - every other reason, and an end not recorded yet, says nothing of it
+    - an ended subscription names its days to every user
+        - the last day the tenant can read, and the day its data is deleted on
+        - the last day before a deletion on the first of a year is the last of the year before
+        - every other reason names no days, even where a day is read under its reference
+        - an ended subscription whose end is not recorded yet names no days
+- `packages/nest/tests/the-days-and-downloads-of-an-ended-subscription-are-shown.test.js`
+    - every user of the tenant reads the days its ended subscription leaves
+        - a user without any role reads the last readable day and the deletion day
+        - a user holding the billing permission reads them too, and the administrator is offered the
+          export
+        - both reads say whether the deletion is due, by the moment they are asked at
+        - the ends are read once, whatever the number of reasons
+        - and not at all where no subscription ended
+        - a tenant's own users read the ends within its own scope
+    - the operator's page names the day and every download of the export
+        - the deletion day, and every download with its moment and who took it, the oldest first
+        - none taken yet is an empty list, not an absent one
+        - every other reason carries neither a day nor downloads
+        - an ended subscription whose end is not recorded yet carries no day and no downloads
+        - another tenant's downloads under the same subscription are not listed
+        - the ends and the downloads are read once each, past the tenants’ policy
+        - and not at all where no subscription ended
+        - where nothing answers for the ends, the reason stays without a day
+- `packages/ui-vue/tests/component/tenant-detail-shows-why-a-tenant-is-held-back.test.ts`
+    - an ended subscription in the tenant detail's access section
+        - names the deletion day, and every download of the export with its day and who took it, the
+          oldest first
+        - says that nobody has taken the export yet where no download is recorded
+        - names no deletion day while the end is not recorded yet
+        - names neither a deletion day nor downloads beside the reasons of other kinds
+- `packages/ui-vue-tenant/tests/component/a-held-back-tenant-reads-why.test.ts`
+    - the banner of a tenant whose subscription ended
+        - tells a user who is not its administrator the last day it can read and the day its data is
+          deleted on, and offers no export
+        - tells its administrator the same two days
+        - names the two days in German to a German reader
+        - once the deletion day has come and nothing has deleted the data, says the deletion is due
+          and that it can still read
+        - says the deletion is due in German to a German reader
+        - suspended past the deletion day, names the two days as days and says nothing of reading
+          now
+        - names no days while the end is not recorded yet
+        - while suspended, names the two days as days and says nothing of reading now, and offers no
+          export
+        - while being deleted, names the two days as days and says nothing of reading now
+        - while suspended, names the two days as days in German to a German reader
+
+<!-- END proof -->
+
 ### SC-CANC-023 — A plan retirement lets a subscription cancel without notice until it takes effect
 
 🟢 💰 Neither the notice period nor a minimum term holds it: those are the terms the operator is

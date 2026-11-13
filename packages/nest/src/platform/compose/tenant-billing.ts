@@ -135,6 +135,7 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
             // `PersistenceProvider` types it as.
             store: (subscriptionEnds?.store ??
                 ctx.persistence?.core.subscriptionEnds) as ProviderSpec<SubscriptionEndPort>,
+            export: subscriptionEnds?.export,
         },
         imports: tenantImports ?? ctx.options.imports,
         extraProviders: [...quotaProviders, ...(extraProviders ?? [])],

@@ -31,6 +31,7 @@ import type {
     SubscriptionEndPort,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
+    TenantDataExportPort,
     TenantSubscriptionWritePort,
     TransactionRunner,
     UsageSnapshotPort,
@@ -47,6 +48,8 @@ import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { TenantAccessStateController } from './tenant-access-state.controller.js';
 import { TenantBillingController } from './tenant-billing.controller.js';
+import { TenantDataExportController } from './tenant-data-export.controller.js';
+import { TenantDataExportService, exportNotWired } from './tenant-data-export.service.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
 import { VersionSwitchService } from './version-switch.service.js';
@@ -142,6 +145,7 @@ import {
     SUBSCRIPTION_NOTICE_PORT_TOKEN,
     SUBSCRIPTION_END_PORT_TOKEN,
     END_OF_SUBSCRIPTION_TOKEN,
+    TENANT_DATA_EXPORT_PORT_TOKEN,
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
@@ -307,8 +311,14 @@ function assertNoMovedOptions(options: TenantBillingModuleOptions): void {
 
 /** Where the end of each subscription is kept, and how its run is started (`SC-CANC-027`). */
 export interface SubscriptionEndsOptions {
-    /** Where each end is kept, with its deletion day. */
+    /** Where each end is kept, with its deletion day, and each download of the export. */
     store: ProviderSpec<SubscriptionEndPort>;
+    /**
+     * The application's export of a tenant's data, which the tenant's
+     * administrator takes from `GET billing/export` once its subscription has
+     * ended (`SC-PRIV-019`). Required: the read-only period exists for it.
+     */
+    export: ProviderSpec<TenantDataExportPort>;
     /**
      * Default `true`: a run every quarter of an hour records the subscriptions
      * that ended. Needs `ScheduleModule`; set `false` where none runs, or where
@@ -820,8 +830,13 @@ export class TenantBillingModule {
         });
         const subscriptionEnds = options.subscriptionEnds;
         if (subscriptionEnds) {
+            if (!subscriptionEnds.export) {
+                throw new Error(exportNotWired('TenantBillingModule: `subscriptionEnds.export`'));
+            }
             providers.push(
                 asProvider(SUBSCRIPTION_END_PORT_TOKEN, subscriptionEnds.store),
+                asProvider(TENANT_DATA_EXPORT_PORT_TOKEN, subscriptionEnds.export),
+                TenantDataExportService,
                 // From `config/saas.yaml`, as the two settings above it are.
                 {
                     provide: END_OF_SUBSCRIPTION_TOKEN,
@@ -960,6 +975,7 @@ export class TenantBillingModule {
                 TenantBillingController,
                 TenantAccessStateController,
                 ...(featureWithdrawals ? [FeatureWithdrawalTenantController] : []),
+                ...(subscriptionEnds ? [TenantDataExportController] : []),
                 // The tenant reads its invoices where their documents are archived.
                 ...(invoices?.renderer && invoices.archive && invoices.mail
                     ? [TenantInvoicesController]

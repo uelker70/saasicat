@@ -204,3 +204,133 @@ already empty, still leave the counts that were erased rather than a record that
 deleted.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+
+🟢 🔒 From the moment the end of the tenant's subscription is recorded (`SC-CANC-027`) until its data
+is deleted, a user holding the tenant's administrator role downloads the tenant's full export as
+one file, which the application produces. The tenant's other users cannot, since it holds every
+user's data. Before the end is recorded the export is refused with a stable code, as the tenant
+still works in the application; after the deletion day it is still offered while the data is there.
+A suspension or a deletion under way refuses it as it refuses every request of the tenant's users
+(`SC-ADM-055`). The tenant is always the session's, never one the request names. The application is
+asked on every download; the download is recorded only once the application has handed the whole
+file over, and the file is sent only once its download is recorded, so a file never leaves without
+its record and a record never claims a file the application did not produce. Every download is a
+record of its own, with its moment and who took it, kept beside the end; it is the tenant's
+acknowledgement that `SC-PRIV-017` names. A download shows that the file was produced for that
+request; it cannot show that it was saved.
+
+_Source:_ #337 (decided 2026-11-12)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-ended-subscription-names-its-days-and-offers-the-export.test.js`
+    - the export is offered to the administrator only where the route serves it
+        - read-only for an ended subscription whose end is recorded, the export wired: offered
+        - to a user who is not the administrator: not offered
+        - where the application wired no export: not offered
+        - while the end is not recorded yet: not offered
+        - a suspended tenant whose subscription ended: not offered
+        - a tenant being deleted whose subscription ended: not offered
+        - read-only for an unpaid invoice alone: not offered
+        - an open tenant: not offered
+        - asked without saying who asks, as an untyped caller may: not offered
+- `packages/nest/tests/a-route-that-costs-money-asks-for-the-role.test.js`
+    - who of a tenant may do what
+        - the reads that are the administrator's alone are these, and ask for the role
+- `packages/nest/tests/a-tenant-takes-its-export-before-its-deletion.test.js`
+    - a tenant's administrator takes its export once its subscription ended
+        - the file goes out as the application produced it, under its name
+        - the download is recorded beside the end, with the moment, who took it and the bytes handed
+          out
+        - and written to the audit log under a key the audit page can name
+        - the route records who took it from the session
+        - a session without an email is still recorded by the user it names, whatever context the
+          request claims
+        - every download is a record of its own, the oldest first
+        - the application is asked again for every download
+        - is still offered after the deletion day, while the data is there
+        - of two ended subscriptions, the latest end is the one the download is recorded for
+    - the export is offered only once an end is recorded
+        - a tenant that is open is refused, and the application is not asked
+        - a tenant read-only for an unpaid invoice, with no end, is refused
+        - a tenant held for an ended subscription whose end is not recorded yet is refused
+        - an end whose reason was lifted offers nothing any more
+    - a file never leaves without its record, and no record claims a file not produced
+        - an application that fails is refused with a stable code, and nothing is recorded
+        - an answer whose content is not bytes is refused, and nothing is recorded
+        - a media type a header cannot carry is refused before anything is recorded
+        - an empty file is refused, and nothing is recorded
+        - an answer without a file name is refused, and nothing is recorded
+        - a download that cannot be recorded sends no file and writes no audit entry
+        - an audit log that fails leaves the download recorded and sent
+    - one export of a tenant at a time, since each is held in memory as a whole
+        - a second request while the first is produced is refused, and the application is asked once
+        - once the first has arrived, the next request is served
+        - where the application failed, the next request is served
+        - where the download could not be recorded, the next request is served
+        - another tenant is not held up by one being produced
+    - the export is the session's tenant's alone
+        - a request naming another tenant anywhere but its session is answered for its session
+        - another tenant's end, recorded under a reason of its own, offers its own export only
+        - a reason naming another tenant's subscription offers nothing
+    - the file name the application gives is not trusted for the header
+        - path separators, quotes and line breaks are replaced
+        - an empty name is offered as the export
+    - where the route is checked
+        - it carries no access mark, so a read-only tenant reads it as a GET
+        - it stays behind the tenant's guard and the administrator's
+        - a user of the tenant without the role is refused, and its administrator let through
+        - a tenant read-only because its subscription ended is let through
+        - a tenant whose subscription ended and that is suspended is refused
+        - a tenant whose subscription ended and that is being deleted is refused
+    - the operator does not take the export in the tenant’s name
+        - a user holding SUPER_ADMIN is refused with a code of its own, and nothing is asked or
+          recorded
+        - the operator the application's check let through as acting is refused, whatever role the
+          session carries
+        - a request the application checked as a tenant user’s is not taken for the operator’s
+        - is not offered the export on either read of the tenant’s state
+    - the state a user reads offers the export exactly where the route serves it
+        - for the administrator, offered where it is served and nowhere else
+        - for a user without the role, offered nowhere, and served nowhere
+        - for the operator, offered nowhere, and served nowhere
+        - where the application wired no export, nothing is offered
+- `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
+    - the application's export, which the ends cannot start without
+        - serving tenants without it, the start is refused with one sentence naming the option, the
+          port and why
+        - given, nothing is refused
+        - without tenant billing, it is not asked for
+        - tenant billing wired by hand with the ends and without it does not start, naming the
+          option and the port
+        - given, the route is mounted and the export is asked through the port given
+- `packages/nest/tests/the-days-and-downloads-of-an-ended-subscription-are-shown.test.js`
+    - the operator's page names the day and every download of the export
+        - the deletion day, and every download with its moment and who took it, the oldest first
+- `packages/nest/tests/the-tenants-export-over-http.test.js`
+    - the tenant's export over HTTP, on Express and on Fastify
+        - a GET hands the administrator the file and records the download
+        - the operator the application says is acting as the tenant is refused, and nothing is asked
+          or recorded
+        - a user holding SUPER_ADMIN is refused as the operator
+        - a HEAD is refused with the method the route allows, and asks and records nothing
+- `packages/ui-vue-tenant/tests/component/a-held-back-tenant-reads-why.test.ts`
+    - the tenant's export, taken from the banner
+        - is offered to its administrator as a button named for what it downloads, reached from the
+          keyboard
+        - downloads the export and saves it under the name the server offers
+        - is busy while it downloads, and cannot be pressed a second time meanwhile
+        - is offered to nobody the server does not say may take it
+        - refused, says why in the sentence each refusal is worded with, never its code
+        - refused in German, says why in German
+        - failed without a code the platform words, says the export did not arrive, and leaves the
+          banner as it was
+        - refused with a code the platform does not word, says the export did not arrive rather than
+          the code
+        - where the connection breaks, says the export did not arrive
+
+<!-- END proof -->

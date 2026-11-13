@@ -10,6 +10,7 @@ import {
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
+import { anExport } from './helpers/tenant-data-export.js';
 
 // Where a bundle repository may come from.
 //
@@ -79,6 +80,7 @@ const boot = (persistence) =>
             subscriptionUsagePort: {},
             usageSnapshotPort: {},
             subscriptionWritePort: {},
+            subscriptionEnds: { export: anExport() },
         },
         subscriptionBundles: {},
         entitlement: { defaultPlanId: 'PRO' },

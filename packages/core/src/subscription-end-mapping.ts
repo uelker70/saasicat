@@ -1,8 +1,13 @@
-// Canonical row -> record mapping for subscription ends and their announcements. Pure, and shared by both
-// adapters for the reason `subscription-contract-mapping.ts` gives.
+// Canonical row -> record mapping for subscription ends, their announcements and the downloads of the
+// tenant's export. Pure, and shared by both adapters for the reason `subscription-contract-mapping.ts`
+// gives.
 
 import { dayOf } from './column-day.js';
-import type { SubscriptionEnd, SubscriptionEndAnnouncement } from './subscription-end.types.js';
+import type {
+    SubscriptionEnd,
+    SubscriptionEndAnnouncement,
+    TenantExportDownload,
+} from './subscription-end.types.js';
 
 /**
  * A `subscription_ends` row as either adapter reads it back: `deletesOn` is a
@@ -58,5 +63,37 @@ export function toSubscriptionEndAnnouncement(
         }),
         announcedAt: row.announcedAt,
         announcedBy: row.announcedBy,
+    };
+}
+
+/**
+ * A `tenant_export_downloads` row as either adapter reads it back: `size` is a
+ * `BIGINT`, which Prisma hands back as a `bigint` and Drizzle in number mode as
+ * a `number`.
+ */
+export type CanonicalTenantExportDownloadRow = Omit<TenantExportDownload, 'size'> & {
+    size: unknown;
+};
+
+/**
+ * Reads a `tenant_export_downloads` row back as a download, naming each column
+ * rather than spreading the row, so a column the record does not carry — the
+ * row's `createdAt` — is left behind.
+ */
+export function toTenantExportDownload(
+    row: CanonicalTenantExportDownloadRow,
+): TenantExportDownload {
+    const size = Number(row.size);
+    if (!Number.isSafeInteger(size) || size < 1) {
+        throw new Error(`tenant_export_downloads.size of ${row.id} is not a size in bytes.`);
+    }
+    return {
+        id: row.id,
+        tenantId: row.tenantId,
+        subscriptionId: row.subscriptionId,
+        downloadedAt: row.downloadedAt,
+        downloadedBy: row.downloadedBy,
+        downloadedByUserId: row.downloadedByUserId,
+        size,
     };
 }

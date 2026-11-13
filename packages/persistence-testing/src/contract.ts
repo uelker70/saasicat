@@ -20,6 +20,7 @@ import type {
     NewTenantAccessHold,
     NewSubscriptionEnd,
     NewSubscriptionEndAnnouncement,
+    NewTenantExportDownload,
     CreateSubscriberData,
     SubscriberSearch,
     SubscriberJoinState,
@@ -14001,6 +14002,138 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     [],
                     'recording an end announces nothing',
                 );
+            });
+        });
+
+        // @requirement SC-PRIV-019
+        describe("the downloads of a tenant's export", () => {
+            const ADMIN = 'user:admin-1';
+            const downloadOf = (
+                overrides: Partial<NewTenantExportDownload> = {},
+            ): NewTenantExportDownload => ({
+                tenantId: 'tenant-ended',
+                subscriptionId: 'sub-ended',
+                downloadedAt: new Date('2027-01-05T09:00:00.123Z'),
+                downloadedBy: ADMIN,
+                downloadedByUserId: 'admin-1',
+                size: 2048,
+                ...overrides,
+            });
+
+            test('come back as written, oldest first, whichever was recorded first', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                assert.deepEqual(await port.listExportDownloadsFor(['sub-ended']), []);
+                const later = await port.recordExportDownload(
+                    downloadOf({
+                        downloadedAt: new Date('2027-01-20T16:30:00.456Z'),
+                        downloadedBy: 'user:admin-2',
+                    }),
+                );
+                const earlier = await port.recordExportDownload(downloadOf());
+                assert.ok(later.id && earlier.id, 'the adapter assigns the ids');
+                assert.notEqual(later.id, earlier.id);
+                assert.deepEqual(
+                    earlier,
+                    {
+                        id: earlier.id,
+                        tenantId: 'tenant-ended',
+                        subscriptionId: 'sub-ended',
+                        downloadedAt: new Date('2027-01-05T09:00:00.123Z'),
+                        downloadedBy: ADMIN,
+                        downloadedByUserId: 'admin-1',
+                        size: 2048,
+                    },
+                    'the answer is the row as stored',
+                );
+                assert.deepEqual(
+                    await port.listExportDownloadsFor(['sub-ended']),
+                    [earlier, later],
+                    'the oldest download comes first',
+                );
+                assert.deepEqual(await port.listExportDownloadsFor([]), []);
+            });
+
+            test('are each a record of their own, even taken by the same person at the same moment', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const first = await port.recordExportDownload(downloadOf());
+                const second = await port.recordExportDownload(downloadOf());
+                const third = await port.recordExportDownload(
+                    downloadOf({ downloadedAt: new Date('2027-01-06T09:00:00.000Z') }),
+                );
+                const listed = await port.listExportDownloadsFor(['sub-ended']);
+                assert.equal(listed.length, 3, 'no download replaces another');
+                assert.deepEqual(
+                    listed.slice(0, 2).map((download) => download.id),
+                    [first.id, second.id].sort(),
+                    'the two taken at one moment come before the later one, in the order of their ids',
+                );
+                assert.deepEqual(listed[2], third);
+            });
+
+            test('are read for several subscriptions in one read, and a subscription with none adds nothing', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const ended = await port.recordExportDownload(downloadOf());
+                const earlierEnd = await port.recordExportDownload(
+                    downloadOf({
+                        subscriptionId: 'sub-ended-earlier',
+                        downloadedAt: new Date('2026-12-10T08:00:00.000Z'),
+                    }),
+                );
+                const endedAgain = await port.recordExportDownload(
+                    downloadOf({ downloadedAt: new Date('2027-01-25T08:00:00.000Z') }),
+                );
+                assert.deepEqual(
+                    await port.listExportDownloadsFor([
+                        'sub-ended',
+                        'sub-without-downloads',
+                        'sub-ended-earlier',
+                    ]),
+                    [earlierEnd, ended, endedAgain],
+                    'oldest first across the subscriptions asked',
+                );
+                assert.deepEqual(await port.listExportDownloadsFor(['sub-without-downloads']), []);
+            });
+
+            test('keep a size beyond what 32 bits hold, as a number', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const large = await port.recordExportDownload(downloadOf({ size: 5_000_000_000 }));
+                assert.equal(large.size, 5_000_000_000);
+                const [listed] = await port.listExportDownloadsFor(['sub-ended']);
+                assert.strictEqual(listed?.size, 5_000_000_000);
+            });
+
+            test("leave another tenant's downloads out of this one's subscription", async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const other = await port.recordExportDownload(
+                    downloadOf({
+                        tenantId: 'tenant-other',
+                        subscriptionId: 'sub-other',
+                        downloadedBy: 'user:admin-of-other',
+                    }),
+                );
+                const own = await port.recordExportDownload(downloadOf());
+                assert.deepEqual(await port.listExportDownloadsFor(['sub-ended']), [own]);
+                assert.deepEqual(await port.listExportDownloadsFor(['sub-other']), [other]);
             });
         });
 

@@ -200,6 +200,7 @@ export function createMemoryHarness() {
         tenantAccessHolds: [],
         subscriptionEnds: [],
         subscriptionEndAnnouncements: [],
+        tenantExportDownloads: [],
         subscriptionNotices: [],
         versionRetirements: [],
         bundleVersionRetirements: [],
@@ -1990,7 +1991,10 @@ export function createMemoryHarness() {
         },
     };
 
-    /** Subscription ends and their announcements: one of each per subscription, as the unique keys keep them. */
+    /**
+     * Subscription ends and their announcements: one of each per subscription, as the unique keys
+     * keep them. The downloads of a tenant's export: every one kept, as no key refuses one.
+     */
     const subscriptionEnds = {
         async record(end) {
             if (state.subscriptionEnds.some((row) => row.subscriptionId === end.subscriptionId)) {
@@ -2024,6 +2028,22 @@ export function createMemoryHarness() {
                 state.subscriptionEndAnnouncements
                     .filter((row) => subscriptionIds.includes(row.subscriptionId))
                     .sort((a, b) => (a.subscriptionId < b.subscriptionId ? -1 : 1)),
+            );
+        },
+        async recordExportDownload(download) {
+            const row = { id: nextId('download'), ...structuredClone(download) };
+            state.tenantExportDownloads.push(row);
+            return structuredClone(row);
+        },
+        async listExportDownloadsFor(subscriptionIds) {
+            return structuredClone(
+                state.tenantExportDownloads
+                    .filter((row) => subscriptionIds.includes(row.subscriptionId))
+                    .sort(
+                        (a, b) =>
+                            a.downloadedAt - b.downloadedAt ||
+                            (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+                    ),
             );
         },
     };

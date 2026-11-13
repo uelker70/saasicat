@@ -32,6 +32,7 @@ import {
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
+import { anExport } from './helpers/tenant-data-export.js';
 
 const NOTICE = { monthly: 14, yearly: 90 };
 const BLOCKED = { asTarget: ['ENTERPRISE'], asSource: [] };
@@ -445,6 +446,7 @@ describe('the record is a mirror, never a source', () => {
                         },
                         usageSnapshotPort: { snapshot: async () => ({}) },
                         subscriptionWritePort: {},
+                        subscriptionEnds: { export: anExport() },
                     },
                     entitlement: { defaultPlanId: 'PRO' },
                 }),

@@ -16,6 +16,7 @@ import {
     FakeTenantAccessHoldRepository,
 } from '../../dist/testing/index.js';
 import { aConfirmationRenderer, aMailbox, aRenderer, anArchive } from './invoice-documents.js';
+import { anExport } from './tenant-data-export.js';
 import { ISSUER, invoicingAdapter } from './invoice-run.js';
 import { MAIN_ACCOUNT, ScriptedGateway, paymentsCatalog } from './payments.js';
 import { TERMS } from './terms.js';
@@ -154,6 +155,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
                 },
             },
             versionNotices: { port: PORT, includeCron: false },
+            subscriptionEnds: { export: anExport() },
         },
         payments: {
             gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },

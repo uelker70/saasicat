@@ -1,6 +1,7 @@
 import type { AdminManifest } from '../admin-manifest.types.js';
 import type { AuditEntry, AuditQuery } from '../audit-event.types.js';
 import type { TenantAccessHoldKind, TenantAccessState } from '../tenant-access.types.js';
+import type { CalendarDay } from '../zoned-day.js';
 
 // -----------------------------------------------------------------------------
 // Admin stats and platform operation ports
@@ -273,6 +274,30 @@ export interface AdminTenantAccessReason {
     invoice: AdminTenantAccessInvoice | null;
     /** The subscription that ended, for that kind; `null` for every other kind. */
     subscriptionId: string | null;
+    /**
+     * The installation's day the tenant's data is deleted on, for an ended
+     * subscription whose end is recorded (`SC-CANC-033`); `null` for every
+     * other kind, and while the end is not recorded yet.
+     */
+    deletesOn: CalendarDay | null;
+    /**
+     * Every download of the tenant's full export taken for the subscription
+     * that ended, the oldest first (`SC-PRIV-019`) — empty where none was
+     * taken yet; `null` for every other kind, where there is nothing to take.
+     */
+    exportDownloads: AdminTenantExportDownload[] | null;
+}
+
+/** One download of a tenant's full export, as the administration's detail page shows it. */
+export interface AdminTenantExportDownload {
+    /** ISO 8601: when the application handed the export over. */
+    at: string;
+    /** Who took it, as the audit log tags an actor: `web:<email>:<context>`. */
+    by: string;
+    /** The id of the tenant's user who took it, as their session named them. */
+    userId: string;
+    /** The size of the file handed out, in bytes. */
+    size: number;
 }
 
 /** A tenant as the administration's detail page reads it: with every reason it is held back for, the oldest first. */

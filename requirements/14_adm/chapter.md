@@ -1168,6 +1168,12 @@ _Tested by:_
         - an invoice the server could not name is still a reason
         - a tenant held back by nothing says so
         - is not shown where the server names no reasons
+    - an ended subscription in the tenant detail's access section
+        - names the deletion day, and every download of the export with its day and who took it, the
+          oldest first
+        - says that nobody has taken the export yet where no download is recorded
+        - names no deletion day while the end is not recorded yet
+        - names neither a deletion day nor downloads beside the reasons of other kinds
     - two reasons of one kind that began at the same moment
         - stay two rows when the list is read again, each by its own reason
 
@@ -1246,6 +1252,34 @@ _Tested by:_
         - where an ended subscription holds it back as well, paying is offered without promising it
           opens again
         - a hold begun while the page is open shows on the next read, and goes once lifted
+    - the banner of a tenant whose subscription ended
+        - tells a user who is not its administrator the last day it can read and the day its data is
+          deleted on, and offers no export
+        - tells its administrator the same two days
+        - names the two days in German to a German reader
+        - once the deletion day has come and nothing has deleted the data, says the deletion is due
+          and that it can still read
+        - says the deletion is due in German to a German reader
+        - suspended past the deletion day, names the two days as days and says nothing of reading
+          now
+        - names no days while the end is not recorded yet
+        - while suspended, names the two days as days and says nothing of reading now, and offers no
+          export
+        - while being deleted, names the two days as days and says nothing of reading now
+        - while suspended, names the two days as days in German to a German reader
+    - the tenant's export, taken from the banner
+        - is offered to its administrator as a button named for what it downloads, reached from the
+          keyboard
+        - downloads the export and saves it under the name the server offers
+        - is busy while it downloads, and cannot be pressed a second time meanwhile
+        - is offered to nobody the server does not say may take it
+        - refused, says why in the sentence each refusal is worded with, never its code
+        - refused in German, says why in German
+        - failed without a code the platform words, says the export did not arrive, and leaves the
+          banner as it was
+        - refused with a code the platform does not word, says the export did not arrive rather than
+          the code
+        - where the connection breaks, says the export did not arrive
 
 <!-- END proof -->
 
@@ -1287,6 +1321,7 @@ _Tested by:_
         - the tenant controllers are found, and each route carries its metadata
         - every route that writes asks for the tenant administrator
         - every route that only reads or previews is open to every signed-in user
+        - the reads that are the administrator's alone are these, and ask for the role
         - the billing area asks for the billing permission and nothing beside it, reading included
         - the routes the split is about are among them, each on its side
 - `packages/nest/tests/a-tenant-is-handed-the-days-of-its-add-ons.test.js`

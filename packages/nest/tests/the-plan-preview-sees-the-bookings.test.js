@@ -10,6 +10,7 @@ import {
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
+import { anExport } from './helpers/tenant-data-export.js';
 
 // A rule that reads an optional dependency is only as real as its wiring.
 //
@@ -242,6 +243,7 @@ async function bootWithBookings(bookings, subscription = SUBSCRIPTION) {
                     subscriptionUsagePort: { findForTenant: async () => subscription },
                     usageSnapshotPort: { snapshot: async () => ({ users: 1 }) },
                     subscriptionWritePort: {},
+                    subscriptionEnds: { export: anExport() },
                 },
                 subscriptionBundles: {},
                 entitlement: { defaultPlanId: 'PRO' },

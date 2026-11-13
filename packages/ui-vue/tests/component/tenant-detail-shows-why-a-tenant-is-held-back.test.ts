@@ -29,6 +29,8 @@ const OVERDUE: AdminTenantAccessReason = {
     note: null,
     invoice: { id: 'invoice-7', number: 'AHP-2026-000007', subscriberId: 's-1' },
     subscriptionId: null,
+    deletesOn: null,
+    exportDownloads: null,
 };
 const SUSPENDED: AdminTenantAccessReason = {
     id: 'hold-2',
@@ -37,6 +39,19 @@ const SUSPENDED: AdminTenantAccessReason = {
     note: 'chargeback under review',
     invoice: null,
     subscriptionId: null,
+    deletesOn: null,
+    exportDownloads: null,
+};
+
+const ENDED: AdminTenantAccessReason = {
+    id: 'hold-4',
+    kind: 'ended',
+    since: '2026-11-30T23:00:00.000Z',
+    note: null,
+    invoice: null,
+    subscriptionId: 'sub-1',
+    deletesOn: '2026-12-31',
+    exportDownloads: [],
 };
 
 const mounted: { unmount: () => void }[] = [];
@@ -130,6 +145,80 @@ describe("the tenant detail's access section", () => {
     });
 });
 
+// @requirement SC-CANC-033 — An ended subscription's deletion day is shown to the tenant and to the operator
+describe("an ended subscription in the tenant detail's access section", () => {
+    test('names the deletion day, and every download of the export with its day and who took it, the oldest first', async () => {
+        const wrapper = await mountPage({
+            access: 'read-only',
+            accessReasons: [
+                {
+                    ...ENDED,
+                    exportDownloads: [
+                        {
+                            at: '2026-12-02T23:30:00.000Z',
+                            by: 'web:anna@northwind.example:tenant-self-service',
+                            userId: 'u-anna',
+                            size: 48_213,
+                        },
+                        {
+                            at: '2026-12-20T10:00:00.000Z',
+                            by: 'web:ben@northwind.example:app',
+                            userId: 'u-ben',
+                            size: 48_977,
+                        },
+                    ],
+                },
+            ],
+        });
+
+        const reason = wrapper.find('.sa-tenant-access__reason');
+        expect(reason.find('.sa-tenant-access__what').text()).toBe('Subscription ended');
+        expect(reason.find('.sa-tenant-access__deletes').text()).toBe(
+            'Data is deleted on 2026-12-31',
+        );
+        // 23:30 UTC on the 2nd is the 3rd in Berlin.
+        expect(reason.findAll('.sa-tenant-access__downloads li').map((li) => li.text())).toEqual([
+            'Export downloaded on 2026-12-03 by web:anna@northwind.example:tenant-self-service',
+            'Export downloaded on 2026-12-20 by web:ben@northwind.example:app',
+        ]);
+        expect(reason.find('.sa-tenant-access__downloads-none').exists()).toBe(false);
+    });
+
+    test('says that nobody has taken the export yet where no download is recorded', async () => {
+        const wrapper = await mountPage({ access: 'read-only', accessReasons: [ENDED] });
+
+        expect(wrapper.find('.sa-tenant-access__deletes').text()).toBe(
+            'Data is deleted on 2026-12-31',
+        );
+        expect(wrapper.find('.sa-tenant-access__downloads').exists()).toBe(false);
+        expect(wrapper.find('.sa-tenant-access__downloads-none').text()).toBe(
+            'The export has not been downloaded yet.',
+        );
+    });
+
+    test('names no deletion day while the end is not recorded yet', async () => {
+        const wrapper = await mountPage({
+            access: 'read-only',
+            accessReasons: [{ ...ENDED, deletesOn: null }],
+        });
+
+        expect(wrapper.find('.sa-tenant-access__what').text()).toBe('Subscription ended');
+        expect(wrapper.find('.sa-tenant-access__deletes').exists()).toBe(false);
+    });
+
+    test('names neither a deletion day nor downloads beside the reasons of other kinds', async () => {
+        const wrapper = await mountPage({
+            access: 'suspended',
+            accessReasons: [OVERDUE, SUSPENDED],
+        });
+
+        expect(wrapper.findAll('.sa-tenant-access__reason')).toHaveLength(2);
+        expect(wrapper.find('.sa-tenant-access__deletes').exists()).toBe(false);
+        expect(wrapper.find('.sa-tenant-access__downloads').exists()).toBe(false);
+        expect(wrapper.find('.sa-tenant-access__downloads-none').exists()).toBe(false);
+    });
+});
+
 describe('two reasons of one kind that began at the same moment', () => {
     test('stay two rows when the list is read again, each by its own reason', async () => {
         const warned = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -150,6 +239,9 @@ describe('two reasons of one kind that began at the same moment', () => {
                     ended: 'Ended',
                     deleting: 'Deleting',
                     note: 'Note: {note}',
+                    deletesOn: 'Data is deleted on {day}',
+                    exportDownload: 'Export downloaded on {day} by {by}',
+                    exportNone: 'The export has not been downloaded yet.',
                 },
                 dayOf: (iso: string) => iso.slice(0, 10),
                 recordRoute: (subscriberId: string) => `/admin/subscribers/${subscriberId}`,

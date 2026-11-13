@@ -437,6 +437,18 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             showFeatureMatrix: true,
         }),
     }),
+    // The banner above the application of a tenant held back: the state, each
+    // reason with an ended subscription's days, and the two buttons a tenant's
+    // administrator is offered. No other case renders it.
+    visualCase({
+        id: 'tenant-access-banner',
+        load: () => import('@saasicat/ui-vue-tenant/TenantAccessBanner.vue'),
+        props: ({ http }) => ({
+            http,
+            apiPrefix: '/api/access-billing',
+            formatDate: (iso: string) => String(iso).slice(0, 10),
+        }),
+    }),
     visualCase({
         id: 'tenant-bundles',
         load: () => import('@saasicat/ui-vue-tenant/MySubscriptionBundlesPage.vue'),

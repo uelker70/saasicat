@@ -1033,6 +1033,71 @@ const TENANT_DETAIL = {
         pilotEndsAt: null,
     },
     users: [],
+    // Read-only since its subscription ended: the Access section with the day
+    // its data is deleted on and the downloads of its export, which only an
+    // ended subscription renders.
+    access: 'read-only',
+    accessReasons: [
+        {
+            id: 'hold-0001',
+            kind: 'ended',
+            since: '2026-11-30T23:00:00.000Z',
+            note: null,
+            invoice: null,
+            subscriptionId: 'sub-0001',
+            deletesOn: '2026-12-31',
+            exportDownloads: [
+                {
+                    at: '2026-12-03T09:15:00.000Z',
+                    by: 'web:owner@northwind.example:app',
+                    userId: 'u-owner',
+                    size: 48_213,
+                },
+                {
+                    at: '2026-12-20T16:40:00.000Z',
+                    by: 'web:owner@northwind.example:app',
+                    userId: 'u-owner',
+                    size: 48_977,
+                },
+            ],
+        },
+    ],
+};
+
+// The banner above a tenant's application once its subscription has ended and
+// two invoices stayed unpaid, as its administrator reads it: the days the end
+// leaves, and both paying and taking the export offered.
+const TENANT_ACCESS_ENDED = {
+    state: 'read-only',
+    reasons: [
+        {
+            kind: 'overdue',
+            since: '2026-11-16',
+            invoiceNumber: 'AHP-2026-000124',
+            readOnlyUntil: null,
+            deletesOn: null,
+            deletionDue: null,
+        },
+        {
+            kind: 'overdue',
+            since: '2026-11-23',
+            invoiceNumber: 'AHP-2026-000131',
+            readOnlyUntil: null,
+            deletesOn: null,
+            deletionDue: null,
+        },
+        {
+            kind: 'ended',
+            since: '2026-12-01',
+            invoiceNumber: null,
+            readOnlyUntil: '2026-12-30',
+            deletesOn: '2026-12-31',
+            deletionDue: false,
+        },
+    ],
+    holdsBillingPermission: true,
+    mayPay: true,
+    mayExport: true,
 };
 
 // The tenant's subscriber, as its master data stands — a business in Germany
@@ -1988,6 +2053,15 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     // A feature withdrawn from the subscription: a subscription of its own, so
     // the cases above keep rendering the section with nothing withdrawn.
     ...tenantRoutes('/api/withdrawn-billing', TENANT_USAGE, null, TENANT_WITHDRAWN),
+    // The access banner's: the state and the account it reads to offer paying.
+    ['/api/access-billing/account/access', TENANT_ACCESS_ENDED],
+    [
+        '/api/access-billing/account',
+        {
+            balances: [{ currency: 'EUR', owed: 138, overdue: 138, credit: 0 }],
+            directDebitCollectedOn: '2026-12-08',
+        },
+    ],
 ];
 
 /**

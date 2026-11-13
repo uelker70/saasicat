@@ -30,6 +30,7 @@ import { ComposedTenantAuthGuard } from '../composed-tenant-auth.guard.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
 import { TENANT_ID_RESOLVER_TOKEN, type TenantIdResolver } from '../tenant-billing.tokens.js';
 import { tenantIdOf } from '../tenant-id.js';
+import { mayTakeTheTenantsExport } from '../tenant-roles.js';
 import { codedError } from '../../errors/coded-error.js';
 import { ReadsItsState, StartsPayment } from '../../tenant-access/tenant-access-marks.js';
 import { TenantAccessService } from '../../tenant-access/tenant-access.service.js';
@@ -113,8 +114,13 @@ export class TenantInvoicesController {
         const tenantId = tenantIdOf(this.tenantIdResolver, request);
         const asked = {
             timeZone: installationZoneOf(this.settings),
+            now: new Date(),
             holdsBillingPermission: true,
             mayPay: this.collection !== null,
+            isTenantAdministrator: mayTakeTheTenantsExport(
+                request,
+                this.access?.actsAsOperator(request) ?? false,
+            ),
         };
         if (!this.access) return tenantAccessViewOf({ state: 'open', holds: [] }, asked);
         return this.access.viewOf(tenantId, asked);

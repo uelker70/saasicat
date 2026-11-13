@@ -15,6 +15,8 @@ import {
     SubscriptionEndService,
     TenantBillingController,
     TenantBillingModule,
+    TenantDataExportController,
+    TenantDataExportService,
     TrialEndService,
 } from '../dist/billing/index.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../dist/entitlement/index.js';
@@ -23,6 +25,7 @@ import { SaaSiCatModule, findViolations } from '../dist/platform/index.js';
 import { FakeSubscriptionEndRepository } from '../dist/testing/index.js';
 import { bootable, everythingOnOptions } from './helpers/operator-routes.js';
 import { usageRecord } from './helpers/subscription-fixtures.js';
+import { anExport } from './helpers/tenant-data-export.js';
 
 /** The platform's options with `subscriptionEnds` as given, and the bundle's store kept or not. */
 function withEnds(subscriptionEnds, { bundleKeepsEnds = true } = {}) {
@@ -55,7 +58,10 @@ describe('the configuration the ends need', () => {
 
     test("the bundle's store, or one named, is enough", () => {
         assert.deepEqual(violations(withEnds(undefined)), []);
-        assert.deepEqual(violations(withEnds({ store: {} }, { bundleKeepsEnds: false })), []);
+        assert.deepEqual(
+            violations(withEnds({ store: {}, export: anExport() }, { bundleKeepsEnds: false })),
+            [],
+        );
     });
 
     test('without tenant billing, nothing is asked for', () => {
@@ -92,7 +98,7 @@ describe('an installation that serves tenants', () => {
         assert.ok(on.cron instanceof SubscriptionEndCron);
         assert.ok(on.trials instanceof TrialEndService, 'and the way an application ends a trial');
 
-        const own = await compiled(withEnds({ includeCron: false }));
+        const own = await compiled(withEnds({ includeCron: false, export: anExport() }));
         assert.ok(
             own.service instanceof SubscriptionEndService,
             'callable from a scheduler of its own',
@@ -107,6 +113,61 @@ describe('an installation that serves tenants', () => {
             compiled({ ...options, planCatalog: { ...options.planCatalog, tenantBilling } }),
             /tenantBilling\.endOfSubscription/,
         );
+    });
+});
+
+// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+describe("the application's export, which the ends cannot start without", () => {
+    const violationsOf = (options) =>
+        findViolations({ options, adapters: { secretSealer: storeSecretsInPlainText() } }).filter(
+            (violation) => violation.id === 'subscription-ends.requires-export',
+        );
+
+    test('serving tenants without it, the start is refused with one sentence naming the option, the port and why', () => {
+        const [violation, ...more] = violationsOf(withEnds({}));
+        assert.deepEqual(more, []);
+        const message = String(violation?.message);
+        assert.match(message, /`tenantBilling\.subscriptionEnds\.export` is missing/);
+        assert.match(message, /TenantDataExportPort/);
+        assert.match(
+            message,
+            /read-only period before the deletion day exists for the tenant to take it/,
+        );
+        assert.equal(message.split('. ').length, 1, 'one sentence');
+    });
+
+    test('given, nothing is refused', () => {
+        assert.deepEqual(violationsOf(withEnds({ export: anExport() })), []);
+    });
+
+    test('without tenant billing, it is not asked for', () => {
+        const { tenantBilling: _off, ...options } = withEnds({});
+        assert.deepEqual(violationsOf(options), []);
+    });
+
+    test('tenant billing wired by hand with the ends and without it does not start, naming the option and the port', () => {
+        assert.throws(
+            () =>
+                TenantBillingModule.forRoot({
+                    authGuards: [class Guard {}],
+                    subscriptionUsagePort: {},
+                    usageSnapshotPort: {},
+                    subscriptionWritePort: {},
+                    subscriptionEnds: { store: new FakeSubscriptionEndRepository() },
+                }),
+            /TenantBillingModule: `subscriptionEnds\.export` is missing: .*TenantDataExportPort/,
+        );
+    });
+
+    test('given, the route is mounted and the export is asked through the port given', async () => {
+        const port = anExport();
+        const moduleRef = await Test.createTestingModule({
+            imports: [SaaSiCatModule.forRoot(bootable(withEnds({ export: port })))],
+        }).compile();
+
+        assert.ok(moduleRef.get(TenantDataExportController, { strict: false }));
+        assert.equal(moduleRef.get(TenantDataExportService, { strict: false }).exports, port);
+        await moduleRef.close();
     });
 });
 
@@ -175,7 +236,10 @@ describe('the routes a tenant ends its subscription through', () => {
 
     // @requirement SC-CANC-021 — The read-only period and the deletion date are stated before a tenant cancels
     test('wired by hand with them, the account tells the day', async () => {
-        const route = await handWired({ store: new FakeSubscriptionEndRepository() });
+        const route = await handWired({
+            store: new FakeSubscriptionEndRepository(),
+            export: anExport(),
+        });
         const usage = await route.getUsage({ user: { tenantId: 't1', sub: 'u1' }, headers: {} });
         assert.deepEqual(usage.cancellation.deletion, {
             readOnlyDays: 30,

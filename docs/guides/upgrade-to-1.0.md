@@ -4525,6 +4525,173 @@ holds.
   route writes is let through under read-only.
 - **An exhaustive switch over `TenantAccessMark`** of your own gains the member `'leaves'`.
 
+### A tenant takes its own export before its data is deleted
+
+Required wherever `tenantBilling` is on: **the application does not start without the new port.**
+Once the end of a tenant's subscription is recorded
+([A subscription that ended is recorded with the day its data goes](#a-subscription-that-ended-is-recorded-with-the-day-its-data-goes)),
+the tenant's administrator downloads everything your application keeps for the tenant as one file
+from `GET billing/export`, until its data is deleted (`SC-PRIV-019`). SaaSiCat cannot know what
+your application keeps for a tenant, so your application produces the file; the platform serves
+it, records every download, and shows the downloads to the operator. To adopt it:
+
+1. Implement `TenantDataExportPort` from `@saasicat/core` and pass it as
+   `tenantBilling.subscriptionEnds.export`. The option is required in `SaaSiCatModule`'s types,
+   so the compiler points out that it is missing; a start without it, from code the compiler did
+   not check, is refused (`subscription-ends.requires-export`):
+   "`tenantBilling.subscriptionEnds.export` is missing: wherever the end of a subscription is kept,
+   the application hands over the tenant's full export through a TenantDataExportPort, because the
+   read-only period before the deletion day exists for the tenant to take it (SC-PRIV-019)." A
+   minimal port, around a collector your application already has or writes for it:
+
+    ```ts
+    import { Injectable } from '@nestjs/common';
+    import type { TenantDataExport, TenantDataExportPort } from '@saasicat/core';
+
+    @Injectable()
+    export class MyTenantDataExport implements TenantDataExportPort {
+        constructor(private readonly collector: MyExportCollector) {}
+
+        async export(tenantId: string): Promise<TenantDataExport> {
+            // Everything the application keeps for the tenant, every user's data included.
+            const everything = await this.collector.collect(tenantId);
+            return {
+                content: new TextEncoder().encode(JSON.stringify(everything, null, 2)),
+                mediaType: 'application/json',
+                fileName: `export-${tenantId}.json`,
+            };
+        }
+    }
+    ```
+
+    ```ts
+    tenantBilling: {
+        authGuards: [JwtAuthGuard, TenantGuard],
+        subscriptionEnds: {
+            export: {
+                useFactory: (collector: MyExportCollector) => new MyTenantDataExport(collector),
+                inject: [MyExportCollector],
+            },
+        },
+    },
+    ```
+
+    The factory resolves from `tenantBilling.imports`, or the top-level `imports` where that is not
+    set; an instance passed as it is works too. `examples/notesapp` wires `NotesDataExport`, the
+    tenant, its users and its notes as one JSON file.
+
+2. Add `TenantExportDownload` from `prisma-fragments/31-tenant-export-download.prisma` to your
+   schema and run the migration of the sections above again, before `db push` where you use one. It
+   now also creates `tenant_export_downloads`, and where it ran before it creates only what is
+   missing, so running it twice leaves the same schema:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-subscription-ends-are-kept.postgres.sql
+    ```
+
+3. Both shipped adapters keep the downloads in `persistence.core.subscriptionEnds`. A
+   `SubscriptionEndPort` of your own adds `recordExportDownload`, which records every download it is
+   handed and never merges one with another, and `listExportDownloadsFor`, which answers the
+   downloads of several subscriptions in one read, the oldest first; a persistence contract harness
+   that wires `subscriptionEnds` checks both. `FakeSubscriptionEndRepository` from
+   `@saasicat/nest/testing` keeps them in memory as `downloads`.
+4. Your own tests that compose `SaaSiCatModule` with `tenantBilling` pass an export as well: any
+   object with an `export(tenantId)` method that answers a file.
+
+- **What the port answers.** `content` is the whole file as a `Uint8Array`, `mediaType` such as
+  `application/json` or `application/zip` in printable ASCII, since it goes into the download's
+  header as it is, and `fileName` what a person saving it would call it. The platform asks the port
+  on every download, for the tenant of the session only — never one the request names — and keeps
+  nothing of the answer. `content` holds at least one byte: an empty file is no export. A port that
+  throws, or answers anything else, is refused with
+  `503 TENANT_EXPORT_FAILED`: nothing is recorded, nothing is sent, and what it answered is in the
+  server log. The file is held in memory once while it is served, because a download is recorded
+  only for a file produced in full. So one export of a tenant is produced at a time: a second
+  request for the same tenant while the first is produced and recorded is refused with
+  `409 TENANT_EXPORT_IN_PROGRESS`, and your port is not asked for it. The rule holds within one
+  process — each instance counts its own, other tenants are not held up, and a file already being
+  sent is no longer counted. Your port must therefore settle in bounded time: give the reads behind
+  it the timeouts your other requests have. The platform cannot cancel an export it asked for, so a
+  call that never settles leaves every further download of that tenant refused as in progress
+  until the process restarts.
+- **Your existing export** is usually the collector. Where it is keyed by something other than the
+  tenant id — a slug, say — the port looks that key up from the id first. The file is the full
+  export, everything your application keeps for the tenant, and it goes to its administrator alone.
+- **The file name is not trusted** for the header: every character other than ASCII letters,
+  digits, `.`, `_` and `-` is replaced by `_` — path separators, quotes and line breaks included —
+  and an empty name is offered as `export`.
+- **When it is offered.** From the moment the end is recorded, while the tenant is held back for
+  it, and still after the deletion day as long as the data is there: nothing is deleted on that day
+  by this release. Before an end is recorded — an open tenant, or one read-only only for an unpaid
+  invoice — the route refuses with `409 TENANT_EXPORT_NOT_OFFERED` and your port is not asked.
+  A suspension and a deletion under way refuse it as they refuse every request of the tenant's users
+  (`TENANT_SUSPENDED`, `TENANT_BEING_DELETED`). Of two ended subscriptions, the download is recorded
+  for the latest end.
+- **Who takes it.** The tenant's own administrator alone — a `platformRole`, or `role` where that
+  is absent, of `TENANT_ADMIN` —, since the file holds every user's data; anyone else of the tenant
+  is refused `403 TENANT_ADMIN_REQUIRED`. The operator is refused too, with
+  `403 TENANT_EXPORT_NOT_FOR_OPERATOR`: a user holding `SUPER_ADMIN`, and one your guard's
+  `TenantAccessService.enforce` let through with `actingAsOperator: true`, whatever role the session
+  carries. Each download is recorded as the tenant's acknowledgement, which the operator cannot give
+  in its name; the operator's own export of a tenant stays your administration's. The route sits
+  behind
+  `tenantBilling.authGuards` and carries no access mark: it is a `GET`, so your guard's
+  `TenantAccessService.enforce` lets a read-only tenant through without a change — leaving, which
+  writes, needs its mark
+  ([A tenant that is read-only may still leave](#a-tenant-that-is-read-only-may-still-leave)); this
+  route does not. A `HEAD` is answered `405` with `Allow: GET`, and asks your port nothing and
+  records nothing: Express and Fastify would otherwise run the `GET` for it and drop the file.
+- **Every download is recorded**, once your port has handed the file over and before it is sent: one
+  row in `tenant_export_downloads` with the subscription, the moment, who took it — the user's id
+  the session names, and the tag the audit log writes for them (`web:<email>:<context>`), which
+  reads `unknown` without an email and whose context is whatever your resolver reads — and the size
+  of the file in bytes. Two downloads are two rows. Where the row cannot be written, the request
+  fails and no file is sent. Where the administration's audit log is wired, each download is also
+  written to it as `TENANT_EXPORT_DOWNLOAD` on the tenant, with the subscription, the download's id,
+  the media type and the size; an entry that cannot be written is logged and leaves the download
+  standing. The row is the tenant's acknowledgement that `SC-PRIV-017` names: it shows that your
+  application produced the file for that request, not that the browser saved it.
+- **The tenant's banner** (`SC-CANC-033`). `TenantAccessBanner` names, beside an ended
+  subscription's reason, the last day the tenant can read and the day its data is deleted, to every
+  user of the tenant: while it is read-only in the words of `deletionAnnounced`, the sentence its
+  cancellation was confirmed with
+  ([A tenant is told its deletion day before it ends its subscription](#a-tenant-is-told-its-deletion-day-before-it-ends-its-subscription)),
+  once the deletion day has come and nothing has deleted the data yet — this release deletes
+  nothing — as a deletion that is due, which the tenant can still read until it happens
+  (`accessReasonEndedDeletionDue`), and while it is suspended or being deleted as the two days alone
+  (`accessReasonEndedDays`). To the tenant's administrator it offers "Export the account's data",
+  which downloads the file. A download that fails says why beneath, in the refusal's own sentence
+  where the platform words one and in `accessExportFailed` otherwise, and leaves the banner as it
+  was. Texts of your own for the tenant section gain `accessReasonEndedDays`,
+  `accessReasonEndedDeletionDue`, `accessExport` and `accessExportFailed`; the shipped English and
+  German stand in where you leave them out.
+- **A banner of your own** reads the same from `GET billing/access` and
+  `GET billing/account/access`: each reason's `readOnlyUntil` and `deletesOn`, days in the
+  installation's zone that are `null` except for an ended subscription whose end is recorded,
+  `deletionDue`, whether the installation's day has reached `deletesOn`, `null` where that is, and
+  `mayExport`, `true` only for the tenant's own administrator — never the operator — while the
+  tenant is read-only for an
+  ended subscription whose end is recorded and the export is wired — never where the route would
+  refuse. `useTenantExport` from `@saasicat/ui-vue` downloads the file and saves it under the name
+  the server offers; a refusal reaches the caller of `download()`.
+- **The operator's page.** `TenantDetailPage` names under "Access", beside an ended subscription,
+  the day the tenant's data is deleted, and every download of the export with its day and who took
+  it, the oldest first, or that none has been taken yet. The tenant's detail carries them on each
+  reason of `accessReasons` as `deletesOn` and `exportDownloads` (`{ at, by, userId, size }[]`):
+  `null` for every other kind and while the end is not recorded yet, and an empty list for an ended
+  subscription whose export nobody has taken. The page shows each download's `at` and `by`; `userId`
+  and `size` are in the data. An `AdminResourcesPort` of your own, and screens of your own that read
+  these routes, change nothing: the platform adds both as it adds the reasons.
+- **Code that builds a view itself** follows the types. `TenantAccessService.viewOf` and
+  `tenantAccessViewOf` take `isTenantAdministrator`, which is `false` for the operator, and `now`,
+  the moment whose day in the installation's zone decides `deletionDue`;
+  `TenantAccessService.actsAsOperator(request)` answers whether the check let a request through as
+  the operator acting as the tenant; `TenantAccessReasonView` gains `readOnlyUntil`, `deletesOn`
+  and `deletionDue`, `TenantAccessView` gains `mayExport`, and `AdminTenantAccessReason` gains
+  `deletesOn` and `exportDownloads`, so a fixture of your own that builds one gains them too.
+- **A route of your own at `GET billing/export`** collides with the platform's, which is mounted
+  wherever `tenantBilling` is on; move yours.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

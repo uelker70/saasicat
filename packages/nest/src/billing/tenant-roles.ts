@@ -15,7 +15,12 @@ interface RequestWithUser {
     };
 }
 
+// Written out as literals: `tests/the-example-sends-the-role-its-guards-require.test.js`
+// reads the roles the guard lets through from this list.
 const ADMIN_ROLES = new Set(['TENANT_ADMIN', 'SUPER_ADMIN']);
+
+/** The platform's role for the operator (`PlatformRole` in `@saasicat/core`). */
+const OPERATOR_ROLE = 'SUPER_ADMIN';
 
 /** Whether the request's user holds `TENANT_ADMIN` or `SUPER_ADMIN`; refuses a request without a user. */
 export function holdsTenantAdminRole(context: ExecutionContext): boolean {
@@ -26,7 +31,7 @@ export function holdsTenantAdminRole(context: ExecutionContext): boolean {
             message: 'Not authenticated',
         });
     }
-    return mayChangeWhatTheTenantPays(request);
+    return isTenantAdministrator(request);
 }
 
 /**
@@ -35,12 +40,44 @@ export function holdsTenantAdminRole(context: ExecutionContext): boolean {
  * `TenantAdminGuard` refuses the change by.
  */
 export function mayChangeWhatTheTenantPays(request: unknown): boolean {
-    if (typeof request !== 'object' || request === null || !('user' in request)) return false;
+    return isTenantAdministrator(request);
+}
+
+/**
+ * Whether a request is the operator's rather than one of the tenant's users:
+ * its user holds `SUPER_ADMIN`, or the application's check let it through as
+ * the operator acting as the tenant (`actingAsOperator`, `SC-ADM-005`).
+ */
+export function isTheOperator(request: unknown, actingAsOperator: boolean): boolean {
+    return actingAsOperator || roleOf(request) === OPERATOR_ROLE;
+}
+
+/**
+ * Whether the user a request carries may take the tenant's full export — what
+ * the tenant's state answers as `mayExport` for its reader, by the rules the
+ * download is refused by: the tenant's own administrator alone. The export
+ * holds every user's data, which `TenantAdminGuard` keeps from the tenant's
+ * other users, and each download is the tenant's acknowledgement
+ * (`SC-PRIV-017`), which the operator acting as the tenant cannot give for it.
+ */
+export function mayTakeTheTenantsExport(request: unknown, actingAsOperator: boolean): boolean {
+    return isTenantAdministrator(request) && !isTheOperator(request, actingAsOperator);
+}
+
+/** Whether the user a request carries holds `TENANT_ADMIN` or `SUPER_ADMIN`. */
+function isTenantAdministrator(request: unknown): boolean {
+    const role = roleOf(request);
+    return role !== null && ADMIN_ROLES.has(role);
+}
+
+/** The role of the user a request carries: `platformRole`, or `role` where that is absent. */
+function roleOf(request: unknown): string | null {
+    if (typeof request !== 'object' || request === null || !('user' in request)) return null;
     const { user } = request;
-    if (typeof user !== 'object' || user === null) return false;
-    const role =
+    if (typeof user !== 'object' || user === null) return null;
+    return (
         ('platformRole' in user && typeof user.platformRole === 'string'
             ? user.platformRole
-            : null) ?? ('role' in user && typeof user.role === 'string' ? user.role : null);
-    return role !== null && ADMIN_ROLES.has(role);
+            : null) ?? ('role' in user && typeof user.role === 'string' ? user.role : null)
+    );
 }

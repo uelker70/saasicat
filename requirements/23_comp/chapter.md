@@ -1333,6 +1333,10 @@ _Tested by:_
 - `examples/notesapp/tests/notesapp-smoke.test.mjs`
     - notesapp platform wiring (smoke)
         - static entitlement resolves the STARTER plan for every tenant
+- `examples/notesapp/tests/the-tenants-export-is-what-the-app-keeps.test.mjs`
+    - the notes app's export of a tenant
+        - is the tenant, its users and its notes as one JSON file named after it
+        - reads for the tenant it is asked for and no other
 - `tests/the-example-sends-the-role-its-guards-require.test.js`
     - the notesapp clients present a role the platform accepts
         - the guard still names roles

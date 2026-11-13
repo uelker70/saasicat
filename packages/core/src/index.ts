@@ -68,6 +68,7 @@ export * from './maintenance-window-mapping.js';
 export * from './tenant-access-mapping.js';
 export * from './tenant-access-view.js';
 export * from './subscription-end.types.js';
+export * from './tenant-data-export.types.js';
 export * from './subscription-end-mapping.js';
 export * from './maintenance-window-views.js';
 export * from './zoned-instant.js';
