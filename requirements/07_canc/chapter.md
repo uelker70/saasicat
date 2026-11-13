@@ -746,8 +746,8 @@ _Tested by:_
         - none the day before, by a quarter of an hour
         - a run that repeats, the same day or the next, sends nothing twice
         - each later lead time goes on its own day, and none after the deletion day has come
-        - a period shorter than every lead time is covered by one reminder at once, and the next
-          goes on its day
+        - ten days to go when the end is recorded: the 29- and 10-day lead times are covered by one
+          reminder at once, and the 3-day one goes on its day
         - an end whose deletion day has come, or passed, is reminded of nothing
         - reads every tenant's ends and reminders in one go, across tenants through the bypass
         - two instances racing over one end send its reminder once

@@ -194,10 +194,10 @@ describe('the reminders before a deletion', () => {
         assert.deepEqual(leadTimesSent(run.port), [29, 10, 3]);
     });
 
-    test('a period shorter than every lead time is covered by one reminder at once, and the next goes on its day', async () => {
+    test('ten days to go when the end is recorded: the 29- and 10-day lead times are covered by one reminder at once, and the 3-day one goes on its day', async () => {
         const run = runOver();
-        // Recorded on 21 January with ten days to go: the 29- and 10-day lead
-        // times have both passed.
+        // Recorded on 21 January with ten days to go: the 29-day lead time has
+        // passed, and the 10-day one is due that day.
         await anEnd(run.ends, { recordedAt: inBerlin('2027-01-21', '00:15') });
 
         await remindAt(run, inBerlin('2027-01-21', '00:15'));
@@ -570,7 +570,7 @@ describe('the quarter-hourly run', () => {
  * The platform as `SaaSiCatModule` composes it, its ends, holds and subscription
  * usage in memory, and the notices going through `port` into `record`, both
  * named under `tenantBilling.notices`. The file keeps a read-only period of ten
- * days, shorter than the 29- and 10-day lead times.
+ * days, shorter than the 29-day lead time and as long as the 10-day one.
  */
 async function platformOver({
     cancelled = [],
