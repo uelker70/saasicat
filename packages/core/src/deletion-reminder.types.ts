@@ -11,7 +11,7 @@
 // and none goes twice. From the deletion day on nothing is reminded: the
 // deletion itself is due.
 
-import { addDaysToDay, type CalendarDay } from './zoned-day.js';
+import { calendarDaysBetween, type CalendarDay } from './zoned-day.js';
 
 /**
  * A tenant's data is deleted soon. Sent to the administrators of the tenant
@@ -98,11 +98,12 @@ export interface DeletionReminderQuestion {
  */
 export function deletionReminderDue(question: DeletionReminderQuestion): number | null {
     const { deletesOn, reminderDaysBefore, toldDaysBefore, today } = question;
-    // Days are `YYYY-MM-DD`, so the later one is also the larger text.
-    if (today >= deletesOn) return null;
-    const due = reminderDaysBefore.filter(
-        (daysBefore) => today >= addDaysToDay(deletesOn, -daysBefore),
-    );
+    // A lead time's day has come once no more days are left than it names.
+    // Counting the days left rather than the lead day itself keeps a lead time
+    // longer than the calendar reaches back an ordinary, long-due one.
+    const daysLeft = calendarDaysBetween(today, deletesOn);
+    if (daysLeft <= 0) return null;
+    const due = reminderDaysBefore.filter((daysBefore) => daysBefore >= daysLeft);
     if (due.length === 0) return null;
     const smallest = Math.min(...due);
     return toldDaysBefore.some((told) => told <= smallest) ? null : smallest;

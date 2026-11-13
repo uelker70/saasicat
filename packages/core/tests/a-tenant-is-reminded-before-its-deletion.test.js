@@ -110,6 +110,17 @@ describe('the reminder due before a deletion', () => {
         assert.equal(dueOn('2026-12-09', { told: [29], leads: [29, 20, 3] }), null);
         assert.equal(dueOn('2026-12-10', { told: [29], leads: [29, 20, 3] }), 20);
     });
+
+    test('takes a lead time longer than the calendar reaches back as one due long since', () => {
+        // A million days before 2026-12-30 is a day no calendar day names.
+        const leads = [29, 10, 3, 1_000_000];
+        assert.equal(dueOn('2026-11-30', { leads }), 1_000_000);
+        assert.equal(dueOn('2026-12-01', { leads }), 29);
+        assert.equal(dueOn('2026-12-01', { leads, told: [1_000_000] }), 29);
+        assert.equal(dueOn('2026-12-20', { leads, told: [1_000_000, 29] }), 10);
+        assert.equal(dueOn('2026-12-27', { leads, told: [1_000_000, 29, 10] }), 3);
+        assert.equal(dueOn('2026-12-30', { leads }), null);
+    });
 });
 
 // @requirement SC-CANC-022 — A tenant is reminded before its data is deleted

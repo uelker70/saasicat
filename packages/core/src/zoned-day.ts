@@ -22,6 +22,7 @@ export type CalendarDay = string;
 export const CALENDAR_DAY_PATTERN = /^[1-9]\d{3}-\d{2}-\d{2}$/;
 
 const MS_PER_HOUR = 3_600_000;
+const MS_PER_DAY = 86_400_000;
 /**
  * How far before the same reading in UTC a clock somewhere shows a time, and
  * how far after: zones run from fourteen hours ahead of UTC to twelve behind
@@ -221,6 +222,22 @@ export function addDaysToDay(day: CalendarDay, days: number): CalendarDay {
         throw new RangeError(`${days} days after ${day} is past the days a calendar day names.`);
     }
     return moved;
+}
+
+/**
+ * Calendar days from `from` to `to`: positive where `to` is later, negative
+ * where it is earlier. Any two days give an answer, however far apart.
+ */
+export function calendarDaysBetween(from: CalendarDay, to: CalendarDay): number {
+    // Both are midnights in UTC, so the difference is whole days, a change of
+    // daylight saving time included.
+    return Math.round((utcMidnightOf(to) - utcMidnightOf(from)) / MS_PER_DAY);
+}
+
+function utcMidnightOf(day: CalendarDay): number {
+    const [year, month, date] = day.split('-').map(Number);
+    if (!year || !month || !date) throw new RangeError(`${day} is not a day.`);
+    return Date.UTC(year, month - 1, date);
 }
 
 /** The year a day belongs to. */

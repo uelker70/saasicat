@@ -8165,6 +8165,7 @@ _Tested by:_
         - counts a reminder told for a lead time the file no longer names as covering the larger
           ones
         - is a lead time added to the file after a larger one was told, on its day
+        - takes a lead time longer than the calendar reaches back as one due long since
     - the day a reminder is decided on
         - is the installation's day ahead of UTC, not UTC's
         - is the installation's day behind UTC, not UTC's
