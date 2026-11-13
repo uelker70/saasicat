@@ -4537,7 +4537,8 @@ it, records every download, and shows the downloads to the operator. To adopt it
 
 1. Implement `TenantDataExportPort` from `@saasicat/core` and pass it as
    `tenantBilling.subscriptionEnds.export`. The option is typed optional, so TypeScript does not
-   miss it, but the start is refused without it (`subscription-ends.requires-export`):
+   point out that it is missing; the start does, and is refused without it
+   (`subscription-ends.requires-export`):
    "`tenantBilling.subscriptionEnds.export` is missing: wherever the end of a subscription is kept,
    the application hands over the tenant's full export through a TenantDataExportPort, because the
    read-only period before the deletion day exists for the tenant to take it (SC-PRIV-019)." A
