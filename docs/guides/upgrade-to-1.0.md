@@ -2074,12 +2074,12 @@ which collects it (`SC-PRIC-101`).
    the file names `payments`, since they announce a collection nothing would make, and refuses to
    start while a collection not settled was sent to an account the file no longer names: keep an
    account listed until its collections have settled (`SC-PRIC-030`).
-4. What the subscriber is told about collecting is kept with the subscriber notices
-   (`subscription_notices`, fragment 17): `SaaSiCatModule` takes
-   `persistence.tenantBilling.subscriptionNotices` for `chargeJournal.invoices.notices`, and the
-   start refuses collections without it. Implement `tell({ notice, to })` on your `InvoiceMailPort`
-   beside `deliver`: it sends a failure — with what follows — or a direct debit announced again —
-   with the amount, the day and the mandate reference — to the subscriber's invoice email
+4. What the subscriber is told about collecting is kept with the other notices
+   (`subscription_notices`, fragment 17), in `tenantBilling.notices.record`
+   ([A tenant is reminded before its data is deleted](#a-tenant-is-reminded-before-its-data-is-deleted)).
+   Implement `tell({ notice, to })` on your `InvoiceMailPort` beside `deliver`: it sends a failure —
+   with what follows — or a direct debit announced again — with the amount, the day and the mandate
+   reference — to the subscriber's invoice email
    ([wire the backend](wire-the-backend.md#collecting-an-invoice)).
 5. A restricted Stripe key needs payment intents (write) and charges (read) beside what it had; the
    [package's README](../../packages/payment-stripe/README.md) says how to prove the grant.
@@ -3695,7 +3695,10 @@ in `selfServiceBlockedPlans`. A plan repository without `findVersionById` yields
 
 New and optional: the tenant's administrators hear of a newer version of their plan once, when the
 offer appears beside the plan, in your words (`SC-SUB-022`), and the platform keeps a record of each
-notice (`SC-SUB-023`). How to bind the port that sends it:
+notice (`SC-SUB-023`). The notice goes through the notice port every installation that serves
+tenants binds
+([A tenant is reminded before its data is deleted](#a-tenant-is-reminded-before-its-data-is-deleted));
+how to turn it on:
 [Telling Subscribers of a Newer Version](wire-the-backend.md#telling-subscribers-of-a-newer-version).
 To adopt it:
 
@@ -3708,7 +3711,7 @@ To adopt it:
     psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-subscriber-is-told-once.postgres.sql
     ```
 
-3. Set `tenantBilling.versionNotices: { port }` and register `ScheduleModule`, or pass
+3. Set `tenantBilling.versionNotices: {}` and register `ScheduleModule`, or pass
    `includeCron: false` and call `VersionNoticeService.sendDue` yourself.
 
 The first run tells every subscription the offer it has, including a version published before the
@@ -4395,6 +4398,8 @@ adopt it:
 
 1. Add `tenantBilling.endOfSubscription.readOnlyDays` to `config/saas.yaml`. It is required and has
    no default; the loader refuses a file without it. The deletion day is the first day after it.
+   `reminderDaysBefore` beside it is required as well
+   ([A tenant is reminded before its data is deleted](#a-tenant-is-reminded-before-its-data-is-deleted)).
 2. Add `SubscriptionEnd` from `prisma-fragments/29-subscription-end.prisma` to your schema and run
    the migration once, before `db push` where you use one:
 
@@ -4408,7 +4413,8 @@ adopt it:
    refuses a port without it.
 4. Import `ScheduleModule` in your application: the end is recorded by a quarter-hourly run. Where
    you schedule your own runs, set `tenantBilling.subscriptionEnds.includeCron: false` and call
-   `SubscriptionEndService.recordEnded(new Date())`.
+   `SubscriptionEndService.recordEnded(new Date())` and then
+   `DeletionReminderService.remindDue(new Date())`.
 5. Deploy knowing that the first run after it records every subscription whose cancellation landed
    before: its tenant becomes read-only, and its deletion day is counted from the day of that run, so
    nobody is given less than the period's notice. The day is kept; nothing is deleted on it by this
@@ -4691,6 +4697,117 @@ it, records every download, and shows the downloads to the operator. To adopt it
   `deletesOn` and `exportDownloads`, so a fixture of your own that builds one gains them too.
 - **A route of your own at `GET billing/export`** collides with the platform's, which is mounted
   wherever `tenantBilling` is on; move yours.
+
+### A tenant is reminded before its data is deleted
+
+Required wherever `tenantBilling` is on: **the application does not start without
+`tenantBilling.notices.port`, and `tenantBilling.versionNotices` takes no port any more.** Once a
+tenant's subscription has ended its users stop signing in, so a message is the only way its
+administrators learn the day its data is deleted. The platform now reminds them before that day, at
+the lead times `config/saas.yaml` names (`SC-CANC-022`), through your application's notice port —
+the one port every notice goes through, bound in one place
+([Notices to a tenant's administrators](wire-the-backend.md#notices-to-a-tenants-administrators)).
+To adopt it:
+
+1. Pass your `SubscriptionNoticePort` as `tenantBilling.notices.port`. Where it was
+   `tenantBilling.versionNotices.port`, it moves, and `versionNotices` stays to keep the version
+   notices on:
+
+    ```ts
+    tenantBilling: {
+        // was: versionNotices: { port: mailer },
+        notices: { port: mailer },
+        versionNotices: {},
+    },
+    ```
+
+    Where you had no notice port, write one — the guide has a minimal one. The option is required
+    in `SaaSiCatModule`'s types, so the compiler asks for it; a start without it, from code the
+    compiler did not check, is refused (`subscription-notices.requires-port`):
+    "`tenantBilling.notices.port` is missing: wherever tenants are served, the application sends the
+    notices the platform decides are due through a SubscriptionNoticePort, and a tenant's
+    administrators learn the day its data is deleted from them once nobody signs in any more
+    (SC-CANC-022)." Where a port is still passed under `versionNotices`, the refusal adds:
+    "`tenantBilling.versionNotices` takes no port: the one port every notice goes through is
+    `tenantBilling.notices.port`."
+
+2. Name the record in one place, or nowhere. `tenantBilling.versionNotices.notices` is now
+   `tenantBilling.notices.record`, and `tenantBilling.chargeJournal.invoices.notices` is gone: what
+   collecting an invoice tells its subscriber is kept in the same record. Without either, the record
+   is `persistence.tenantBilling.subscriptionNotices`, which both shipped bundles provide. It is now
+   required wherever `tenantBilling` is on, not only with version notices: adopt
+   `SubscriptionNotice` from `prisma-fragments/17-subscription-notice.prisma` and run its migration
+   once, before `db push` where you use one, if you have not —
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-subscriber-is-told-once.postgres.sql
+    ```
+
+    — and take `SubscriptionNotice` out of `notAdopted`. A start with nowhere to keep the record is
+    refused (`subscription-notices.requires-record`, which replaces
+    `version-notices.requires-notice-record`).
+
+3. Add `tenantBilling.endOfSubscription.reminderDaysBefore` to `config/saas.yaml`, beside
+   `readOnlyDays`: the days before the deletion day on which the tenant's administrators are
+   reminded, whole numbers of at least 1, none twice, at least one, in any order. It is required and
+   has no default — when a former customer is warned is yours to decide and to state in your terms.
+   The loader refuses a file without it
+   (`tenantBilling.endOfSubscription.reminderDaysBefore: must have required property 'reminderDaysBefore'`),
+   and a list that is empty, names a lead time twice or holds one below 1, naming the field.
+
+    ```yaml
+    tenantBilling:
+        endOfSubscription:
+            readOnlyDays: 30
+            reminderDaysBefore: [29, 10, 3]
+    ```
+
+4. Handle the new kind `deletion-reminder` in your port. It carries `tenantId`, `subscriptionId`,
+   `subscriptionEndId`, `daysBefore` — the lead time it answers —, `readOnlyUntil`, the last day the
+   tenant can still read and take its export on, and `deletesOn`, both days in the installation's
+   zone. Write the two days rather than a count of days, and point the administrator to the export,
+   `GET billing/export`, which the tenant's own administrator downloads. A port that switches over
+   `notice.kind` exhaustively fails to compile until it has a case for it; a port with a catch-all
+   branch compiles and sends the reminder as whatever that branch sends — read yours.
+5. A `SubscriptionEndPort` of your own adds `listDeletingAfter(day)`: every end whose deletion day
+   is after that installation day, of every tenant, in one read, the soonest deletion first and by
+   subscription where two share a day; an end deleted on `day` itself is not one of them. A
+   persistence contract harness that wires `subscriptionEnds` checks it, and
+   `FakeSubscriptionEndRepository` from `@saasicat/nest/testing` has it.
+6. With `tenantBilling.subscriptionEnds.includeCron: false`, your scheduler calls
+   `SubscriptionEndService.recordEnded(new Date())` and then
+   `DeletionReminderService.remindDue(new Date())`, from `@saasicat/nest/billing` — both, in that
+   order, or nobody is reminded. Code that called the run's method directly calls
+   `SubscriptionEndCron.recordAndRemind()`; `recordEnded()` on the cron is gone.
+7. Your own tests that compose `SaaSiCatModule` with `tenantBilling` pass `notices: { port }` as
+   well: any object with a `deliver(notice)` that answers `{ recipients, channel }`.
+
+- **When the reminders go.** A lead time of N days is due from the installation's day N days before
+  the deletion day. A run reminds each end of one lead time at most: the smallest that is due and
+  that no reminder already told covers — a reminder told covers its own lead time and every larger
+  one. So lead times that passed before the end was recorded, or while no run ran, go out as one
+  reminder at once, the later ones on their own days, and none twice; from the deletion day on
+  nothing is reminded. With `readOnlyDays: 30` and `[29, 10, 3]`, a subscription that ended on
+  30 November is deleted on 30 December, and the reminders go on 1, 20 and 27 December; with
+  `readOnlyDays: 10`, one reminder goes when the end is recorded and the next on 7 December. A
+  change to the lead times applies once the application has restarted, to ends recorded before it
+  too, and repeats no reminder already sent.
+- **Deploy knowing** that the first run after it reminds every end already recorded whose deletion
+  day is still to come and for which at least one lead time has come: one reminder each, at once,
+  for the smallest lead time due.
+- **Told to nobody, or not sent.** A reminder your port answers with no recipients is recorded as
+  told to nobody and not tried again: a read-only tenant cannot add an administrator. The next lead
+  time still goes on its day. One your port throws for is tried again by the next run. Each reminder
+  is recorded under the end and the lead time, so of several instances one sends it. A suspended
+  tenant is reminded all the same: a suspension does not stop the deletion.
+- **`TenantBillingModule` wired by hand** takes `notices: { port, record }`, both required, and
+  refuses `subscriptionEnds`, `versionNotices` or collected invoices without it.
+- **Code that names the option types** follows them: `VersionNoticesOptions` lost `port` and
+  `notices`, and `SubscriptionNoticesOptions` (`port`, `record`) is the type of
+  `TenantBillingModuleOptions.notices`.
+
+Nothing is deleted on the deletion day by this release; the reminders announce a day the data is
+still kept on.
 
 ## What the codemod leaves to you
 

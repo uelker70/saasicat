@@ -35,6 +35,16 @@ its operator wraps that collector; where it is keyed by something other than the
 a slug, the port looks the key up from the id first
 ([the tenant takes its export](wire-the-backend.md#a-subscription-that-ended)).
 
+**Where tenant billing is on, your application also sends the notices the platform decides are
+due** through a `SubscriptionNoticePort` of its own, passed as `tenantBilling.notices.port`; the
+start is refused without it (`subscription-notices.requires-port`). Once a tenant's subscription has
+ended its users no longer sign in, so the reminders before its data is deleted, at the lead times
+`config/saas.yaml` names as `tenantBilling.endOfSubscription.reminderDaysBefore`, are how its
+administrators learn the day (`SC-CANC-022`). An application that already mails its tenants'
+administrators wraps that mailer: the port finds them, words the message, sends it and answers to
+whom and how; the platform keeps the record
+([notices to a tenant's administrators](wire-the-backend.md#notices-to-a-tenants-administrators)).
+
 Expect the savings to come from **wiring**, not from your domain code.
 Application-specific workflows, controllers and adapters stay in the consumer
 because the platform cannot know their domain semantics or database shape.
