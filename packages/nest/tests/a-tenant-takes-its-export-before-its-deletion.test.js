@@ -163,6 +163,45 @@ async function bytesOf(file) {
 const refusedWith = (type, code) => (error) =>
     error instanceof type && error.getResponse().code === code;
 
+/** An export that answers only once released, recording which tenant it was asked for. */
+function heldPort() {
+    const askedFor = [];
+    const waiting = [];
+    return {
+        askedFor,
+        export: (tenantId) => {
+            askedFor.push(tenantId);
+            return new Promise((resolve, reject) => waiting.push({ resolve, reject }));
+        },
+        /** Answers every request waiting on it: with the file, or with `error`. */
+        release(error) {
+            for (const { resolve, reject } of waiting.splice(0)) {
+                if (error) reject(error);
+                else resolve(FILE);
+            }
+        },
+    };
+}
+
+/**
+ * What `promise` comes to, read without awaiting it: a test that awaited a
+ * request the held export never answers would hang where the rule broke,
+ * rather than fail.
+ */
+function outcomeOf(promise) {
+    const outcome = { settled: false, value: undefined, error: undefined };
+    promise.then(
+        (value) => Object.assign(outcome, { settled: true, value }),
+        (error) => Object.assign(outcome, { settled: true, error }),
+    );
+    return outcome;
+}
+
+/** Lets every promise that can move on now do so. */
+async function ticks(count = 10) {
+    for (let at = 0; at < count; at++) await new Promise((resolve) => setImmediate(resolve));
+}
+
 /** Logs nothing while `work` runs, and answers what it logged as errors. */
 async function quietly(work) {
     const logged = [];
@@ -464,6 +503,104 @@ describe('a file never leaves without its record, and no record claims a file no
         assert.equal(file.getHeaders().length, FILE.content.byteLength);
         assert.equal(ends.downloads.length, 1);
         assert.equal(logged.length, 1, 'the missing entry is in the server log');
+    });
+});
+
+// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+describe('one export of a tenant at a time, since each is held in memory as a whole', () => {
+    test('a second request while the first is produced is refused, and the application is asked once', async () => {
+        const port = heldPort();
+        const { service, ends } = await installation({ port });
+
+        const first = outcomeOf(service.take('t1', ACTOR, NOW));
+        await ticks();
+        const second = outcomeOf(service.take('t1', ACTOR, LATER));
+        await ticks();
+        // Released before anything is asserted: where the rule broke, the
+        // second request waits on the application too.
+        port.release();
+        await ticks();
+
+        assert.ok(
+            refusedWith(ConflictException, 'TENANT_EXPORT_IN_PROGRESS')(second.error),
+            `the second request came to ${second.settled ? 'something else' : 'nothing yet'}`,
+        );
+        assert.deepEqual(port.askedFor, ['t1'], 'the application is asked once');
+        assert.equal(first.value, FILE);
+        assert.equal(ends.downloads.length, 1);
+    });
+
+    test('once the first has arrived, the next request is served', async () => {
+        const port = heldPort();
+        const { service, ends } = await installation({ port });
+
+        const first = outcomeOf(service.take('t1', ACTOR, NOW));
+        await ticks();
+        port.release();
+        await ticks();
+        const next = outcomeOf(service.take('t1', ACTOR, LATER));
+        await ticks();
+        port.release();
+        await ticks();
+
+        assert.equal(first.value, FILE);
+        assert.equal(next.value, FILE, 'the next request is not refused');
+        assert.equal(ends.downloads.length, 2);
+    });
+
+    test('where the application failed, the next request is served', async () => {
+        const port = heldPort();
+        const { service, ends } = await installation({ port });
+
+        const first = outcomeOf(service.take('t1', ACTOR, NOW));
+        await ticks();
+        await quietly(async () => {
+            port.release(new Error('the export query timed out'));
+            await ticks();
+        });
+        const next = outcomeOf(service.take('t1', ACTOR, LATER));
+        await ticks();
+        port.release();
+        await ticks();
+
+        assert.ok(refusedWith(ServiceUnavailableException, 'TENANT_EXPORT_FAILED')(first.error));
+        assert.equal(next.value, FILE, 'the next request is not refused');
+        assert.equal(ends.downloads.length, 1);
+    });
+
+    test('where the download could not be recorded, the next request is served', async () => {
+        const ends = new FakeSubscriptionEndRepository();
+        const record = ends.recordExportDownload.bind(ends);
+        let failures = 1;
+        ends.recordExportDownload = async (download) => {
+            if (failures-- > 0) throw new Error('the database is unreachable');
+            return record(download);
+        };
+        const { service } = await installation({ ends });
+
+        await assert.rejects(service.take('t1', ACTOR, NOW), /the database is unreachable/);
+
+        assert.equal(await service.take('t1', ACTOR, LATER), FILE);
+        assert.equal(ends.downloads.length, 1);
+    });
+
+    test('another tenant is not held up by one being produced', async () => {
+        const port = heldPort();
+        const ends = new FakeSubscriptionEndRepository();
+        const { holds, service } = await installation({ port, ends });
+        await held(holds, 't2', 'ended');
+        await ended(ends, 't2');
+
+        const first = outcomeOf(service.take('t1', ACTOR, NOW));
+        await ticks();
+        const other = outcomeOf(service.take('t2', ACTOR, NOW));
+        await ticks();
+        port.release();
+        await ticks();
+
+        assert.deepEqual(port.askedFor, ['t1', 't2']);
+        assert.equal(first.value, FILE);
+        assert.equal(other.value, FILE);
     });
 });
 

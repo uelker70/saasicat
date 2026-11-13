@@ -1146,6 +1146,13 @@ export const TENANT_ACCESS_ERROR_CODES = {
      * administration.
      */
     TENANT_EXPORT_NOT_FOR_OPERATOR: 'TENANT_EXPORT_NOT_FOR_OPERATOR',
+    /**
+     * The tenant's export is being produced for another request of the
+     * tenant's just now; one is produced at a time, since each is held in
+     * memory as a whole. Nothing was asked or recorded for this request; ask
+     * again once the other has arrived (`409`).
+     */
+    TENANT_EXPORT_IN_PROGRESS: 'TENANT_EXPORT_IN_PROGRESS',
 } as const;
 export type TenantAccessErrorCode =
     (typeof TENANT_ACCESS_ERROR_CODES)[keyof typeof TENANT_ACCESS_ERROR_CODES];

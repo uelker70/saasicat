@@ -267,6 +267,12 @@ _Tested by:_
         - an answer without a file name is refused, and nothing is recorded
         - a download that cannot be recorded sends no file and writes no audit entry
         - an audit log that fails leaves the download recorded and sent
+    - one export of a tenant at a time, since each is held in memory as a whole
+        - a second request while the first is produced is refused, and the application is asked once
+        - once the first has arrived, the next request is served
+        - where the application failed, the next request is served
+        - where the download could not be recorded, the next request is served
+        - another tenant is not held up by one being produced
     - the export is the session's tenant's alone
         - a request naming another tenant anywhere but its session is answered for its session
         - another tenant's end, recorded under a reason of its own, offers its own export only

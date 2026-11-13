@@ -562,6 +562,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Der Export dieses Kontos ließ sich gerade nicht erstellen. Bitte versuchen Sie es später erneut.',
     TENANT_EXPORT_NOT_FOR_OPERATOR:
         'Den Export dieses Kontos kann nur ein Administrator des Kontos abrufen, nicht der Anbieter, der als das Konto handelt.',
+    TENANT_EXPORT_IN_PROGRESS:
+        'Der Export dieses Kontos wird bereits erstellt. Bitte versuchen Sie es erneut, sobald er angekommen ist.',
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED:
         'Der Steueradapter {adapter} unterstützt diesen Fall nicht: {reason}',

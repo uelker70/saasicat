@@ -4606,7 +4606,11 @@ it, records every download, and shows the downloads to the operator. To adopt it
   throws, or answers anything else, is refused with
   `503 TENANT_EXPORT_FAILED`: nothing is recorded, nothing is sent, and what it answered is in the
   server log. The file is held in memory once while it is served, because a download is recorded
-  only for a file produced in full.
+  only for a file produced in full. So one export of a tenant is produced at a time: a second
+  request for the same tenant while the first is produced and recorded is refused with
+  `409 TENANT_EXPORT_IN_PROGRESS`, and your port is not asked for it. The rule holds within one
+  process — each instance counts its own, other tenants are not held up, and a file already being
+  sent is no longer counted.
 - **Your existing export** is usually the collector. Where it is keyed by something other than the
   tenant id — a slug, say — the port looks that key up from the id first. The file is the full
   export, everything your application keeps for the tenant, and it goes to its administrator alone.

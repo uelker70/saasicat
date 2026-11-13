@@ -32,9 +32,11 @@ platform asks the port on every download, for the session's tenant only. Before
 an end is recorded the route refuses with `409 TENANT_EXPORT_NOT_OFFERED`; a
 port that throws or answers anything but a file of at least one byte is refused
 with `503 TENANT_EXPORT_FAILED`, and nothing is recorded or sent. A `HEAD` is
-answered `405` with `Allow: GET` and asks and records nothing. A suspension and
-a deletion under way refuse it as they refuse every request. The file name is
-cleaned for the header.
+answered `405` with `Allow: GET` and asks and records nothing. One export of a
+tenant is produced at a time within a process, since each is held in memory as a
+whole: a second request meanwhile is refused with
+`409 TENANT_EXPORT_IN_PROGRESS`. A suspension and a deletion under way refuse it
+as they refuse every request. The file name is cleaned for the header.
 
 Every download is recorded once the application has handed the file over and
 before the file is sent — its moment, who took it by the user's id and as the

@@ -1814,16 +1814,16 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     it. Before an end is recorded the route refuses with `409 TENANT_EXPORT_NOT_OFFERED`, a port
     that throws or answers anything but a file with `503 TENANT_EXPORT_FAILED`, a user without the
     role with `403 TENANT_ADMIN_REQUIRED`, the operator — a user holding `SUPER_ADMIN`, or one your
-    guard let through with `actingAsOperator: true` — with `403 TENANT_EXPORT_NOT_FOR_OPERATOR`, and
-    a `HEAD` with `405` and `Allow: GET`; a suspension and a deletion under way refuse it as they
-    refuse every request. Your port is asked on every
-    download, for the session's tenant only.
-    Once it has handed the file over, the download is recorded in `tenant_export_downloads` — the
-    moment, who took it by the user's id and as the audit log tags them, and the file's size — and
-    only then sent, and it is audited as `TENANT_EXPORT_DOWNLOAD` where
-    the audit log is wired; the operator reads every download under "Access" on the tenant's page.
-    That record is the tenant's acknowledgement (`SC-PRIV-017`): it shows that the file was produced
-    for that request, not that it was saved.
+    guard let through with `actingAsOperator: true` — with `403 TENANT_EXPORT_NOT_FOR_OPERATOR`, a
+    `HEAD` with `405` and `Allow: GET`, and a second request for the same tenant while its export is
+    produced with `409 TENANT_EXPORT_IN_PROGRESS`, since each is held in memory as a whole; a
+    suspension and a deletion under way refuse it as they refuse every request. Your port is asked
+    on every download, for the session's tenant only. Once it has handed the file over, the download
+    is recorded in `tenant_export_downloads` — the moment, who took it by the user's id and as the
+    audit log tags them, and the file's size — and only then sent, and it is audited as
+    `TENANT_EXPORT_DOWNLOAD` where the audit log is wired; the operator reads every download under
+    "Access" on the tenant's page. That record is the tenant's acknowledgement (`SC-PRIV-017`): it
+    shows that the file was produced for that request, not that it was saved.
 
 The day is recorded and kept; nothing is deleted on it by this release.
 

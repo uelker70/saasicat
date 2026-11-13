@@ -18,6 +18,13 @@
 // subscription — and still after its deletion day, while the data is there.
 // A suspension and a deletion under way refuse it before it gets here, as they
 // refuse every request.
+//
+// The whole file is held in memory while it is produced, recorded and sent, so
+// one tenant produces one export at a time: a second request while the first
+// is produced and recorded is refused rather than holding a second copy. The
+// rule holds within one process — two instances each produce their own, and
+// different tenants are not held up by each other — and the file a finished
+// request is still sending is no longer counted.
 
 import {
     ConflictException,
@@ -80,6 +87,9 @@ export function exportNotWired(option: string): string {
 export class TenantDataExportService implements OnModuleInit, EndedSubscriptionSource {
     private readonly logger = new Logger(TenantDataExportService.name);
 
+    /** The tenants whose export this process is producing and recording now. */
+    private readonly producing = new Set<string>();
+
     constructor(
         @Inject(SUBSCRIPTION_END_PORT_TOKEN) private readonly ends: SubscriptionEndPort,
         @Inject(TENANT_DATA_EXPORT_PORT_TOKEN) private readonly exports: TenantDataExportPort,
@@ -106,13 +116,37 @@ export class TenantDataExportService implements OnModuleInit, EndedSubscriptionS
     /**
      * The full export of `tenantId`, taken by `actor` at `now`, once its
      * download is recorded. Refused with `TENANT_EXPORT_NOT_OFFERED` where no
-     * end of the tenant's subscription is recorded, and with
-     * `TENANT_EXPORT_FAILED` where the application hands no file over; a
-     * failure to record the download is thrown as it is. Nothing is recorded
-     * on any of these paths but the last, and nothing is handed back on any.
+     * end of the tenant's subscription is recorded, with
+     * `TENANT_EXPORT_IN_PROGRESS` while this process is producing the tenant's
+     * export for another request, and with `TENANT_EXPORT_FAILED` where the
+     * application hands no file over; a failure to record the download is
+     * thrown as it is. Nothing is recorded on any of these paths, and nothing
+     * is handed back on any.
      */
     async take(tenantId: string, actor: AdminActor, now: Date): Promise<TenantDataExport> {
         const end = await this.endOffered(tenantId);
+        // Claimed with no `await` between the check and the claim, so of two
+        // requests that reach this line together exactly one goes on.
+        if (this.producing.has(tenantId)) {
+            throw new ConflictException(
+                codedError(TENANT_ACCESS_ERROR_CODES.TENANT_EXPORT_IN_PROGRESS),
+            );
+        }
+        this.producing.add(tenantId);
+        try {
+            return await this.produceAndRecord(tenantId, end, actor, now);
+        } finally {
+            this.producing.delete(tenantId);
+        }
+    }
+
+    /** The application's file for `tenantId`, once its download is recorded beside `end` and audited. */
+    private async produceAndRecord(
+        tenantId: string,
+        end: SubscriptionEnd,
+        actor: AdminActor,
+        now: Date,
+    ): Promise<TenantDataExport> {
         const file = await this.produce(tenantId);
         const download = await this.ends.recordExportDownload({
             tenantId,

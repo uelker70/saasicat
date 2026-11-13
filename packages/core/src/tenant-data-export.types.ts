@@ -14,8 +14,9 @@ export interface TenantDataExport {
      * than a stream: the download is recorded before the file is sent, and only
      * a file the application has finished producing can be recorded as handed
      * over. A very large export is therefore held in memory once while it is
-     * served. An empty one is refused as an export the application did not
-     * produce.
+     * served — one per tenant at a time within a process, a second request
+     * meanwhile being refused (`TENANT_EXPORT_IN_PROGRESS`). An empty one is
+     * refused as an export the application did not produce.
      */
     content: Uint8Array;
     /**
