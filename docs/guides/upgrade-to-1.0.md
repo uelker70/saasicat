@@ -4536,9 +4536,9 @@ your application keeps for a tenant, so your application produces the file; the 
 it, records every download, and shows the downloads to the operator. To adopt it:
 
 1. Implement `TenantDataExportPort` from `@saasicat/core` and pass it as
-   `tenantBilling.subscriptionEnds.export`. The option is typed optional, so TypeScript does not
-   point out that it is missing; the start does, and is refused without it
-   (`subscription-ends.requires-export`):
+   `tenantBilling.subscriptionEnds.export`. The option is required in `SaaSiCatModule`'s types,
+   so the compiler points out that it is missing; a start without it, from code the compiler did
+   not check, is refused (`subscription-ends.requires-export`):
    "`tenantBilling.subscriptionEnds.export` is missing: wherever the end of a subscription is kept,
    the application hands over the tenant's full export through a TenantDataExportPort, because the
    read-only period before the deletion day exists for the tenant to take it (SC-PRIV-019)." A
@@ -4610,7 +4610,10 @@ it, records every download, and shows the downloads to the operator. To adopt it
   request for the same tenant while the first is produced and recorded is refused with
   `409 TENANT_EXPORT_IN_PROGRESS`, and your port is not asked for it. The rule holds within one
   process — each instance counts its own, other tenants are not held up, and a file already being
-  sent is no longer counted.
+  sent is no longer counted. Your port must therefore settle in bounded time: give the reads behind
+  it the timeouts your other requests have. The platform cannot cancel an export it asked for, so a
+  call that never settles leaves every further download of that tenant refused as in progress
+  until the process restarts.
 - **Your existing export** is usually the collector. Where it is keyed by something other than the
   tenant id — a slug, say — the port looks that key up from the id first. The file is the full
   export, everything your application keeps for the tenant, and it goes to its administrator alone.

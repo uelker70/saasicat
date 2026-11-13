@@ -17,7 +17,8 @@ without `tenantBilling.subscriptionEnds.export`**
 application's: `export(tenantId)` answers everything the application keeps for
 the tenant as one file, `{ content, mediaType, fileName }` — the whole file as a
 `Uint8Array`, a media type in printable ASCII, and a file name. The option is
-typed optional, so the compiler does not ask for it; the start does.
+required in `SaaSiCatModule`'s types, so the compiler asks for it; a start
+without it, from code the compiler did not check, is refused.
 `TenantBillingModule` wired by hand refuses `subscriptionEnds` without it in the
 same way.
 

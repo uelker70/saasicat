@@ -210,12 +210,14 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
      * day, while the data is there (`SC-PRIV-019`). The store comes from
      * `persistence.core.subscriptionEnds` unless `store` names another; a start
      * with neither is refused. `export` is the application's own — no
-     * persistence bundle can know what it keeps for a tenant — and a start
-     * without it is refused. Always on: `includeCron: false` leaves out only
-     * the quarter-hourly run, for an application that calls
+     * persistence bundle can know what it keeps for a tenant — so it is
+     * required here, and a start without it, from code the compiler did not
+     * check, is refused as well. Always on: `includeCron: false` leaves out
+     * only the quarter-hourly run, for an application that calls
      * `SubscriptionEndService.recordEnded` from a scheduler of its own.
      */
-    subscriptionEnds?: Partial<SubscriptionEndsOptions>;
+    subscriptionEnds: Partial<Omit<SubscriptionEndsOptions, 'export'>> &
+        Pick<SubscriptionEndsOptions, 'export'>;
 }
 
 /**

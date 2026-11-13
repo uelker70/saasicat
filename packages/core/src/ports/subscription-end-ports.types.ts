@@ -71,6 +71,13 @@ export interface SubscriptionEndPort {
  * asks again for every download and keeps nothing of the answer. A rejection
  * is a refusal: the platform records no download and sends no file — and so is
  * an answer that is not a file, which `TenantDataExport` describes.
+ *
+ * It must settle in bounded time: give the reads behind it the timeouts the
+ * application gives its other requests. The platform produces one export of a
+ * tenant at a time and cannot cancel one it has asked for, so until a call
+ * settles, every further download of that tenant is refused as in progress. A
+ * timeout on the platform's side would only let a second export run beside the
+ * one still producing, which is what one at a time exists to prevent.
  */
 export interface TenantDataExportPort {
     /** The full export of `tenantId`, produced now. */

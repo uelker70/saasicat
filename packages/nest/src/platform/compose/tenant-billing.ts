@@ -9,7 +9,6 @@ import type {
     SubscriptionEndPort,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
-    TenantDataExportPort,
     TenantSubscriptionWritePort,
     TransactionRunner,
 } from '@saasicat/core';
@@ -136,9 +135,7 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
             // `PersistenceProvider` types it as.
             store: (subscriptionEnds?.store ??
                 ctx.persistence?.core.subscriptionEnds) as ProviderSpec<SubscriptionEndPort>,
-            // SAFETY: `subscription-ends.requires-export` has refused a
-            // configuration that reaches here without it.
-            export: subscriptionEnds?.export as ProviderSpec<TenantDataExportPort>,
+            export: subscriptionEnds?.export,
         },
         imports: tenantImports ?? ctx.options.imports,
         extraProviders: [...quotaProviders, ...(extraProviders ?? [])],
