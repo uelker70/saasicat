@@ -1257,6 +1257,11 @@ _Tested by:_
           deleted on, and offers no export
         - tells its administrator the same two days
         - names the two days in German to a German reader
+        - once the deletion day has come and nothing has deleted the data, says the deletion is due
+          and that it can still read
+        - says the deletion is due in German to a German reader
+        - suspended past the deletion day, names the two days as days and says nothing of reading
+          now
         - names no days while the end is not recorded yet
         - while suspended, names the two days as days and says nothing of reading now, and offers no
           export

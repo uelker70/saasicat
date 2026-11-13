@@ -28,12 +28,57 @@ const DAYS = new Map([['sub-1', '2026-12-31']]);
 /** Asked by the tenant's administrator, the export wired and the end's day read. */
 const ADMINISTRATOR = {
     timeZone: UTC,
+    now: new Date('2026-12-05T10:00:00.000Z'),
     holdsBillingPermission: false,
     mayPay: false,
     isTenantAdministrator: true,
     exportWired: true,
     deletionDays: DAYS,
 };
+
+// @requirement SC-CANC-033 — An ended subscription's deletion day is shown to the tenant and to the operator
+describe("whether an ended subscription's deletion is due, by the installation's day", () => {
+    /** Whether the deletion on 31 December is due at `now`, read in `timeZone`. */
+    const dueAt = (now, timeZone = UTC) =>
+        tenantAccessViewOf(tenantAccessOf([ENDED()]), {
+            ...ADMINISTRATOR,
+            timeZone,
+            now: new Date(now),
+        }).reasons[0].deletionDue;
+
+    test('the day before the deletion day, it is not due', () => {
+        assert.equal(dueAt('2026-12-30T23:59:59.999Z'), false);
+    });
+
+    test('on the deletion day itself, it is due', () => {
+        assert.equal(dueAt('2026-12-31T00:00:00.000Z'), true);
+    });
+
+    test('and after it, while nothing has deleted the data, still due', () => {
+        assert.equal(dueAt('2027-02-01T12:00:00.000Z'), true);
+    });
+
+    test('where the installation is ahead of UTC, it is due on its own day, while UTC is still on the day before', () => {
+        assert.equal(dueAt('2026-12-30T23:30:00.000Z', 'Europe/Berlin'), true);
+        assert.equal(dueAt('2026-12-30T23:30:00.000Z', UTC), false);
+    });
+
+    test('where the installation is behind UTC, it is not due yet, while UTC is on the day already', () => {
+        assert.equal(dueAt('2026-12-31T03:00:00.000Z', 'America/New_York'), false);
+        assert.equal(dueAt('2026-12-31T03:00:00.000Z', UTC), true);
+    });
+
+    test('every other reason, and an end not recorded yet, says nothing of it', () => {
+        const view = tenantAccessViewOf(
+            tenantAccessOf([hold('overdue', 'inv-1'), hold('suspended'), hold('ended', 'sub-2')]),
+            { ...ADMINISTRATOR, now: new Date('2027-02-01T12:00:00.000Z') },
+        );
+        assert.deepEqual(
+            view.reasons.map((reason) => reason.deletionDue),
+            [null, null, null],
+        );
+    });
+});
 
 // @requirement SC-CANC-033 — An ended subscription's deletion day is shown to the tenant and to the operator
 describe('an ended subscription names its days to every user', () => {

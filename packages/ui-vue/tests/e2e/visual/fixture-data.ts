@@ -1076,6 +1076,7 @@ const TENANT_ACCESS_ENDED = {
             invoiceNumber: 'AHP-2026-000124',
             readOnlyUntil: null,
             deletesOn: null,
+            deletionDue: null,
         },
         {
             kind: 'overdue',
@@ -1083,6 +1084,7 @@ const TENANT_ACCESS_ENDED = {
             invoiceNumber: 'AHP-2026-000131',
             readOnlyUntil: null,
             deletesOn: null,
+            deletionDue: null,
         },
         {
             kind: 'ended',
@@ -1090,6 +1092,7 @@ const TENANT_ACCESS_ENDED = {
             invoiceNumber: null,
             readOnlyUntil: '2026-12-30',
             deletesOn: '2026-12-31',
+            deletionDue: false,
         },
     ],
     holdsBillingPermission: true,

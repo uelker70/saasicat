@@ -60,6 +60,7 @@ describe("a tenant's users read why it is held back", () => {
                     invoiceNumber: null,
                     readOnlyUntil: null,
                     deletesOn: null,
+                    deletionDue: null,
                 },
                 {
                     kind: 'suspended',
@@ -67,6 +68,7 @@ describe("a tenant's users read why it is held back", () => {
                     invoiceNumber: null,
                     readOnlyUntil: null,
                     deletesOn: null,
+                    deletionDue: null,
                 },
             ],
             holdsBillingPermission: false,

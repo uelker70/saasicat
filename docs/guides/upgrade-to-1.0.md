@@ -4653,15 +4653,19 @@ it, records every download, and shows the downloads to the operator. To adopt it
   user of the tenant: while it is read-only in the words of `deletionAnnounced`, the sentence its
   cancellation was confirmed with
   ([A tenant is told its deletion day before it ends its subscription](#a-tenant-is-told-its-deletion-day-before-it-ends-its-subscription)),
-  and while it is suspended or being deleted as the two days alone
+  once the deletion day has come and nothing has deleted the data yet — this release deletes
+  nothing — as a deletion that is due, which the tenant can still read until it happens
+  (`accessReasonEndedDeletionDue`), and while it is suspended or being deleted as the two days alone
   (`accessReasonEndedDays`). To the tenant's administrator it offers "Export the account's data",
   which downloads the file. A download that fails says why beneath, in the refusal's own sentence
   where the platform words one and in `accessExportFailed` otherwise, and leaves the banner as it
-  was. Texts of your own for the tenant section gain `accessReasonEndedDays`, `accessExport` and
-  `accessExportFailed`; the shipped English and German stand in where you leave them out.
+  was. Texts of your own for the tenant section gain `accessReasonEndedDays`,
+  `accessReasonEndedDeletionDue`, `accessExport` and `accessExportFailed`; the shipped English and
+  German stand in where you leave them out.
 - **A banner of your own** reads the same from `GET billing/access` and
   `GET billing/account/access`: each reason's `readOnlyUntil` and `deletesOn`, days in the
-  installation's zone that are `null` except for an ended subscription whose end is recorded, and
+  installation's zone that are `null` except for an ended subscription whose end is recorded,
+  `deletionDue`, whether the installation's day has reached `deletesOn`, `null` where that is, and
   `mayExport`, `true` only for the tenant's own administrator — never the operator — while the
   tenant is read-only for an
   ended subscription whose end is recorded and the export is wired — never where the route would
@@ -4676,10 +4680,11 @@ it, records every download, and shows the downloads to the operator. To adopt it
   and `size` are in the data. An `AdminResourcesPort` of your own, and screens of your own that read
   these routes, change nothing: the platform adds both as it adds the reasons.
 - **Code that builds a view itself** follows the types. `TenantAccessService.viewOf` and
-  `tenantAccessViewOf` take `isTenantAdministrator`, which is `false` for the operator;
+  `tenantAccessViewOf` take `isTenantAdministrator`, which is `false` for the operator, and `now`,
+  the moment whose day in the installation's zone decides `deletionDue`;
   `TenantAccessService.actsAsOperator(request)` answers whether the check let a request through as
-  the operator acting as the tenant; `TenantAccessReasonView` gains `readOnlyUntil`
-  and `deletesOn`, `TenantAccessView` gains `mayExport`, and `AdminTenantAccessReason` gains
+  the operator acting as the tenant; `TenantAccessReasonView` gains `readOnlyUntil`, `deletesOn`
+  and `deletionDue`, `TenantAccessView` gains `mayExport`, and `AdminTenantAccessReason` gains
   `deletesOn` and `exportDownloads`, so a fixture of your own that builds one gains them too.
 - **A route of your own at `GET billing/export`** collides with the platform's, which is mounted
   wherever `tenantBilling` is on; move yours.

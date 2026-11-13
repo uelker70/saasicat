@@ -1717,12 +1717,13 @@ makes the tenant read-only in that run.
 - **The tenant's users read why** (`SC-ADM-054`): `GET billing/access` answers every user of the
   tenant its state and each reason with the day it began in the installation;
   `GET billing/account/access`, behind the billing permission where invoices are mounted, adds the
-  invoice by its number and whether it can be paid there (`mayPay`, where a gateway collects).
-  Under an ended subscription both name the last day the tenant can read and the day its data is
-  deleted on, `readOnlyUntil` and `deletesOn` (`SC-CANC-033`), and both answer `mayExport`, whether
-  this reader can take the tenant's export now. Both are let through in every state, suspended and
-  being deleted included, since they carry the mark `reads-its-state`, which your guard's `enforce`
-  reads as the platform does. Mount `TenantAccessBanner` from `@saasicat/ui-vue-tenant` behind your
+  invoice by its number and whether it can be paid there (`mayPay`, where a gateway collects). Under
+  an ended subscription both name the last day the tenant can read and the day its data is deleted
+  on, `readOnlyUntil` and `deletesOn` (`SC-CANC-033`), and whether that day has come, `deletionDue`
+  — until the deletion runs the data is still there — and both answer `mayExport`, whether this
+  reader can take the tenant's export now. Both are let through in every state, suspended and being
+  deleted included, since they carry the mark `reads-its-state`, which your guard's `enforce` reads
+  as the platform does. Mount `TenantAccessBanner` from `@saasicat/ui-vue-tenant` behind your
   sign-in to show it.
 
 ### A subscription that ended

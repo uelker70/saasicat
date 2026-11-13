@@ -114,6 +114,7 @@ export class TenantInvoicesController {
         const tenantId = tenantIdOf(this.tenantIdResolver, request);
         const asked = {
             timeZone: installationZoneOf(this.settings),
+            now: new Date(),
             holdsBillingPermission: true,
             mayPay: this.collection !== null,
             isTenantAdministrator: mayTakeTheTenantsExport(

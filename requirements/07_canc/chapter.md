@@ -914,6 +914,14 @@ _Source:_ #337 (decided 2026-11-12)
 _Tested by:_
 
 - `packages/core/tests/an-ended-subscription-names-its-days-and-offers-the-export.test.js`
+    - whether an ended subscription's deletion is due, by the installation's day
+        - the day before the deletion day, it is not due
+        - on the deletion day itself, it is due
+        - and after it, while nothing has deleted the data, still due
+        - where the installation is ahead of UTC, it is due on its own day, while UTC is still on
+          the day before
+        - where the installation is behind UTC, it is not due yet, while UTC is on the day already
+        - every other reason, and an end not recorded yet, says nothing of it
     - an ended subscription names its days to every user
         - the last day the tenant can read, and the day its data is deleted on
         - the last day before a deletion on the first of a year is the last of the year before
@@ -924,6 +932,7 @@ _Tested by:_
         - a user without any role reads the last readable day and the deletion day
         - a user holding the billing permission reads them too, and the administrator is offered the
           export
+        - both reads say whether the deletion is due, by the moment they are asked at
         - the ends are read once, whatever the number of reasons
         - and not at all where no subscription ended
         - a tenant's own users read the ends within its own scope
@@ -949,6 +958,11 @@ _Tested by:_
           deleted on, and offers no export
         - tells its administrator the same two days
         - names the two days in German to a German reader
+        - once the deletion day has come and nothing has deleted the data, says the deletion is due
+          and that it can still read
+        - says the deletion is due in German to a German reader
+        - suspended past the deletion day, names the two days as days and says nothing of reading
+          now
         - names no days while the end is not recorded yet
         - while suspended, names the two days as days and says nothing of reading now, and offers no
           export

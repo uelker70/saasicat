@@ -41,7 +41,7 @@ function httpRouting(routes: Record<string, Answer[]>) {
 }
 
 /** What a reason other than an ended subscription carries of the days an end leaves. */
-const NO_DAYS = { readOnlyUntil: null, deletesOn: null } as const;
+const NO_DAYS = { readOnlyUntil: null, deletesOn: null, deletionDue: null } as const;
 const OVERDUE = {
     kind: 'overdue',
     since: '2026-11-16',
@@ -315,9 +315,15 @@ const ENDED = {
     invoiceNumber: null,
     readOnlyUntil: '2026-12-09',
     deletesOn: '2026-12-10',
+    deletionDue: false,
 } as const;
 const ENDED_LINE =
     'Since 10.11.2026: the subscription has ended. After that you can still read your data until the end of 9.12.2026, but no longer change it. On 10.12.2026 it is deleted.';
+
+/** The same end once its deletion day has come, before anything has deleted the data. */
+const ENDED_DUE = { ...ENDED, deletionDue: true } as const;
+const ENDED_DUE_LINE =
+    'Since 10.11.2026: the subscription has ended. Read-only period until the end of 9.12.2026; deletion has been due since 10.12.2026. Until it happens, you can still read your data.';
 
 /** The same two days where the tenant is suspended or being deleted and can read nothing now. */
 const ENDED_DAYS_LINE =
@@ -409,6 +415,58 @@ describe('the banner of a tenant whose subscription ended', () => {
         expect(wrapper.findAll('button').map((button) => button.text())).toEqual([
             'Daten des Kontos exportieren',
         ]);
+    });
+
+    test('once the deletion day has come and nothing has deleted the data, says the deletion is due and that it can still read', async () => {
+        const { http } = httpRouting({
+            'GET /billing/access': [[200, endedToAnyone({ reasons: [ENDED_DUE] })]],
+        });
+        const wrapper = await mountBanner(http);
+
+        expect(lines(wrapper)).toEqual([ENDED_DUE_LINE]);
+        expect(wrapper.text()).not.toContain('On 10.12.2026 it is deleted');
+    });
+
+    test('says the deletion is due in German to a German reader', async () => {
+        const { http } = httpRouting({
+            'GET /billing/account/access': [
+                [200, endedToAnyone({ reasons: [ENDED_DUE], holdsBillingPermission: true })],
+            ],
+        });
+        const wrapper = await mountBanner(http, { german: true });
+
+        expect(lines(wrapper)).toEqual([
+            'Seit 10.11.2026: Das Abonnement ist beendet. Lesefrist bis einschließlich 9.12.2026; die Löschung ist seit dem 10.12.2026 fällig. Bis sie erfolgt, können Sie Ihre Daten noch lesen.',
+        ]);
+    });
+
+    test('suspended past the deletion day, names the two days as days and says nothing of reading now', async () => {
+        const { http } = httpRouting({
+            'GET /billing/access': [
+                [
+                    200,
+                    endedToAnyone({
+                        state: 'suspended',
+                        reasons: [
+                            ENDED_DUE,
+                            {
+                                kind: 'suspended',
+                                since: '2026-12-11',
+                                invoiceNumber: null,
+                                ...NO_DAYS,
+                            },
+                        ],
+                    }),
+                ],
+            ],
+        });
+        const wrapper = await mountBanner(http);
+
+        expect(lines(wrapper)).toEqual([
+            ENDED_DAYS_LINE,
+            'Since 11.12.2026: suspended by your provider.',
+        ]);
+        expect(wrapper.text()).not.toContain('you can still read');
     });
 
     test('names no days while the end is not recorded yet', async () => {

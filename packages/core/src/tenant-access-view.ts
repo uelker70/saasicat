@@ -6,9 +6,11 @@
 // day, and the invoice by its number only where they hold the billing
 // permission — the permission that lets them pay it (`SC-ADM-055`). Where a
 // subscription ended, every one of them is told the last day the tenant can
-// still read and the day its data is deleted on (`SC-CANC-033`); whether they
-// can take the tenant's export is said to the tenant's administrator alone
-// (`SC-PRIV-019`).
+// still read and the day its data is deleted on (`SC-CANC-033`), and whether
+// that day has come: until the deletion runs the data is still there, and a
+// tenant read-only past the day is not to be told it can read only until a day
+// gone by. Whether they can take the tenant's export is said to the tenant's
+// administrator alone (`SC-PRIV-019`).
 
 import {
     holdsOldestFirst,
@@ -40,6 +42,12 @@ export interface TenantAccessReasonView {
      * subscription whose end is recorded; `null` otherwise, as `readOnlyUntil`.
      */
     deletesOn: CalendarDay | null;
+    /**
+     * Whether the installation's day has reached `deletesOn`: the deletion is
+     * due. Until it runs the data is still there, so a tenant still read-only
+     * can still read it. `null` where `deletesOn` is.
+     */
+    deletionDue: boolean | null;
 }
 
 /** A tenant's state as its own users read it. */
@@ -66,8 +74,10 @@ export interface TenantAccessView {
 
 /** Who is told, and what the view of them is made from. */
 export interface TenantAccessViewOptions {
-    /** The installation's zone, which decides the day a reason began on. */
+    /** The installation's zone, which decides the day a reason began on and the day it is now. */
     timeZone: string;
+    /** The moment the view is read at: its day in `timeZone` says whether a deletion is due. */
+    now: Date;
     holdsBillingPermission: boolean;
     mayPay: boolean;
     /**
@@ -98,6 +108,7 @@ export function tenantAccessViewOf(
     options: TenantAccessViewOptions,
 ): TenantAccessView {
     const numbers = options.holdsBillingPermission ? options.invoiceNumbers : undefined;
+    const today = dayInZone(options.now, options.timeZone);
     const reasons = holdsOldestFirst(access.holds).map((hold) => {
         const deletesOn =
             hold.kind === 'ended' && hold.reference !== null
@@ -112,6 +123,7 @@ export function tenantAccessViewOf(
                     : null,
             readOnlyUntil: deletesOn === null ? null : addDaysToDay(deletesOn, -1),
             deletesOn,
+            deletionDue: deletesOn === null ? null : today >= deletesOn,
         };
     });
     return {

@@ -540,6 +540,13 @@ export interface TenantPlanSectionI18n {
      * as what the tenant can do today.
      */
     accessReasonEndedDays: string;
+    /**
+     * After it, where the tenant is still read-only although its deletion day
+     * has come, since nothing has deleted its data yet: the last day of its
+     * read-only period, `{readOnlyUntil}`, the day the deletion has been due
+     * since, `{deletesOn}`, and that the tenant can still read until it runs.
+     */
+    accessReasonEndedDeletionDue: string;
     /** The deletion began: `{date}`. */
     accessReasonDeleting: string;
     /** To a user without the billing permission, under an unpaid invoice: who can pay it. */
@@ -993,6 +1000,8 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     accessReasonSuspended: 'Seit {date}: von Ihrem Anbieter gesperrt.',
     accessReasonEnded: 'Seit {date}: Das Abonnement ist beendet.',
     accessReasonEndedDays: 'Lesefrist bis einschließlich {readOnlyUntil}, Löschung am {deletesOn}.',
+    accessReasonEndedDeletionDue:
+        'Lesefrist bis einschließlich {readOnlyUntil}; die Löschung ist seit dem {deletesOn} fällig. Bis sie erfolgt, können Sie Ihre Daten noch lesen.',
     accessReasonDeleting: 'Seit {date}: Das Konto wird gelöscht.',
     accessAskBilling: 'Bezahlen kann sie, wer bei Ihnen die Abrechnung betreut.',
     accessExport: 'Daten des Kontos exportieren',
@@ -1423,6 +1432,8 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     accessReasonEnded: 'Since {date}: the subscription has ended.',
     accessReasonEndedDays:
         'Read-only period until the end of {readOnlyUntil}, deletion on {deletesOn}.',
+    accessReasonEndedDeletionDue:
+        'Read-only period until the end of {readOnlyUntil}; deletion has been due since {deletesOn}. Until it happens, you can still read your data.',
     accessReasonDeleting: 'Since {date}: the account is being deleted.',
     accessAskBilling: 'Whoever looks after billing in your organisation can pay it.',
     accessExport: "Export the account's data",

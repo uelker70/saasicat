@@ -46,6 +46,7 @@ export class TenantAccessStateController {
         const tenantId = tenantIdOf(this.tenantIdResolver, request);
         const asked = {
             timeZone: installationZoneOf(this.settings),
+            now: new Date(),
             holdsBillingPermission: false,
             mayPay: false,
             isTenantAdministrator: mayTakeTheTenantsExport(

@@ -51,7 +51,11 @@ function countedEnds() {
  * `t1` held back for `kinds`, its subscription's end recorded where
  * `endRecorded`, and the export wired over the counted store.
  */
-async function installation({ kinds = ['ended'], endRecorded = true } = {}) {
+async function installation({
+    kinds = ['ended'],
+    endRecorded = true,
+    deletesOn = '2026-12-31',
+} = {}) {
     const holds = new FakeTenantAccessHoldRepository();
     for (const kind of kinds) {
         await holds.record({
@@ -69,7 +73,7 @@ async function installation({ kinds = ['ended'], endRecorded = true } = {}) {
             tenantId: ACME.id,
             subscriptionId: 'sub-t1',
             endsAt: ENDED,
-            deletesOn: '2026-12-31',
+            deletesOn,
             recordedAt: ENDED,
             recordedBy: 'job:platform:subscription-ends',
         });
@@ -147,6 +151,24 @@ describe('every user of the tenant reads the days its ended subscription leaves'
 
         assert.equal(view.reasons[0].deletesOn, '2026-12-31');
         assert.equal(view.mayExport, true);
+    });
+
+    test('both reads say whether the deletion is due, by the moment they are asked at', async () => {
+        // Days far from any moment the suite runs at, so the server's own
+        // clock decides the same way whenever it runs.
+        for (const [deletesOn, due] of [
+            ['2000-01-01', true],
+            ['2999-12-31', false],
+        ]) {
+            const { access } = await installation({ deletesOn });
+            const reads = [
+                await new TenantAccessStateController(null, null, access).state(asUser('USER')),
+                await new TenantInvoicesController(null, null, null, null, access).accessState(
+                    asUser('TENANT_ADMIN'),
+                ),
+            ];
+            for (const view of reads) assert.equal(view.reasons[0].deletionDue, due, deletesOn);
+        }
     });
 
     test('the ends are read once, whatever the number of reasons', async () => {

@@ -45,7 +45,7 @@ describe("a tenant's users read why it is held back", () => {
         const ended = hold('ended', new Date('2026-11-01T09:00:00.000Z'));
         const view = tenantAccessViewOf(tenantAccessOf([suspended, overdue, ended]), EVERY_USER);
         assert.equal(view.state, 'suspended');
-        const NO_DAYS = { readOnlyUntil: null, deletesOn: null };
+        const NO_DAYS = { readOnlyUntil: null, deletesOn: null, deletionDue: null };
         assert.deepEqual(view.reasons, [
             { kind: 'ended', since: '2026-11-01', invoiceNumber: null, ...NO_DAYS },
             { kind: 'suspended', since: '2026-11-04', invoiceNumber: null, ...NO_DAYS },
@@ -102,6 +102,7 @@ describe("a tenant's users read why it is held back", () => {
                 invoiceNumber: null,
                 readOnlyUntil: null,
                 deletesOn: null,
+                deletionDue: null,
             },
         ]);
     });

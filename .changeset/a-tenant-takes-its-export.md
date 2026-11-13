@@ -51,16 +51,18 @@ them, and the persistence contract and `FakeSubscriptionEndRepository` cover
 them.
 
 `TenantAccessBanner` names, beside an ended subscription, the last day the
-tenant can read and the day its data is deleted, to every user of the tenant,
-and offers its administrator the export as a download that says why where it
-fails. `GET billing/access` and `GET billing/account/access` answer each
-reason's `readOnlyUntil` and `deletesOn` and the reader's `mayExport`;
+tenant can read and the day its data is deleted, to every user of the tenant —
+once that day has come and nothing has deleted the data, as a deletion that is
+due, which the tenant can still read until it happens — and offers its
+administrator the export as a download that says why where it fails.
+`GET billing/access` and `GET billing/account/access` answer each reason's
+`readOnlyUntil`, `deletesOn` and `deletionDue` and the reader's `mayExport`;
 `useTenantExport` in `@saasicat/ui-vue` downloads the file for a screen of your
 own. `TenantDetailPage` names under "Access" the deletion day and every download
 with its day and who took it, from the reasons' new `deletesOn` and
 `exportDownloads`. Texts of your own for the tenant section gain
-`accessReasonEndedDays`, `accessExport` and `accessExportFailed`.
-`TenantAccessService.viewOf` and `tenantAccessViewOf` take
-`isTenantAdministrator`, and `TenantAccessService.actsAsOperator(request)`
-answers whether the check let a request through as the operator. Nothing is
-deleted on the day by this release.
+`accessReasonEndedDays`, `accessReasonEndedDeletionDue`, `accessExport` and
+`accessExportFailed`. `TenantAccessService.viewOf` and `tenantAccessViewOf` take
+`isTenantAdministrator` and `now`, and
+`TenantAccessService.actsAsOperator(request)` answers whether the check let a
+request through as the operator. Nothing is deleted on the day by this release.
