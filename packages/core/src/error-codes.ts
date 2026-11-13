@@ -1137,6 +1137,15 @@ export const TENANT_ACCESS_ERROR_CODES = {
      * answered stays in the server log.
      */
     TENANT_EXPORT_FAILED: 'TENANT_EXPORT_FAILED',
+    /**
+     * The operator — a user holding `SUPER_ADMIN`, or one the application's
+     * check let through as acting as the tenant — asked for the tenant's
+     * export. Only the tenant's own administrator takes it, so that every
+     * recorded download is the tenant's acknowledgement (`SC-PRIV-019`,
+     * `403`); the operator's own export of a tenant is the application's
+     * administration.
+     */
+    TENANT_EXPORT_NOT_FOR_OPERATOR: 'TENANT_EXPORT_NOT_FOR_OPERATOR',
 } as const;
 export type TenantAccessErrorCode =
     (typeof TENANT_ACCESS_ERROR_CODES)[keyof typeof TENANT_ACCESS_ERROR_CODES];

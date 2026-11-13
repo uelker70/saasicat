@@ -542,6 +542,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'The export of this account is offered once its subscription has ended.',
     TENANT_EXPORT_FAILED:
         'The export of this account could not be produced just now. Please try again later.',
+    TENANT_EXPORT_NOT_FOR_OPERATOR:
+        'Only an administrator of this account can take its export, not the provider acting as the account.',
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED: 'The tax adapter {adapter} does not support this case: {reason}',
     TAX_VAT_ID_CHECK_NOT_COMPLETED:

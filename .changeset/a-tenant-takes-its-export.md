@@ -21,38 +21,43 @@ typed optional, so the compiler does not ask for it; the start does.
 `TenantBillingModule` wired by hand refuses `subscriptionEnds` without it in the
 same way.
 
-Once the end of a tenant's subscription is recorded, its administrator
-(`TENANT_ADMIN` or `SUPER_ADMIN`) downloads the file from `GET billing/export`,
-and still after the deletion day while the data is there; anyone else of the
-tenant is refused `403 TENANT_ADMIN_REQUIRED`. The platform asks the port on
-every download, for the session's tenant only. Before an end is recorded the
-route refuses with `409 TENANT_EXPORT_NOT_OFFERED`; a port that throws or
-answers anything but a file is refused with `503 TENANT_EXPORT_FAILED`, and
-nothing is recorded or sent. A `HEAD` is answered `405` with `Allow: GET` and
-asks and records nothing. A suspension and a deletion under way refuse it as
-they refuse every request. The file name is cleaned for the header.
+Once the end of a tenant's subscription is recorded, its own administrator
+(`TENANT_ADMIN`) downloads the file from `GET billing/export`, and still after
+the deletion day while the data is there; anyone else of the tenant is refused
+`403 TENANT_ADMIN_REQUIRED`. The operator is refused
+`403 TENANT_EXPORT_NOT_FOR_OPERATOR` — a user holding `SUPER_ADMIN`, and one the
+application's check let through with `actingAsOperator: true` — so that every
+recorded download is the tenant's own; `mayExport` is `false` for them. The
+platform asks the port on every download, for the session's tenant only. Before
+an end is recorded the route refuses with `409 TENANT_EXPORT_NOT_OFFERED`; a
+port that throws or answers anything but a file is refused with
+`503 TENANT_EXPORT_FAILED`, and nothing is recorded or sent. A `HEAD` is
+answered `405` with `Allow: GET` and asks and records nothing. A suspension and
+a deletion under way refuse it as they refuse every request. The file name is
+cleaned for the header.
 
 Every download is recorded once the application has handed the file over and
 before the file is sent — its moment and who took it, as the audit log tags an
 actor — and audited as `TENANT_EXPORT_DOWNLOAD` where the audit log is wired; a
-download that cannot be recorded sends no file. Adopt the
-`TenantExportDownload` model (fragment 31) and run
-`1.0-subscription-ends-are-kept.postgres.sql`: it now also creates
-`tenant_export_downloads`, and where it ran before it creates only what is
-missing. Both shipped adapters provide the new `SubscriptionEndPort` methods
-`recordExportDownload` and `listExportDownloadsFor`; a port of your own adds
-them, and the persistence contract and `FakeSubscriptionEndRepository` cover
-them.
+download that cannot be recorded sends no file. Adopt the `TenantExportDownload`
+model (fragment 31) and run `1.0-subscription-ends-are-kept.postgres.sql`: it
+now also creates `tenant_export_downloads`, and where it ran before it creates
+only what is missing. Both shipped adapters provide the new
+`SubscriptionEndPort` methods `recordExportDownload` and
+`listExportDownloadsFor`; a port of your own adds them, and the persistence
+contract and `FakeSubscriptionEndRepository` cover them.
 
 `TenantAccessBanner` names, beside an ended subscription, the last day the
 tenant can read and the day its data is deleted, to every user of the tenant,
 and offers its administrator the export as a download that says why where it
 fails. `GET billing/access` and `GET billing/account/access` answer each
 reason's `readOnlyUntil` and `deletesOn` and the reader's `mayExport`;
-`useTenantExport` in `@saasicat/ui-vue` downloads the file for a screen of
-your own. `TenantDetailPage` names under "Access" the deletion day and every
-download with its day and who took it, from the reasons' new `deletesOn` and
+`useTenantExport` in `@saasicat/ui-vue` downloads the file for a screen of your
+own. `TenantDetailPage` names under "Access" the deletion day and every download
+with its day and who took it, from the reasons' new `deletesOn` and
 `exportDownloads`. Texts of your own for the tenant section gain
 `accessReasonEndedDays`, `accessExport` and `accessExportFailed`.
 `TenantAccessService.viewOf` and `tenantAccessViewOf` take
-`isTenantAdministrator`. Nothing is deleted on the day by this release.
+`isTenantAdministrator`, and `TenantAccessService.actsAsOperator(request)`
+answers whether the check let a request through as the operator. Nothing is
+deleted on the day by this release.

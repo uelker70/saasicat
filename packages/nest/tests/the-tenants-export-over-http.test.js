@@ -154,6 +154,27 @@ describe("the tenant's export over HTTP, on Express and on Fastify", () => {
         });
     });
 
+    test('the operator the application says is acting as the tenant is refused, and nothing is asked or recorded', async () => {
+        await onEachPlatform(async ({ on, ask, ends, port }) => {
+            const response = await ask('GET', { 'x-acting-as-operator': 'yes' });
+
+            assert.equal(response.status, 403, on);
+            assert.equal((await response.json()).code, 'TENANT_EXPORT_NOT_FOR_OPERATOR', on);
+            assert.deepEqual(port.askedFor, [], `${on}: the application is not asked`);
+            assert.deepEqual(ends.downloads, [], `${on}: no download is recorded`);
+        });
+    });
+
+    test('a user holding SUPER_ADMIN is refused as the operator', async () => {
+        await onEachPlatform(async ({ on, ask, port }) => {
+            const response = await ask('GET', { 'x-role': 'SUPER_ADMIN' });
+
+            assert.equal(response.status, 403, on);
+            assert.equal((await response.json()).code, 'TENANT_EXPORT_NOT_FOR_OPERATOR', on);
+            assert.deepEqual(port.askedFor, [], on);
+        });
+    });
+
     test('a HEAD is refused with the method the route allows, and asks and records nothing', async () => {
         await onEachPlatform(async ({ on, ask, ends, port }) => {
             const response = await ask('HEAD');

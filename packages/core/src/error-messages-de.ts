@@ -560,6 +560,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Der Export dieses Kontos steht bereit, sobald sein Abonnement geendet hat.',
     TENANT_EXPORT_FAILED:
         'Der Export dieses Kontos ließ sich gerade nicht erstellen. Bitte versuchen Sie es später erneut.',
+    TENANT_EXPORT_NOT_FOR_OPERATOR:
+        'Den Export dieses Kontos kann nur ein Administrator des Kontos abrufen, nicht der Anbieter, der als das Konto handelt.',
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED:
         'Der Steueradapter {adapter} unterstützt diesen Fall nicht: {reason}',

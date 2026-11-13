@@ -273,14 +273,21 @@ _Tested by:_
     - where the route is checked
         - it carries no access mark, so a read-only tenant reads it as a GET
         - it stays behind the tenant's guard and the administrator's
-        - a user of the tenant without the role is refused; the administrator and the operator
-          acting are let through
+        - a user of the tenant without the role is refused, and its administrator let through
         - a tenant read-only because its subscription ended is let through
         - a tenant whose subscription ended and that is suspended is refused
         - a tenant whose subscription ended and that is being deleted is refused
+    - the operator does not take the export in the tenant’s name
+        - a user holding SUPER_ADMIN is refused with a code of its own, and nothing is asked or
+          recorded
+        - the operator the application's check let through as acting is refused, whatever role the
+          session carries
+        - a request the application checked as a tenant user’s is not taken for the operator’s
+        - is not offered the export on either read of the tenant’s state
     - the state a user reads offers the export exactly where the route serves it
         - for the administrator, offered where it is served and nowhere else
         - for a user without the role, offered nowhere, and served nowhere
+        - for the operator, offered nowhere, and served nowhere
         - where the application wired no export, nothing is offered
 - `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
     - the application's export, which the ends cannot start without
@@ -297,6 +304,9 @@ _Tested by:_
 - `packages/nest/tests/the-tenants-export-over-http.test.js`
     - the tenant's export over HTTP, on Express and on Fastify
         - a GET hands the administrator the file and records the download
+        - the operator the application says is acting as the tenant is refused, and nothing is asked
+          or recorded
+        - a user holding SUPER_ADMIN is refused as the operator
         - a HEAD is refused with the method the route allows, and asks and records nothing
 - `packages/ui-vue-tenant/tests/component/a-held-back-tenant-reads-why.test.ts`
     - the tenant's export, taken from the banner

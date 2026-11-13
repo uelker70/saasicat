@@ -1,5 +1,6 @@
 import {
     Controller,
+    ForbiddenException,
     Get,
     Header,
     Inject,
@@ -9,7 +10,10 @@ import {
     StreamableFile,
     UseGuards,
 } from '@nestjs/common';
+import { TENANT_ACCESS_ERROR_CODES } from '@saasicat/core';
 
+import { codedError } from '../errors/coded-error.js';
+import { TenantAccessService } from '../tenant-access/tenant-access.service.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { downloadOf } from './invoices/archived-download.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
@@ -30,9 +34,10 @@ import {
 } from './tenant-billing.tokens.js';
 import { TenantDataExportService } from './tenant-data-export.service.js';
 import { tenantIdOf } from './tenant-id.js';
+import { isTheOperator } from './tenant-roles.js';
 
 /**
- * `GET billing/export` — the tenant's full export as one file, for its
+ * `GET billing/export` — the tenant's full export as one file, for its own
  * administrator, once its subscription has ended (`SC-PRIV-019`). The tenant is
  * the session's, never a value the request carries; every download is recorded
  * before the file is sent.
@@ -54,6 +59,12 @@ export class TenantDataExportController {
         @Optional()
         @Inject(AUDIT_CONTEXT_RESOLVER_TOKEN)
         private readonly auditContextResolver: AuditContextResolver | null = null,
+        // What says the operator is acting as the tenant; without it — tenant
+        // billing wired by hand without `SaaSiCatModule` — only `SUPER_ADMIN`
+        // does.
+        @Optional()
+        @Inject(TenantAccessService)
+        private readonly access: TenantAccessService | null = null,
     ) {}
 
     // No access mark: a `GET` reads, and the record of the download it writes
@@ -72,6 +83,14 @@ export class TenantDataExportController {
     @UseGuards(TenantAdminGuard)
     async export(@Req() request: unknown): Promise<StreamableFile> {
         if (isHead(request)) throw new MethodNotAllowedException();
+        // `TenantAdminGuard` lets the operator through as an administrator;
+        // the export is not theirs to take, since each download is recorded as
+        // the tenant's acknowledgement (`SC-PRIV-017`).
+        if (isTheOperator(request, this.access?.actsAsOperator(request) ?? false)) {
+            throw new ForbiddenException(
+                codedError(TENANT_ACCESS_ERROR_CODES.TENANT_EXPORT_NOT_FOR_OPERATOR),
+            );
+        }
         const tenantId = tenantIdOf(this.tenantIdResolver, request);
         const resolvers = this.resolvers();
         const actor = tenantActorOf(request, requireTenantUserId(request, resolvers), resolvers);

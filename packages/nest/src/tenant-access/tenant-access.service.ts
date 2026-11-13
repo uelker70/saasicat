@@ -107,9 +107,10 @@ interface RequestLike {
     method?: string;
 }
 
-/** The tenant a request was checked for, once it passed. */
+/** The tenant a request was checked for, once it passed, and whether as the operator acting as it. */
 interface PassedCheck {
     tenantId: string;
+    actingAsOperator: boolean;
 }
 
 @Injectable()
@@ -287,7 +288,7 @@ export class TenantAccessService {
         const request = context.switchToHttp().getRequest<RequestLike>();
         const mark = tenantAccessMarkOf(this.reflector, context);
         if (mark === 'reads-its-state') {
-            this.passedFor(request, tenantId);
+            this.passedFor(request, tenantId, actor);
             return;
         }
         const writes =
@@ -300,11 +301,23 @@ export class TenantAccessService {
             startsPayment: mark === 'starts-payment',
             leaves: mark === 'leaves',
         });
-        this.passedFor(request, tenantId);
+        this.passedFor(request, tenantId, actor);
     }
 
-    private passedFor(request: unknown, tenantId: string): void {
-        if (typeof request === 'object' && request !== null) this.passed.set(request, { tenantId });
+    private passedFor(request: unknown, tenantId: string, actor: TenantAccessActor): void {
+        if (typeof request !== 'object' || request === null) return;
+        this.passed.set(request, { tenantId, actingAsOperator: actor.actingAsOperator === true });
+    }
+
+    /**
+     * Whether the check of `request` let it through as the operator acting as
+     * the tenant (`SC-ADM-005`), as the application said when it asked
+     * `enforce`. Known only once the check has run, so it is a route's handler
+     * that asks, never a guard that may run before the application's.
+     */
+    actsAsOperator(request: unknown): boolean {
+        if (typeof request !== 'object' || request === null) return false;
+        return this.passed.get(request)?.actingAsOperator === true;
     }
 
     /**

@@ -116,7 +116,10 @@ export class TenantInvoicesController {
             timeZone: installationZoneOf(this.settings),
             holdsBillingPermission: true,
             mayPay: this.collection !== null,
-            isTenantAdministrator: mayTakeTheTenantsExport(request),
+            isTenantAdministrator: mayTakeTheTenantsExport(
+                request,
+                this.access?.actsAsOperator(request) ?? false,
+            ),
         };
         if (!this.access) return tenantAccessViewOf({ state: 'open', holds: [] }, asked);
         return this.access.viewOf(tenantId, asked);

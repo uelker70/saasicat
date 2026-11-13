@@ -56,7 +56,7 @@ export interface TenantAccessView {
     mayPay: boolean;
     /**
      * Whether this user can take the tenant's full export here
-     * (`GET billing/export`): they are the tenant's administrator, an end of
+     * (`GET billing/export`): they are the tenant's own administrator, an end of
      * its subscription is recorded, the installation can produce the export,
      * and the tenant is read-only — never where the route would refuse it, a
      * suspension and a deletion under way included.
@@ -76,7 +76,11 @@ export interface TenantAccessViewOptions {
      * is named as none.
      */
     invoiceNumbers?: ReadonlyMap<string, string>;
-    /** Whether this user is the tenant's administrator, the one user who may take its export. */
+    /**
+     * Whether this user is the tenant's own administrator, the one user who
+     * may take its export — not the operator acting as the tenant, whose
+     * download would not be the tenant's acknowledgement.
+     */
     isTenantAdministrator: boolean;
     /**
      * The deletion day of each ended subscription the reasons name, by

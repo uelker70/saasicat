@@ -4619,9 +4619,14 @@ it, records every download, and shows the downloads to the operator. To adopt it
   A suspension and a deletion under way refuse it as they refuse every request of the tenant's users
   (`TENANT_SUSPENDED`, `TENANT_BEING_DELETED`). Of two ended subscriptions, the download is recorded
   for the latest end.
-- **Who takes it.** The tenant's administrator alone — a `platformRole`, or `role` where that is
-  absent, of `TENANT_ADMIN` or `SUPER_ADMIN` —, since the file holds every user's data; anyone else
-  of the tenant is refused `403 TENANT_ADMIN_REQUIRED`. The route sits behind
+- **Who takes it.** The tenant's own administrator alone — a `platformRole`, or `role` where that
+  is absent, of `TENANT_ADMIN` —, since the file holds every user's data; anyone else of the tenant
+  is refused `403 TENANT_ADMIN_REQUIRED`. The operator is refused too, with
+  `403 TENANT_EXPORT_NOT_FOR_OPERATOR`: a user holding `SUPER_ADMIN`, and one your guard's
+  `TenantAccessService.enforce` let through with `actingAsOperator: true`, whatever role the session
+  carries. Each download is recorded as the tenant's acknowledgement, which the operator cannot give
+  in its name; the operator's own export of a tenant stays your administration's. The route sits
+  behind
   `tenantBilling.authGuards` and carries no access mark: it is a `GET`, so your guard's
   `TenantAccessService.enforce` lets a read-only tenant through without a change — leaving, which
   writes, needs its mark
@@ -4651,7 +4656,8 @@ it, records every download, and shows the downloads to the operator. To adopt it
 - **A banner of your own** reads the same from `GET billing/access` and
   `GET billing/account/access`: each reason's `readOnlyUntil` and `deletesOn`, days in the
   installation's zone that are `null` except for an ended subscription whose end is recorded, and
-  `mayExport`, `true` only for the tenant's administrator while the tenant is read-only for an
+  `mayExport`, `true` only for the tenant's own administrator — never the operator — while the
+  tenant is read-only for an
   ended subscription whose end is recorded and the export is wired — never where the route would
   refuse. `useTenantExport` from `@saasicat/ui-vue` downloads the file and saves it under the name
   the server offers; a refusal reaches the caller of `download()`.
@@ -4663,7 +4669,9 @@ it, records every download, and shows the downloads to the operator. To adopt it
   whose export nobody has taken. An `AdminResourcesPort` of your own, and screens of your own that
   read these routes, change nothing: the platform adds both as it adds the reasons.
 - **Code that builds a view itself** follows the types. `TenantAccessService.viewOf` and
-  `tenantAccessViewOf` take `isTenantAdministrator`; `TenantAccessReasonView` gains `readOnlyUntil`
+  `tenantAccessViewOf` take `isTenantAdministrator`, which is `false` for the operator;
+  `TenantAccessService.actsAsOperator(request)` answers whether the check let a request through as
+  the operator acting as the tenant; `TenantAccessReasonView` gains `readOnlyUntil`
   and `deletesOn`, `TenantAccessView` gains `mayExport`, and `AdminTenantAccessReason` gains
   `deletesOn` and `exportDownloads`, so a fixture of your own that builds one gains them too.
 - **A route of your own at `GET billing/export`** collides with the platform's, which is mounted

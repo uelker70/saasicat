@@ -27,6 +27,7 @@ import {
     TenantAdminGuard,
     TenantDataExportController,
     TenantDataExportService,
+    TenantInvoicesController,
 } from '../dist/billing/index.js';
 import { TENANT_ACCESS_MARK_KEY, TenantAccessService } from '../dist/index.js';
 import {
@@ -114,7 +115,7 @@ async function installation({
         audit ?? { log: async (entry) => audited.push(entry) },
     );
     service.onModuleInit();
-    const route = new TenantDataExportController(service, null, null, null, null);
+    const route = new TenantDataExportController(service, null, null, null, null, access);
     return { holds, ends, port, access, service, route, audited };
 }
 
@@ -132,6 +133,25 @@ const exportContext = (request) => ({
     getHandler: () => TenantDataExportController.prototype.export,
     getClass: () => TenantDataExportController,
 });
+
+/** An execution context for `request` to the route that answers the tenant's state. */
+const stateContext = (request) => ({
+    switchToHttp: () => ({ getRequest: () => request }),
+    getHandler: () => TenantAccessStateController.prototype.state,
+    getClass: () => TenantAccessStateController,
+});
+
+/**
+ * A request of the operator acting as the tenant, carrying the role of the
+ * tenant's administrator as an application's session may, once the
+ * application's check let it through to the route `context` names, saying the
+ * operator acts.
+ */
+async function asActingOperator(access, context) {
+    const request = asUser('t1', 'TENANT_ADMIN');
+    await access.enforce(context(request), 't1', { actingAsOperator: true });
+    return request;
+}
 
 /** The bytes a streamable file sends. */
 async function bytesOf(file) {
@@ -520,14 +540,13 @@ describe('where the route is checked', () => {
         );
     });
 
-    test('a user of the tenant without the role is refused; the administrator and the operator acting are let through', () => {
+    test('a user of the tenant without the role is refused, and its administrator let through', () => {
         const guard = new TenantAdminGuard();
         assert.throws(
             () => guard.canActivate(exportContext(asUser('t1', 'USER'))),
             refusedWith(ForbiddenException, 'TENANT_ADMIN_REQUIRED'),
         );
         assert.equal(guard.canActivate(exportContext(asUser('t1', 'TENANT_ADMIN'))), true);
-        assert.equal(guard.canActivate(exportContext(asUser('t1', 'SUPER_ADMIN'))), true);
     });
 
     test('a tenant read-only because its subscription ended is let through', async () => {
@@ -549,6 +568,64 @@ describe('where the route is checked', () => {
             access.enforce(exportContext(asUser()), 't1'),
             refusedWith(ForbiddenException, 'TENANT_BEING_DELETED'),
         );
+    });
+});
+
+// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+describe('the operator does not take the export in the tenant’s name', () => {
+    test('a user holding SUPER_ADMIN is refused with a code of its own, and nothing is asked or recorded', async () => {
+        const { route, port, ends, audited } = await installation();
+
+        await assert.rejects(
+            route.export(asUser('t1', 'SUPER_ADMIN')),
+            refusedWith(ForbiddenException, 'TENANT_EXPORT_NOT_FOR_OPERATOR'),
+        );
+        assert.deepEqual(port.askedFor, []);
+        assert.deepEqual(ends.downloads, []);
+        assert.deepEqual(audited, []);
+    });
+
+    test("the operator the application's check let through as acting is refused, whatever role the session carries", async () => {
+        const { access, route, port, ends } = await installation();
+        const request = await asActingOperator(access, exportContext);
+        assert.equal(new TenantAdminGuard().canActivate(exportContext(request)), true);
+
+        await assert.rejects(
+            route.export(request),
+            refusedWith(ForbiddenException, 'TENANT_EXPORT_NOT_FOR_OPERATOR'),
+        );
+        assert.deepEqual(port.askedFor, []);
+        assert.deepEqual(ends.downloads, []);
+    });
+
+    test('a request the application checked as a tenant user’s is not taken for the operator’s', async () => {
+        const { access, route, port } = await installation();
+        const request = asUser('t1', 'TENANT_ADMIN');
+        await access.enforce(exportContext(request), 't1', { actingAsOperator: false });
+
+        await route.export(request);
+
+        assert.deepEqual(port.askedFor, ['t1']);
+    });
+
+    test('is not offered the export on either read of the tenant’s state', async () => {
+        const { access } = await installation();
+        const readers = {
+            'GET billing/access': (request) =>
+                new TenantAccessStateController(null, null, access).state(request),
+            'GET billing/account/access': (request) =>
+                new TenantInvoicesController({}, null, null, null, access).accessState(request),
+        };
+        for (const [read, view] of Object.entries(readers)) {
+            assert.equal((await view(asUser())).mayExport, true, `${read}: the administrator`);
+            assert.equal(
+                (await view(asUser('t1', 'SUPER_ADMIN'))).mayExport,
+                false,
+                `${read}: SUPER_ADMIN`,
+            );
+            const acting = await asActingOperator(access, stateContext);
+            assert.equal((await view(acting)).mayExport, false, `${read}: acting as the tenant`);
+        }
     });
 });
 
@@ -597,6 +674,17 @@ describe('the state a user reads offers the export exactly where the route serve
             );
             assert.equal(view.mayExport, false, state);
             assert.equal(await served(setup, asUser('t1', 'USER')), false, state);
+        }
+    });
+
+    test('for the operator, offered nowhere, and served nowhere', async () => {
+        for (const [state, given] of Object.entries(STATES)) {
+            const setup = await installation(given);
+            const view = await new TenantAccessStateController(null, null, setup.access).state(
+                asUser('t1', 'SUPER_ADMIN'),
+            );
+            assert.equal(view.mayExport, false, state);
+            assert.equal(await served(setup, asUser('t1', 'SUPER_ADMIN')), false, state);
         }
     });
 

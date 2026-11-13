@@ -717,7 +717,9 @@ change, `mayChange` on a plan change's and an add-on's and `mayEnd` on an end at
 tenant's screens stop at the preview where it is `false`. `GET /billing/usage` answers `mayChange`
 too, for the changes that have no preview; the screens leave those out for whoever may not make
 them. Taking the tenant's full export once its subscription has ended (`GET /billing/export`) is
-the administrator's alone too, since the file holds every user's data (`SC-PRIV-019`). The billing
+the tenant's own administrator's alone, since the file holds every user's data and each download is
+the tenant's acknowledgement (`SC-PRIV-019`): the operator, `SUPER_ADMIN` or acting as the tenant,
+is refused it. The billing
 area — the invoices, the contract confirmations, the payment method and the billing details — is
 whoever's who holds the billing permission, reading and changing alike.
 
@@ -1811,8 +1813,10 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     recorded and still after the deletion day while the data is there; `TenantAccessBanner` offers
     it. Before an end is recorded the route refuses with `409 TENANT_EXPORT_NOT_OFFERED`, a port
     that throws or answers anything but a file with `503 TENANT_EXPORT_FAILED`, a user without the
-    role with `403 TENANT_ADMIN_REQUIRED`, and a `HEAD` with `405` and `Allow: GET`; a suspension
-    and a deletion under way refuse it as they refuse every request. Your port is asked on every
+    role with `403 TENANT_ADMIN_REQUIRED`, the operator — a user holding `SUPER_ADMIN`, or one your
+    guard let through with `actingAsOperator: true` — with `403 TENANT_EXPORT_NOT_FOR_OPERATOR`, and
+    a `HEAD` with `405` and `Allow: GET`; a suspension and a deletion under way refuse it as they
+    refuse every request. Your port is asked on every
     download, for the session's tenant only.
     Once it has handed the file over, the download is recorded in `tenant_export_downloads` — the
     moment and who took it — and only then sent, and it is audited as `TENANT_EXPORT_DOWNLOAD` where

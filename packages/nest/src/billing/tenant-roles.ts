@@ -15,7 +15,10 @@ interface RequestWithUser {
     };
 }
 
-const ADMIN_ROLES = new Set(['TENANT_ADMIN', 'SUPER_ADMIN']);
+/** The platform's role for the operator (`PlatformRole` in `@saasicat/core`). */
+const OPERATOR_ROLE = 'SUPER_ADMIN';
+
+const ADMIN_ROLES = new Set(['TENANT_ADMIN', OPERATOR_ROLE]);
 
 /** Whether the request's user holds `TENANT_ADMIN` or `SUPER_ADMIN`; refuses a request without a user. */
 export function holdsTenantAdminRole(context: ExecutionContext): boolean {
@@ -39,23 +42,40 @@ export function mayChangeWhatTheTenantPays(request: unknown): boolean {
 }
 
 /**
- * Whether the user a request carries may take the tenant's full export — what
- * the tenant's state answers as `mayExport` for its reader, by the rule
- * `TenantAdminGuard` refuses the download by: the export holds every user's
- * data, so only the tenant's administrator takes it.
+ * Whether a request is the operator's rather than one of the tenant's users:
+ * its user holds `SUPER_ADMIN`, or the application's check let it through as
+ * the operator acting as the tenant (`actingAsOperator`, `SC-ADM-005`).
  */
-export function mayTakeTheTenantsExport(request: unknown): boolean {
-    return isTenantAdministrator(request);
+export function isTheOperator(request: unknown, actingAsOperator: boolean): boolean {
+    return actingAsOperator || roleOf(request) === OPERATOR_ROLE;
+}
+
+/**
+ * Whether the user a request carries may take the tenant's full export — what
+ * the tenant's state answers as `mayExport` for its reader, by the rules the
+ * download is refused by: the tenant's own administrator alone. The export
+ * holds every user's data, which `TenantAdminGuard` keeps from the tenant's
+ * other users, and each download is the tenant's acknowledgement
+ * (`SC-PRIV-017`), which the operator acting as the tenant cannot give for it.
+ */
+export function mayTakeTheTenantsExport(request: unknown, actingAsOperator: boolean): boolean {
+    return isTenantAdministrator(request) && !isTheOperator(request, actingAsOperator);
 }
 
 /** Whether the user a request carries holds `TENANT_ADMIN` or `SUPER_ADMIN`. */
 function isTenantAdministrator(request: unknown): boolean {
-    if (typeof request !== 'object' || request === null || !('user' in request)) return false;
+    const role = roleOf(request);
+    return role !== null && ADMIN_ROLES.has(role);
+}
+
+/** The role of the user a request carries: `platformRole`, or `role` where that is absent. */
+function roleOf(request: unknown): string | null {
+    if (typeof request !== 'object' || request === null || !('user' in request)) return null;
     const { user } = request;
-    if (typeof user !== 'object' || user === null) return false;
-    const role =
+    if (typeof user !== 'object' || user === null) return null;
+    return (
         ('platformRole' in user && typeof user.platformRole === 'string'
             ? user.platformRole
-            : null) ?? ('role' in user && typeof user.role === 'string' ? user.role : null);
-    return role !== null && ADMIN_ROLES.has(role);
+            : null) ?? ('role' in user && typeof user.role === 'string' ? user.role : null)
+    );
 }

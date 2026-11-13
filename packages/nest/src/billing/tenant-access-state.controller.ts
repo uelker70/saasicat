@@ -48,7 +48,10 @@ export class TenantAccessStateController {
             timeZone: installationZoneOf(this.settings),
             holdsBillingPermission: false,
             mayPay: false,
-            isTenantAdministrator: mayTakeTheTenantsExport(request),
+            isTenantAdministrator: mayTakeTheTenantsExport(
+                request,
+                this.access?.actsAsOperator(request) ?? false,
+            ),
         };
         if (!this.access) return tenantAccessViewOf({ state: 'open', holds: [] }, asked);
         return this.access.viewOf(tenantId, asked);
