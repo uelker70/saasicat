@@ -69,7 +69,10 @@ async function anEnd(ends, { tenantId = 't-1', deletesOn = DELETES_ON, recordedA
     });
 }
 
-/** The run over the stores given, or fresh ones, with how often it was let across tenants. */
+/**
+ * The run over the stores given, or fresh ones, with how often it was let
+ * across tenants and whether it is across them now.
+ */
 function runOver({
     ends = new FakeSubscriptionEndRepository(),
     notices = noticeRecord(),
@@ -77,11 +80,16 @@ function runOver({
     period = LEAD_TIMES,
     settings = BERLIN,
 } = {}) {
-    const run = { ends, notices, port, bypassed: 0 };
+    const run = { ends, notices, port, bypassed: 0, acrossTenants: false };
     const bypass = {
         runWithBypass: async (work) => {
             run.bypassed += 1;
-            return work();
+            run.acrossTenants = true;
+            try {
+                return await work();
+            } finally {
+                run.acrossTenants = false;
+            }
         },
     };
     run.service = quietly(
@@ -215,11 +223,16 @@ describe('the reminders before a deletion', () => {
         const run = runOver();
         await anEnd(run.ends, { tenantId: 't-1' });
         await anEnd(run.ends, { tenantId: 't-2' });
+        // The run belongs to no tenant, so row-level security shows a read
+        // outside the bypass none of the tenants' rows.
+        const listDeletingAfter = run.ends.listDeletingAfter.bind(run.ends);
+        run.ends.listDeletingAfter = async (...args) =>
+            run.acrossTenants ? listDeletingAfter(...args) : [];
         let reads = 0;
         const listOfKindSince = run.notices.listOfKindSince;
         run.notices.listOfKindSince = async (...args) => {
             reads += 1;
-            return listOfKindSince(...args);
+            return run.acrossTenants ? listOfKindSince(...args) : [];
         };
 
         await remindAt(run, inBerlin('2027-01-02'));
