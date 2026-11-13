@@ -188,8 +188,8 @@ describe('every user of the tenant reads the days its ended subscription leaves'
 });
 
 // @requirement SC-CANC-033 — An ended subscription's deletion day is shown to the tenant and to the operator
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
 describe("the operator's page names the day and every download of the export", () => {
+    // @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
     test('the deletion day, and every download with its moment and who took it, the oldest first', async () => {
         const { admin, ends } = await installation();
         await downloaded(ends, SECOND);
