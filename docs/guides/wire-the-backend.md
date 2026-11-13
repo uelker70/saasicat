@@ -1920,8 +1920,13 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   of an end's reminders is held by a run — claimed and not answered yet, for up to a quarter of an
   hour — no other reminder of that end goes out beside it, and a reminder of a larger lead time that
   was never delivered is not sent once a smaller one is due: the smaller one says the same, nearer
-  the day. A suspended tenant is reminded all the same, since a suspension does not stop the
-  deletion; while it lasts, the suspension refuses the export as it refuses every request.
+  the day. Of two instances that decide on different lead times for one end at once — one restarted
+  with other lead times and one not, or clocks on either side of the installation's midnight — at
+  most one sends: each reads the end's reminders again after claiming its own, and lets go where
+  another is held or one was told since it decided; where each sees the other, neither sends, and
+  the next run decides again. A suspended tenant is reminded all the same, since a suspension does
+  not stop the deletion; while it lasts, the suspension refuses the export as it refuses every
+  request.
 - **Told before it is confirmed.** `GET billing/usage` answers what cancelling now would tell as
   `cancellation.deletion` — `readOnlyDays`, `readOnlyUntil` and `deletesOn` — and what was told as
   `announcedDeletion`. Once a cancellation is declared, `cancellation.deletion` is the day

@@ -56,11 +56,16 @@ once; none goes twice, and from the deletion day on nothing is reminded. A
 reminder told to nobody is recorded and not tried again, and the next lead time
 still goes on its day; one the port throws for is tried again by the next run.
 While a run holds one reminder of an end, no other of that end goes out beside
-it. A suspended tenant is reminded all the same. A change to the lead times
-applies once the application has restarted, to ends recorded earlier too, and
-repeats no reminder already sent. A port that switches over `notice.kind`
-exhaustively fails to compile until it handles the new kind; one with a
-catch-all branch sends the reminder as whatever that branch sends.
+it. Of two instances that decide on different lead times for one end at once —
+one restarted with other lead times and one not, or clocks on either side of
+the installation's midnight — at most one sends: each reads the end's reminders
+again after claiming its own, and lets go where another is held or one was told
+since it decided; where each sees the other, neither sends, and the next run
+decides again. A suspended tenant is reminded all the same. A change to the
+lead times applies once the application has restarted, to ends recorded earlier
+too, and repeats no reminder already sent. A port that switches over
+`notice.kind` exhaustively fails to compile until it handles the new kind; one
+with a catch-all branch sends the reminder as whatever that branch sends.
 
 The quarter-hourly `SubscriptionEndCron` records the ends and then reminds; its
 method is `recordAndRemind()`, which replaces `recordEnded()`. With

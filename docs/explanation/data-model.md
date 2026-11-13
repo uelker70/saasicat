@@ -222,8 +222,10 @@ for them, and sends each end at most one: for the smallest lead time of
 `tenantBilling.endOfSubscription.reminderDaysBefore` that is due and not covered
 by one told before (`SC-CANC-022`). Each reminder is a row in
 `subscription_notices`, kind `deletion-reminder`, keyed by the end and the lead
-time, so of several instances one sends it (invariant 12). Nothing is kept on
-the end itself.
+time, so of several instances one sends it (invariant 12). Instances that decide
+on different lead times for one end at once send one of them at most: each
+reads the end's reminders again after its claim and lets go where it finds
+another held or told since it decided. Nothing is kept on the end itself.
 
 **Announced at confirmation, beside the end.** The days a tenant's page showed
 when it confirmed its cancellation, or ended its subscription at once, are

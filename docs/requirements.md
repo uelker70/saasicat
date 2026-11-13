@@ -8193,6 +8193,11 @@ _Tested by:_
         - taken on by an instance whose clock runs behind the one that recorded the end, still holds
           it back
         - holds back only its own end's reminders
+    - two instances deciding on different lead times at once
+        - never send two reminders, whatever the order of the two claims and the two checks
+        - where each sees the other, both let go and nothing goes; the next run sends exactly one
+        - a fresh read that fails lets the claim go as a failure, and the next run sends the
+          reminder
     - a reminder of a larger lead time left undelivered
         - is never sent once a smaller one is due, through every run until the deletion day
     - the lead times a reminder is decided by

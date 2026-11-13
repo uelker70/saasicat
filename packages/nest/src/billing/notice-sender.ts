@@ -7,6 +7,7 @@ import type {
     SubscriptionNotice,
     SubscriptionNoticeDelivery,
     SubscriptionNoticeKind,
+    SubscriptionNoticeRecord,
     SubscriptionNoticeRepository,
 } from '@saasicat/core';
 
@@ -157,8 +158,17 @@ export class NoticeSender<N extends KeyedNotice = SubscriptionNotice> {
     /**
      * Claims the notice about `subject`, has the application send it, and
      * records to whom. Null where another run holds it or it went out meanwhile.
+     *
+     * Where `stillToSend` is given it is asked once the claim is taken and
+     * before the application is: answering false lets the claim go and sends
+     * nothing, answering null, and a check that throws lets it go as a failure.
      */
-    async tell(notice: N, subject: string, deliveryTimeoutMs: number): Promise<NoticeOutcome> {
+    async tell(
+        notice: N,
+        subject: string,
+        deliveryTimeoutMs: number,
+        stillToSend?: (claimed: SubscriptionNoticeRecord) => Promise<boolean>,
+    ): Promise<NoticeOutcome> {
         // Stamped with the moment it is taken, not with the start of the run: a
         // run that takes longer than the lease would otherwise take claims that
         // every other instance already reads as abandoned.
@@ -188,6 +198,24 @@ export class NoticeSender<N extends KeyedNotice = SubscriptionNotice> {
         }
         if (!claimed) return null;
         const claimedAt = claimed.claimedAt ?? takenAt;
+        if (stillToSend) {
+            let toSend: boolean;
+            try {
+                toSend = await stillToSend(claimed);
+            } catch (error) {
+                this.logger.error(
+                    `Whether the notice ${what} is still to be sent could not be read; the next ` +
+                        'run tries again.',
+                    error instanceof Error ? error.stack : String(error),
+                );
+                await this.letGo(claimed.id, claimedAt);
+                return 'failed';
+            }
+            if (!toSend) {
+                await this.letGo(claimed.id, claimedAt);
+                return null;
+            }
+        }
 
         // A port that throws before it returns a promise fails like one that
         // rejects, rather than escaping the run with its claim still held.

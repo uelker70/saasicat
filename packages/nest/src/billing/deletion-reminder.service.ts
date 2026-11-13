@@ -7,7 +7,9 @@
 // end whose deletion day is still to come is asked which lead time of
 // `config/saas.yaml` is due today (`deletionReminderDue`), and the one due is
 // handed to the application's notice port and recorded — once, however many
-// instances run, since the record's unique key is the end and the lead time.
+// instances run, since the record's unique key is the end and the lead time;
+// and of instances that decide on different lead times for one end at once, at
+// most one sends, since each checks again after its claim.
 //
 // The lead times are the ones the file named when the application started,
 // not at the end's recording: after a restart with other lead times, one added
@@ -37,6 +39,7 @@ import {
     type SubscriptionEnd,
     type SubscriptionEndPort,
     type SubscriptionNoticePort,
+    type SubscriptionNoticeRecord,
     type SubscriptionNoticeRepository,
 } from '@saasicat/core';
 
@@ -119,6 +122,9 @@ export class DeletionReminderService {
      *
      * A reminder of a larger lead time that was never delivered is not sent
      * once a smaller one is due: the smaller one says the same, nearer the day.
+     *
+     * Two runs at once that decide on different lead times for one end send
+     * one of them at most (`stillTheOneToSend`).
      */
     async remindDue(now: Date): Promise<DeletionReminderRun> {
         const today = dayInZone(now, installationZoneOf(this.settings));
@@ -129,7 +135,7 @@ export class DeletionReminderService {
             let told = 0;
             let failed = 0;
             for (const end of ends) {
-                const outcome = await this.remind(end, reminders.get(end.id), today);
+                const outcome = await this.remind(end, reminders.get(end.id), today, now);
                 if (outcome === 'told') told += 1;
                 if (outcome === 'failed') failed += 1;
             }
@@ -153,18 +159,7 @@ export class DeletionReminderService {
             KIND,
             new Date(firstRecorded - CLOCKS_MAY_DIFFER_BY_MS),
         );
-        const freshFrom = now.getTime() - NOTICE_CLAIM_LEASE_MS;
-        const byEnd = new Map<string, RemindersOfAnEnd>();
-        for (const record of records) {
-            // Only this run writes the kind; a subject it did not write names no end of its own.
-            const subject = deletionReminderSubjectIn(record.subject);
-            if (!subject) continue;
-            const of = byEnd.get(subject.subscriptionEndId) ?? { told: [], held: false };
-            if (record.deliveredAt) of.told.push(subject.daysBefore);
-            else if (record.claimedAt && record.claimedAt.getTime() >= freshFrom) of.held = true;
-            byEnd.set(subject.subscriptionEndId, of);
-        }
-        return byEnd;
+        return remindersByEnd(records, now);
     }
 
     /**
@@ -176,6 +171,7 @@ export class DeletionReminderService {
         end: SubscriptionEnd,
         reminders: RemindersOfAnEnd | undefined,
         today: CalendarDay,
+        now: Date,
     ): Promise<NoticeOutcome> {
         if (reminders?.held) return null;
         let reminder: DeletionReminderNotice | null;
@@ -190,11 +186,48 @@ export class DeletionReminderService {
             return 'failed';
         }
         if (!reminder) return null;
+        const decidedOn = reminders?.told ?? [];
         return this.sender.tell(
             reminder,
             deletionReminderSubjectOf(reminder),
             NOTICE_DELIVERY_TIMEOUT_MS,
+            (claimed) => this.stillTheOneToSend(end, decidedOn, claimed.id, now),
         );
+    }
+
+    /**
+     * Whether the reminder this run has just claimed for `end` is still the
+     * one to send, read afresh: no other reminder of the end is held, and the
+     * lead times told are still the ones the run decided on, `decidedOn`.
+     *
+     * Two instances can decide on the same record and still decide
+     * differently — lead times changed by a restart one has had and the other
+     * not, or clocks on either side of the installation's midnight — and then
+     * each claims a reminder of another lead time, under another key, so
+     * neither claim stops the other. Each claims before it reads here, so of
+     * two such runs at least one sees the other's reminder, held or already
+     * told: where one sees it, that one lets its claim go and the other
+     * sends; where both see each other, both let go and nothing goes this
+     * run, and the next run decides again on what the record then holds. One
+     * reminder at most, never two from one decision.
+     *
+     * A reminder told since the run decided is reason enough to let go, even
+     * where the lead time decided on would still be due beside it: under
+     * other lead times a 10-day reminder does not cover a 7-day one, and the
+     * administrator would get both at once. The next run decides with the
+     * reminder told, as any later run does.
+     */
+    private async stillTheOneToSend(
+        end: SubscriptionEnd,
+        decidedOn: readonly number[],
+        claimedId: string,
+        now: Date,
+    ): Promise<boolean> {
+        const records = await this.notices.listForSubscription(end.subscriptionId);
+        const others = records.filter((record) => record.kind === KIND && record.id !== claimedId);
+        const fresh = remindersByEnd(others, now).get(end.id) ?? { told: [], held: false };
+        if (fresh.held) return false;
+        return sameLeadTimes(fresh.told, decidedOn);
     }
 
     /** The reminder due for `end` today, or null where none is. */
@@ -220,4 +253,34 @@ export class DeletionReminderService {
             deletesOn: end.deletesOn,
         };
     }
+}
+
+/**
+ * The reminders `records` hold, by end: the lead times told — delivered, to
+ * somebody or to nobody — and whether a run holds one, claimed within the
+ * lease before `now` and not delivered. One definition for the run's snapshot
+ * and for the check before sending.
+ */
+function remindersByEnd(
+    records: readonly SubscriptionNoticeRecord[],
+    now: Date,
+): Map<string, RemindersOfAnEnd> {
+    const freshFrom = now.getTime() - NOTICE_CLAIM_LEASE_MS;
+    const byEnd = new Map<string, RemindersOfAnEnd>();
+    for (const record of records) {
+        // Only this run writes the kind; a subject it did not write names no end of its own.
+        const subject = deletionReminderSubjectIn(record.subject);
+        if (!subject) continue;
+        const of = byEnd.get(subject.subscriptionEndId) ?? { told: [], held: false };
+        if (record.deliveredAt) of.told.push(subject.daysBefore);
+        else if (record.claimedAt && record.claimedAt.getTime() >= freshFrom) of.held = true;
+        byEnd.set(subject.subscriptionEndId, of);
+    }
+    return byEnd;
+}
+
+/** Whether `a` and `b` name the same lead times, in whatever order. */
+function sameLeadTimes(a: readonly number[], b: readonly number[]): boolean {
+    const set = new Set(a);
+    return set.size === new Set(b).size && b.every((daysBefore) => set.has(daysBefore));
 }

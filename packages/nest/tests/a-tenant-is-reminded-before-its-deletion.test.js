@@ -420,6 +420,153 @@ describe('a reminder another run still holds', () => {
     });
 });
 
+/**
+ * Lets the calls of racing runs that `steps` names happen one after another, in
+ * that order: a named call waits until the steps before it have finished. A
+ * call `steps` does not name, or no longer names, goes straight through.
+ */
+function inOrder(steps) {
+    let next = 0;
+    const waiting = new Map();
+    return {
+        async turn(step) {
+            if (!steps.slice(next).includes(step)) return false;
+            if (steps[next] !== step) await new Promise((resolve) => waiting.set(step, resolve));
+            return true;
+        },
+        done() {
+            next += 1;
+            const resume = waiting.get(steps[next]);
+            waiting.delete(steps[next]);
+            resume?.();
+        },
+    };
+}
+
+/**
+ * `notices` as run `name` uses it, its reads of the reminders (`read`), its
+ * claims (`claim`), its fresh reads of one end's (`check`) and its letting go
+ * of a claim (`release`) taken when `order` lets them.
+ */
+function steppedFor(name, notices, order) {
+    const step =
+        (method, as) =>
+        async (...args) => {
+            const gated = await order.turn(`${name}.${as}`);
+            try {
+                return await notices[method](...args);
+            } finally {
+                if (gated) order.done();
+            }
+        };
+    return {
+        ...notices,
+        listOfKindSince: step('listOfKindSince', 'read'),
+        claim: step('claim', 'claim'),
+        listForSubscription: step('listForSubscription', 'check'),
+        release: step('release', 'release'),
+    };
+}
+
+/**
+ * Two instances deciding on one end at the same moment, seven days before its
+ * deletion: A started with the lead times 29, 10 and 3 and decides on 10, B was
+ * restarted with 29, 7 and 3 and decides on 7. Both read the reminders before
+ * either claims one, so both decide on an empty record, and their claims are
+ * of different lead times. The rest of the run goes in `order`.
+ */
+async function racedDifferently(order) {
+    const ends = new FakeSubscriptionEndRepository();
+    const notices = noticeRecord();
+    const port = sendingPort();
+    await anEnd(ends);
+    const steps = inOrder(['A.read', 'B.read', ...order]);
+    const a = runOver({ ends, port, notices: steppedFor('A', notices, steps) });
+    const b = runOver({
+        ends,
+        port,
+        notices: steppedFor('B', notices, steps),
+        period: { readOnlyDays: 30, reminderDaysBefore: [29, 7, 3] },
+    });
+    const at = inBerlin('2027-01-24');
+    await Promise.all([remindAt(a, at), remindAt(b, at)]);
+    return { ends, notices, port };
+}
+
+/** Every order of the two claims and the two checks after them, each run claiming before it checks. */
+const RACES = [
+    ['A.claim', 'A.check', 'B.claim', 'B.check'],
+    ['A.claim', 'B.claim', 'A.check', 'B.check'],
+    ['A.claim', 'B.claim', 'B.check', 'A.check'],
+    ['B.claim', 'A.claim', 'A.check', 'B.check'],
+    ['B.claim', 'A.claim', 'B.check', 'A.check'],
+    ['B.claim', 'B.check', 'A.claim', 'A.check'],
+];
+
+// @requirement SC-CANC-022 — A tenant is reminded before its data is deleted
+describe('two instances deciding on different lead times at once', { timeout: 5000 }, () => {
+    clockFrom(inBerlin('2027-01-01'));
+
+    test('never send two reminders, whatever the order of the two claims and the two checks', async () => {
+        for (const order of RACES) {
+            const { port } = await racedDifferently(order);
+            const sent = leadTimesSent(port);
+
+            assert.ok(sent.length <= 1, `${order.join(', ')}: sent ${JSON.stringify(sent)}`);
+            // A run that checked before the other claimed saw nothing of it,
+            // and sends; the other then sees it and lets go. Where each
+            // claimed before the other checked, whether one sends depends on
+            // whether the first to let go did so before the other read.
+            const before = (x, y) => order.indexOf(x) < order.indexOf(y);
+            if (before('A.check', 'B.claim')) assert.deepEqual(sent, [10], order.join(', '));
+            if (before('B.check', 'A.claim')) assert.deepEqual(sent, [7], order.join(', '));
+        }
+    });
+
+    test('where each sees the other, both let go and nothing goes; the next run sends exactly one', async () => {
+        const { ends, notices, port } = await racedDifferently([
+            'A.claim',
+            'B.claim',
+            'A.check',
+            'B.check',
+            'A.release',
+            'B.release',
+        ]);
+        assert.deepEqual(leadTimesSent(port), []);
+
+        // A quarter of an hour on, the next run's lease still covers a claim
+        // that was not let go; one that was let go holds nothing back.
+        const next = runOver({ ends, notices, port });
+        await remindAt(next, inBerlin('2027-01-24', '09:15'));
+        assert.deepEqual(leadTimesSent(port), [10]);
+
+        await remindAt(next, inBerlin('2027-01-24', '09:30'));
+        assert.deepEqual(leadTimesSent(port), [10]);
+    });
+
+    test('a fresh read that fails lets the claim go as a failure, and the next run sends the reminder', async () => {
+        const notices = noticeRecord();
+        const listForSubscription = notices.listForSubscription;
+        let failing = true;
+        notices.listForSubscription = async (...args) => {
+            if (failing) throw new Error('the database is gone');
+            return listForSubscription(...args);
+        };
+        const run = runOver({ notices });
+        await anEnd(run.ends);
+
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-24')), { told: 0, failed: 1 });
+        assert.deepEqual(leadTimesSent(run.port), []);
+
+        failing = false;
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-24', '09:15')), {
+            told: 1,
+            failed: 0,
+        });
+        assert.deepEqual(leadTimesSent(run.port), [10]);
+    });
+});
+
 // @requirement SC-CANC-022 — A tenant is reminded before its data is deleted
 describe('a reminder of a larger lead time left undelivered', () => {
     clockFrom(inBerlin('2027-01-01'));
