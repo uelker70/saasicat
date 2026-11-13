@@ -712,6 +712,35 @@ and a run that repeats sends no reminder twice. Each reminder sent is part of th
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tenant-is-reminded-before-its-deletion.test.js`
+    - the reminder due before a deletion
+        - is none the day before the largest lead time is due
+        - is the largest lead time on its day
+        - is none the day after, once that reminder was told
+        - is none the day before the next lead time is due
+        - is the next lead time on its day
+        - is the smallest lead time on its day, once the others were told
+        - is still the smallest lead time the day before the deletion, where no run told it
+        - is none on the deletion day itself, though nothing was told
+        - is none after the deletion day
+        - covers two lead times that passed between runs with one reminder, for the smaller
+        - covers the lead times a period shorter than them passed with one reminder at once
+        - covers every lead time with one reminder where the period is shorter than all of them
+        - is the same whatever order the file names the lead times in
+        - counts a lead day back across the end of a year
+        - counts a reminder told for a lead time the file no longer names as covering the larger
+          ones
+        - is a lead time added to the file after a larger one was told, on its day
+    - the day a reminder is decided on
+        - is the installation's day ahead of UTC, not UTC's
+        - is the installation's day behind UTC, not UTC's
+
+<!-- END proof -->
+
 ### SC-CANC-029 — A tenant that ends its subscription at once is told the deletion day first
 
 🟢 🔒 Ending at once while a feature is withdrawn (`SC-CANC-024`) is the other way a tenant ends its

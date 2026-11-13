@@ -4,9 +4,10 @@
 //
 // REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
 //
-// One row per notice a subscriber is due: that a newer version of their plan is
-// offered to them, or that the version they are on is being retired — each told
-// once. The platform records a notice before it has the
+// One row per notice a subscriber is due — that a newer version of their plan is
+// offered to them, that the version they are on is being retired, that their
+// data is about to be deleted, and the others `SubscriptionNoticeKind` names —
+// each told once. The platform records a notice before it has the
 // application send it and confirms it after, so the unique key below is what
 // makes a notice once — however many instances run the job — and the row is
 // what shows later when it went out, to whom and how.
@@ -20,9 +21,10 @@
 // subscription like the subscriber's account does (ADR 0012): `tenantId` and
 // `subscriptionId` are kept as values, not as keys.
 //
-// `kind` is text holding a closed set: version-offered, version-retired,
-// version-retirement-reminder, bundle-version-retired,
-// bundle-version-retirement-reminder.
+// `kind` is text holding a closed set, the kinds `SubscriptionNoticeKind` in
+// @saasicat/core names; a row holding any other value is refused when it is
+// read back. Text rather than an enum, so a kind added in a release needs no
+// migration.
 //
 // Optional: adopt it where `tenantBilling.versionNotices` is configured, which
 // refuses to start without a place to keep notices; a retirement needs it too.
@@ -35,12 +37,11 @@ model SubscriptionNotice {
     subscriptionId String
 
     kind    String
-    // What the notice is about — for version-offered, the id of the version
-    // offered; for version-retired and version-retirement-reminder, the id of
-    // the version retired, so a subscription is told of a version's retirement
-    // once and reminded of it once; for bundle-version-retired and
-    // bundle-version-retirement-reminder, the id of the add-on version retired,
-    // so the subscription's booking of it is told once and reminded of it once.
+    // What the notice is about, one per kind — for version-offered, the id of
+    // the version offered; for version-retired, the id of the version retired,
+    // so a subscription is told of a version's retirement once; for
+    // deletion-reminder, the end's id and the lead time, so an end is reminded
+    // once per lead time. `SubscriptionNoticeKey.subject` names each kind's.
     subject String
     // The notice as it was last handed to the application.
     content Json

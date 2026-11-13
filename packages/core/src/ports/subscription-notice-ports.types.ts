@@ -94,6 +94,11 @@ export interface SubscriptionNoticeRepository {
  * retirement's notice (`version-retired`, `bundle-version-retired`), which
  * nobody was told of: it is tried again by every run until somebody is, and its
  * date counts from then.
+ *
+ * A reminder of a deletion (`deletion-reminder`) told to nobody is not tried
+ * again either: a read-only tenant cannot add an administrator, so a retry
+ * would reach nobody again; the record keeps that nobody could be told. The
+ * next lead time is still reminded of on its day.
  */
 export interface SubscriptionNoticePort {
     deliver(notice: SubscriptionNotice): Promise<SubscriptionNoticeDelivery>;
