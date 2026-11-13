@@ -1,5 +1,228 @@
 # @saasicat/ui-vue
 
+## 1.0.0-rc.31
+
+### Minor Changes
+
+- 9d4be08: A tenant's users read why it is held back
+
+    `TenantAccessBanner` shows every user of a tenant held back why, above the
+    application: the state in the words a refused request uses, and each reason
+    with the day it began in the installation. A user holding the billing
+    permission reads an unpaid invoice by its number and can pay it there while
+    the tenant is read-only; anybody else is told who can pay it. It shows nothing
+    while the tenant is open, and reads the state again every minute, so a hold
+    begun or lifted while a page is open shows without a reload.
+
+    It reads two new routes, `GET billing/access` for every user and
+    `GET billing/account/access` behind the billing permission
+    (`TenantAccessView`); `useTenantAccessState` reads them for a banner of your
+    own. Both carry the new access mark `reads-its-state` and are let through in
+    every state, suspended and being deleted included — your guard's `enforce`
+    reads the mark as the platform does. Texts of your own for the tenant section
+    gain the `accessReason…` keys and `accessAskBilling`.
+
+- a7801fb: A suspension is the platform's own record
+
+    Suspending a tenant in the administration now records a `suspended` reason
+    among the reasons the platform keeps, and reactivating lifts that reason and no
+    other: a tenant whose invoice is overdue stays read-only. Nothing of the
+    application's is written any more — `AdminResourcesPort.setTenantActive` is
+    removed, and with it the subscription status a suspension set: suspending no
+    longer marks a tenant's subscriptions `PAST_DUE`, and reactivating no longer
+    sets them all `ACTIVE`, a cancelled one included.
+
+    The administration's tenant rows and detail carry the platform's state as
+    `access`, and their `isActive` says whether the tenant may act at all, so a
+    page that reads it keeps showing a suspension. The list's `ACTIVE`, `INACTIVE`
+    and `SUSPENDED` filters are answered from that state, as filters the adapter
+    applies before it cuts the list, so a suspended tenant is found however old.
+    Suspending a suspended tenant answers `TENANT_ALREADY_SUSPENDED`, reactivating
+    one that is not suspended `TENANT_NOT_SUSPENDED`. The pages offer reactivating
+    only for the platform's suspension (`tenantActionVisible`).
+
+    Breaking: remove `setTenantActive` from an `AdminResourcesPort` of your own and
+    let its `listTenants` apply the new `mayAct` and `heldBackTenantIds` filters in
+    its query, before its limit; ask
+    `TenantAccessService.assertAllowed` at sign-in instead of your own tenant flag,
+    and for a tenant suspended before this release set its `isActive` back to `true`
+    and its subscriptions back to their earlier status, then suspend it again.
+    `adminResources` now needs `persistence.core.tenantAccessHolds` as
+    `tenantBilling` does. The upgrade guide has the steps.
+
+- 5ba9bd0: A tenant is told the day its data is deleted before it ends its subscription
+
+    Before confirming a cancellation, or ending its subscription at once while a
+    feature is withdrawn, the tenant reads the last day it can still read its data
+    on and the day the data is deleted. The day confirmed is recorded, and the end
+    is recorded with it once it lands: a later change to the read-only period does
+    not move it, and neither does an end that lands earlier than announced. Only an
+    end that lands later than announced is given a day counted from the period. A
+    first confirmation sent with a day the server no longer works out is refused
+    with `CANCELLATION_TERMS_CHANGED` and the day that applies now, before anything
+    is written; a repeat of a cancellation already told a day changes nothing and
+    answers the day on record. A booking that ends alone deletes nothing and states
+    no day. The plan card of a cancelled subscription repeats the day, the
+    `ended-at-once` notice of a subscription names both days as `deletion`, and the
+    audit entries of a cancellation, of an end at once and of a day recorded by
+    declaring a cancellation again, `ANNOUNCE_DELETION_DAY`, name the day and the
+    period.
+
+    Adopt the `SubscriptionEndAnnouncement` model (fragment 30) and run
+    `1.0-subscription-ends-are-kept.postgres.sql`: it creates the announcement table
+    beside `subscription_ends`, and where it ran before it creates only what is
+    missing. Both shipped adapters provide the new `SubscriptionEndPort` methods
+    `announce` and `listAnnouncedFor`; a port of your own adds them, and the
+    persistence contract and `FakeSubscriptionEndRepository` cover them. A screen of
+    your own reads `cancellation.deletion` and `announcedDeletion` from
+    `GET billing/usage`, and sends the day it showed as `expectedDeletesOn` with
+    `POST billing/cancel` and with `POST billing/feature-withdrawals/:id/end`. Texts
+    of your own for the tenant section gain `deletionAnnounced`.
+
+    `EndAtOnceService.end` takes who confirms as a fifth argument.
+    `TenantBillingController`'s constructor no longer takes the notice periods, the
+    retirements or the contract store, and takes `SubscriptionCancellationService`
+    last.
+
+    Where recording the day fails, the cancellation stands, and declaring it again
+    records the day; an end at once stands too, is answered and audited without a
+    day, and is given its day when its end is recorded. A cancellation declared
+    before this release is told no day unless its tenant declares it again before it
+    lands. Nothing is deleted on the day by this release.
+
+- 637e832: A tenant pays what is open now, and a payment method entered collects it
+
+    A user holding the billing permission pays every invoice still open at once
+    with the payment method in use, at `POST /billing/account/pay` — read-only
+    included, where it is one of the two writes left, beside replacing the payment
+    method. A card is charged now, and a tenant held back is let go once the
+    payment is there; a direct debit is announced and collected the lead time
+    after. A card charge planned for a later day gives way to it, a direct debit
+    already announced with the payment method in use keeps the day the subscriber
+    was told, one on its way is not started twice, and a payment method a payment
+    was taken back on collects nothing again. The answer, `TenantPaymentStarted`,
+    counts what was set going.
+
+    A payment method the subscriber confirms in the gateway's form now collects
+    what is open as each invoice says — from the day it named, or at once where
+    that day has passed —, an invoice issued while no payment method was in use
+    included, which nothing collected before. The quarter-hourly run takes up
+    what the confirmation does not reach: `InvoiceCollectionRepository.listDue`
+    now also answers an invoice issued without a payment method once its
+    subscriber has one in use and the invoice still owes something — an adapter
+    of your own follows that.
+
+    `TenantAccountCard` offers "Pay now" where something is open, says beside it
+    that a card opens the account again at once and a direct debit once it is
+    collected — on the day the installation's lead time names — and the bank
+    confirms it, and afterwards what was set going. The account answer gains
+    `directDebitCollectedOn`, that day; `useTenantAccount` gains it beside `payNow`,
+    `paying`, `started` and `payError`. The access check's mark for these routes is
+    `starts-payment`.
+
+- d6d3551: A tenant takes its own export before its data is deleted
+
+    **Breaking: wherever `tenantBilling` is on, the application no longer starts
+    without `tenantBilling.subscriptionEnds.export`**
+    (`subscription-ends.requires-export`). It is a `TenantDataExportPort` of the
+    application's: `export(tenantId)` answers everything the application keeps for
+    the tenant as one file, `{ content, mediaType, fileName }` — the whole file as a
+    `Uint8Array`, a media type in printable ASCII, and a file name. The option is
+    required in `SaaSiCatModule`'s types, so the compiler asks for it; a start
+    without it, from code the compiler did not check, is refused.
+    `TenantBillingModule` wired by hand refuses `subscriptionEnds` without it in the
+    same way.
+
+    Once the end of a tenant's subscription is recorded, its own administrator
+    (`TENANT_ADMIN`) downloads the file from `GET billing/export`, and still after
+    the deletion day while the data is there; anyone else of the tenant is refused
+    `403 TENANT_ADMIN_REQUIRED`. The operator is refused
+    `403 TENANT_EXPORT_NOT_FOR_OPERATOR` — a user holding `SUPER_ADMIN`, and one the
+    application's check let through with `actingAsOperator: true` — so that every
+    recorded download is the tenant's own; `mayExport` is `false` for them. The
+    platform asks the port on every download, for the session's tenant only. Before
+    an end is recorded the route refuses with `409 TENANT_EXPORT_NOT_OFFERED`; a
+    port that throws or answers anything but a file of at least one byte is refused
+    with `503 TENANT_EXPORT_FAILED`, and nothing is recorded or sent. A `HEAD` is
+    answered `405` with `Allow: GET` and asks and records nothing. One export of a
+    tenant is produced at a time within a process, since each is held in memory as a
+    whole: a second request meanwhile is refused with
+    `409 TENANT_EXPORT_IN_PROGRESS`. A suspension and a deletion under way refuse it
+    as they refuse every request. The file name is cleaned for the header.
+
+    Every download is recorded once the application has handed the file over and
+    before the file is sent — its moment, who took it by the user's id and as the
+    audit log tags an actor, and the file's size in bytes — and audited as
+    `TENANT_EXPORT_DOWNLOAD` where the audit log is wired; a download that cannot be
+    recorded sends no file. Adopt the `TenantExportDownload` model (fragment 31) and
+    run `1.0-subscription-ends-are-kept.postgres.sql`: it now also creates
+    `tenant_export_downloads`, and where it ran before it creates only what is
+    missing. Both shipped adapters provide the new `SubscriptionEndPort` methods
+    `recordExportDownload` and `listExportDownloadsFor`; a port of your own adds
+    them, and the persistence contract and `FakeSubscriptionEndRepository` cover
+    them.
+
+    `TenantAccessBanner` names, beside an ended subscription, the last day the
+    tenant can read and the day its data is deleted, to every user of the tenant —
+    once that day has come and nothing has deleted the data, as a deletion that is
+    due, which the tenant can still read until it happens — and offers its
+    administrator the export as a download that says why where it fails.
+    `GET billing/access` and `GET billing/account/access` answer each reason's
+    `readOnlyUntil`, `deletesOn` and `deletionDue` and the reader's `mayExport`;
+    `useTenantExport` in `@saasicat/ui-vue` downloads the file for a screen of your
+    own. `TenantDetailPage` names under "Access" the deletion day and every download
+    with its day and who took it, from the reasons' new `deletesOn` and
+    `exportDownloads`. Texts of your own for the tenant section gain
+    `accessReasonEndedDays`, `accessReasonEndedDeletionDue`, `accessExport` and
+    `accessExportFailed`. `TenantAccessService.viewOf` and `tenantAccessViewOf` take
+    `isTenantAdministrator` and `now`, and
+    `TenantAccessService.actsAsOperator(request)` answers whether the check let a
+    request through as the operator. Nothing is deleted on the day by this release.
+
+- ce81f60: The operator sees why a tenant is held back
+
+    The tenant's detail answers `accessReasons` beside `access`: every reason the
+    tenant is held back for, the oldest first — its kind and the moment it began,
+    the operator's note on a suspension, an invoice unpaid on its due date by its
+    number and the subscriber whose record lists it. `TenantDetailPage` lists them
+    under "Access", the invoice linked to that record, and says so where nothing
+    holds the tenant back. Where invoices are not wired, an unpaid invoice is still
+    listed, without a number.
+
+- 155bdda: The payment method card says when a new one collects
+
+    Before the subscriber replaces the payment method, `TenantPaymentMethodCard`
+    says that a new card is charged at once for what is due and a new direct debit
+    no earlier than the day the installation's lead time puts after today. A
+    direct debit entered after an invoice was issued can fall past its due date,
+    and the tenant is then read-only until it is paid; the card says so before the
+    choice is made.
+
+    `GET /billing/payment-method` answers `directDebitCollectedOn` beside
+    `paymentMethod`, and `useTenantPaymentMethod` carries it. The card takes an
+    optional `formatDate`; without one the day reads `YYYY-MM-DD`. Texts of your
+    own gain `paymentMethodReplaceWait` with `{date}`. `directDebitCollectedOnAt`
+    in `@saasicat/core` is the one place the day is worked out, for the account
+    and the payment method alike.
+
+### Patch Changes
+
+- Updated dependencies [9d4be08]
+- Updated dependencies [4520e0c]
+- Updated dependencies [a7801fb]
+- Updated dependencies [a66fa81]
+- Updated dependencies [75a39ff]
+- Updated dependencies [5ba9bd0]
+- Updated dependencies [637e832]
+- Updated dependencies [d6d3551]
+- Updated dependencies [68f5331]
+- Updated dependencies [73c29da]
+- Updated dependencies [c7a6941]
+- Updated dependencies [0a6ac3f]
+- Updated dependencies [ce81f60]
+- Updated dependencies [155bdda]
+    - @saasicat/core@1.0.0-rc.31
+
 ## 1.0.0-rc.30
 
 ### Minor Changes
