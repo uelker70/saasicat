@@ -900,7 +900,7 @@ _Tested by:_
 
 ### SC-CANC-033 — An ended subscription's deletion day is shown to the tenant and to the operator
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Once the end of a subscription is recorded (`SC-CANC-027`),
+🟢 🔒 Once the end of a subscription is recorded (`SC-CANC-027`),
 every user of its tenant reads, beside the reason that holds the tenant back (`SC-ADM-054`), the last
 day the tenant can still read on and the day its data is deleted on, in the installation's days. The
 operator's page for the tenant names the deletion day beside the same reason (`SC-ADM-053`), and
