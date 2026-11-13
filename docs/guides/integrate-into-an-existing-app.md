@@ -26,6 +26,15 @@ way a contract arises refuses a tenant without one. The other party is yours: an
 concludes contracts does not start until `config/saas.yaml` names its `issuer`
 ([your own side of every contract](wire-the-backend.md#your-own-side-of-every-contract)).
 
+**Where tenant billing is on, your application hands over a tenant's full export** through a
+`TenantDataExportPort` of its own, passed as `tenantBilling.subscriptionEnds.export`; the start is
+refused without it (`subscription-ends.requires-export`). Once a tenant's subscription has ended,
+its administrator downloads the file from `GET /billing/export` until the data is deleted, and the
+platform records every download (`SC-PRIV-019`). An application that already exports a tenant for
+its operator wraps that collector; where it is keyed by something other than the tenant id, such as
+a slug, the port looks the key up from the id first
+([the tenant takes its export](wire-the-backend.md#a-subscription-that-ended)).
+
 Expect the savings to come from **wiring**, not from your domain code.
 Application-specific workflows, controllers and adapters stay in the consumer
 because the platform cannot know their domain semantics or database shape.
@@ -166,7 +175,8 @@ hard cap 200) and MFA on the write routes. A suspension is kept by the platform
 (`TenantAccessHold`) and writes nothing of the application's. The tenant's detail
 answers `accessReasons` beside `access`: every reason the tenant is held back
 for, the oldest first, with an unpaid invoice named by its number where invoices
-are wired (`SC-ADM-053`); `TenantDetailPage` lists them under "Access".
+are wired (`SC-ADM-053`), and an ended subscription with the day the tenant's data is deleted and
+every download of its export (`SC-CANC-033`); `TenantDetailPage` lists them under "Access".
 
 ---
 

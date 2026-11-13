@@ -133,7 +133,9 @@ the page appears the moment a request is refused rather than at the next poll. T
 
 Behind the sign-in, put `TenantAccessBanner` above the pages. It shows nothing while the tenant is
 open; held back, it tells every user why and since when, and lets a user holding the billing
-permission pay an unpaid invoice from there:
+permission pay an unpaid invoice from there. Once the tenant's subscription has ended, it names the
+last day the tenant can read and the day its data is deleted on, and offers the tenant's
+administrator the tenant's full export as a download, which the server records:
 
 ```vue
 <TenantAccessBanner :http="http" api-prefix="/billing" :format-date="formatDate" />

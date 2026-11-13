@@ -477,6 +477,13 @@ import { aesGcmSecretSealer, defineSaaSiCat, SaaSiCatModule } from '@saasicat/ne
                 },
                 tenantBilling: {
                     authGuards: [JwtAuthGuard, TenantGuard],
+                    // Your application's export of a tenant's data; required.
+                    subscriptionEnds: {
+                        export: {
+                            useFactory: (prisma: PrismaService) => new MyTenantDataExport(prisma),
+                            inject: [PrismaService],
+                        },
+                    },
                 },
                 subscriptionBundles: true,
                 setup: true,
@@ -709,9 +716,10 @@ that is absent, is `TENANT_ADMIN` or `SUPER_ADMIN`; anyone else is refused `403`
 change, `mayChange` on a plan change's and an add-on's and `mayEnd` on an end at once's, and the
 tenant's screens stop at the preview where it is `false`. `GET /billing/usage` answers `mayChange`
 too, for the changes that have no preview; the screens leave those out for whoever may not make
-them. The billing area — the invoices, the contract
-confirmations, the payment method and the billing details — is whoever's who holds the billing
-permission, reading and changing alike.
+them. Taking the tenant's full export once its subscription has ended (`GET /billing/export`) is
+the administrator's alone too, since the file holds every user's data (`SC-PRIV-019`). The billing
+area — the invoices, the contract confirmations, the payment method and the billing details — is
+whoever's who holds the billing permission, reading and changing alike.
 
 ### A value is built at import time; a factory is built when it is resolved
 
@@ -1708,9 +1716,12 @@ makes the tenant read-only in that run.
   tenant its state and each reason with the day it began in the installation;
   `GET billing/account/access`, behind the billing permission where invoices are mounted, adds the
   invoice by its number and whether it can be paid there (`mayPay`, where a gateway collects).
-  Both are let through in every state, suspended and being deleted included, since they carry the
-  mark `reads-its-state`, which your guard's `enforce` reads as the platform does. Mount
-  `TenantAccessBanner` from `@saasicat/ui-vue-tenant` behind your sign-in to show it.
+  Under an ended subscription both name the last day the tenant can read and the day its data is
+  deleted on, `readOnlyUntil` and `deletesOn` (`SC-CANC-033`), and both answer `mayExport`, whether
+  this reader can take the tenant's export now. Both are let through in every state, suspended and
+  being deleted included, since they carry the mark `reads-its-state`, which your guard's `enforce`
+  reads as the platform does. Mount `TenantAccessBanner` from `@saasicat/ui-vue-tenant` behind your
+  sign-in to show it.
 
 ### A subscription that ended
 
@@ -1752,7 +1763,8 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   `SubscriptionEndService.recordEnded(new Date())` instead.
 - **The store** is `persistence.core.subscriptionEnds`, which both shipped adapters provide from the
   `SubscriptionEnd` model of `@saasicat/spec`; a start without one is refused
-  (`subscription-ends.requires-store`). A `SubscriptionUsagePort` of your own adds
+  (`subscription-ends.requires-store`). It keeps every download of the tenant's export too, in
+  `tenant_export_downloads`. A `SubscriptionUsagePort` of your own adds
   `listCancelled()`: every subscription with either cancellation date set, landed or not, with its
   tenant. The platform decides which have landed; the start refuses a port without it.
 - **A trial that ran out unbought** is yours to end: whether one converts is your application's
@@ -1769,6 +1781,43 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   `TenantSubscriptionWritePort.endTrial`: a trial that converted, moved its end or was cancelled
   since it was read is left as it is, and what is stored then decides. Both shipped adapters have
   it; a write port of your own adds it.
+- **The tenant takes its export in that time** (`SC-PRIV-019`). The read-only period exists so that
+  the tenant can take its data with it, and only your application knows what it keeps for a
+  tenant, so it hands the file over: `tenantBilling.subscriptionEnds.export` is a
+  `TenantDataExportPort` of yours, and a start without it is refused
+  (`subscription-ends.requires-export`). Its `export(tenantId)` answers the tenant's full export,
+  every user's data included, as `{ content, mediaType, fileName }` — the whole file as a
+  `Uint8Array`, a media type in printable ASCII, and a name the platform cleans for the header.
+  Where your application already has an export, wrap it; where that one is keyed by something
+  other than the tenant id, look the key up from the id first.
+
+    ```ts
+    @Injectable()
+    export class MyTenantDataExport implements TenantDataExportPort {
+        constructor(private readonly prisma: PrismaService) {}
+
+        async export(tenantId: string): Promise<TenantDataExport> {
+            const notes = await this.prisma.note.findMany({ where: { tenantId } });
+            return {
+                content: new TextEncoder().encode(JSON.stringify({ notes }, null, 2)),
+                mediaType: 'application/json',
+                fileName: `export-${tenantId}.json`,
+            };
+        }
+    }
+    ```
+
+    The tenant's administrator downloads it from `GET /billing/export`, from the moment the end is
+    recorded and still after the deletion day while the data is there; `TenantAccessBanner` offers
+    it. Before an end is recorded the route refuses with `409 TENANT_EXPORT_NOT_OFFERED`, a port
+    that throws or answers anything but a file with `503 TENANT_EXPORT_FAILED`, a user without the
+    role with `403 TENANT_ADMIN_REQUIRED`; a suspension and a deletion under way refuse it as they
+    refuse every request. Your port is asked on every download, for the session's tenant only.
+    Once it has handed the file over, the download is recorded in `tenant_export_downloads` — the
+    moment and who took it — and only then sent, and it is audited as `TENANT_EXPORT_DOWNLOAD` where
+    the audit log is wired; the operator reads every download under "Access" on the tenant's page.
+    That record is the tenant's acknowledgement (`SC-PRIV-017`): it shows that the file was produced
+    for that request, not that it was saved.
 
 The day is recorded and kept; nothing is deleted on it by this release.
 

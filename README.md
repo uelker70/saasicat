@@ -94,7 +94,11 @@ SaaSiCatModule.forRoot(
         adapters: { secretSealer: aesGcmSecretSealer(process.env.SECRET_SEALER_KEY) },
         entitlement: {},
         catalog: { featureUiRegistry },
-        tenantBilling: { authGuards: [JwtAuthGuard, TenantGuard] },
+        tenantBilling: {
+            authGuards: [JwtAuthGuard, TenantGuard],
+            // Your app's export of a tenant, taken once its subscription has ended.
+            subscriptionEnds: { export: myTenantDataExport },
+        },
         subscriptionBundles: true,
         adminResources: true,
         promoCodes: true,
