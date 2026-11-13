@@ -4759,9 +4759,9 @@ To adopt it:
    The loader refuses a file without it
    (`tenantBilling.endOfSubscription.reminderDaysBefore: must have required property 'reminderDaysBefore'`),
    and a list that is empty, names a lead time twice or holds one below 1, naming the field. A
-   catalogue built in code and passed as `planCatalog` is held to the same schema for the
-   `tenantBilling` sections the platform reads, and a start with a malformed one is refused, naming
-   the field.
+   catalogue built in code and passed as `planCatalog` is held to the same schema for
+   `tenantBilling.cancellationNoticeDays`, `selfServiceBlockedPlans` and `endOfSubscription` where
+   tenant billing reads them, and a start with a malformed one is refused, naming the field.
 
     ```yaml
     tenantBilling:

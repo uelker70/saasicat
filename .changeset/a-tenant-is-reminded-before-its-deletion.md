@@ -39,8 +39,9 @@ deletion day on which a tenant's administrators are reminded: whole numbers of
 at least 1, none twice, at least one, in any order, and no default. The loader
 refuses a file without it, or with a list that is empty, names a lead time
 twice or holds one below 1, naming the field. An in-code `planCatalog` is held
-to the schema for the `tenantBilling` sections the platform reads, and a start
-with a malformed one is refused, naming the field.
+to the schema for `tenantBilling.cancellationNoticeDays`,
+`selfServiceBlockedPlans` and `endOfSubscription` where tenant billing reads
+them, and a start with a malformed one is refused, naming the field.
 
 Once a tenant's subscription has ended, its administrators are reminded by your
 port before its data is deleted (`SC-CANC-022`), one new notice of kind
@@ -71,5 +72,5 @@ deletion day is after that day, soonest first; both shipped adapters, the
 persistence contract and `FakeSubscriptionEndRepository` have it.
 `deletionReminderDue` in `@saasicat/core` answers which reminder is due as a
 pure rule, and `calendarDaysBetween(from, to)`, new beside it, counts the
-calendar days from one day to another. The template `saasicat init` writes carries the lead times. Nothing
-is deleted on the deletion day by this release.
+calendar days from one day to another. The template `saasicat init` writes
+carries the lead times. Nothing is deleted on the deletion day by this release.
