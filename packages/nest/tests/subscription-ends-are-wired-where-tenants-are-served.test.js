@@ -26,6 +26,7 @@ import { FakeSubscriptionEndRepository } from '../dist/testing/index.js';
 import { bootable, everythingOnOptions } from './helpers/operator-routes.js';
 import { usageRecord } from './helpers/subscription-fixtures.js';
 import { anExport } from './helpers/tenant-data-export.js';
+import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
 /** The platform's options with `subscriptionEnds` as given, and the bundle's store kept or not. */
 function withEnds(subscriptionEnds, { bundleKeepsEnds = true } = {}) {
@@ -221,6 +222,9 @@ describe('the routes a tenant ends its subscription through', () => {
                     usageSnapshotPort: { snapshot: async () => ({}) },
                     subscriptionWritePort: {},
                     subscriptionEnds,
+                    notices: subscriptionEnds
+                        ? { port: sendingPort(), record: noticeRecord() }
+                        : undefined,
                 }),
             ],
         }).compile();

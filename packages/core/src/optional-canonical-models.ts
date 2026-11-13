@@ -15,6 +15,9 @@ export const OPTIONAL_CANONICAL_MODELS = {
     AppliedSettings: ['core.appliedSettings'],
     SettingsChange: ['core.appliedSettings'],
     MaintenanceWindow: ['core.maintenanceWindows'],
+    // Optional only where tenants are not served: with `tenantBilling` on, a
+    // start whose bundle leaves it out is refused unless
+    // `tenantBilling.notices.record` names another place for the notices.
     SubscriptionNotice: ['tenantBilling.subscriptionNotices'],
     VersionRetirement: ['tenantBilling.versionRetirements'],
     BundleVersionRetirement: ['tenantBilling.bundleVersionRetirements'],

@@ -23,6 +23,7 @@ import {
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
 import { anExport } from './helpers/tenant-data-export.js';
+import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
 const STANDARD = () => line('plan', 'STANDARD', 49, { titleSnapshot: 'Standard' });
 const WELCOME = () => ({
@@ -305,6 +306,7 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
         },
         tenantBilling: {
             authGuards: [],
+            notices: { port: sendingPort(), record: noticeRecord() },
             subscriptionEnds: { export: anExport() },
             contractFreeze: {
                 sourcePort: {},

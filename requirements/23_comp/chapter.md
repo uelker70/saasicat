@@ -1325,6 +1325,10 @@ _Source:_ `docs/explanation/test-coverage.md`
 
 _Tested by:_
 
+- `examples/notesapp/tests/a-tenant-hears-before-its-notes-are-deleted.test.mjs`
+    - the notes app's notice port
+        - tells the tenant's own users the deletion day and where the export is, and says so
+        - tells nobody of a tenant without users, and says so
 - `examples/notesapp/tests/dev-proxy-targets-own-backend.test.mjs`
     - docker-compose declares a default for every port the dev server needs
     - the vite config reads the ports from the file, not from the shell

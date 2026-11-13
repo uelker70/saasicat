@@ -232,9 +232,11 @@ export interface SaaSiCatPersistenceTenantBilling {
     subscriptionWritePort: PersistenceProvider<TenantSubscriptionWritePort>;
     usageSnapshotPort?: PersistenceProvider<UsageSnapshotPort>;
     /**
-     * The record of what each subscriber was told (`tenantBilling.versionNotices`).
-     * Optional so an adapter written before it keeps working; an installation
-     * that turns notices on without one is refused at start-up.
+     * The record of what each subscriber was told (`tenantBilling.notices`).
+     * Optional so an adapter written before it keeps working, and so a schema
+     * without `SubscriptionNotice` can leave it out; an installation that
+     * serves tenants without one, and names no record of its own, is refused
+     * at start-up.
      */
     subscriptionNotices?: PersistenceProvider<SubscriptionNoticeRepository>;
     /**

@@ -616,6 +616,11 @@ _Tested by:_
         - that the application answers only after the timeout stays held, and a late success is kept
           as sent
         - held by another run is left to it
+- `packages/nest/tests/the-notices-are-wired-where-tenants-are-served.test.js`
+    - the record of the notices
+        - with nowhere to keep it, the start is refused, naming the rule
+        - the bundle's record, or one named, is enough
+        - tenant billing wired by hand with a port and no record does not start, naming it
 
 <!-- END proof -->
 

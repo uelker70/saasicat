@@ -5641,6 +5641,11 @@ _Tested by:_
         - that the application answers only after the timeout stays held, and a late success is kept
           as sent
         - held by another run is left to it
+- `packages/nest/tests/the-notices-are-wired-where-tenants-are-served.test.js`
+    - the record of the notices
+        - with nowhere to keep it, the start is refused, naming the rule
+        - the bundle's record, or one named, is enough
+        - tenant billing wired by hand with a port and no record does not start, naming it
 
 <!-- END proof -->
 
@@ -8167,6 +8172,18 @@ _Tested by:_
     - lead times nobody named are refused, and the field is named
     - a list of lead times that promises no reminder, or one twice, is refused
     - lead times in any order, the period shorter than some, are read as written
+- `packages/nest/tests/the-notices-are-wired-where-tenants-are-served.test.js`
+    - the notice port, which serving tenants cannot start without
+        - left out, the start is refused with one sentence naming the option, the port and why
+        - passed to the version notices instead, the refusal says where it goes
+        - given, nothing is refused
+        - without tenant billing, it is not asked for
+        - tenant billing wired by hand with the ends and without it does not start, naming the
+          option and the port
+        - tenant billing wired by hand with the version notices and without it does not start
+    - the port and the record, named once
+        - reach every service that sends or records a notice
+        - where no record is named, the bundle's is the one every service records in
 
 <!-- END proof -->
 
@@ -27635,6 +27652,10 @@ _Source:_ `docs/explanation/test-coverage.md`
 
 _Tested by:_
 
+- `examples/notesapp/tests/a-tenant-hears-before-its-notes-are-deleted.test.mjs`
+    - the notes app's notice port
+        - tells the tenant's own users the deletion day and where the export is, and says so
+        - tells nobody of a tenant without users, and says so
 - `examples/notesapp/tests/dev-proxy-targets-own-backend.test.mjs`
     - docker-compose declares a default for every port the dev server needs
     - the vite config reads the ports from the file, not from the shell

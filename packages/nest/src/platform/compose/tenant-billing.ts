@@ -45,6 +45,7 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
         subscriptionUsagePort,
         usageSnapshotPort,
         subscriptionWritePort,
+        notices,
         versionNotices,
         subscriptionEnds,
         imports: tenantImports,
@@ -88,17 +89,9 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
         subscriptionWritePort:
             subscriptionWritePort ??
             (tenantSlice?.subscriptionWritePort as ProviderSpec<TenantSubscriptionWritePort>),
-        // The platform's runner, unless the application names its own: a
-        // successor contract and the end of the one it replaces are written
-        // on one transaction.
-        // Collecting records what it tells a subscriber with the other
-        // notices, in the bundle's record unless the application names one;
-        // the confirmations are kept in the bundle's tables the same way.
+        // The payments and the confirmations are kept in the bundle's tables
+        // unless the application names its own.
         chargeJournal: withInvoiceDefaults(tenantOptions.chargeJournal, {
-            // SAFETY: the bundle's member is the provider of the record of
-            // notices, as `versionNotices.notices` reads it below.
-            notices: tenantSlice?.subscriptionNotices as
-                ProviderSpec<SubscriptionNoticeRepository> | undefined,
             // SAFETY: the bundle's member is the provider of the payments
             // repository, which `PersistenceProvider` types as the provider
             // spec it is.
@@ -113,17 +106,25 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
             confirmationArchive: ctx.persistence?.entitlement?.contractConfirmationArchive as
                 ProviderSpec<ContractConfirmationArchivePort> | undefined,
         }),
+        // The platform's runner, unless the application names its own: a
+        // successor contract and the end of the one it replaces are written
+        // on one transaction.
         contractFreeze: tenantOptions.contractFreeze && {
             transactionRunner: ctx.adapters.transactionRunner as
                 ProviderSpec<TransactionRunner> | undefined,
             ...tenantOptions.contractFreeze,
         },
-        // `version-notices.requires-notice-record` has refused a configuration
-        // that reaches here with notices and nowhere to keep them.
+        notices: {
+            port: notices?.port,
+            // SAFETY: `subscription-notices.requires-record` has refused a
+            // configuration that reaches here with no record named and none in
+            // the bundle, and the bundle's member is the provider spec
+            // `PersistenceProvider` types it as.
+            record: (notices?.record ??
+                tenantSlice?.subscriptionNotices) as ProviderSpec<SubscriptionNoticeRepository>,
+        },
         versionNotices: versionNotices && {
             ...versionNotices,
-            notices: (versionNotices.notices ??
-                tenantSlice?.subscriptionNotices) as ProviderSpec<SubscriptionNoticeRepository>,
             retirements: versionRetirementsOf(ctx),
             featureWithdrawals: featureWithdrawalsOf(ctx),
         },
@@ -165,15 +166,14 @@ function contractRepositoryOf(
 }
 
 /**
- * The charge journal as the application configured it, with `notices` and
- * `payments` taken from the bundle where invoices are collected, and the
- * confirmations' record and archive where invoices confirm their contracts,
- * wherever the application names none.
+ * The charge journal as the application configured it, with `payments` taken
+ * from the bundle where invoices are collected, and the confirmations' record
+ * and archive where invoices confirm their contracts, wherever the application
+ * names none.
  */
 function withInvoiceDefaults(
     chargeJournal: TenantBillingModuleOptions['chargeJournal'],
     bundled: {
-        notices: ProviderSpec<SubscriptionNoticeRepository> | undefined;
         payments: ProviderSpec<SubscriberPaymentRepository> | undefined;
         confirmationRepository: ProviderSpec<ContractConfirmationRepository> | undefined;
         confirmationArchive: ProviderSpec<ContractConfirmationArchivePort> | undefined;
@@ -182,9 +182,8 @@ function withInvoiceDefaults(
     const invoices = chargeJournal?.invoices;
     if (!chargeJournal || !invoices) return chargeJournal;
     const defaulted = { ...invoices };
-    if (invoices.collections) {
-        if (!defaulted.notices && bundled.notices) defaulted.notices = bundled.notices;
-        if (!defaulted.payments && bundled.payments) defaulted.payments = bundled.payments;
+    if (invoices.collections && !defaulted.payments && bundled.payments) {
+        defaulted.payments = bundled.payments;
     }
     if (invoices.confirmations) {
         defaulted.confirmations = {

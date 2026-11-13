@@ -39,7 +39,6 @@ import type {
     QuotaProvider,
     RlsBypassPort,
     SaaSiCatPersistenceAdapter,
-    SubscriptionNoticeRepository,
     SubscriptionRepository,
     SubscriptionUsagePort,
     TaxAdapterFactory,
@@ -59,7 +58,7 @@ import {
 import {
     type TenantBillingModuleOptions,
     type SubscriptionEndsOptions,
-    type VersionNoticesOptions,
+    type SubscriptionNoticesOptions,
 } from '../billing/tenant-billing.module.js';
 import {
     type CatalogModuleOptions,
@@ -181,7 +180,7 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
     | 'subscriptionUsagePort'
     | 'usageSnapshotPort'
     | 'subscriptionWritePort'
-    | 'versionNotices'
+    | 'notices'
     | 'subscriptionEnds'
     | 'global'
 > {
@@ -195,14 +194,20 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
     usageSnapshotPort?: ProviderSpec<UsageSnapshotPort>;
     subscriptionWritePort?: ProviderSpec<TenantSubscriptionWritePort>;
     /**
-     * Tell each subscriber once, through `port`, that a newer version of their
-     * plan is offered to them. The record of each notice comes from
-     * `persistence.tenantBilling.subscriptionNotices` unless `notices` names
-     * another; a start with neither is refused.
+     * How every notice the platform decides is due reaches a tenant's
+     * administrators: `port` is the application's, which finds them, words the
+     * message and sends it — required, since a tenant whose subscription ended
+     * is reminded through it before its data is deleted (`SC-CANC-022`), and a
+     * start without it, from code the compiler did not check, is refused as
+     * well. The record of each notice comes from
+     * `persistence.tenantBilling.subscriptionNotices` unless `record` names
+     * another; a start with neither is refused. The version notices, where
+     * `versionNotices` turns them on, go through the same port and record, and
+     * what collecting an invoice tells its subscriber, which the invoice mail
+     * sends, is kept in the same record.
      */
-    versionNotices?: Omit<VersionNoticesOptions, 'notices'> & {
-        notices?: ProviderSpec<SubscriptionNoticeRepository>;
-    };
+    notices: Partial<Pick<SubscriptionNoticesOptions, 'record'>> &
+        Pick<SubscriptionNoticesOptions, 'port'>;
     /**
      * Records each subscription that ended, with the day its tenant's data is
      * deleted on (`SC-CANC-027`), and serves the tenant's full export to its

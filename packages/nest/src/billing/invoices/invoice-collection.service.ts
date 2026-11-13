@@ -123,13 +123,11 @@ import {
     NoticeSender,
 } from '../notice-sender.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
+import { SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN } from '../tenant-billing.tokens.js';
 import { AuditedOnce } from './audited-once.js';
 import { addressGivenFor } from './invoice-delivery-address.js';
 import { INVOICE_MAIL_PORT_TOKEN } from './invoice-document.tokens.js';
-import {
-    INVOICE_COLLECTION_NOTICE_REPOSITORY_TOKEN,
-    INVOICE_COLLECTION_REPOSITORY_TOKEN,
-} from './invoice-collection.tokens.js';
+import { INVOICE_COLLECTION_REPOSITORY_TOKEN } from './invoice-collection.tokens.js';
 import { InvoicePaymentService } from './invoice-payment.service.js';
 import { OverdueInvoiceService } from './overdue-invoice.service.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.tokens.js';
@@ -266,9 +264,10 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         @Optional()
         @Inject(AdminAuditService)
         private readonly audit: AdminAuditService | null = null,
-        // Required to start as well, for what the subscriber is told.
+        // Required to start as well, for what the subscriber is told: kept
+        // in the record of the other notices.
         @Optional()
-        @Inject(INVOICE_COLLECTION_NOTICE_REPOSITORY_TOKEN)
+        @Inject(SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN)
         private readonly notices: SubscriptionNoticeRepository | null = null,
         @Optional()
         @Inject(INVOICE_MAIL_PORT_TOKEN)
@@ -332,8 +331,8 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         if (!this.notices || !this.mail || !this.subscribers) {
             problems.push(
                 'collecting invoices tells the subscriber of a failure and announces a direct ' +
-                    'debit again: pass chargeJournal.invoices.notices, such as ' +
-                    'persistence.tenantBilling.subscriptionNotices, beside chargeJournal.invoices.mail.',
+                    'debit again: it records each in the record of notices (`notices.record`) and ' +
+                    'sends it through chargeJournal.invoices.mail.',
             );
         }
         if (problems.length > 0) {

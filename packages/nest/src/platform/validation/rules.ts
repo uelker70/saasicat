@@ -32,6 +32,7 @@ import {
     type SaaSiCatAdapters,
     type SaaSiCatModuleOptions,
 } from '../module-options.js';
+import { noticesNotWired } from '../../billing/notice-sender.js';
 import { exportNotWired } from '../../billing/tenant-data-export.service.js';
 import { resolveBundleRepository } from '../compose/bundle-repository-source.js';
 import { servesTenantAccess } from '../compose/tenant-access.js';
@@ -153,6 +154,18 @@ export const resolvesPlans = (c: PlatformConfiguration): boolean =>
         c.options.defaultPlanId ||
         (c.options.tenantBilling && c.adapters.subscriptionRepository),
     );
+
+/**
+ * Whether the version notices are given a port of their own, which they do
+ * not take: an application that passes one there and none under
+ * `tenantBilling.notices` is told where it goes.
+ */
+function versionNoticesCarryAPort(c: PlatformConfiguration): boolean {
+    const versionNotices = optionsOf(c.options.tenantBilling)?.versionNotices;
+    return (
+        typeof versionNotices === 'object' && versionNotices !== null && 'port' in versionNotices
+    );
+}
 
 /** Names the entries of `required` that are absent, in declaration order. */
 function absent<T extends Record<string, unknown>>(required: T): string[] {
@@ -366,6 +379,32 @@ const RULE_SPECS: readonly RuleSpec[] = [
         message: exportNotWired('`tenantBilling.subscriptionEnds.export`'),
     },
     {
+        id: 'subscription-notices.requires-port',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) => Boolean(optionsOf(c.options.tenantBilling)?.notices?.port),
+        message: (c) =>
+            noticesNotWired('`tenantBilling.notices.port`') +
+            (versionNoticesCarryAPort(c)
+                ? ' `tenantBilling.versionNotices` takes no port: the one port every notice goes ' +
+                  'through is `tenantBilling.notices.port`.'
+                : ''),
+    },
+    {
+        id: 'subscription-notices.requires-record',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) =>
+            Boolean(
+                optionsOf(c.options.tenantBilling)?.notices?.record ??
+                bundle(c)?.tenantBilling?.subscriptionNotices,
+            ),
+        message:
+            'tenantBilling is on, but there is nowhere to record the notices sent to a tenant ' +
+            '(SC-SUB-023): a notice that is not recorded is sent again by every run. Set ' +
+            '`tenantBilling.notices.record` or use a bundle providing ' +
+            '`persistence.tenantBilling.subscriptionNotices` — both shipped adapters do, from the ' +
+            '`SubscriptionNotice` model of `@saasicat/spec`, unless `notAdopted` leaves it out.',
+    },
+    {
         id: 'subscriber-joins.requires-join-repository',
         when: (c) => c.options.subscriberJoins === true,
         assert: (c) =>
@@ -377,20 +416,6 @@ const RULE_SPECS: readonly RuleSpec[] = [
             'subscriberJoins is on, but there is nowhere to join subscribers. Use a bundle providing ' +
             '`persistence.entitlement.subscriberJoinRepository` and `subscriberRepository` — both ' +
             'shipped adapters do, unless `notAdopted` leaves `SubscriberJoin` out.',
-    },
-    {
-        id: 'version-notices.requires-notice-record',
-        when: (c) => Boolean(optionsOf(c.options.tenantBilling)?.versionNotices),
-        assert: (c) =>
-            Boolean(
-                optionsOf(c.options.tenantBilling)?.versionNotices?.notices ??
-                bundle(c)?.tenantBilling?.subscriptionNotices,
-            ),
-        message:
-            'version notices are turned on (`tenantBilling.versionNotices`), but there is ' +
-            'nowhere to record what each subscriber was told. Set ' +
-            '`tenantBilling.versionNotices.notices` or use a bundle ' +
-            'providing `persistence.tenantBilling.subscriptionNotices` — both shipped adapters do.',
     },
     {
         id: 'subscription-contract.requires-repository',

@@ -26,8 +26,9 @@
 // read back. Text rather than an enum, so a kind added in a release needs no
 // migration.
 //
-// Optional: adopt it where `tenantBilling.versionNotices` is configured, which
-// refuses to start without a place to keep notices; a retirement needs it too.
+// Adopt it wherever `tenantBilling` is on: the start is refused without a place
+// to keep notices, unless `tenantBilling.notices.record` names one of the
+// application's own. Only an installation that serves no tenants leaves it out.
 //
 // Contract: @saasicat/core (SubscriptionNoticeRepository).
 

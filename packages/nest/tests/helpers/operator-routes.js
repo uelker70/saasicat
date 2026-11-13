@@ -154,7 +154,8 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
                     payments: REPO,
                 },
             },
-            versionNotices: { port: PORT, includeCron: false },
+            notices: { port: PORT },
+            versionNotices: { includeCron: false },
             subscriptionEnds: { export: anExport() },
         },
         payments: {

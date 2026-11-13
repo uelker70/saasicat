@@ -26,6 +26,31 @@ export const NOTICE_DELIVERY_TIMEOUT_MS = 60_000;
 const NOBODY_WARNING_INTERVAL_MS = 24 * 60 * 60_000;
 
 /**
+ * The refusal of a start without the application's notice port, naming
+ * `option` as the application writes it. Required wherever tenants are
+ * served: a tenant whose subscription ended is reminded before its data is
+ * deleted, and once nobody signs in any more a notice is the only way its
+ * administrators learn the day.
+ */
+export function noticesNotWired(option: string): string {
+    return (
+        `${option} is missing: wherever tenants are served, the application sends the notices ` +
+        "the platform decides are due through a SubscriptionNoticePort, and a tenant's " +
+        'administrators learn the day its data is deleted from them once nobody signs in any ' +
+        'more (SC-CANC-022).'
+    );
+}
+
+/** The refusal of a start with nowhere to record a notice, naming `option` as the application writes it. */
+export function noticeRecordNotWired(option: string): string {
+    return (
+        `${option} is missing: every notice is recorded before it is sent and confirmed after, so ` +
+        'it goes out once however many instances run, and the record shows when it went out, to ' +
+        'whom and how (SC-SUB-023).'
+    );
+}
+
+/**
  * What an attempt came to: told; failed, for the next run to try again;
  * `untold` where the application named nobody and the notice waits for
  * somebody to tell (`retriesNobody`); null where another run holds it or it

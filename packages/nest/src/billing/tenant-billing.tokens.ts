@@ -173,12 +173,18 @@ export const SUBSCRIPTION_END_PORT_TOKEN = Symbol.for('saasicat/nest/Subscriptio
 /** Adapter token: the application's export of a tenant's data (`TenantDataExportPort`). */
 export const TENANT_DATA_EXPORT_PORT_TOKEN = Symbol.for('saasicat/nest/TenantDataExportPort');
 
-/** Adapter token: where the record of each subscriber notice is kept. */
+/**
+ * Adapter token: where the record of each subscriber notice is kept
+ * (`tenantBilling.notices.record`).
+ */
 export const SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN = Symbol.for(
     'saasicat/nest/SubscriptionNoticeRepository',
 );
 
-/** Adapter token: the application's `SubscriptionNoticePort`, which sends a notice. */
+/**
+ * Adapter token: the application's `SubscriptionNoticePort`, which sends a
+ * notice (`tenantBilling.notices.port`).
+ */
 export const SUBSCRIPTION_NOTICE_PORT_TOKEN = Symbol.for('saasicat/nest/SubscriptionNoticePort');
 
 /** Where retirement announcements are kept (`VersionRetirementRepository`). */
