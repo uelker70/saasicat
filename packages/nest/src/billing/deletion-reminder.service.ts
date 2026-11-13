@@ -9,9 +9,10 @@
 // handed to the application's notice port and recorded — once, however many
 // instances run, since the record's unique key is the end and the lead time.
 //
-// The lead times are the file's at the run, not at the end's recording: a lead
-// time added later is reminded of on its day, and a reminder told for one the
-// file no longer names still covers what it covered. Every end whose deletion
+// The lead times are the ones the file named when the application started,
+// not at the end's recording: after a restart with other lead times, one added
+// is reminded of on its day, also to ends recorded before, and a reminder told
+// for one the file no longer names still covers what it covered. Every end whose deletion
 // day is after today is reminded, whatever else holds its tenant back — a
 // suspension does not stop a deletion, so it does not stop the warning. No end
 // is left out as being deleted already: nothing records a deletion under way

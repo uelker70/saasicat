@@ -447,20 +447,23 @@ describe('a reminder of a larger lead time left undelivered', () => {
 // @requirement SC-CANC-022 — A tenant is reminded before its data is deleted
 describe('the lead times a reminder is decided by', () => {
     clockFrom(inBerlin('2027-01-01'));
-    test("are the file's at the run: changed after the end was recorded, the new ones apply and nothing is told twice", async () => {
-        const period = { readOnlyDays: 30, reminderDaysBefore: [29, 10, 3] };
-        const run = runOver({ period });
-        await anEnd(run.ends);
-        await remindAt(run, inBerlin('2027-01-02'));
+    test("are the file's the application started with: changed and restarted after the end was recorded, the new ones apply to it and nothing is told twice", async () => {
+        const before = runOver();
+        await anEnd(before.ends);
+        await remindAt(before, inBerlin('2027-01-02'));
 
-        // 40 days was due before the end was recorded, and the reminder told
-        // at 29 covers it; 20 and 5 are new, and go on their days.
-        period.reminderDaysBefore = [40, 20, 5];
+        // The application restarts with other lead times, over the same ends
+        // and the same record. 40 days was due before the end was recorded,
+        // and the reminder told at 29 covers it; 20 and 5 are new, and go on
+        // their days.
+        const { ends, notices, port } = before;
+        const period = { readOnlyDays: 30, reminderDaysBefore: [40, 20, 5] };
+        const after = runOver({ ends, notices, port, period });
         for (const day of ['2027-01-02', '2027-01-11', '2027-01-21', '2027-01-26', '2027-01-28']) {
-            await remindAt(run, inBerlin(day));
+            await remindAt(after, inBerlin(day));
         }
 
-        assert.deepEqual(leadTimesSent(run.port), [29, 20, 5]);
+        assert.deepEqual(leadTimesSent(port), [29, 20, 5]);
     });
 
     test("count the installation's day ahead of UTC, not UTC's", async () => {

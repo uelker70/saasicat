@@ -8196,8 +8196,8 @@ _Tested by:_
     - a reminder of a larger lead time left undelivered
         - is never sent once a smaller one is due, through every run until the deletion day
     - the lead times a reminder is decided by
-        - are the file's at the run: changed after the end was recorded, the new ones apply and
-          nothing is told twice
+        - are the file's the application started with: changed and restarted after the end was
+          recorded, the new ones apply to it and nothing is told twice
         - count the installation's day ahead of UTC, not UTC's
         - count the installation's day behind UTC, not UTC's
     - the quarter-hourly run

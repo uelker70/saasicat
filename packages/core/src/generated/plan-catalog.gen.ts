@@ -106,11 +106,11 @@ export interface PlanCatalog {
          */
         endOfSubscription: {
             /**
-             * Days the tenant stays read-only after its subscription ended. The deletion day is the first day after them, in the installation's zone, and is fixed when the end is recorded: a later change applies to subscriptions that end after it.
+             * Days the tenant stays read-only after its subscription ended. The deletion day is the first day after them, in the installation's zone, and is fixed when the end is recorded: a later change applies, once the application has restarted, to the ends recorded after that.
              */
             readOnlyDays: number;
             /**
-             * Days before the deletion day on which the tenant's administrators are reminded that its data goes and where to take the export, in any order. A reminder is due from the day that many days before the deletion day, in the installation's zone. Lead times that have passed when the subscription ends, or while no run ran, are covered by one reminder sent at once, and none is sent twice; a lead time the read-only period is too short for still gives notice that way. A later change applies from the next run, to ends already recorded too, and repeats no reminder already sent. There is no default: when a former customer is warned is the operator's to decide and to state in its terms, as the period is.
+             * Days before the deletion day on which the tenant's administrators are reminded that its data goes and where to take the export, in any order. A reminder is due from the day that many days before the deletion day, in the installation's zone. Lead times that have passed when the subscription ends, or while no run ran, are covered by one reminder sent at once, and none is sent twice; a lead time the read-only period is too short for still gives notice that way. The file is read when the application starts, so a later change applies once it has restarted, to ends recorded before too, and repeats no reminder already sent. There is no default: when a former customer is warned is the operator's to decide and to state in its terms, as the period is.
              *
              * @minItems 1
              */
