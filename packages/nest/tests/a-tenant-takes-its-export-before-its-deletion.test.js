@@ -253,24 +253,31 @@ describe("a tenant's administrator takes its export once its subscription ended"
     });
 
     test('of two ended subscriptions, the latest end is the one the download is recorded for', async () => {
+        // The earlier end is recorded first and its subscription sorts first,
+        // so whichever order a store reads the ends in — the order they were
+        // written, or by subscription — the earlier one comes first, and only
+        // choosing by the end itself names the latest.
         const ends = new FakeSubscriptionEndRepository();
-        const { holds, service } = await installation({ ends });
-        await holds.record({
-            tenantId: 't1',
-            kind: 'ended',
-            reference: 'sub-t1-earlier',
-            note: null,
-            since: new Date('2026-06-30T22:00:00.000Z'),
-            recordedBy: 'job:platform:subscription-ends',
-        });
-        await ended(ends, 't1', {
-            subscriptionId: 'sub-t1-earlier',
-            endsAt: new Date('2026-06-30T22:00:00.000Z'),
-        });
+        const { holds, service } = await installation({ ends, kinds: [], endRecorded: false });
+        const EARLIER = new Date('2026-06-30T22:00:00.000Z');
+        for (const [subscriptionId, endsAt] of [
+            ['sub-t1-a', EARLIER],
+            ['sub-t1-b', ENDED],
+        ]) {
+            await holds.record({
+                tenantId: 't1',
+                kind: 'ended',
+                reference: subscriptionId,
+                note: null,
+                since: endsAt,
+                recordedBy: 'job:platform:subscription-ends',
+            });
+            await ended(ends, 't1', { subscriptionId, endsAt });
+        }
 
         await service.take('t1', ACTOR, NOW);
 
-        assert.equal(ends.downloads[0].subscriptionId, 'sub-t1');
+        assert.equal(ends.downloads[0].subscriptionId, 'sub-t1-b');
     });
 });
 
