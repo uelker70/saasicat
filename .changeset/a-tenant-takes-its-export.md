@@ -28,7 +28,8 @@ tenant is refused `403 TENANT_ADMIN_REQUIRED`. The platform asks the port on
 every download, for the session's tenant only. Before an end is recorded the
 route refuses with `409 TENANT_EXPORT_NOT_OFFERED`; a port that throws or
 answers anything but a file is refused with `503 TENANT_EXPORT_FAILED`, and
-nothing is recorded or sent. A suspension and a deletion under way refuse it as
+nothing is recorded or sent. A `HEAD` is answered `405` with `Allow: GET` and
+asks and records nothing. A suspension and a deletion under way refuse it as
 they refuse every request. The file name is cleaned for the header.
 
 Every download is recorded once the application has handed the file over and

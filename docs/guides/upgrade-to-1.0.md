@@ -4626,7 +4626,8 @@ it, records every download, and shows the downloads to the operator. To adopt it
   `TenantAccessService.enforce` lets a read-only tenant through without a change — leaving, which
   writes, needs its mark
   ([A tenant that is read-only may still leave](#a-tenant-that-is-read-only-may-still-leave)); this
-  route does not.
+  route does not. A `HEAD` is answered `405` with `Allow: GET`, and asks your port nothing and
+  records nothing: Express and Fastify would otherwise run the `GET` for it and drop the file.
 - **Every download is recorded**, once your port has handed the file over and before it is sent:
   one row in `tenant_export_downloads` with the subscription, the moment and who took it, as the
   audit log tags an actor (`web:<email>:<context>`). Two downloads are two rows. Where the row cannot

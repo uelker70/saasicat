@@ -1,4 +1,14 @@
-import { Controller, Get, Inject, Optional, Req, StreamableFile, UseGuards } from '@nestjs/common';
+import {
+    Controller,
+    Get,
+    Header,
+    Inject,
+    MethodNotAllowedException,
+    Optional,
+    Req,
+    StreamableFile,
+    UseGuards,
+} from '@nestjs/common';
 
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { downloadOf } from './invoices/archived-download.js';
@@ -51,9 +61,17 @@ export class TenantDataExportController {
     // tenant's data, which read-only exists to stop. So a read-only tenant
     // takes it, which is what the period is for, and a suspension or a
     // deletion under way refuses it as it refuses every read.
+    //
+    // Express and Fastify both answer a `HEAD` with the `GET` handler and drop
+    // the body, so a `HEAD` let through would ask the application and record a
+    // download whose file nobody receives. It is refused before either, as
+    // `405` with `Allow: GET`: Nest writes the header once the guards have let
+    // the request through, before the handler runs.
     @Get('export')
+    @Header('Allow', 'GET')
     @UseGuards(TenantAdminGuard)
     async export(@Req() request: unknown): Promise<StreamableFile> {
+        if (isHead(request)) throw new MethodNotAllowedException();
         const tenantId = tenantIdOf(this.tenantIdResolver, request);
         const resolvers = this.resolvers();
         const actor = tenantActorOf(request, requireTenantUserId(request, resolvers), resolvers);
@@ -67,4 +85,15 @@ export class TenantDataExportController {
             context: this.auditContextResolver,
         };
     }
+}
+
+/** Whether `request` is a `HEAD`, which a download answers without its file. */
+function isHead(request: unknown): boolean {
+    return (
+        typeof request === 'object' &&
+        request !== null &&
+        'method' in request &&
+        typeof request.method === 'string' &&
+        request.method.toUpperCase() === 'HEAD'
+    );
 }

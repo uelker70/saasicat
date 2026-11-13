@@ -1811,8 +1811,9 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     recorded and still after the deletion day while the data is there; `TenantAccessBanner` offers
     it. Before an end is recorded the route refuses with `409 TENANT_EXPORT_NOT_OFFERED`, a port
     that throws or answers anything but a file with `503 TENANT_EXPORT_FAILED`, a user without the
-    role with `403 TENANT_ADMIN_REQUIRED`; a suspension and a deletion under way refuse it as they
-    refuse every request. Your port is asked on every download, for the session's tenant only.
+    role with `403 TENANT_ADMIN_REQUIRED`, and a `HEAD` with `405` and `Allow: GET`; a suspension
+    and a deletion under way refuse it as they refuse every request. Your port is asked on every
+    download, for the session's tenant only.
     Once it has handed the file over, the download is recorded in `tenant_export_downloads` — the
     moment and who took it — and only then sent, and it is audited as `TENANT_EXPORT_DOWNLOAD` where
     the audit log is wired; the operator reads every download under "Access" on the tenant's page.

@@ -294,6 +294,10 @@ _Tested by:_
 - `packages/nest/tests/the-days-and-downloads-of-an-ended-subscription-are-shown.test.js`
     - the operator's page names the day and every download of the export
         - the deletion day, and every download with its moment and who took it, the oldest first
+- `packages/nest/tests/the-tenants-export-over-http.test.js`
+    - the tenant's export over HTTP, on Express and on Fastify
+        - a GET hands the administrator the file and records the download
+        - a HEAD is refused with the method the route allows, and asks and records nothing
 - `packages/ui-vue-tenant/tests/component/a-held-back-tenant-reads-why.test.ts`
     - the tenant's export, taken from the banner
         - is offered to its administrator as a button named for what it downloads, reached from the
