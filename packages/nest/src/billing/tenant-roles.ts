@@ -15,10 +15,12 @@ interface RequestWithUser {
     };
 }
 
+// Written out as literals: `tests/the-example-sends-the-role-its-guards-require.test.js`
+// reads the roles the guard lets through from this list.
+const ADMIN_ROLES = new Set(['TENANT_ADMIN', 'SUPER_ADMIN']);
+
 /** The platform's role for the operator (`PlatformRole` in `@saasicat/core`). */
 const OPERATOR_ROLE = 'SUPER_ADMIN';
-
-const ADMIN_ROLES = new Set(['TENANT_ADMIN', OPERATOR_ROLE]);
 
 /** Whether the request's user holds `TENANT_ADMIN` or `SUPER_ADMIN`; refuses a request without a user. */
 export function holdsTenantAdminRole(context: ExecutionContext): boolean {
