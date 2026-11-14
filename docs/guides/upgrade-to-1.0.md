@@ -2678,7 +2678,7 @@ subscriber's invoice or contract `404`.
   The start refuses the old key with a sentence saying where it went; move the guards and delete
   them under `payments`.
 - **Under row-level security**, these reads run inside `RlsBypassPort`, by the subscriber's id: an
-  earlier tenant's invoices keep that tenant's id after a join (`SC-SEC-018`). Nothing to wire
+  earlier tenant's invoices keep that tenant's id after a join (`SC-SEC-019`). Nothing to wire
   where the port is bound.
 - **`TenantBillingSection` lists them**, under "Invoices for your subscription" with the issuer
   beneath, each with where it stands, its links to the invoices a cancellation ties it to, and its

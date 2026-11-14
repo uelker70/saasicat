@@ -127,7 +127,7 @@ export class TenantInvoiceService implements OpenInvoiceSource, InvoiceNameSourc
 
     /**
      * The invoices among `invoiceIds` by number and subscriber, read past the
-     * tenants' policy as every read of the administration is (`SC-SEC-018`);
+     * tenants' policy as every read of the administration is (`SC-SEC-019`);
      * one that cannot be found is left out.
      */
     async invoicesNamed(invoiceIds: readonly string[]): Promise<NamedInvoice[]> {
