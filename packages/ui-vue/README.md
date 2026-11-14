@@ -151,6 +151,25 @@ an unguarded one.
 Dialogs that collect a form, and the one that displays a generated one-time
 password, are not confirmations and stay as they are.
 
+## The operator's billing pages
+
+Among the standard pages, six show the subscribers and what they are billed. Each reads routes the
+backend mounts only where `adminResources` is on, and appears in the sidebar where the manifest
+announces its capability:
+
+| Page                   | Path                     | Needs, beside `adminResources`                                                                                                               |
+| ---------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SubscribersPage`      | `/admin/subscribers`     | subscribers kept (`subscribers.read`)                                                                                                        |
+| `SubscriberRecordPage` | `/admin/subscribers/:id` | subscribers kept; each section where its part is served — charges with the charge journal, invoices with invoicing, credits with collections |
+| `InvoicesPage`         | `/admin/invoices`        | invoicing, `tenantBilling.chargeJournal.invoices` (`invoices.read`)                                                                          |
+| `ContractsPage`        | `/admin/contracts`       | invoicing with the contracts' confirmations (`contracts.read`)                                                                               |
+| `OpenItemsPage`        | `/admin/open-items`      | invoices collected and their payments recorded (`payments.read`)                                                                             |
+| `ReconciliationPage`   | `/admin/reconciliation`  | invoices collected and their payments recorded (`reconciliation.read`)                                                                       |
+
+An application that keeps tenant, user, audit or subscription routes of its own cannot turn
+`adminResources` on beside them, and so cannot show these pages yet:
+[what the operator's side needs](../../docs/guides/wire-the-backend.md#what-the-operators-side-needs).
+
 ## Usage
 
 ```bash

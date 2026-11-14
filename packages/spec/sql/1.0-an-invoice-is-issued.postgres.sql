@@ -30,8 +30,11 @@
 --   number drawn.
 --
 -- Skipped, with a notice, where one of the tables the invoices point at is
--- missing. Nothing is backfilled: no invoice is issued for a charge before
--- invoicing is switched on, and the range starts at 1.
+-- missing. This file issues no invoice, and the range starts at 1. The first
+-- invoice run after invoicing is switched on invoices every charge of the
+-- journal that stands on no invoice, however long ago its period was: an
+-- installation whose journal holds charges that are not to be invoiced deals
+-- with them before that run (`docs/guides/wire-the-backend.md`, "Invoices").
 --
 -- Safe to run again: every table, column and index is created only where it
 -- is missing, and each foreign key only where its name is not taken. On a
