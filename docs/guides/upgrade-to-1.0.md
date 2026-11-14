@@ -4968,7 +4968,10 @@ neither, without refusing them. Who holds the permission is decided by your
 `tenantBilling.billingPermissionGuards` — the tenant's administrator where you pass none —, exactly
 as for the invoice routes; a guard of yours that
 refuses by returning `false` or throwing a 401 or 403 means the user does not hold it, and any other
-failure fails the read.
+failure fails the read. Your guards are now asked from this route too, for every user, once a minute,
+with its own controller and handler in the context: they must decide from the request alone, not
+from handler metadata — a guard that allows where a handler names no requirement would let every
+user read the invoice numbers — and a guard that audits each refusal writes one per user and minute.
 
 1. Where you mount `TenantAccessBanner` or call `useTenantAccessState`, nothing to do.
 2. Where a client of your own reads `GET billing/account/access` and falls back to

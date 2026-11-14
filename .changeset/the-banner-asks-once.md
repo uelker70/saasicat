@@ -21,7 +21,9 @@ payment gateway collects. Who holds the permission is decided by the same
 tenant's administrator where none are passed; a guard that returns `false` or
 throws a 401 or 403 means the user does not hold it, and any other failure fails
 the read. Every other user, and every user where no invoices are issued, is told
-no number and cannot pay, and is not refused.
+no number and cannot pay, and is not refused. Those guards are now asked from
+`GET billing/access` too, for every user, once a minute, and must decide from
+the request alone rather than from handler metadata.
 
 `GET billing/account/access` still answers a holder of the permission the same,
 and still refuses everybody else. A client of your own that reads it and falls
