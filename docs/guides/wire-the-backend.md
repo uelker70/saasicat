@@ -1378,17 +1378,17 @@ An invoice that cannot be issued yet waits, and its charges with it: a subscribe
 address has gaps (`SC-PRIC-032`), one the adapter supports no treatment for, a contract whose
 parties a migration copied or that names no issuer, or content the adapter finds missing. Each run
 logs it, and the audit log records it once per process as `SUBSCRIPTION_INVOICE_HELD` by the actor
-`job:platform:subscription-invoices`, with the refusal's code and what it names. Once what held it is
-put right, the next run issues it under the next number.
+`job:platform:subscription-invoices`, with the refusal's code and what it names. Once what held it
+is put right, the next run issues it under the next number.
 
 **The first run invoices every charge the journal holds.** Nothing limits it to the charges recorded
 after invoicing was switched on: every charge that stands on no invoice is invoiced, grouped as
 above, each group under the next number and with the day of the run as its issue date, however long
-ago its period was — except where it is held, as above. An installation that wants a clean start switches
-invoicing on in the same release as the charge journal, before the journal records a charge. Where
-the journal already holds charges that are not to be invoiced, the platform has no way to mark them
-as settled: only where they are test data, empty `subscriber_ledger_entries` before the first run.
-The next run then charges the period each subscription is in and nothing before it
+ago its period was — except where it is held, as above. An installation that wants a clean start
+switches invoicing on in the same release as the charge journal, before the journal records a
+charge. Where the journal already holds charges that are not to be invoiced, the platform has no way
+to mark them as settled: only where they are test data, empty `subscriber_ledger_entries` before the
+first run. The next run then charges the period each subscription is in and nothing before it
 ([the subscriber's account](#the-subscribers-account)), and the first invoices carry that.
 
 ### What the operator's side needs
