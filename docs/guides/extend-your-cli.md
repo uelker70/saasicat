@@ -51,7 +51,7 @@ Optional but strongly recommended integration for ops workflows.
         ContractRefreshCliFlow,
         ContractsCommands,
         ContractsRefreshCommand,
-        // Where invoices are issued and the administration shows tenants:
+        // Where invoices are issued and `adminResources` is on (see below):
         InvoiceCancelCliFlow,
         InvoiceExportCliFlow,
         InvoicesCommands,
@@ -65,6 +65,20 @@ Optional but strongly recommended integration for ops workflows.
 })
 export class CliModule {}
 ```
+
+The invoice commands take their services from the platform's modules. `InvoiceCancelCliFlow`
+injects `AdminResourcesService`, which `adminResources` composes, and `InvoiceCancellationService`;
+`InvoiceExportCliFlow` injects `InvoiceExportService`. The tenant billing module provides those two
+where `tenantBilling.chargeJournal.invoices` is wired. `SaaSiCatModule` exports both modules where
+their options are on, so a CLI module that imports `SaaSiCatModule.forRoot(...)` with the
+application's `adminResources` and `tenantBilling` has all three in scope. A CLI that composes the
+platform's modules by hand imports the `AdminResourcesModule` (`@saasicat/nest/admin`) and the
+`TenantBillingModule` (`@saasicat/nest/billing`) it built, with invoices wired; without either, the
+CLI does not start. Where your tables carry a row-level policy, the cancellation reads the invoice
+inside `RlsBypassPort`, which the admin module provides from its `rlsBypassPort`: without it, the
+command reads the invoice's tenant as none. An application that cannot turn `adminResources` on
+([what the operator's side needs](wire-the-backend.md#what-the-operators-side-needs)) has no
+`invoices cancel` either.
 
 The admin module binds the same `secretSealer` as the application, under the same key:
 `admin mfa-setup` seals a SuperAdmin's secret here, and the application opens it when the code is

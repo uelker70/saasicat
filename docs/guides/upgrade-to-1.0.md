@@ -1946,6 +1946,11 @@ by cancelling it. To adopt it ([wire the backend](wire-the-backend.md#invoices))
 7. Keep `subscription_invoice_archive` in every backup, and the documents for as long as the law
    asks — in Germany 8 years from the end of the year an invoice was issued in.
 
+The first run invoices every charge the journal holds that stands on no invoice, however long ago
+its period was, under the next numbers and dated the day of the run. Where the journal already
+holds charges that are not to be invoiced, read
+[the first run](wire-the-backend.md#invoices) before you switch invoicing on.
+
 A contract whose parties a migration copied — `1.0-a-contract-names-its-subscriber.postgres.sql`
 marks them `partiesMigrated` — or that names no issuer is not invoiced: its charges wait, and the
 audit log records `SUBSCRIPTION_INVOICE_HELD` with `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED`
@@ -2760,8 +2765,11 @@ The administration gains a standard page `invoices` (`/admin/invoices`): every i
 months picked, whichever tenant it was for, with its sums per month, currency, tax treatment and
 rate, and the cancellation offered from its row as from the subscriber's record (`SC-ADM-042`). It
 is served and announced where the invoices' documents are, under `invoices.read`, at
-`GET admin/invoices` and `GET admin/invoice-totals`. Nothing is to be wired for it, with three
-exceptions:
+`GET admin/invoices` and `GET admin/invoice-totals` — which, like every operator page about
+invoicing, needs `adminResources`; an application that keeps tenant, user, audit or subscription
+routes of its own cannot turn that on beside them yet
+([what the operator's side needs](wire-the-backend.md#what-the-operators-side-needs)). Beyond
+that, nothing is to be wired for it, with three exceptions:
 
 - **A `SubscriptionInvoiceRepository` of your own** implements `listIssued`, `listIssuedAmounts` and
   `findByNumber`; one that extends a shipped repository inherits them. The persistence contract

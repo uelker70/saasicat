@@ -1258,7 +1258,10 @@ An operator's request is scoped to no tenant, so the platform reads the account 
 a row-level policy, your implementation of that port has to lift it there, as it does for the
 other reads the administration makes.
 
-What it does not do yet: collect anything, or show a tenant its own account.
+The journal itself collects nothing, and a tenant does not read its charges: what is charged is
+collected once it is [invoiced](#invoices) ([collecting an invoice](#collecting-an-invoice)), and a
+tenant reads what its invoices still owe at `GET /billing/account`
+([the tenant reads its account](#its-document-the-archive-and-the-mail)).
 
 ## Invoices
 
@@ -1279,7 +1282,9 @@ issuer an invoice follows. Adopt `prisma-fragments/20-subscription-invoice.prism
 `22-subscription-invoice-archive.prisma` — and `26-contract-confirmation.prisma` for the
 [confirmation of each contract](#the-confirmation-of-each-contract) —, run
 `sql/1.0-an-invoice-is-issued.postgres.sql`, `sql/1.0-an-invoice-says-how-it-is-paid.postgres.sql`
-and `sql/1.0-an-invoice-is-cancelled.postgres.sql` once before `db push` and
+and `sql/1.0-an-invoice-is-cancelled.postgres.sql` once before `db push`, in that order — where
+invoices are collected, the last of them after `sql/1.0-a-payment-is-recorded.postgres.sql`
+([below](#what-a-collection-brings-and-what-the-subscriber-is-owed)) — and
 `sql/1.0-an-invoice-document-is-archived.postgres.sql` and
 `sql/1.0-a-contract-confirmation-is-archived.postgres.sql` after it, name the range and the payment
 term, and wire the repository, the renderer, the archive, the mail and the confirmations' renderer
@@ -1375,6 +1380,40 @@ parties a migration copied or that names no issuer, or content the adapter finds
 logs it, and the audit log records it once per process as `SUBSCRIPTION_INVOICE_HELD` by the actor
 `job:platform:subscription-invoices`, with the refusal's code and what it names. Once what held it is
 put right, the next run issues it under the next number.
+
+**The first run invoices every charge the journal holds.** Nothing limits it to the charges recorded
+after invoicing was switched on: every charge that stands on no invoice is invoiced, grouped as
+above, each group under the next number and with the day of the run as its issue date, however long ago its
+period was — except where it is held, as above. An installation that wants a clean start switches
+invoicing on in the same release as the charge journal, before the journal records a charge. Where
+the journal already holds charges that are not to be invoiced, the platform has no way to mark them
+as settled: only where they are test data, empty `subscriber_ledger_entries` before the first run.
+The next run then charges the period each subscription is in and nothing before it
+([the subscriber's account](#the-subscribers-account)), and the first invoices carry that.
+
+### What the operator's side needs
+
+Every operator route and page about invoicing is mounted only where `adminResources` is on, beside
+what each needs of tenant billing, and the manifest announces it only there:
+
+- **an invoice's document and its cancellation, the register of every invoice and its export**
+  (`invoices.read`, `invoices.cancel`), where `chargeJournal.invoices` is wired; **a subscriber's
+  contracts and the contract register** (`contracts.read`), where its `confirmations` are wired too;
+- **a subscriber's account** (`charges.read`), where the charge journal is kept;
+- **its credits and their payout, the open items and the cases to reconcile** (`credits.read`,
+  `payments.read`, `reconciliation.read`), where invoices are collected and their payments recorded;
+- **the subscribers page and each subscriber's record** (`subscribers.read`), where subscribers are
+  kept.
+
+Without `adminResources` the tenant's routes and the runs that issue, archive, mail and collect work
+as described here, and the operator has none of these pages. `adminResources` also mounts the
+administration's generic controller: `GET admin/tenants`, `GET admin/tenants/:slug` with its suspend
+and reactivate, `GET admin/users`, `GET admin/audit` and `GET admin/subscriptions`, and it cannot be
+left out. An application that keeps tenant, user, audit or subscription routes of its own at those
+paths therefore cannot turn `adminResources` on beside them — the generic controller would declare
+the same routes a second time — and has no operator pages for its invoices. Mounting them without
+the generic controller is planned
+([#338](https://github.com/uelker70/saasicat/issues/338), step 9f).
 
 ### Its document, the archive and the mail
 
@@ -1542,7 +1581,9 @@ long as the contracts it confirms are kept.
 
 ### The register of every invoice
 
-Wherever invoices are issued, the administration's standard page `invoices` lists every invoice of
+Wherever invoices are issued and `adminResources` is on
+([what the operator's side needs](#what-the-operators-side-needs)), the administration's standard
+page `invoices` lists every invoice of
 the months the operator picks — the current month in the installation's time zone where none is, at
 most twelve at a time — by issue date and then number, whichever subscriber and tenant each was for,
 each with what it corrects, what cancelled it, the subscriber it names and whether its document is
@@ -1605,7 +1646,8 @@ holds.
 
 ### The open items
 
-Wherever the payments of collected invoices are recorded, the administration's standard page
+Wherever the payments of collected invoices are recorded and `adminResources` is on, the
+administration's standard page
 `openItems` lists what subscribers still owe and what they are still owed, across every tenant,
 deleted ones included (`SC-ADM-044`): the invoices whose gross less what is settled against them is
 above zero, the oldest due date first, each with the days it is overdue, how it is paid and how its
@@ -1770,8 +1812,8 @@ first — the run asking, or the gateway's callback — and however often (`SC-P
 `SC-PRIC-036`). Adopt `prisma-fragments/24-subscriber-payments.prisma` with the back-relations it
 names on `Subscriber`, `SubscriptionInvoice` and `SubscriptionInvoiceCollection`, run
 `sql/1.0-a-payment-is-recorded.postgres.sql` once before `db push` — and
-`sql/1.0-an-invoice-is-cancelled.postgres.sql` after it, which gives the payments the moves a
-cancellation makes —, and `SaaSiCatModule` takes
+`sql/1.0-an-invoice-is-cancelled.postgres.sql` after that file, also before `db push`, which gives
+the payments the moves a cancellation makes —, and `SaaSiCatModule` takes
 `persistence.entitlement.subscriberPaymentRepository` for `chargeJournal.invoices.payments` unless
 you name another. The start refuses collections without it.
 
