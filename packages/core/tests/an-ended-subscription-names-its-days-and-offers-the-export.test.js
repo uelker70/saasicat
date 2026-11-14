@@ -129,7 +129,7 @@ describe('an ended subscription names its days to every user', () => {
     });
 });
 
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe('the export is offered to the administrator only where the route serves it', () => {
     test('read-only for an ended subscription whose end is recorded, the export wired: offered', () => {
         assert.equal(tenantAccessViewOf(tenantAccessOf([ENDED()]), ADMINISTRATOR).mayExport, true);

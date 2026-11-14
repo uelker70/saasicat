@@ -198,11 +198,11 @@ describes; the payment that settles an invoice lifts its reason at once
 
 ### Subscription ends
 
-| Entity                                                           | Identity / uniqueness                                           | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ---------------------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SubscriptionEnd` (`subscription_ends`)                          | `id`; one row per `subscriptionId`                              | One row per subscription that ended (`SC-CANC-027`): `endsAt`, the moment its cancellation landed, and `deletesOn`, the installation's day its tenant's data is deleted on. Never moved.                                                                                                                                                                                                                                                                                                       |
-| `SubscriptionEndAnnouncement` (`subscription_end_announcements`) | `id`; one row per `subscriptionId`                              | One row per subscription whose end its tenant confirmed with a deletion day (`SC-CANC-021`, `SC-CANC-029`): `endsAt`, the moment the end was to land then, `deletesOn`, the day the tenant was told, `readOnlyDays`, the period it was counted with, and who confirmed it when. Not an end. Never moved.                                                                                                                                                                                       |
-| `TenantExportDownload` (`tenant_export_downloads`)               | `id`; as many rows per `subscriptionId` as downloads were taken | One row per download of a tenant's full export taken after its subscription ended (`SC-PRIV-019`): `subscriptionId`, the end it was offered for, `downloadedAt`, the moment the application handed the file over, `downloadedBy`, who took it, as the audit log tags an actor, `downloadedByUserId`, the id the session named them by, and `size`, the file's bytes (`BIGINT`; never 0, since an empty export is refused). The tenant's acknowledgement that `SC-PRIV-017` names. Never moved. |
+| Entity                                                           | Identity / uniqueness                                           | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SubscriptionEnd` (`subscription_ends`)                          | `id`; one row per `subscriptionId`                              | One row per subscription that ended (`SC-CANC-027`): `endsAt`, the moment its cancellation landed, and `deletesOn`, the installation's day its tenant's data is deleted on. Never moved.                                                                                                                                                                                                                                                                                                                                                                                  |
+| `SubscriptionEndAnnouncement` (`subscription_end_announcements`) | `id`; one row per `subscriptionId`                              | One row per subscription whose end its tenant confirmed with a deletion day (`SC-CANC-021`, `SC-CANC-029`): `endsAt`, the moment the end was to land then, `deletesOn`, the day the tenant was told, `readOnlyDays`, the period it was counted with, and who confirmed it when. Not an end. Never moved.                                                                                                                                                                                                                                                                  |
+| `TenantExportDownload` (`tenant_export_downloads`)               | `id`; as many rows per `subscriptionId` as downloads were taken | One row per download of a tenant's full export taken after its subscription ended (`SC-PRIV-020`): `subscriptionId`, the end it was offered for, `downloadedAt`, the moment the application handed the file over — or, where it delivers the export itself, reported it delivered in full —, `downloadedBy`, who took it, as the audit log tags an actor, `downloadedByUserId`, the id the session named them by, and `size`, the file's bytes (`BIGINT`; never 0, since an empty export is refused). The tenant's acknowledgement that `SC-PRIV-017` names. Never moved. |
 
 **Recorded by a run, beside an `ended` reason.** Nothing marks the moment a
 cancellation lands, so the quarter-hourly run reads the subscriptions a
@@ -239,11 +239,15 @@ was adopted, has none until its tenant declares it again, and an end at once
 whose announcement could not be recorded has none: the end is given its day when
 it is recorded.
 
-**Recorded for every download, beside the end.** The application produces the
-tenant's export through `TenantDataExportPort`; the platform writes a row here
+**Recorded for every download, beside the end.** Where the application produces
+the tenant's export through `TenantDataExportPort`, the platform writes a row here
 once the application has handed the whole file over and before the file is
 sent, so no file leaves without its row and no row claims a file that was not
-produced. It shows that the file was produced for that request, not that it was
+produced. Where the application delivers the export itself, it reports each
+download once the whole file has gone out (`TenantExportDeliveryService`), and
+the row is written then: a download that broke off, or that it does not report,
+leaves none, and neither does a `HEAD`, which carries no file. Either way a row
+shows that the file was produced or delivered for that request, not that it was
 saved. Two downloads are two rows. The operator reads them, the oldest first,
 beside the ended subscription on the tenant's page.
 
@@ -294,8 +298,13 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
    `EntitlementService.computeLimits` with the contract in force and the
    add-ons for `FeatureGuard`. Both read by the tenant the session names, so
    their answer is the same in a guard, a handler, a job and an operator's
-   route (`SC-SEC-019`). A `QuotaProvider`'s count and a plan resolver of the
-   application's own are the application's reads, in the caller's frame.
+   route (`SC-SEC-020`). The record of a download the application delivered
+   itself (`TenantExportDeliveryService`) reads the tenant's end and writes the
+   row inside `RlsBypassPort` as well, by the tenant the session names: the
+   application reports it once its response has gone out, after its handler
+   returned, in no frame its interceptor can be relied on to have kept open. A
+   `QuotaProvider`'s count and a plan resolver of the application's own are the
+   application's reads, in the caller's frame.
 7. **Plan changes keep the concrete contract binding consistent.** Adapters
    that declare atomic plan-binding support update the semantic `plan`, its
    active `planVersionId` and the scheduled change in one transaction.

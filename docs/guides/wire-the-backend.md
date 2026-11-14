@@ -881,7 +881,7 @@ tenant's screens stop at the preview where it is `false`. `GET /billing/usage` a
 too, for the changes that have no preview; the screens leave those out for whoever may not make
 them. Taking the tenant's full export once its subscription has ended (`GET /billing/export`) is
 the tenant's own administrator's alone, since the file holds every user's data and each download is
-the tenant's acknowledgement (`SC-PRIV-019`): the operator, `SUPER_ADMIN` or acting as the tenant,
+the tenant's acknowledgement (`SC-PRIV-020`): the operator, `SUPER_ADMIN` or acting as the tenant,
 is refused it. The billing
 area — the invoices, the contract confirmations, the payment method and the billing details — is
 whoever's who holds the billing permission, reading and changing alike.
@@ -1458,7 +1458,7 @@ billing permission (`tenantBilling.billingPermissionGuards`), and are mounted wh
 issued. The subscriber is the session's tenant's: an invoice or a contract of another subscriber is
 answered `404` like one that does not exist. An earlier tenant's invoices keep that tenant's id
 after a join, so the reads run inside `RlsBypassPort`, by the subscriber's id alone — the one read
-of a tenant's that reaches another tenant's rows (`SC-SEC-019`).
+of a tenant's that reaches another tenant's rows (`SC-SEC-020`).
 
 **The tenant reads its account** at `GET /billing/account`, beside the invoices and behind the same
 guards: per currency, what the subscriber's invoices still owe and of that what is overdue, and
@@ -1884,11 +1884,12 @@ makes the tenant read-only in that run.
   an ended subscription both name the last day the tenant can read and the day its data is deleted
   on, `readOnlyUntil` and `deletesOn` (`SC-CANC-033`), and whether that day has come, `deletionDue`
   — until the deletion runs the data is still there — and both answer `mayExport`, whether this
-  reader can take the tenant's export now. Both are let through in every state, suspended and being
+  reader can take the tenant's export now, and `exportDeliveredBy`, `'platform'` or `'application'`
+  where they can and `null` where not. Both are let through in every state, suspended and being
   deleted included, since they carry the mark `reads-its-state`, which your guard's `enforce` reads
   as the platform does. Mount `TenantAccessBanner` from `@saasicat/ui-vue-tenant` behind your
   sign-in to show it.
-- **Under row-level security** the check reads through `RlsBypassPort` (`SC-SEC-019`). Your guard
+- **Under row-level security** the check reads through `RlsBypassPort` (`SC-SEC-020`). Your guard
   asks it before your interceptor opens the tenant's frame, so a policy on `tenant_access_holds` does
   not see the request's tenant there. The platform therefore reads the tenant's reasons — and what
   they name: an invoice's number, whether an invoice is open, an ended subscription's deletion day —
@@ -1950,8 +1951,9 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   the last day the tenant can still read and take its export on, and `deletesOn`, both days in the
   installation's zone. Write the two days rather than a count of days: a reminder that covers lead
   times passed while no run ran goes out later than `daysBefore` days before the deletion. Tell the
-  administrator to take the export first — `GET /billing/export`, which the tenant's own
-  administrator downloads (below); your application knows the address it serves it at. Each
+  administrator to take the export first — from `GET /billing/export`, or from your own download
+  where your application delivers it (below); your application knows the address it serves it at.
+  Each
   reminder is recorded under the end and the lead time, `<end id>:<days>`, so of several instances
   one sends it. One your port tells nobody is recorded as told to nobody and not tried again — a
   read-only tenant cannot add an administrator — and the next lead time still goes on its day; one
@@ -2015,11 +2017,13 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   `TenantSubscriptionWritePort.endTrial`: a trial that converted, moved its end or was cancelled
   since it was read is left as it is, and what is stored then decides. Both shipped adapters have
   it; a write port of your own adds it.
-- **The tenant takes its export in that time** (`SC-PRIV-019`). The read-only period exists so that
+- **The tenant takes its export in that time** (`SC-PRIV-020`). The read-only period exists so that
   the tenant can take its data with it, and only your application knows what it keeps for a
-  tenant, so it hands the file over: `tenantBilling.subscriptionEnds.export` is a
-  `TenantDataExportPort` of yours, and a start without it is refused
-  (`subscription-ends.requires-export`). Its `export(tenantId)` answers the tenant's full export,
+  tenant, so it produces the file. `tenantBilling.subscriptionEnds.export` says how the file reaches
+  the tenant, in one of two ways, and a start with neither is refused
+  (`subscription-ends.requires-export`): a `TenantDataExportPort` of yours, whose file the platform
+  serves, or `{ deliveredBy: 'application' }`, where your application delivers it from a download
+  of its own (further below). The port's `export(tenantId)` answers the tenant's full export,
   every user's data included, as `{ content, mediaType, fileName }` — the whole file as a
   `Uint8Array`, a media type in printable ASCII, and a name the platform cleans for the header.
   Where your application already has an export, wrap it; where that one is keyed by something
@@ -2056,6 +2060,94 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     `TENANT_EXPORT_DOWNLOAD` where the audit log is wired; the operator reads every download under
     "Access" on the tenant's page. That record is the tenant's acknowledgement (`SC-PRIV-017`): it
     shows that the file was produced for that request, not that it was saved.
+
+    Where the export cannot be held in memory as one file — a ZIP of every document, say — your
+    application delivers it itself, and the platform records each download once it has gone out in
+    full. Declare it, deliver the file from a route of your own, and once the whole response has
+    gone out hand the request and what went out to `TenantExportDeliveryService.recordDelivered`,
+    from `@saasicat/nest/billing`:
+
+    ```ts
+    tenantBilling: {
+        authGuards: [JwtAuthGuard, TenantGuard],
+        subscriptionEnds: { export: { deliveredBy: 'application' } },
+    },
+    ```
+
+    ```ts
+    import { Transform } from 'node:stream';
+
+    @Controller('tenant-export')
+    @UseGuards(JwtAuthGuard, TenantGuard)
+    export class TenantExportController {
+        private readonly logger = new Logger(TenantExportController.name);
+
+        constructor(
+            private readonly archives: MyExportArchive,
+            private readonly deliveries: TenantExportDeliveryService,
+        ) {}
+
+        @Get()
+        @Header('Allow', 'GET')
+        @Roles('TENANT_ADMIN')
+        async download(
+            @Req() request: Request,
+            @Res({ passthrough: true }) response: Response,
+        ): Promise<StreamableFile> {
+            // Express and Fastify run this handler for a `HEAD` and drop the
+            // body: answer it before opening anything.
+            if (request.method === 'HEAD') throw new MethodNotAllowedException();
+            const archive = await this.archives.open(request.user.tenantId);
+            // Counted as it passes, so the size is what went out.
+            let size = 0;
+            const counted = new Transform({
+                transform(chunk: Buffer, _encoding, done) {
+                    size += chunk.length;
+                    done(null, chunk);
+                },
+            });
+            // `close` comes whether the download finished or broke off; only a
+            // finished response has gone out in full.
+            response.on('close', () => {
+                if (!response.writableFinished) return;
+                this.deliveries
+                    .recordDelivered(request, { size, mediaType: 'application/zip' })
+                    .catch((error: unknown) =>
+                        this.logger.warn(`The download was not recorded: ${String(error)}`),
+                    );
+            });
+            response.setHeader('Content-Disposition', 'attachment; filename="export.zip"');
+            return new StreamableFile(archive.pipe(counted), { type: 'application/zip' });
+        }
+    }
+    ```
+
+    On Fastify the response is `reply.raw`. Pass the request your guard checked: the platform reads
+    the tenant and who took the export from its session, by the rules of its own route, and records
+    the download beside the end and audits it as `TENANT_EXPORT_DOWNLOAD` exactly as one it served.
+    It refuses where those rules do not hold, records nothing, and your own trace is all there is:
+    `409 TENANT_EXPORT_NOT_OFFERED` where no end of the tenant's subscription is recorded — your
+    export may well be open to the tenant before that —, `403 TENANT_EXPORT_NOT_FOR_OPERATOR` for the
+    operator, `403 TENANT_ADMIN_REQUIRED` for a user who is not the tenant's administrator,
+    `503 TENANT_EXPORT_FAILED` for a size that is not a whole number of at least one byte, or a media
+    type outside printable ASCII, and `405` for a `HEAD`: the handler runs for one, the response
+    takes the whole stream and finishes, and no file reaches anybody — so the route above answers a
+    `HEAD` before it opens the archive, as the platform's own route does. It reads the end and
+    writes the download past the tenants' row policy, by the tenant the session names
+    (`SC-SEC-020`), since a response's last event runs after your handler returned, in no frame your
+    interceptor can be relied on to have kept open. One download of a tenant at a time, and how
+    long one may take, are yours to bound on this path. The platform mounts no
+    `GET /billing/export` then. The tenant's state says
+    `exportDeliveredBy: 'application'` to the administrator it offers the export to, and
+    `TenantAccessBanner` starts your download instead of loading a file: bind it to `@take-export`.
+    Where nothing is bound, the banner says so in the browser's console as soon as it offers the
+    export, and pressing the button says the export did not arrive. A declaration naming anybody but
+    `'application'` is refused at start (`subscription-ends.export-delivered-by-the-application`):
+    an object with `deliveredBy` is never a port.
+
+    ```vue
+    <TenantAccessBanner :format-date="formatDate" @take-export="startTenantExport" />
+    ```
 
 The day is recorded and kept; nothing is deleted on it by this release.
 
@@ -2655,7 +2747,7 @@ export class StorageGbQuotaProvider implements QuotaProvider {
 
 Under row-level security the limit and the count are read in different places. The platform reads
 the tenant's plan, and with it the limit, through `RlsBypassPort`, by the tenant id it passes
-(`SC-SEC-019`). `count` is yours and runs in whatever frame the quota interceptor runs in — before
+(`SC-SEC-020`). `count` is yours and runs in whatever frame the quota interceptor runs in — before
 your own interceptor has opened the tenant's frame, unless yours runs first. Count by the `tenantId`
 you are handed, in a frame of your own for that tenant, or register your frame interceptor so that
 it runs before the platform's; the order Nest runs them in is in

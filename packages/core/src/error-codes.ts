@@ -1126,24 +1126,29 @@ export const TENANT_ACCESS_ERROR_CODES = {
     TENANT_NOT_SUSPENDED: 'TENANT_NOT_SUSPENDED',
     /**
      * The tenant's full export is offered only once an end of its subscription
-     * is recorded (`SC-PRIV-019`): before that the tenant still works in the
-     * application and has no deadline (`409`).
+     * is recorded (`SC-PRIV-020`): before that the tenant still works in the
+     * application and has no deadline (`409`). Where the application delivers
+     * the export itself, no download is recorded for it.
      */
     TENANT_EXPORT_NOT_OFFERED: 'TENANT_EXPORT_NOT_OFFERED',
     /**
      * The application did not hand the export over — its port failed, or
      * answered something that is not a file. No download was recorded and no
      * file sent; asking again asks the application again (`503`). What it
-     * answered stays in the server log.
+     * answered stays in the server log. Where the application delivers the
+     * export itself, it is what recording a delivery that is not a whole file
+     * answers — no bytes, or a media type outside printable ASCII — and nothing
+     * is recorded either.
      */
     TENANT_EXPORT_FAILED: 'TENANT_EXPORT_FAILED',
     /**
      * The operator — a user holding `SUPER_ADMIN`, or one the application's
      * check let through as acting as the tenant — asked for the tenant's
      * export. Only the tenant's own administrator takes it, so that every
-     * recorded download is the tenant's acknowledgement (`SC-PRIV-019`,
+     * recorded download is the tenant's acknowledgement (`SC-PRIV-020`,
      * `403`); the operator's own export of a tenant is the application's
-     * administration.
+     * administration. Where the application delivers the export itself, the
+     * operator's download is not recorded either.
      */
     TENANT_EXPORT_NOT_FOR_OPERATOR: 'TENANT_EXPORT_NOT_FOR_OPERATOR',
     /**

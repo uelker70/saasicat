@@ -1013,7 +1013,7 @@ _Tested by:_
 every user of its tenant reads, beside the reason that holds the tenant back (`SC-ADM-054`), the last
 day the tenant can still read on and the day its data is deleted on, in the installation's days. The
 operator's page for the tenant names the deletion day beside the same reason (`SC-ADM-053`), and
-every download of the tenant's export (`SC-PRIV-019`) with its day and who took it, or that none was
+every download of the tenant's export (`SC-PRIV-020`) with its day and who took it, or that none was
 taken yet. Until the end is recorded, neither names a day.
 
 _Source:_ #337 (decided 2026-11-12)
@@ -1036,6 +1036,9 @@ _Tested by:_
         - the last day before a deletion on the first of a year is the last of the year before
         - every other reason names no days, even where a day is read under its reference
         - an ended subscription whose end is not recorded yet names no days
+- `packages/nest/tests/the-application-delivers-the-tenants-export.test.js`
+    - the operator's page lists a delivered download as it lists one the platform served
+        - with its moment, who took it and its size, the oldest first
 - `packages/nest/tests/the-days-and-downloads-of-an-ended-subscription-are-shown.test.js`
     - every user of the tenant reads the days its ended subscription leaves
         - a user without any role reads the last readable day and the deletion day

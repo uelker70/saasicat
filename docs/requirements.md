@@ -125,15 +125,15 @@ properties it has while doing it.
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
-| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 19      |
-| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 19      |
+| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 20      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 20      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 699 entries: 🟢 606 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
-🔵 55 superseded, 🔴 7 withdrawn.
+Of 701 entries: 🟢 606 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+🔵 57 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -220,6 +220,8 @@ Of 699 entries: 🟢 606 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source),
 [SC-SEC-003](#sc-sec-003--reads-that-legitimately-cross-tenants-are-named-as-the-exceptions-they-are),
 [SC-SEC-018](#sc-sec-018--reads-that-cross-tenants-are-named-and-a-tenants-reaches-only-its-own-subscriber),
+[SC-SEC-019](#sc-sec-019--reads-past-the-tenant-policy-are-named-a-tenants-reach-only-its-subscriber-and-itself),
+[SC-PRIV-019](#sc-priv-019--once-its-subscription-has-ended-a-tenants-administrator-takes-its-full-export),
 [SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),
 [SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered)
 
@@ -231,7 +233,7 @@ Of 699 entries: 🟢 606 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 699 requirements. Do not edit by hand:
+Generated from `requirements/` — 701 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -8444,7 +8446,7 @@ _Tested by:_
 every user of its tenant reads, beside the reason that holds the tenant back (`SC-ADM-054`), the last
 day the tenant can still read on and the day its data is deleted on, in the installation's days. The
 operator's page for the tenant names the deletion day beside the same reason (`SC-ADM-053`), and
-every download of the tenant's export (`SC-PRIV-019`) with its day and who took it, or that none was
+every download of the tenant's export (`SC-PRIV-020`) with its day and who took it, or that none was
 taken yet. Until the end is recorded, neither names a day.
 
 _Source:_ #337 (decided 2026-11-12)
@@ -8467,6 +8469,9 @@ _Tested by:_
         - the last day before a deletion on the first of a year is the last of the year before
         - every other reason names no days, even where a day is read under its reference
         - an ended subscription whose end is not recorded yet names no days
+- `packages/nest/tests/the-application-delivers-the-tenants-export.test.js`
+    - the operator's page lists a delivered download as it lists one the platform served
+        - with its moment, who took it and its size, the oldest first
 - `packages/nest/tests/the-days-and-downloads-of-an-ended-subscription-are-shown.test.js`
     - every user of the tenant reads the days its ended subscription leaves
         - a user without any role reads the last readable day and the deletion day
@@ -13412,7 +13417,7 @@ zero is the other: it issues no invoice (`SC-PRIC-048`). Once means on one invoi
 cancelled invoice and the replacement that follows it (`SC-PRIC-095`) are not two. Each charge
 carries its period (`SC-AUD-011`). An invoice holds only the charges of the tenant it was issued
 for; a tenant's users see the invoices of their subscriber, an earlier tenant's joined into it
-included (`SC-ADM-027`, `SC-SEC-019`).
+included (`SC-ADM-027`, `SC-SEC-020`).
 
 _Source:_ #276 · #334 · #336 (decided 2026-11-01) ·
 
@@ -17641,6 +17646,20 @@ _Tested by:_
         - refused with a code the platform does not word, says the export did not arrive rather than
           the code
         - where the connection breaks, says the export did not arrive
+    - the tenant's export, where the application delivers it
+        - the button starts the application's own download, and nothing is loaded from the platform
+        - is busy while the application's download runs, and cannot be pressed a second time
+          meanwhile
+        - where the application's download fails, says the export did not arrive and leaves the
+          banner as it was
+        - where the platform serves it, the button downloads it as before and the application's
+          action is not started
+        - where nothing listens, says so in the console once the export is offered, before anybody
+          presses
+        - where nothing listens, pressing says the export did not arrive, and nothing is loaded from
+          the platform
+        - where the export is not offered, nothing is said in the console, whether or not anything
+          listens
 
 <!-- END proof -->
 
@@ -18058,7 +18077,7 @@ is still open and the application no longer has its tenant, the record says so i
 the link as ended: a link ends when the application's deletion of the tenant closes it, and a tenant
 the application soft-deleted can come back. Only the platform administrator reaches the list and the
 record (`SC-ADM-001`), and both read past the tenants' row-level policy the way the administration
-does (`SC-SEC-019`).
+does (`SC-SEC-020`).
 
 _Source:_ #335 (decided 2026-10-25)
 
@@ -18144,7 +18163,7 @@ The section names whose account it is, by customer number and legal name. It is 
 no total: a sum of charges would be read as what is owed (`SC-ADM-044`). It is offered only where
 the installation keeps a journal of charges (`SC-ADM-015`), only the platform administrator reaches
 it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the administration does
-(`SC-SEC-019`).
+(`SC-SEC-020`).
 
 _Source:_ #276 · #318 · #335 (decided 2026-10-25)
 
@@ -18523,7 +18542,7 @@ their own and said before anything is asked. An invoice that stands is cancelled
 from the subscriber's record (`SC-ADM-020`, `SC-ADM-035`), and on the command line by its number
 alone, a tenant named beside it only refusing an invoice issued for another tenant. Only the
 platform administrator reaches the register (`SC-ADM-001`), and it reads past the tenants' row-level
-policy the way the administration does (`SC-SEC-019`).
+policy the way the administration does (`SC-SEC-020`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -18725,7 +18744,7 @@ from the record; and per currency what is owed, of it what is overdue, and what 
 What an invoice owes and what a credit holds are read by the same rule the record reads them by, and
 never kept a second time beside the rows they come from. Only the platform administrator reaches
 them (`SC-ADM-001`), and they read past the tenants' row-level policy the way the administration
-does (`SC-SEC-019`).
+does (`SC-SEC-020`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -18854,7 +18873,7 @@ that day and its price per period, and leads into the subscriber's record with t
 The subscriptions page says that it shows the current state per tenant and, where the register is
 offered, points to it. The register is offered where a subscriber's contracts are (`SC-AUD-016`),
 only the platform administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level
-policy the way the administration does (`SC-SEC-019`).
+policy the way the administration does (`SC-SEC-020`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -18956,7 +18975,7 @@ when, the months and the moment. It is taken from the invoices page or with
 `<app> invoices export`, which writes into the directory named or the current one and refuses to
 write over a file of the same name. It is a read, so it asks for no second factor, only the platform
 administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the
-administration does (`SC-SEC-019`).
+administration does (`SC-SEC-020`).
 
 _Source:_ #335 (decided 2026-10-27) · #276
 
@@ -24128,7 +24147,7 @@ by its reference is asking whether a named subscriber holds it, and another subs
 that it holds none rather than with the row; a confirmation carrying a reference another subscriber
 holds is refused, rather than recorded or answered as a repeat of a payment method that is not this
 subscriber's. Both are reached on the gateway's callback, which arrives without a session, so an
-installation that keeps its tenants apart with a policy lifts that policy there (`SC-SEC-019`) and
+installation that keeps its tenants apart with a policy lifts that policy there (`SC-SEC-020`) and
 what the question names is all that is left to bound it. Where a provider issues one reference for
 two payers, the second subscriber's confirmation is refused rather than mixed into the first's
 (`SC-PRIC-030`): taking it needs an account of its own.
@@ -24511,7 +24530,7 @@ _Tested by:_
 row-level-security bypass, so an operator's lists and counts are not empty under a tenant's policy.
 Every other route — a tenant's, a public one — runs in whatever frame the installation opened for the
 request. The frame follows from the guard chain rather than from a list of routes, and the check that
-the administrator is calling runs before it opens. This is the exception `SC-SEC-019` names. A chain
+the administrator is calling runs before it opens. This is the exception `SC-SEC-020` names. A chain
 an integrator sets for a module the platform mounts frames its routes where it holds `SuperAdminGuard`,
 and a route an integrator builds itself chooses its frame with `AdminBypassRlsInterceptor`.
 
@@ -24636,7 +24655,33 @@ _Source:_ `docs/explanation/data-model.md` · #336 (decided 2026-11-02)
 
 ### SC-SEC-019 — Reads past the tenant policy are named; a tenant's reach only its subscriber and itself
 
-🟢 🔒 Everything is scoped to a tenant except the reads named here. The operator's administration acts
+🔵 _(Superseded on 2026-11-14 by `SC-SEC-020`.)_ 🔒 Everything is scoped to a tenant except the reads
+named here. The operator's administration acts on behalf of the platform rather than of a tenant,
+the platform-wide counts it needs included. The platform's own work that serves no single tenant
+reads across them too: a scheduled run, and a gateway's callback, which arrives without a session
+(`SC-SEC-014`). A tenant's own read crosses only to the invoices and contract confirmations of its
+subscriber, which reach the tenants joined into it (`SC-ADM-027`), as their invoices keep the tenant
+they were issued for. That read is by the subscriber the session's tenant belongs to, never one the
+request names; every document it hands out is checked against that subscriber first, and another
+subscriber's invoice or contract is answered as one that does not exist. Two checks of a tenant's
+request read past the policy as well, because they run in guards and interceptors, before the
+installation opens the request's frame, and so read the same wherever they are asked: in a guard, in
+a handler, in a job and on an operator's route. The check of what a tenant's users may do
+(`SC-ADM-055`) reads the tenant's reasons and what they name — an invoice's number, the deletion day
+of an ended subscription — and, where a read-only tenant starts a payment, whether one of its
+subscriber's invoices is open. The checks of what its plan allows read its subscription — and where
+the full entitlement answers, the contract in force and the add-ons beside it — for the features a
+route requires and the limit a quota is held to. Both read by the tenant the request is for, as the
+session names it (`SC-SEC-002`), never one the request names, and no other tenant's records enter a
+tenant's state or limits. What an application supplies to these checks itself — the count behind a
+quota, a plan resolved by a resolver of its own — is its own read, in whatever frame the platform
+calls it in.
+
+_Source:_ `docs/explanation/data-model.md` · #336 (decided 2026-11-02) · decided 2026-11-13
+
+### SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
+
+🟢 🔒 Everything is scoped to a tenant except what is named here. The operator's administration acts
 on behalf of the platform rather than of a tenant, the platform-wide counts it needs included. The
 platform's own work that serves no single tenant reads across them too: a scheduled run, and a
 gateway's callback, which arrives without a session (`SC-SEC-014`). A tenant's own read crosses only
@@ -24655,9 +24700,14 @@ add-ons beside it — for the features a route requires and the limit a quota is
 the tenant the request is for, as the session names it (`SC-SEC-002`), never one the request names,
 and no other tenant's records enter a tenant's state or limits. What an application supplies to
 these checks itself — the count behind a quota, a plan resolved by a resolver of its own — is its
-own read, in whatever frame the platform calls it in.
+own read, in whatever frame the platform calls it in. The record of a download of the tenant's
+export that the application delivered itself (`SC-PRIV-020`) reads the tenant's end and writes the
+download and its audit entry past the policy as well, because the application reports it once its
+response has gone out, after its handler has returned and in whatever frame that leaves; it reads
+and writes by the tenant the session names, never one the request names, and the download it writes
+is that tenant's.
 
-_Source:_ `docs/explanation/data-model.md` · #336 (decided 2026-11-02) · decided 2026-11-13
+_Source:_ `docs/explanation/data-model.md` · #336 (decided 2026-11-02) · #512 (decided 2026-11-14)
 
 <!-- BEGIN proof -->
 
@@ -24722,6 +24772,9 @@ _Tested by:_
     - the platform's own tenant routes, as SaaSiCatModule composes them
         - their guard refuses a suspended tenant whose reasons a policy shows only inside the bypass
         - the route that answers the state tells the suspended tenant it is suspended
+- `packages/nest/tests/the-application-delivers-the-tenants-export.test.js`
+    - the record is read and written past the tenant policy, wherever the application reports it
+        - a delivery reported in any frame is recorded for the session’s tenant, and audited
 - `packages/nest/tests/what-a-plan-allows-is-read-through-the-bypass.test.js`
     - what a tenant's plan allows is read through the bypass, whatever frame the caller is in
         - StaticFeatureGuard lets a tenant whose plan has the feature through and refuses one whose
@@ -24942,21 +24995,50 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
 
-🟢 🔒 From the moment the end of the tenant's subscription is recorded (`SC-CANC-027`) until its data
-is deleted, a user holding the tenant's administrator role downloads the tenant's full export as
-one file, which the application produces. The tenant's other users cannot, since it holds every
-user's data. Before the end is recorded the export is refused with a stable code, as the tenant
-still works in the application; after the deletion day it is still offered while the data is there.
-A suspension or a deletion under way refuses it as it refuses every request of the tenant's users
-(`SC-ADM-055`). The tenant is always the session's, never one the request names. The application is
-asked on every download; the download is recorded only once the application has handed the whole
-file over, and the file is sent only once its download is recorded, so a file never leaves without
-its record and a record never claims a file the application did not produce. Every download is a
-record of its own, with its moment and who took it, kept beside the end; it is the tenant's
-acknowledgement that `SC-PRIV-017` names. A download shows that the file was produced for that
-request; it cannot show that it was saved.
+🔵 _(Superseded on 2026-11-14 by `SC-PRIV-020`.)_ 🔒 From the moment the end of the tenant's
+subscription is recorded (`SC-CANC-027`) until its data is deleted, a user holding the tenant's
+administrator role downloads the tenant's full export as one file, which the application produces.
+The tenant's other users cannot, since it holds every user's data. Before the end is recorded the
+export is refused with a stable code, as the tenant still works in the application; after the
+deletion day it is still offered while the data is there. A suspension or a deletion under way
+refuses it as it refuses every request of the tenant's users (`SC-ADM-055`). The tenant is always
+the session's, never one the request names. The application is asked on every download; the download
+is recorded only once the application has handed the whole file over, and the file is sent only once
+its download is recorded, so a file never leaves without its record and a record never claims a file
+the application did not produce. Every download is a record of its own, with its moment and who took
+it, kept beside the end; it is the tenant's acknowledgement that `SC-PRIV-017` names. A download
+shows that the file was produced for that request; it cannot show that it was saved.
 
 _Source:_ #337 (decided 2026-11-12)
+
+### SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
+
+🟢 🔒 From the moment the end of the tenant's subscription is recorded (`SC-CANC-027`) until its data
+is deleted, a user holding the tenant's administrator role is offered the tenant's full export as
+one file, which the application produces. The tenant's other users are not, since it holds every
+user's data, and neither is the operator acting as the tenant. Before the end is recorded the export
+is not offered, as the tenant still works in the application; after the deletion day it is still
+offered while the data is there. The tenant is always the session's, never one the request names.
+The application either hands the file over for the platform to serve, or declares that it delivers
+the export from a download of its own; it does not start with neither, nor with a declaration naming
+anybody else as delivering it. Where the platform serves the file, a suspension or a deletion under
+way refuses the download as it refuses every request of the tenant's users (`SC-ADM-055`), and any
+other download outside these rules is refused with a stable code; the application is asked on every
+download, the download is recorded only once the application has handed the whole file over, and the
+file is sent only once its download is recorded, so a file never leaves without its record and a
+record never claims a file the application did not produce. Where the application delivers it, who
+may download it from its own route is the application's to decide, and the platform records a
+download once the application reports that the whole file has gone out, at least one byte of it —
+only for the session's tenant, taken by its administrator rather than the operator, with an end
+recorded; otherwise it records nothing and says why with a stable code. There the file has left
+before its record is written, so a download that broke off, or that the application does not report,
+leaves no record. On either path a `HEAD`, which carries no file, is answered `405` and records
+nothing. Either way every download recorded is a record of its own, with its moment, who took it and
+its size, kept beside the end; it is the tenant's acknowledgement that `SC-PRIV-017` names. A
+download shows that the file was produced or delivered for that request; it cannot show that it was
+saved.
+
+_Source:_ #337 (decided 2026-11-12) · #512 (decided 2026-11-14)
 
 <!-- BEGIN proof -->
 
@@ -25043,6 +25125,57 @@ _Tested by:_
         - tenant billing wired by hand with the ends and without it does not start, naming the
           option and the port
         - given, the route is mounted and the export is asked through the port given
+    - the declaration that the application delivers the export itself
+        - stands in for the port: nothing is refused
+        - naming anybody else as delivering it, the start is refused in one sentence naming the
+          application
+        - tenant billing wired by hand with a declaration naming anybody else does not start
+        - the refusal of a start with neither names both ways
+        - mounts no route of the platform for the export, and asks no port
+        - hands the application the service it records each delivered download through
+        - where the platform serves the export, its route is mounted and no such service handed out
+        - tenant billing wired by hand with it mounts no route for the export either
+- `packages/nest/tests/the-application-delivers-the-tenants-export.test.js`
+    - the application records a download it delivered in full
+        - it is recorded beside the end, with the moment, who took it from the session and the bytes
+          that went out
+        - the application is answered the download as recorded
+        - and written to the audit log as a download the platform serves is
+        - every delivery is a record of its own, the oldest first
+        - is still recorded after the deletion day, while the data is there
+        - of two ended subscriptions, the latest end is the one the download is recorded for
+        - one at a time is the application’s to keep: two deliveries reported together are both
+          recorded
+        - an audit log that fails leaves the download recorded, and says so in the server log
+        - a download that cannot be recorded is thrown as it is, and writes no audit entry
+    - a delivery is recorded only once an end is recorded
+        - ${state}: refused as not offered, and nothing is recorded or audited
+        - an end whose reason was lifted records nothing any more
+    - only a whole file is recorded
+        - one byte is a file, and is recorded
+        - ${what}: refused as an export not delivered, and nothing is recorded or audited
+    - a HEAD carries no file, so it records nothing
+        - ${method}: refused as the method the export is not taken by, and nothing is recorded or
+          audited
+    - the operator does not record a download in the tenant’s name
+        - a user holding SUPER_ADMIN is refused with a code of its own, and nothing is recorded
+        - the operator the application's check let through as acting is refused, whatever role the
+          session carries
+        - a request the application checked as a tenant user’s is recorded as the administrator’s
+        - a user of the tenant without the administrator’s role is refused, and nothing is recorded
+        - a session that names no user is refused, and nothing is recorded
+    - the state a user reads says who delivers the export
+        - to the administrator, the application, where it delivers the export
+        - to the administrator, the platform, where it serves the export
+        - to anybody who is not offered the export, nobody
+        - while no end is recorded, nobody
+    - the download recorded is the session's tenant's alone
+        - a request naming another tenant anywhere but its session is answered for its session
+        - another tenant's end, recorded under a reason of its own, records its own download only
+- `packages/nest/tests/the-compiler-asks-for-what-serving-tenants-needs.test.js`
+    - the options of an application that serves tenants
+        - compile with the declaration that the application delivers the export itself
+        - do not compile with a declaration naming anybody else as delivering it
 - `packages/nest/tests/the-days-and-downloads-of-an-ended-subscription-are-shown.test.js`
     - the operator's page names the day and every download of the export
         - the deletion day, and every download with its moment and who took it, the oldest first
@@ -25067,6 +25200,20 @@ _Tested by:_
         - refused with a code the platform does not word, says the export did not arrive rather than
           the code
         - where the connection breaks, says the export did not arrive
+    - the tenant's export, where the application delivers it
+        - the button starts the application's own download, and nothing is loaded from the platform
+        - is busy while the application's download runs, and cannot be pressed a second time
+          meanwhile
+        - where the application's download fails, says the export did not arrive and leaves the
+          banner as it was
+        - where the platform serves it, the button downloads it as before and the application's
+          action is not started
+        - where nothing listens, says so in the console once the export is offered, before anybody
+          presses
+        - where nothing listens, pressing says the export did not arrive, and nothing is loaded from
+          the platform
+        - where the export is not offered, nothing is said in the console, whether or not anything
+          listens
 
 <!-- END proof -->
 

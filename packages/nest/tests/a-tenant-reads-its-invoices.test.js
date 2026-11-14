@@ -173,7 +173,7 @@ test('every route of the invoices and confirmations is behind authentication and
 });
 
 // @requirement SC-PRIC-097 — Every charge is invoiced once, and a tenant sees every invoice of its subscriber
-// @requirement SC-SEC-019 — Reads past the tenant policy are named; a tenant's reach only its subscriber and itself
+// @requirement SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
 describe("a tenant's invoices", () => {
     test('are its subscriber’s, the newest first, each as the list shows it', async () => {
         const { service } = billingArea({
@@ -388,7 +388,7 @@ describe('the day a direct debit paid now is collected on, beside the account', 
     });
 });
 
-// @requirement SC-SEC-019 — Reads past the tenant policy are named; a tenant's reach only its subscriber and itself
+// @requirement SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
 // @requirement SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
 describe("an invoice's document", () => {
     test('of the subscriber’s own invoice is the archived file', async () => {
@@ -434,7 +434,7 @@ describe("an invoice's document", () => {
     }
 });
 
-// @requirement SC-SEC-019 — Reads past the tenant policy are named; a tenant's reach only its subscriber and itself
+// @requirement SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
 describe("a tenant's contract confirmations", () => {
     const contractOf = (id, concludedAt, state, archivedAt = null) => ({
         id,
@@ -501,7 +501,7 @@ describe("a tenant's contract confirmations", () => {
     });
 });
 
-// @requirement SC-SEC-019 — Reads past the tenant policy are named; a tenant's reach only its subscriber and itself
+// @requirement SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
 describe('the routes', () => {
     test('serve the tenant of the session, and refuse a request that carries none', async () => {
         const { service } = billingArea({

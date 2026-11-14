@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 34 rules, in 18 areas.
+There are 35 rules, in 18 areas.
 
 ## core
 
@@ -137,8 +137,16 @@ TenantBilling is on, but there is nowhere to keep the end of each subscription
 
 `tenantBilling.subscriptionEnds.export` is missing: wherever the end of a
 subscription is kept, the application hands over the tenant's full export
-through a TenantDataExportPort, because the read-only period before the deletion
-day exists for the tenant to take it (SC-PRIV-019).
+through a TenantDataExportPort, or declares `{ deliveredBy: 'application' }` and
+delivers it itself, because the read-only period before the deletion day exists
+for the tenant to take it (SC-PRIV-020).
+
+### subscription-ends.export-delivered-by-the-application
+
+`tenantBilling.subscriptionEnds.export` declares `deliveredBy: "platform"`,
+which nobody delivers the export as: an application that delivers the tenant's
+full export itself declares `{ deliveredBy: 'application' }`, and one that hands
+it over passes a TenantDataExportPort instead (SC-PRIV-020).
 
 ## subscription-notices
 

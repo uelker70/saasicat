@@ -118,7 +118,7 @@ export class AdminResourcesService {
      * The tenant with its state and every reason it is held back for, the
      * oldest first, an invoice named by its number (`SC-ADM-053`), and an
      * ended subscription with its deletion day and every download of the
-     * tenant's export (`SC-CANC-033`, `SC-PRIV-019`) — each read once, and
+     * tenant's export (`SC-CANC-033`, `SC-PRIV-020`) — each read once, and
      * the ends only where one is open.
      */
     async getTenantDetail(slug: string): Promise<AdminTenantDetailEntry> {

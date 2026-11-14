@@ -552,8 +552,9 @@ export interface TenantPlanSectionI18n {
     /** To a user without the billing permission, under an unpaid invoice: who can pay it. */
     accessAskBilling: string;
     /**
-     * To the tenant's administrator once its subscription has ended: downloads
-     * the tenant's full export (`SC-PRIV-019`).
+     * To the tenant's administrator once its subscription has ended: takes the
+     * tenant's full export (`SC-PRIV-020`), from the platform or from the
+     * application's own download.
      */
     accessExport: string;
     /** The export did not arrive, for a reason the platform names no sentence for. */

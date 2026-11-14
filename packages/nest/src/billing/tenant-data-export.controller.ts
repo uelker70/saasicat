@@ -1,6 +1,5 @@
 import {
     Controller,
-    ForbiddenException,
     Get,
     Header,
     Inject,
@@ -10,18 +9,12 @@ import {
     StreamableFile,
     UseGuards,
 } from '@nestjs/common';
-import { TENANT_ACCESS_ERROR_CODES } from '@saasicat/core';
 
-import { codedError } from '../errors/coded-error.js';
 import { TenantAccessService } from '../tenant-access/tenant-access.service.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
+import { exportTakerOf, isHead, type ExportTakerResolvers } from './export-taker.js';
 import { downloadOf } from './invoices/archived-download.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
-import {
-    requireTenantUserId,
-    tenantActorOf,
-    type TenantAuditResolvers,
-} from './tenant-audit-actor.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
     TENANT_ID_RESOLVER_TOKEN,
@@ -33,14 +26,13 @@ import {
     type UserIdResolver,
 } from './tenant-billing.tokens.js';
 import { TenantDataExportService } from './tenant-data-export.service.js';
-import { tenantIdOf } from './tenant-id.js';
-import { isTheOperator } from './tenant-roles.js';
 
 /**
  * `GET billing/export` — the tenant's full export as one file, for its own
- * administrator, once its subscription has ended (`SC-PRIV-019`). The tenant is
- * the session's, never a value the request carries; every download is recorded
- * before the file is sent.
+ * administrator, once its subscription has ended (`SC-PRIV-020`), mounted where
+ * the application hands the file over rather than delivering it itself. The
+ * tenant is the session's, never a value the request carries; every download is
+ * recorded before the file is sent.
  */
 @Controller('billing')
 @UseGuards(ComposedTenantAuthGuard)
@@ -86,33 +78,20 @@ export class TenantDataExportController {
         // `TenantAdminGuard` lets the operator through as an administrator;
         // the export is not theirs to take, since each download is recorded as
         // the tenant's acknowledgement (`SC-PRIV-017`).
-        if (isTheOperator(request, this.access?.actsAsOperator(request) ?? false)) {
-            throw new ForbiddenException(
-                codedError(TENANT_ACCESS_ERROR_CODES.TENANT_EXPORT_NOT_FOR_OPERATOR),
-            );
-        }
-        const tenantId = tenantIdOf(this.tenantIdResolver, request);
-        const resolvers = this.resolvers();
-        const actor = tenantActorOf(request, requireTenantUserId(request, resolvers), resolvers);
+        const { tenantId, actor } = exportTakerOf(
+            request,
+            this.resolvers(),
+            this.access?.actsAsOperator(request) ?? false,
+        );
         return downloadOf(await this.exports.take(tenantId, actor, new Date()), 'export');
     }
 
-    private resolvers(): TenantAuditResolvers {
+    private resolvers(): ExportTakerResolvers {
         return {
+            tenantId: this.tenantIdResolver,
             userId: this.userIdResolver,
             email: this.userEmailResolver,
             context: this.auditContextResolver,
         };
     }
-}
-
-/** Whether `request` is a `HEAD`, which a download answers without its file. */
-function isHead(request: unknown): boolean {
-    return (
-        typeof request === 'object' &&
-        request !== null &&
-        'method' in request &&
-        typeof request.method === 'string' &&
-        request.method.toUpperCase() === 'HEAD'
-    );
 }

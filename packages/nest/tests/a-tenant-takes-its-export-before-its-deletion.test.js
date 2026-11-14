@@ -1,5 +1,5 @@
 // A tenant whose subscription ended takes its full export before its data is
-// deleted (`SC-PRIV-019`): its administrator downloads it from
+// deleted (`SC-PRIV-020`): its administrator downloads it from
 // `GET billing/export`, the application hands the file over through
 // `TenantDataExportPort`, and every download is recorded beside the end before
 // the file is sent — the tenant's acknowledgement `SC-PRIV-017` names.
@@ -217,7 +217,7 @@ async function quietly(work) {
     return logged;
 }
 
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe("a tenant's administrator takes its export once its subscription ended", () => {
     test('the file goes out as the application produced it, under its name', async () => {
         const { route } = await installation();
@@ -355,7 +355,7 @@ describe("a tenant's administrator takes its export once its subscription ended"
     });
 });
 
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe('the export is offered only once an end is recorded', () => {
     test('a tenant that is open is refused, and the application is not asked', async () => {
         const { route, port, ends } = await installation({ kinds: [], endRecorded: false });
@@ -400,7 +400,7 @@ describe('the export is offered only once an end is recorded', () => {
     });
 });
 
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe('a file never leaves without its record, and no record claims a file not produced', () => {
     test('an application that fails is refused with a stable code, and nothing is recorded', async () => {
         const port = exportPort(async () => {
@@ -506,7 +506,7 @@ describe('a file never leaves without its record, and no record claims a file no
     });
 });
 
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe('one export of a tenant at a time, since each is held in memory as a whole', () => {
     test('a second request while the first is produced is refused, and the application is asked once', async () => {
         const port = heldPort();
@@ -604,7 +604,7 @@ describe('one export of a tenant at a time, since each is held in memory as a wh
     });
 });
 
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe("the export is the session's tenant's alone", () => {
     test('a request naming another tenant anywhere but its session is answered for its session', async () => {
         const { route, port } = await installation();
@@ -658,7 +658,7 @@ describe("the export is the session's tenant's alone", () => {
     });
 });
 
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe('the file name the application gives is not trusted for the header', () => {
     test('path separators, quotes and line breaks are replaced', async () => {
         const port = exportPort(async () => ({
@@ -685,7 +685,7 @@ describe('the file name the application gives is not trusted for the header', ()
     });
 });
 
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe('where the route is checked', () => {
     test('it carries no access mark, so a read-only tenant reads it as a GET', () => {
         const route = TenantDataExportController.prototype.export;
@@ -737,7 +737,7 @@ describe('where the route is checked', () => {
     });
 });
 
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe('the operator does not take the export in the tenant’s name', () => {
     test('a user holding SUPER_ADMIN is refused with a code of its own, and nothing is asked or recorded', async () => {
         const { route, port, ends, audited } = await installation();
@@ -795,7 +795,7 @@ describe('the operator does not take the export in the tenant’s name', () => {
     });
 });
 
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe('the state a user reads offers the export exactly where the route serves it', () => {
     const STATES = {
         open: { kinds: [], endRecorded: false },

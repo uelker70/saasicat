@@ -1,5 +1,5 @@
 // `GET billing/export` asked over real HTTP, on both platforms an installation
-// runs Nest on (`SC-PRIV-019`). Over HTTP because what these cases rest on is
+// runs Nest on (`SC-PRIV-020`). Over HTTP because what these cases rest on is
 // the platform's: a `HEAD` is answered by the `GET` handler on both, and the
 // operator acting as the tenant is said so by the application's own guard,
 // which only a request passing through the guards carries to the route.
@@ -141,7 +141,7 @@ async function onEachPlatform(work) {
     }
 }
 
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe("the tenant's export over HTTP, on Express and on Fastify", () => {
     test('a GET hands the administrator the file and records the download', async () => {
         await onEachPlatform(async ({ on, ask, ends, port }) => {

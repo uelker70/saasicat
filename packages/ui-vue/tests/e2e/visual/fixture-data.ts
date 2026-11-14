@@ -1098,6 +1098,7 @@ const TENANT_ACCESS_ENDED = {
     holdsBillingPermission: true,
     mayPay: true,
     mayExport: true,
+    exportDeliveredBy: 'platform',
 };
 
 // The tenant's subscriber, as its master data stands — a business in Germany

@@ -1,7 +1,7 @@
 // What is shown of a subscription that ended: to every user of its tenant the
 // last day it can still read and the day its data is deleted on, and to the
 // operator on the tenant's page that day and every download of the tenant's
-// export, each with its moment and who took it (`SC-CANC-033`, `SC-PRIV-019`).
+// export, each with its moment and who took it (`SC-CANC-033`, `SC-PRIV-020`).
 //
 // The ends and the downloads are read once per request, whatever the number of
 // reasons, and only where an ended subscription is among them; the operator
@@ -213,7 +213,7 @@ describe('every user of the tenant reads the days its ended subscription leaves'
 
 // @requirement SC-CANC-033 — An ended subscription's deletion day is shown to the tenant and to the operator
 describe("the operator's page names the day and every download of the export", () => {
-    // @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+    // @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
     test('the deletion day, and every download with its moment and who took it, the oldest first', async () => {
         const { admin, ends } = await installation();
         await downloaded(ends, SECOND);

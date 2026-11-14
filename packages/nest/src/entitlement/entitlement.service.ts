@@ -222,7 +222,7 @@ export class EntitlementService {
      *
      * The tenant's subscription and everything read with it — its contract in
      * force, its add-on bookings — are read through the bypass where one is
-     * bound (`SC-SEC-019`), by the tenant asked about, in one frame. A feature
+     * bound (`SC-SEC-020`), by the tenant asked about, in one frame. A feature
      * guard asks before the application's interceptor opens the tenant's
      * frame, where a policy does not see the request's tenant; read through
      * the bypass, the limits are the same in a guard, a handler and a job,

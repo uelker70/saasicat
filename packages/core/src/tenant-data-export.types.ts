@@ -1,11 +1,45 @@
-// A tenant's full export, as the application hands it to the platform to serve
-// to the tenant's administrators once its subscription has ended
-// (`SC-PRIV-019`).
+// A tenant's full export, which its administrators take once its subscription
+// has ended (`SC-PRIV-020`), and the two ways it reaches them.
 //
 // The platform does not know what an application keeps for a tenant, so it
-// does not assemble the export: it asks the application for the file and
-// serves it under the tenant's session. The fields carry the names an invoice
-// document carries (`InvoiceDocument`), so one download helper serves both.
+// does not assemble the export. Either the application hands the file over and
+// the platform serves it under the tenant's session (`TenantDataExport`), or
+// the application delivers it from a download of its own and tells the
+// platform once it has gone out in full (`DeliveredTenantExport`). Both leave
+// the same record of the download. The fields of a file handed over carry the
+// names an invoice document carries (`InvoiceDocument`), so one download
+// helper serves both.
+
+/**
+ * Who delivers a tenant's full export to its administrator: `'platform'` from
+ * `GET billing/export`, out of the file `TenantDataExportPort` hands over, or
+ * `'application'` from a download of the application's own.
+ */
+export type TenantExportDeliverer = 'platform' | 'application';
+
+/**
+ * Declares that the application delivers the tenant's full export itself, in
+ * place of a `TenantDataExportPort`: from a download of its own, which may
+ * stream a file too large to hold in memory, and which records each download
+ * with the platform once it has gone out in full.
+ */
+export interface TenantExportDeliveredByTheApplication {
+    deliveredBy: 'application';
+}
+
+/**
+ * What the application says of an export it delivered itself, once the whole
+ * file has gone out: what the record and the audit log keep of it.
+ */
+export interface DeliveredTenantExport {
+    /** The bytes that went out, a whole number of at least 1: an empty export is no export. */
+    size: number;
+    /**
+     * Such as `application/zip`: printable ASCII, as for a file the platform
+     * serves, so the audit log reads both alike.
+     */
+    mediaType: string;
+}
 
 /** The tenant's full export as one file. */
 export interface TenantDataExport {
@@ -15,8 +49,10 @@ export interface TenantDataExport {
      * a file the application has finished producing can be recorded as handed
      * over. A very large export is therefore held in memory once while it is
      * served — one per tenant at a time within a process, a second request
-     * meanwhile being refused (`TENANT_EXPORT_IN_PROGRESS`). An empty one is
-     * refused as an export the application did not produce.
+     * meanwhile being refused (`TENANT_EXPORT_IN_PROGRESS`). An export too
+     * large for that is delivered by the application itself
+     * (`TenantExportDeliveredByTheApplication`). An empty one is refused as an
+     * export the application did not produce.
      */
     content: Uint8Array;
     /**

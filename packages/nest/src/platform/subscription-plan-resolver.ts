@@ -18,7 +18,7 @@ const DEFAULT_ACTIVE_STATUSES = new Set(['ACTIVE', 'TRIAL']);
  * entitlements entirely through this one.
  *
  * The subscription is read through `rlsBypass` where one is given
- * (`SC-SEC-019`), by the tenant asked about. The guard and the interceptor
+ * (`SC-SEC-020`), by the tenant asked about. The guard and the interceptor
  * that ask run before the application's interceptor opens the tenant's frame,
  * where a policy on `subscriptions` does not see the request's tenant; read
  * through the bypass, the plan is the same in every frame. `SaaSiCatModule`

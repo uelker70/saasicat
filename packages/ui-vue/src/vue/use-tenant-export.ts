@@ -1,9 +1,10 @@
 // useTenantExport — the tenant's full export, `GET /billing/export`, which its
 // administrator takes once its subscription has ended and before its data is
-// deleted (`SC-PRIV-019`). Whether it is offered to this user is the access
-// state's to say (`TenantAccessView.mayExport`); this downloads it and hands
-// the file over, under the name the server offers, as an invoice's archived
-// document is downloaded.
+// deleted (`SC-PRIV-020`), where the platform serves it. Whether it is offered
+// to this user, and by whom, is the access state's to say
+// (`TenantAccessView.mayExport`, `exportDeliveredBy`); this downloads it and
+// hands the file over, under the name the server offers, as an invoice's
+// archived document is downloaded.
 
 import { readonly, ref, type Ref } from 'vue';
 

@@ -14076,7 +14076,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
         });
 
-        // @requirement SC-PRIV-019
+        // @requirement SC-PRIV-020
         describe("the downloads of a tenant's export", () => {
             const ADMIN = 'user:admin-1';
             const downloadOf = (

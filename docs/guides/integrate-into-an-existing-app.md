@@ -27,12 +27,15 @@ concludes contracts does not start until `config/saas.yaml` names its `issuer`
 ([your own side of every contract](wire-the-backend.md#your-own-side-of-every-contract)).
 
 **Where tenant billing is on, your application hands over a tenant's full export** through a
-`TenantDataExportPort` of its own, passed as `tenantBilling.subscriptionEnds.export`; the start is
-refused without it (`subscription-ends.requires-export`). Once a tenant's subscription has ended,
-its administrator downloads the file from `GET /billing/export` until the data is deleted, and the
-platform records every download (`SC-PRIV-019`). An application that already exports a tenant for
-its operator wraps that collector; where it is keyed by something other than the tenant id, such as
-a slug, the port looks the key up from the id first
+`TenantDataExportPort` of its own, passed as `tenantBilling.subscriptionEnds.export`, or declares
+there that it delivers the export itself (`{ deliveredBy: 'application' }`); the start is refused
+with neither (`subscription-ends.requires-export`). Once a tenant's subscription has ended, its
+administrator takes the file until the data is deleted — from `GET /billing/export`, or from your
+own download, which reports each one that went out in full — and the platform records every
+download (`SC-PRIV-020`). An application that already exports a tenant for its operator wraps that
+collector; where it is keyed by something other than the tenant id, such as a slug, the port looks
+the key up from the id first. An export too large to hold in memory, such as a ZIP of every
+document, is the one your application delivers itself
 ([the tenant takes its export](wire-the-backend.md#a-subscription-that-ended)).
 
 **Where tenant billing is on, your application also sends the notices the platform decides are
@@ -220,7 +223,7 @@ guards, so it does see the authenticated request.
 
 **Under row-level security** the feature guards and the quota interceptor read
 the tenant's plan through your `RlsBypassPort`, by the tenant id they are given
-(`SC-SEC-019`): `StaticFeatureGuard` and the interceptor through
+(`SC-SEC-020`): `StaticFeatureGuard` and the interceptor through
 `SubscriptionPlanResolver`, `FeatureGuard` through `EntitlementService`. They
 run before your interceptor opens the tenant's frame and read the same plan
 there as inside it; there is nothing to wire. Two reads behind them are yours

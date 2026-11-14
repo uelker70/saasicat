@@ -21,7 +21,7 @@
 // yet — the `deleting` hold has no writer — so there is none to leave out.
 //
 // Platform-wide: the ends and the reminders are read across tenants, through
-// `RlsBypassPort` (`SC-SEC-019`).
+// `RlsBypassPort` (`SC-SEC-020`).
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {

@@ -282,8 +282,9 @@ export interface AdminTenantAccessReason {
     deletesOn: CalendarDay | null;
     /**
      * Every download of the tenant's full export taken for the subscription
-     * that ended, the oldest first (`SC-PRIV-019`) — empty where none was
-     * taken yet; `null` for every other kind, where there is nothing to take.
+     * that ended, whoever delivered it, the oldest first (`SC-PRIV-020`) —
+     * empty where none was taken yet; `null` for every other kind, where there
+     * is nothing to take.
      */
     exportDownloads: AdminTenantExportDownload[] | null;
 }

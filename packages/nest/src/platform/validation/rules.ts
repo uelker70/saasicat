@@ -37,7 +37,11 @@ import {
     movedNoticeOptionsIn,
     noticesNotWired,
 } from '../../billing/notice-sender.js';
-import { exportNotWired } from '../../billing/tenant-data-export.service.js';
+import {
+    declaresAnotherDeliverer,
+    exportDeliveredByNobody,
+    exportNotWired,
+} from '../../billing/tenant-export-option.js';
 import { resolveBundleRepository } from '../compose/bundle-repository-source.js';
 import { servesTenantAccess } from '../compose/tenant-access.js';
 
@@ -137,6 +141,10 @@ export const docsUrlFor = (id: string): string => `${DOCS_BASE}#${headingSlug(id
 function optionsOf<T extends object>(slot: false | true | T | undefined): T | undefined {
     return typeof slot === 'object' ? slot : undefined;
 }
+
+/** What `tenantBilling.subscriptionEnds.export` was given, as it was given. */
+const declaredExport = (c: PlatformConfiguration): unknown =>
+    optionsOf(c.options.tenantBilling)?.subscriptionEnds?.export;
 
 /** The persistence bundle, or `undefined` when the app binds ports one by one. */
 const bundle = (c: PlatformConfiguration): SaaSiCatPersistenceAdapter | undefined =>
@@ -376,6 +384,20 @@ const RULE_SPECS: readonly RuleSpec[] = [
         when: (c) => Boolean(c.options.tenantBilling),
         assert: (c) => Boolean(optionsOf(c.options.tenantBilling)?.subscriptionEnds?.export),
         message: exportNotWired('`tenantBilling.subscriptionEnds.export`'),
+    },
+    {
+        id: 'subscription-ends.export-delivered-by-the-application',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) => !declaresAnotherDeliverer(declaredExport(c)),
+        // The reference page asks with nothing configured, and reads the
+        // sentence for a declaration naming the platform.
+        message: (c) => {
+            const declared = declaredExport(c);
+            return exportDeliveredByNobody(
+                '`tenantBilling.subscriptionEnds.export`',
+                declaresAnotherDeliverer(declared) ? declared : { deliveredBy: 'platform' },
+            );
+        },
     },
     {
         id: 'subscription-notices.requires-port',

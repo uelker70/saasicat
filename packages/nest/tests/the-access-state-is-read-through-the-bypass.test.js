@@ -174,7 +174,7 @@ const stateOf = (access) => ({
     reasons: access.holds.map((hold) => hold.kind),
 });
 
-// @requirement SC-SEC-019 — Reads past the tenant policy are named; a tenant's reach only its subscriber and itself
+// @requirement SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
 // @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
 describe('the access state is read through the bypass, whatever frame the caller is in', () => {
     test('enforce on a reading request refuses a suspended tenant and lets a read-only and an open one through', async () => {
@@ -447,7 +447,7 @@ const signInOfTheSuspendedTenant = (service) =>
     );
 
 describe('the bypass the access module reaches', () => {
-    // @requirement SC-SEC-019 — Reads past the tenant policy are named; a tenant's reach only its subscriber and itself
+    // @requirement SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
     test('a module wired by hand reads through the bypass of a module it imports', async () => {
         const { holds } = await accessOver();
         const moduleRef = await Test.createTestingModule({
@@ -495,7 +495,7 @@ const contextOfRoute = (controller, handler, request) => ({
 // Compiled as `SaaSiCatModule` composes it, so the bypass the service reads
 // through is the one the composition provides, not one a test hands it. The
 // guard and the controller are the instances Nest built for the routes.
-// @requirement SC-SEC-019 — Reads past the tenant policy are named; a tenant's reach only its subscriber and itself
+// @requirement SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
 // @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
 describe("the platform's own tenant routes, as SaaSiCatModule composes them", () => {
     let moduleRef;

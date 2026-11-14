@@ -85,6 +85,10 @@ export interface SubscriptionEndPort {
  * settles, every further download of that tenant is refused as in progress. A
  * timeout on the platform's side would only let a second export run beside the
  * one still producing, which is what one at a time exists to prevent.
+ *
+ * An application whose export cannot be held in memory as one file implements
+ * no port: it declares `TenantExportDeliveredByTheApplication` instead and
+ * delivers the export from a download of its own.
  */
 export interface TenantDataExportPort {
     /** The full export of `tenantId`, produced now. */

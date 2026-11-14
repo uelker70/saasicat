@@ -16,11 +16,7 @@
             <TenantButton v-if="payable" :loading="account.paying.value" @click="pay">
                 {{ i18n.accountPayNow }}
             </TenantButton>
-            <TenantButton
-                v-if="exportable"
-                :loading="tenantExport.downloading.value"
-                @click="takeExport"
-            >
+            <TenantButton v-if="exportable" :loading="exportBusy" @click="takeExport">
                 {{ i18n.accessExport }}
             </TenantButton>
         </div>
@@ -78,11 +74,19 @@ import './ui/tenant-ui.css';
 // Once its subscription has ended, every user reads the last day the tenant
 // can still read and the day its data is deleted on (`SC-CANC-033`), and its
 // administrator can take the tenant's full export from here where the server
-// says they may (`SC-PRIV-019`). A download that fails says why beneath and
-// leaves the banner as it was.
+// says they may (`SC-PRIV-020`): downloaded from the platform, or, where the
+// server says the application delivers it, started through the application's
+// `take-export` listener. A download that fails says why beneath and leaves
+// the banner as it was.
 // While the state is being read, where the tenant is open, and where it cannot
 // be read, the banner shows nothing — a refused request still says why on its
 // own, and a banner announcing that it failed would sit above every page.
+
+/** What the console says where the application delivers the export and nothing starts it. */
+const EXPORT_NOT_LISTENED_TO =
+    "TenantAccessBanner: the server says the application delivers the tenant's export " +
+    "(exportDeliveredBy: 'application'), and nothing listens to take-export, so the export " +
+    "button cannot start it. Bind @take-export to the application's own download.";
 
 const props = defineProps<{
     http?: HttpClient;
@@ -90,6 +94,16 @@ const props = defineProps<{
     apiPrefix?: string;
     /** A day, as the application writes days. */
     formatDate: (iso: string) => string;
+    /**
+     * Starts the application's own download of the tenant's export — bound as
+     * `@take-export` — where the server says the application delivers it
+     * (`exportDeliveredBy`); never called where the platform serves it. The
+     * button is busy until what it returns settles, and a rejection is told
+     * beneath it as a failed download is. Where the application delivers and
+     * nothing listens, the banner says so in the console as soon as the export
+     * is offered, and pressing the button says the export did not arrive.
+     */
+    onTakeExport?: () => Promise<void> | void;
 }>();
 
 const i18n = useTenantI18n();
@@ -102,6 +116,7 @@ const account = useTenantAccount({
 });
 const tenantExport = useTenantExport({ http: props.http, apiPrefix: props.apiPrefix });
 const exportFailure = ref<string | null>(null);
+const startingApplicationExport = ref(false);
 
 const held = computed(() => heldBackView(access.view.value));
 const stateSentence = computed(() =>
@@ -125,8 +140,25 @@ const payableNow = computed(
 const payable = computed(() => payableNow.value && held.value?.mayPay === true);
 const askBilling = computed(() => payableNow.value && held.value?.holdsBillingPermission === false);
 // The server says it only to the tenant's administrator, and only where the
-// export would be served.
+// export would be delivered — and says by whom.
 const exportable = computed(() => held.value?.mayExport === true);
+const deliveredByTheApplication = computed(() => held.value?.exportDeliveredBy === 'application');
+const exportBusy = computed(
+    () => tenantExport.downloading.value || startingApplicationExport.value,
+);
+
+// The server and the application each declare one half of the application's
+// own export, and a button that does nothing is what a missing half would
+// look like. So it is said where a developer looks, once the export is offered
+// and before anybody presses, rather than found by a tenant.
+watch(
+    () => exportable.value && deliveredByTheApplication.value && !props.onTakeExport,
+    (unwired) => {
+        if (unwired) console.error(EXPORT_NOT_LISTENED_TO);
+    },
+    { immediate: true },
+);
+
 // Paying opens the account again only where nothing but unpaid invoices holds
 // it back; an ended subscription keeps it read-only after the payment.
 const onlyUnpaid = computed(
@@ -158,9 +190,28 @@ async function pay(): Promise<void> {
 async function takeExport(): Promise<void> {
     exportFailure.value = null;
     try {
-        await tenantExport.download();
+        if (deliveredByTheApplication.value) await startApplicationExport();
+        else await tenantExport.download();
     } catch (err) {
         exportFailure.value = exportFailureSentence(err, i18n.value, i18n.value.accessExportFailed);
+    }
+}
+
+/**
+ * Starts the application's own download. One at a time: the button is busy, and
+ * so disabled, until what the listener returns settles.
+ */
+async function startApplicationExport(): Promise<void> {
+    const start = props.onTakeExport;
+    if (!start) {
+        console.error(EXPORT_NOT_LISTENED_TO);
+        throw new Error(EXPORT_NOT_LISTENED_TO);
+    }
+    startingApplicationExport.value = true;
+    try {
+        await start();
+    } finally {
+        startingApplicationExport.value = false;
     }
 }
 </script>

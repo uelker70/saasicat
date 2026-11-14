@@ -93,15 +93,15 @@ properties it has while doing it.
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
-| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 19      |
-| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 19      |
+| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 20      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 20      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 699 entries: 🟢 606 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
-🔵 55 superseded, 🔴 7 withdrawn.
+Of 701 entries: 🟢 606 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+🔵 57 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -188,6 +188,8 @@ Of 699 entries: 🟢 606 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source),
 [SC-SEC-003](#sc-sec-003--reads-that-legitimately-cross-tenants-are-named-as-the-exceptions-they-are),
 [SC-SEC-018](#sc-sec-018--reads-that-cross-tenants-are-named-and-a-tenants-reaches-only-its-own-subscriber),
+[SC-SEC-019](#sc-sec-019--reads-past-the-tenant-policy-are-named-a-tenants-reach-only-its-subscriber-and-itself),
+[SC-PRIV-019](#sc-priv-019--once-its-subscription-has-ended-a-tenants-administrator-takes-its-full-export),
 [SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),
 [SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered)
 
