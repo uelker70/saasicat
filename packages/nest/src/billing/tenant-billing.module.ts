@@ -842,6 +842,9 @@ export class TenantBillingModule {
                           InvoiceDocumentService,
                           TenantInvoiceService,
                           OpenInvoicesForTenantAccess,
+                          // Beside the tenant's invoice routes only: where it is
+                          // absent, `GET billing/access` names no invoice by
+                          // number to anybody.
                           BillingPermissionGuard,
                           ...(options.billingPermissionGuards
                               ? [

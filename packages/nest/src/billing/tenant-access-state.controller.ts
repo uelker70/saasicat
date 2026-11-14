@@ -1,27 +1,34 @@
-import { Controller, Get, Inject, Optional, Req, UseGuards } from '@nestjs/common';
 import {
-    installationZoneOf,
-    tenantAccessViewOf,
-    type PlanCatalogSettings,
-    type TenantAccessView,
-} from '@saasicat/core';
+    Controller,
+    type ExecutionContext,
+    Get,
+    Inject,
+    Optional,
+    Req,
+    UseGuards,
+} from '@nestjs/common';
+import type { PlanCatalogSettings, TenantAccessView } from '@saasicat/core';
 
 import { ReadsItsState } from '../tenant-access/tenant-access-marks.js';
 import { TenantAccessService } from '../tenant-access/tenant-access.service.js';
+import { BillingPermissionGuard } from './billing-permission.guard.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
+import { InvoiceCollectionService } from './invoices/invoice-collection.service.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
+import { RouteContext } from './route-context.decorator.js';
+import { tenantAccessViewFor } from './tenant-access-reading.js';
 import { TENANT_ID_RESOLVER_TOKEN, type TenantIdResolver } from './tenant-billing.tokens.js';
 import { tenantIdOf } from './tenant-id.js';
-import { mayTakeTheTenantsExport } from './tenant-roles.js';
 
 /**
  * `GET billing/access` — the tenant's state as every one of its users reads
  * it, in every state, suspended and being deleted included (`SC-ADM-054`):
  * what holds it back and from which day, the days an ended subscription leaves
  * (`SC-CANC-033`), and whether this reader can take the export
- * (`SC-PRIV-020`); without the invoices by number and without paying, which
- * are the billing permission's (`GET billing/account/access`). The tenant is
- * the session's.
+ * (`SC-PRIV-020`). Where the installation issues invoices and the reader holds
+ * the billing permission, the same answer names the invoices by number and
+ * says whether what is open can be paid here; whoever else reads it is told
+ * neither, and is not refused (`SC-ADM-056`). The tenant is the session's.
  */
 @Controller('billing')
 @UseGuards(ComposedTenantAuthGuard)
@@ -38,23 +45,35 @@ export class TenantAccessStateController {
         @Optional()
         @Inject(TenantAccessService)
         private readonly access: TenantAccessService | null = null,
+        // Provided exactly where the tenant's invoices are mounted, so its
+        // absence is the installation that issues none: nobody is told an
+        // invoice by number there.
+        @Optional()
+        @Inject(BillingPermissionGuard)
+        private readonly billingPermission: BillingPermissionGuard | null = null,
+        // Where invoices are collected through a gateway; without it nothing
+        // can be paid here.
+        @Optional()
+        @Inject(InvoiceCollectionService)
+        private readonly collection: InvoiceCollectionService | null = null,
     ) {}
 
     @Get('access')
     @ReadsItsState()
-    async state(@Req() request: unknown): Promise<TenantAccessView> {
+    async state(
+        @Req() request: unknown,
+        @RouteContext() context: ExecutionContext,
+    ): Promise<TenantAccessView> {
         const tenantId = tenantIdOf(this.tenantIdResolver, request);
-        const asked = {
-            timeZone: installationZoneOf(this.settings),
-            now: new Date(),
-            holdsBillingPermission: false,
-            mayPay: false,
-            isTenantAdministrator: mayTakeTheTenantsExport(
-                request,
-                this.access?.actsAsOperator(request) ?? false,
-            ),
-        };
-        if (!this.access) return tenantAccessViewOf({ state: 'open', holds: [] }, asked);
-        return this.access.viewOf(tenantId, asked);
+        const holdsBillingPermission =
+            this.billingPermission !== null && (await this.billingPermission.isHeldBy(context));
+        return tenantAccessViewFor({
+            access: this.access,
+            settings: this.settings,
+            tenantId,
+            request,
+            holdsBillingPermission,
+            collects: this.collection !== null,
+        });
     }
 }

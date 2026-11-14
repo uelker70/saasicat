@@ -14,8 +14,6 @@ import {
 } from '@nestjs/common';
 import {
     PAYMENT_ERROR_CODES,
-    installationZoneOf,
-    tenantAccessViewOf,
     type PlanCatalogSettings,
     type TenantAccessView,
     type TenantAccount,
@@ -29,8 +27,8 @@ import { BillingPermissionGuard } from '../billing-permission.guard.js';
 import { ComposedTenantAuthGuard } from '../composed-tenant-auth.guard.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
 import { TENANT_ID_RESOLVER_TOKEN, type TenantIdResolver } from '../tenant-billing.tokens.js';
+import { tenantAccessViewFor } from '../tenant-access-reading.js';
 import { tenantIdOf } from '../tenant-id.js';
-import { mayTakeTheTenantsExport } from '../tenant-roles.js';
 import { codedError } from '../../errors/coded-error.js';
 import { ReadsItsState, StartsPayment } from '../../tenant-access/tenant-access-marks.js';
 import { TenantAccessService } from '../../tenant-access/tenant-access.service.js';
@@ -57,7 +55,8 @@ export class TenantInvoiceListQuery {
  * `GET billing/contracts` and `GET billing/contracts/:id/confirmation`;
  * paying what the account owes now, `POST billing/account/pay`
  * (`SC-PRIC-100`); and the tenant's state as a user who holds the permission
- * reads it, `GET billing/account/access` (`SC-ADM-054`). The tenant is the
+ * reads it, `GET billing/account/access` (`SC-ADM-054`), which
+ * `GET billing/access` also answers them. The tenant is the
  * session's; a document is the file archived when it was issued, never
  * rendered again (`SC-AUD-014`).
  */
@@ -104,26 +103,23 @@ export class TenantInvoicesController {
     }
 
     /**
-     * The tenant's state as `GET billing/access` answers it, and beside it the
-     * invoices its reasons name by number and whether what is open can be paid
-     * here (`SC-ADM-054`). Let through in every state, as that route is.
+     * The tenant's state as `GET billing/access` answers a user who holds the
+     * permission: the invoices its reasons name by number, and whether what is
+     * open can be paid here (`SC-ADM-054`). Let through in every state, as that
+     * route is, which answers such a user the same and refuses nobody
+     * (`SC-ADM-056`).
      */
     @Get('account/access')
     @ReadsItsState()
     async accessState(@Req() request: unknown): Promise<TenantAccessView> {
-        const tenantId = tenantIdOf(this.tenantIdResolver, request);
-        const asked = {
-            timeZone: installationZoneOf(this.settings),
-            now: new Date(),
+        return tenantAccessViewFor({
+            access: this.access,
+            settings: this.settings,
+            tenantId: tenantIdOf(this.tenantIdResolver, request),
+            request,
             holdsBillingPermission: true,
-            mayPay: this.collection !== null,
-            isTenantAdministrator: mayTakeTheTenantsExport(
-                request,
-                this.access?.actsAsOperator(request) ?? false,
-            ),
-        };
-        if (!this.access) return tenantAccessViewOf({ state: 'open', holds: [] }, asked);
-        return this.access.viewOf(tenantId, asked);
+            collects: this.collection !== null,
+        });
     }
 
     @Get('invoices')

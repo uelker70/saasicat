@@ -1,7 +1,9 @@
 // What the routes a tenant's users read its state from answer
 // (`SC-ADM-054`): `GET billing/access` for every user, `GET
-// billing/account/access` for whoever holds the billing permission. That both
-// are let through in every state is the guard's, asked in
+// billing/account/access` for whoever holds the billing permission. Who of
+// them `GET billing/access` tells the invoices by number is asked over HTTP in
+// `every-user-reads-the-tenants-state-from-one-route`; that both are let
+// through in every state is the guard's, asked in
 // `the-platforms-tenant-routes-check-the-access-state`.
 
 import { describe, test } from 'node:test';
@@ -49,7 +51,7 @@ async function heldBack() {
 
 // @requirement SC-ADM-054 — A tenant's users read why it is held back
 describe("a tenant's users read why it is held back", () => {
-    test("every user: the session's tenant, each reason from its day in the installation, no invoice by number", async () => {
+    test("where no invoices are issued, every user: the session's tenant, each reason from its day in the installation, no invoice by number", async () => {
         const controller = new TenantAccessStateController(BERLIN, fromSession, await heldBack());
         assert.deepEqual(await controller.state(REQUEST), {
             state: 'suspended',

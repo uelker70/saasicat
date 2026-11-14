@@ -1,6 +1,6 @@
-// useTenantAccessState — the tenant's state, from the route that tells the
-// user the most: the billing permission's first, the one every user reads
-// where that one is not for this user.
+// useTenantAccessState — the tenant's state, from the one route every user of
+// the tenant reads, which itself tells a user holding the billing permission
+// the invoices by number (`SC-ADM-056`).
 
 import { afterEach, describe, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -72,49 +72,53 @@ function watching(answers) {
 
 // @requirement SC-ADM-054 — A tenant's users read why it is held back
 describe("the tenant's state, as its users read it", () => {
-    test('a user with the billing permission reads it from that route, under the prefix the app gives', async () => {
+    test('reads it from the route every user reads, under the prefix the app gives', async () => {
         const { access, asked } = stateAnswering(
-            { '/api/billing/account/access': [200, HELD_BACK] },
+            { '/api/billing/access': [200, HELD_BACK] },
             { apiPrefix: '/api/billing/' },
         );
 
         await access.reload();
 
-        assert.deepEqual(asked, ['/api/billing/account/access']);
+        assert.deepEqual(asked, ['/api/billing/access']);
         assert.deepEqual(access.view.value, HELD_BACK);
         assert.equal(access.error.value, null);
     });
 
-    for (const status of [403, 404]) {
-        test(`where that route answers ${status}, from the route every user reads`, async () => {
+    for (const [reader, view] of [
+        ['holding the billing permission', HELD_BACK],
+        ['without the billing permission', UNNAMED],
+    ]) {
+        // @requirement SC-ADM-056 — A tenant's page asks its state from one route, which refuses none of its users
+        test(`a user ${reader} is answered by that one route, and the permission's route is not asked`, async () => {
             const { access, asked } = stateAnswering({
-                '/billing/account/access': [status, {}],
-                '/billing/access': [200, UNNAMED],
+                '/billing/access': [200, view],
+                '/billing/account/access': [200, HELD_BACK],
             });
 
             await access.reload();
 
-            assert.deepEqual(asked, ['/billing/account/access', '/billing/access']);
-            assert.deepEqual(access.view.value, UNNAMED);
-            assert.equal(access.error.value, null);
+            assert.deepEqual(asked, ['/billing/access']);
+            assert.deepEqual(access.view.value, view);
         });
     }
 
-    test('where neither route is there, nothing to show and no error', async () => {
-        const { access } = stateAnswering({});
+    test('where the route is not there, nothing to show, no error, and nothing else asked', async () => {
+        const { access, asked } = stateAnswering({});
 
         await access.reload();
 
+        assert.deepEqual(asked, ['/billing/access']);
         assert.equal(access.view.value, null);
         assert.equal(access.error.value, null);
     });
 
     test('a failure is an error, and the state read before stays', async () => {
-        const answers = { '/billing/account/access': [200, HELD_BACK] };
+        const answers = { '/billing/access': [200, HELD_BACK] };
         const { access } = stateAnswering(answers);
         await access.reload();
 
-        answers['/billing/account/access'] = [500, {}];
+        answers['/billing/access'] = [500, {}];
         await access.reload();
 
         assert.ok(access.error.value instanceof Error);
@@ -123,7 +127,7 @@ describe("the tenant's state, as its users read it", () => {
 
     test('an answer without a state it knows is an error, not an open tenant', async () => {
         const { access } = stateAnswering({
-            '/billing/account/access': [200, { ...HELD_BACK, state: 'paused' }],
+            '/billing/access': [200, { ...HELD_BACK, state: 'paused' }],
         });
 
         await access.reload();
@@ -137,7 +141,7 @@ describe("the tenant's state, as its users read it", () => {
 describe('while the page is open', () => {
     test('reads again every minute, and not once the page is gone', async () => {
         mock.timers.enable({ apis: ['setTimeout'] });
-        const { asked, scope } = watching({ '/billing/account/access': [200, OPEN] });
+        const { asked, scope } = watching({ '/billing/access': [200, OPEN] });
         await settled();
         assert.equal(asked.length, 1);
         mock.timers.tick(TENANT_ACCESS_POLL_MS);
@@ -149,19 +153,31 @@ describe('while the page is open', () => {
         assert.equal(asked.length, 2);
     });
 
+    // @requirement SC-ADM-056 — A tenant's page asks its state from one route, which refuses none of its users
+    test('each read, on mount and every minute after, is one request to the route every user reads', async () => {
+        mock.timers.enable({ apis: ['setTimeout'] });
+        const { asked } = watching({ '/billing/access': [200, UNNAMED] });
+        await settled();
+        for (let minute = 0; minute < 2; minute += 1) {
+            mock.timers.tick(TENANT_ACCESS_POLL_MS);
+            await settled();
+        }
+        assert.deepEqual(asked, ['/billing/access', '/billing/access', '/billing/access']);
+    });
+
     test('a hold begun during the session shows on the next read, and goes once lifted', async () => {
         mock.timers.enable({ apis: ['setTimeout'] });
-        const answers = { '/billing/account/access': [200, OPEN] };
+        const answers = { '/billing/access': [200, OPEN] };
         const { access } = watching(answers);
         await settled();
         assert.equal(access.view.value?.state, 'open');
 
-        answers['/billing/account/access'] = [200, HELD_BACK];
+        answers['/billing/access'] = [200, HELD_BACK];
         mock.timers.tick(TENANT_ACCESS_POLL_MS);
         await settled();
         assert.equal(access.view.value?.state, 'read-only');
 
-        answers['/billing/account/access'] = [200, OPEN];
+        answers['/billing/access'] = [200, OPEN];
         mock.timers.tick(TENANT_ACCESS_POLL_MS);
         await settled();
         assert.equal(access.view.value?.state, 'open');
@@ -177,7 +193,7 @@ describe('while the page is open', () => {
                     answerTheFirst = () => resolve(answered(200, HELD_BACK));
                 });
             }
-            return Promise.resolve(answered(url.endsWith('/account/access') ? 200 : 404, OPEN));
+            return Promise.resolve(answered(url === '/billing/access' ? 200 : 404, OPEN));
         };
         const access = useTenantAccessState({ http, autoLoad: false });
 

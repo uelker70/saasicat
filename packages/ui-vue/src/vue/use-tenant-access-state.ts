@@ -1,14 +1,11 @@
 // useTenantAccessState — the tenant's state as its own users read it
-// (`SC-ADM-054`): `GET /billing/account/access` for a user who holds the
-// billing permission, which names the invoices by number and says whether
-// they can be paid here, and `GET /billing/access` for everyone else. Both
-// answer in every state, suspended and being deleted included.
-//
-// Asked in that order. The permission's route refuses a user without it, and
-// is not mounted where invoices are not; a refusal that says a part is not for
-// this user (`isHiddenFromThisUser`) is answered by the route every user
-// reads. Where that one is not there either, there is nothing to show, which
-// is not an error; anything else is.
+// (`SC-ADM-054`), from `GET /billing/access`, which answers every user in every
+// state, suspended and being deleted included. Where the installation issues
+// invoices and the user holds the billing permission, the same answer names the
+// invoices by number and says whether they can be paid here; nobody is refused
+// for not holding it, so a page asks the one route (`SC-ADM-056`). Where the
+// route is not there, there is nothing to show, which is not an error; anything
+// else is.
 //
 // The state moves while a page is open — an operator suspends the tenant, an
 // invoice comes due, a payment lifts the hold —, so a page reads it on mount
@@ -96,16 +93,17 @@ export function useTenantAccessState(
         timer = setTimeout(() => void reload(), pollMs);
     }
 
-    /** The answer of `path`, or `null` where it says it is not for this user. */
-    async function answerOf(path: string): Promise<TenantAccessView | null> {
+    /** The state as the server answers it, or `null` where the route says it is not for this user. */
+    async function answer(): Promise<TenantAccessView | null> {
+        const path = `${prefix}/access`;
         try {
-            const answer = await getJson<unknown>(http, `${prefix}/${path}`);
+            const answered = await getJson<unknown>(http, path);
             // Read as open, an answer without a state would hide from a
             // held-back tenant why it is held back.
-            if (!isAccessView(answer)) {
-                throw new Error(`${prefix}/${path} did not answer with a tenant access view.`);
+            if (!isAccessView(answered)) {
+                throw new Error(`${path} did not answer with a tenant access view.`);
             }
-            return answer;
+            return answered;
         } catch (err) {
             if (isHiddenFromThisUser(httpStatusOf(err))) return null;
             throw err;
@@ -118,8 +116,8 @@ export function useTenantAccessState(
         loading.value = true;
         error.value = null;
         try {
-            const answer = (await answerOf('account/access')) ?? (await answerOf('access'));
-            if (read === latestRead) view.value = answer;
+            const answered = await answer();
+            if (read === latestRead) view.value = answered;
         } catch (err) {
             if (read === latestRead) {
                 error.value = err instanceof Error ? err : new Error(String(err));

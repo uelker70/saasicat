@@ -98,7 +98,7 @@ const lines = (wrapper: VueWrapper) =>
 describe('the banner of a tenant held back', () => {
     test('shows nothing where the tenant is open', async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [[200, toBilling({ state: 'open', reasons: [] })]],
+            'GET /billing/access': [[200, toBilling({ state: 'open', reasons: [] })]],
         });
         const wrapper = await mountBanner(http);
         expect(wrapper.find('.sp-access-banner').exists()).toBe(false);
@@ -111,7 +111,7 @@ describe('the banner of a tenant held back', () => {
 
     test('to a user who may pay: the state, the invoice by number from its day, and paying with when it opens again', async () => {
         const { http, calls } = httpRouting({
-            'GET /billing/account/access': [[200, toBilling()]],
+            'GET /billing/access': [[200, toBilling()]],
             'GET /billing/account': [[200, ACCOUNT]],
         });
         const wrapper = await mountBanner(http);
@@ -126,12 +126,12 @@ describe('the banner of a tenant held back', () => {
         ]);
         expect(payButton(wrapper).exists()).toBe(true);
         expect(wrapper.text()).toContain('once it is collected on 24.11.2026');
-        expect(calls).toEqual(['GET /billing/account/access', 'GET /billing/account']);
+        expect(calls).toEqual(['GET /billing/access', 'GET /billing/account']);
     });
 
     test('paying starts the payment, says what it set going, and reads the state again', async () => {
         const { http, calls } = httpRouting({
-            'GET /billing/account/access': [
+            'GET /billing/access': [
                 [200, toBilling()],
                 [200, toBilling()],
             ],
@@ -162,13 +162,12 @@ describe('the banner of a tenant held back', () => {
         await flushPromises();
 
         expect(calls.filter((call) => call === 'POST /billing/account/pay')).toHaveLength(1);
-        expect(calls.at(-1)).toBe('GET /billing/account/access');
+        expect(calls.at(-1)).toBe('GET /billing/access');
         expect(wrapper.text()).toContain('The direct debit is announced.');
     });
 
     test('to a user without the billing permission: no number, nothing to press, and who can pay', async () => {
         const { http, calls } = httpRouting({
-            'GET /billing/account/access': [[403, {}]],
             'GET /billing/access': [
                 [
                     200,
@@ -194,7 +193,7 @@ describe('the banner of a tenant held back', () => {
 
     test('to a user with the permission where nothing is collected here: the number, and nothing to press', async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [[200, toBilling({ mayPay: false })]],
+            'GET /billing/access': [[200, toBilling({ mayPay: false })]],
         });
         const wrapper = await mountBanner(http);
 
@@ -205,7 +204,7 @@ describe('the banner of a tenant held back', () => {
 
     test('suspended, nothing is offered to pay, since a suspension lets no payment through', async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [
+            'GET /billing/access': [
                 [
                     200,
                     toBilling({
@@ -238,7 +237,6 @@ describe('the banner of a tenant held back', () => {
 
     test('suspended, a user without the billing permission is not sent to somebody who cannot pay either', async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [[403, {}]],
             'GET /billing/access': [
                 [
                     200,
@@ -267,7 +265,7 @@ describe('the banner of a tenant held back', () => {
 
     test('where an ended subscription holds it back as well, paying is offered without promising it opens again', async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [
+            'GET /billing/access': [
                 [
                     200,
                     toBilling({
@@ -291,7 +289,7 @@ describe('the banner of a tenant held back', () => {
         vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
         const open = toBilling({ state: 'open', reasons: [] });
         const { http } = httpRouting({
-            'GET /billing/account/access': [
+            'GET /billing/access': [
                 [200, open],
                 [200, toBilling()],
                 [200, open],
@@ -386,7 +384,6 @@ afterEach(() => {
 describe('the banner of a tenant whose subscription ended', () => {
     test('tells a user who is not its administrator the last day it can read and the day its data is deleted on, and offers no export', async () => {
         const { http, calls } = httpRouting({
-            'GET /billing/account/access': [[403, {}]],
             'GET /billing/access': [[200, endedToAnyone()]],
         });
         const wrapper = await mountBanner(http);
@@ -402,7 +399,7 @@ describe('the banner of a tenant whose subscription ended', () => {
 
     test('tells its administrator the same two days', async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [[200, endedToAdministrator()]],
+            'GET /billing/access': [[200, endedToAdministrator()]],
         });
         const wrapper = await mountBanner(http);
 
@@ -411,7 +408,7 @@ describe('the banner of a tenant whose subscription ended', () => {
 
     test('names the two days in German to a German reader', async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [[200, endedToAdministrator()]],
+            'GET /billing/access': [[200, endedToAdministrator()]],
         });
         const wrapper = await mountBanner(http, { german: true });
 
@@ -435,7 +432,7 @@ describe('the banner of a tenant whose subscription ended', () => {
 
     test('says the deletion is due in German to a German reader', async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [
+            'GET /billing/access': [
                 [200, endedToAnyone({ reasons: [ENDED_DUE], holdsBillingPermission: true })],
             ],
         });
@@ -486,7 +483,7 @@ describe('the banner of a tenant whose subscription ended', () => {
 
     test('while suspended, names the two days as days and says nothing of reading now, and offers no export', async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [
+            'GET /billing/access': [
                 [
                     200,
                     endedToAnyone({
@@ -560,7 +557,7 @@ describe('the banner of a tenant whose subscription ended', () => {
 describe("the tenant's export, taken from the banner", () => {
     test('is offered to its administrator as a button named for what it downloads, reached from the keyboard', async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [[200, endedToAdministrator()]],
+            'GET /billing/access': [[200, endedToAdministrator()]],
         });
         const wrapper = await mountBanner(http);
 
@@ -575,7 +572,7 @@ describe("the tenant's export, taken from the banner", () => {
 
     test('downloads the export and saves it under the name the server offers', async () => {
         const { http, calls } = httpRouting({
-            'GET /billing/account/access': [[200, endedToAdministrator()]],
+            'GET /billing/access': [[200, endedToAdministrator()]],
             'GET /billing/export': [[200, EXPORT_BYTES, 'northwind-export.json']],
         });
         const wrapper = await mountBanner(http);
@@ -594,7 +591,7 @@ describe("the tenant's export, taken from the banner", () => {
 
     test('is busy while it downloads, and cannot be pressed a second time meanwhile', async () => {
         const { http: answering, calls } = httpRouting({
-            'GET /billing/account/access': [[200, endedToAdministrator()]],
+            'GET /billing/access': [[200, endedToAdministrator()]],
             'GET /billing/export': [[200, EXPORT_BYTES, 'northwind-export.json']],
         });
         let release = () => {};
@@ -621,7 +618,7 @@ describe("the tenant's export, taken from the banner", () => {
 
     test('is offered to nobody the server does not say may take it', async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [
+            'GET /billing/access': [
                 [200, endedToAnyone({ holdsBillingPermission: true, mayExport: false })],
             ],
         });
@@ -648,7 +645,7 @@ describe("the tenant's export, taken from the banner", () => {
         ] as const;
         for (const [status, code, sentence] of refusals) {
             const { http } = httpRouting({
-                'GET /billing/account/access': [[200, endedToAdministrator()]],
+                'GET /billing/access': [[200, endedToAdministrator()]],
                 'GET /billing/export': [[status, { statusCode: status, code, message: code }]],
             });
             const wrapper = await mountBanner(http);
@@ -663,7 +660,7 @@ describe("the tenant's export, taken from the banner", () => {
 
     test('refused in German, says why in German', async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [[200, endedToAdministrator()]],
+            'GET /billing/access': [[200, endedToAdministrator()]],
             'GET /billing/export': [[503, { code: 'TENANT_EXPORT_FAILED', message: 'x' }]],
         });
         const wrapper = await mountBanner(http, { german: true });
@@ -678,7 +675,7 @@ describe("the tenant's export, taken from the banner", () => {
 
     test('failed without a code the platform words, says the export did not arrive, and leaves the banner as it was', async () => {
         const { http, calls } = httpRouting({
-            'GET /billing/account/access': [[200, endedToAdministrator()]],
+            'GET /billing/access': [[200, endedToAdministrator()]],
             'GET /billing/export': [
                 [500, { statusCode: 500, message: 'Internal server error' }],
                 [200, EXPORT_BYTES, 'northwind-export.json'],
@@ -709,7 +706,7 @@ describe("the tenant's export, taken from the banner", () => {
 
     test('refused with a code the platform does not word, says the export did not arrive rather than the code', async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [[200, endedToAdministrator()]],
+            'GET /billing/access': [[200, endedToAdministrator()]],
             'GET /billing/export': [
                 [502, { code: 'GATEWAY_UNREACHABLE', message: 'upstream gateway unreachable' }],
             ],
@@ -724,7 +721,7 @@ describe("the tenant's export, taken from the banner", () => {
 
     test('where the connection breaks, says the export did not arrive', async () => {
         const { http: answering } = httpRouting({
-            'GET /billing/account/access': [[200, endedToAdministrator()]],
+            'GET /billing/access': [[200, endedToAdministrator()]],
         });
         const http: HttpClient = async (url, init) => {
             if (url === '/billing/export') throw new TypeError('Failed to fetch');
@@ -776,7 +773,7 @@ describe("the tenant's export, where the application delivers it", () => {
 
     test("the button starts the application's own download, and nothing is loaded from the platform", async () => {
         const { http, calls } = httpRouting({
-            'GET /billing/account/access': [[200, endedDeliveredByTheApplication()]],
+            'GET /billing/access': [[200, endedDeliveredByTheApplication()]],
         });
         const action = heldAction();
         const wrapper = await mountBanner(http, { onTakeExport: action.start });
@@ -793,7 +790,7 @@ describe("the tenant's export, where the application delivers it", () => {
 
     test("is busy while the application's download runs, and cannot be pressed a second time meanwhile", async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [[200, endedDeliveredByTheApplication()]],
+            'GET /billing/access': [[200, endedDeliveredByTheApplication()]],
         });
         const action = heldAction();
         const wrapper = await mountBanner(http, { onTakeExport: action.start });
@@ -811,7 +808,7 @@ describe("the tenant's export, where the application delivers it", () => {
 
     test("where the application's download fails, says the export did not arrive and leaves the banner as it was", async () => {
         const { http } = httpRouting({
-            'GET /billing/account/access': [[200, endedDeliveredByTheApplication()]],
+            'GET /billing/access': [[200, endedDeliveredByTheApplication()]],
         });
         const action = heldAction();
         const wrapper = await mountBanner(http, { onTakeExport: action.start });
@@ -827,7 +824,7 @@ describe("the tenant's export, where the application delivers it", () => {
 
     test("where the platform serves it, the button downloads it as before and the application's action is not started", async () => {
         const { http, calls } = httpRouting({
-            'GET /billing/account/access': [[200, endedToAdministrator()]],
+            'GET /billing/access': [[200, endedToAdministrator()]],
             'GET /billing/export': [[200, EXPORT_BYTES, 'northwind-export.json']],
         });
         const action = heldAction();
@@ -845,7 +842,7 @@ describe("the tenant's export, where the application delivers it", () => {
         const consoleError = quietConsole();
         vi.useFakeTimers();
         const { http } = httpRouting({
-            'GET /billing/account/access': [
+            'GET /billing/access': [
                 [200, endedDeliveredByTheApplication()],
                 [200, endedDeliveredByTheApplication()],
             ],
@@ -862,7 +859,7 @@ describe("the tenant's export, where the application delivers it", () => {
     test('where nothing listens, pressing says the export did not arrive, and nothing is loaded from the platform', async () => {
         quietConsole();
         const { http, calls } = httpRouting({
-            'GET /billing/account/access': [[200, endedDeliveredByTheApplication()]],
+            'GET /billing/access': [[200, endedDeliveredByTheApplication()]],
         });
         const wrapper = await mountBanner(http);
 
@@ -877,11 +874,84 @@ describe("the tenant's export, where the application delivers it", () => {
     test('where the export is not offered, nothing is said in the console, whether or not anything listens', async () => {
         const consoleError = quietConsole();
         const { http } = httpRouting({
-            'GET /billing/account/access': [[200, endedToAnyone()]],
+            'GET /billing/access': [[200, endedToAnyone()]],
         });
         const wrapper = await mountBanner(http);
 
         expect(exportButton(wrapper)).toBeUndefined();
         expect(consoleError).not.toHaveBeenCalled();
+    });
+});
+
+/** `client`, recording the status of every answer it gives. */
+function recordingStatuses(client: HttpClient) {
+    const statuses: number[] = [];
+    const http: HttpClient = async (url, init) => {
+        const response = await client(url, init);
+        statuses.push(response.status);
+        return response;
+    };
+    return { http, statuses };
+}
+
+/** The one route every user reads, answering `view` to each of the reads a few minutes make. */
+const everyMinute = (view: TenantAccessView): Answer[] =>
+    Array.from({ length: 3 }, (): Answer => [200, view]);
+
+// @requirement SC-ADM-056 — A tenant's page asks its state from one route, which refuses none of its users
+describe('the banner asks its state from one route', () => {
+    test('to a user who may pay: one request a minute, to the route every user reads, and nothing refused', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        const routed = httpRouting({
+            'GET /billing/access': everyMinute(toBilling()),
+            'GET /billing/account': [[200, ACCOUNT]],
+        });
+        const { http, statuses } = recordingStatuses(routed.http);
+        const wrapper = await mountBanner(http);
+        for (let minute = 0; minute < 2; minute += 1) {
+            await vi.advanceTimersByTimeAsync(TENANT_ACCESS_POLL_MS);
+            await flushPromises();
+        }
+
+        expect(lines(wrapper)).toEqual([
+            'Since 16.11.2026: invoice RE-2026-0042 was not paid by its due date.',
+        ]);
+        expect(payButton(wrapper).exists()).toBe(true);
+        expect(routed.calls.filter((call) => call !== 'GET /billing/account')).toEqual([
+            'GET /billing/access',
+            'GET /billing/access',
+            'GET /billing/access',
+        ]);
+        expect(statuses.filter((status) => status >= 400)).toEqual([]);
+    });
+
+    test('to a user without the billing permission: one request a minute, no number, nothing to pay, and nothing refused', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        const routed = httpRouting({
+            'GET /billing/access': everyMinute(
+                toBilling({
+                    reasons: [{ ...OVERDUE, invoiceNumber: null }],
+                    holdsBillingPermission: false,
+                    mayPay: false,
+                }),
+            ),
+        });
+        const { http, statuses } = recordingStatuses(routed.http);
+        const wrapper = await mountBanner(http);
+        for (let minute = 0; minute < 2; minute += 1) {
+            await vi.advanceTimersByTimeAsync(TENANT_ACCESS_POLL_MS);
+            await flushPromises();
+        }
+
+        expect(lines(wrapper)).toEqual([
+            'Since 16.11.2026: an invoice was not paid by its due date.',
+        ]);
+        expect(payButton(wrapper).exists()).toBe(false);
+        expect(routed.calls).toEqual([
+            'GET /billing/access',
+            'GET /billing/access',
+            'GET /billing/access',
+        ]);
+        expect(statuses).toEqual([200, 200, 200]);
     });
 });

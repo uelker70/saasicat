@@ -1878,17 +1878,19 @@ makes the tenant read-only in that run.
   through which a tenant leaves carries `@Leaves()` too. A suspended tenant, and one being deleted,
   cannot; reinstating an add-on, booking one and changing the plan stay refused.
 - **The tenant's users read why** (`SC-ADM-054`): `GET billing/access` answers every user of the
-  tenant its state and each reason with the day it began in the installation;
-  `GET billing/account/access`, behind the billing permission where invoices are mounted, adds the
-  invoice by its number and whether it can be paid there (`mayPay`, where a gateway collects). Under
-  an ended subscription both name the last day the tenant can read and the day its data is deleted
-  on, `readOnlyUntil` and `deletesOn` (`SC-CANC-033`), and whether that day has come, `deletionDue`
-  — until the deletion runs the data is still there — and both answer `mayExport`, whether this
-  reader can take the tenant's export now, and `exportDeliveredBy`, `'platform'` or `'application'`
-  where they can and `null` where not. Both are let through in every state, suspended and being
-  deleted included, since they carry the mark `reads-its-state`, which your guard's `enforce` reads
-  as the platform does. Mount `TenantAccessBanner` from `@saasicat/ui-vue-tenant` behind your
-  sign-in to show it.
+  tenant its state and each reason with the day it began in the installation. Where invoices are
+  mounted and the reader holds the billing permission — decided by `billingPermissionGuards`, as for
+  the invoice routes — the same answer adds the invoice by its number and whether it can be paid
+  there (`mayPay`, where a gateway collects); a reader without it is told neither and is not
+  refused, so a page asks this one route (`SC-ADM-056`). `GET billing/account/access`, behind the
+  permission, answers a holder the same. Under an ended subscription both name the last day the
+  tenant can read and the day its data is deleted on, `readOnlyUntil` and `deletesOn`
+  (`SC-CANC-033`), and whether that day has come, `deletionDue` — until the deletion runs the data
+  is still there — and both answer `mayExport`, whether this reader can take the tenant's export
+  now, and `exportDeliveredBy`, `'platform'` or `'application'` where they can and `null` where not.
+  Both are let through in every state, suspended and being deleted included, since they carry the
+  mark `reads-its-state`, which your guard's `enforce` reads as the platform does. Mount
+  `TenantAccessBanner` from `@saasicat/ui-vue-tenant` behind your sign-in to show it.
 - **Under row-level security** the check reads through `RlsBypassPort` (`SC-SEC-020`). Your guard
   asks it before your interceptor opens the tenant's frame, so a policy on `tenant_access_holds` does
   not see the request's tenant there. The platform therefore reads the tenant's reasons — and what

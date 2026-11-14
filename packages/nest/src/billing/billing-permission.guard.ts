@@ -2,6 +2,8 @@ import {
     type CanActivate,
     type ExecutionContext,
     ForbiddenException,
+    HttpException,
+    HttpStatus,
     Inject,
     Injectable,
     Optional,
@@ -11,6 +13,9 @@ import { AUTH_ERROR_CODES } from '@saasicat/core';
 import { codedError } from '../errors/coded-error.js';
 import { holdsTenantAdminRole } from './tenant-roles.js';
 import { BILLING_PERMISSION_GUARDS_TOKEN, type AuthGuardList } from './tenant-billing.tokens.js';
+
+/** The statuses a guard refuses with, which say the user does not hold the permission. */
+const REFUSALS: ReadonlySet<number> = new Set([HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN]);
 
 /**
  * The billing permission: who of a tenant's users may see and change what the
@@ -22,6 +27,11 @@ import { BILLING_PERMISSION_GUARDS_TOKEN, type AuthGuardList } from './tenant-bi
  * hold it without being the tenant's administrator. Without guards the
  * tenant's administrator holds it. Runs after the tenant's authentication
  * guards, so a user is on the request.
+ *
+ * The same decision answers `GET billing/access` whether its reader is told
+ * the invoices by number and may pay (`isHeldBy`), so the route every user
+ * reads and the routes behind the permission cannot come to disagree about
+ * who holds it.
  */
 @Injectable()
 export class BillingPermissionGuard implements CanActivate {
@@ -34,6 +44,21 @@ export class BillingPermissionGuard implements CanActivate {
     async canActivate(context: ExecutionContext): Promise<boolean> {
         if (await this.holdsPermission(context)) return true;
         throw new ForbiddenException(codedError(AUTH_ERROR_CODES.BILLING_PERMISSION_REQUIRED));
+    }
+
+    /**
+     * Whether the request's user holds the permission, answered rather than
+     * refused: a guard of the application's that refuses — returning `false`,
+     * or throwing a 401 or 403 — says they do not. Any other failure is not an
+     * answer about the user, and is thrown.
+     */
+    async isHeldBy(context: ExecutionContext): Promise<boolean> {
+        try {
+            return await this.holdsPermission(context);
+        } catch (error) {
+            if (error instanceof HttpException && REFUSALS.has(error.getStatus())) return false;
+            throw error;
+        }
     }
 
     private async holdsPermission(context: ExecutionContext): Promise<boolean> {

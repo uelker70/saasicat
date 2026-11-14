@@ -4400,9 +4400,9 @@ adopt it:
   `accessReasons` on the tenant's detail (`SC-ADM-053`). An `AdminResourcesPort` of your own changes
   nothing: the platform adds the reasons to what the port answers.
 - **The tenant's users read why** (`SC-ADM-054`): mount `TenantAccessBanner` behind your sign-in.
-  It reads `GET billing/account/access` — the invoice by its number and whether it can be paid
-  there, for a user holding the billing permission — and `GET billing/access` for everyone else,
-  again every minute while the page is open; `useTenantAccessState` from `@saasicat/ui-vue` does the
+  It reads `GET billing/access`, which tells a user holding the billing permission the invoice by
+  its number and whether it can be paid there and refuses no user of the tenant, again every minute
+  while the page is open; `useTenantAccessState` from `@saasicat/ui-vue` does the
   same for a banner of your own. Both routes carry the new mark `reads-its-state`, which lets them
   through in every state, suspended and being deleted included; your guard's `enforce` reads it as
   the platform does, so nothing to wire. Texts of your own for the tenant section gain the
@@ -4700,16 +4700,15 @@ the port:
   it was. Texts of your own for the tenant section gain `accessReasonEndedDays`,
   `accessReasonEndedDeletionDue`, `accessExport` and `accessExportFailed`; the shipped English and
   German stand in where you leave them out.
-- **A banner of your own** reads the same from `GET billing/access` and
-  `GET billing/account/access`: each reason's `readOnlyUntil` and `deletesOn`, days in the
-  installation's zone that are `null` except for an ended subscription whose end is recorded,
-  `deletionDue`, whether the installation's day has reached `deletesOn`, `null` where that is, and
-  `mayExport`, `true` only for the tenant's own administrator — never the operator — while the
-  tenant is read-only for an
-  ended subscription whose end is recorded and the export is wired — never where the route would
-  refuse —, and `exportDeliveredBy`, `'platform'` or `'application'` where `mayExport` is `true` and
-  `null` otherwise. `useTenantExport` from `@saasicat/ui-vue` downloads the file the platform serves
-  and saves it under the name the server offers; a refusal reaches the caller of `download()`.
+- **A banner of your own** reads the same from `GET billing/access`: each reason's `readOnlyUntil`
+  and `deletesOn`, days in the installation's zone that are `null` except for an ended subscription
+  whose end is recorded, `deletionDue`, whether the installation's day has reached `deletesOn`,
+  `null` where that is, and `mayExport`, `true` only for the tenant's own administrator — never the
+  operator — while the tenant is read-only for an ended subscription whose end is recorded and the
+  export is wired — never where the route would refuse —, and `exportDeliveredBy`, `'platform'` or
+  `'application'` where `mayExport` is `true` and `null` otherwise. `useTenantExport` from
+  `@saasicat/ui-vue` downloads the file the platform serves and saves it under the name the server
+  offers; a refusal reaches the caller of `download()`.
 - **The operator's page.** `TenantDetailPage` names under "Access", beside an ended subscription,
   the day the tenant's data is deleted, and every download of the export with its day and who took
   it, the oldest first, or that none has been taken yet. The tenant's detail carries them on each
@@ -4955,6 +4954,26 @@ the option the rule accepts in its place where it accepts one:
 2. Where you copied the `notAdopted` line from an earlier run, take it again. It offers only the
    models you may leave out; `SubscriptionNotice` is offered under the needed models, for where no
    option named for it is on, and nowhere else.
+
+### A tenant's page asks its state once
+
+`TenantAccessBanner`, through `useTenantAccessState`, asked `GET billing/account/access` once a
+minute and then `GET billing/access` where the first answered 403, 404 or 501 — so every open page
+wrote an error response a minute to your logs: a 404 where the installation issues no invoices, a
+403 for every user without the billing permission. It now asks `GET billing/access` alone (`SC-ADM-056`).
+Where invoices are mounted, that route tells a user holding the billing permission what
+`GET billing/account/access` tells them — each overdue reason's `invoiceNumber`,
+`holdsBillingPermission: true`, and `mayPay` where a gateway collects — and tells everybody else
+neither, without refusing them. Who holds the permission is decided by your
+`tenantBilling.billingPermissionGuards` — the tenant's administrator where you pass none —, exactly
+as for the invoice routes; a guard of yours that
+refuses by returning `false` or throwing a 401 or 403 means the user does not hold it, and any other
+failure fails the read.
+
+1. Where you mount `TenantAccessBanner` or call `useTenantAccessState`, nothing to do.
+2. Where a client of your own reads `GET billing/account/access` and falls back to
+   `GET billing/access`, read `GET billing/access` alone. `GET billing/account/access` still answers
+   a holder of the permission the same, and still refuses everybody else.
 
 ## What the codemod leaves to you
 
