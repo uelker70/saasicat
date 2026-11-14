@@ -62,7 +62,12 @@ export interface EntitlementModuleOptions {
      * to nobody, whatever grants it; without it, nothing is withdrawn.
      */
     featureWithdrawals?: ProviderSpec<FeatureWithdrawalRepository>;
-    /** Modules required by repository factory `inject` tokens. */
+    /**
+     * Modules required by repository factory `inject` tokens — and, under
+     * row-level security where nothing provides it globally, the one that
+     * provides `RlsBypassPort`, such as the application's
+     * `AdminModule.forRoot(...)`. `SaaSiCatModule` provides it.
+     */
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /** Register the module globally — default `false`. */
     global?: boolean;

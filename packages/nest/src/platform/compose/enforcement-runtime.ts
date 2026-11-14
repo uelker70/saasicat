@@ -10,8 +10,9 @@
 
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import type { DynamicModule, Provider } from '@nestjs/common';
-import type { QuotaProvider, SubscriptionRepository } from '@saasicat/core';
+import type { QuotaProvider, RlsBypassPort, SubscriptionRepository } from '@saasicat/core';
 
+import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { FEATURE_WITHDRAWAL_REPOSITORY_TOKEN } from '../../billing/tenant-billing.tokens.js';
 import { asProvider, type ProviderSpec } from '../../core/di.js';
 import { EnforceQuotaInterceptor, QUOTA_PROVIDERS_TOKEN } from '../enforce-quota.interceptor.js';
@@ -135,7 +136,7 @@ function planResolverProvider(ctx: CompositionContext, resolution: PlanResolutio
     if (resolution.viaSubscriptions) {
         return {
             provide: PLAN_RESOLVER_PORT_TOKEN,
-            useFactory: (subscriptions: SubscriptionRepository) =>
+            useFactory: (subscriptions: SubscriptionRepository, rlsBypass?: RlsBypassPort) =>
                 new SubscriptionPlanResolver(
                     subscriptions,
                     undefined,
@@ -145,8 +146,14 @@ function planResolverProvider(ctx: CompositionContext, resolution: PlanResolutio
                     // either answer on its own.
                     optionsOf(ctx.options.entitlement).resolutionConfig?.canceledEntitlementPlan ??
                         null,
+                    // `AdminModule` provides it globally; optional so that the
+                    // resolver still reads, in the caller's frame, where it does not.
+                    rlsBypass ?? null,
                 ),
-            inject: [PLATFORM_SUBSCRIPTION_REPOSITORY_TOKEN],
+            inject: [
+                PLATFORM_SUBSCRIPTION_REPOSITORY_TOKEN,
+                { token: RLS_BYPASS_PORT_TOKEN, optional: true },
+            ],
         };
     }
     return {

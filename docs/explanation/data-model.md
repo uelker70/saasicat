@@ -281,10 +281,21 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
    operator's read of one tenant's account (`SubscriberAccountService`) is the
    administration's, not a tenant's, and runs inside `RlsBypassPort` within the
    operator's request. A tenant's read of its subscriber's invoices and contract
-   confirmations (`TenantInvoiceService`) is the one read a tenant makes past its
-   boundary: an earlier tenant's invoices keep that tenant's id after a join, so
-   it runs inside `RlsBypassPort`, by the subscriber of the session's tenant and
-   nothing the request names (`SC-SEC-018`).
+   confirmations (`TenantInvoiceService`) is the one read of a tenant's that
+   reaches other tenants' rows: an earlier tenant's invoices keep that tenant's
+   id after a join, so it runs inside `RlsBypassPort`, by the subscriber of the
+   session's tenant and nothing the request names. Two checks of a tenant's
+   request read inside `RlsBypassPort` as well, because they run in guards and
+   interceptors, before the application opens the request's frame: the access
+   state (`TenantAccessService`) — the tenant's reasons, the invoice and the end
+   they name, and whether an invoice is open — and what the tenant's plan
+   allows, its subscription read by `SubscriptionPlanResolver` for the default
+   feature guard and the quota interceptor, and by
+   `EntitlementService.computeLimits` with the contract in force and the
+   add-ons for `FeatureGuard`. Both read by the tenant the session names, so
+   their answer is the same in a guard, a handler, a job and an operator's
+   route (`SC-SEC-019`). A `QuotaProvider`'s count and a plan resolver of the
+   application's own are the application's reads, in the caller's frame.
 7. **Plan changes keep the concrete contract binding consistent.** Adapters
    that declare atomic plan-binding support update the semantic `plan`, its
    active `planVersionId` and the scheduled change in one transaction.

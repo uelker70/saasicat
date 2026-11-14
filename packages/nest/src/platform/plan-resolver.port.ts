@@ -15,6 +15,12 @@ export interface PlanResolverPort {
      * Returns the tenant's active `planId`. `null` = no plan assigned →
      * the guard / interceptor throws 403 or lets it through, depending on
      * the configuration.
+     *
+     * Called from a guard, before the application's interceptor opens the
+     * tenant's frame. An implementation of the application's own reads in
+     * that frame: under row-level security it reads by `tenantId` in a frame
+     * of its own for it, or through the bypass. `SubscriptionPlanResolver`
+     * reads through the bypass it is given.
      */
     getPlanIdForTenant(tenantId: string): Promise<string | null>;
 }

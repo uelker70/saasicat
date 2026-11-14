@@ -1095,6 +1095,36 @@ _Tested by:_
         - a status the platform does not answer goes to the application as it was
         - the platform's own filters cannot be set by the caller
         - the detail carries the state too
+- `packages/nest/tests/the-access-state-is-read-through-the-bypass.test.js`
+    - the access state is read through the bypass, whatever frame the caller is in
+        - enforce on a reading request refuses a suspended tenant and lets a read-only and an open
+          one through
+        - enforce on a writing request refuses a suspended and a read-only tenant and lets an open
+          one through
+        - enforceUnlessChecked on a writing request the application did not check refuses a
+          suspended and a read-only tenant and lets an open one through
+        - assertAllowed at sign-in, writing nothing, refuses a suspended tenant and lets a read-only
+          and an open one in
+        - assertAllowed for a job that writes refuses a suspended and a read-only tenant and lets an
+          open one through
+        - a read-only tenant starts a payment while its invoice is open, the invoice read through
+          the bypass as well
+        - accessOf answers the state of each tenant with its reasons
+        - viewOf answers each tenant's state with the invoice by its number and the deletion day
+        - accessOfEach answers the state of every tenant from one read
+        - tenantsHeldBack names the suspended tenant and neither the read-only nor the open one
+        - endsNamed answers the read-only tenant's ended subscription with its deletion day
+        - invoicesNamed answers the invoice an overdue reason names by its number
+    - the operator's suspension is written through the bypass, whatever frame the caller is in
+        - a suspension is recorded, and a second one answers null
+        - reactivating finds the suspension and lifts it in one frame, and leaves the other reasons
+        - reactivating a tenant that is not suspended answers null
+    - without a bypass bound
+        - the reasons are read in the frame the caller runs in
+        - inside the tenant's frame a suspended tenant is refused as before
+    - the platform's own tenant routes, as SaaSiCatModule composes them
+        - their guard refuses a suspended tenant whose reasons a policy shows only inside the bypass
+        - the route that answers the state tells the suspended tenant it is suspended
 - `packages/nest/tests/the-platforms-tenant-routes-check-the-access-state.test.js`
     - the platform's tenant guard asks the state once the application let the request in
         - an application guard that refuses ends it before the state is read
@@ -1697,7 +1727,7 @@ is still open and the application no longer has its tenant, the record says so i
 the link as ended: a link ends when the application's deletion of the tenant closes it, and a tenant
 the application soft-deleted can come back. Only the platform administrator reaches the list and the
 record (`SC-ADM-001`), and both read past the tenants' row-level policy the way the administration
-does (`SC-SEC-018`).
+does (`SC-SEC-019`).
 
 _Source:_ #335 (decided 2026-10-25)
 
@@ -1783,7 +1813,7 @@ The section names whose account it is, by customer number and legal name. It is 
 no total: a sum of charges would be read as what is owed (`SC-ADM-044`). It is offered only where
 the installation keeps a journal of charges (`SC-ADM-015`), only the platform administrator reaches
 it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the administration does
-(`SC-SEC-018`).
+(`SC-SEC-019`).
 
 _Source:_ #276 · #318 · #335 (decided 2026-10-25)
 
@@ -2162,7 +2192,7 @@ their own and said before anything is asked. An invoice that stands is cancelled
 from the subscriber's record (`SC-ADM-020`, `SC-ADM-035`), and on the command line by its number
 alone, a tenant named beside it only refusing an invoice issued for another tenant. Only the
 platform administrator reaches the register (`SC-ADM-001`), and it reads past the tenants' row-level
-policy the way the administration does (`SC-SEC-018`).
+policy the way the administration does (`SC-SEC-019`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -2364,7 +2394,7 @@ from the record; and per currency what is owed, of it what is overdue, and what 
 What an invoice owes and what a credit holds are read by the same rule the record reads them by, and
 never kept a second time beside the rows they come from. Only the platform administrator reaches
 them (`SC-ADM-001`), and they read past the tenants' row-level policy the way the administration
-does (`SC-SEC-018`).
+does (`SC-SEC-019`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -2493,7 +2523,7 @@ that day and its price per period, and leads into the subscriber's record with t
 The subscriptions page says that it shows the current state per tenant and, where the register is
 offered, points to it. The register is offered where a subscriber's contracts are (`SC-AUD-016`),
 only the platform administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level
-policy the way the administration does (`SC-SEC-018`).
+policy the way the administration does (`SC-SEC-019`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -2595,7 +2625,7 @@ when, the months and the moment. It is taken from the invoices page or with
 `<app> invoices export`, which writes into the directory named or the current one and refuses to
 write over a file of the same name. It is a read, so it asks for no second factor, only the platform
 administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the
-administration does (`SC-SEC-018`).
+administration does (`SC-SEC-019`).
 
 _Source:_ #335 (decided 2026-10-27) · #276
 

@@ -195,7 +195,9 @@ function persistenceWith(repo) {
             subscriptionEnds: new FakeSubscriptionEndRepository(),
             mfa: spec,
             audit: spec,
-            rlsBypass: spec,
+            // What an installation without row policies binds: the preview's
+            // limits are read through it.
+            rlsBypass: { runWithBypass: (work) => work() },
             transactionRunner: spec,
         },
         entitlement: {

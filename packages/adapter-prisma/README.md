@@ -309,10 +309,15 @@ sale.
 An operator's lists, the nightly sweeps and the platform's boot checks work
 across tenants. Under a row policy that filters on the tenant they see nothing
 of the others — an empty list, a count of 0, an update of no row — unless the
-policy is lifted for them. `rlsIntegration: true` does that for every statement
-the bundle's adapters run inside the platform's `runWithBypass`: a read, a
-write, a raw statement, a batch, and an interactive transaction the platform's
-runner or one of its repositories opens.
+policy is lifted for them. The checks of a tenant's request read inside the
+bypass too — its access state, and the subscription behind what its plan
+allows: they run in guards and interceptors, before your application opens the
+tenant's frame, and read that tenant's own rows, by the tenant your guard
+passes.
+`rlsIntegration: true` lifts the policy for every statement the bundle's
+adapters run inside the platform's `runWithBypass`: a read, a write, a raw
+statement, a batch, and an interactive transaction the platform's runner or one
+of its repositories opens.
 
 ```ts
 prismaPersistence({ client: PrismaService, rlsIntegration: true });

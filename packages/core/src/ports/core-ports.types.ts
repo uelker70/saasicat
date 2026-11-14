@@ -143,6 +143,13 @@ export interface UserManagementPort extends SuperAdminProvisioningPort {
 export interface QuotaProvider {
     /** quotaKey, as declared via `@DefinesQuota({ key })`. */
     readonly key: string;
+    /**
+     * What `tenantId` uses now. Called by the quota interceptor in whatever
+     * frame it runs in, which can be before the application's own interceptor
+     * opens the tenant's frame: under row-level security, count by `tenantId`
+     * in a frame of your own for it, or let the interceptor that opens the
+     * frame run first.
+     */
     count(tenantId: string): Promise<number>;
     /** Optional: cache TTL in seconds (default 30s). */
     readonly cacheTtlSeconds?: number;

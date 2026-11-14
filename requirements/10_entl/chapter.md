@@ -283,6 +283,12 @@ _Tested by:_
         - Logical OR: none match → Forbidden with all keys in the message
         - Class-level annotation applies when the handler has none
         - Handler annotation overrides class annotation
+- `packages/nest/tests/what-a-plan-allows-is-read-through-the-bypass.test.js`
+    - what a tenant's plan allows is read through the bypass, whatever frame the caller is in
+        - StaticFeatureGuard lets a tenant whose plan has the feature through and refuses one whose
+          plan has not
+        - FeatureGuard, from a cold cache, lets a tenant through whose plan or contract has the
+          feature and refuses one without it
 
 <!-- END proof -->
 

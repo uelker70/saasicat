@@ -2,8 +2,9 @@
 // the active EntitlementSet (plan + add-ons + custom overrides).
 //
 // Consumer hooks run through `FEATURE_GUARD_CONFIG_TOKEN` — see
-// feature-guard.tokens.ts. Without config the guard behaves like a plain
-// Reflector + EntitlementService lookup without RLS wrapping.
+// feature-guard.tokens.ts. Without config the guard is a plain Reflector +
+// EntitlementService lookup; the service reads through the RLS bypass where
+// one is in scope, so the guard's answer does not wait for the tenant frame.
 
 import {
     CanActivate,

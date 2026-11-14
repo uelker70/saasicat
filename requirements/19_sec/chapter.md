@@ -78,7 +78,7 @@ by its reference is asking whether a named subscriber holds it, and another subs
 that it holds none rather than with the row; a confirmation carrying a reference another subscriber
 holds is refused, rather than recorded or answered as a repeat of a payment method that is not this
 subscriber's. Both are reached on the gateway's callback, which arrives without a session, so an
-installation that keeps its tenants apart with a policy lifts that policy there (`SC-SEC-018`) and
+installation that keeps its tenants apart with a policy lifts that policy there (`SC-SEC-019`) and
 what the question names is all that is left to bound it. Where a provider issues one reference for
 two payers, the second subscriber's confirmation is refused rather than mixed into the first's
 (`SC-PRIC-030`): taking it needs an account of its own.
@@ -461,7 +461,7 @@ _Tested by:_
 row-level-security bypass, so an operator's lists and counts are not empty under a tenant's policy.
 Every other route — a tenant's, a public one — runs in whatever frame the installation opened for the
 request. The frame follows from the guard chain rather than from a list of routes, and the check that
-the administrator is calling runs before it opens. This is the exception `SC-SEC-018` names. A chain
+the administrator is calling runs before it opens. This is the exception `SC-SEC-019` names. A chain
 an integrator sets for a module the platform mounts frames its routes where it holds `SuperAdminGuard`,
 and a route an integrator builds itself chooses its frame with `AdminBypassRlsInterceptor`.
 
@@ -572,17 +572,42 @@ _Tested by:_
 
 ### SC-SEC-018 — Reads that cross tenants are named, and a tenant's reaches only its own subscriber
 
-🟢 🔒 Everything is scoped to a tenant except the reads named here. The operator's administration
-acts on behalf of the platform rather than of a tenant, the platform-wide counts it needs included.
-The platform's own work that serves no single tenant reads across them too: a scheduled run, and a
+🔵 _(Superseded on 2026-11-13 by `SC-SEC-019`.)_ 🔒 Everything is scoped to a tenant except the reads
+named here. The operator's administration acts on behalf of the platform rather than of a tenant,
+the platform-wide counts it needs included. The platform's own work that serves no single tenant
+reads across them too: a scheduled run, and a gateway's callback, which arrives without a session
+(`SC-SEC-014`). A tenant's own read crosses only to the invoices and contract confirmations of its
+subscriber, which reach the tenants joined into it (`SC-ADM-027`), as their invoices keep the tenant
+they were issued for. That read is by the subscriber the session's tenant belongs to, never one the
+request names; every document it hands out is checked against that subscriber first, and another
+subscriber's invoice or contract is answered as one that does not exist.
+
+_Source:_ `docs/explanation/data-model.md` · #336 (decided 2026-11-02)
+
+### SC-SEC-019 — Reads past the tenant policy are named; a tenant's reach only its subscriber and itself
+
+🟢 🔒 Everything is scoped to a tenant except the reads named here. The operator's administration acts
+on behalf of the platform rather than of a tenant, the platform-wide counts it needs included. The
+platform's own work that serves no single tenant reads across them too: a scheduled run, and a
 gateway's callback, which arrives without a session (`SC-SEC-014`). A tenant's own read crosses only
 to the invoices and contract confirmations of its subscriber, which reach the tenants joined into it
 (`SC-ADM-027`), as their invoices keep the tenant they were issued for. That read is by the
-subscriber the session's tenant belongs to, never one the request names; every document it hands
-out is checked against that subscriber first, and another subscriber's invoice or contract is
-answered as one that does not exist.
+subscriber the session's tenant belongs to, never one the request names; every document it hands out
+is checked against that subscriber first, and another subscriber's invoice or contract is answered
+as one that does not exist. Two checks of a tenant's request read past the policy as well, because
+they run in guards and interceptors, before the installation opens the request's frame, and so read
+the same wherever they are asked: in a guard, in a handler, in a job and on an operator's route. The
+check of what a tenant's users may do (`SC-ADM-055`) reads the tenant's reasons and what they name —
+an invoice's number, the deletion day of an ended subscription — and, where a read-only tenant
+starts a payment, whether one of its subscriber's invoices is open. The checks of what its plan
+allows read its subscription — and where the full entitlement answers, the contract in force and the
+add-ons beside it — for the features a route requires and the limit a quota is held to. Both read by
+the tenant the request is for, as the session names it (`SC-SEC-002`), never one the request names,
+and no other tenant's records enter a tenant's state or limits. What an application supplies to
+these checks itself — the count behind a quota, a plan resolved by a resolver of its own — is its
+own read, in whatever frame the platform calls it in.
 
-_Source:_ `docs/explanation/data-model.md` · #336 (decided 2026-11-02)
+_Source:_ `docs/explanation/data-model.md` · #336 (decided 2026-11-02) · decided 2026-11-13
 
 <!-- BEGIN proof -->
 
@@ -622,5 +647,40 @@ _Tested by:_
         - the promotional code sweep runs under the RLS bypass, every step of it
 - `packages/nest/tests/pending-plan-materialization.test.js`
     - the run reads and writes every tenant's change inside the bypass
+- `packages/nest/tests/the-access-state-is-read-through-the-bypass.test.js`
+    - the access state is read through the bypass, whatever frame the caller is in
+        - enforce on a reading request refuses a suspended tenant and lets a read-only and an open
+          one through
+        - enforce on a writing request refuses a suspended and a read-only tenant and lets an open
+          one through
+        - enforceUnlessChecked on a writing request the application did not check refuses a
+          suspended and a read-only tenant and lets an open one through
+        - assertAllowed at sign-in, writing nothing, refuses a suspended tenant and lets a read-only
+          and an open one in
+        - assertAllowed for a job that writes refuses a suspended and a read-only tenant and lets an
+          open one through
+        - a read-only tenant starts a payment while its invoice is open, the invoice read through
+          the bypass as well
+        - accessOf answers the state of each tenant with its reasons
+        - viewOf answers each tenant's state with the invoice by its number and the deletion day
+        - accessOfEach answers the state of every tenant from one read
+        - tenantsHeldBack names the suspended tenant and neither the read-only nor the open one
+        - endsNamed answers the read-only tenant's ended subscription with its deletion day
+        - invoicesNamed answers the invoice an overdue reason names by its number
+    - the bypass the access module reaches
+        - a module wired by hand reads through the bypass of a module it imports
+    - the platform's own tenant routes, as SaaSiCatModule composes them
+        - their guard refuses a suspended tenant whose reasons a policy shows only inside the bypass
+        - the route that answers the state tells the suspended tenant it is suspended
+- `packages/nest/tests/what-a-plan-allows-is-read-through-the-bypass.test.js`
+    - what a tenant's plan allows is read through the bypass, whatever frame the caller is in
+        - StaticFeatureGuard lets a tenant whose plan has the feature through and refuses one whose
+          plan has not
+        - FeatureGuard, from a cold cache, lets a tenant through whose plan or contract has the
+          feature and refuses one without it
+        - EnforceQuotaInterceptor refuses a tenant at its limit and lets one under it through
+    - the plan reads, as SaaSiCatModule composes them
+        - the default stack's plan resolver reads the tenant's plan before the tenant frame
+        - the full entitlement reads the tenant's subscription before the tenant frame
 
 <!-- END proof -->
