@@ -9,9 +9,12 @@
 //       Inserts missing platform Prisma models into your schema.prisma.
 //       Idempotent; existing models are left untouched.
 //
-//   schema check [--prisma-schema=PATH] [--fragments=01,02,03]
+//   schema check [--prisma-schema=PATH] [--fragments=01,02,03] [--serves-tenants]
 //       Reports what your schema is missing relative to the canonical
-//       fragments. Read-only; exits 1 on drift so CI can gate on it.
+//       fragments. Read-only; exits 1 on drift so CI can gate on it. Names
+//       apart the models a start with `tenantBilling` on needs, and the other
+//       options that need them; --serves-tenants says `tenantBilling` is on
+//       (`adminResources` alone is not), and one of them missing is drift.
 //
 //   schema migrate --name=X [--package-manager=pnpm|npm|yarn]
 //       apply --all, then `prisma migrate dev`, then append the constraints
@@ -46,6 +49,7 @@ import {
     applyTokens,
     constraintsFor,
     checkSchema,
+    modelsServingTenantsNeeds,
     extractFragmentBlocks,
     findFkPointers,
     hasConstraints,
@@ -71,7 +75,7 @@ import {
     SCANNED_FOR_DB_CATALOG,
     WHERE_DB_CATALOG_GOES,
 } from '../dist/index.js';
-import { OPTIONAL_CANONICAL_MODELS } from '@saasicat/core';
+import { OPTIONAL_CANONICAL_MODELS, TENANT_SERVING_MEMBERS } from '@saasicat/core';
 
 const require_ = createRequire(import.meta.url);
 
@@ -263,7 +267,11 @@ const MISMATCH_LABELS = {
     list: 'list',
 };
 
-function printCheckReport(report) {
+/**
+ * @param needed the absent models a start serving tenants needs
+ * @param servesTenants whether `--serves-tenants` said the application does
+ */
+function printCheckReport(report, needed, servesTenants) {
     if (report.missingFields.length > 0) {
         console.log(`✗ Missing fields (${report.missingFields.length}):`);
         for (const { model, field, type } of report.missingFields) {
@@ -322,6 +330,8 @@ function printCheckReport(report) {
         console.log('');
     }
 
+    if (needed.length > 0) printServingTenantsNeeds(needed, servesTenants);
+
     const missingIndexes = report.missingBlockAttributes.filter((a) => a.kind === 'index');
     if (missingIndexes.length > 0) {
         console.log(`→ Missing indexes (${missingIndexes.length}):`);
@@ -337,10 +347,16 @@ function printCheckReport(report) {
     // Listing it as "not an error" in the same run would print the contradiction
     // this check exists to avoid — which is exactly what it used to do for a
     // relation pointing at an unadopted model.
+    //
+    // A model serving tenants needs was named in its own section above, and
+    // calling it "not an error" here would undo what that one says.
     const named = new Set(report.missingFields.map((field) => field.type));
     const companions = new Set(report.missingCompanions.map((companion) => companion.model));
+    const neededModels = new Set(needed.map((need) => need.model));
     const absent = [
-        ...report.absentModels.filter((model) => !companions.has(model)),
+        ...report.absentModels.filter(
+            (model) => !companions.has(model) && !neededModels.has(model),
+        ),
         ...report.absentEnums.filter((name) => !named.has(name)),
     ];
     if (absent.length > 0) {
@@ -348,9 +364,7 @@ function printCheckReport(report) {
         console.log('  Not an error — the app does not use these fragments.');
         // The persistence bundles build a member for each of these unless told
         // otherwise; said here, the check and the bundle give one answer.
-        const optional = report.absentModels.filter((model) =>
-            Object.hasOwn(OPTIONAL_CANONICAL_MODELS, model),
-        );
+        const optional = absent.filter((model) => Object.hasOwn(OPTIONAL_CANONICAL_MODELS, model));
         if (optional.length > 0) {
             console.log(
                 '  With prismaPersistence() or drizzlePersistence(), pass them on, and the',
@@ -362,7 +376,64 @@ function printCheckReport(report) {
     }
 }
 
+/**
+ * The models a start serving tenants needs and the schema does not carry.
+ *
+ * Apart from the drift above because the schema cannot say which options the
+ * application turns on, and apart from "not adopted" because they are not a
+ * decision it can take where those are on. `--serves-tenants` says
+ * `tenantBilling` is, which every one of them needs, and makes them fail the
+ * check.
+ */
+function printServingTenantsNeeds(needed, servesTenants) {
+    const heading = servesTenants
+        ? `✗ Needed to serve tenants (${needed.length}):`
+        : `→ Needed wherever tenantBilling is on (${needed.length}):`;
+    console.log(heading);
+    for (const { model, refusedBy, neededWith, orOption } of needed) {
+        console.log(`    ${model.padEnd(28)} ${refusedBy}`);
+        const also = neededWith.filter((option) => option !== 'tenantBilling');
+        if (also.length > 0) console.log(`${' '.repeat(33)}also wherever ${either(also)} is on`);
+        if (orOption) console.log(`${' '.repeat(33)}or your own through ${orOption}`);
+    }
+    console.log('  The rule named refuses a start with nowhere to keep these records, and the');
+    console.log('  shipped bundles keep them in these models: a table left out fails what');
+    console.log('  reads it.');
+    if (servesTenants) {
+        console.log('  Add them, unless you keep one through the option its line names: the');
+        console.log('  check reads only the schema, and fails on that one all the same.');
+        console.log('');
+        return;
+    }
+    console.log('  Add them wherever an option named is on, unless you keep one through the');
+    console.log('  option its line names. --serves-tenants says tenantBilling is on and fails');
+    console.log('  the check on them; it cannot see a record kept through that option.');
+    // The one condition under which the advice below still holds for it.
+    const optional = needed
+        .map((need) => need.model)
+        .filter((model) => Object.hasOwn(OPTIONAL_CANONICAL_MODELS, model));
+    if (optional.length > 0) {
+        console.log('  Where no option named for them is on, the bundle can leave out:');
+        console.log(`    notAdopted: [${optional.map((model) => `'${model}'`).join(', ')}]`);
+    }
+    console.log('');
+}
+
+/** `a`, `a or b`, `a, b or c`. */
+function either(names) {
+    return names.length === 1
+        ? names[0]
+        : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+}
+
 async function cmdSchemaCheck(args) {
+    // A switch: with a value it would not count as given, and
+    // `--serves-tenants=yes` would leave the gate off while asking for it.
+    if (args['serves-tenants'] !== undefined && args['serves-tenants'] !== true) {
+        console.error('✗ --serves-tenants is a switch and takes no value.');
+        process.exit(1);
+    }
+    const servesTenants = args['serves-tenants'] === true;
     const { schemaPath, schema } = await readSchemaOrExit(args);
     const fragmentsDir = resolveFragmentsDir();
     const filter = parseFragmentFilter(args.fragments);
@@ -403,17 +474,29 @@ async function cmdSchemaCheck(args) {
     };
 
     const report = checkSchema(fragments.join('\n'), schema, knownModels, units);
-    printCheckReport(report);
+    // A model taken out of a fragment adopted halfway is reported there.
+    const companions = new Set(report.missingCompanions.map((companion) => companion.model));
+    const needed = modelsServingTenantsNeeds(
+        report.absentModels.filter((model) => !companions.has(model)),
+        TENANT_SERVING_MEMBERS,
+    );
+    printCheckReport(report, needed, servesTenants);
 
     const checked = `${report.checkedModelCount} Model(s), ${report.checkedEnumCount} Enum(s)`;
-    if (report.ok) {
+    const lacksWhatServingNeeds = servesTenants && needed.length > 0;
+    if (report.ok && !lacksWhatServingNeeds) {
         console.log(`✓ No drift. Checked ${checked}.`);
         return;
     }
 
     console.log(`✗ Drift found (checked ${checked}).`);
-    console.log('  Add the missing fields and enum values, then migrate.');
-    console.log('  Review diverging fields: platform code reads them with the spec type.');
+    if (!report.ok) {
+        console.log('  Add the missing fields and enum values, then migrate.');
+        console.log('  Review diverging fields: platform code reads them with the spec type.');
+    }
+    if (lacksWhatServingNeeds) {
+        console.log('  Add the models serving tenants needs, then migrate.');
+    }
     process.exit(1);
 }
 
@@ -1188,6 +1271,9 @@ async function main() {
             '  schema check                             report drift against @saasicat/spec',
         );
         console.log('  schema check --fragments=01,02           check only these fragments');
+        console.log(
+            '  schema check --serves-tenants            tenantBilling is on: fail on a model it needs',
+        );
         console.log(
             '  schema migrate --name=<name>             apply --all + migrate dev + constraints',
         );

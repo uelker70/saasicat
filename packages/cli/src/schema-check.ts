@@ -29,6 +29,8 @@
 // out whole puts its model in `absentModels`, where no field of it is compared
 // at all, so exempting enums would only ever have covered the partial case.
 
+import type { TenantServingMember } from '@saasicat/core';
+
 import { findFkPointers } from './fk-pointers.js';
 import {
     blockBodyLines,
@@ -489,4 +491,38 @@ function companionsLeftOut(
         }
     }
     return found;
+}
+
+/** A model the schema does not carry that a start serving tenants cannot do without. */
+export interface ModelServingTenantsNeeds {
+    model: string;
+    /** The bundle member that keeps its records, e.g. `core.subscriptionEnds`. */
+    member: string;
+    /** The start rule that refuses a start with nowhere to keep them. */
+    refusedBy: string;
+    /** The module options any one of which, on, makes the rule ask for it. */
+    neededWith: readonly string[];
+    /** The option the rule accepts in place of the member, where it accepts one. */
+    orOption?: string;
+}
+
+/**
+ * The absent models a start serving tenants needs, in the order they were
+ * found absent.
+ *
+ * Kept apart from the report because the schema cannot say which options the
+ * application turns on: the caller decides whether these are drift.
+ */
+export function modelsServingTenantsNeeds(
+    absentModels: readonly string[],
+    members: Readonly<Record<string, TenantServingMember>>,
+): ModelServingTenantsNeeds[] {
+    const needs = new Map<string, Omit<ModelServingTenantsNeeds, 'model'>>();
+    for (const [member, { models, ...need }] of Object.entries(members)) {
+        for (const model of models) needs.set(model, { member, ...need });
+    }
+    return absentModels.flatMap((model) => {
+        const need = needs.get(model);
+        return need ? [{ model, ...need }] : [];
+    });
 }

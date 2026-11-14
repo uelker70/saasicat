@@ -80,6 +80,35 @@ information, not as a failure — not adopting a fragment is a decision. Fields
 you added on top of a platform model are never reported: extending them is
 supported.
 
+Some models are no such decision. Wherever `tenantBilling` is on, a start
+needs a place for the records they hold — a tenant's holds, the end of its
+subscription, the notices sent to it — and refuses to start without one; the
+shipped bundles keep those records in these models, so where a table is
+missing, what reads it fails instead. The check names those models apart,
+under **Needed wherever tenantBilling is on**, each with the start rule that
+refuses such a start. Under a model, the check names the other options that
+need it as well — `TenantAccessHold` also wherever `adminResources` is on —
+and the option the rule accepts in its place where there is one, such as
+`tenantBilling.notices.record` for `SubscriptionNotice`. Which models they are
+is `TENANT_SERVING_MEMBERS` in `@saasicat/core`. The schema cannot say which
+options your application turns on, so say it where `tenantBilling` is:
+
+```bash
+pnpm exec saasicat schema check --serves-tenants   # one of those models missing is drift too
+```
+
+`--serves-tenants` means `tenantBilling` is on, and fails on every model the
+section names, since each is needed there. It does not cover an application
+with only `adminResources` on: that one reads `TenantAccessHold` in the
+section, and the check does not fail on it. Nor can it see a record you keep
+through the option a line names — the check reads only the schema, so with the
+switch it fails on that model all the same. Leave the switch out where you do.
+
+The `notAdopted` line the check prints for the persistence bundle names only
+the models you may leave out. A model the bundle can leave out only where none
+of the options named for it is on, such as `SubscriptionNotice`, is offered
+under the needed models with that condition, and not in that line.
+
 Ownership stays with the app: the platform ships the canonical tables and
 constraints, while FK relations to your `Tenant`/`User` models and all RLS
 policies remain app-specific (the fragments carry them as commented-out
