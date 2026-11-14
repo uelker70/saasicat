@@ -1450,15 +1450,21 @@ tenant billing module it built.
 earlier tenant's joined into it included (`SC-PRIC-097`), each with its number, issue date, service
 period, due date, total, issuer, the invoices it is linked to by a cancellation and where its
 payment stands (`SC-ADM-051`'s rule), and whether its document is archived; an invoice is listed
-before its document is, and its download is offered once it is. It downloads one at
-`GET /billing/invoices/:id/document`, the archived file as the operator's route hands it out. Its
-contract confirmations are at `GET /billing/contracts`, and one at
-`GET /billing/contracts/:id/confirmation`. All four sit behind `tenantBilling.authGuards` and the
-billing permission (`tenantBilling.billingPermissionGuards`), and are mounted where invoices are
-issued. The subscriber is the session's tenant's: an invoice or a contract of another subscriber is
-answered `404` like one that does not exist. An earlier tenant's invoices keep that tenant's id
-after a join, so the reads run inside `RlsBypassPort`, by the subscriber's id alone — the one read
-of a tenant's that reaches another tenant's rows (`SC-SEC-020`).
+before its document is, and its download is offered once it is. It downloads one at `GET
+/billing/invoices/:id/document`, the archived file as the operator's route hands it out. Its
+contract confirmations are at `GET /billing/contracts`, and one at `GET
+/billing/contracts/:id/confirmation`. All four sit behind `tenantBilling.authGuards` and the billing
+permission (`tenantBilling.billingPermissionGuards`), and are mounted where invoices are issued. The
+same guards are asked once more from `GET /billing/access` (`SC-ADM-056`), for every user of an open
+page, once a minute, to decide whether the answer names the invoices: they must decide from the
+request alone, not from metadata on the handler, since that route requires none; refusing is
+returning `false` or throwing a 401 or 403, which there means the user does not hold the permission
+and is not refused, and any other throw fails that read. A guard that writes every refusal to an
+audit writes one per user and minute there. The subscriber is the session's tenant's: an invoice or
+a contract of another subscriber is answered `404` like one that does not exist. An earlier tenant's
+invoices keep that tenant's id after a join, so the reads run inside `RlsBypassPort`, by the
+subscriber's id alone — the one read of a tenant's that reaches another tenant's rows
+(`SC-SEC-020`).
 
 **The tenant reads its account** at `GET /billing/account`, beside the invoices and behind the same
 guards: per currency, what the subscriber's invoices still owe and of that what is overdue, and
@@ -1878,17 +1884,19 @@ makes the tenant read-only in that run.
   through which a tenant leaves carries `@Leaves()` too. A suspended tenant, and one being deleted,
   cannot; reinstating an add-on, booking one and changing the plan stay refused.
 - **The tenant's users read why** (`SC-ADM-054`): `GET billing/access` answers every user of the
-  tenant its state and each reason with the day it began in the installation;
-  `GET billing/account/access`, behind the billing permission where invoices are mounted, adds the
-  invoice by its number and whether it can be paid there (`mayPay`, where a gateway collects). Under
-  an ended subscription both name the last day the tenant can read and the day its data is deleted
-  on, `readOnlyUntil` and `deletesOn` (`SC-CANC-033`), and whether that day has come, `deletionDue`
-  — until the deletion runs the data is still there — and both answer `mayExport`, whether this
-  reader can take the tenant's export now, and `exportDeliveredBy`, `'platform'` or `'application'`
-  where they can and `null` where not. Both are let through in every state, suspended and being
-  deleted included, since they carry the mark `reads-its-state`, which your guard's `enforce` reads
-  as the platform does. Mount `TenantAccessBanner` from `@saasicat/ui-vue-tenant` behind your
-  sign-in to show it.
+  tenant its state and each reason with the day it began in the installation. Where invoices are
+  mounted and the reader holds the billing permission — decided by `billingPermissionGuards`, as for
+  the invoice routes — the same answer adds the invoice by its number and whether it can be paid
+  there (`mayPay`, where a gateway collects); a reader without it is told neither and is not
+  refused, so a page asks this one route (`SC-ADM-056`). `GET billing/account/access`, behind the
+  permission, answers a holder the same. Under an ended subscription both name the last day the
+  tenant can read and the day its data is deleted on, `readOnlyUntil` and `deletesOn`
+  (`SC-CANC-033`), and whether that day has come, `deletionDue` — until the deletion runs the data
+  is still there — and both answer `mayExport`, whether this reader can take the tenant's export
+  now, and `exportDeliveredBy`, `'platform'` or `'application'` where they can and `null` where not.
+  Both are let through in every state, suspended and being deleted included, since they carry the
+  mark `reads-its-state`, which your guard's `enforce` reads as the platform does. Mount
+  `TenantAccessBanner` from `@saasicat/ui-vue-tenant` behind your sign-in to show it.
 - **Under row-level security** the check reads through `RlsBypassPort` (`SC-SEC-020`). Your guard
   asks it before your interceptor opens the tenant's frame, so a policy on `tenant_access_holds` does
   not see the request's tenant there. The platform therefore reads the tenant's reasons — and what

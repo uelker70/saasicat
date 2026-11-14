@@ -56,7 +56,11 @@ export interface TenantAccessView {
     state: TenantAccessState;
     /** Every reason it is held back for, the oldest first; none where it is open. */
     reasons: TenantAccessReasonView[];
-    /** Whether this user holds the billing permission, and so is told the invoices by number. */
+    /**
+     * Whether this user holds the billing permission, and so is told the
+     * invoices by number; `false` to everybody where the installation issues
+     * no invoices.
+     */
     holdsBillingPermission: boolean;
     /**
      * Whether this user can pay here what is open: they hold the billing

@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 55      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 56      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 701 entries: 🟢 606 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+Of 702 entries: 🟢 607 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
 🔵 57 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -233,7 +233,7 @@ Of 701 entries: 🟢 606 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 701 requirements. Do not edit by hand:
+Generated from `requirements/` — 702 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -17577,8 +17577,8 @@ _Tested by:_
         - an invoice the numbers do not name is named as none, and the reason stays
 - `packages/nest/tests/a-tenant-reads-why-it-is-held-back.test.js`
     - a tenant's users read why it is held back
-        - every user: the session's tenant, each reason from its day in the installation, no invoice
-          by number
+        - where no invoices are issued, every user: the session's tenant, each reason from its day
+          in the installation, no invoice by number
         - whoever holds the billing permission: the invoice by its number, and paying where it is
           collected
         - where nothing is collected through a gateway, the invoice is named and nothing can be paid
@@ -17592,14 +17592,14 @@ _Tested by:_
         - exactly these routes answer the tenant's own state
 - `packages/ui-vue/tests/a-tenant-reads-why-it-is-held-back.test.js`
     - the tenant's state, as its users read it
-        - a user with the billing permission reads it from that route, under the prefix the app
-          gives
-        - where that route answers ${status}, from the route every user reads
-        - where neither route is there, nothing to show and no error
+        - reads it from the route every user reads, under the prefix the app gives
+        - a user ${reader} is answered by that one route, and the permission's route is not asked
+        - where the route is not there, nothing to show, no error, and nothing else asked
         - a failure is an error, and the state read before stays
         - an answer without a state it knows is an error, not an open tenant
     - while the page is open
         - reads again every minute, and not once the page is gone
+        - each read, on mount and every minute after, is one request to the route every user reads
         - a hold begun during the session shows on the next read, and goes once lifted
         - an answer that arrives after a newer one does not put back what it replaced
 - `packages/ui-vue-tenant/tests/component/a-held-back-tenant-reads-why.test.ts`
@@ -17660,6 +17660,63 @@ _Tested by:_
           the platform
         - where the export is not offered, nothing is said in the console, whether or not anything
           listens
+    - the banner asks its state from one route
+        - to a user who may pay: one request a minute, to the route every user reads, and nothing
+          refused
+        - to a user without the billing permission: one request a minute, no number, nothing to pay,
+          and nothing refused
+
+<!-- END proof -->
+
+### SC-ADM-056 — A tenant's page asks its state from one route, which refuses none of its users
+
+🟢 🔒 Where the installation serves its tenants, a page that shows a tenant's state (`SC-ADM-054`)
+asks one route for it, on opening and again while it stays open, and that route answers every
+signed-in user of the tenant in every state: none of them is refused for not holding the billing
+permission (`SC-UI-023`), and none for an installation that issues no invoices, so a page left open
+puts no refused request into the installation's logs. Where invoices are issued, a user holding the
+billing permission is told in the same answer what the permission's own route tells them — the
+invoice by its number and whether it can be paid here — by the same rule that decides who passes
+that route; every other user, and every user where no invoices are issued, is told neither.
+
+_Source:_ #512 (decided 2026-11-14)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-user-reads-the-tenants-state-from-one-route.test.js`
+    - one route answers every user's read of the state, on ${platform.name}
+        - where the installation issues invoices › ${state}: a user holding the billing permission
+          reads the invoice by number and paying, as the permission's route answers them
+        - where the installation issues invoices › ${state}: a user without the permission reads no
+          number and cannot pay, and is not refused
+        - where the installation issues invoices › ${state}: the operator reads what the
+          permission's route answers them
+        - where the installation issues no invoices › ${state}: ${role} reads the reasons, no number
+          and no paying, and is not refused
+        - where the application decides who holds the permission › the application's role reads the
+          number from the route every user reads
+        - where the application decides who holds the permission › the tenant's administrator, whom
+          the application's rule leaves out, reads no number
+        - where the permission refuses by throwing › the refusal reads as not holding it: no number,
+          and the state is answered
+        - where the permission's own check fails › the read fails rather than taking the failure for
+          an answer about the user
+    - the composed module tells the invoices by number exactly where it mounts them
+        - with invoices issued and collected: the number and paying, to whoever holds the permission
+        - without invoices: no number and no paying, to the tenant administrator too
+- `packages/ui-vue/tests/a-tenant-reads-why-it-is-held-back.test.js`
+    - the tenant's state, as its users read it
+        - a user ${reader} is answered by that one route, and the permission's route is not asked
+    - while the page is open
+        - each read, on mount and every minute after, is one request to the route every user reads
+- `packages/ui-vue-tenant/tests/component/a-held-back-tenant-reads-why.test.ts`
+    - the banner asks its state from one route
+        - to a user who may pay: one request a minute, to the route every user reads, and nothing
+          refused
+        - to a user without the billing permission: one request a minute, no number, nothing to pay,
+          and nothing refused
 
 <!-- END proof -->
 

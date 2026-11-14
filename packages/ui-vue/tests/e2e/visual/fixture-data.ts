@@ -2055,7 +2055,7 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     // the cases above keep rendering the section with nothing withdrawn.
     ...tenantRoutes('/api/withdrawn-billing', TENANT_USAGE, null, TENANT_WITHDRAWN),
     // The access banner's: the state and the account it reads to offer paying.
-    ['/api/access-billing/account/access', TENANT_ACCESS_ENDED],
+    ['/api/access-billing/access', TENANT_ACCESS_ENDED],
     [
         '/api/access-billing/account',
         {
