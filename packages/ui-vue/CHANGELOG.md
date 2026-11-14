@@ -1,5 +1,53 @@
 # @saasicat/ui-vue
 
+## 1.0.0-rc.32
+
+### Minor Changes
+
+- cd7a85d: A tenant's page asks its state once
+
+    `TenantAccessBanner`, through `useTenantAccessState`, now asks
+    `GET billing/access` alone, on mount and once a minute after. It used to ask
+    `GET billing/account/access` first and fall back to `GET billing/access` on a
+    403, 404 or 501, so every open page put a refused request into the logs each
+    minute: a 404 where the installation issues no invoices, a 403 for every user
+    without the billing permission.
+
+    Where invoices are issued, `GET billing/access` now tells a user holding the
+    billing permission what `GET billing/account/access` tells them: each overdue
+    reason's invoice number, `holdsBillingPermission: true`, and `mayPay` where a
+    payment gateway collects. Who holds the permission is decided by the same
+    `tenantBilling.billingPermissionGuards` that guard the invoice routes, or the
+    tenant's administrator where none are passed; a guard that returns `false` or
+    throws a 401 or 403 means the user does not hold it, and any other failure fails
+    the read. Every other user, and every user where no invoices are issued, is told
+    no number and cannot pay, and is not refused. Those guards are now asked from
+    `GET billing/access` too, for every user, once a minute, and must decide from
+    the request alone rather than from handler metadata.
+
+    `GET billing/account/access` still answers a holder of the permission the same,
+    and still refuses everybody else. A client of your own that reads it and falls
+    back to `GET billing/access` can read `GET billing/access` alone.
+
+### Patch Changes
+
+- b3f8ef7: The invoicing documentation says what holds
+
+    - `sql/1.0-an-invoice-is-issued.postgres.sql` said in its header that no invoice
+      is issued for a charge before invoicing is switched on. The file itself issues
+      none, but the first invoice run invoices every charge of the journal that
+      stands on no invoice, however long ago its period was. The header now
+      says so; its SQL is unchanged.
+    - The README of `@saasicat/ui-vue` names the operator's billing pages —
+      `SubscribersPage`, `SubscriberRecordPage`, `InvoicesPage`, `ContractsPage`,
+      `OpenItemsPage` and `ReconciliationPage` — with what each needs: the backend
+      mounts their routes only where `adminResources` is on.
+
+- Updated dependencies [19e3b1a]
+- Updated dependencies [4649257]
+- Updated dependencies [c91b7a1]
+    - @saasicat/core@1.0.0-rc.32
+
 ## 1.0.0-rc.31
 
 ### Minor Changes

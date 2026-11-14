@@ -1,5 +1,15 @@
 # @saasicat/tax-de
 
+## 1.0.0-rc.32
+
+### Patch Changes
+
+- f411411: `fast-xml-parser` is required at `^5.12.0`.
+- Updated dependencies [19e3b1a]
+- Updated dependencies [4649257]
+- Updated dependencies [c91b7a1]
+    - @saasicat/core@1.0.0-rc.32
+
 ## 1.0.0-rc.31
 
 ### Patch Changes

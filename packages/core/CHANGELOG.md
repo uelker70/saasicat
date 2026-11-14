@@ -1,5 +1,119 @@
 # @saasicat/types
 
+## 1.0.0-rc.32
+
+### Minor Changes
+
+- 4649257: An application can deliver a tenant's export itself
+
+    `tenantBilling.subscriptionEnds.export` now takes, in place of a
+    `TenantDataExportPort`, the declaration `{ deliveredBy: 'application' }`: the
+    application delivers the tenant's full export from a download of its own — a
+    stream, where the file is too large to hold in memory — and the platform records
+    each download once it has gone out in full. One of the two is still required, in
+    the types and at start (`subscription-ends.requires-export`), and the refusal
+    names both. A declaration naming anybody but `'application'` is refused at start
+    too (`subscription-ends.export-delivered-by-the-application`), since an object
+    with `deliveredBy` is never a port. With the declaration the platform wires no
+    port and mounts no `GET billing/export`.
+
+    - `recordDelivered(request, { size, mediaType }, now?)` of
+      `TenantExportDeliveryService`, from `@saasicat/nest/billing`, records a
+      download the application delivered. Call it with the request the application
+      served the file on, once the whole response has gone out. It reads the tenant
+      and who took the export from that request's session by the rules of the
+      platform's own route, writes the row in `tenant_export_downloads` beside the
+      latest recorded end and `TENANT_EXPORT_DOWNLOAD` in the audit log, as a
+      download the platform serves does, and answers the row as recorded. It
+      refuses, recording nothing, with `405` for a `HEAD`, which carries no file
+      whatever the stream counted, `409 TENANT_EXPORT_NOT_OFFERED` where no end of
+      the tenant's subscription is recorded, `403 TENANT_EXPORT_NOT_FOR_OPERATOR`
+      for the operator, `403 TENANT_ADMIN_REQUIRED` for a user who is not the
+      tenant's administrator, and `503 TENANT_EXPORT_FAILED` for a size that is not
+      a whole number of at least one byte, or a media type outside printable ASCII.
+      It reads the end and writes the row through `RlsBypassPort` where one is
+      bound, by the tenant the session names (`SC-SEC-020`). One download of a
+      tenant at a time, and how long one may take, are the application's to bound on
+      this path.
+    - The tenant's state, from `GET billing/access` and
+      `GET billing/account/access`, gains `exportDeliveredBy`: `'platform'` or
+      `'application'` where `mayExport` is `true`, and `null` otherwise.
+      `TenantAccessViewOptions` takes it as an option, `'platform'` where it is left
+      out, and `EndedSubscriptionSource` names it.
+    - `TenantAccessBanner` takes a `take-export` listener. Where the tenant's state
+      says the application delivers the export, the button calls it instead of
+      loading `GET billing/export`; the button is busy until what the listener
+      returns settles, and a rejection is told beneath it as a failed download is.
+      Where nothing listens, the banner writes an error to the console as soon as it
+      offers the export, and pressing the button says the export did not arrive.
+      Where the platform serves the export, the banner downloads it as before.
+    - `SC-PRIV-019` is superseded by `SC-PRIV-020`, and `SC-SEC-019` by
+      `SC-SEC-020`.
+
+### Patch Changes
+
+- 19e3b1a: Read a tenant's access state and plan the same in every row-level frame
+
+    The checks of a tenant's request run in guards and interceptors, before the
+    application's interceptor opens the tenant's frame, where a policy on the
+    platform's tables does not see the request's tenant. They now read through
+    `RlsBypassPort` where one is bound, by the tenant they are asked about
+    (`SC-SEC-019`), so each answers the same in a guard, a handler, a job and an
+    operator's route.
+
+    - `TenantAccessService` reads a tenant's reasons, and what they name — an
+      invoice's number, whether an invoice is open, an ended subscription's
+      deletion day — through the bypass. The operator's suspension is recorded
+      through it too, and reactivating finds the suspension and lifts it in one
+      frame.
+    - `SubscriptionPlanResolver`, behind `StaticFeatureGuard` and
+      `EnforceQuotaInterceptor`, reads the subscription through the bypass, which
+      it takes as an optional fourth argument; `SaaSiCatModule` passes the bound
+      port.
+    - `EntitlementService.computeLimits`, behind `FeatureGuard`, reads the
+      subscription, its contract in force and its add-ons through the bypass, in
+      one frame, cached or not. A `tenantContextRunner` set for that purpose is no
+      longer needed where the port is in scope.
+    - `TenantAccessModule.forRoot` takes `imports`, so a module wired by hand
+      reaches the `RlsBypassPort` of a module it imports; `EntitlementModule`
+      reaches it through its `imports` as before. `SaaSiCatModule` provides the
+      port already.
+    - `QuotaProvider.count` and an `adapters.planResolver` of your own stay yours,
+      in whatever frame the platform calls them in. Under row-level security, count
+      and read by the tenant id passed, or let the interceptor that opens your
+      frame run before the platform's; the integration guide says how Nest orders
+      them.
+    - A port that only calls through reads in the caller's frame. With a policy on
+      the platform's tables, bind one that lifts it — the Prisma bundle's
+      `rlsIntegration: true` — or let the policy pass the platform's reads.
+
+- c91b7a1: The schema check names what an application serving tenants cannot run without
+
+    `saasicat schema check` no longer lists the models a start with `tenantBilling`
+    on cannot do without under "Not adopted", as not an error. It names them in a
+    section of their own, "Needed wherever tenantBilling is on", each with the start
+    rule that refuses a start with nowhere to keep its records: `TenantAccessHold`,
+    `SubscriptionEnd`, `SubscriptionEndAnnouncement`, `TenantExportDownload` and
+    `SubscriptionNotice`, and `Subscription` and `PlanVersion` where a schema lacks
+    them. Under each model it names the other options that need it as well —
+    `TenantAccessHold` also wherever `adminResources` is on — and the option the
+    rule accepts in its place where there is one, such as
+    `tenantBilling.notices.record`. The `notAdopted` line it prints for the
+    persistence bundle no longer offers `SubscriptionNotice`; the check offers it
+    under the needed models, for where no option named for it is on.
+
+    `--serves-tenants` says `tenantBilling` is on: with it, one of those models
+    missing fails the check with exit 1. Without it, the check names them and exits
+    as it did. The check reads only the schema, so the switch does not cover an
+    application with only `adminResources` on, and it fails on a model whose records
+    the application keeps through the option the rule accepts in its place.
+
+    `@saasicat/core` exports `TENANT_SERVING_MEMBERS`: the persistence bundle
+    members a start with `tenantBilling` on is refused without, each with the rule
+    that refuses it, the options that rule answers to, the option it accepts in its
+    place where it accepts one, and the canonical models the shipped bundles keep
+    its records in.
+
 ## 1.0.0-rc.31
 
 ### Minor Changes
