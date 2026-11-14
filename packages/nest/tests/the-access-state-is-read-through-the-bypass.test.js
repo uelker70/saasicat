@@ -530,8 +530,12 @@ describe("the platform's own tenant routes, as SaaSiCatModule composes them", ()
 
     test('the route that answers the state tells the suspended tenant it is suspended', async () => {
         const controller = moduleRef.get(TenantAccessStateController, { strict: false });
+        const request = asTenant(TENANTS.suspended, 'GET');
         const view = await FRAMES['before the tenant frame'](TENANTS.suspended, () =>
-            controller.state(asTenant(TENANTS.suspended, 'GET')),
+            controller.state(
+                request,
+                contextOfRoute(TenantAccessStateController, 'state', request),
+            ),
         );
         assert.equal(view.state, 'suspended');
         assert.deepEqual(
