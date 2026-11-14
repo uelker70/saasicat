@@ -2599,7 +2599,7 @@ withdrawn does so at the price offered, without a reduction and without the righ
 
 ## Admin Module
 
-`SaaSiCatModule` owns `PlatformAdminModule`, `AdminManifestModule` and the
+`SaaSiCatModule` owns `AdminModule`, `AdminManifestModule` and the
 optional `AdminStatsModule`. Configure them in `saasicat.config.ts`:
 
 ```ts
