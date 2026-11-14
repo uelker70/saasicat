@@ -81,7 +81,11 @@ the migration it just wrote — so the invariants Prisma's DSL cannot express
 arrive with the tables rather than as a step to remember.
 
 Add `pnpm exec saasicat schema check` to CI. It exits 1 when your schema falls
-behind the fragments after a package upgrade, and names what is missing.
+behind the fragments after a package upgrade, and names what is missing. With
+`tenantBilling` on, add `--serves-tenants`: a model a start serving tenants
+cannot do without, missing, then fails it too — see
+[The canonical schema](guides/wire-the-backend.md#the-canonical-schema) for what the switch
+cannot see.
 
 ## 4 — Declare the capability on an endpoint
 

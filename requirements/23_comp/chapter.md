@@ -515,6 +515,19 @@ _Tested by:_
         - an enum a reported field names is not also listed as not adopted
         - and a model nothing reported still is
         - a model the persistence bundle can leave out is handed over as the option to pass
+    - the models a start serving tenants needs
+        - missing, are named apart with the rule that refuses the start, and not as a decision
+        - missing, name beside tenantBilling every other option that needs them
+        - missing, name the option the start takes in their place, where it takes one
+        - beside models the bundle can do without, are kept out of the line to pass on
+        - all present, with only models the bundle can do without missing, have no section
+        - with everything adopted, neither section is printed
+    - --serves-tenants
+        - fails the check on a missing model a start serving tenants needs, naming it
+        - says it cannot see a record kept through the option a line names
+        - without it, the same schema passes
+        - with everything a start serving tenants needs, passes
+        - given a value, is refused rather than read as off
 - `packages/cli/tests/schema-check.test.js`
     - parseFields
         - reads name, type and modifiers, skips attributes and comments
@@ -1536,5 +1549,54 @@ _Tested by:_
         - compares every adapter with it, except the ones named for taking anything
         - accepts in a JSON column whatever the generated client accepts there
         - the check sees an enum member the generated client does not have
+
+<!-- END proof -->
+
+### SC-COMP-021 — The schema check names apart what an application serving tenants cannot run without
+
+🟢 Where a schema lacks a model that a start with `tenantBilling` on needs a place for,
+`saasicat schema check` names it in a section of its own, with the start rule that refuses such a
+start, and not among the models an application may leave out. Beside the model it names every other
+option that rule answers to, such as `adminResources` for a tenant's holds, and the option the rule
+accepts in its place where it accepts one. The `notAdopted` line `SC-COMP-016` hands over does not
+offer it; where the bundle could still leave it out, the check names that condition beside it.
+`--serves-tenants` says `tenantBilling` is on, and with it such a model missing fails the check.
+The models, their options and the options accepted in their place are held to the start rules of
+both shipped bundles.
+
+Where the absolute stops: the check reads only the schema. The switch does not cover an application
+with only another of those options on, and with the switch a model whose records the application
+keeps through the option the rule accepts in its place fails the check all the same.
+
+_Source:_ #512
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/schema-check-report.test.js`
+    - the models a start serving tenants needs
+        - missing, are named apart with the rule that refuses the start, and not as a decision
+        - missing, name beside tenantBilling every other option that needs them
+        - missing, name the option the start takes in their place, where it takes one
+        - beside models the bundle can do without, are kept out of the line to pass on
+        - all present, with only models the bundle can do without missing, have no section
+        - with everything adopted, neither section is printed
+    - --serves-tenants
+        - fails the check on a missing model a start serving tenants needs, naming it
+        - says it cannot see a record kept through the option a line names
+        - without it, the same schema passes
+        - with everything a start serving tenants needs, passes
+        - given a value, is refused rather than read as off
+- `tests/what-serving-tenants-needs-is-read-off-the-start.test.js`
+    - what a start serving tenants needs of the shipped bundles
+        - each bundle, whole, starts with tenantBilling on and with no option on
+        - is every member whose absence refuses a start with tenantBilling on, each by the rule core
+          names
+        - names for each other option exactly the members a start with only that option on is
+          refused without
+        - names for each entry the options its rule answers to, read off the rule's condition
+        - takes the option an entry names in place of its member
+        - holds an optional model exactly where leaving it out refuses a start with tenantBilling on
 
 <!-- END proof -->

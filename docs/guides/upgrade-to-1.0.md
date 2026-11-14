@@ -3713,8 +3713,10 @@ how to turn it on:
 To adopt it:
 
 1. Add `SubscriptionNotice` from `prisma-fragments/17-subscription-notice.prisma` to your schema.
-   Without it `saasicat schema check` lists the model as not adopted; with `prismaPersistence()` or
-   `drizzlePersistence()`, pass `notAdopted: ['SubscriptionNotice']` and the bundle builds no record.
+   Without it `saasicat schema check` names the model among those needed wherever `tenantBilling`
+   is on ([below](#the-schema-check-names-what-serving-tenants-needs)); where `tenantBilling` is
+   off, pass `notAdopted: ['SubscriptionNotice']` to `prismaPersistence()` or
+   `drizzlePersistence()` and the bundle builds no record.
 2. Run the migration once, before `db push` where you use one:
 
     ```bash
@@ -4834,6 +4836,40 @@ To adopt it:
 
 Nothing is deleted on the deletion day by this release; the reminders announce a day the data is
 still kept on.
+
+### The schema check names what serving tenants needs
+
+`saasicat schema check` listed every canonical model a schema does not carry under "Not adopted",
+as "not an error", and offered the optional ones in the `notAdopted` line for the persistence
+bundle. That included models a start with `tenantBilling` on cannot do without: `TenantAccessHold`,
+`SubscriptionEnd`, `SubscriptionEndAnnouncement`, `TenantExportDownload`, and `SubscriptionNotice`
+in the `notAdopted` line, which refuses such a start
+(`subscription-notices.requires-record`). The check now names those apart, each with the start
+rule that refuses a start with nowhere to keep its records, the other options that need it, and
+the option the rule accepts in its place where it accepts one:
+
+```text
+→ Needed wherever tenantBilling is on (4):
+    TenantAccessHold             tenant-access.requires-holds-port
+                                 also wherever adminResources is on
+    SubscriptionEnd              subscription-ends.requires-store
+                                 or your own through tenantBilling.subscriptionEnds.store
+    SubscriptionEndAnnouncement  subscription-ends.requires-store
+                                 or your own through tenantBilling.subscriptionEnds.store
+    TenantExportDownload         subscription-ends.requires-store
+                                 or your own through tenantBilling.subscriptionEnds.store
+```
+
+1. Where `tenantBilling` is on, add the models that section names — the fragments of the sections
+   above — and gate on them: `saasicat schema check --serves-tenants` fails with exit 1 while one
+   of them is missing. Without the switch the check names them and exits as before. The switch
+   means `tenantBilling` is on; an application with only `adminResources` on reads
+   `TenantAccessHold` in the section and adds it, without the switch. Where you keep a record
+   through the option a line names instead, leave the switch out: the check reads only the schema
+   and would fail on that model all the same.
+2. Where you copied the `notAdopted` line from an earlier run, take it again. It offers only the
+   models you may leave out; `SubscriptionNotice` is offered under the needed models, for where no
+   option named for it is on, and nowhere else.
 
 ## What the codemod leaves to you
 

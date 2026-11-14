@@ -97,10 +97,10 @@ properties it has while doing it.
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 19      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 20      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
-| 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
+| 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 698 entries: 🟢 605 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+Of 699 entries: 🟢 606 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
 🔵 55 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),

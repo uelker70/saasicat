@@ -3,7 +3,7 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -106,5 +106,200 @@ describe('the check never prints two answers to one question', () => {
         );
         assert.equal(code, 0, stdout);
         assert.match(stdout, /notAdopted: \['AppliedSettings', 'SettingsChange'\]/);
+    });
+});
+
+/** Every shipped fragment, as one schema: what an application that adopted all of them carries. */
+async function everyFragment() {
+    const require = createRequire(import.meta.url);
+    const dir = join(dirname(require.resolve('@saasicat/spec')), 'prisma-fragments');
+    const files = (await readdir(dir)).filter((file) => file.endsWith('.prisma')).sort();
+    const sources = await Promise.all(files.map((file) => readFile(join(dir, file), 'utf8')));
+    return sources.join('\n');
+}
+
+/** `schema` with the `model` blocks of `models` taken out, as a schema that never adopted them. */
+function without(schema, ...models) {
+    const lines = schema.split('\n');
+    const kept = [];
+    let skipping = false;
+    for (const line of lines) {
+        if (!skipping && models.some((model) => line.startsWith(`model ${model} {`))) {
+            skipping = true;
+            continue;
+        }
+        if (skipping) {
+            if (line.startsWith('}')) skipping = false;
+            continue;
+        }
+        kept.push(line);
+    }
+    return kept.join('\n');
+}
+
+/** The lines of the section `heading` opens, up to the blank line that ends it. */
+function section(stdout, heading) {
+    const start = stdout.indexOf(heading);
+    if (start === -1) return undefined;
+    const end = stdout.indexOf('\n\n', start);
+    return stdout.slice(start, end === -1 ? undefined : end);
+}
+
+/** The rule a needed model's line names, and the lines under it, trimmed. */
+function entryOf(needed, model) {
+    const lines = needed.split('\n');
+    const at = lines.findIndex((line) => line.trim().split(/\s+/)[0] === model);
+    assert.ok(at !== -1, `${model} is named`);
+    const under = [];
+    for (const line of lines.slice(at + 1)) {
+        if (!line.startsWith(' '.repeat(33))) break;
+        under.push(line.trim());
+    }
+    return [lines[at].trim().split(/\s+/)[1], ...under];
+}
+
+const SERVING_TENANTS = [
+    'SubscriptionNotice',
+    'TenantAccessHold',
+    'SubscriptionEnd',
+    'SubscriptionEndAnnouncement',
+    'TenantExportDownload',
+];
+
+// @requirement SC-COMP-021 — The schema check names apart what an application serving tenants cannot run without
+describe('the models a start serving tenants needs', () => {
+    test('missing, are named apart with the rule that refuses the start, and not as a decision', async () => {
+        const { stdout, code } = await check(without(await everyFragment(), ...SERVING_TENANTS));
+        assert.equal(code, 0, stdout);
+
+        const needed = section(stdout, 'Needed wherever tenantBilling is on (5):');
+        assert.ok(needed, stdout);
+        assert.match(needed, /SubscriptionNotice\s+subscription-notices\.requires-record/);
+        assert.match(needed, /TenantAccessHold\s+tenant-access\.requires-holds-port/);
+        assert.match(needed, /SubscriptionEnd\s+subscription-ends\.requires-store/);
+        assert.match(needed, /SubscriptionEndAnnouncement\s+subscription-ends\.requires-store/);
+        assert.match(needed, /TenantExportDownload\s+subscription-ends\.requires-store/);
+        assert.match(needed, /--serves-tenants says tenantBilling is on and fails/);
+
+        assert.equal(section(stdout, 'Not adopted'), undefined, 'none of them is "not an error"');
+        // The one the bundle can leave out is offered only under the condition it holds in.
+        assert.match(
+            needed,
+            /Where no option named for them is on, the bundle can leave out:\n\s+notAdopted: \['SubscriptionNotice'\]$/,
+        );
+    });
+
+    test('missing, name beside tenantBilling every other option that needs them', async () => {
+        const { stdout } = await check(without(await everyFragment(), ...SERVING_TENANTS));
+        const needed = section(stdout, 'Needed wherever tenantBilling is on (5):');
+        assert.deepEqual(entryOf(needed, 'TenantAccessHold'), [
+            'tenant-access.requires-holds-port',
+            'also wherever adminResources is on',
+        ]);
+        assert.ok(
+            !entryOf(needed, 'SubscriptionNotice').some((line) => line.startsWith('also')),
+            'tenant billing alone needs the notices',
+        );
+    });
+
+    test('missing, name the option the start takes in their place, where it takes one', async () => {
+        const { stdout } = await check(without(await everyFragment(), ...SERVING_TENANTS));
+        const needed = section(stdout, 'Needed wherever tenantBilling is on (5):');
+        assert.deepEqual(entryOf(needed, 'SubscriptionNotice'), [
+            'subscription-notices.requires-record',
+            'or your own through tenantBilling.notices.record',
+        ]);
+        assert.deepEqual(entryOf(needed, 'SubscriptionEnd'), [
+            'subscription-ends.requires-store',
+            'or your own through tenantBilling.subscriptionEnds.store',
+        ]);
+        assert.ok(
+            !entryOf(needed, 'TenantAccessHold').some((line) => line.startsWith('or ')),
+            'the holds have no option of their own',
+        );
+    });
+
+    test('beside models the bundle can do without, are kept out of the line to pass on', async () => {
+        const { stdout, code } = await check(
+            without(
+                await everyFragment(),
+                ...SERVING_TENANTS,
+                'VersionRetirement',
+                'PromoCodeHold',
+            ),
+        );
+        assert.equal(code, 0, stdout);
+
+        const notAdopted = section(stdout, 'Not adopted (2): PromoCodeHold, VersionRetirement');
+        assert.ok(notAdopted, stdout);
+        assert.match(notAdopted, /Not an error/);
+        assert.match(notAdopted, /notAdopted: \['PromoCodeHold', 'VersionRetirement'\]$/);
+        const words = new Set(notAdopted.split(/[^A-Za-z]+/));
+        for (const model of SERVING_TENANTS) assert.ok(!words.has(model), model);
+    });
+
+    test('all present, with only models the bundle can do without missing, have no section', async () => {
+        const { stdout, code } = await check(
+            without(await everyFragment(), 'VersionRetirement', 'PromoCodeHold'),
+            '--serves-tenants',
+        );
+        assert.equal(code, 0, stdout);
+        assert.equal(section(stdout, 'Needed'), undefined, stdout);
+        assert.match(stdout, /Not adopted \(2\)/);
+    });
+
+    test('with everything adopted, neither section is printed', async () => {
+        const { stdout, code } = await check(await everyFragment());
+        assert.equal(code, 0, stdout);
+        assert.equal(section(stdout, 'Needed'), undefined, stdout);
+        assert.equal(section(stdout, 'Not adopted'), undefined, stdout);
+        assert.match(stdout, /✓ No drift/);
+    });
+});
+
+// @requirement SC-COMP-021 — The schema check names apart what an application serving tenants cannot run without
+describe('--serves-tenants', () => {
+    test('fails the check on a missing model a start serving tenants needs, naming it', async () => {
+        const { stdout, code } = await check(
+            without(await everyFragment(), 'TenantAccessHold'),
+            '--serves-tenants',
+        );
+        assert.equal(code, 1, stdout);
+        const needed = section(stdout, '✗ Needed to serve tenants (1):');
+        assert.ok(needed, stdout);
+        assert.match(needed, /TenantAccessHold\s+tenant-access\.requires-holds-port/);
+        assert.doesNotMatch(needed, /notAdopted:/, 'the condition it offers is known not to hold');
+        assert.match(stdout, /✗ Drift found[^\n]*\n {2}Add the models serving tenants needs/);
+    });
+
+    test('says it cannot see a record kept through the option a line names', async () => {
+        const { stdout, code } = await check(
+            without(await everyFragment(), 'SubscriptionNotice'),
+            '--serves-tenants',
+        );
+        assert.equal(code, 1, stdout);
+        const needed = section(stdout, '✗ Needed to serve tenants (1):');
+        assert.match(needed, /or your own through tenantBilling\.notices\.record/);
+        assert.match(
+            needed,
+            /unless you keep one through the option its line names: the\s+check reads only the schema, and fails on that one all the same/,
+        );
+    });
+
+    test('without it, the same schema passes', async () => {
+        const { stdout, code } = await check(without(await everyFragment(), 'TenantAccessHold'));
+        assert.equal(code, 0, stdout);
+        assert.match(stdout, /✓ No drift/);
+    });
+
+    test('with everything a start serving tenants needs, passes', async () => {
+        const { stdout, code } = await check(await everyFragment(), '--serves-tenants');
+        assert.equal(code, 0, stdout);
+        assert.match(stdout, /✓ No drift/);
+    });
+
+    test('given a value, is refused rather than read as off', async () => {
+        const { code } = await check(await everyFragment(), '--serves-tenants=yes');
+        assert.equal(code, 1);
     });
 });

@@ -3,11 +3,13 @@
  * bundle members that need it.
  *
  * `saasicat schema check` lists every canonical model it does not find as not
- * adopted. Naming one of these in a bundle's `notAdopted` leaves its members
- * out of the bundle, so the platform decides at start what it can do without
- * them — and says so where it cannot — instead of the first request failing
- * against a table that is not there. Any other model the bundle needs: an
- * application that leaves it out brings its own adapter for it.
+ * adopted, apart from the ones a start serving tenants needs
+ * (`TENANT_SERVING_MEMBERS`). Naming one of these in a bundle's `notAdopted`
+ * leaves its members out of the bundle, so the platform decides at start what
+ * it can do without them — and says so where it cannot — instead of the first
+ * request failing against a table that is not there. Any other model the
+ * bundle needs: an application that leaves it out brings its own adapter for
+ * it.
  */
 export const OPTIONAL_CANONICAL_MODELS = {
     SuperAdminUser: ['core.superAdminProvisioning'],
@@ -18,6 +20,8 @@ export const OPTIONAL_CANONICAL_MODELS = {
     // Optional only where tenants are not served: with `tenantBilling` on, a
     // start whose bundle leaves it out is refused unless
     // `tenantBilling.notices.record` names another place for the notices.
+    // `TENANT_SERVING_MEMBERS` names it for that, and the schema check reads it
+    // from there.
     SubscriptionNotice: ['tenantBilling.subscriptionNotices'],
     VersionRetirement: ['tenantBilling.versionRetirements'],
     BundleVersionRetirement: ['tenantBilling.bundleVersionRetirements'],
