@@ -7,8 +7,10 @@ Optional but strongly recommended integration for ops workflows.
 @Module({
     imports: [
         PrismaModule,
-        PlanCatalogModule.forRoot({/* like 6.4 */}),
-        PlatformAdminModule.forRoot({/* like 6.5 */}),
+        // The settings of config/saas.yaml and your read sink (see below):
+        PlanCatalogModule.forRoot({/* …settings, sink */}),
+        // The application's ports, sealer and key (see below):
+        AdminModule.forRoot({/* mfaPort, secretSealer, auditPort, rlsBypassPort */}),
         CliContextModule.forRoot({
             config: {
                 adminEmailEnvVar: 'MYAPP_ADMIN_EMAIL',
@@ -65,6 +67,11 @@ Optional but strongly recommended integration for ops workflows.
 })
 export class CliModule {}
 ```
+
+`PlanCatalogModule` and `AdminModule` come from `@saasicat/nest`. The catalogue module takes the
+settings [loaded at boot](wire-the-backend.md#loading-the-plan-catalog-at-boot) and the read sink
+the catalogue is read from; the
+[`@saasicat/cli` README](../../packages/cli/README.md#plugin-architecture) spells both modules out.
 
 The invoice commands take their services from the platform's modules. `InvoiceCancelCliFlow`
 injects `AdminResourcesService`, which `adminResources` composes, and `InvoiceCancellationService`;
