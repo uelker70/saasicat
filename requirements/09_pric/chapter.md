@@ -4490,7 +4490,7 @@ zero is the other: it issues no invoice (`SC-PRIC-048`). Once means on one invoi
 cancelled invoice and the replacement that follows it (`SC-PRIC-095`) are not two. Each charge
 carries its period (`SC-AUD-011`). An invoice holds only the charges of the tenant it was issued
 for; a tenant's users see the invoices of their subscriber, an earlier tenant's joined into it
-included (`SC-ADM-027`, `SC-SEC-019`).
+included (`SC-ADM-027`, `SC-SEC-020`).
 
 _Source:_ #276 · #334 · #336 (decided 2026-11-01) ·
 

@@ -207,21 +207,50 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
 
-🟢 🔒 From the moment the end of the tenant's subscription is recorded (`SC-CANC-027`) until its data
-is deleted, a user holding the tenant's administrator role downloads the tenant's full export as
-one file, which the application produces. The tenant's other users cannot, since it holds every
-user's data. Before the end is recorded the export is refused with a stable code, as the tenant
-still works in the application; after the deletion day it is still offered while the data is there.
-A suspension or a deletion under way refuses it as it refuses every request of the tenant's users
-(`SC-ADM-055`). The tenant is always the session's, never one the request names. The application is
-asked on every download; the download is recorded only once the application has handed the whole
-file over, and the file is sent only once its download is recorded, so a file never leaves without
-its record and a record never claims a file the application did not produce. Every download is a
-record of its own, with its moment and who took it, kept beside the end; it is the tenant's
-acknowledgement that `SC-PRIV-017` names. A download shows that the file was produced for that
-request; it cannot show that it was saved.
+🔵 _(Superseded on 2026-11-14 by `SC-PRIV-020`.)_ 🔒 From the moment the end of the tenant's
+subscription is recorded (`SC-CANC-027`) until its data is deleted, a user holding the tenant's
+administrator role downloads the tenant's full export as one file, which the application produces.
+The tenant's other users cannot, since it holds every user's data. Before the end is recorded the
+export is refused with a stable code, as the tenant still works in the application; after the
+deletion day it is still offered while the data is there. A suspension or a deletion under way
+refuses it as it refuses every request of the tenant's users (`SC-ADM-055`). The tenant is always
+the session's, never one the request names. The application is asked on every download; the download
+is recorded only once the application has handed the whole file over, and the file is sent only once
+its download is recorded, so a file never leaves without its record and a record never claims a file
+the application did not produce. Every download is a record of its own, with its moment and who took
+it, kept beside the end; it is the tenant's acknowledgement that `SC-PRIV-017` names. A download
+shows that the file was produced for that request; it cannot show that it was saved.
 
 _Source:_ #337 (decided 2026-11-12)
+
+### SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
+
+🟢 🔒 From the moment the end of the tenant's subscription is recorded (`SC-CANC-027`) until its data
+is deleted, a user holding the tenant's administrator role is offered the tenant's full export as
+one file, which the application produces. The tenant's other users are not, since it holds every
+user's data, and neither is the operator acting as the tenant. Before the end is recorded the export
+is not offered, as the tenant still works in the application; after the deletion day it is still
+offered while the data is there. The tenant is always the session's, never one the request names.
+The application either hands the file over for the platform to serve, or declares that it delivers
+the export from a download of its own; it does not start with neither, nor with a declaration naming
+anybody else as delivering it. Where the platform serves the file, a suspension or a deletion under
+way refuses the download as it refuses every request of the tenant's users (`SC-ADM-055`), and any
+other download outside these rules is refused with a stable code; the application is asked on every
+download, the download is recorded only once the application has handed the whole file over, and the
+file is sent only once its download is recorded, so a file never leaves without its record and a
+record never claims a file the application did not produce. Where the application delivers it, who
+may download it from its own route is the application's to decide, and the platform records a
+download once the application reports that the whole file has gone out, at least one byte of it —
+only for the session's tenant, taken by its administrator rather than the operator, with an end
+recorded; otherwise it records nothing and says why with a stable code. There the file has left
+before its record is written, so a download that broke off, or that the application does not report,
+leaves no record. On either path a `HEAD`, which carries no file, is answered `405` and records
+nothing. Either way every download recorded is a record of its own, with its moment, who took it and
+its size, kept beside the end; it is the tenant's acknowledgement that `SC-PRIV-017` names. A
+download shows that the file was produced or delivered for that request; it cannot show that it was
+saved.
+
+_Source:_ #337 (decided 2026-11-12) · #512 (decided 2026-11-14)
 
 <!-- BEGIN proof -->
 
@@ -308,6 +337,57 @@ _Tested by:_
         - tenant billing wired by hand with the ends and without it does not start, naming the
           option and the port
         - given, the route is mounted and the export is asked through the port given
+    - the declaration that the application delivers the export itself
+        - stands in for the port: nothing is refused
+        - naming anybody else as delivering it, the start is refused in one sentence naming the
+          application
+        - tenant billing wired by hand with a declaration naming anybody else does not start
+        - the refusal of a start with neither names both ways
+        - mounts no route of the platform for the export, and asks no port
+        - hands the application the service it records each delivered download through
+        - where the platform serves the export, its route is mounted and no such service handed out
+        - tenant billing wired by hand with it mounts no route for the export either
+- `packages/nest/tests/the-application-delivers-the-tenants-export.test.js`
+    - the application records a download it delivered in full
+        - it is recorded beside the end, with the moment, who took it from the session and the bytes
+          that went out
+        - the application is answered the download as recorded
+        - and written to the audit log as a download the platform serves is
+        - every delivery is a record of its own, the oldest first
+        - is still recorded after the deletion day, while the data is there
+        - of two ended subscriptions, the latest end is the one the download is recorded for
+        - one at a time is the application’s to keep: two deliveries reported together are both
+          recorded
+        - an audit log that fails leaves the download recorded, and says so in the server log
+        - a download that cannot be recorded is thrown as it is, and writes no audit entry
+    - a delivery is recorded only once an end is recorded
+        - ${state}: refused as not offered, and nothing is recorded or audited
+        - an end whose reason was lifted records nothing any more
+    - only a whole file is recorded
+        - one byte is a file, and is recorded
+        - ${what}: refused as an export not delivered, and nothing is recorded or audited
+    - a HEAD carries no file, so it records nothing
+        - ${method}: refused as the method the export is not taken by, and nothing is recorded or
+          audited
+    - the operator does not record a download in the tenant’s name
+        - a user holding SUPER_ADMIN is refused with a code of its own, and nothing is recorded
+        - the operator the application's check let through as acting is refused, whatever role the
+          session carries
+        - a request the application checked as a tenant user’s is recorded as the administrator’s
+        - a user of the tenant without the administrator’s role is refused, and nothing is recorded
+        - a session that names no user is refused, and nothing is recorded
+    - the state a user reads says who delivers the export
+        - to the administrator, the application, where it delivers the export
+        - to the administrator, the platform, where it serves the export
+        - to anybody who is not offered the export, nobody
+        - while no end is recorded, nobody
+    - the download recorded is the session's tenant's alone
+        - a request naming another tenant anywhere but its session is answered for its session
+        - another tenant's end, recorded under a reason of its own, records its own download only
+- `packages/nest/tests/the-compiler-asks-for-what-serving-tenants-needs.test.js`
+    - the options of an application that serves tenants
+        - compile with the declaration that the application delivers the export itself
+        - do not compile with a declaration naming anybody else as delivering it
 - `packages/nest/tests/the-days-and-downloads-of-an-ended-subscription-are-shown.test.js`
     - the operator's page names the day and every download of the export
         - the deletion day, and every download with its moment and who took it, the oldest first
@@ -332,5 +412,19 @@ _Tested by:_
         - refused with a code the platform does not word, says the export did not arrive rather than
           the code
         - where the connection breaks, says the export did not arrive
+    - the tenant's export, where the application delivers it
+        - the button starts the application's own download, and nothing is loaded from the platform
+        - is busy while the application's download runs, and cannot be pressed a second time
+          meanwhile
+        - where the application's download fails, says the export did not arrive and leaves the
+          banner as it was
+        - where the platform serves it, the button downloads it as before and the application's
+          action is not started
+        - where nothing listens, says so in the console once the export is offered, before anybody
+          presses
+        - where nothing listens, pressing says the export did not arrive, and nothing is loaded from
+          the platform
+        - where the export is not offered, nothing is said in the console, whether or not anything
+          listens
 
 <!-- END proof -->

@@ -1,6 +1,7 @@
 // A tenant's full export, taken by its administrator once its subscription has
-// ended, and the record of each download — the tenant's acknowledgement that
-// `SC-PRIV-017` names (`SC-PRIV-019`).
+// ended from `GET billing/export`, where the application hands the file over
+// rather than delivering it itself (`SC-PRIV-020`), and the record of each
+// download — the tenant's acknowledgement that `SC-PRIV-017` names.
 //
 // The platform does not assemble the export: the application hands it over
 // through `TenantDataExportPort`, asked for the session's tenant on every
@@ -39,59 +40,31 @@ import {
     TENANT_ACCESS_ERROR_CODES,
     type AdminActor,
     type RlsBypassPort,
-    type SubscriptionEnd,
     type SubscriptionEndPort,
     type TenantDataExport,
     type TenantDataExportPort,
-    type TenantExportDownload,
 } from '@saasicat/core';
 
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
-import { readAcrossTenants } from '../admin/read-across-tenants.js';
-import { actorTagOf } from '../core/web-audit.js';
 import { codedError } from '../errors/coded-error.js';
-import { referencesOf } from '../tenant-access/hold-references.js';
-import {
-    TenantAccessService,
-    type EndedSubscriptionSource,
-    type NamedEnd,
-} from '../tenant-access/tenant-access.service.js';
+import { TenantAccessService } from '../tenant-access/tenant-access.service.js';
 import {
     SUBSCRIPTION_END_PORT_TOKEN,
     TENANT_DATA_EXPORT_PORT_TOKEN,
 } from './tenant-billing.tokens.js';
-
-/** The audit log's key for one download of a tenant's export. */
-const TENANT_EXPORT_DOWNLOAD_ACTION = 'TENANT_EXPORT_DOWNLOAD';
-
-/**
- * A media type as a header carries it: printable ASCII, at least one
- * character. One quantifier, over one class, so it cannot backtrack.
- */
-const HEADER_TEXT = /^[\x20-\x7e]+$/;
-
-/**
- * Why a start is refused where the ends of subscriptions are kept and the
- * application wires no export, naming the option the way `option` spells it.
- */
-export function exportNotWired(option: string): string {
-    return (
-        `${option} is missing: wherever the end of a subscription is kept, the application ` +
-        "hands over the tenant's full export through a TenantDataExportPort, because the " +
-        'read-only period before the deletion day exists for the tenant to take it (SC-PRIV-019).'
-    );
-}
+import { TenantExportDownloads, isRecordableFile } from './tenant-export-downloads.js';
 
 @Injectable()
-export class TenantDataExportService implements OnModuleInit, EndedSubscriptionSource {
+export class TenantDataExportService implements OnModuleInit {
     private readonly logger = new Logger(TenantDataExportService.name);
+    private readonly downloads: TenantExportDownloads;
 
     /** The tenants whose export this process is producing and recording now. */
     private readonly producing = new Set<string>();
 
     constructor(
-        @Inject(SUBSCRIPTION_END_PORT_TOKEN) private readonly ends: SubscriptionEndPort,
+        @Inject(SUBSCRIPTION_END_PORT_TOKEN) ends: SubscriptionEndPort,
         @Inject(TENANT_DATA_EXPORT_PORT_TOKEN) private readonly exports: TenantDataExportPort,
         // Absent only where tenant billing is wired by hand without
         // `SaaSiCatModule`: nothing records the `ended` reason then, so the
@@ -101,16 +74,18 @@ export class TenantDataExportService implements OnModuleInit, EndedSubscriptionS
         private readonly access: TenantAccessService | null = null,
         @Optional()
         @Inject(RLS_BYPASS_PORT_TOKEN)
-        private readonly rlsBypass: RlsBypassPort | null = null,
+        rlsBypass: RlsBypassPort | null = null,
         // Without the administration's audit log — a minimal deploy — the
         // download is recorded beside the end alone.
         @Optional()
         @Inject(AdminAuditService)
-        private readonly audit: AdminAuditService | null = null,
-    ) {}
+        audit: AdminAuditService | null = null,
+    ) {
+        this.downloads = new TenantExportDownloads(ends, access, rlsBypass, audit, 'platform');
+    }
 
     onModuleInit(): void {
-        this.access?.answerEndsFrom(this);
+        this.access?.answerEndsFrom(this.downloads);
     }
 
     /**
@@ -124,7 +99,7 @@ export class TenantDataExportService implements OnModuleInit, EndedSubscriptionS
      * is handed back on any.
      */
     async take(tenantId: string, actor: AdminActor, now: Date): Promise<TenantDataExport> {
-        const end = await this.endOffered(tenantId);
+        const end = await this.downloads.endOffered(tenantId);
         // Claimed with no `await` between the check and the claim, so of two
         // requests that reach this line together exactly one goes on.
         if (this.producing.has(tenantId)) {
@@ -134,89 +109,18 @@ export class TenantDataExportService implements OnModuleInit, EndedSubscriptionS
         }
         this.producing.add(tenantId);
         try {
-            return await this.produceAndRecord(tenantId, end, actor, now);
+            const file = await this.produce(tenantId);
+            await this.downloads.record(
+                tenantId,
+                end,
+                actor,
+                { size: file.content.byteLength, mediaType: file.mediaType },
+                now,
+            );
+            return file;
         } finally {
             this.producing.delete(tenantId);
         }
-    }
-
-    /** The application's file for `tenantId`, once its download is recorded beside `end` and audited. */
-    private async produceAndRecord(
-        tenantId: string,
-        end: SubscriptionEnd,
-        actor: AdminActor,
-        now: Date,
-    ): Promise<TenantDataExport> {
-        const file = await this.produce(tenantId);
-        const download = await this.ends.recordExportDownload({
-            tenantId,
-            subscriptionId: end.subscriptionId,
-            downloadedAt: now,
-            downloadedBy: actorTagOf(actor),
-            downloadedByUserId: actor.userId,
-            size: file.content.byteLength,
-        });
-        await this.audited(actor, download, file);
-        return file;
-    }
-
-    /**
-     * Read in the frame the caller runs in and held to `tenantId`: the
-     * download reads it within the tenant's own scope, the access check
-     * through the bypass, where `tenantId` is all that bounds it
-     * (`SC-SEC-019`).
-     */
-    async endsOf(tenantId: string, subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]> {
-        if (subscriptionIds.length === 0) return [];
-        const ends = await this.ends.listFor(subscriptionIds);
-        return ends.filter((end) => end.tenantId === tenantId);
-    }
-
-    /**
-     * Read past the tenants' policy, as every read of the administration is
-     * (`SC-SEC-019`): the operator's detail page asks outside any tenant's
-     * scope. Held to `tenantId`, one read of the ends and one of the downloads.
-     */
-    async endsWithDownloadsOf(
-        tenantId: string,
-        subscriptionIds: readonly string[],
-    ): Promise<NamedEnd[]> {
-        if (subscriptionIds.length === 0) return [];
-        const [ends, downloads] = await readAcrossTenants(this.rlsBypass, () =>
-            Promise.all([
-                this.ends.listFor(subscriptionIds),
-                this.ends.listExportDownloadsFor(subscriptionIds),
-            ]),
-        );
-        return ends
-            .filter((end) => end.tenantId === tenantId)
-            .map((end) => ({
-                subscriptionId: end.subscriptionId,
-                deletesOn: end.deletesOn,
-                downloads: downloads.filter(
-                    (download) =>
-                        download.tenantId === tenantId &&
-                        download.subscriptionId === end.subscriptionId,
-                ),
-            }));
-    }
-
-    /**
-     * The end the export is offered for: of the subscriptions the open `ended`
-     * reasons name, the one whose end is recorded, the latest where there are
-     * several.
-     */
-    private async endOffered(tenantId: string): Promise<SubscriptionEnd> {
-        const holds = this.access ? (await this.access.accessOf(tenantId)).holds : [];
-        const [latest] = (await this.endsOf(tenantId, referencesOf(holds, 'ended'))).sort(
-            (a, b) => b.endsAt.getTime() - a.endsAt.getTime(),
-        );
-        if (!latest) {
-            throw new ConflictException(
-                codedError(TENANT_ACCESS_ERROR_CODES.TENANT_EXPORT_NOT_OFFERED),
-            );
-        }
-        return latest;
     }
 
     /** The file the application hands over for `tenantId`, or the refusal where it hands none. */
@@ -241,39 +145,6 @@ export class TenantDataExportService implements OnModuleInit, EndedSubscriptionS
         }
         return file;
     }
-
-    /**
-     * Writes the download to the audit log, best effort: the download stands
-     * whether or not its entry could be written (`SC-AUD-004`), and its record
-     * beside the end is the evidence.
-     */
-    private async audited(
-        actor: AdminActor,
-        download: TenantExportDownload,
-        file: TenantDataExport,
-    ): Promise<void> {
-        if (!this.audit) return;
-        try {
-            await this.audit.log({
-                actor,
-                entity: 'Tenant',
-                entityId: download.tenantId,
-                action: TENANT_EXPORT_DOWNLOAD_ACTION,
-                changes: {
-                    subscriptionId: download.subscriptionId,
-                    downloadId: download.id,
-                    mediaType: file.mediaType,
-                    bytes: file.content.byteLength,
-                },
-            });
-        } catch (error) {
-            this.logger.error(
-                `Download ${download.id} of tenant ${download.tenantId}'s export is recorded and ` +
-                    'is sent, but writing its audit entry failed.',
-                error instanceof Error ? error.stack : String(error),
-            );
-        }
-    }
 }
 
 /** The refusal of a download the application handed no file for. */
@@ -286,14 +157,12 @@ function exportFailed(): ServiceUnavailableException {
 /**
  * Whether the application's answer is a file the download can hand out as it
  * is: whole bytes, at least one, a media type a header can carry, and a file
- * name. An empty file exports nothing, and its record would claim an export
- * the application did not produce.
+ * name.
  */
 function isExportFile(answer: unknown): answer is TenantDataExport {
     if (typeof answer !== 'object' || answer === null) return false;
     if (!('content' in answer) || !(answer.content instanceof Uint8Array)) return false;
-    if (answer.content.byteLength === 0) return false;
-    if (!('mediaType' in answer) || typeof answer.mediaType !== 'string') return false;
-    if (!HEADER_TEXT.test(answer.mediaType)) return false;
+    if (!('mediaType' in answer)) return false;
+    if (!isRecordableFile(answer.content.byteLength, answer.mediaType)) return false;
     return 'fileName' in answer && typeof answer.fileName === 'string';
 }

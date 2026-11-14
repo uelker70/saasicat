@@ -9,7 +9,7 @@
 // since nothing is cached between two.
 //
 // Every read and write here goes through `RlsBypassPort` where one is bound
-// (`SC-SEC-019`). The check runs in guards, and the application opens its
+// (`SC-SEC-020`). The check runs in guards, and the application opens its
 // tenant frame in an interceptor, after every guard: a policy on the
 // platform's tables does not see the request's tenant before that frame is
 // opened. Read through the bypass, the state is the same in a guard, in a
@@ -38,6 +38,7 @@ import {
     type TenantAccessState,
     type TenantAccessView,
     type TenantAccessViewOptions,
+    type TenantExportDeliverer,
     type TenantExportDownload,
     type RlsBypassPort,
     requestWrites,
@@ -101,9 +102,12 @@ export interface InvoiceNameSource {
  * What is kept of the subscriptions the `ended` reasons name: each end with its
  * deletion day, and every download of the tenant's export taken for it.
  * Answered by the tenant's export, which the application wires wherever the
- * ends are kept — so where it answers, the export can be produced.
+ * ends are kept — so where it answers, the export can be delivered, and it says
+ * by whom.
  */
 export interface EndedSubscriptionSource {
+    /** Who delivers the export: the platform from its own route, or the application. */
+    readonly exportDeliveredBy: TenantExportDeliverer;
     /** The recorded ends of `tenantId` among `subscriptionIds`, as its own users read them, in one read. */
     endsOf(tenantId: string, subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]>;
     /**
@@ -215,7 +219,10 @@ export class TenantAccessService {
      */
     async viewOf(
         tenantId: string,
-        asked: Omit<TenantAccessViewOptions, 'invoiceNumbers' | 'deletionDays' | 'exportWired'>,
+        asked: Omit<
+            TenantAccessViewOptions,
+            'invoiceNumbers' | 'deletionDays' | 'exportWired' | 'exportDeliveredBy'
+        >,
     ): Promise<TenantAccessView> {
         const access = await this.accessOf(tenantId);
         const [named, ends] = await Promise.all([
@@ -229,13 +236,14 @@ export class TenantAccessService {
             invoiceNumbers: new Map(named.map((invoice) => [invoice.id, invoice.number])),
             deletionDays: new Map(ends.map((end) => [end.subscriptionId, end.deletesOn])),
             exportWired: this.endedSubscriptions !== null,
+            exportDeliveredBy: this.endedSubscriptions?.exportDeliveredBy,
         });
     }
 
     /**
      * The ended subscriptions among `subscriptionIds` whose end is recorded for
      * `tenantId`, each with its deletion day and every download of the export
-     * taken for it, as the operator reads them (`SC-CANC-033`, `SC-PRIV-019`);
+     * taken for it, as the operator reads them (`SC-CANC-033`, `SC-PRIV-020`);
      * none where nothing answers for the ends. One read of the ends and one of
      * the downloads.
      */

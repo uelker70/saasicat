@@ -33,6 +33,7 @@ describe("a tenant's users read why it is held back", () => {
             holdsBillingPermission: false,
             mayPay: false,
             mayExport: false,
+            exportDeliveredBy: null,
         });
     });
 

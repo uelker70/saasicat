@@ -141,6 +141,17 @@ administrator the tenant's full export as a download, which the server records:
 <TenantAccessBanner :http="http" api-prefix="/billing" :format-date="formatDate" />
 ```
 
+Where your application delivers the export from a download of its own
+(`subscriptionEnds.export: { deliveredBy: 'application' }` on the server), the server says so in the
+tenant's state, and the banner's button starts your download instead of loading a file. Bind it to
+`@take-export`; while what it returns is pending the button is busy, and a rejection is told beneath
+it as a failed download is. Where nothing is bound, the banner says so in the browser's console as
+soon as it offers the export, and pressing the button says the export did not arrive:
+
+```vue
+<TenantAccessBanner :http="http" :format-date="formatDate" @take-export="startTenantExport" />
+```
+
 Import the platform theme once in your app so these components pick up the
 design tokens:
 

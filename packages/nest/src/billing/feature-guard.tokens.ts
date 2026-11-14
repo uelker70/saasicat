@@ -15,7 +15,7 @@ export interface FeatureGuardConfig {
      * `runWithTenant(tenantId, fn)`. Where an `RlsBypassPort` is in scope —
      * `SaaSiCatModule` provides it — `computeLimits` reads the tenant's
      * subscription through it, by the tenant asked about, whatever frame it
-     * runs in (`SC-SEC-019`), so the platform's reads need no runner. One
+     * runs in (`SC-SEC-020`), so the platform's reads need no runner. One
      * still serves where no bypass is in scope, or where the bound port only
      * calls through while a policy guards the tables. Without row-level
      * security: omit the field, the default is identity.

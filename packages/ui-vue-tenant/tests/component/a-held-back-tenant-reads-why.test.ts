@@ -56,6 +56,7 @@ const toBilling = (overrides: Partial<TenantAccessView> = {}): TenantAccessView 
     holdsBillingPermission: true,
     mayPay: true,
     mayExport: false,
+    exportDeliveredBy: null,
     ...overrides,
 });
 const ACCOUNT = {
@@ -69,12 +70,16 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
-async function mountBanner(http: HttpClient, options: { german?: boolean } = {}) {
+async function mountBanner(
+    http: HttpClient,
+    options: { german?: boolean; onTakeExport?: () => Promise<void> | void } = {},
+) {
     const wrapper = mount(TenantAccessBanner, {
         props: {
             http,
             // The day the instant falls on in the viewer's zone, as an application's formatter writes it.
             formatDate: (iso: string) => new Date(iso).toLocaleDateString('de-DE'),
+            onTakeExport: options.onTakeExport,
         },
         attachTo: document.body,
         global: options.german
@@ -336,11 +341,12 @@ const endedToAnyone = (overrides: Partial<TenantAccessView> = {}): TenantAccessV
     holdsBillingPermission: false,
     mayPay: false,
     mayExport: false,
+    exportDeliveredBy: null,
     ...overrides,
 });
-/** What the tenant's administrator reads of it: they may take the export. */
+/** What the tenant's administrator reads of it: they may take the export, which the platform serves. */
 const endedToAdministrator = (): TenantAccessView =>
-    endedToAnyone({ holdsBillingPermission: true, mayExport: true });
+    endedToAnyone({ holdsBillingPermission: true, mayExport: true, exportDeliveredBy: 'platform' });
 
 const EXPORT_BYTES = new TextEncoder().encode('{"notes":[]}');
 const EXPORT_LABEL = "Export the account's data";
@@ -550,7 +556,7 @@ describe('the banner of a tenant whose subscription ended', () => {
     });
 });
 
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe("the tenant's export, taken from the banner", () => {
     test('is offered to its administrator as a button named for what it downloads, reached from the keyboard', async () => {
         const { http } = httpRouting({
@@ -730,5 +736,152 @@ describe("the tenant's export, taken from the banner", () => {
         await flushPromises();
 
         expect(wrapper.find('[role="alert"]').text()).toBe('The export could not be downloaded.');
+    });
+});
+
+/** What the administrator reads where the application delivers the export itself. */
+const endedDeliveredByTheApplication = (): TenantAccessView => ({
+    ...endedToAdministrator(),
+    exportDeliveredBy: 'application',
+});
+
+/** An action of the application's that settles only once released, counting how often it was started. */
+function heldAction() {
+    let release: (error?: Error) => void = () => {};
+    const action = {
+        started: 0,
+        start: () => {
+            action.started += 1;
+            return new Promise<void>((resolve, reject) => {
+                release = (error) => (error ? reject(error) : resolve());
+            });
+        },
+        release: (error?: Error) => release(error),
+    };
+    return action;
+}
+
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
+describe("the tenant's export, where the application delivers it", () => {
+    // The file's own spies stay: only what a case here puts on the console is put back.
+    const consoleSpies: Array<{ mockRestore(): void }> = [];
+    afterEach(() => {
+        for (const spy of consoleSpies.splice(0)) spy.mockRestore();
+    });
+    const quietConsole = () => {
+        const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        consoleSpies.push(spy);
+        return spy;
+    };
+
+    test("the button starts the application's own download, and nothing is loaded from the platform", async () => {
+        const { http, calls } = httpRouting({
+            'GET /billing/account/access': [[200, endedDeliveredByTheApplication()]],
+        });
+        const action = heldAction();
+        const wrapper = await mountBanner(http, { onTakeExport: action.start });
+
+        await exportButton(wrapper)!.trigger('click');
+        action.release();
+        await flushPromises();
+
+        expect(action.started).toBe(1);
+        expect(calls).not.toContain('GET /billing/export');
+        expect(handedToSave).toHaveLength(0);
+        expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+    });
+
+    test("is busy while the application's download runs, and cannot be pressed a second time meanwhile", async () => {
+        const { http } = httpRouting({
+            'GET /billing/account/access': [[200, endedDeliveredByTheApplication()]],
+        });
+        const action = heldAction();
+        const wrapper = await mountBanner(http, { onTakeExport: action.start });
+
+        await exportButton(wrapper)!.trigger('click');
+        expect(exportButton(wrapper)!.attributes('aria-busy')).toBe('true');
+        expect(exportButton(wrapper)!.attributes('disabled')).toBeDefined();
+        await exportButton(wrapper)!.trigger('click');
+        action.release();
+        await flushPromises();
+
+        expect(action.started).toBe(1);
+        expect(exportButton(wrapper)!.attributes('aria-busy')).toBeUndefined();
+    });
+
+    test("where the application's download fails, says the export did not arrive and leaves the banner as it was", async () => {
+        const { http } = httpRouting({
+            'GET /billing/account/access': [[200, endedDeliveredByTheApplication()]],
+        });
+        const action = heldAction();
+        const wrapper = await mountBanner(http, { onTakeExport: action.start });
+
+        await exportButton(wrapper)!.trigger('click');
+        action.release(new TypeError('Failed to fetch'));
+        await flushPromises();
+
+        expect(wrapper.find('[role="alert"]').text()).toBe('The export could not be downloaded.');
+        expect(lines(wrapper)).toEqual([ENDED_LINE]);
+        expect(exportButton(wrapper)!.attributes('disabled')).toBeUndefined();
+    });
+
+    test("where the platform serves it, the button downloads it as before and the application's action is not started", async () => {
+        const { http, calls } = httpRouting({
+            'GET /billing/account/access': [[200, endedToAdministrator()]],
+            'GET /billing/export': [[200, EXPORT_BYTES, 'northwind-export.json']],
+        });
+        const action = heldAction();
+        const wrapper = await mountBanner(http, { onTakeExport: action.start });
+
+        await exportButton(wrapper)!.trigger('click');
+        await flushPromises();
+
+        expect(action.started).toBe(0);
+        expect(calls.filter((call) => call === 'GET /billing/export')).toHaveLength(1);
+        expect(handedToSave.map((saved) => saved.fileName)).toEqual(['northwind-export.json']);
+    });
+
+    test('where nothing listens, says so in the console once the export is offered, before anybody presses', async () => {
+        const consoleError = quietConsole();
+        vi.useFakeTimers();
+        const { http } = httpRouting({
+            'GET /billing/account/access': [
+                [200, endedDeliveredByTheApplication()],
+                [200, endedDeliveredByTheApplication()],
+            ],
+        });
+        await mountBanner(http);
+        await flushPromises();
+        await vi.advanceTimersByTimeAsync(TENANT_ACCESS_POLL_MS);
+        await flushPromises();
+
+        expect(consoleError).toHaveBeenCalledTimes(1);
+        expect(String(consoleError.mock.calls[0]?.[0])).toContain('nothing listens to take-export');
+    });
+
+    test('where nothing listens, pressing says the export did not arrive, and nothing is loaded from the platform', async () => {
+        quietConsole();
+        const { http, calls } = httpRouting({
+            'GET /billing/account/access': [[200, endedDeliveredByTheApplication()]],
+        });
+        const wrapper = await mountBanner(http);
+
+        await exportButton(wrapper)!.trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[role="alert"]').text()).toBe('The export could not be downloaded.');
+        expect(calls).not.toContain('GET /billing/export');
+        expect(handedToSave).toHaveLength(0);
+    });
+
+    test('where the export is not offered, nothing is said in the console, whether or not anything listens', async () => {
+        const consoleError = quietConsole();
+        const { http } = httpRouting({
+            'GET /billing/account/access': [[200, endedToAnyone()]],
+        });
+        const wrapper = await mountBanner(http);
+
+        expect(exportButton(wrapper)).toBeUndefined();
+        expect(consoleError).not.toHaveBeenCalled();
     });
 });

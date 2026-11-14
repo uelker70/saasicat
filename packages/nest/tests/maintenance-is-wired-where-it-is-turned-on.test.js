@@ -188,7 +188,7 @@ describe('the platform’s own scheduled jobs', () => {
         }
     });
 
-    // @requirement SC-SEC-019 — Reads past the tenant policy are named; a tenant's reach only its subscriber and itself
+    // @requirement SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
     test('the promotional code sweep runs under the RLS bypass, every step of it', async () => {
         const repositories = promoRepositories();
         let lifted = false;

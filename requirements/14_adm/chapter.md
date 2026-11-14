@@ -1310,6 +1310,20 @@ _Tested by:_
         - refused with a code the platform does not word, says the export did not arrive rather than
           the code
         - where the connection breaks, says the export did not arrive
+    - the tenant's export, where the application delivers it
+        - the button starts the application's own download, and nothing is loaded from the platform
+        - is busy while the application's download runs, and cannot be pressed a second time
+          meanwhile
+        - where the application's download fails, says the export did not arrive and leaves the
+          banner as it was
+        - where the platform serves it, the button downloads it as before and the application's
+          action is not started
+        - where nothing listens, says so in the console once the export is offered, before anybody
+          presses
+        - where nothing listens, pressing says the export did not arrive, and nothing is loaded from
+          the platform
+        - where the export is not offered, nothing is said in the console, whether or not anything
+          listens
 
 <!-- END proof -->
 
@@ -1727,7 +1741,7 @@ is still open and the application no longer has its tenant, the record says so i
 the link as ended: a link ends when the application's deletion of the tenant closes it, and a tenant
 the application soft-deleted can come back. Only the platform administrator reaches the list and the
 record (`SC-ADM-001`), and both read past the tenants' row-level policy the way the administration
-does (`SC-SEC-019`).
+does (`SC-SEC-020`).
 
 _Source:_ #335 (decided 2026-10-25)
 
@@ -1813,7 +1827,7 @@ The section names whose account it is, by customer number and legal name. It is 
 no total: a sum of charges would be read as what is owed (`SC-ADM-044`). It is offered only where
 the installation keeps a journal of charges (`SC-ADM-015`), only the platform administrator reaches
 it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the administration does
-(`SC-SEC-019`).
+(`SC-SEC-020`).
 
 _Source:_ #276 · #318 · #335 (decided 2026-10-25)
 
@@ -2192,7 +2206,7 @@ their own and said before anything is asked. An invoice that stands is cancelled
 from the subscriber's record (`SC-ADM-020`, `SC-ADM-035`), and on the command line by its number
 alone, a tenant named beside it only refusing an invoice issued for another tenant. Only the
 platform administrator reaches the register (`SC-ADM-001`), and it reads past the tenants' row-level
-policy the way the administration does (`SC-SEC-019`).
+policy the way the administration does (`SC-SEC-020`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -2394,7 +2408,7 @@ from the record; and per currency what is owed, of it what is overdue, and what 
 What an invoice owes and what a credit holds are read by the same rule the record reads them by, and
 never kept a second time beside the rows they come from. Only the platform administrator reaches
 them (`SC-ADM-001`), and they read past the tenants' row-level policy the way the administration
-does (`SC-SEC-019`).
+does (`SC-SEC-020`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -2523,7 +2537,7 @@ that day and its price per period, and leads into the subscriber's record with t
 The subscriptions page says that it shows the current state per tenant and, where the register is
 offered, points to it. The register is offered where a subscriber's contracts are (`SC-AUD-016`),
 only the platform administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level
-policy the way the administration does (`SC-SEC-019`).
+policy the way the administration does (`SC-SEC-020`).
 
 _Source:_ #335 (decided 2026-10-26) · #276
 
@@ -2625,7 +2639,7 @@ when, the months and the moment. It is taken from the invoices page or with
 `<app> invoices export`, which writes into the directory named or the current one and refuses to
 write over a file of the same name. It is a read, so it asks for no second factor, only the platform
 administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the
-administration does (`SC-SEC-019`).
+administration does (`SC-SEC-020`).
 
 _Source:_ #335 (decided 2026-10-27) · #276
 

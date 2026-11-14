@@ -32,6 +32,7 @@ import type {
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
     TenantDataExportPort,
+    TenantExportDeliveredByTheApplication,
     TenantSubscriptionWritePort,
     TransactionRunner,
     UsageSnapshotPort,
@@ -49,7 +50,14 @@ import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { TenantAccessStateController } from './tenant-access-state.controller.js';
 import { TenantBillingController } from './tenant-billing.controller.js';
 import { TenantDataExportController } from './tenant-data-export.controller.js';
-import { TenantDataExportService, exportNotWired } from './tenant-data-export.service.js';
+import { TenantDataExportService } from './tenant-data-export.service.js';
+import { TenantExportDeliveryService } from './tenant-export-delivery.service.js';
+import {
+    declaresAnotherDeliverer,
+    deliversItsOwnExport,
+    exportDeliveredByNobody,
+    exportNotWired,
+} from './tenant-export-option.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
 import { VersionSwitchService } from './version-switch.service.js';
@@ -332,10 +340,15 @@ export interface SubscriptionEndsOptions {
     store: ProviderSpec<SubscriptionEndPort>;
     /**
      * The application's export of a tenant's data, which the tenant's
-     * administrator takes from `GET billing/export` once its subscription has
-     * ended (`SC-PRIV-019`). Required: the read-only period exists for it.
+     * administrator takes once its subscription has ended (`SC-PRIV-020`).
+     * Required: the read-only period exists for it. Either a
+     * `TenantDataExportPort`, whose file the platform serves from
+     * `GET billing/export`, or `{ deliveredBy: 'application' }`, where the
+     * application delivers the export from a download of its own and records
+     * each one through `TenantExportDeliveryService` once it has gone out in
+     * full; `GET billing/export` is not mounted then.
      */
-    export: ProviderSpec<TenantDataExportPort>;
+    export: ProviderSpec<TenantDataExportPort> | TenantExportDeliveredByTheApplication;
     /**
      * Default `true`: a run every quarter of an hour records the subscriptions
      * that ended, then reminds each tenant whose deletion day is near
@@ -889,17 +902,35 @@ export class TenantBillingModule {
             );
         }
         const subscriptionEnds = options.subscriptionEnds;
+        // Where the application delivers the export itself, the platform has no
+        // file to serve: it records the downloads the application reports, and
+        // mounts no route of its own.
+        const exportDelivered = deliversItsOwnExport(subscriptionEnds?.export);
+        const exportServed = Boolean(subscriptionEnds) && !exportDelivered;
         if (subscriptionEnds) {
             if (!subscriptionEnds.export) {
                 throw new Error(exportNotWired('TenantBillingModule: `subscriptionEnds.export`'));
             }
+            if (declaresAnotherDeliverer(subscriptionEnds.export)) {
+                throw new Error(
+                    exportDeliveredByNobody(
+                        'TenantBillingModule: `subscriptionEnds.export`',
+                        subscriptionEnds.export,
+                    ),
+                );
+            }
             if (!notices) {
                 throw new Error(noticesNotWired('TenantBillingModule: `notices`'));
             }
+            const exportProviders = deliversItsOwnExport(subscriptionEnds.export)
+                ? [TenantExportDeliveryService]
+                : [
+                      asProvider(TENANT_DATA_EXPORT_PORT_TOKEN, subscriptionEnds.export),
+                      TenantDataExportService,
+                  ];
             providers.push(
                 asProvider(SUBSCRIPTION_END_PORT_TOKEN, subscriptionEnds.store),
-                asProvider(TENANT_DATA_EXPORT_PORT_TOKEN, subscriptionEnds.export),
-                TenantDataExportService,
+                ...exportProviders,
                 // From `config/saas.yaml`, as the two settings above it are.
                 {
                     provide: END_OF_SUBSCRIPTION_TOKEN,
@@ -1043,7 +1074,7 @@ export class TenantBillingModule {
                 TenantBillingController,
                 TenantAccessStateController,
                 ...(featureWithdrawals ? [FeatureWithdrawalTenantController] : []),
-                ...(subscriptionEnds ? [TenantDataExportController] : []),
+                ...(exportServed ? [TenantDataExportController] : []),
                 // The tenant reads its invoices where their documents are archived.
                 ...(invoices?.renderer && invoices.archive && invoices.mail
                     ? [TenantInvoicesController]
@@ -1058,6 +1089,7 @@ export class TenantBillingModule {
                 ...(subscriptionEnds
                     ? [SubscriptionEndService, TrialEndService, DeletionReminderService]
                     : []),
+                ...(exportDelivered ? [TenantExportDeliveryService] : []),
                 SUBSCRIPTION_USAGE_PORT_TOKEN,
                 USAGE_SNAPSHOT_PORT_TOKEN,
                 SUBSCRIPTION_WRITE_PORT_TOKEN,

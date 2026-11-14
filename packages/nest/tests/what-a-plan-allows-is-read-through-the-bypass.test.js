@@ -158,7 +158,7 @@ async function intercepted(interceptor, context) {
 
 const quotaProvider = { key: 'notes', count: async (tenantId) => NOTES_HELD[tenantId] ?? 0 };
 
-// @requirement SC-SEC-019 — Reads past the tenant policy are named; a tenant's reach only its subscriber and itself
+// @requirement SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
 describe("what a tenant's plan allows is read through the bypass, whatever frame the caller is in", () => {
     // @requirement SC-ENTL-005 — A request for something the contract does not include is refused
     test('StaticFeatureGuard lets a tenant whose plan has the feature through and refuses one whose plan has not', async () => {
@@ -264,7 +264,7 @@ describe('without a bypass bound', () => {
 
 // Compiled as `SaaSiCatModule` composes it, so the bypass each read goes
 // through is the one the composition provides, not one a test hands it.
-// @requirement SC-SEC-019 — Reads past the tenant policy are named; a tenant's reach only its subscriber and itself
+// @requirement SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
 describe('the plan reads, as SaaSiCatModule composes them', () => {
     let moduleRef;
 

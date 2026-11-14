@@ -17,13 +17,19 @@ import {
     TenantBillingModule,
     TenantDataExportController,
     TenantDataExportService,
+    TenantExportDeliveryService,
     TrialEndService,
 } from '../dist/billing/index.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../dist/entitlement/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
 import { SaaSiCatModule, findViolations } from '../dist/platform/index.js';
 import { FakeSubscriptionEndRepository } from '../dist/testing/index.js';
-import { bootable, everythingOnOptions } from './helpers/operator-routes.js';
+import {
+    bootable,
+    controllersIn,
+    everythingOnOptions,
+    handlersOf,
+} from './helpers/operator-routes.js';
 import { usageRecord } from './helpers/subscription-fixtures.js';
 import { anExport } from './helpers/tenant-data-export.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
@@ -117,7 +123,7 @@ describe('an installation that serves tenants', () => {
     });
 });
 
-// @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe("the application's export, which the ends cannot start without", () => {
     const violationsOf = (options) =>
         findViolations({ options, adapters: { secretSealer: storeSecretsInPlainText() } }).filter(
@@ -169,6 +175,125 @@ describe("the application's export, which the ends cannot start without", () => 
         assert.ok(moduleRef.get(TenantDataExportController, { strict: false }));
         assert.equal(moduleRef.get(TenantDataExportService, { strict: false }).exports, port);
         await moduleRef.close();
+    });
+});
+
+// @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
+describe('the declaration that the application delivers the export itself', () => {
+    const DELIVERED_BY_THE_APPLICATION = { deliveredBy: 'application' };
+    const EXPORT_RULES = new Set([
+        'subscription-ends.requires-export',
+        'subscription-ends.export-delivered-by-the-application',
+    ]);
+    const violationsOf = (options) =>
+        findViolations({ options, adapters: { secretSealer: storeSecretsInPlainText() } }).filter(
+            (violation) => EXPORT_RULES.has(violation.id),
+        );
+    /** Every route the composed module declares, as `VERB path`. */
+    const routesOf = (root) =>
+        controllersIn(root).flatMap((controller) =>
+            handlersOf(controller).map(({ route }) => route),
+        );
+
+    test('stands in for the port: nothing is refused', () => {
+        assert.deepEqual(violationsOf(withEnds({ export: DELIVERED_BY_THE_APPLICATION })), []);
+        assert.deepEqual(violationsOf(withEnds({ export: anExport() })), []);
+    });
+
+    test('naming anybody else as delivering it, the start is refused in one sentence naming the application', () => {
+        for (const deliveredBy of ['app', 'platform', null]) {
+            const [violation, ...more] = violationsOf(withEnds({ export: { deliveredBy } }));
+            assert.deepEqual(more, [], String(deliveredBy));
+            assert.equal(violation?.id, 'subscription-ends.export-delivered-by-the-application');
+            const message = String(violation?.message);
+            assert.ok(message.includes(`deliveredBy: ${JSON.stringify(deliveredBy)}`), message);
+            assert.ok(message.includes("{ deliveredBy: 'application' }"), message);
+            assert.equal(message.split('. ').length, 1, 'one sentence');
+        }
+    });
+
+    test('tenant billing wired by hand with a declaration naming anybody else does not start', () => {
+        assert.throws(
+            () =>
+                TenantBillingModule.forRoot({
+                    authGuards: [class Guard {}],
+                    subscriptionUsagePort: {},
+                    usageSnapshotPort: {},
+                    subscriptionWritePort: {},
+                    notices: { port: sendingPort(), record: noticeRecord() },
+                    subscriptionEnds: {
+                        store: new FakeSubscriptionEndRepository(),
+                        export: { deliveredBy: 'app' },
+                    },
+                }),
+            /TenantBillingModule: `subscriptionEnds\.export` declares `deliveredBy: "app"`.*\{ deliveredBy: 'application' \}/,
+        );
+    });
+
+    test('the refusal of a start with neither names both ways', () => {
+        const [violation] = violationsOf(withEnds({}));
+        assert.equal(violation?.id, 'subscription-ends.requires-export');
+        assert.match(String(violation?.message), /TenantDataExportPort, or declares/);
+        assert.match(String(violation?.message), /deliveredBy: 'application'/);
+    });
+
+    test('mounts no route of the platform for the export, and asks no port', async () => {
+        const root = SaaSiCatModule.forRoot(
+            bootable(withEnds({ export: DELIVERED_BY_THE_APPLICATION })),
+        );
+        const moduleRef = await Test.createTestingModule({ imports: [root] }).compile();
+
+        assert.ok(!routesOf(root).includes('GET billing/export'));
+        assert.ok(
+            routesOf(root).includes('GET billing/access'),
+            'the tenant still reads its state',
+        );
+        assert.throws(() => moduleRef.get(TenantDataExportService, { strict: false }));
+        assert.throws(() => moduleRef.get(TenantDataExportController, { strict: false }));
+        await moduleRef.close();
+    });
+
+    test('hands the application the service it records each delivered download through', async () => {
+        const moduleRef = await Test.createTestingModule({
+            imports: [
+                SaaSiCatModule.forRoot(
+                    bootable(withEnds({ export: DELIVERED_BY_THE_APPLICATION })),
+                ),
+            ],
+        }).compile();
+
+        assert.ok(
+            moduleRef.get(TenantExportDeliveryService, { strict: false }) instanceof
+                TenantExportDeliveryService,
+        );
+        await moduleRef.close();
+    });
+
+    test('where the platform serves the export, its route is mounted and no such service handed out', async () => {
+        const root = SaaSiCatModule.forRoot(bootable(withEnds({ export: anExport() })));
+        const moduleRef = await Test.createTestingModule({ imports: [root] }).compile();
+
+        assert.ok(routesOf(root).includes('GET billing/export'));
+        assert.throws(() => moduleRef.get(TenantExportDeliveryService, { strict: false }));
+        await moduleRef.close();
+    });
+
+    test('tenant billing wired by hand with it mounts no route for the export either', () => {
+        const module = TenantBillingModule.forRoot({
+            authGuards: [class Guard {}],
+            subscriptionUsagePort: {},
+            usageSnapshotPort: {},
+            subscriptionWritePort: {},
+            notices: { port: sendingPort(), record: noticeRecord() },
+            subscriptionEnds: {
+                store: new FakeSubscriptionEndRepository(),
+                export: DELIVERED_BY_THE_APPLICATION,
+            },
+        });
+
+        assert.ok(!module.controllers.includes(TenantDataExportController));
+        assert.ok(module.exports.includes(TenantExportDeliveryService));
+        assert.ok(!module.providers.includes(TenantDataExportService));
     });
 });
 

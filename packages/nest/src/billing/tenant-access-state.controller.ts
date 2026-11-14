@@ -19,7 +19,7 @@ import { mayTakeTheTenantsExport } from './tenant-roles.js';
  * it, in every state, suspended and being deleted included (`SC-ADM-054`):
  * what holds it back and from which day, the days an ended subscription leaves
  * (`SC-CANC-033`), and whether this reader can take the export
- * (`SC-PRIV-019`); without the invoices by number and without paying, which
+ * (`SC-PRIV-020`); without the invoices by number and without paying, which
  * are the billing permission's (`GET billing/account/access`). The tenant is
  * the session's.
  */

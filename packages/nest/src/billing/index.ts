@@ -144,6 +144,7 @@ export { FeatureWithdrawalTenantController } from './feature-withdrawal-tenant.c
 export { TenantAccessStateController } from './tenant-access-state.controller.js';
 export { TenantDataExportController } from './tenant-data-export.controller.js';
 export { TenantDataExportService } from './tenant-data-export.service.js';
+export { TenantExportDeliveryService } from './tenant-export-delivery.service.js';
 export {
     FeatureWithdrawalContractService,
     type ReductionsRecorded,

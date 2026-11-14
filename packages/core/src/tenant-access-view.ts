@@ -9,8 +9,8 @@
 // still read and the day its data is deleted on (`SC-CANC-033`), and whether
 // that day has come: until the deletion runs the data is still there, and a
 // tenant read-only past the day is not to be told it can read only until a day
-// gone by. Whether they can take the tenant's export is said to the tenant's
-// administrator alone (`SC-PRIV-019`).
+// gone by. Whether they can take the tenant's export, and who delivers it, is
+// said to the tenant's administrator alone (`SC-PRIV-020`).
 
 import {
     holdsOldestFirst,
@@ -18,6 +18,7 @@ import {
     type TenantAccessHoldKind,
     type TenantAccessState,
 } from './tenant-access.types.js';
+import type { TenantExportDeliverer } from './tenant-data-export.types.js';
 import { addDaysToDay, dayInZone, type CalendarDay } from './zoned-day.js';
 
 /** One reason a tenant is held back, as its own users are told it. */
@@ -63,13 +64,20 @@ export interface TenantAccessView {
      */
     mayPay: boolean;
     /**
-     * Whether this user can take the tenant's full export here
-     * (`GET billing/export`): they are the tenant's own administrator, an end of
-     * its subscription is recorded, the installation can produce the export,
-     * and the tenant is read-only — never where the route would refuse it, a
-     * suspension and a deletion under way included.
+     * Whether this user can take the tenant's full export here: they are the
+     * tenant's own administrator, an end of its subscription is recorded, the
+     * installation can deliver the export, and the tenant is read-only — never
+     * where the download would be refused, a suspension and a deletion under
+     * way included.
      */
     mayExport: boolean;
+    /**
+     * Who delivers the export this user may take: `'platform'` from
+     * `GET billing/export`, `'application'` from a download of the
+     * application's own, which `TenantAccessBanner` starts through its
+     * `take-export` listener. `null` where `mayExport` is false.
+     */
+    exportDeliveredBy: TenantExportDeliverer | null;
 }
 
 /** Who is told, and what the view of them is made from. */
@@ -98,8 +106,14 @@ export interface TenantAccessViewOptions {
      * subscription absent from it has no end recorded yet.
      */
     deletionDays?: ReadonlyMap<string, CalendarDay>;
-    /** Whether the installation can produce the tenant's export: the application wired its port. */
+    /**
+     * Whether the installation can deliver the tenant's export: the
+     * application wired its port, or declared that it delivers the export
+     * itself.
+     */
     exportWired?: boolean;
+    /** Who delivers the export where it is wired. Default `'platform'`. */
+    exportDeliveredBy?: TenantExportDeliverer;
 }
 
 /** What `access` tells a user of the tenant, as `options` says who is asking. */
@@ -126,15 +140,17 @@ export function tenantAccessViewOf(
             deletionDue: deletesOn === null ? null : today >= deletesOn,
         };
     });
+    const mayExport =
+        options.isTenantAdministrator === true &&
+        options.exportWired === true &&
+        access.state === 'read-only' &&
+        reasons.some((reason) => reason.kind === 'ended' && reason.deletesOn !== null);
     return {
         state: access.state,
         reasons,
         holdsBillingPermission: options.holdsBillingPermission,
         mayPay: options.holdsBillingPermission && options.mayPay,
-        mayExport:
-            options.isTenantAdministrator === true &&
-            options.exportWired === true &&
-            access.state === 'read-only' &&
-            reasons.some((reason) => reason.kind === 'ended' && reason.deletesOn !== null),
+        mayExport,
+        exportDeliveredBy: mayExport ? (options.exportDeliveredBy ?? 'platform') : null,
     };
 }

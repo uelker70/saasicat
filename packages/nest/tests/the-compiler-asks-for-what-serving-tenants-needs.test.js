@@ -78,6 +78,25 @@ describe('the options of an application that serves tenants', () => {
         assert.match(diagnostics[0], /'export'/);
     });
 
+    // @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
+    test('compile with the declaration that the application delivers the export itself', () => {
+        assert.deepEqual(
+            diagnosticsOf(
+                "export const options: SaaSiCatTenantBillingOptions = { ...rest, notices, subscriptionEnds: { export: { deliveredBy: 'application' } } };",
+            ),
+            [],
+        );
+    });
+
+    // @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
+    test('do not compile with a declaration naming anybody else as delivering it', () => {
+        const diagnostics = diagnosticsOf(
+            "export const options: SaaSiCatTenantBillingOptions = { ...rest, notices, subscriptionEnds: { export: { deliveredBy: 'platform' } } };",
+        );
+        assert.equal(diagnostics.length, 1, diagnostics.join('\n'));
+        assert.match(diagnostics[0], /'"platform"' is not assignable to type '"application"'/);
+    });
+
     test('compile with the notice port given, and no record of their own', () => {
         assert.deepEqual(
             diagnosticsOf(

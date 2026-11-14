@@ -429,6 +429,15 @@ describe('every rule can actually fail', () => {
             },
             adapters: CORE_ADAPTERS,
         },
+        // A declaration of who delivers the tenant's export naming anybody but the application.
+        {
+            options: {
+                planCatalog: MINIMAL_CATALOG,
+                controller: { guards: [] },
+                tenantBilling: { subscriptionEnds: { export: { deliveredBy: 'app' } } },
+            },
+            adapters: CORE_ADAPTERS,
+        },
     ];
 
     test('every rule fails in at least one probe', () => {

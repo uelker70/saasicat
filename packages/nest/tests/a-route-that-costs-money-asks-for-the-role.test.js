@@ -43,7 +43,7 @@ const QUESTIONS = new Set(['preview', 'prices']);
 
 /**
  * The reads that are the tenant administrator's alone, each for a reason of its
- * own: the tenant's full export holds every user's data (`SC-PRIV-019`).
+ * own: the tenant's full export holds every user's data (`SC-PRIV-020`).
  */
 const ADMINISTRATORS_READS = new Set(['TenantDataExportController.export']);
 
@@ -135,7 +135,7 @@ describe('who of a tenant may do what', () => {
         }
     });
 
-    // @requirement SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
+    // @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
     test("the reads that are the administrator's alone are these, and ask for the role", () => {
         const found = outsideBilling.filter((route) => ADMINISTRATORS_READS.has(route.route));
         assert.deepEqual(

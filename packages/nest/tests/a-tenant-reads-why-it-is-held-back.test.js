@@ -74,6 +74,7 @@ describe("a tenant's users read why it is held back", () => {
             holdsBillingPermission: false,
             mayPay: false,
             mayExport: false,
+            exportDeliveredBy: null,
         });
     });
 
@@ -124,6 +125,7 @@ describe("a tenant's users read why it is held back", () => {
                 holdsBillingPermission: false,
                 mayPay: false,
                 mayExport: false,
+                exportDeliveredBy: null,
             },
         );
         const view = await new TenantInvoicesController(
@@ -139,6 +141,7 @@ describe("a tenant's users read why it is held back", () => {
             holdsBillingPermission: true,
             mayPay: true,
             mayExport: false,
+            exportDeliveredBy: null,
         });
     });
 });
