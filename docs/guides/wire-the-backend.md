@@ -1383,8 +1383,8 @@ put right, the next run issues it under the next number.
 
 **The first run invoices every charge the journal holds.** Nothing limits it to the charges recorded
 after invoicing was switched on: every charge that stands on no invoice is invoiced, grouped as
-above, each group under the next number and with the day of the run as its issue date, however long ago its
-period was — except where it is held, as above. An installation that wants a clean start switches
+above, each group under the next number and with the day of the run as its issue date, however long
+ago its period was — except where it is held, as above. An installation that wants a clean start switches
 invoicing on in the same release as the charge journal, before the journal records a charge. Where
 the journal already holds charges that are not to be invoiced, the platform has no way to mark them
 as settled: only where they are test data, empty `subscriber_ledger_entries` before the first run.
