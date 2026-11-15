@@ -101,7 +101,9 @@ describe('the configured release line can reach the version it is for', () => {
 
     test('and the tag it uses is the tag the docs name', () => {
         const pre = preMode();
-        if (pre === undefined) return;
+        // `changeset pre exit` leaves pre.json with mode "exit" until the version PR
+        // removes it; the tag the docs name matters only while the group is in pre mode.
+        if (pre === undefined || pre.mode === 'exit') return;
         assert.equal(pre.mode, 'pre', `pre.json exists with mode "${pre.mode}"`);
         assert.ok(
             readFileSync(CONTRIBUTING, 'utf8').includes(`\`${pre.tag}\``),
