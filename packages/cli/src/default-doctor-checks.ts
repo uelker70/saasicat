@@ -73,7 +73,12 @@ export class PlanCatalogDoctorCheck implements DoctorCheck {
         }
         return {
             severity: 'ok',
-            message: `${plans.length} plan(s), ${catalog.features?.length ?? 0} feature(s) loaded.`,
+            // A catalogue that lists no features leaves them to discovery, which
+            // `platform.discovery-snapshot` counts; "0 features" would read as none.
+            message:
+                catalog.features && catalog.features.length > 0
+                    ? `${plans.length} plan(s), ${catalog.features.length} feature(s) loaded.`
+                    : `${plans.length} plan(s) loaded.`,
             details: {
                 app: catalog.app.name,
                 planIds: plans.map((p) => p.id),
