@@ -84,7 +84,7 @@ describe('registry keys share one namespace', () => {
             wrong,
             [],
             'a registry key outside its package namespace — the string is a consumer contract, ' +
-                'and the namespace was unified exactly once, at 1.0 (CONTRIBUTING.md)',
+                'and the namespace was unified exactly once, at 1.0 (docs/explanation/adr/0002-symbol-for-di-tokens.md)',
         );
     });
 
