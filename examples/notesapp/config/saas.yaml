@@ -84,15 +84,25 @@ marketing:
 
 # Your terms, by a version and the PDF beside this file. Every contract records
 # the version named when the subscriber concludes or changes it, and keeps it
-# through a successor the operator writes. The start archives each version
-# once, byte for byte; another file under a version already archived refuses
-# the start, since a changed file is a new version. Invoicing requires the
-# block. None is named here: this example issues no invoices, and its operator
-# has no terms to agree to.
+# through a successor the operator writes, and each contract's confirmation
+# carries the file. The start archives each version once, byte for byte;
+# another file under a version already archived refuses the start, since a
+# changed file is a new version. Invoicing requires the block.
 #
-#   terms:
-#       version: '2026-10'
-#       file: terms-2026-10.pdf
+# The PDF here is a sample of one page, written by hand for this example: it
+# says that it binds nobody. Put your own terms in its place, under a version
+# of their own.
+terms:
+    version: '2026-11'
+    file: terms-2026-11.pdf
+
+# The invoices issued from each subscriber's charges: numbered without gaps in
+# one range per year — NOTES-2026-000001 — and due this many days after the
+# issue date. An invoice collected by direct debit falls due on the day it is
+# collected instead. The prefix cannot change once an invoice carries it.
+invoicing:
+    numberPrefix: NOTES
+    paymentTermDays: 14
 
 # The operator's side of every contract this installation concludes. A contract
 # copies it on the day it is concluded, so it keeps naming its counterparty after

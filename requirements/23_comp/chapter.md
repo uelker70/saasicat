@@ -1365,6 +1365,19 @@ _Tested by:_
 - `examples/notesapp/tests/notesapp-smoke.test.mjs`
     - notesapp platform wiring (smoke)
         - static entitlement resolves the STARTER plan for every tenant
+- `examples/notesapp/tests/the-notes-app-issues-invoices.test.mjs`
+    - the notes app's contract freeze source
+        - names the version the subscription is bound to, by its plan
+        - names no version for a tenant without a subscription
+        - prices each active booking in its own rhythm, at the price its plan pays
+        - books nothing for a tenant without a subscription
+        - refuses a booking whose version cannot be found, rather than leaving it out
+    - the notes app's invoice mail
+        - writes the invoice, its subscriber, its file and its size — not the file, not the address
+        - writes a contract's confirmation with each file it attaches
+        - writes a notice about collecting an invoice by its kind and invoice
+    - the notes app with invoices on
+        - passes the start checks of invoicing and composes the invoice run
 - `examples/notesapp/tests/the-tenants-export-is-what-the-app-keeps.test.mjs`
     - the notes app's export of a tenant
         - is the tenant, its users and its notes as one JSON file named after it

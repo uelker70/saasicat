@@ -1,7 +1,12 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
-import { prismaPersistence } from '@saasicat/adapter-prisma';
+import {
+    PrismaBundleRepository,
+    PrismaSubscriptionBundleRepository,
+    prismaPersistence,
+} from '@saasicat/adapter-prisma';
+import { contractConfirmationRenderer, zugferdInvoiceRenderer } from '@saasicat/invoice-zugferd';
 import { LimitExceededFilter, loadPlanCatalogFromFile } from '@saasicat/nest/billing';
 import { DevPaymentGateway } from '@saasicat/nest/payments';
 import { aesGcmSecretSealer, defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
@@ -16,9 +21,24 @@ import { PrismaService } from './prisma/prisma.service';
 import { NOTES_FEATURE_UI_REGISTRY } from './saas/feature-ui-registry';
 import { NotesAdminModule } from './saas/notesapp-admin.module';
 import { NotesQuotaProvider } from './saas/notes-quota.provider';
+import { NotesContractFreezeSource } from './saas/notes-contract-freeze-source';
 import { NotesDataExport } from './saas/notes-data-export';
+import { NotesInvoiceMailLog } from './saas/notes-invoice-mail-log';
 import { NotesNoticeLog } from './saas/notes-notice-log';
 import { germanTaxAdapterFactory } from '@saasicat/tax-de';
+
+// The whole persistence wiring: the client, and the repositories of every
+// platform table the schema adopts. Named here because the invoices below take
+// theirs from it.
+const persistence = prismaPersistence({
+    client: PrismaService,
+    passwordHasher: DemoPasswordHasher,
+    adminResources: { tenantMetrics: ['notes', 'users'] },
+});
+// SAFETY: `prismaPersistence` builds every repository of the entitlement group
+// unless `notAdopted` names a model it needs, and this schema adopts them all —
+// the non-null assertions below on its members rest on the same fact.
+const entitlement = persistence.entitlement!;
 
 @Module({
     imports: [
@@ -36,34 +56,7 @@ import { germanTaxAdapterFactory } from '@saasicat/tax-de';
                 // Real apps pass their JwtAuthGuard here.
                 controller: { guards: [DemoAuthGuard] },
                 imports: [DemoAuthModule, PrismaModule],
-                // The whole persistence wiring: the client, and what the schema leaves out.
-                persistence: prismaPersistence({
-                    client: PrismaService,
-                    passwordHasher: DemoPasswordHasher,
-                    adminResources: { tenantMetrics: ['notes', 'users'] },
-                    // What `saasicat schema check` names as not adopted: the notes app
-                    // issues no invoices, so their tables are not in its schema, and
-                    // the bundle — a join of subscribers among it — leaves them out.
-                    notAdopted: [
-                        'SubscriberLedgerEntry',
-                        'SubscriptionInvoice',
-                        'SubscriptionInvoiceLine',
-                        'SubscriptionInvoiceCancellation',
-                        'SubscriptionInvoiceDocument',
-                        'SubscriptionInvoiceNumber',
-                        'SubscriptionInvoiceArchive',
-                        'SubscriptionInvoiceCollection',
-                        'SubscriberPayment',
-                        'SubscriptionInvoiceSettlement',
-                        'SubscriberCredit',
-                        'SubscriberCreditEntry',
-                        'SubscriberRefund',
-                        'SubscriberReversal',
-                        'SubscriberReconciliationCase',
-                        'ContractConfirmation',
-                        'ContractConfirmationArchive',
-                    ],
-                }),
+                persistence,
                 // A returning customer's subscriber joined into the one it had, in
                 // its record and with `subscribers join`: the schema adopts
                 // `SubscriberJoin`, and the entrypoint runs the migration that
@@ -126,6 +119,48 @@ import { germanTaxAdapterFactory } from '@saasicat/tax-de';
                         port: {
                             useFactory: (prisma: PrismaService) => new NotesNoticeLog(prisma),
                             inject: [PrismaService],
+                        },
+                    },
+                    // Every plan change and add-on booking is frozen as a
+                    // contract with the tenant's subscriber. The platform
+                    // writes it; what the subscription is bound to and what
+                    // it has booked, the app reads from its own tables.
+                    contractFreeze: {
+                        sourcePort: {
+                            useFactory: (prisma: PrismaService) =>
+                                new NotesContractFreezeSource(
+                                    prisma,
+                                    new PrismaSubscriptionBundleRepository(prisma),
+                                    new PrismaBundleRepository(prisma),
+                                ),
+                            inject: [PrismaService],
+                        },
+                        subscriptionContractRepository: entitlement.subscriptionContractRepository!,
+                        subscriberRepository: entitlement.subscriberRepository!,
+                    },
+                    // Each contract's charges, one per line and period, and
+                    // the invoices issued from them — numbered, rendered,
+                    // archived and mailed every quarter of an hour, on the
+                    // range and term `config/saas.yaml#invoicing` names.
+                    chargeJournal: {
+                        ledgerRepository: entitlement.subscriberLedgerRepository!,
+                        invoices: {
+                            invoiceRepository: entitlement.subscriptionInvoiceRepository!,
+                            // The ZUGFeRD PDF German tax law asks for.
+                            renderer: zugferdInvoiceRenderer(),
+                            // Kept in the database, where no file is changed.
+                            archive: entitlement.subscriptionInvoiceArchive!,
+                            // Where an invoice leaves for the subscriber. The
+                            // notes app writes it to its log; a real app
+                            // sends it as an e-mail.
+                            mail: new NotesInvoiceMailLog(),
+                            // Every contract is confirmed to the subscriber,
+                            // with the terms; the record and the archive of
+                            // the confirmations come from the bundle.
+                            confirmations: { renderer: contractConfirmationRenderer() },
+                            // The invoices are collected through the payment
+                            // gateway `payments` binds below.
+                            collections: entitlement.invoiceCollectionRepository!,
                         },
                     },
                 },

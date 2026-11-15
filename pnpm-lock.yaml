@@ -121,6 +121,9 @@ importers:
       '@saasicat/core':
         specifier: workspace:^
         version: link:../../packages/core
+      '@saasicat/invoice-zugferd':
+        specifier: workspace:^
+        version: link:../../packages/invoice-zugferd
       '@saasicat/nest':
         specifier: workspace:^
         version: link:../../packages/nest
