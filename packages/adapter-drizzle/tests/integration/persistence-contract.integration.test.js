@@ -49,6 +49,7 @@ import { DrizzleBundleRepository, DrizzleSubscriptionBundleRepository } from '..
 import {
     DrizzleAppliedSettingsRepository,
     DrizzleMaintenanceWindowRepository,
+    DrizzleInstallationMarkRepository,
     DrizzleTenantAccessHoldRepository,
     DrizzleSubscriptionEndRepository,
     DrizzleSubscriptionNoticeRepository,
@@ -119,6 +120,7 @@ const PLATFORM_TABLES = [
     'applied_settings',
     'settings_changes',
     'maintenance_windows',
+    'installation_marks',
     'tenant_access_holds',
     'subscription_ends',
     'subscription_end_announcements',
@@ -175,6 +177,7 @@ function createHarness() {
             subscriberPaymentRepository: new DrizzleSubscriberPaymentRepository(db),
             appliedSettings: new DrizzleAppliedSettingsRepository(db),
             maintenanceWindows: new DrizzleMaintenanceWindowRepository(db),
+            installationMark: new DrizzleInstallationMarkRepository(db),
             tenantAccessHolds: new DrizzleTenantAccessHoldRepository(db),
             subscriptionEnds: new DrizzleSubscriptionEndRepository(db),
             subscriptionNotices: new DrizzleSubscriptionNoticeRepository(db),

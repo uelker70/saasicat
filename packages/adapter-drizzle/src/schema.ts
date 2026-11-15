@@ -415,6 +415,16 @@ export const settingsChanges = pgTable('settings_changes', {
     acknowledgedBy: text('acknowledgedBy'),
 });
 
+// The mark of the installation — one row, held to one by the `CHECK` in
+// constraints.postgres.sql, like `applied_settings`. The repository writes the
+// id anyway, because the key it collides on is what refuses a second mark.
+export const installationMarks = pgTable('installation_marks', {
+    id: text('id').primaryKey().default('installation'),
+    identifier: text('identifier').notNull(),
+    markedAt: ts('markedAt').notNull(),
+    markedBy: text('markedBy').notNull(),
+});
+
 // Maintenance windows — one row per window, at most one of them open. The
 // partial unique index that holds the one is in constraints.postgres.sql.
 export const maintenanceWindows = pgTable('maintenance_windows', {
