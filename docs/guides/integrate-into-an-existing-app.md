@@ -205,9 +205,16 @@ adminResources: {
 None of `GET admin/tenants`, `GET admin/tenants/:slug`, the `suspend` and
 `reactivate` routes, `GET admin/users`, `GET admin/audit` and
 `GET admin/subscriptions` is mounted then, so yours start beside the platform's.
-Suspending a tenant stays yours as well. The manifest still announces those pages,
-and the pages of `@saasicat/ui-vue` read the same paths: where you mount them, your
-routes answer them in the shapes `@saasicat/core` names. Without `resources` the
+The routes are yours, but the platform's access state is not: a `suspended` hold is
+what `TenantAccessService.enforce` refuses a tenant on (`SC-ADM-055`), and the reasons a
+tenant is held back — a suspension, an overdue invoice, an ended subscription
+(`SC-ADM-053`) — come with the tenant's detail. So let your own suspend, reactivate and
+tenant detail routes delegate to `AdminResourcesService.suspendTenant`,
+`reactivateTenant` and `getTenantDetail`, which need only the two lookups above; a
+suspension written only to your own tenant row is not enforced by the platform, and your
+detail page does not show the overdue invoices the billing pages create. The manifest
+still announces those pages, and the pages of `@saasicat/ui-vue` read the same paths: where
+you mount them, your routes answer them in the shapes `@saasicat/core` names. Without `resources` the
 persistence bundle's port is used; with neither, the start is refused and says
 which two methods to write.
 
