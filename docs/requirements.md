@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 704 entries: 🟢 608 stand today, 🟡 32 decided but not yet delivered, ⚪ 0 drafts,
+Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
 🔵 57 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -156,7 +156,6 @@ Of 704 entries: 🟢 608 stand today, 🟡 32 decided but not yet delivered, ⚪
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
 [SC-ADM-055](#sc-adm-055--a-suspended-tenant-cannot-act-and-a-read-only-one-writes-only-to-pay-or-to-leave),
-[SC-ADM-057](#sc-adm-057--an-application-with-its-own-administration-gets-the-operators-billing-pages),
 [SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
 [SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
@@ -19441,7 +19440,7 @@ _Tested by:_
 
 ### SC-ADM-057 — An application with its own administration gets the operator's billing pages
 
-🟡 _(Decided, not yet delivered.)_ An application that serves its own pages for tenants, users,
+🟢 An application that serves its own pages for tenants, users,
 the audit log and subscriptions turns the platform's administration on without its generic
 routes, and keeps every route of its own. The operator's billing pages — the invoice register
 and documents, the cancellation, the contracts, the subscriber's record and account, the open
@@ -19449,6 +19448,24 @@ items, the credits and the reconciliation — are served all the same, and ask t
 for no more than finding a tenant by its identifier and by its slug.
 
 _Source:_ #338 (decided 2026-11-14, autohauspro#883 D8)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-application-with-its-own-administration-gets-the-billing-pages.test.js`
+    - an application with its own administration gets the billing pages
+        - the switch takes away the seven generic routes and keeps every other one
+        - without the switch, the seven generic routes are mounted
+        - the application's own GET admin/tenants starts beside them on Fastify
+        - with the platform's controller mounted, the same route refuses to start on Fastify
+        - a full port with the switch starts as well
+        - the contracts read their tenants through the application's lookup
+        - the tenant's subscriber is found through the application's lookup by slug
+        - a generic read asked of the two-method lookup says what it needs
+        - without a lookup and without the bundle, the start is refused naming the two methods
+
+<!-- END proof -->
 
 ## 15. Working in the interface
 

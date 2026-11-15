@@ -28,6 +28,7 @@ import type {
     TermsArchivePort,
     AuditPort,
     AdminResourcesPort,
+    AdminTenantLookupPort,
     EmailPort,
     FeatureUiRegistry,
     FirstTimeCustomerCheck,
@@ -271,10 +272,7 @@ export interface SaaSiCatSubscriptionBundlesOptions extends Omit<
     extraProviders?: Provider[];
 }
 
-export interface SaaSiCatAdminResourcesOptions extends Omit<
-    AdminResourcesModuleOptions,
-    'resources' | 'guards' | 'global'
-> {
+interface SaaSiCatAdminResourcesCommonOptions extends Pick<AdminResourcesModuleOptions, 'imports'> {
     /**
      * Override the default controller guards + `SuperAdminGuard` chain.
      * Suspending and reactivating a tenant require the second factor either
@@ -284,9 +282,44 @@ export interface SaaSiCatAdminResourcesOptions extends Omit<
      * frame, where a row policy leaves the operator's lists empty.
      */
     guards?: Array<Type<CanActivate>>;
-    /** Custom schema override; the persistence bundle supplies the default. */
-    resources?: ProviderSpec<AdminResourcesPort>;
 }
+
+/**
+ * The generic administration, or — for an application that serves its own
+ * pages for tenants, users, the audit log and subscriptions — only what the
+ * operator's billing pages need of it (`SC-ADM-057`).
+ *
+ * `includeController: false` mounts none of `GET admin/tenants`,
+ * `GET admin/tenants/:slug`, `POST admin/tenants/:slug/suspend`,
+ * `POST admin/tenants/:slug/reactivate`, `GET admin/users`, `GET admin/audit`
+ * and `GET admin/subscriptions`, so the application's own routes on those paths
+ * start beside the platform's. The pages of `@saasicat/ui-vue` read the same
+ * paths, so the application's routes answer them in the shapes of
+ * `@saasicat/core`; the manifest keeps announcing those pages. Suspending a
+ * tenant is then the application's own as well. The billing pages — invoices,
+ * cancellation, contracts, the subscriber's record and account, open items,
+ * credits, reconciliation and `GET admin/tenants/:slug/subscriber` — are mounted
+ * as before, and find a tenant through `resources`, which then needs no more
+ * than the two methods of `AdminTenantLookupPort`.
+ */
+export type SaaSiCatAdminResourcesOptions = SaaSiCatAdminResourcesCommonOptions &
+    (
+        | {
+              /** Mount the generic tenant, user, audit and subscription routes. Default `true`. */
+              includeController?: true;
+              /** Custom schema override; the persistence bundle supplies the default. */
+              resources?: ProviderSpec<AdminResourcesPort>;
+          }
+        | {
+              /** The application serves the generic routes itself; see above. */
+              includeController: false;
+              /**
+               * Finding a tenant by its slug and by its identifier; the
+               * persistence bundle's full port is used where none is given.
+               */
+              resources?: ProviderSpec<AdminTenantLookupPort>;
+          }
+    );
 
 export interface SaaSiCatPromoCodesOptions extends Omit<
     PromoCodesModuleOptions,
