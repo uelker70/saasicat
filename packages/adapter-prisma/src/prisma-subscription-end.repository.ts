@@ -12,6 +12,7 @@ import {
     type SubscriptionEndAnnouncement,
     type SubscriptionEndPort,
     type TenantExportDownload,
+    type TransactionContext,
     toSubscriptionEnd,
     toSubscriptionEndAnnouncement,
     toTenantExportDownload,
@@ -19,7 +20,7 @@ import {
 } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
-/** Narrow view of the injected client used by this repository. */
+/** Narrow view of the client and of a transaction client, which carry the same delegates. */
 interface SubscriptionEndPrisma {
     subscriptionEnd: PrismaModelDelegateLike<CanonicalSubscriptionEndRow>;
     subscriptionEndAnnouncement: PrismaModelDelegateLike<CanonicalSubscriptionEndAnnouncementRow>;
@@ -82,13 +83,18 @@ export class PrismaSubscriptionEndRepository implements SubscriptionEndPort {
     ) {}
 
     private get db(): SubscriptionEndPrisma {
+        return this.dbOf();
+    }
+
+    private dbOf(tx?: TransactionContext): SubscriptionEndPrisma {
         // SAFETY: `subscriptionEnd`, `subscriptionEndAnnouncement` and
         // `tenantExportDownload` are the delegates of fragment 29's, 30's and
         // 31's models, whose rows are `CanonicalSubscriptionEndRow`,
         // `CanonicalSubscriptionEndAnnouncementRow` and
         // `CanonicalTenantExportDownloadRow`; the bundle hands this repository
-        // the canonical client.
-        return this.prisma as SubscriptionEndPrisma;
+        // the canonical client, and a transaction client carries the same
+        // delegates.
+        return (tx ?? this.prisma) as SubscriptionEndPrisma;
     }
 
     /**
@@ -177,5 +183,66 @@ export class PrismaSubscriptionEndRepository implements SubscriptionEndPort {
             orderBy: [{ downloadedAt: 'asc' }, { id: 'asc' }],
         });
         return rows.map(toTenantExportDownload);
+    }
+
+    async listEndsOfTenant(tenantId: string): Promise<SubscriptionEnd[]> {
+        const rows = await this.db.subscriptionEnd.findMany({
+            where: { tenantId },
+            select: COLUMNS,
+            orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
+        });
+        return rows.map(toSubscriptionEnd);
+    }
+
+    async listAnnouncedOfTenant(tenantId: string): Promise<SubscriptionEndAnnouncement[]> {
+        const rows = await this.db.subscriptionEndAnnouncement.findMany({
+            where: { tenantId },
+            select: ANNOUNCEMENT_COLUMNS,
+            orderBy: [{ announcedAt: 'asc' }, { id: 'asc' }],
+        });
+        return rows.map(toSubscriptionEndAnnouncement);
+    }
+
+    async listExportDownloadsOfTenant(tenantId: string): Promise<TenantExportDownload[]> {
+        const rows = await this.db.tenantExportDownload.findMany({
+            where: { tenantId },
+            select: DOWNLOAD_COLUMNS,
+            orderBy: [{ downloadedAt: 'asc' }, { id: 'asc' }],
+        });
+        return rows.map(toTenantExportDownload);
+    }
+
+    /** One `UPDATE` per row named, by its id: what it names is all that changes. */
+    async replaceActors(
+        replacements: {
+            readonly ends: readonly { readonly id: string; readonly recordedBy: string }[];
+            readonly announcements: readonly {
+                readonly id: string;
+                readonly announcedBy: string;
+            }[];
+            readonly downloads: readonly {
+                readonly id: string;
+                readonly downloadedBy: string;
+                readonly downloadedByUserId: string;
+            }[];
+        },
+        tx?: TransactionContext,
+    ): Promise<void> {
+        const db = this.dbOf(tx);
+        for (const { id, recordedBy } of replacements.ends) {
+            await db.subscriptionEnd.updateMany({ where: { id }, data: { recordedBy } });
+        }
+        for (const { id, announcedBy } of replacements.announcements) {
+            await db.subscriptionEndAnnouncement.updateMany({
+                where: { id },
+                data: { announcedBy },
+            });
+        }
+        for (const { id, downloadedBy, downloadedByUserId } of replacements.downloads) {
+            await db.tenantExportDownload.updateMany({
+                where: { id },
+                data: { downloadedBy, downloadedByUserId },
+            });
+        }
     }
 }

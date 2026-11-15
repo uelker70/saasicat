@@ -71,6 +71,7 @@ export * from './subscription-end.types.js';
 export * from './deletion-reminder.types.js';
 export * from './installation-mark.types.js';
 export * from './tenant-deletion.types.js';
+export * from './tenant-deletion-mapping.js';
 export * from './tenant-data-export.types.js';
 export * from './subscription-end-mapping.js';
 export * from './maintenance-window-views.js';

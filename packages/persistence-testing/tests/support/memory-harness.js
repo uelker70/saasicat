@@ -2173,9 +2173,11 @@ export function createMemoryHarness() {
         async confirm(id, claimedAt, delivery, now) {
             const row = heldNotice(id, claimedAt);
             if (!row) return false;
+            // Recipients forgotten while the notice was held stay forgotten.
+            const recipients = row.recipientsForgottenAt === null ? [...delivery.recipients] : [];
             Object.assign(row, {
                 deliveredAt: now,
-                delivery: { recipients: [...delivery.recipients], channel: delivery.channel },
+                delivery: { recipients, channel: delivery.channel },
                 recipientCount: delivery.recipients.length,
             });
             return true;

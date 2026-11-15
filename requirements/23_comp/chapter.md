@@ -928,7 +928,10 @@ _Tested by:_
         - a claim records the notice where it is new, then takes it in one guarded update
         - a claim that takes no row answers null without reading
         - a confirmation and a release name the claim they hold
+        - a confirmation of a notice whose recipients were forgotten writes how many, not whom
         - a confirmation that finds the claim gone answers false
+        - a tenant's recipients are forgotten in one statement, for that tenant and not yet
+          forgotten
         - what was delivered is read as sent, and a delivery nobody can read stops the read
         - the subscriptions told of a subject are the delivered ones
 - `packages/adapter-prisma/tests/prisma-tenant-access-hold.repository.test.js`
@@ -938,7 +941,27 @@ _Tested by:_
         - a reason is recorded under an id made here, the index deciding a second
         - a lift asks for a reason still open, and one already lifted answers null
         - the tenants held back by some kinds are read once each, from open reasons
+        - every reason of a tenant is read, the lifted ones too, oldest first
+        - a record and a lift given a transaction write on it, not on the client
+        - a lock is taken on the row in the transaction, and the reason read open only after it
+        - the actors are replaced row by row, by id, and nothing else is written
         - a row with a kind the platform does not know is refused
+- `packages/adapter-prisma/tests/prisma-tenant-deletion.repository.test.js`
+    - PrismaTenantDeletionRepository
+        - a beginning writes the record, its stores and its kept lines in one transaction of its own
+        - a tenant begun already writes nothing more and answers null
+        - a beginning given the caller's transaction writes on it and opens none
+        - a claim names the open record and the lease, and one that takes no row reads nothing
+        - a renewal and a release name the claim they hold
+        - a store's counts are written only by the call that marked it counted
+        - a confirmation is written where none is yet
+        - a failure counts its attempt in the statement that records it, its moment as text
+        - the commercial record is written to the column it was counted for
+        - a close names the open record, on the transaction given
+        - the records are read by tenant, or by subscriber the most recently begun first
+        - the commercial record counts each part of one subscriber
+        - a model the schema does not adopt counts 0 and is not asked
+        - a model the client lacks and nobody said is left out is an error, not a 0
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record
         - dates leave as ISO strings, and an undeleted plan says so

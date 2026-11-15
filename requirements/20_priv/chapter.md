@@ -569,6 +569,13 @@ _Source:_ #338 (decided 2026-11-15)
 
 _Tested by:_
 
+- `packages/core/tests/a-deletion-record-is-read-back-as-it-was-kept.test.js`
+    - a deletion record read back
+        - has its stores in their order, each with its own counts, and the kept lines apart
+        - reads a day kept as text as the same day
+        - a failure written is read back as it was
+        - the count rows to write say what each is
+        - refuses a value the platform never writes, naming its row
 - `packages/core/tests/a-person-becomes-the-role-it-acted-in.test.js`
     - a person in a row that outlives its tenant becomes the role it acted in
         - a run is the run, whichever column it wrote

@@ -20,9 +20,6 @@ import type {
     NewMaintenanceWindow,
     NewTenantAccessHold,
     NewTenantDeletionRecord,
-    TenantAccessHold,
-    TenantAccessHoldPort,
-    TenantDeletionRecord,
     TenantDeletionRecordPort,
     NewSubscriptionEnd,
     NewSubscriptionEndAnnouncement,
@@ -15478,12 +15475,15 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 const suspension = await port.record(holdOf());
                 assert.ok(suspension);
                 await port.lift(suspension.id, LIFTED_AT, HOLDING_OPERATOR);
+                // A minute later, so the two read back in one order whatever ids
+                // the adapter assigns.
                 const ended = await port.record(
                     holdOf({
                         kind: 'ended',
                         reference: 'sub-1',
                         note: null,
                         recordedBy: DELETION_RUN,
+                        since: new Date(HELD_SINCE.getTime() + 60_000),
                     }),
                 );
                 const other = await port.record(holdOf({ tenantId: 'tenant-other' }));
@@ -15696,6 +15696,40 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 assert.deepEqual(await toWhom(notices, 'sub-a'), {
                     recipients: [],
                     recipientCount: 3,
+                    recipientsForgottenAt: FORGOTTEN_AT,
+                });
+            });
+
+            // A reminder run may hold a notice while the deletion forgets the
+            // tenant's recipients, and confirm it afterwards: the notice says how
+            // many it went to, and still not to whom.
+            test('a notice confirmed after its recipients were forgotten keeps how many, not whom', async (t) => {
+                const notices = harness.adapter.subscriptionNotices;
+                if (!notices) {
+                    missing(t, 'subscriptionNotices');
+                    return;
+                }
+                const claimed = await notices.claim(
+                    noticeOf('tenant-gone', 'sub-a'),
+                    { kind: 'version-offered' },
+                    NOTICE_RUN,
+                    NOTICE_RUN,
+                );
+                assert.ok(claimed?.claimedAt, 'a notice was not claimed');
+                assert.equal(await notices.forgetRecipients('tenant-gone', FORGOTTEN_AT), 1);
+
+                const delivery = {
+                    recipients: ['a@example.com', 'b@example.com'],
+                    channel: 'email',
+                };
+                assert.equal(
+                    await notices.confirm(claimed.id, claimed.claimedAt, delivery, FORGOTTEN_AT),
+                    true,
+                );
+
+                assert.deepEqual(await toWhom(notices, 'sub-a'), {
+                    recipients: [],
+                    recipientCount: 2,
                     recipientsForgottenAt: FORGOTTEN_AT,
                 });
             });
