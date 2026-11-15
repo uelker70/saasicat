@@ -77,7 +77,7 @@ export class TenantDataExportController {
         if (isHead(request)) throw new MethodNotAllowedException();
         // `TenantAdminGuard` lets the operator through as an administrator;
         // the export is not theirs to take, since each download is recorded as
-        // the tenant's acknowledgement (`SC-PRIV-017`).
+        // the tenant's acknowledgement (`SC-PRIV-024`).
         const { tenantId, actor } = exportTakerOf(
             request,
             this.resolvers(),

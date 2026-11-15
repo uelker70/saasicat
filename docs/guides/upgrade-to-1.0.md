@@ -4690,7 +4690,7 @@ the port:
   fails and no file is sent. Where the administration's audit log is wired, each download is also
   written to it as `TENANT_EXPORT_DOWNLOAD` on the tenant, with the subscription, the download's id,
   the media type and the size; an entry that cannot be written is logged and leaves the download
-  standing. The row is the tenant's acknowledgement that `SC-PRIV-017` names: it shows that your
+  standing. The row is the tenant's acknowledgement that `SC-PRIV-024` names: it shows that your
   application produced the file for that request, not that the browser saved it.
 - **The tenant's banner** (`SC-CANC-033`). `TenantAccessBanner` names, beside an ended
   subscription's reason, the last day the tenant can read and the day its data is deleted, to every

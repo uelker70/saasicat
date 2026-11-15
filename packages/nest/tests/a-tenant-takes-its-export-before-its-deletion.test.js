@@ -2,7 +2,7 @@
 // deleted (`SC-PRIV-020`): its administrator downloads it from
 // `GET billing/export`, the application hands the file over through
 // `TenantDataExportPort`, and every download is recorded beside the end before
-// the file is sent — the tenant's acknowledgement `SC-PRIV-017` names.
+// the file is sent — the tenant's acknowledgement `SC-PRIV-024` names.
 //
 // The order is what the record proves, so each step is broken on its own: the
 // application failing records nothing, a record that cannot be written sends

@@ -2879,7 +2879,7 @@ the subscriber is told. An invoice still open when the grace period named in `co
 passed, counted from its due date (`SC-PRIC-046`), puts the tenant into read-only (`SC-ADM-024`),
 where a user holding the billing permission (`SC-UI-023`) can still replace the payment method.
 Settling every overdue invoice lifts that reason and no other: a tenant whose subscription has ended
-(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-014`) stays as
+(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-022`) stays as
 restricted as that reason makes it. Suspending the tenant stays the operator's decision
 (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a completed collection
 (`SC-REG-022`), and this is what keeps that from being service against an invoice nobody pays.
@@ -2895,7 +2895,7 @@ as `SC-PRIC-080` says. An invoice still open when the grace period named in `con
 passed, counted from its due date (`SC-PRIC-046`), puts the tenant into read-only (`SC-ADM-024`),
 where a user holding the billing permission (`SC-UI-023`) can still replace the payment method.
 Settling every overdue invoice lifts that reason and no other: a tenant whose subscription has ended
-(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-014`) stays as
+(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-022`) stays as
 restricted as that reason makes it. Suspending the tenant stays the operator's decision
 (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a completed collection
 (`SC-REG-022`), and this is what keeps that from being service against an invoice nobody pays.
@@ -2923,7 +2923,7 @@ refusal while it waits for the bank: the tenant is let go when the payment is th
 user holding the billing permission (`SC-UI-023`) can still replace the payment method, and the
 replacement collects the invoice. The payment that settles an invoice lifts that reason at once and
 no other: a tenant whose subscription has ended (`SC-CANC-027`), that the operator suspended or
-that is being deleted (`SC-PRIV-014`) stays as restricted as that reason makes it, and with two
+that is being deleted (`SC-PRIV-022`) stays as restricted as that reason makes it, and with two
 invoices unpaid the tenant stays read-only until both are paid. Suspending the tenant stays the
 operator's decision (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a
 completed collection (`SC-REG-022`), and this is what keeps that from being service against an

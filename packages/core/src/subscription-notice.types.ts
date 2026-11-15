@@ -91,8 +91,18 @@ export interface SubscriptionNoticeRecord extends SubscriptionNoticeKey {
     readonly claimedAt: Date | null;
     /** When the application confirmed it sent it; null until then. */
     readonly deliveredAt: Date | null;
-    /** Who it went to and how; set together with `deliveredAt`. */
+    /**
+     * Who it went to and how; set together with `deliveredAt`. Its recipients
+     * are empty once they were forgotten.
+     */
     readonly delivery: SubscriptionNoticeDelivery | null;
+    /** How many it went to; set together with `deliveredAt`, and kept when the recipients go. */
+    readonly recipientCount: number | null;
+    /**
+     * When its recipients were forgotten because its tenant was deleted
+     * (`SC-PRIV-023`); null while they are kept.
+     */
+    readonly recipientsForgottenAt: Date | null;
 }
 
 /**

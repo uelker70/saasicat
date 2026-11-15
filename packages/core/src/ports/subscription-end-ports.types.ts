@@ -13,6 +13,7 @@ import type {
 } from '../subscription-end.types.js';
 import type { TenantDataExport } from '../tenant-data-export.types.js';
 import type { CalendarDay } from '../zoned-day.js';
+import type { TransactionContext } from './core-ports.types.js';
 
 /**
  * Keeps one end per subscription that ended, and one announcement per
@@ -66,6 +67,33 @@ export interface SubscriptionEndPort {
      * `downloadedAt`, and by id where two share a moment.
      */
     listExportDownloadsFor(subscriptionIds: readonly string[]): Promise<TenantExportDownload[]>;
+    /** Every end of `tenantId`, whichever subscription it is of, the oldest first. */
+    listEndsOfTenant(tenantId: string): Promise<SubscriptionEnd[]>;
+    /** Every announcement of `tenantId`, whichever subscription it is of, the oldest first. */
+    listAnnouncedOfTenant(tenantId: string): Promise<SubscriptionEndAnnouncement[]>;
+    /** Every download of `tenantId`'s export, whichever subscription it is of, the oldest first. */
+    listExportDownloadsOfTenant(tenantId: string): Promise<TenantExportDownload[]>;
+    /**
+     * Writes who acted on each end, announcement and download named, as
+     * given, in the caller's transaction where one is given; changes nothing
+     * else. What a deletion leaves of a tenant's end names roles, not persons
+     * (`SC-PRIV-023`).
+     */
+    replaceActors(
+        replacements: {
+            readonly ends: readonly { readonly id: string; readonly recordedBy: string }[];
+            readonly announcements: readonly {
+                readonly id: string;
+                readonly announcedBy: string;
+            }[];
+            readonly downloads: readonly {
+                readonly id: string;
+                readonly downloadedBy: string;
+                readonly downloadedByUserId: string;
+            }[];
+        },
+        tx?: TransactionContext,
+    ): Promise<void>;
 }
 
 /**

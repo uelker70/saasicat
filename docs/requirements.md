@@ -126,14 +126,14 @@ properties it has while doing it.
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
-| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 21      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 24      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 20      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
-🔵 57 superseded, 🔴 7 withdrawn.
+Of 707 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+🔵 60 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -159,12 +159,12 @@ Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
 [SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
-[SC-PRIV-014](#sc-priv-014--a-tenant-is-deleted-through-the-application-which-first-names-what-to-keep),
-[SC-PRIV-015](#sc-priv-015--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),
 [SC-PRIV-016](#sc-priv-016--erasing-a-tenants-data-or-files-is-refused-unless-exactly-one-tenant-is-named),
-[SC-PRIV-017](#sc-priv-017--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
 [SC-PRIV-018](#sc-priv-018--a-tenants-deletion-can-safely-run-again-and-is-done-only-once-every-store-confirms),
 [SC-PRIV-021](#sc-priv-021--a-tenant-is-deleted-only-in-the-database-its-installation-marked-as-its-own),
+[SC-PRIV-022](#sc-priv-022--a-tenant-is-erased-by-the-applications-stores-after-it-was-told-what-to-keep),
+[SC-PRIV-023](#sc-priv-023--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),
+[SC-PRIV-024](#sc-priv-024--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to)
 
 🔵 **Superseded** — [SC-BUN-009](#sc-bun-009--an-add-on-can-be-cancelled-at-any-time-and-ends-with-the-period-it-is-in),
@@ -221,6 +221,9 @@ Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-SEC-003](#sc-sec-003--reads-that-legitimately-cross-tenants-are-named-as-the-exceptions-they-are),
 [SC-SEC-018](#sc-sec-018--reads-that-cross-tenants-are-named-and-a-tenants-reaches-only-its-own-subscriber),
 [SC-SEC-019](#sc-sec-019--reads-past-the-tenant-policy-are-named-a-tenants-reach-only-its-subscriber-and-itself),
+[SC-PRIV-014](#sc-priv-014--a-tenant-is-deleted-through-the-application-which-first-names-what-to-keep),
+[SC-PRIV-015](#sc-priv-015--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),
+[SC-PRIV-017](#sc-priv-017--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
 [SC-PRIV-019](#sc-priv-019--once-its-subscription-has-ended-a-tenants-administrator-takes-its-full-export),
 [SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),
 [SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered)
@@ -233,7 +236,7 @@ Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 704 requirements. Do not edit by hand:
+Generated from `requirements/` — 707 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5646,6 +5649,7 @@ _Tested by:_
     - a notice read back
         - not yet delivered carries no delivery
         - delivered carries to whom and how, and nobody where nobody was told
+        - whose recipients were forgotten keeps how many it went to, and since when
         - of every kind the platform sends is read back as that kind
         - of a kind the platform does not know is refused, naming the row
         - delivered without a readable delivery is refused, naming the row
@@ -8069,7 +8073,7 @@ ending it on the spot (`SC-CANC-003`), gets its date computed from the period at
 A later change to the period moves neither, and the one way to delete earlier is `SC-ADM-020`'s. A
 new subscription for the tenant before that date lifts it, and that subscription ending records a
 date of its own. What a tenant may do during the period is `SC-ADM-052`'s to enforce, and how the
-deletion runs is `SC-PRIV-014`'s.
+deletion runs is `SC-PRIV-022`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -8152,11 +8156,11 @@ _Tested by:_
 ### SC-CANC-022 — A tenant is reminded before its data is deleted
 
 🟡 _(Decided, not yet delivered.)_ 🔒 By email to the tenant's administrators, who can take the export
-(`SC-PRIV-017`), at each lead time `config/saas.yaml` names in days before the deletion date
+(`SC-PRIV-024`), at each lead time `config/saas.yaml` names in days before the deletion date
 (`SC-CANC-027`). Lead times that have already passed when the subscription ends are covered by one
 reminder sent at once rather than skipped, so a period shorter than a lead time still gives notice,
 and a run that repeats sends no reminder twice. Each reminder sent is part of the deletion record
-(`SC-PRIV-017`).
+(`SC-PRIV-024`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -8640,7 +8644,7 @@ gets its day from the period, counted from the day it ended, or from the day Saa
 end where that is later, so nobody is given less than the period's notice. A later change to the
 period moves no day already recorded, and the one way to delete earlier is `SC-ADM-020`'s. From the
 moment it ended until that day the tenant is read-only (`SC-ADM-055`); a new subscription before it
-is `SC-CANC-028`'s, and how the deletion runs is `SC-PRIV-014`'s.
+is `SC-CANC-028`'s, and how the deletion runs is `SC-PRIV-022`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #337
 
@@ -11821,7 +11825,7 @@ the subscriber is told. An invoice still open when the grace period named in `co
 passed, counted from its due date (`SC-PRIC-046`), puts the tenant into read-only (`SC-ADM-024`),
 where a user holding the billing permission (`SC-UI-023`) can still replace the payment method.
 Settling every overdue invoice lifts that reason and no other: a tenant whose subscription has ended
-(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-014`) stays as
+(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-022`) stays as
 restricted as that reason makes it. Suspending the tenant stays the operator's decision
 (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a completed collection
 (`SC-REG-022`), and this is what keeps that from being service against an invoice nobody pays.
@@ -11837,7 +11841,7 @@ as `SC-PRIC-080` says. An invoice still open when the grace period named in `con
 passed, counted from its due date (`SC-PRIC-046`), puts the tenant into read-only (`SC-ADM-024`),
 where a user holding the billing permission (`SC-UI-023`) can still replace the payment method.
 Settling every overdue invoice lifts that reason and no other: a tenant whose subscription has ended
-(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-014`) stays as
+(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-022`) stays as
 restricted as that reason makes it. Suspending the tenant stays the operator's decision
 (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a completed collection
 (`SC-REG-022`), and this is what keeps that from being service against an invoice nobody pays.
@@ -11865,7 +11869,7 @@ refusal while it waits for the bank: the tenant is let go when the payment is th
 user holding the billing permission (`SC-UI-023`) can still replace the payment method, and the
 replacement collects the invoice. The payment that settles an invoice lifts that reason at once and
 no other: a tenant whose subscription has ended (`SC-CANC-027`), that the operator suspended or
-that is being deleted (`SC-PRIV-014`) stays as restricted as that reason makes it, and with two
+that is being deleted (`SC-PRIV-022`) stays as restricted as that reason makes it, and with two
 invoices unpaid the tenant stays read-only until both are paid. Suspending the tenant stays the
 operator's decision (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a
 completed collection (`SC-REG-022`), and this is what keeps that from being service against an
@@ -17177,7 +17181,7 @@ invoice, correcting a subscriber's legal identity (`SC-SUB-017`), joining a tena
 a returning customer had (`SC-ADM-027`), and deleting a tenant before the
 deletion date recorded when its subscription ended (`SC-CANC-027`, `SC-CANC-021`). The reason is
 part of the record. An early deletion is for a legal reason, such as abuse or an order from an
-authority, and only once the export was offered (`SC-PRIV-017`): the operator is shown the announced
+authority, and only once the export was offered (`SC-PRIV-024`): the operator is shown the announced
 date, and nothing is deleted until the operator confirms the deletion against it. Cancelling an
 invoice records, beside the reason, any party detail the replacement has to carry corrected
 (`SC-PRIC-095`), and an address to deliver to where the subscriber's record no longer holds an
@@ -25052,23 +25056,23 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIV-014 — A tenant is deleted through the application, which first names what to keep
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The application erases all of the tenant's data and files,
-records it locks against deletion included, and provides a full export. Beforehand it reports
-what the tenant has to keep for obligations of its own, such as receipts under a retention
+🔵 _(Superseded on 2026-11-15 by `SC-PRIV-022`.)_ 🔒 The application erases all of the tenant's data
+and files, records it locks against deletion included, and provides a full export. Beforehand it
+reports what the tenant has to keep for obligations of its own, such as receipts under a retention
 period, and that report does not stop the deletion: keeping those records is the tenant's
-obligation, not the operator's, and the read-only period of `SC-CANC-027` is the time to take
-them along. SaaSiCat decides when, asks for confirmation and records that it happened. Deleting
-a single record inside the application, such as a member or a case, still honours the
-application's own locks.
+obligation, not the operator's, and the read-only period of `SC-CANC-027` is the time to take them
+along. SaaSiCat decides when, asks for confirmation and records that it happened. Deleting a single
+record inside the application, such as a member or a case, still honours the application's own
+locks.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 ### SC-PRIV-015 — A tenant's deletion leaves a record with the subscriber that names no person
 
-🟡 _(Decided, not yet delivered.)_ 🔒 What was deleted, when and by which run, as counts per
-category. A deletion earlier than announced also records the announced date, the reason and that
-the operator confirmed it against that date (`SC-ADM-020`). It is kept with the subscriber rather
-than in the audit log, which an installation may prune.
+🔵 _(Superseded on 2026-11-15 by `SC-PRIV-023`.)_ 🔒 What was deleted, when and by which run, as
+counts per category. A deletion earlier than announced also records the announced date, the reason
+and that the operator confirmed it against that date (`SC-ADM-020`). It is kept with the subscriber
+rather than in the audit log, which an installation may prune.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -25079,9 +25083,28 @@ tenant at once, so such a request is refused before anything is erased.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tenant-is-erased-only-when-one-tenant-is-named.test.js`
+    - a tenant identifier is checked as it was given
+        - nothing given is missing
+        - a value that is not text is named as such, a list of one tenant included
+        - empty text and spaces alone are blank
+        - a space or a line break around it is refused, not trimmed
+        - the longest identifier is allowed, one character more is not
+        - a slug or a uuid names one tenant
+    - an eraser asks first
+        - one tenant named passes
+        - anything else is refused, naming the problem
+        - the refusal does not repeat the value, which may be anything
+
+<!-- END proof -->
+
 ### SC-PRIV-017 — A tenant is deleted only after its full export was offered in the read-only period
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The offer, the reminders sent and the tenant's
+🔵 _(Superseded on 2026-11-15 by `SC-PRIV-024`.)_ 🔒 The offer, the reminders sent and the tenant's
 acknowledgement, where it gave one, are part of the deletion record (`SC-PRIV-015`). An
 acknowledgement that never comes does not stop the deletion.
 
@@ -25092,7 +25115,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 🟡 _(Decided, not yet delivered.)_ 🔒 Data and files live in different stores, and a call can time
 out after it has already erased. Each eraser treats what is already gone as done, a run that stops
 partway is reported and repeated rather than left half-finished, and the deletion record
-(`SC-PRIV-015`) is written only when every store has confirmed. Once a run has begun the tenant is
+(`SC-PRIV-023`) is written only when every store has confirmed. Once a run has begun the tenant is
 being deleted: nobody writes to it any more, the operator acting as the tenant included
 (`SC-ADM-055`). Before its first destructive call, each store counts what it is about to erase and
 keeps those counts with the run, so a call whose answer was lost, and a repeat that finds the store
@@ -25142,7 +25165,7 @@ recorded; otherwise it records nothing and says why with a stable code. There th
 before its record is written, so a download that broke off, or that the application does not report,
 leaves no record. On either path a `HEAD`, which carries no file, is answered `405` and records
 nothing. Either way every download recorded is a record of its own, with its moment, who took it and
-its size, kept beside the end; it is the tenant's acknowledgement that `SC-PRIV-017` names. A
+its size, kept beside the end; it is the tenant's acknowledgement that `SC-PRIV-024` names. A
 download shows that the file was produced or delivered for that request; it cannot show that it was
 saved.
 
@@ -25411,6 +25434,63 @@ _Tested by:_
         - a mark set by another installation between the read and the write is refused as moved
 
 <!-- END proof -->
+
+### SC-PRIV-022 — A tenant is erased by the application's stores, after it was told what to keep
+
+🟡 _(Decided, not yet delivered.)_ 🔒 The application erases all of the tenant's data and files, store
+by store, records it locks against deletion included, and provides a full export (`SC-PRIV-020`).
+Beforehand it reports what the tenant has to keep for obligations of its own, such as receipts under
+a retention period, as lines of a category and a count. Those lines appear in the banner of the
+read-only period, in every reminder (`SC-CANC-022`) and in the deletion record (`SC-PRIV-023`), and
+they do not stop the deletion: keeping those records is the tenant's obligation, not the operator's,
+and the read-only period of `SC-CANC-027` is the time to take them along. SaaSiCat decides when and
+records that it happened. The confirmation it deletes on is the installation's, given once by
+marking its database (`SC-PRIV-021`), not one asked for each deletion. Deleting a single record
+inside the application, such as a member or a case, still honours the application's own locks.
+
+_Source:_ #338 (decided 2026-11-15)
+
+### SC-PRIV-023 — A tenant's deletion leaves a record with the subscriber that names no person
+
+🟡 _(Decided, not yet delivered.)_ 🔒 What was deleted, when and by which run, as counts per
+category. A deletion earlier than announced also records the announced date, the reason and that
+the operator confirmed it against that date (`SC-ADM-020`). Where the tenant was suspended at some
+moment between the end of its subscription and the beginning of its deletion, so that its export
+could not be taken then, the record says so. It is kept with the subscriber rather than in the audit
+log, which an installation may prune. The rows the platform keeps of the tenant beyond its deletion
+— its holds, its end and the day it was told, the downloads of its export and the notices it was
+sent — keep the role somebody acted in, the tenant's administrator, the operator or a run, rather
+than who it was, and a notice keeps how many it went to rather than to whom.
+
+_Source:_ #338 (decided 2026-11-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-person-becomes-the-role-it-acted-in.test.js`
+    - a person in a row that outlives its tenant becomes the role it acted in
+        - a run is the run, whichever column it wrote
+        - the command line is the operator, whichever column it wrote
+        - a suspension recorded from the web is the operator
+        - any other hold recorded from the web is the run
+        - a hold lifted from the web is the operator
+        - an end recorded from the web is the tenant administrator
+        - an announcement from the web is the tenant administrator
+        - a download from the web is the tenant administrator
+        - a tag of no known kind is read as the web, never kept
+
+<!-- END proof -->
+
+### SC-PRIV-024 — A tenant is deleted only after its full export was offered in the read-only period
+
+🟡 _(Decided, not yet delivered.)_ 🔒 The offer, the reminders sent and the tenant's
+acknowledgement, where it gave one, are part of the deletion record (`SC-PRIV-023`). An
+acknowledgement that never comes does not stop the deletion. The export counts as offered from the
+moment the end is recorded even where a suspension kept the tenant from taking it, and the record
+says that the tenant was suspended.
+
+_Source:_ #338 (decided 2026-11-15)
 
 ## 21. Answering the question afterwards
 

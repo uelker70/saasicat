@@ -2124,7 +2124,7 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     is recorded in `tenant_export_downloads` — the moment, who took it by the user's id and as the
     audit log tags them, and the file's size — and only then sent, and it is audited as
     `TENANT_EXPORT_DOWNLOAD` where the audit log is wired; the operator reads every download under
-    "Access" on the tenant's page. That record is the tenant's acknowledgement (`SC-PRIV-017`): it
+    "Access" on the tenant's page. That record is the tenant's acknowledgement (`SC-PRIV-024`): it
     shows that the file was produced for that request, not that it was saved.
 
     Where the export cannot be held in memory as one file — a ZIP of every document, say — your

@@ -2,7 +2,7 @@
 // names and the user as the audit log records them, and whether the request
 // can carry the file at all. The same answers for the platform's route and for
 // a download the application delivers itself, since each download recorded is
-// the tenant's acknowledgement (`SC-PRIV-017`) and only its own administrator
+// the tenant's acknowledgement (`SC-PRIV-024`) and only its own administrator
 // can give it (`SC-PRIV-020`).
 
 import { ForbiddenException } from '@nestjs/common';

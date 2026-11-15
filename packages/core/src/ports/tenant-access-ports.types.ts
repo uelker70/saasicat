@@ -5,6 +5,7 @@ import type {
     TenantAccessHold,
     TenantAccessHoldKind,
 } from '../tenant-access.types.js';
+import type { TransactionContext } from './core-ports.types.js';
 
 /**
  * Keeps the reasons a tenant is held back, in the application's own database.
@@ -29,13 +30,43 @@ export interface TenantAccessHoldPort {
     listTenantIdsHeldBy(kinds: readonly TenantAccessHoldKind[]): Promise<string[]>;
     /**
      * Records `hold` and returns it as stored — the id is the adapter's to
-     * assign. Returns null where the same reason is already open for the
-     * tenant: same kind, same reference.
+     * assign — in the caller's transaction where one is given. Returns null
+     * where the same reason is already open for the tenant: same kind, same
+     * reference.
      */
-    record(hold: NewTenantAccessHold): Promise<TenantAccessHold | null>;
+    record(hold: NewTenantAccessHold, tx?: TransactionContext): Promise<TenantAccessHold | null>;
     /**
-     * Lifts the open reason `id` as of `liftedAt`. Returns it as stored, or null
-     * where it is not open: lifted already, or no reason has that id.
+     * Lifts the open reason `id` as of `liftedAt`, in the caller's transaction
+     * where one is given. Returns it as stored, or null where it is not open:
+     * lifted already, or no reason has that id.
      */
-    lift(id: string, liftedAt: Date, liftedBy: string): Promise<TenantAccessHold | null>;
+    lift(
+        id: string,
+        liftedAt: Date,
+        liftedBy: string,
+        tx?: TransactionContext,
+    ): Promise<TenantAccessHold | null>;
+    /** Every reason of `tenantId`, lifted ones included, oldest first. */
+    listAllOf(tenantId: string): Promise<TenantAccessHold[]>;
+    /**
+     * Locks the open reason `id` for the rest of `tx` (`FOR UPDATE`) and
+     * returns it, or null where it is not open. Whoever lifts a reason or
+     * begins a deletion on its strength takes this lock first, so of the two
+     * exactly one acts on the reason as it stood.
+     */
+    lockOpen(id: string, tx: TransactionContext): Promise<TenantAccessHold | null>;
+    /**
+     * Writes `recordedBy` and `liftedBy` of each reason named, as given, in the
+     * caller's transaction where one is given; changes nothing else. What a
+     * deletion leaves of a tenant's reasons names roles, not persons
+     * (`SC-PRIV-023`).
+     */
+    replaceActors(
+        replacements: readonly {
+            readonly id: string;
+            readonly recordedBy: string;
+            readonly liftedBy: string | null;
+        }[],
+        tx?: TransactionContext,
+    ): Promise<void>;
 }

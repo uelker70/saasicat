@@ -1,5 +1,5 @@
 // The record of each download of a tenant's export, kept beside the end of its
-// subscription — the tenant's acknowledgement `SC-PRIV-017` names — and what
+// subscription — the tenant's acknowledgement `SC-PRIV-024` names — and what
 // the tenant's state and the operator's page read of those ends.
 //
 // One record, whoever delivers the file (`SC-PRIV-020`): the platform's own

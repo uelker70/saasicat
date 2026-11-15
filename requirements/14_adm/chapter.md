@@ -826,7 +826,7 @@ invoice, correcting a subscriber's legal identity (`SC-SUB-017`), joining a tena
 a returning customer had (`SC-ADM-027`), and deleting a tenant before the
 deletion date recorded when its subscription ended (`SC-CANC-027`, `SC-CANC-021`). The reason is
 part of the record. An early deletion is for a legal reason, such as abuse or an order from an
-authority, and only once the export was offered (`SC-PRIV-017`): the operator is shown the announced
+authority, and only once the export was offered (`SC-PRIV-024`): the operator is shown the announced
 date, and nothing is deleted until the operator confirms the deletion against it. Cancelling an
 invoice records, beside the reason, any party detail the replacement has to carry corrected
 (`SC-PRIC-095`), and an address to deliver to where the subscriber's record no longer holds an

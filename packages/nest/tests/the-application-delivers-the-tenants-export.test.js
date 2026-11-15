@@ -7,7 +7,7 @@
 // refuses with a stable code and records nothing, and the application keeps
 // its own trace.
 //
-// The record is the tenant's acknowledgement (`SC-PRIV-017`), so each rule is
+// The record is the tenant's acknowledgement (`SC-PRIV-024`), so each rule is
 // broken on its own, and each refusal is shown to leave nothing behind.
 
 import { describe, test } from 'node:test';

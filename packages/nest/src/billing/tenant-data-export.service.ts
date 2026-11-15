@@ -1,7 +1,7 @@
 // A tenant's full export, taken by its administrator once its subscription has
 // ended from `GET billing/export`, where the application hands the file over
 // rather than delivering it itself (`SC-PRIV-020`), and the record of each
-// download — the tenant's acknowledgement that `SC-PRIV-017` names.
+// download — the tenant's acknowledgement that `SC-PRIV-024` names.
 //
 // The platform does not assemble the export: the application hands it over
 // through `TenantDataExportPort`, asked for the session's tenant on every

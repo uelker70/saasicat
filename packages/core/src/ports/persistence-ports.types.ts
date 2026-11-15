@@ -65,6 +65,7 @@ import type { BundleVersionRetirementRepository } from './bundle-version-retirem
 import type { VersionRetirementRepository } from './version-retirement-ports.types.js';
 import type { FeatureWithdrawalRepository } from './feature-withdrawal-ports.types.js';
 import type { InstallationMarkPort } from './installation-mark-ports.types.js';
+import type { TenantDeletionRecordPort } from './tenant-deletion-ports.types.js';
 
 /** Class reference usable as a DI token (e.g. the consumer's `PrismaService`). */
 export type PersistenceClassRef = abstract new (...args: never[]) => unknown;
@@ -175,6 +176,15 @@ export interface SaaSiCatPersistenceCore {
      * that cannot be read cannot hold.
      */
     installationMark?: PersistenceProvider<InstallationMarkPort>;
+    /**
+     * Where the record of each tenant's deletion is kept, with its subscriber
+     * (`SC-PRIV-023`): what each store counted and when it confirmed, and the
+     * subscriber's commercial record before and after. Optional so an adapter
+     * written before it existed still compiles; an installation that serves
+     * tenants without one is refused at start-up, since a deletion that cannot
+     * be recorded cannot be proved.
+     */
+    tenantDeletions?: PersistenceProvider<TenantDeletionRecordPort>;
     /**
      * Where the versions of the operator's terms are kept (`config/saas.yaml#terms`,
      * `SC-CFG-038`). Absent where the schema leaves `TermsVersion` out; an

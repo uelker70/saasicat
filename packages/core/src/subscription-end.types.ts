@@ -143,7 +143,7 @@ export function announcedDeletionOf(
 /**
  * One download of a tenant's export, taken after its subscription ended, as a
  * store reads it back — kept beside the end it was offered for, and the
- * tenant's acknowledgement that `SC-PRIV-017` names.
+ * tenant's acknowledgement that `SC-PRIV-024` names.
  *
  * It is written once the application has handed the export over and before
  * the file is sent, so it shows that the application produced the export at
