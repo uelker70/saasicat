@@ -100,10 +100,10 @@ import { PrismaUserPortAdapter } from './adapters/prisma-user-port';
         PilotGrantCommand,
         DiscountAddCommand,
         AdminMfaSetupCommand, // wraps MfaSetupFlow
-        AdminWhoAmICommand, // wraps WhoAmIFlow
+        AdminWhoamiCommand, // wraps WhoAmIFlow
         AuditTailCommand, // wraps AuditTailFlow
-        DoctorCommand, // wraps DoctorFlow
-        ManifestCommand, // wraps ManifestCliFlow (sub-commands)
+        DoctorCommands, // wraps DoctorFlow
+        ManifestCommands, // wraps ManifestCliFlow (sub-commands)
     ],
 })
 export class CliModule {}

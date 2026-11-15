@@ -33,9 +33,9 @@ Optional but strongly recommended integration for ops workflows.
         PilotCreateCommand,
         // Platform flow wrappers:
         AdminMfaSetupCommand, // wraps MfaSetupFlow
-        AdminWhoAmICommand, // wraps WhoAmIFlow
+        AdminWhoamiCommand, // wraps WhoAmIFlow
         AuditTailCommand, // wraps AuditTailFlow
-        DoctorCommand, // wraps DoctorFlow
+        DoctorCommands, // wraps DoctorFlow
         ManifestDumpCommand, // wraps ManifestCliFlow.dump
         ManifestHashCommand, // wraps ManifestCliFlow.hash
         ManifestValidateCommand, // wraps ManifestCliFlow.validate

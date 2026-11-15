@@ -14,18 +14,19 @@ keeps the integration in one place.
 
 What it demonstrates:
 
-| Concern                                      | Where                                                                                                                          |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| App identity + plans (static path)           | [`config/saas.yaml`](config/saas.yaml)                                                                                         |
-| Canonical platform tables next to app tables | [`prisma/schema.prisma`](prisma/schema.prisma) (fragments 04/06/10)                                                            |
-| Standard platform wiring                     | [`src/app.module.ts`](src/app.module.ts) — one `SaaSiCatModule.forRoot(...)` call                                              |
-| Countable quota declaration                  | [`src/saas/notes-quota.provider.ts`](src/saas/notes-quota.provider.ts) — `@DefinesQuota`                                       |
-| Enforcement decorators                       | [`src/notes/notes.controller.ts`](src/notes/notes.controller.ts) — `@ImplementsCapability`, `@RequireFeature`, `@EnforceQuota` |
-| Full standard Admin backend                  | `adminResources: true` + `promoCodes: true` in [`src/app.module.ts`](src/app.module.ts)                                        |
-| Full SuperAdmin UI                           | [`admin/src/pages`](admin/src/pages) — discovery, catalog, plans, bundles, tenants, users, audit, subscriptions and promos     |
-| 402 quota responses                          | `LimitExceededFilter` as `APP_FILTER` in `app.module.ts`                                                                       |
-| Auth ordering (global guard!)                | [`src/auth/demo-auth.guard.ts`](src/auth/demo-auth.guard.ts) + `DemoAuthModule`                                                |
-| DB-free platform test                        | [`tests/notesapp-smoke.test.mjs`](tests/notesapp-smoke.test.mjs)                                                               |
+| Concern                                      | Where                                                                                                                                |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| App identity + plans (static path)           | [`config/saas.yaml`](config/saas.yaml)                                                                                               |
+| Canonical platform tables next to app tables | [`prisma/schema.prisma`](prisma/schema.prisma) (fragments 04/06/10)                                                                  |
+| Standard platform wiring                     | [`src/saasicat.config.ts`](src/saasicat.config.ts) — the options of one `SaaSiCatModule.forRoot(...)`, shared by the app and its CLI |
+| Countable quota declaration                  | [`src/saas/notes-quota.provider.ts`](src/saas/notes-quota.provider.ts) — `@DefinesQuota`                                             |
+| Enforcement decorators                       | [`src/notes/notes.controller.ts`](src/notes/notes.controller.ts) — `@ImplementsCapability`, `@RequireFeature`, `@EnforceQuota`       |
+| Full standard Admin backend                  | `adminResources: true` + `promoCodes: true` in [`src/saasicat.config.ts`](src/saasicat.config.ts)                                    |
+| Full SuperAdmin UI                           | [`admin/src/pages`](admin/src/pages) — discovery, catalog, plans, bundles, tenants, users, audit, subscriptions and promos           |
+| 402 quota responses                          | `LimitExceededFilter` as `APP_FILTER` in `app.module.ts`                                                                             |
+| Auth ordering (global guard!)                | [`src/auth/demo-auth.guard.ts`](src/auth/demo-auth.guard.ts) + `DemoAuthModule`                                                      |
+| Operator command line                        | [`src/cli`](src/cli) — `installation status`, `installation mark`, `doctor`                                                          |
+| DB-free platform test                        | [`tests/notesapp-smoke.test.mjs`](tests/notesapp-smoke.test.mjs)                                                                     |
 
 > **Demo auth:** the app identifies callers from an `x-demo-tenant` header —
 > obviously NOT authentication. Swap `DemoAuthGuard` for your JWT guard; it
@@ -115,6 +116,47 @@ curl -s $BASE/admin/manifest -H 'x-demo-tenant: admin' \
 jq '[.capabilities[].capabilityKey]' var/discovery-snapshot.json
 # → ["notes.create", "notes.export"]
 ```
+
+## Mark the installation
+
+A tenant's data is deleted only from a database marked as the installation of
+the environment the process runs in (`SAASICAT_INSTALLATION`), and nothing
+marks it on its own. The notes app's command line, [`src/cli`](src/cli), does
+that and nothing else: it registers the platform's `installation` and `doctor`
+commands, and starts the platform from the application's own options
+([`src/saasicat.config.ts`](src/saasicat.config.ts)) and environment, so it
+marks the database the application serves. The `bin` entry in `package.json`
+names it `notesapp`, the way an installed application exposes its command.
+[Extend your CLI](../../docs/guides/extend-your-cli.md) lists every other
+command an application can register.
+
+```bash
+# in the compose stack, from the repo root
+docker compose -f examples/notesapp/docker-compose.yml exec backend \
+    node dist/cli/main.js installation status
+docker compose -f examples/notesapp/docker-compose.yml exec backend \
+    node dist/cli/main.js installation mark notesapp-compose --as admin@notesapp.example
+
+# locally, from examples/notesapp, in the environment `pnpm start` runs in
+pnpm run cli installation status
+pnpm run cli installation mark notesapp-local --as admin@notesapp.example
+pnpm run cli doctor --as admin@notesapp.example
+```
+
+- `installation status` says whether the database carries this environment's
+  mark. It only reads, and asks for nobody.
+- `installation mark <identifier>` writes the mark, for the environment's own
+  `SAASICAT_INSTALLATION` only. It acts as a SuperAdmin (`--as`, or
+  `NOTESAPP_ADMIN_EMAIL`) and asks for that SuperAdmin's one-time code, so the
+  second factor has to be set up already. Here the seed sets it up for
+  `admin@notesapp.example` and prints its `otpauth://` URI on the first run. A
+  real application's operators enrol with `admin mfa-setup`, which this command
+  line leaves out.
+- `doctor` runs the platform's checks as a SuperAdmin, the installation's mark
+  among them.
+
+`NOTESAPP_SKIP_MFA=1` skips the one-time code unless `NOTESAPP_ENV=production`,
+for a scripted demo; an installation that holds real data does not set it.
 
 ## Why `src/saas` is still there
 

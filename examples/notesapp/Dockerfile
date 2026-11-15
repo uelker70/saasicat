@@ -19,7 +19,9 @@ RUN corepack enable
 COPY . .
 RUN pnpm install --frozen-lockfile
 
-# Builds the platform packages in dependency order, then the example.
+# Builds the platform packages in dependency order, then the example — the
+# application and its command line, `node dist/cli/main.js` (README, "Mark the
+# installation").
 RUN pnpm --filter "notesapp-example..." build
 
 WORKDIR /repo/examples/notesapp
