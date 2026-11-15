@@ -22195,6 +22195,11 @@ _Tested by:_
         - an unchanged identity says what changing it would cost
         - a declared correction is reported before the start applies it
         - the first naming, and an installation that names none
+    - InstallationMarkDoctorCheck
+        - is silent where the database is this environment’s
+        - warns, before the first mark, that nothing is deleted until the operator marks it
+        - is an error where the database is another installation’s, naming both
+        - is an error where the mark cannot be read, and fine where nothing is deleted at all
     - PLATFORM_DOCTOR_CHECK_PROVIDERS
         - holds every platform check, and nothing else
 - `packages/cli/tests/doctor-flow.test.js`
@@ -25293,6 +25298,22 @@ _Source:_ #338 (decided 2026-11-14 and 2026-11-15)
 
 _Tested by:_
 
+- `packages/cli/tests/default-doctor-checks.test.js`
+    - InstallationMarkDoctorCheck
+        - is silent where the database is this environment’s
+        - warns, before the first mark, that nothing is deleted until the operator marks it
+        - is an error where the database is another installation’s, naming both
+        - is an error where the mark cannot be read, and fine where nothing is deleted at all
+- `packages/cli/tests/installation-cli-flow.test.js`
+    - installation mark
+        - asks for the second factor and the confirmation before it writes, and marks as the
+          operator
+        - writes nothing where ${step} refuses
+        - refuses another installation’s mark without --replace, naming it, and replaces it with
+        - refuses an identifier that is not this environment’s, and writes nothing
+        - prints what marking came to
+    - installation status
+        - says for each verdict what it means and what changes it, as text and as JSON
 - `packages/core/tests/an-installation-deletes-only-in-the-database-it-marked.test.js`
     - an installation identifier is checked as it was given
         - nothing given is missing
