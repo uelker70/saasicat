@@ -34,6 +34,11 @@ const CATALOGUES = [
         'Tenant access',
         "What a held-back tenant's users meet, with the open reasons in `params.reasons`, the operator's suspension, and the export a tenant takes once its subscription ended.",
     ],
+    [
+        'INSTALLATION_ERROR_CODES',
+        'Installation',
+        "The mark a database carries as its installation's own, which a tenant's deletion is compared with.",
+    ],
 ];
 
 export const TARGET = 'docs/reference/error-codes.md';

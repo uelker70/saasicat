@@ -30,6 +30,7 @@ import { SaaSiCatModule } from '../dist/platform/index.js';
 import { SubscriberService } from '../dist/subscriber/index.js';
 import {
     FakeSubscriberRepository,
+    FakeInstallationMarkRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
@@ -45,6 +46,7 @@ import {
     providerRefusal,
     signedCallback,
 } from './helpers/payments.js';
+import { aDeletion } from './helpers/installation-mark.js';
 import { anExport } from './helpers/tenant-data-export.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
@@ -1037,6 +1039,7 @@ describe('SaaSiCatModule composes payments', () => {
         core: {
             tenantAccessHolds: new FakeTenantAccessHoldRepository(),
             subscriptionEnds: new FakeSubscriptionEndRepository(),
+            installationMark: new FakeInstallationMarkRepository(),
             mfa: {},
             audit: {},
             rlsBypass: {},
@@ -1062,7 +1065,7 @@ describe('SaaSiCatModule composes payments', () => {
             tenantBilling: {
                 authGuards: [AllowAll],
                 notices: { port: sendingPort(), record: noticeRecord() },
-                subscriptionEnds: { export: anExport() },
+                subscriptionEnds: { export: anExport(), deletion: aDeletion() },
             },
             payments: { gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() } },
         });
@@ -1088,7 +1091,7 @@ describe('SaaSiCatModule composes payments', () => {
                 authGuards: [AllowAll],
                 billingPermissionGuards: accountingOnly,
                 notices: { port: sendingPort(), record: noticeRecord() },
-                subscriptionEnds: { export: anExport() },
+                subscriptionEnds: { export: anExport(), deletion: aDeletion() },
             },
             payments: { gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() } },
         });
@@ -1110,7 +1113,7 @@ describe('SaaSiCatModule composes payments', () => {
                     tenantBilling: {
                         authGuards: [AllowAll],
                         notices: { port: sendingPort(), record: noticeRecord() },
-                        subscriptionEnds: { export: anExport() },
+                        subscriptionEnds: { export: anExport(), deletion: aDeletion() },
                     },
                     payments: {
                         gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },

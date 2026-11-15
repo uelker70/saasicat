@@ -6,6 +6,8 @@
 
 import type {
     CalendarDay,
+    InstallationMark,
+    InstallationMarkPort,
     NewTenantAccessHold,
     NewSubscriptionEnd,
     NewSubscriptionEndAnnouncement,
@@ -1139,6 +1141,30 @@ export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
                     (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
             )
             .map((download) => ({ ...download }));
+    }
+}
+
+/**
+ * In-memory `InstallationMarkPort` for tests: at most one mark, written where
+ * none stands and replaced only while the mark the caller read still stands, as
+ * the conditional writes hold it in the database. Starts unmarked.
+ */
+export class FakeInstallationMarkRepository implements InstallationMarkPort {
+    private mark: InstallationMark | null = null;
+
+    async find(): Promise<InstallationMark | null> {
+        return this.mark && { ...this.mark };
+    }
+
+    async markIfUnmarked(mark: InstallationMark): Promise<InstallationMark> {
+        this.mark ??= { ...mark };
+        return { ...this.mark };
+    }
+
+    async replace(current: string, mark: InstallationMark): Promise<InstallationMark | null> {
+        if (this.mark?.identifier !== current) return null;
+        this.mark = { ...mark };
+        return { ...this.mark };
     }
 }
 

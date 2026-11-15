@@ -463,5 +463,39 @@ _Tested by:_
         - the same identifier matches
         - another case is another identifier, never the same one
         - a backup of production restored into staging differs
+- `packages/nest/tests/the-compiler-asks-for-what-serving-tenants-needs.test.js`
+    - the options of an application that serves tenants
+        - compile with the environment's identifier passed as the environment gives it
+        - do not compile with the ends named and the deletion left out
+        - do not compile with the deletion named and the environment's identifier left out
+- `packages/nest/tests/the-installation-is-marked-before-anything-is-deleted.test.js`
+    - the identifier of this process's environment, which a start serving tenants names
+        - left out, not given or not an identifier, the start is refused, naming the option, its
+          source and the command
+        - says what is wrong with the value, without repeating it
+        - an identifier is enough, as long as the rules allow
+        - with nowhere to read the mark from, the start is refused, naming both places
+        - the bundle's store of the mark, or one named, is enough
+        - without tenant billing, nothing is asked for
+        - the start itself is refused, not a later run
+        - tenant billing wired by hand is refused the same way
+        - a start that serves tenants compares with the identifier its environment names
+    - whether the database belongs to this environment
+        - unmarked until the operator marks it
+        - matches once it is marked as this environment
+        - differs where production's backup was restored into staging
+    - marking the database
+        - is refused with any identifier but this environment's, and writes nothing
+        - writes the mark once, with when and by whom, and audits it once
+        - marking twice at once in one process lands once and audits once
+        - marked as another installation, it is refused and names the mark that stands
+        - another installation marking between the read and the write is refused the same way
+        - the mark stands where the audit log cannot be written, and the failure is logged
+    - replacing the mark, as after restoring production's backup into staging
+        - replaces it with this environment, and audits the old and the new
+        - with nothing to replace, it marks
+        - where this environment stands already, it changes nothing
+        - a mark changed between the read and the write is refused, and nothing is written
+        - a mark set by another installation between the read and the write is refused as moved
 
 <!-- END proof -->

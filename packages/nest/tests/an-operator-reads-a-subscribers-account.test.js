@@ -19,9 +19,11 @@ import { ARCHIVE, anAccount, discountLine, line, utc } from './helpers/charge-jo
 import { controllersIn, handlersOf } from './helpers/operator-routes.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
 import {
+    FakeInstallationMarkRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
+import { aDeletion } from './helpers/installation-mark.js';
 import { anExport } from './helpers/tenant-data-export.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
@@ -286,6 +288,7 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
             core: {
                 tenantAccessHolds: new FakeTenantAccessHoldRepository(),
                 subscriptionEnds: new FakeSubscriptionEndRepository(),
+                installationMark: new FakeInstallationMarkRepository(),
                 mfa: {},
                 audit: { write: async () => {} },
                 rlsBypass,
@@ -307,7 +310,7 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
         tenantBilling: {
             authGuards: [],
             notices: { port: sendingPort(), record: noticeRecord() },
-            subscriptionEnds: { export: anExport() },
+            subscriptionEnds: { export: anExport(), deletion: aDeletion() },
             contractFreeze: {
                 sourcePort: {},
                 subscriptionContractRepository: { list: async () => [] },

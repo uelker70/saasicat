@@ -164,6 +164,7 @@ const SERVING_TENANTS = [
     'SubscriptionEnd',
     'SubscriptionEndAnnouncement',
     'TenantExportDownload',
+    'InstallationMark',
 ];
 
 // @requirement SC-COMP-021 — The schema check names apart what an application serving tenants cannot run without
@@ -172,13 +173,14 @@ describe('the models a start serving tenants needs', () => {
         const { stdout, code } = await check(without(await everyFragment(), ...SERVING_TENANTS));
         assert.equal(code, 0, stdout);
 
-        const needed = section(stdout, 'Needed wherever tenantBilling is on (5):');
+        const needed = section(stdout, 'Needed wherever tenantBilling is on (6):');
         assert.ok(needed, stdout);
         assert.match(needed, /SubscriptionNotice\s+subscription-notices\.requires-record/);
         assert.match(needed, /TenantAccessHold\s+tenant-access\.requires-holds-port/);
         assert.match(needed, /SubscriptionEnd\s+subscription-ends\.requires-store/);
         assert.match(needed, /SubscriptionEndAnnouncement\s+subscription-ends\.requires-store/);
         assert.match(needed, /TenantExportDownload\s+subscription-ends\.requires-store/);
+        assert.match(needed, /InstallationMark\s+subscription-ends\.requires-installation-marks/);
         assert.match(needed, /--serves-tenants says tenantBilling is on and fails/);
 
         assert.equal(section(stdout, 'Not adopted'), undefined, 'none of them is "not an error"');
@@ -191,7 +193,7 @@ describe('the models a start serving tenants needs', () => {
 
     test('missing, name beside tenantBilling every other option that needs them', async () => {
         const { stdout } = await check(without(await everyFragment(), ...SERVING_TENANTS));
-        const needed = section(stdout, 'Needed wherever tenantBilling is on (5):');
+        const needed = section(stdout, 'Needed wherever tenantBilling is on (6):');
         assert.deepEqual(entryOf(needed, 'TenantAccessHold'), [
             'tenant-access.requires-holds-port',
             'also wherever adminResources is on',
@@ -204,7 +206,7 @@ describe('the models a start serving tenants needs', () => {
 
     test('missing, name the option the start takes in their place, where it takes one', async () => {
         const { stdout } = await check(without(await everyFragment(), ...SERVING_TENANTS));
-        const needed = section(stdout, 'Needed wherever tenantBilling is on (5):');
+        const needed = section(stdout, 'Needed wherever tenantBilling is on (6):');
         assert.deepEqual(entryOf(needed, 'SubscriptionNotice'), [
             'subscription-notices.requires-record',
             'or your own through tenantBilling.notices.record',
@@ -212,6 +214,10 @@ describe('the models a start serving tenants needs', () => {
         assert.deepEqual(entryOf(needed, 'SubscriptionEnd'), [
             'subscription-ends.requires-store',
             'or your own through tenantBilling.subscriptionEnds.store',
+        ]);
+        assert.deepEqual(entryOf(needed, 'InstallationMark'), [
+            'subscription-ends.requires-installation-marks',
+            'or your own through tenantBilling.subscriptionEnds.deletion.marks',
         ]);
         assert.ok(
             !entryOf(needed, 'TenantAccessHold').some((line) => line.startsWith('or ')),

@@ -23,7 +23,10 @@ import {
 import { ENTITLEMENT_SERVICE_TOKEN } from '../dist/entitlement/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
 import { SaaSiCatModule, findViolations } from '../dist/platform/index.js';
-import { FakeSubscriptionEndRepository } from '../dist/testing/index.js';
+import {
+    FakeInstallationMarkRepository,
+    FakeSubscriptionEndRepository,
+} from '../dist/testing/index.js';
 import {
     bootable,
     controllersIn,
@@ -31,10 +34,15 @@ import {
     handlersOf,
 } from './helpers/operator-routes.js';
 import { usageRecord } from './helpers/subscription-fixtures.js';
+import { aDeletion } from './helpers/installation-mark.js';
 import { anExport } from './helpers/tenant-data-export.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
-/** The platform's options with `subscriptionEnds` as given, and the bundle's store kept or not. */
+/**
+ * The platform's options with `subscriptionEnds` as given — with this
+ * environment's installation unless it names its own `deletion` — and the
+ * bundle's store kept or not.
+ */
 function withEnds(subscriptionEnds, { bundleKeepsEnds = true } = {}) {
     const options = everythingOnOptions();
     const { subscriptionEnds: store, ...core } = options.persistence.core;
@@ -45,7 +53,10 @@ function withEnds(subscriptionEnds, { bundleKeepsEnds = true } = {}) {
             core: bundleKeepsEnds ? { ...core, subscriptionEnds: store } : core,
         },
         tenantBilling: subscriptionEnds
-            ? { ...options.tenantBilling, subscriptionEnds }
+            ? {
+                  ...options.tenantBilling,
+                  subscriptionEnds: { deletion: aDeletion(), ...subscriptionEnds },
+              }
             : options.tenantBilling,
     };
 }
@@ -288,6 +299,7 @@ describe('the declaration that the application delivers the export itself', () =
             subscriptionEnds: {
                 store: new FakeSubscriptionEndRepository(),
                 export: DELIVERED_BY_THE_APPLICATION,
+                deletion: { ...aDeletion(), marks: new FakeInstallationMarkRepository() },
             },
         });
 
@@ -368,6 +380,7 @@ describe('the routes a tenant ends its subscription through', () => {
         const route = await handWired({
             store: new FakeSubscriptionEndRepository(),
             export: anExport(),
+            deletion: { ...aDeletion(), marks: new FakeInstallationMarkRepository() },
         });
         const usage = await route.getUsage({ user: { tenantId: 't1', sub: 'u1' }, headers: {} });
         assert.deepEqual(usage.cancellation.deletion, {

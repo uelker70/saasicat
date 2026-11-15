@@ -19,6 +19,8 @@ import { PaymentGatewayRegistry } from '../dist/payments/index.js';
 import { CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN } from '../dist/checkout-offer/index.js';
 import { CONTRACT_TRANSACTION_RUNNER_TOKEN } from '../dist/subscription-contract/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
+import { FakeInstallationMarkRepository } from '../dist/testing/index.js';
+import { aDeletion } from './helpers/installation-mark.js';
 import { anExport } from './helpers/tenant-data-export.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
@@ -72,7 +74,7 @@ after(() => {
 
 /** The persistence bundle the probe binds, shared by both places it appears. */
 const PERSISTENCE = {
-    core: {},
+    core: { installationMark: new FakeInstallationMarkRepository() },
     catalog: {
         planRepository: REPO,
         bundleRepository: REPO,
@@ -106,7 +108,7 @@ function everythingOn() {
                 authGuards: [],
                 subscriptionUsagePort: PORT,
                 notices: { port: sendingPort(), record: noticeRecord() },
-                subscriptionEnds: { export: anExport() },
+                subscriptionEnds: { export: anExport(), deletion: aDeletion() },
             },
             subscriptionBundles: true,
             adminResources: true,

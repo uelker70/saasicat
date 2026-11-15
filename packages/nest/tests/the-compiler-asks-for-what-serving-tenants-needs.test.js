@@ -1,7 +1,8 @@
 // An application that serves tenants cannot start without the port that hands
-// over a tenant's export (`subscription-ends.requires-export`), nor without the
-// port its notices go through (`subscription-notices.requires-port`), so its
-// types ask for both as well: an integrator upgrading learns it from the build,
+// over a tenant's export (`subscription-ends.requires-export`), without the
+// identifier of the environment it runs in (`subscription-ends.requires-installation`),
+// nor without the port its notices go through (`subscription-notices.requires-port`),
+// so its types ask for all three as well: an integrator upgrading learns it from the build,
 // not from the first start. The start refusals stay for code the compiler did
 // not check.
 //
@@ -29,6 +30,8 @@ function diagnosticsOf(body) {
                 `import type { SaaSiCatTenantBillingOptions } from ${JSON.stringify(DIST)};`,
                 "declare const rest: Omit<SaaSiCatTenantBillingOptions, 'subscriptionEnds' | 'notices'>;",
                 "declare const exportPort: SaaSiCatTenantBillingOptions['subscriptionEnds']['export'];",
+                "declare const deletion: SaaSiCatTenantBillingOptions['subscriptionEnds']['deletion'];",
+                'declare const fromTheEnvironment: string | undefined;',
                 "declare const noticePort: NonNullable<SaaSiCatTenantBillingOptions['notices']>['port'];",
                 "declare const ends: SaaSiCatTenantBillingOptions['subscriptionEnds'];",
                 "declare const notices: NonNullable<SaaSiCatTenantBillingOptions['notices']>;",
@@ -56,7 +59,7 @@ describe('the options of an application that serves tenants', () => {
     test('compile with the export port given', () => {
         assert.deepEqual(
             diagnosticsOf(
-                'export const options: SaaSiCatTenantBillingOptions = { ...rest, notices, subscriptionEnds: { export: exportPort } };',
+                'export const options: SaaSiCatTenantBillingOptions = { ...rest, notices, subscriptionEnds: { export: exportPort, deletion } };',
             ),
             [],
         );
@@ -72,17 +75,45 @@ describe('the options of an application that serves tenants', () => {
 
     test('do not compile with the ends named and the export port left out', () => {
         const diagnostics = diagnosticsOf(
-            'export const options: SaaSiCatTenantBillingOptions = { ...rest, notices, subscriptionEnds: {} };',
+            'export const options: SaaSiCatTenantBillingOptions = { ...rest, notices, subscriptionEnds: { deletion } };',
         );
         assert.equal(diagnostics.length, 1, diagnostics.join('\n'));
         assert.match(diagnostics[0], /'export'/);
+    });
+
+    // @requirement SC-PRIV-021 — A tenant is deleted only in the database its installation marked as its own
+    test("compile with the environment's identifier passed as the environment gives it", () => {
+        assert.deepEqual(
+            diagnosticsOf(
+                'export const options: SaaSiCatTenantBillingOptions = { ...rest, notices, subscriptionEnds: { export: exportPort, deletion: { installation: fromTheEnvironment } } };',
+            ),
+            [],
+        );
+    });
+
+    // @requirement SC-PRIV-021 — A tenant is deleted only in the database its installation marked as its own
+    test('do not compile with the ends named and the deletion left out', () => {
+        const diagnostics = diagnosticsOf(
+            'export const options: SaaSiCatTenantBillingOptions = { ...rest, notices, subscriptionEnds: { export: exportPort } };',
+        );
+        assert.equal(diagnostics.length, 1, diagnostics.join('\n'));
+        assert.match(diagnostics[0], /'deletion'/);
+    });
+
+    // @requirement SC-PRIV-021 — A tenant is deleted only in the database its installation marked as its own
+    test("do not compile with the deletion named and the environment's identifier left out", () => {
+        const diagnostics = diagnosticsOf(
+            'export const options: SaaSiCatTenantBillingOptions = { ...rest, notices, subscriptionEnds: { export: exportPort, deletion: {} } };',
+        );
+        assert.equal(diagnostics.length, 1, diagnostics.join('\n'));
+        assert.match(diagnostics[0], /'installation'/);
     });
 
     // @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
     test('compile with the declaration that the application delivers the export itself', () => {
         assert.deepEqual(
             diagnosticsOf(
-                "export const options: SaaSiCatTenantBillingOptions = { ...rest, notices, subscriptionEnds: { export: { deliveredBy: 'application' } } };",
+                "export const options: SaaSiCatTenantBillingOptions = { ...rest, notices, subscriptionEnds: { export: { deliveredBy: 'application' }, deletion } };",
             ),
             [],
         );
@@ -91,7 +122,7 @@ describe('the options of an application that serves tenants', () => {
     // @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
     test('do not compile with a declaration naming anybody else as delivering it', () => {
         const diagnostics = diagnosticsOf(
-            "export const options: SaaSiCatTenantBillingOptions = { ...rest, notices, subscriptionEnds: { export: { deliveredBy: 'platform' } } };",
+            "export const options: SaaSiCatTenantBillingOptions = { ...rest, notices, subscriptionEnds: { export: { deliveredBy: 'platform' }, deletion } };",
         );
         assert.equal(diagnostics.length, 1, diagnostics.join('\n'));
         assert.match(diagnostics[0], /'"platform"' is not assignable to type '"application"'/);

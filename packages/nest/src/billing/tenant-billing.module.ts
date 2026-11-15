@@ -6,6 +6,7 @@ import {
     type Provider,
     type Type,
 } from '@nestjs/common';
+import { installationIdentifierProblem } from '@saasicat/core';
 import { planCatalogSchema } from '@saasicat/spec';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
@@ -19,6 +20,7 @@ import type {
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriptionInvoiceRepository,
+    InstallationMarkPort,
     InvoiceArchivePort,
     InvoiceCollectionRepository,
     SubscriberPaymentRepository,
@@ -45,6 +47,11 @@ import {
     SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN,
 } from '../subscription-contract/subscription-contract.tokens.js';
 import { BillingPermissionGuard } from './billing-permission.guard.js';
+import {
+    installationMarksNotWired,
+    installationNotNamed,
+} from './deletion/installation-mark-option.js';
+import { InstallationMarkService } from './deletion/installation-mark.service.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { TenantAccessStateController } from './tenant-access-state.controller.js';
@@ -158,6 +165,8 @@ import {
     SUBSCRIPTION_NOTICE_PORT_TOKEN,
     SUBSCRIPTION_END_PORT_TOKEN,
     END_OF_SUBSCRIPTION_TOKEN,
+    INSTALLATION_IDENTIFIER_TOKEN,
+    INSTALLATION_MARK_PORT_TOKEN,
     TENANT_DATA_EXPORT_PORT_TOKEN,
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
@@ -358,6 +367,27 @@ export interface SubscriptionEndsOptions {
      * in that order, or a tenant whose subscription ended is never warned.
      */
     includeCron?: boolean;
+    /**
+     * The brake in front of every deletion (`SC-PRIV-021`): the identifier of
+     * the environment this process runs in, and where the mark of the database
+     * is read from. A tenant is deleted only where both name the same
+     * installation; until the operator marks the database with
+     * `<app> installation mark <identifier>`, nothing is deleted at all.
+     */
+    deletion: SubscriptionDeletionOptions;
+}
+
+/** The identifier of this environment, and where the mark of its database is kept (`SC-PRIV-021`). */
+export interface SubscriptionDeletionOptions {
+    /**
+     * This environment's identifier, passed from the environment as it is —
+     * `process.env.SAASICAT_INSTALLATION`, for one. Letters, digits, `.`, `_`
+     * and `-`, beginning with a letter or a digit, at most 64 characters, with
+     * nothing trimmed: a start without one, or with anything else, is refused.
+     */
+    installation: string | undefined;
+    /** Where the mark of the database is kept. */
+    marks: ProviderSpec<InstallationMarkPort>;
 }
 
 /**
@@ -925,6 +955,23 @@ export class TenantBillingModule {
             if (!notices) {
                 throw new Error(noticesNotWired('TenantBillingModule: `notices`'));
             }
+            const deletion = subscriptionEnds.deletion;
+            const installationProblem = installationIdentifierProblem(deletion?.installation);
+            if (installationProblem) {
+                throw new Error(
+                    installationNotNamed(
+                        'TenantBillingModule: `subscriptionEnds.deletion.installation`',
+                        installationProblem,
+                    ),
+                );
+            }
+            if (!deletion.marks) {
+                throw new Error(
+                    installationMarksNotWired(
+                        'TenantBillingModule: `subscriptionEnds.deletion.marks`',
+                    ),
+                );
+            }
             const exportProviders = deliversItsOwnExport(subscriptionEnds.export)
                 ? [TenantExportDeliveryService]
                 : [
@@ -945,6 +992,9 @@ export class TenantBillingModule {
                 TrialEndService,
                 DeletionReminderService,
                 ...(subscriptionEnds.includeCron === false ? [] : [SubscriptionEndCron]),
+                { provide: INSTALLATION_IDENTIFIER_TOKEN, useValue: deletion.installation },
+                asProvider(INSTALLATION_MARK_PORT_TOKEN, deletion.marks),
+                InstallationMarkService,
             );
         }
         const versionNotices = options.versionNotices;
@@ -1090,7 +1140,12 @@ export class TenantBillingModule {
                 PlanChangePreviewService,
                 PLANS_AHEAD_TOKEN,
                 ...(subscriptionEnds
-                    ? [SubscriptionEndService, TrialEndService, DeletionReminderService]
+                    ? [
+                          SubscriptionEndService,
+                          TrialEndService,
+                          DeletionReminderService,
+                          InstallationMarkService,
+                      ]
                     : []),
                 ...(exportDelivered ? [TenantExportDeliveryService] : []),
                 SUBSCRIPTION_USAGE_PORT_TOKEN,

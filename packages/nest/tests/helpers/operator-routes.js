@@ -12,10 +12,12 @@ import {
     storeSecretsInPlainText,
 } from '../../dist/platform/index.js';
 import {
+    FakeInstallationMarkRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../../dist/testing/index.js';
 import { aConfirmationRenderer, aMailbox, aRenderer, anArchive } from './invoice-documents.js';
+import { aDeletion } from './installation-mark.js';
 import { anExport } from './tenant-data-export.js';
 import { ISSUER, invoicingAdapter } from './invoice-run.js';
 import { MAIN_ACCOUNT, ScriptedGateway, paymentsCatalog } from './payments.js';
@@ -62,6 +64,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             maintenanceWindows: PORT,
             tenantAccessHolds: new FakeTenantAccessHoldRepository(),
             subscriptionEnds: new FakeSubscriptionEndRepository(),
+            installationMark: new FakeInstallationMarkRepository(),
             appliedSettings: PORT,
             termsArchive: PORT,
         },
@@ -156,7 +159,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             },
             notices: { port: PORT },
             versionNotices: { includeCron: false },
-            subscriptionEnds: { export: anExport() },
+            subscriptionEnds: { export: anExport(), deletion: aDeletion() },
         },
         payments: {
             gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },

@@ -173,6 +173,16 @@ export const SUBSCRIPTION_END_PORT_TOKEN = Symbol.for('saasicat/nest/Subscriptio
 /** Adapter token: the application's export of a tenant's data (`TenantDataExportPort`). */
 export const TENANT_DATA_EXPORT_PORT_TOKEN = Symbol.for('saasicat/nest/TenantDataExportPort');
 
+/** Adapter token: where the mark of the installation is kept (`InstallationMarkPort`). */
+export const INSTALLATION_MARK_PORT_TOKEN = Symbol.for('saasicat/nest/InstallationMarkPort');
+
+/**
+ * The identifier the environment of this process names for its installation
+ * (`SubscriptionDeletionOptions.installation`), which the mark of the database
+ * is compared with.
+ */
+export const INSTALLATION_IDENTIFIER_TOKEN = Symbol.for('saasicat/nest/InstallationIdentifier');
+
 /**
  * Adapter token: where the record of each subscriber notice is kept
  * (`tenantBilling.notices.record`).

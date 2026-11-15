@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 314 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 317 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -423,3 +423,13 @@ What a held-back tenant's users meet, with the open reasons in `params.reasons`,
 | `TENANT_NOT_SUSPENDED`           | This tenant is not suspended.                                                                      |
 | `TENANT_READ_ONLY`               | This account can be read but not changed at the moment. You can still view and export its data.    |
 | `TENANT_SUSPENDED`               | This account is suspended. Please contact your provider.                                           |
+
+## Installation
+
+The mark a database carries as its installation's own, which a tenant's deletion is compared with.
+
+| Code                                            | Shipped English text                                                                                                                                          |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS` | The identifier {given} is not the one this environment names ({environment}); a database is marked only as the installation of the environment that marks it. |
+| `INSTALLATION_MARKED_OTHERWISE`                 | This database is marked as installation {marked} already; replacing that mark is a deliberate step of its own.                                                |
+| `INSTALLATION_MARK_MOVED`                       | The mark of this database changed while it was being replaced. Nothing was written; read it again.                                                            |

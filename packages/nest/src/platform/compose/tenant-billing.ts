@@ -3,6 +3,7 @@ import type {
     BundleRepository,
     ContractConfirmationArchivePort,
     ContractConfirmationRepository,
+    InstallationMarkPort,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriberPaymentRepository,
@@ -137,6 +138,15 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
             store: (subscriptionEnds?.store ??
                 ctx.persistence?.core.subscriptionEnds) as ProviderSpec<SubscriptionEndPort>,
             export: subscriptionEnds?.export,
+            deletion: {
+                installation: subscriptionEnds?.deletion?.installation,
+                // SAFETY: `subscription-ends.requires-installation-marks` has
+                // refused a configuration that reaches here with no store of
+                // the mark named and none in the bundle, and the bundle's
+                // member is the provider spec `PersistenceProvider` types it as.
+                marks: (subscriptionEnds?.deletion?.marks ??
+                    ctx.persistence?.core.installationMark) as ProviderSpec<InstallationMarkPort>,
+            },
         },
         imports: tenantImports ?? ctx.options.imports,
         extraProviders: [...quotaProviders, ...(extraProviders ?? [])],
