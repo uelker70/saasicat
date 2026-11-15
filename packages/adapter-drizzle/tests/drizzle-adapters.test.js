@@ -10,6 +10,7 @@ import {
     DrizzleInstallationMarkRepository,
     DrizzleMfaAdapter,
     DrizzleSuperAdminBootstrapAdapter,
+    DrizzleTenantDeletionRepository,
     DrizzleTransactionRunner,
     drizzlePersistence,
     saasicatSchema,
@@ -35,6 +36,9 @@ describe('schema table map', () => {
             appliedSettings: 'applied_settings',
             settingsChanges: 'settings_changes',
             installationMarks: 'installation_marks',
+            subscriberTenantDeletions: 'subscriber_tenant_deletions',
+            subscriberTenantDeletionStores: 'subscriber_tenant_deletion_stores',
+            subscriberTenantDeletionCounts: 'subscriber_tenant_deletion_counts',
         };
         for (const [exportName, tableName] of Object.entries(expected)) {
             assert.equal(getTableName(saasicatSchema[exportName]), tableName, exportName);
@@ -65,6 +69,7 @@ describe('drizzlePersistence()', () => {
         assert.ok(bundle.core.rlsBypass instanceof AsyncLocalRlsBypassAdapter);
         assert.ok(bundle.core.appliedSettings instanceof DrizzleAppliedSettingsRepository);
         assert.ok(bundle.core.installationMark instanceof DrizzleInstallationMarkRepository);
+        assert.ok(bundle.core.tenantDeletions instanceof DrizzleTenantDeletionRepository);
         assert.equal(
             bundle.core.superAdminProvisioning,
             undefined,

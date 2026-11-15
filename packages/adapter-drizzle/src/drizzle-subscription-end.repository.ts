@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { asc, gt, inArray } from 'drizzle-orm';
+import { asc, eq, gt, inArray } from 'drizzle-orm';
 import {
     type CalendarDay,
     type NewSubscriptionEnd,
@@ -10,11 +10,12 @@ import {
     type SubscriptionEndAnnouncement,
     type SubscriptionEndPort,
     type TenantExportDownload,
+    type TransactionContext,
     toSubscriptionEnd,
     toSubscriptionEndAnnouncement,
     toTenantExportDownload,
 } from '@saasicat/core';
-import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
+import { DRIZZLE_DB_TOKEN, type DrizzleClient, resolveDb } from './client.js';
 import { subscriptionEndAnnouncements, subscriptionEnds, tenantExportDownloads } from './schema.js';
 
 /**
@@ -107,5 +108,72 @@ export class DrizzleSubscriptionEndRepository implements SubscriptionEndPort {
             .where(inArray(tenantExportDownloads.subscriptionId, [...subscriptionIds]))
             .orderBy(asc(tenantExportDownloads.downloadedAt), asc(tenantExportDownloads.id));
         return rows.map(toTenantExportDownload);
+    }
+
+    async listEndsOfTenant(tenantId: string): Promise<SubscriptionEnd[]> {
+        const rows = await this.db
+            .select()
+            .from(subscriptionEnds)
+            .where(eq(subscriptionEnds.tenantId, tenantId))
+            .orderBy(asc(subscriptionEnds.recordedAt), asc(subscriptionEnds.id));
+        return rows.map(toSubscriptionEnd);
+    }
+
+    async listAnnouncedOfTenant(tenantId: string): Promise<SubscriptionEndAnnouncement[]> {
+        const rows = await this.db
+            .select()
+            .from(subscriptionEndAnnouncements)
+            .where(eq(subscriptionEndAnnouncements.tenantId, tenantId))
+            .orderBy(
+                asc(subscriptionEndAnnouncements.announcedAt),
+                asc(subscriptionEndAnnouncements.id),
+            );
+        return rows.map(toSubscriptionEndAnnouncement);
+    }
+
+    async listExportDownloadsOfTenant(tenantId: string): Promise<TenantExportDownload[]> {
+        const rows = await this.db
+            .select()
+            .from(tenantExportDownloads)
+            .where(eq(tenantExportDownloads.tenantId, tenantId))
+            .orderBy(asc(tenantExportDownloads.downloadedAt), asc(tenantExportDownloads.id));
+        return rows.map(toTenantExportDownload);
+    }
+
+    /** One `UPDATE` per row named, by its id: what it names is all that changes. */
+    async replaceActors(
+        replacements: {
+            readonly ends: readonly { readonly id: string; readonly recordedBy: string }[];
+            readonly announcements: readonly {
+                readonly id: string;
+                readonly announcedBy: string;
+            }[];
+            readonly downloads: readonly {
+                readonly id: string;
+                readonly downloadedBy: string;
+                readonly downloadedByUserId: string;
+            }[];
+        },
+        tx?: TransactionContext,
+    ): Promise<void> {
+        const db = resolveDb(this.db, tx);
+        for (const { id, recordedBy } of replacements.ends) {
+            await db
+                .update(subscriptionEnds)
+                .set({ recordedBy })
+                .where(eq(subscriptionEnds.id, id));
+        }
+        for (const { id, announcedBy } of replacements.announcements) {
+            await db
+                .update(subscriptionEndAnnouncements)
+                .set({ announcedBy })
+                .where(eq(subscriptionEndAnnouncements.id, id));
+        }
+        for (const { id, downloadedBy, downloadedByUserId } of replacements.downloads) {
+            await db
+                .update(tenantExportDownloads)
+                .set({ downloadedBy, downloadedByUserId })
+                .where(eq(tenantExportDownloads.id, id));
+        }
     }
 }

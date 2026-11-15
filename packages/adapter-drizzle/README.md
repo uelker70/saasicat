@@ -98,7 +98,8 @@ checkouts, audit
 write/query/stats, MFA, RLS bypass, SuperAdmin bootstrap
 (`PASSWORD_HASHER_TOKEN`), plan-catalog read/import sinks, the record of the
 applied settings, the maintenance windows, the mark of the installation, the
-record of what each subscriber was told, the retirements of plan and add-on versions, and the
+record of each tenant's deletion, the record of what each subscriber was told,
+the retirements of plan and add-on versions, and the
 `ZeroPromoRevenueDeductionAggregator` default.
 Not shipped: registration persistence and `FirstTimeCustomerCheck` — same as the
 Prisma adapter.

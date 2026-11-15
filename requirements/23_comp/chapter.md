@@ -742,6 +742,9 @@ _Tested by:_
         - token db → factory specs injecting the token
         - hasher instance + instance db enables provisioning
         - transaction runner passes the drizzle tx through as context
+- `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - a deletion counts a subscriber's commercial record in the tables the schema has
+        - a model the schema does not adopt counts 0, and its table is not asked
 - `packages/adapter-drizzle/tests/the-archived-invoice-documents-are-read.test.js`
     - the invoices whose document is archived
         - are read by one statement over the ids asked for, the archived ones only
@@ -1046,6 +1049,8 @@ _Tested by:_
         - with the one against an update or a delete disabled, that one
     - a join says what would let a subscriber joined be given a row
         - names a table whose trigger does not fire, and none where every one does
+    - a deletion counts a subscriber's commercial record in the tables the schema has
+        - a model the schema does not adopt counts 0, and its table is not asked
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -1260,6 +1265,8 @@ _Tested by:_
         - with the one against an update or a delete disabled, that one
     - a join says what would let a subscriber joined be given a row
         - names a table whose trigger does not fire, and none where every one does
+    - a deletion counts a subscriber's commercial record in the tables the schema has
+        - a model the schema does not adopt counts 0, and its table is not asked
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path

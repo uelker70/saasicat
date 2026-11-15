@@ -17,6 +17,7 @@ import { DrizzleInstallationMarkRepository } from './drizzle-installation-mark.r
 import { DrizzleMaintenanceWindowRepository } from './drizzle-maintenance-window.repository.js';
 import { DrizzleTenantAccessHoldRepository } from './drizzle-tenant-access-hold.repository.js';
 import { DrizzleSubscriptionEndRepository } from './drizzle-subscription-end.repository.js';
+import { DrizzleTenantDeletionRepository } from './drizzle-tenant-deletion.repository.js';
 import { DrizzleSubscriptionNoticeRepository } from './drizzle-subscription-notice.repository.js';
 import { DrizzleVersionRetirementRepository } from './drizzle-version-retirement.repository.js';
 import { DrizzleBundleVersionRetirementRepository } from './drizzle-bundle-version-retirement.repository.js';
@@ -160,6 +161,11 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             installationMark: provide((client) => new DrizzleInstallationMarkRepository(client)),
             tenantAccessHolds: provide((client) => new DrizzleTenantAccessHoldRepository(client)),
             subscriptionEnds: provide((client) => new DrizzleSubscriptionEndRepository(client)),
+            // The record of each tenant's deletion, kept with its subscriber;
+            // the commercial record it counts leaves out what is not adopted.
+            tenantDeletions: provide(
+                (client) => new DrizzleTenantDeletionRepository(client, options.notAdopted),
+            ),
             termsArchive: unless(
                 'core.termsArchive',
                 provide((client) => new DrizzleTermsArchive(client)),

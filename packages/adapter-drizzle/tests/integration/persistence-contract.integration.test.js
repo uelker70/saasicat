@@ -52,6 +52,7 @@ import {
     DrizzleInstallationMarkRepository,
     DrizzleTenantAccessHoldRepository,
     DrizzleSubscriptionEndRepository,
+    DrizzleTenantDeletionRepository,
     DrizzleSubscriptionNoticeRepository,
 } from '../../dist/index.js';
 import {
@@ -89,6 +90,9 @@ await pool.query(
 );
 
 const PLATFORM_TABLES = [
+    'subscriber_tenant_deletion_counts',
+    'subscriber_tenant_deletion_stores',
+    'subscriber_tenant_deletions',
     'subscriber_joins',
     'subscriber_credit_entries',
     'subscriber_refunds',
@@ -180,6 +184,7 @@ function createHarness() {
             installationMark: new DrizzleInstallationMarkRepository(db),
             tenantAccessHolds: new DrizzleTenantAccessHoldRepository(db),
             subscriptionEnds: new DrizzleSubscriptionEndRepository(db),
+            tenantDeletions: new DrizzleTenantDeletionRepository(db),
             subscriptionNotices: new DrizzleSubscriptionNoticeRepository(db),
             versionRetirements: new DrizzleVersionRetirementRepository(db),
             bundleVersionRetirements: new DrizzleBundleVersionRetirementRepository(db),
@@ -269,6 +274,12 @@ function createHarness() {
                     .update(saasicatSchema.subscriptionContracts)
                     .set({ confirmationDue: false })
                     .where(eq(saasicatSchema.subscriptionContracts.id, contractId));
+            },
+            async markNoticeDeliveredBeforeItsCount(noticeId) {
+                await db
+                    .update(saasicatSchema.subscriptionNotices)
+                    .set({ recipientCount: null })
+                    .where(eq(saasicatSchema.subscriptionNotices.id, noticeId));
             },
             async createSubscriber(input) {
                 const id = randomUUID();
@@ -468,6 +479,50 @@ describe('a join says what would let a subscriber joined be given a row', () => 
                 await pool.query(`ALTER TABLE ${table} ENABLE TRIGGER "${guard}"`);
             }
         }
+    });
+});
+
+// @requirement SC-COMP-010 — An integrator's own data access translates; it does not decide
+describe("a deletion counts a subscriber's commercial record in the tables the schema has", () => {
+    const OPTIONAL = [
+        ['SubscriberLedgerEntry', 'subscriber_ledger_entries'],
+        ['SubscriptionInvoice', 'subscription_invoices'],
+        ['SubscriberPayment', 'subscriber_payments'],
+        ['SubscriberCredit', 'subscriber_credits'],
+    ];
+
+    test('a model the schema does not adopt counts 0, and its table is not asked', async () => {
+        const { subscriberId } = await createHarness().seed.createSubscriber({
+            legalName: 'Ohne Rechnungen GmbH',
+        });
+        const rolledBack = new Error('rolled back');
+        let counted;
+        // The tables are renamed in a transaction that is rolled back, so the
+        // schema the repository meets has none of them, as one that leaves the
+        // optional models out.
+        await assert.rejects(
+            db.transaction(async (tx) => {
+                for (const [, table] of OPTIONAL) {
+                    await tx.execute(sql.raw(`ALTER TABLE ${table} RENAME TO ${table}_left_out`));
+                }
+                const deletions = new DrizzleTenantDeletionRepository(
+                    tx,
+                    OPTIONAL.map(([model]) => model),
+                );
+                counted = await deletions.countCommercialRecord(subscriberId);
+                throw rolledBack;
+            }),
+            rolledBack,
+        );
+
+        assert.deepEqual(counted, {
+            subscriber: 1,
+            contracts: 0,
+            charges: 0,
+            invoices: 0,
+            payments: 0,
+            credits: 0,
+        });
     });
 });
 

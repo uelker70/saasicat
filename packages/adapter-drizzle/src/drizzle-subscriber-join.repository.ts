@@ -36,6 +36,7 @@ import {
     subscriberRefunds,
     subscriberReversals,
     subscriberTaxOriginChanges,
+    subscriberTenantDeletions,
     subscriberTenants,
     subscriberVatIdChecks,
     subscribers,
@@ -60,6 +61,7 @@ const TABLE_OF = {
     subscriber_refunds: subscriberRefunds,
     subscriber_reversals: subscriberReversals,
     subscriber_reconciliation_cases: subscriberReconciliationCases,
+    subscriber_tenant_deletions: subscriberTenantDeletions,
 } as const satisfies Record<SubscriberOwnedTable, PgTable>;
 
 /**
