@@ -10,6 +10,7 @@ import type {
     AuditQueryPort,
     BundleRepository,
     CheckoutOfferRepository,
+    InstallationMarkPort,
     InvoiceCollectionRepository,
     SubscriberPaymentRepository,
     MaintenanceWindowPort,
@@ -228,6 +229,16 @@ export interface ContractAdapterInstances {
      */
     maintenanceWindows?: MaintenanceWindowPort;
     /**
+     * Enables the installation mark scenarios: the one identifier the operator
+     * marked the database with, written where none stands and never over one
+     * that does, however many operators mark at once, and replaced only while
+     * the identifier the caller read still stands. A deletion compares it with
+     * its environment's before it erases anything, so an adapter that let a
+     * second mark overwrite the first would let a process meant for another
+     * environment claim the database by marking it.
+     */
+    installationMark?: InstallationMarkPort;
+    /**
      * Enables the tenant access scenarios: one open reason per tenant, kind and
      * reference however many writers record it at once, a lift that lands once,
      * and the open reasons read per tenant and for many tenants at once. The
@@ -444,6 +455,7 @@ export type ContractGap =
     | 'checkoutOffers'
     | 'appliedSettings'
     | 'maintenanceWindows'
+    | 'installationMark'
     | 'tenantAccessHolds'
     | 'subscriptionEnds'
     | 'cancelledSubscriptions'

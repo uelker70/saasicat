@@ -16,6 +16,7 @@ import type {
     AppliedSettingsValues,
     ConfirmedPaymentMethod,
     CreateCheckoutOfferData,
+    InstallationMark,
     NewMaintenanceWindow,
     NewTenantAccessHold,
     NewSubscriptionEnd,
@@ -636,6 +637,10 @@ const CONTRACT_GAPS: Record<
     maintenanceWindows: {
         reason: 'adapter provides no MaintenanceWindowPort',
         present: ({ adapter }) => Boolean(adapter.maintenanceWindows),
+    },
+    installationMark: {
+        reason: 'adapter provides no InstallationMarkPort',
+        present: ({ adapter }) => Boolean(adapter.installationMark),
     },
     tenantAccessHolds: {
         reason: 'adapter provides no TenantAccessHoldPort',
@@ -13605,6 +13610,166 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 (await port.listRecent(2)).map((w) => w.id),
                 [ids[2], ids[1]],
             );
+        });
+
+        // -------------------------------------------------------------
+        // The installation mark — written where none stands, never over one
+        // that does, and replaced only while the one read still stands
+        // -------------------------------------------------------------
+
+        // @requirement SC-PRIV-021
+        describe('the installation mark', () => {
+            const MARKED_AT = new Date('2026-11-15T09:30:00.123Z');
+            const LATER = new Date('2026-11-16T14:05:00.456Z');
+            const markOf = (
+                identifier: string,
+                overrides: Partial<InstallationMark> = {},
+            ): InstallationMark => ({
+                identifier,
+                markedAt: MARKED_AT,
+                markedBy: 'cli:ops@example.com:deploy-host',
+                ...overrides,
+            });
+
+            test('no mark stands before an operator sets one', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                assert.equal(await port.find(), null);
+            });
+
+            test('a mark where none stands lands, and comes back as written', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                const landed = await port.markIfUnmarked(markOf('prod'));
+                assert.equal(landed.identifier, 'prod');
+                const found = await port.find();
+                assert.equal(found?.identifier, 'prod');
+                // To the millisecond: when and by whom the database was claimed
+                // is what an operator reads when the brake holds a deletion.
+                assert.equal(found?.markedAt.toISOString(), MARKED_AT.toISOString());
+                assert.equal(found?.markedBy, 'cli:ops@example.com:deploy-host');
+            });
+
+            test('a mark is never written over another: the one that stands is answered', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                await port.markIfUnmarked(markOf('prod'));
+                // A restored copy of production marked from staging: the call
+                // answers what stands, so the caller can say which one.
+                const answered = await port.markIfUnmarked(
+                    markOf('staging', { markedAt: LATER, markedBy: 'cli:dev@example.com:laptop' }),
+                );
+                assert.equal(answered.identifier, 'prod');
+                assert.equal(answered.markedAt.toISOString(), MARKED_AT.toISOString());
+                const found = await port.find();
+                assert.equal(found?.identifier, 'prod');
+                assert.equal(found?.markedBy, 'cli:ops@example.com:deploy-host');
+            });
+
+            test('marking again with the same identifier keeps the first mark as it was', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                const first = await port.markIfUnmarked(markOf('prod'));
+                const second = await port.markIfUnmarked(markOf('prod', { markedAt: LATER }));
+                assert.equal(first.identifier, 'prod');
+                assert.equal(second.identifier, 'prod');
+                // Not rewritten: the moment is still the first one.
+                assert.equal(second.markedAt.toISOString(), MARKED_AT.toISOString());
+                assert.equal((await port.find())?.markedAt.toISOString(), MARKED_AT.toISOString());
+            });
+
+            test('of several marks set at once, exactly one lands and every caller is told which', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                // Two operators — or a deploy script and an operator — marking
+                // with different identifiers at the same moment. Issued
+                // together, so on a real database they meet on the key rather
+                // than queue in the test.
+                const answers = await Promise.all(
+                    ['blue', 'green', 'teal'].map((identifier) =>
+                        port.markIfUnmarked(markOf(identifier)),
+                    ),
+                );
+                const named = new Set(answers.map((mark) => mark.identifier));
+                assert.equal(named.size, 1, `every caller names the same mark: ${[...named]}`);
+                assert.equal((await port.find())?.identifier, answers[0]?.identifier);
+            });
+
+            test('a replacement lands while the identifier the caller read still stands', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                await port.markIfUnmarked(markOf('prod'));
+                const replaced = await port.replace(
+                    'prod',
+                    markOf('staging', { markedAt: LATER, markedBy: 'cli:ops@example.com:restore' }),
+                );
+                assert.equal(replaced?.identifier, 'staging');
+                const found = await port.find();
+                assert.equal(found?.identifier, 'staging');
+                assert.equal(found?.markedAt.toISOString(), LATER.toISOString());
+                assert.equal(found?.markedBy, 'cli:ops@example.com:restore');
+            });
+
+            test('a replacement guarded on an identifier that no longer stands changes nothing', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                await port.markIfUnmarked(markOf('staging'));
+                assert.equal(
+                    await port.replace('prod', markOf('elsewhere', { markedAt: LATER })),
+                    null,
+                );
+                const found = await port.find();
+                assert.equal(found?.identifier, 'staging');
+                assert.equal(found?.markedAt.toISOString(), MARKED_AT.toISOString());
+            });
+
+            test('a replacement where no mark stands writes none', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                assert.equal(await port.replace('prod', markOf('staging')), null);
+                assert.equal(await port.find(), null);
+            });
+
+            test('of several replacements of one mark at once, exactly one lands', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                await port.markIfUnmarked(markOf('prod'));
+                const answers = await Promise.all(
+                    ['blue', 'green', 'teal'].map((identifier) =>
+                        port.replace('prod', markOf(identifier, { markedAt: LATER })),
+                    ),
+                );
+                const landed = answers.filter((mark) => mark !== null);
+                assert.equal(landed.length, 1, 'exactly one replacement lands');
+                assert.equal((await port.find())?.identifier, landed[0]?.identifier);
+            });
         });
 
         // -------------------------------------------------------------

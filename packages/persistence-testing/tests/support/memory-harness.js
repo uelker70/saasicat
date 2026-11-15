@@ -197,6 +197,7 @@ export function createMemoryHarness() {
         appliedSettings: null,
         settingsChanges: [],
         maintenanceWindows: [],
+        installationMark: null,
         tenantAccessHolds: [],
         subscriptionEnds: [],
         subscriptionEndAnnouncements: [],
@@ -1940,6 +1941,26 @@ export function createMemoryHarness() {
             if (!row) return null;
             Object.assign(row, structuredClone(changes));
             return structuredClone(row);
+        },
+    };
+
+    /**
+     * The installation mark: one row, written only where none stands, and
+     * replaced only while the identifier the caller read still stands — the
+     * primary key and the guarded update a database keeps it with.
+     */
+    const installationMark = {
+        async find() {
+            return state.installationMark ? structuredClone(state.installationMark) : null;
+        },
+        async markIfUnmarked(mark) {
+            state.installationMark ??= structuredClone(mark);
+            return structuredClone(state.installationMark);
+        },
+        async replace(current, mark) {
+            if (state.installationMark?.identifier !== current) return null;
+            state.installationMark = structuredClone(mark);
+            return structuredClone(state.installationMark);
         },
     };
 
@@ -3990,6 +4011,7 @@ export function createMemoryHarness() {
             checkoutOfferRepository,
             appliedSettings,
             maintenanceWindows,
+            installationMark,
             tenantAccessHolds,
             subscriptionEnds,
             subscriptionNotices,
