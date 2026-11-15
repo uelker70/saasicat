@@ -428,3 +428,40 @@ _Tested by:_
           listens
 
 <!-- END proof -->
+
+### SC-PRIV-021 — A tenant is deleted only in the database its installation marked as its own
+
+🟡 _(Decided, not yet delivered.)_ 🔒 The database carries the identifier of its installation,
+which the operator sets with a command, and every process names the identifier of the
+environment it runs in. A deletion runs only where both name the same; otherwise nothing is
+deleted, and the run says why. Until the operator has marked the database nothing is deleted at
+all, and a tenant whose deletion day has come is shown as due and halted, which is how an
+operator sees what would be deleted before the terms name the deletion period. Marking the
+database, and marking it again with another identifier as after restoring a backup into another
+environment, takes the second factor. The brake protects against a process meant for another
+environment; one whose environment was copied from production, identifier included, passes it.
+
+_Source:_ #338 (decided 2026-11-14 and 2026-11-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-installation-deletes-only-in-the-database-it-marked.test.js`
+    - an installation identifier is checked as it was given
+        - nothing given is missing
+        - a value that is not text is named as such
+        - empty text and spaces alone are blank
+        - a space before or after is refused, not trimmed
+        - the longest identifier is allowed, one character more is not
+        - letters, digits, dots, dashes and underscores make an identifier
+        - it begins with a letter or a digit
+        - a path separator is no part of one
+        - a long run of text ending in a bad character is answered at once
+    - a deletion compares the environment with the mark
+        - a database nobody marked is unmarked, and names what this environment expects
+        - the same identifier matches
+        - another case is another identifier, never the same one
+        - a backup of production restored into staging differs
+
+<!-- END proof -->

@@ -94,13 +94,13 @@ properties it has while doing it.
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
-| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 20      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 21      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 20      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 702 entries: 🟢 607 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+Of 703 entries: 🟢 607 stand today, 🟡 32 decided but not yet delivered, ⚪ 0 drafts,
 🔵 57 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -133,6 +133,7 @@ Of 702 entries: 🟢 607 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-PRIV-016](#sc-priv-016--erasing-a-tenants-data-or-files-is-refused-unless-exactly-one-tenant-is-named),
 [SC-PRIV-017](#sc-priv-017--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
 [SC-PRIV-018](#sc-priv-018--a-tenants-deletion-can-safely-run-again-and-is-done-only-once-every-store-confirms),
+[SC-PRIV-021](#sc-priv-021--a-tenant-is-deleted-only-in-the-database-its-installation-marked-as-its-own),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to)
 
 🔵 **Superseded** — [SC-BUN-009](#sc-bun-009--an-add-on-can-be-cancelled-at-any-time-and-ends-with-the-period-it-is-in),

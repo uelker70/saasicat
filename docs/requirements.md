@@ -126,13 +126,13 @@ properties it has while doing it.
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
-| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 20      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 21      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 20      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 702 entries: 🟢 607 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+Of 703 entries: 🟢 607 stand today, 🟡 32 decided but not yet delivered, ⚪ 0 drafts,
 🔵 57 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -165,6 +165,7 @@ Of 702 entries: 🟢 607 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-PRIV-016](#sc-priv-016--erasing-a-tenants-data-or-files-is-refused-unless-exactly-one-tenant-is-named),
 [SC-PRIV-017](#sc-priv-017--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
 [SC-PRIV-018](#sc-priv-018--a-tenants-deletion-can-safely-run-again-and-is-done-only-once-every-store-confirms),
+[SC-PRIV-021](#sc-priv-021--a-tenant-is-deleted-only-in-the-database-its-installation-marked-as-its-own),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to)
 
 🔵 **Superseded** — [SC-BUN-009](#sc-bun-009--an-add-on-can-be-cancelled-at-any-time-and-ends-with-the-period-it-is-in),
@@ -233,7 +234,7 @@ Of 702 entries: 🟢 607 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 702 requirements. Do not edit by hand:
+Generated from `requirements/` — 703 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -25271,6 +25272,43 @@ _Tested by:_
           the platform
         - where the export is not offered, nothing is said in the console, whether or not anything
           listens
+
+<!-- END proof -->
+
+### SC-PRIV-021 — A tenant is deleted only in the database its installation marked as its own
+
+🟡 _(Decided, not yet delivered.)_ 🔒 The database carries the identifier of its installation,
+which the operator sets with a command, and every process names the identifier of the
+environment it runs in. A deletion runs only where both name the same; otherwise nothing is
+deleted, and the run says why. Until the operator has marked the database nothing is deleted at
+all, and a tenant whose deletion day has come is shown as due and halted, which is how an
+operator sees what would be deleted before the terms name the deletion period. Marking the
+database, and marking it again with another identifier as after restoring a backup into another
+environment, takes the second factor. The brake protects against a process meant for another
+environment; one whose environment was copied from production, identifier included, passes it.
+
+_Source:_ #338 (decided 2026-11-14 and 2026-11-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-installation-deletes-only-in-the-database-it-marked.test.js`
+    - an installation identifier is checked as it was given
+        - nothing given is missing
+        - a value that is not text is named as such
+        - empty text and spaces alone are blank
+        - a space before or after is refused, not trimmed
+        - the longest identifier is allowed, one character more is not
+        - letters, digits, dots, dashes and underscores make an identifier
+        - it begins with a letter or a digit
+        - a path separator is no part of one
+        - a long run of text ending in a bad character is answered at once
+    - a deletion compares the environment with the mark
+        - a database nobody marked is unmarked, and names what this environment expects
+        - the same identifier matches
+        - another case is another identifier, never the same one
+        - a backup of production restored into staging differs
 
 <!-- END proof -->
 
