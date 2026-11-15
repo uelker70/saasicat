@@ -13706,7 +13706,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     ),
                 );
                 const named = new Set(answers.map((mark) => mark.identifier));
-                assert.equal(named.size, 1, `every caller names the same mark: ${[...named]}`);
+                assert.equal(
+                    named.size,
+                    1,
+                    `every caller names the same mark: ${[...named].join(', ')}`,
+                );
                 assert.equal((await port.find())?.identifier, answers[0]?.identifier);
             });
 
