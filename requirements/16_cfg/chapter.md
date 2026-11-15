@@ -433,6 +433,8 @@ _Tested by:_
         - error when no plans
         - error when the catalogue cannot be read
         - ok with plans + details contain planIds
+        - names no feature count where the catalogue lists no features, since discovery supplies
+          them
     - DiscoverySnapshotDoctorCheck
         - warning when snapshot empty
         - ok with content

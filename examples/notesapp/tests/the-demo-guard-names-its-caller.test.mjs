@@ -3,7 +3,7 @@
 // request without one, and the admin app's caller is the SuperAdmin the seed
 // gives a second factor. DB-free — the guard runs over a request object.
 
-// @requirement SC-COMP-014
+// @requirement SC-COMP-014 — The example application is kept in step with the platform
 
 import 'reflect-metadata';
 import { describe, test } from 'node:test';
