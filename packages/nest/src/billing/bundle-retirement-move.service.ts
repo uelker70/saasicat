@@ -330,6 +330,7 @@ export class BundleRetirementMoveService {
                 actor: platformJobActor(JOB),
                 entity: 'SubscriptionBundle',
                 entityId: notice.subscriptionBundleId,
+                tenantId: notice.tenantId,
                 action,
                 changes: {
                     tenantId: notice.tenantId,

@@ -97,6 +97,7 @@ const openOf = (holds, tenantId) =>
 
 // @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
 describe("a suspension is the platform's record", () => {
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('suspending records the reason with its note and who, audits it, and answers the state', async () => {
         const { service, holds, audits } = platform();
 
@@ -112,6 +113,7 @@ describe("a suspension is the platform's record", () => {
                 actor: ACTOR,
                 entity: 'Tenant',
                 entityId: 'tenant-1',
+                tenantId: 'tenant-1',
                 action: 'TENANT_SUSPEND',
                 changes: { slug: 'acme', reason: 'Contract under review' },
             },
@@ -134,6 +136,7 @@ describe("a suspension is the platform's record", () => {
         assert.equal(audits.length, 1, 'a refused suspension is not audited');
     });
 
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('reactivating lifts the suspension and leaves an overdue invoice holding', async () => {
         const { service, holds, audits } = platform();
         await service.suspendTenant('acme', 'review', ACTOR);
@@ -154,6 +157,7 @@ describe("a suspension is the platform's record", () => {
             ['overdue'],
         );
         assert.equal(audits.at(-1).action, 'TENANT_REACTIVATE');
+        assert.equal(audits.at(-1).tenantId, 'tenant-1');
     });
 
     test('reactivating a tenant that is not suspended is refused', async () => {

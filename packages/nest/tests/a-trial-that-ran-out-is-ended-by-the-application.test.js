@@ -129,6 +129,7 @@ describe('a trial that ran out, ended by the application', () => {
         );
     });
 
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('lets the entitlements, the contract and the audit log know, as a cancellation does', async () => {
         const run = ending(trialOf());
 
@@ -141,9 +142,15 @@ describe('a trial that ran out, ended by the application', () => {
             {
                 actor: run.audited[0].actor,
                 action: run.audited[0].action,
+                tenantId: run.audited[0].tenantId,
                 reason: run.audited[0].changes.reason,
             },
-            { actor: OPERATOR, action: 'CANCEL_SUBSCRIPTION', reason: 'trial-ran-out' },
+            {
+                actor: OPERATOR,
+                action: 'CANCEL_SUBSCRIPTION',
+                tenantId: 't-1',
+                reason: 'trial-ran-out',
+            },
         );
     });
 

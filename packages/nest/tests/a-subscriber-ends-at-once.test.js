@@ -841,6 +841,7 @@ describe('the day its data is deleted on, where a subscription ends at once', ()
     });
 
     // @requirement SC-CANC-032 — A cancellation stands where its deletion day was not recorded; a repeat records it
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('through the route, where the day cannot be recorded, the end stands, answers, is audited without a day, credits and tells', async () => {
         const { service, subscription, calls } = await ending({ ends: failingToAnnounce() });
         const logged = loggedBy(service);
@@ -852,8 +853,13 @@ describe('the day its data is deleted on, where a subscription ends at once', ()
         // The route ends it at the moment of the request, which the answer names.
         assert.equal(subscription.canceledEffectiveAt.toISOString(), ended.endsAt);
         assert.deepEqual(
-            audited.map(({ action, changes }) => [action, changes.deletesOn, changes.readOnlyDays]),
-            [['END_SUBSCRIPTION_AT_ONCE', null, null]],
+            audited.map(({ action, tenantId, changes }) => [
+                action,
+                tenantId,
+                changes.deletesOn,
+                changes.readOnlyDays,
+            ]),
+            [['END_SUBSCRIPTION_AT_ONCE', 't1', null, null]],
         );
         assert.deepEqual(
             kinds(calls).filter((kind) => kind === 'charge' || kind === 'tell'),

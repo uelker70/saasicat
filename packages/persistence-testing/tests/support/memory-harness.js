@@ -711,7 +711,7 @@ export function createMemoryHarness() {
         async write(input) {
             state.audits.push({
                 id: nextId('audit'),
-                tenantId: null,
+                tenantId: input.tenantId ?? null,
                 userId: input.actor.userId,
                 userEmail: input.actor.email,
                 entity: input.entity,
@@ -729,6 +729,8 @@ export function createMemoryHarness() {
     const auditQuery = {
         async list(filter) {
             return state.audits.filter((entry) => {
+                if (filter.tenantId && entry.tenantId !== filter.tenantId) return false;
+                if (filter.entityId && entry.entityId !== filter.entityId) return false;
                 if (filter.action && entry.action !== filter.action) return false;
                 if (filter.actorTag && !actorTagMatches(entry.actorTag, filter.actorTag)) {
                     return false;

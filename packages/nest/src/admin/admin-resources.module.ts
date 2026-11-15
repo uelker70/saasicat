@@ -230,7 +230,14 @@ export class AdminResourcesService {
         action: 'TENANT_SUSPEND' | 'TENANT_REACTIVATE',
         changes: { slug: string; reason?: string },
     ): Promise<AdminTenantStateResult> {
-        await this.audit.log({ actor, entity: 'Tenant', entityId: tenant.id, action, changes });
+        await this.audit.log({
+            actor,
+            entity: 'Tenant',
+            entityId: tenant.id,
+            tenantId: tenant.id,
+            action,
+            changes,
+        });
         const { state } = await this.access.accessOf(tenant.id);
         return { ok: true, id: tenant.id, slug: tenant.slug, access: state };
     }

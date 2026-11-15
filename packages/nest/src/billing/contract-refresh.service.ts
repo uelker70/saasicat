@@ -457,6 +457,7 @@ export class ContractRefreshService {
                 actor,
                 entity: 'SubscriptionContract',
                 entityId: successor.id,
+                tenantId: successor.tenantId,
                 action: 'SUBSCRIPTION_CONTRACT_REFRESH',
                 changes: {
                     mode,

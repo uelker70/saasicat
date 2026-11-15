@@ -129,7 +129,14 @@ export class FeatureWithdrawalTenantController {
             ...this.confirmedBy(req, userId),
             expectedDeletesOn: dto.expectedDeletesOn,
         });
-        await this.record(req, userId, 'Subscription', tenantId, 'END_SUBSCRIPTION_AT_ONCE', ended);
+        await this.record(
+            req,
+            { tenantId, userId },
+            'Subscription',
+            tenantId,
+            'END_SUBSCRIPTION_AT_ONCE',
+            ended,
+        );
         return ended;
     }
 
@@ -170,7 +177,7 @@ export class FeatureWithdrawalTenantController {
         );
         await this.record(
             req,
-            userId,
+            { tenantId, userId },
             'SubscriptionBundle',
             subscriptionBundleId,
             'END_ADD_ON_AT_ONCE',
@@ -208,7 +215,7 @@ export class FeatureWithdrawalTenantController {
     /** Best effort: the end stands whether or not its record could be written (`SC-AUD-004`). */
     private async record(
         req: unknown,
-        userId: string,
+        { tenantId, userId }: { tenantId: string; userId: string },
         entity: string,
         entityId: string,
         action: string,
@@ -220,6 +227,7 @@ export class FeatureWithdrawalTenantController {
                 actor: tenantActorOf(req, userId, this.resolvers()),
                 entity,
                 entityId,
+                tenantId,
                 action,
                 changes: {
                     withdrawalId: ended.withdrawalId,

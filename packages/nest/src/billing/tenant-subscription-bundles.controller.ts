@@ -579,6 +579,7 @@ export function buildTenantSubscriptionBundlesController(
                     actor: tenantActorOf(req, userId, this.auditResolvers()),
                     entity: 'SubscriptionBundle',
                     entityId: String(changes.subscriptionBundleId),
+                    tenantId,
                     action,
                     changes: { tenantId, ...changes },
                 });

@@ -565,6 +565,7 @@ export class SubscriptionCancellationService {
                 actor,
                 entity: 'Subscription',
                 entityId: tenantId,
+                tenantId,
                 action,
                 changes,
             });

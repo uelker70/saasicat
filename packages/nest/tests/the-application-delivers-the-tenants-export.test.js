@@ -151,6 +151,7 @@ describe('the application records a download it delivered in full', () => {
         assert.deepEqual(download, ends.downloads[0]);
     });
 
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('and written to the audit log as a download the platform serves is', async () => {
         const { delivery, ends, audited } = await delivering();
 
@@ -166,6 +167,7 @@ describe('the application records a download it delivered in full', () => {
                 },
                 entity: 'Tenant',
                 entityId: 't1',
+                tenantId: 't1',
                 action: 'TENANT_EXPORT_DOWNLOAD',
                 changes: {
                     subscriptionId: 'sub-t1',

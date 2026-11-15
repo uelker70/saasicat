@@ -780,6 +780,7 @@ _Tested by:_
         - secret roundtrip incl. enabledAt handling
     - PrismaAuditAdapter
         - write maps actor to userId + actorTag on audit_logs
+        - write keeps the tenant it is handed
         - write without changes defaults to {}
     - PrismaAuditQueryAdapter
         - maps wildcard actorTag, pagination and row → AuditEntry
@@ -1087,6 +1088,7 @@ _Tested by:_
         - secret roundtrip incl. enabledAt handling
     - PrismaAuditAdapter
         - write maps actor to userId + actorTag on audit_logs
+        - write keeps the tenant it is handed
         - write without changes defaults to {}
     - PrismaAuditQueryAdapter
         - maps wildcard actorTag, pagination and row → AuditEntry

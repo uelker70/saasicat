@@ -3974,6 +3974,50 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(cliOnly[0].action, 'TENANT_SUSPEND');
         });
 
+        test('an entry keeps the tenant it was written for, and one written for none names none', async (t) => {
+            const { adapter } = harness;
+            if (!adapter.audit || !adapter.auditQuery) {
+                missing(t, 'audit');
+                return;
+            }
+            const actor = {
+                userId: 'u-1',
+                email: 'admin@t1.example',
+                source: 'web',
+                context: 'sess1',
+            } as const;
+            await adapter.audit.write({
+                actor,
+                entity: 'Subscription',
+                entityId: 't1',
+                action: 'CHANGE_PLAN',
+                tenantId: 't1',
+            });
+            await adapter.audit.write({
+                actor,
+                entity: 'Subscription',
+                entityId: 't2',
+                action: 'CHANGE_PLAN',
+                tenantId: 't2',
+            });
+            await adapter.audit.write({
+                actor,
+                entity: 'PromoCode',
+                entityId: 'promo-1',
+                action: 'PROMO_CODE_CREATE',
+            });
+
+            const tenantOf = async (entityId: string) =>
+                (await adapter.auditQuery!.list({ entityId }))[0]?.tenantId;
+            assert.equal(await tenantOf('t1'), 't1');
+            assert.equal(await tenantOf('promo-1'), null);
+            assert.deepEqual(
+                (await adapter.auditQuery.list({ tenantId: 't1' })).map((entry) => entry.entityId),
+                ['t1'],
+                "a tenant's entries are found by it, and no other tenant's",
+            );
+        });
+
         // @requirement SC-AUD-018
         test('an actor pattern finds a person whatever they acted through, and ignores case', async (t) => {
             const { adapter } = harness;

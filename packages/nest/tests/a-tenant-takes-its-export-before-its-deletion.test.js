@@ -252,6 +252,7 @@ describe("a tenant's administrator takes its export once its subscription ended"
         );
     });
 
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('and written to the audit log under a key the audit page can name', async () => {
         const { service, ends, audited } = await installation();
 
@@ -262,6 +263,7 @@ describe("a tenant's administrator takes its export once its subscription ended"
                 actor: ACTOR,
                 entity: 'Tenant',
                 entityId: 't1',
+                tenantId: 't1',
                 action: 'TENANT_EXPORT_DOWNLOAD',
                 changes: {
                     subscriptionId: 'sub-t1',

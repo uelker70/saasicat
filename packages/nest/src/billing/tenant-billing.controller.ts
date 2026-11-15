@@ -1230,13 +1230,14 @@ export class TenantBillingController {
     /**
      * Audit-log helper — writes best-effort, does not block the response path.
      * If `AdminAuditService` is not injected (e.g. a minimal deploy without
-     * AdminModule), the call is silently discarded.
+     * AdminModule), the call is silently discarded. Every entry here is about
+     * the subscription of the tenant acting, which is addressed by its tenant.
      */
     private async auditLog(
         req: RequestLike,
         userId: string,
         entity: string,
-        entityId: string,
+        tenantId: string,
         action: string,
         changes?: Record<string, unknown>,
     ): Promise<void> {
@@ -1245,7 +1246,8 @@ export class TenantBillingController {
             await this.auditService.log({
                 actor: this.buildActor(req, userId),
                 entity,
-                entityId,
+                entityId: tenantId,
+                tenantId,
                 action,
                 changes,
             });

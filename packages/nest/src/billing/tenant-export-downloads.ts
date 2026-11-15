@@ -172,6 +172,7 @@ export class TenantExportDownloads implements EndedSubscriptionSource {
                 actor,
                 entity: 'Tenant',
                 entityId: download.tenantId,
+                tenantId: download.tenantId,
                 action: TENANT_EXPORT_DOWNLOAD_ACTION,
                 changes: {
                     subscriptionId: download.subscriptionId,

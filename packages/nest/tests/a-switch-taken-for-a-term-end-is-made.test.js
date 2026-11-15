@@ -76,6 +76,7 @@ describe('the contract a switch taken for the end of the term is made in', () =>
 
 // @requirement SC-BUN-059 — A switch taken for the end of a booking's term is made at that moment
 describe('a switch whose moment has come', () => {
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('moves the booking, writes the contract that marks it, clears the schedule and records it', async () => {
         const world = scheduled();
 
@@ -115,6 +116,7 @@ describe('a switch whose moment has come', () => {
                 },
                 entity: 'SubscriptionBundle',
                 entityId: 'sb-t1',
+                tenantId: 't1',
                 action: 'BUNDLE_VERSION_SWITCH',
                 changes: {
                     tenantId: 't1',

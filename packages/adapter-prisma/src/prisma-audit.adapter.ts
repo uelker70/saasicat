@@ -11,8 +11,9 @@ export function buildActorTag(actor: AuditActor): string {
  * Default implementation of `AuditPort` against the canonical `audit_logs`
  * table (`@saasicat/spec` prisma-fragments/04-audit-log.prisma).
  *
- * SuperAdmin actions are platform-global, so `tenantId` stays null; the
- * actor lands as `userId` + `actorTag`.
+ * `tenantId` is the tenant the entry concerns, as `AuditPort.write` was
+ * handed it, and null where it was handed none; the actor lands as `userId` +
+ * `actorTag`.
  */
 @Injectable()
 export class PrismaAuditAdapter implements AuditPort {
@@ -21,16 +22,10 @@ export class PrismaAuditAdapter implements AuditPort {
         private readonly prisma: Pick<PrismaLike, 'auditLog'>,
     ) {}
 
-    async write(input: {
-        actor: AuditActor;
-        entity: string;
-        entityId: string;
-        action: string;
-        changes?: Record<string, unknown>;
-    }): Promise<void> {
+    async write(input: Parameters<AuditPort['write']>[0]): Promise<void> {
         await this.prisma.auditLog.create({
             data: {
-                tenantId: null,
+                tenantId: input.tenantId ?? null,
                 userId: input.actor.userId,
                 entity: input.entity,
                 entityId: input.entityId,

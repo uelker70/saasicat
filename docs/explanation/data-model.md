@@ -146,7 +146,7 @@ has always required anyway.
 | Entity                             | Identity / uniqueness        | Notes                                                                                                                                                              |
 | ---------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `PendingRegistration`              | —                            | Multi-step onboarding draft; must never count as an existing customer.                                                                                             |
-| `AuditLog` (`audit_logs`)          | —                            | `actorTag` format `web:<email>:<sessionId>` / `cli:<email>:<host>` (see `audit-event.schema.json`); `tenantId` null = platform-global action.                      |
+| `AuditLog` (`audit_logs`)          | —                            | `actorTag` format `web:<email>:<sessionId>` / `cli:<email>:<host>` (see `audit-event.schema.json`); `tenantId` names the tenant an entry concerns (`SC-AUD-021`).  |
 | `SuperAdminUser` / `SuperAdminMfa` | `email` unique / `userId` PK | Platform-owned SuperAdmin identity. `SuperAdminMfa.userId` deliberately has **no hard FK** — `MfaPort` also serves apps whose admins live in their own user table. |
 
 ### Configuration
