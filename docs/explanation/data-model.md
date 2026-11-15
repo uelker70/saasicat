@@ -251,6 +251,23 @@ shows that the file was produced or delivered for that request, not that it was
 saved. Two downloads are two rows. The operator reads them, the oldest first,
 beside the ended subscription on the tenant's page.
 
+### The installation's mark
+
+| Entity                                    | Identity / uniqueness                  | Notes                                                                                                                                                               |
+| ----------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `InstallationMark` (`installation_marks`) | one row, `id = 'installation'` (CHECK) | The identifier of the installation this database belongs to (`SC-PRIV-021`), `markedAt`, and `markedBy`, the operator who marked it as the audit log tags an actor. |
+
+**Written by the operator only.** No start writes the row: the first process to
+start against a database after the migration would otherwise claim it for its
+own environment, a developer's against a shared database among them. The row
+lands through `<app> installation mark`, only where none stands, and is replaced
+only with `--replace`, and only while the identifier it replaces still stands —
+both conditions are the write's own (`InstallationMarkPort.markIfUnmarked`,
+`replace`), so of two operators marking at once one lands and the other is told
+which. A tenant is deleted only where the row names the identifier of the
+environment the process runs in. The `CHECK` on `installation_marks.id` holds
+the table to one row, as on `applied_settings`.
+
 ## Transactional invariants (what adapters must guarantee)
 
 These are the behaviors `@saasicat/persistence-testing` verifies against a

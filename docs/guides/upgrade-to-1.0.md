@@ -4986,6 +4986,85 @@ user read the invoice numbers — and a guard that audits each refusal writes on
    `GET billing/access`, read `GET billing/access` alone. `GET billing/account/access` still answers
    a holder of the permission the same, and still refuses everybody else.
 
+### A tenant is deleted only from a database marked as its installation's
+
+Required wherever `tenantBilling.subscriptionEnds` is wired, which is wherever `tenantBilling` is
+on. Before anything is deleted, the platform compares the identifier the process's environment
+names with the identifier the database carries, and deletes only where both are the same
+(`SC-PRIV-021`): a process pointed at another environment's database deletes nothing in it. This
+release deletes nothing yet; the option and the mark are in place before the one that does. To
+adopt it:
+
+1. Pass the identifier of each environment from that environment, with no fallback:
+
+    ```ts
+    subscriptionEnds: {
+        export: myTenantDataExport,
+        deletion: { installation: process.env.SAASICAT_INSTALLATION },
+    },
+    ```
+
+    The option is required in `SaaSiCatModule`'s types, and a start without an identifier — or with
+    a value that is none, such as a blank or one with a space around it — is refused
+    (`subscription-ends.requires-installation`). Give every environment its own: `prod`, `staging`,
+    `dev-taci`. `TenantBillingModule` wired by hand takes `deletion: { installation, marks }`, both
+    required.
+
+2. Add `InstallationMark` from `prisma-fragments/32-installation-mark.prisma` to your schema and run
+   the migration once, before `db push` where you use one:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-the-installation-is-marked.postgres.sql
+    ```
+
+    Both shipped adapters provide `persistence.core.installationMark`; a start with no store of the
+    mark is refused (`subscription-ends.requires-installation-marks`). A store of your own goes in
+    `deletion.marks` as an `InstallationMarkPort`, held to the persistence contract.
+
+3. Register `InstallationCliFlow`, `InstallationCommands`, `InstallationStatusCommand` and
+   `InstallationMarkCommand` in your CLI module
+   ([Extend your CLI](extend-your-cli.md)), and mark each environment's database once, with that
+   environment's variables:
+
+    ```bash
+    <app> installation mark prod     # second factor; --yes against production
+    ```
+
+    Until a database is marked nothing is deleted in it, and `<app> doctor` warns
+    (`platform.installation-mark`, also in `PLATFORM_DOCTOR_CHECK_PROVIDERS`). After restoring a
+    backup into another environment, `installation status` names the mark it brought, and
+    `installation mark <this environment> --replace` takes it over.
+
+- **Your own tests** that compose `SaaSiCatModule` with `tenantBilling` need
+  `subscriptionEnds.deletion.installation` and the store: `FakeInstallationMarkRepository` from
+  `@saasicat/nest/testing` keeps the mark in memory. A persistence contract harness of yours wires
+  `installationMark` or names it among its `gaps`.
+- **The brake** stops a process meant for another environment, not an environment copied from
+  production with its identifier included
+  ([where the brake stops](wire-the-backend.md#mark-the-installation-before-the-first-deletion)).
+
+### The schema check names a model of your own under a platform model's name
+
+`saasicat schema check` compared a model of yours that carries a platform model's name — your own
+`SubscriptionInvoice`, mapped to `invoices` — with the platform's, field by field, and reported a
+diverging `@@map` and every platform column as missing. It now names such a model once, under
+**Your own model under a platform model's name**, with both tables, and compares nothing else of it
+(`SC-SCOPE-013`). The model is recognised by its table: one with another `@@map`, or none, is yours.
+The check still fails on it, since one schema cannot hold your model and the platform's under one
+name: rename yours, or, where it was meant to be the platform's, map it to the platform's table.
+
+`checkSchema` from `@saasicat/cli` changes shape with it, which breaks code that reads its report:
+
+| before                                                   | after                                                                   |
+| -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `missingBlockAttributes` entry with `kind: 'map'`        | an entry in `nameClashes`: `model`, `platformTable`, `applicationTable` |
+| `BlockAttributeKind` is `'index' \| 'unique' \| 'map'`   | `'index' \| 'unique'`                                                   |
+| `MissingBlockAttribute.actual`, the table mapped instead | gone; `NameClash.applicationTable`                                      |
+
+1. Where you run `saasicat schema check`, nothing to do.
+2. Where code of yours reads the report of `checkSchema`, read a diverging table from
+   `nameClashes` instead of a `missingBlockAttributes` entry of kind `map`.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

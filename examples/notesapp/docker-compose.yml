@@ -45,6 +45,9 @@ services:
             # public in this file: generate your own for anything that is not
             # a demo (see .env.example).
             SECRET_SEALER_KEY: ZGVtby1rZXktZm9yLXRoZS1ub3Rlc2FwcC1zdGFjayE=
+            # The installation this stack is; a tenant is deleted only from a
+            # database marked with it (see .env.example).
+            SAASICAT_INSTALLATION: notesapp-compose
             PORT: '3000'
             # Set to false to keep data you changed through the UI across restarts.
             SEED_ON_START: 'true'
