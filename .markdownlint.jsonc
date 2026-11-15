@@ -9,7 +9,7 @@
 //
 // Every setting below exists to stop that argument. Prettier owns the
 // formatting of `README.md`, `CONTRIBUTING.md` and `docs/` at `printWidth: 100`
-// (see CONTRIBUTING, "Linters, formatters and Markdown"), and it indents nested
+// (see `.prettierrc` and CONTRIBUTING, "Setup"), and it indents nested
 // lists by four. A linter demanding 80 columns and two spaces would ask for
 // edits Prettier undoes on the next save.
 {

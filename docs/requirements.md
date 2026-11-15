@@ -26953,7 +26953,7 @@ _Tested by:_
 
 - `tests/pre-release-mode-is-documented.test.js`
     - the configured release line can reach the version it is for
-        - on a 0.x base, a major changeset and pre mode appear together
+        - until the stable 1.0.0, no pending changeset asks for a major
         - and the tag it uses is the tag the docs name
         - the check has a subject either way
 
@@ -27023,7 +27023,7 @@ _Tested by:_
         - the specifier rewrite stops at the package boundary
 - `tests/pre-release-mode-is-documented.test.js`
     - the configured release line can reach the version it is for
-        - on a 0.x base, a major changeset and pre mode appear together
+        - until the stable 1.0.0, no pending changeset asks for a major
         - and the tag it uses is the tag the docs name
         - the check has a subject either way
 - `tests/the-cli-runs-from-the-project.test.js`

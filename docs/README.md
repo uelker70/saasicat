@@ -51,6 +51,7 @@ Start here if you have not used SaaSiCat before.
 | [Verify your integration](guides/verify-your-integration.md)                                     | You think you are done.                                                    |
 | [Troubleshooting](guides/troubleshooting.md)                                                     | Something is wrong and the message is not obvious.                         |
 | [Upgrade to 1.0](guides/upgrade-to-1.0.md)                                                       | Coming from a 0.x release.                                                 |
+| [Maintain releases](guides/maintain-releases.md)                                                 | You publish SaaSiCat: a new package, a dist-tag, leaving pre mode.         |
 
 ## Reference
 

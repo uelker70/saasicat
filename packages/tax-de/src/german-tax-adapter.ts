@@ -27,9 +27,9 @@ const DEFAULT_VIES_TIMEOUT_MS = 10_000;
 /**
  * The version this package was published as, read from its own manifest at
  * runtime rather than written into the build: the first publish of a new
- * package sets the version after the build (CONTRIBUTING, "A new package
- * needs one manual first publish"), and the answer has to name the version
- * that was published.
+ * package sets the version after the build (docs/guides/maintain-releases.md,
+ * "A new package needs one manual first publish"), and the answer has to name
+ * the version that was published.
  */
 function publishedVersion(): string {
     const manifest: unknown = JSON.parse(
