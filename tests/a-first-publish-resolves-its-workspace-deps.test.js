@@ -7,15 +7,14 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // The first publish of a new package is the one step outside the release
-// workflow, and CONTRIBUTING.md has to name the tool that does it correctly.
+// workflow, and the maintainer guide (`docs/guides/maintain-releases.md`) has
+// to name the tool that does it correctly.
 //
 // `workspace:^` is a protocol only the workspace understands. pnpm replaces it
 // with the concrete version while it packs; npm ships it verbatim, and the
 // tarball then installs nowhere — `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` in any
-// repository that is not this one. `@saasicat/payment-stripe@1.0.0-rc.18` went
-// out that way, from an instruction in this file that said `npm publish`, and it
-// could not be taken back: it was the package's only version, and npm refuses to
-// delete the last one.
+// repository that is not this one — and it cannot be taken back: npm refuses to
+// delete a package's only version.
 //
 // So this holds the instruction to the manifests rather than to itself. While a
 // published package depends on a sibling through `workspace:`, the first-publish
@@ -32,14 +31,14 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
  * instruction from a prohibition would be satisfied by deleting the warning.
  */
 function firstPublishCommands() {
-    const text = readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8');
-    const start = text.indexOf('### A new package needs one manual first publish');
+    const text = readFileSync(join(ROOT, 'docs', 'guides', 'maintain-releases.md'), 'utf8');
+    const start = text.indexOf('## A new package needs one manual first publish');
     assert.notEqual(start, -1, 'the first-publish section was renamed; this guard points at it');
-    // To the next `##` or `###`, not to the next chapter: a `###` added under
-    // this chapter later would otherwise be read as part of this section, and
-    // its commands judged by a rule written for another one. Deeper headings
-    // are not boundaries — nothing in this file uses them, and a `####` under
-    // this very section would still be part of it.
+    // To the next `##` or `###`, not only to the next `##`: a `###` under this
+    // section is a step of its own, and its commands would otherwise be judged
+    // by a rule written for this one. Deeper headings are not boundaries —
+    // nothing in the guide uses them, and a `####` under this very section
+    // would still be part of it.
     const body = text.slice(start + 1);
     const next = body.search(/\n#{2,3} /);
     const section = next === -1 ? body : body.slice(0, next);
