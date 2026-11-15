@@ -1,0 +1,120 @@
+// =============================================================================
+// SaaS platform Prisma fragment: SubscriberTenantDeletion,
+// SubscriberTenantDeletionStore, SubscriberTenantDeletionCount
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// The record of a tenant's deletion (`SC-PRIV-023`): when it began, what each of
+// the application's stores counted for the tenant before the first one erased,
+// when each confirmed, what the tenant was told to keep itself, and the
+// subscriber's commercial record counted before and after. One record per
+// tenant, and the unique key on `tenantId` is what makes a repeated run, or two
+// runs at once, begin a deletion once.
+//
+// It is kept with the subscriber, not with the tenant: the tenant is what is
+// deleted, and the record is the proof that it was, which the subscriber keeps
+// as it keeps its contracts and invoices (ADR 0012). Hence the `Subscriber`
+// prefix (`SC-SCOPE-013`), and the restricting keys: the record outlives the
+// tenant as an invoice does, and a subscriber with one cannot be deleted from
+// under it. `tenantId`, `subscriptionId` and `subscriptionEndId` are kept as
+// values, since the tenant and its subscription are gone afterwards.
+//
+// It names no person. What a store counted is a number per category, a failure
+// is a code rather than the application's message, and what the tenant keeps is
+// a count with the application's words for it.
+//
+// A deletion may take longer than one run, and several instances may run at
+// once: a run claims the record by setting `claimedAt`, renews the claim before
+// each store, and lets it go when it stops. A claim older than its lease counts
+// as abandoned, so a run that died does not hold the deletion for ever.
+//
+// `halt` is text holding a closed set, checked in sql/constraints.postgres.sql
+// together with the counts and the kinds of a count.
+//
+// Adopt it wherever tenants are served, together with fragments 28 to 32: a
+// deletion that is not recorded cannot be proved.
+//
+// Contract: @saasicat/core (TenantDeletionRecordPort).
+
+model SubscriberTenantDeletion {
+    id                        String    @id @default(uuid())
+    tenantId                  String    @unique
+    subscriberId              String
+    subscriptionId            String
+    subscriptionEndId         String
+    // The installation's day the end named for the deletion.
+    deletesOn                 DateTime  @db.Date
+    // When the export was first offered: when the end was recorded.
+    exportOfferedFrom         DateTime
+    // Whether a suspension held at some moment between the end and the
+    // beginning, keeping the export from being taken then.
+    exportBlockedBySuspension Boolean
+    // The commercial record of the subscriber, counted before the first store
+    // erased and as the deletion closed: { subscriber, contracts, charges,
+    // invoices, payments, credits }.
+    commercialBefore          Json?
+    commercialAfter           Json?
+    startedAt                 DateTime
+    // When the run that holds it took it on; null where none does.
+    claimedAt                 DateTime?
+    attempts                  Int       @default(0)
+    // The last failure: { step, store, code, at } — a code, never a message.
+    lastFailure               Json?
+    // tenant-id-invalid | no-subscriber | commercial-record-lost; null while the
+    // deletion may go on.
+    halt                      String?
+    // When every store had confirmed; null until then.
+    closedAt                  DateTime?
+    createdAt                 DateTime  @default(now())
+
+    subscriber Subscriber                      @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    stores     SubscriberTenantDeletionStore[]
+    counts     SubscriberTenantDeletionCount[]
+
+    @@index([subscriberId])
+    @@index([closedAt])
+    @@map("subscriber_tenant_deletions")
+}
+
+// One store of the application's in a deletion, by the name its eraser gives,
+// in the order the stores are erased in. Its counts are recorded once, before
+// any store erases: a store counted again after it erased would count nothing.
+model SubscriberTenantDeletionStore {
+    id         String    @id @default(uuid())
+    deletionId String
+    store      String
+    // Its place in the order, from 0.
+    position   Int
+    countedAt  DateTime?
+    erasedAt   DateTime?
+
+    deletion SubscriberTenantDeletion @relation(fields: [deletionId], references: [id], onDelete: Restrict)
+
+    @@unique([deletionId, store])
+    @@unique([deletionId, position])
+    @@map("subscriber_tenant_deletion_stores")
+}
+
+// A number per category: what a store held for the tenant before it erased
+// (`erased`, with the store's name), or what the tenant was told to keep
+// itself (`kept`, with no store and with the application's words for the
+// category by locale). A kept category is held to one row per deletion by a
+// partial unique index in sql/constraints.postgres.sql, which Prisma cannot
+// express: the unique key below sees no store there.
+model SubscriberTenantDeletionCount {
+    id         String  @id @default(uuid())
+    deletionId String
+    // erased | kept
+    kind       String
+    store      String?
+    category   String
+    count      Int
+    // { en, …other locales }, for a kept category only.
+    labels     Json?
+
+    deletion SubscriberTenantDeletion @relation(fields: [deletionId], references: [id], onDelete: Restrict)
+
+    @@unique([deletionId, kind, store, category])
+    @@map("subscriber_tenant_deletion_counts")
+}

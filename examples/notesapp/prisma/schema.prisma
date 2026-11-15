@@ -1380,14 +1380,17 @@ model SubscriptionNotice {
     subject String
     content Json
 
-    createdAt   DateTime  @default(now())
-    claimedAt   DateTime?
-    deliveredAt DateTime?
-    recipients  Json?
-    channel     String?
+    createdAt             DateTime  @default(now())
+    claimedAt             DateTime?
+    deliveredAt           DateTime?
+    recipients            Json?
+    channel               String?
+    recipientCount        Int?
+    recipientsForgottenAt DateTime?
 
     @@unique([subscriptionId, kind, subject])
     @@index([kind, subject])
+    @@index([tenantId])
     @@map("subscription_notices")
 }
 
@@ -1529,6 +1532,7 @@ model Subscriber {
     refunds             SubscriberRefund[]
     reversals           SubscriberReversal[]
     reconciliationCases SubscriberReconciliationCase[]
+    tenantDeletions     SubscriberTenantDeletion[]
     joinedInto          SubscriberJoin?  @relation("SubscriberJoinFrom")
     joinedFrom          SubscriberJoin[] @relation("SubscriberJoinInto")
 
@@ -1782,6 +1786,7 @@ model SubscriptionEnd {
     createdAt      DateTime @default(now())
 
     @@index([tenantId])
+    @@index([deletesOn])
     @@map("subscription_ends")
 }
 
@@ -1832,6 +1837,75 @@ model InstallationMark {
     markedBy   String
 
     @@map("installation_marks")
+}
+
+// =============================================================================
+// Tenant deletions (33-subscriber-tenant-deletion.prisma)
+// =============================================================================
+//
+// The record of each tenant's deletion, kept with its subscriber: what each of
+// the app's stores counted before it erased, when each confirmed, what the
+// tenant was told to keep, and the subscriber's commercial record before and
+// after. It names no person, and outlives the tenant as the invoices do.
+// The checks and the partial unique index on kept categories are applied by the
+// entrypoint from @saasicat/spec/sql/constraints.postgres.sql.
+
+model SubscriberTenantDeletion {
+    id                        String    @id @default(uuid())
+    tenantId                  String    @unique
+    subscriberId              String
+    subscriptionId            String
+    subscriptionEndId         String
+    deletesOn                 DateTime  @db.Date
+    exportOfferedFrom         DateTime
+    exportBlockedBySuspension Boolean
+    commercialBefore          Json?
+    commercialAfter           Json?
+    startedAt                 DateTime
+    claimedAt                 DateTime?
+    attempts                  Int       @default(0)
+    lastFailure               Json?
+    halt                      String?
+    closedAt                  DateTime?
+    createdAt                 DateTime  @default(now())
+
+    subscriber Subscriber                      @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    stores     SubscriberTenantDeletionStore[]
+    counts     SubscriberTenantDeletionCount[]
+
+    @@index([subscriberId])
+    @@index([closedAt])
+    @@map("subscriber_tenant_deletions")
+}
+
+model SubscriberTenantDeletionStore {
+    id         String    @id @default(uuid())
+    deletionId String
+    store      String
+    position   Int
+    countedAt  DateTime?
+    erasedAt   DateTime?
+
+    deletion SubscriberTenantDeletion @relation(fields: [deletionId], references: [id], onDelete: Restrict)
+
+    @@unique([deletionId, store])
+    @@unique([deletionId, position])
+    @@map("subscriber_tenant_deletion_stores")
+}
+
+model SubscriberTenantDeletionCount {
+    id         String  @id @default(uuid())
+    deletionId String
+    kind       String
+    store      String?
+    category   String
+    count      Int
+    labels     Json?
+
+    deletion SubscriberTenantDeletion @relation(fields: [deletionId], references: [id], onDelete: Restrict)
+
+    @@unique([deletionId, kind, store, category])
+    @@map("subscriber_tenant_deletion_counts")
 }
 
 // =============================================================================

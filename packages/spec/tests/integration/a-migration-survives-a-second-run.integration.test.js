@@ -1222,10 +1222,13 @@ describe('every contract names the subscriber it is concluded with', () => {
      */
     async function beforeTheMigration({ foreignKey = true } = {}) {
         await freshGround();
-        // Payment methods, the charge journal, the tax origin, the invoices and
-        // the joins came later still, and point at the subscribers.
+        // Payment methods, the charge journal, the tax origin, the invoices,
+        // the joins and the records of deletions came later still, and point at
+        // the subscribers.
         await client.query(
-            'DROP TABLE "subscriber_joins", "subscriber_reconciliation_cases", ' +
+            'DROP TABLE "subscriber_tenant_deletion_counts", ' +
+                '"subscriber_tenant_deletion_stores", "subscriber_tenant_deletions", ' +
+                '"subscriber_joins", "subscriber_reconciliation_cases", ' +
                 '"subscriber_credit_entries", ' +
                 '"subscriber_refunds", "subscriber_credits", "subscriber_reversals", ' +
                 '"subscription_invoice_settlements", "subscriber_payments", ' +
@@ -3859,5 +3862,299 @@ describe('a contract written before confirmations is due none, and an archived o
         const error = await refusalOf('DELETE FROM "contract_confirmation_archive"');
 
         assert.equal(error.code, '23001');
+    });
+});
+
+describe("a tenant's deletion is recorded with its subscriber", () => {
+    // The migration creates the three tables of a deletion's record. The
+    // second-run suite runs it on the reference schema, where they are already
+    // there, and its fingerprint sees columns and indexes but not the checks;
+    // these start from a database without them, and hold both the checks the
+    // migration adds and the ones the constraints add to the reference schema.
+
+    const MIGRATION = '1.0-a-tenant-deletion-is-recorded.postgres.sql';
+    const TABLES = [
+        'subscriber_tenant_deletion_counts',
+        'subscriber_tenant_deletion_stores',
+        'subscriber_tenant_deletions',
+    ];
+
+    async function beforeTheMigration() {
+        await freshGround();
+        await client.query(`DROP TABLE ${TABLES.map((table) => `"${table}"`).join(', ')}`);
+    }
+
+    /** Subscriber `s-1` with the deletion `d-1` of tenant `t-1`, and its store `data`. */
+    async function aDeletion() {
+        await client.query(
+            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "subscriber_tenant_deletions" ("id", "tenantId", "subscriberId", ' +
+                '"subscriptionId", "subscriptionEndId", "deletesOn", "exportOfferedFrom", ' +
+                '"exportBlockedBySuspension", "startedAt") ' +
+                "VALUES ('d-1', 't-1', 's-1', 'sub-1', 'end-1', '2026-12-01', NOW(), false, NOW())",
+        );
+        await client.query(
+            'INSERT INTO "subscriber_tenant_deletion_stores" ("id", "deletionId", "store", "position") ' +
+                "VALUES ('st-1', 'd-1', 'data', 0)",
+        );
+    }
+
+    const aCount = (id, kind, store, category, count, labels) =>
+        client.query(
+            'INSERT INTO "subscriber_tenant_deletion_counts" ' +
+                '("id", "deletionId", "kind", "store", "category", "count", "labels") ' +
+                "VALUES ($1, 'd-1', $2, $3, $4, $5, $6)",
+            [id, kind, store, category, count, labels === null ? null : JSON.stringify(labels)],
+        );
+    const RECEIPTS = { en: 'Receipts', de: 'Belege' };
+
+    test('a database from before ends up with the schema the fragments declare, twice', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await beforeTheMigration();
+        assert.notEqual(
+            await fingerprint(client),
+            reference,
+            'nothing was taken out to begin with',
+        );
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+    });
+
+    const grounds = [
+        ['on the reference schema', freshGround],
+        [
+            'on a database that gained the tables from the migration alone, run twice',
+            async () => {
+                await beforeTheMigration();
+                await apply(MIGRATION);
+                await apply(MIGRATION);
+            },
+        ],
+    ];
+
+    for (const [ground, prepare] of grounds) {
+        test(`a store's count and what the tenant keeps go in ${ground}`, async () => {
+            await prepare();
+            await aDeletion();
+
+            await aCount('c-1', 'erased', 'data', 'notes', 12, null);
+            await aCount('c-2', 'kept', null, 'receipts', 42, RECEIPTS);
+
+            const { rows } = await client.query(
+                'SELECT "kind", "store", "category", "count", "labels" ' +
+                    'FROM "subscriber_tenant_deletion_counts" ORDER BY "id"',
+            );
+            assert.deepEqual(rows, [
+                { kind: 'erased', store: 'data', category: 'notes', count: 12, labels: null },
+                { kind: 'kept', store: null, category: 'receipts', count: 42, labels: RECEIPTS },
+            ]);
+        });
+
+        for (const [what, write, refusedBy] of [
+            [
+                'a halt the platform does not keep',
+                `UPDATE "subscriber_tenant_deletions" SET "halt" = 'installation-unmarked'`,
+                'subscriber_tenant_deletions_known_halt',
+            ],
+            [
+                'fewer attempts than none',
+                'UPDATE "subscriber_tenant_deletions" SET "attempts" = -1',
+                'subscriber_tenant_deletions_attempts_are_counted',
+            ],
+            [
+                'a place before the first',
+                'UPDATE "subscriber_tenant_deletion_stores" SET "position" = -1',
+                'subscriber_tenant_deletion_stores_position_is_a_place',
+            ],
+            [
+                'a count of another kind',
+                () => aCount('c-1', 'moved', null, 'notes', 1, null),
+                'subscriber_tenant_deletion_counts_known_kind',
+            ],
+            [
+                'an erased count without its store',
+                () => aCount('c-1', 'erased', null, 'notes', 1, null),
+                'subscriber_tenant_deletion_counts_erased_names_its_store',
+            ],
+            [
+                'a kept count that names a store',
+                () => aCount('c-1', 'kept', 'data', 'receipts', 1, RECEIPTS),
+                'subscriber_tenant_deletion_counts_erased_names_its_store',
+            ],
+            [
+                'a kept count without its words',
+                () => aCount('c-1', 'kept', null, 'receipts', 1, null),
+                'subscriber_tenant_deletion_counts_kept_carries_its_words',
+            ],
+            [
+                'an erased count with words',
+                () => aCount('c-1', 'erased', 'data', 'notes', 1, RECEIPTS),
+                'subscriber_tenant_deletion_counts_kept_carries_its_words',
+            ],
+            [
+                'fewer things than none',
+                () => aCount('c-1', 'erased', 'data', 'notes', -1, null),
+                'subscriber_tenant_deletion_counts_count_is_a_number_of_things',
+            ],
+            [
+                'a kept category told twice',
+                async () => {
+                    await aCount('c-1', 'kept', null, 'receipts', 1, RECEIPTS);
+                    await aCount('c-2', 'kept', null, 'receipts', 2, RECEIPTS);
+                },
+                'subscriber_tenant_deletion_counts_kept_once_per_category',
+            ],
+            [
+                "a store's category counted twice",
+                async () => {
+                    await aCount('c-1', 'erased', 'data', 'notes', 1, null);
+                    await aCount('c-2', 'erased', 'data', 'notes', 2, null);
+                },
+                'subscriber_tenant_deletion_counts_deletionId_kind_store_cat_key',
+            ],
+            [
+                'a second deletion of the same tenant',
+                'INSERT INTO "subscriber_tenant_deletions" ("id", "tenantId", "subscriberId", ' +
+                    '"subscriptionId", "subscriptionEndId", "deletesOn", "exportOfferedFrom", ' +
+                    '"exportBlockedBySuspension", "startedAt") ' +
+                    "VALUES ('d-2', 't-1', 's-1', 'sub-2', 'end-2', '2026-12-02', NOW(), false, NOW())",
+                'subscriber_tenant_deletions_tenantId_key',
+            ],
+            [
+                'deleting the subscriber that keeps it',
+                `DELETE FROM "subscribers" WHERE "id" = 's-1'`,
+                'subscriber_tenant_deletions_subscriberId_fkey',
+            ],
+        ]) {
+            test(`${what} is refused ${ground}`, async () => {
+                await prepare();
+                await aDeletion();
+
+                const error = await (typeof write === 'string'
+                    ? refusalOf(write)
+                    : write().then(
+                          () => assert.fail(`${what} was not refused`),
+                          (refused) => refused,
+                      ));
+
+                assert.equal(error.constraint, refusedBy, error.message);
+            });
+        }
+    }
+
+    test('an installation without subscribers is left without them, and runs through', async () => {
+        await freshGround();
+        await client.query(
+            `DROP TABLE ${TABLES.map((table) => `"${table}"`).join(', ')}, "subscribers" CASCADE`,
+        );
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscriber_tenant_deletions') AS deletions`,
+        );
+        assert.deepEqual(rows, [{ deletions: null }]);
+    });
+});
+
+describe('a notice keeps how many it went to', () => {
+    // The migration gives the notices the number of their recipients, and the
+    // ends and the notices the indexes a deletion reads them by. A deleted
+    // tenant's notices keep the number once their recipients are forgotten,
+    // and a second run must not count the emptied list again.
+
+    const MIGRATION = '1.0-the-ends-are-read-by-day-and-the-notices-by-tenant.postgres.sql';
+
+    async function beforeTheMigration() {
+        await freshGround();
+        await client.query('DROP INDEX "subscription_ends_deletesOn_idx"');
+        await client.query('DROP INDEX "subscription_notices_tenantId_idx"');
+        await client.query(
+            'ALTER TABLE "subscription_notices" DROP COLUMN "recipientCount", ' +
+                'DROP COLUMN "recipientsForgottenAt"',
+        );
+    }
+
+    /** A notice `id` of tenant `t-1`; delivered to `recipients` where they are given. */
+    const aNotice = (id, recipients) =>
+        client.query(
+            'INSERT INTO "subscription_notices" ("id", "tenantId", "subscriptionId", "kind", ' +
+                '"subject", "content", "deliveredAt", "recipients", "channel") ' +
+                "VALUES ($1, 't-1', 'sub-1', 'deletion-reminder', $1, '{}', $2, $3, $4)",
+            recipients === null
+                ? [id, null, null, null]
+                : [id, new Date(), JSON.stringify(recipients), 'email'],
+        );
+
+    const countsOf = async () =>
+        (
+            await client.query(
+                'SELECT "id", "recipientCount" FROM "subscription_notices" ORDER BY "id"',
+            )
+        ).rows.map((row) => [row.id, row.recipientCount]);
+
+    test('a database from before ends up with the schema the fragments declare, twice', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await beforeTheMigration();
+        assert.notEqual(
+            await fingerprint(client),
+            reference,
+            'nothing was taken out to begin with',
+        );
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+    });
+
+    test('a notice delivered before counts its recipients, and one not delivered counts none', async () => {
+        await beforeTheMigration();
+        await aNotice('n-1', ['admin@example.test', 'owner@example.test']);
+        await aNotice('n-2', []);
+        await aNotice('n-3', null);
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await countsOf(), [
+            ['n-1', 2],
+            ['n-2', 0],
+            ['n-3', null],
+        ]);
+    });
+
+    test('a second run keeps the number of a notice whose recipients were forgotten', async () => {
+        await beforeTheMigration();
+        await aNotice('n-1', ['admin@example.test', 'owner@example.test']);
+        await apply(MIGRATION);
+        await client.query(
+            `UPDATE "subscription_notices" SET "recipients" = '[]', "recipientsForgottenAt" = NOW()`,
+        );
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await countsOf(), [['n-1', 2]]);
+    });
+
+    test('an installation without notices and ends is left without them, and runs through', async () => {
+        await freshGround();
+        await client.query('DROP TABLE "subscription_notices", "subscription_ends"');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscription_notices') AS notices, ` +
+                `to_regclass('subscription_ends') AS ends`,
+        );
+        assert.deepEqual(rows, [{ notices: null, ends: null }]);
     });
 });

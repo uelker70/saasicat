@@ -323,6 +323,16 @@ _Tested by:_
         - a database from before gains the tables of the confirmations as the fragments declare them
         - an archived confirmation refuses ${what}, and stays
         - an archived confirmation still refuses a delete after the migration ran a second time
+    - a tenant's deletion is recorded with its subscriber
+        - a database from before ends up with the schema the fragments declare, twice
+        - a store's count and what the tenant keeps go in ${ground}
+        - ${what} is refused ${ground}
+        - an installation without subscribers is left without them, and runs through
+    - a notice keeps how many it went to
+        - a database from before ends up with the schema the fragments declare, twice
+        - a notice delivered before counts its recipients, and one not delivered counts none
+        - a second run keeps the number of a notice whose recipients were forgotten
+        - an installation without notices and ends is left without them, and runs through
 
 <!-- END proof -->
 
@@ -509,6 +519,16 @@ _Tested by:_
         - a database from before gains the tables of the confirmations as the fragments declare them
         - an archived confirmation refuses ${what}, and stays
         - an archived confirmation still refuses a delete after the migration ran a second time
+    - a tenant's deletion is recorded with its subscriber
+        - a database from before ends up with the schema the fragments declare, twice
+        - a store's count and what the tenant keeps go in ${ground}
+        - ${what} is refused ${ground}
+        - an installation without subscribers is left without them, and runs through
+    - a notice keeps how many it went to
+        - a database from before ends up with the schema the fragments declare, twice
+        - a notice delivered before counts its recipients, and one not delivered counts none
+        - a second run keeps the number of a notice whose recipients were forgotten
+        - an installation without notices and ends is left without them, and runs through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

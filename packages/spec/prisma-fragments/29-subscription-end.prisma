@@ -39,5 +39,7 @@ model SubscriptionEnd {
     createdAt      DateTime @default(now())
 
     @@index([tenantId])
+    // The reminders of a deletion read the ends by their day.
+    @@index([deletesOn])
     @@map("subscription_ends")
 }

@@ -35,6 +35,7 @@
 --   prisma-fragments/30-subscription-end-announcement.prisma
 --   prisma-fragments/31-tenant-export-download.prisma
 --   prisma-fragments/32-installation-mark.prisma
+--   prisma-fragments/33-subscriber-tenant-deletion.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -799,6 +800,8 @@ CREATE TABLE "subscription_notices" (
     "deliveredAt" TIMESTAMP(3),
     "recipients" JSONB,
     "channel" TEXT,
+    "recipientCount" INTEGER,
+    "recipientsForgottenAt" TIMESTAMP(3),
 
     CONSTRAINT "subscription_notices_pkey" PRIMARY KEY ("id")
 );
@@ -1228,6 +1231,54 @@ CREATE TABLE "installation_marks" (
     CONSTRAINT "installation_marks_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "subscriber_tenant_deletions" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "subscriberId" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "subscriptionEndId" TEXT NOT NULL,
+    "deletesOn" DATE NOT NULL,
+    "exportOfferedFrom" TIMESTAMP(3) NOT NULL,
+    "exportBlockedBySuspension" BOOLEAN NOT NULL,
+    "commercialBefore" JSONB,
+    "commercialAfter" JSONB,
+    "startedAt" TIMESTAMP(3) NOT NULL,
+    "claimedAt" TIMESTAMP(3),
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "lastFailure" JSONB,
+    "halt" TEXT,
+    "closedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "subscriber_tenant_deletions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscriber_tenant_deletion_stores" (
+    "id" TEXT NOT NULL,
+    "deletionId" TEXT NOT NULL,
+    "store" TEXT NOT NULL,
+    "position" INTEGER NOT NULL,
+    "countedAt" TIMESTAMP(3),
+    "erasedAt" TIMESTAMP(3),
+
+    CONSTRAINT "subscriber_tenant_deletion_stores_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscriber_tenant_deletion_counts" (
+    "id" TEXT NOT NULL,
+    "deletionId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "store" TEXT,
+    "category" TEXT NOT NULL,
+    "count" INTEGER NOT NULL,
+    "labels" JSONB,
+
+    CONSTRAINT "subscriber_tenant_deletion_counts_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -1487,6 +1538,9 @@ CREATE INDEX "maintenance_windows_createdAt_idx" ON "maintenance_windows"("creat
 CREATE INDEX "subscription_notices_kind_subject_idx" ON "subscription_notices"("kind", "subject");
 
 -- CreateIndex
+CREATE INDEX "subscription_notices_tenantId_idx" ON "subscription_notices"("tenantId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "subscription_notices_subscriptionId_kind_subject_key" ON "subscription_notices"("subscriptionId", "kind", "subject");
 
 -- CreateIndex
@@ -1631,6 +1685,9 @@ CREATE UNIQUE INDEX "subscription_ends_subscriptionId_key" ON "subscription_ends
 CREATE INDEX "subscription_ends_tenantId_idx" ON "subscription_ends"("tenantId");
 
 -- CreateIndex
+CREATE INDEX "subscription_ends_deletesOn_idx" ON "subscription_ends"("deletesOn");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "subscription_end_announcements_subscriptionId_key" ON "subscription_end_announcements"("subscriptionId");
 
 -- CreateIndex
@@ -1638,6 +1695,24 @@ CREATE INDEX "subscription_end_announcements_tenantId_idx" ON "subscription_end_
 
 -- CreateIndex
 CREATE INDEX "tenant_export_downloads_subscriptionId_idx" ON "tenant_export_downloads"("subscriptionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriber_tenant_deletions_tenantId_key" ON "subscriber_tenant_deletions"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "subscriber_tenant_deletions_subscriberId_idx" ON "subscriber_tenant_deletions"("subscriberId");
+
+-- CreateIndex
+CREATE INDEX "subscriber_tenant_deletions_closedAt_idx" ON "subscriber_tenant_deletions"("closedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriber_tenant_deletion_stores_deletionId_store_key" ON "subscriber_tenant_deletion_stores"("deletionId", "store");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriber_tenant_deletion_stores_deletionId_position_key" ON "subscriber_tenant_deletion_stores"("deletionId", "position");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriber_tenant_deletion_counts_deletionId_kind_store_cat_key" ON "subscriber_tenant_deletion_counts"("deletionId", "kind", "store", "category");
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -1830,6 +1905,15 @@ ALTER TABLE "subscriber_joins" ADD CONSTRAINT "subscriber_joins_fromSubscriberId
 
 -- AddForeignKey
 ALTER TABLE "subscriber_joins" ADD CONSTRAINT "subscriber_joins_intoSubscriberId_fkey" FOREIGN KEY ("intoSubscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_tenant_deletions" ADD CONSTRAINT "subscriber_tenant_deletions_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_tenant_deletion_stores" ADD CONSTRAINT "subscriber_tenant_deletion_stores_deletionId_fkey" FOREIGN KEY ("deletionId") REFERENCES "subscriber_tenant_deletions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_tenant_deletion_counts" ADD CONSTRAINT "subscriber_tenant_deletion_counts_deletionId_fkey" FOREIGN KEY ("deletionId") REFERENCES "subscriber_tenant_deletions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- =============================================================================
 -- SaaSiCat — normative PostgreSQL constraints the Prisma DSL cannot express.
@@ -2041,3 +2125,54 @@ ALTER TABLE subscription_contracts
     DROP CONSTRAINT IF EXISTS subscription_contracts_notice_is_days;
 ALTER TABLE subscription_contracts
     ADD CONSTRAINT subscription_contracts_notice_is_days CHECK ("cancellationNoticeDays" >= 0);
+
+-- A deletion is halted for one of the reasons the platform keeps, and counts
+-- its attempts from none. Same two plain statements as above, for each check.
+ALTER TABLE subscriber_tenant_deletions
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletions_known_halt;
+ALTER TABLE subscriber_tenant_deletions
+    ADD CONSTRAINT subscriber_tenant_deletions_known_halt
+    CHECK ("halt" IN ('tenant-id-invalid', 'no-subscriber', 'commercial-record-lost'));
+
+ALTER TABLE subscriber_tenant_deletions
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletions_attempts_are_counted;
+ALTER TABLE subscriber_tenant_deletions
+    ADD CONSTRAINT subscriber_tenant_deletions_attempts_are_counted CHECK ("attempts" >= 0);
+
+-- A store takes its place in the order of a deletion from 0.
+ALTER TABLE subscriber_tenant_deletion_stores
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletion_stores_position_is_a_place;
+ALTER TABLE subscriber_tenant_deletion_stores
+    ADD CONSTRAINT subscriber_tenant_deletion_stores_position_is_a_place CHECK ("position" >= 0);
+
+-- A count of a deletion is what a store erased, which names the store, or what
+-- the tenant keeps itself, which names none and carries the words for it.
+-- A count is a number of things, so none is the least.
+ALTER TABLE subscriber_tenant_deletion_counts
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletion_counts_known_kind;
+ALTER TABLE subscriber_tenant_deletion_counts
+    ADD CONSTRAINT subscriber_tenant_deletion_counts_known_kind CHECK ("kind" IN ('erased', 'kept'));
+
+ALTER TABLE subscriber_tenant_deletion_counts
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletion_counts_erased_names_its_store;
+ALTER TABLE subscriber_tenant_deletion_counts
+    ADD CONSTRAINT subscriber_tenant_deletion_counts_erased_names_its_store
+    CHECK (("kind" = 'erased') = ("store" IS NOT NULL));
+
+ALTER TABLE subscriber_tenant_deletion_counts
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletion_counts_kept_carries_its_words;
+ALTER TABLE subscriber_tenant_deletion_counts
+    ADD CONSTRAINT subscriber_tenant_deletion_counts_kept_carries_its_words
+    CHECK (("kind" = 'kept') = ("labels" IS NOT NULL));
+
+ALTER TABLE subscriber_tenant_deletion_counts
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletion_counts_count_is_a_number_of_things;
+ALTER TABLE subscriber_tenant_deletion_counts
+    ADD CONSTRAINT subscriber_tenant_deletion_counts_count_is_a_number_of_things
+    CHECK ("count" >= 0);
+
+-- What the tenant keeps is told once per category. The unique key of the
+-- fragment cannot hold it, because PostgreSQL counts the missing store of two
+-- kept rows as two different values.
+CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenant_deletion_counts_kept_once_per_category
+    ON subscriber_tenant_deletion_counts ("deletionId", "category") WHERE "kind" = 'kept';
