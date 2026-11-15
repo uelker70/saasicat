@@ -21,6 +21,7 @@
 
 import {
     assertPersistenceCapabilities,
+    installationIdentifierProblem,
     type PlanCatalog,
     type SaaSiCatPersistenceAdapter,
 } from '@saasicat/core';
@@ -42,6 +43,7 @@ import {
     exportDeliveredByNobody,
     exportNotWired,
 } from '../../billing/tenant-export-option.js';
+import { installationNotNamed } from '../../billing/deletion/installation-mark-option.js';
 import { resolveBundleRepository } from '../compose/bundle-repository-source.js';
 import { servesTenantAccess } from '../compose/tenant-access.js';
 
@@ -145,6 +147,10 @@ function optionsOf<T extends object>(slot: false | true | T | undefined): T | un
 /** What `tenantBilling.subscriptionEnds.export` was given, as it was given. */
 const declaredExport = (c: PlatformConfiguration): unknown =>
     optionsOf(c.options.tenantBilling)?.subscriptionEnds?.export;
+
+/** What `tenantBilling.subscriptionEnds.deletion` was given, as it was given. */
+const declaredDeletion = (c: PlatformConfiguration) =>
+    optionsOf(c.options.tenantBilling)?.subscriptionEnds?.deletion;
 
 /** The persistence bundle, or `undefined` when the app binds ports one by one. */
 const bundle = (c: PlatformConfiguration): SaaSiCatPersistenceAdapter | undefined =>
@@ -398,6 +404,30 @@ const RULE_SPECS: readonly RuleSpec[] = [
                 declaresAnotherDeliverer(declared) ? declared : { deliveredBy: 'platform' },
             );
         },
+    },
+    {
+        id: 'subscription-ends.requires-installation',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) => installationIdentifierProblem(declaredDeletion(c)?.installation) === null,
+        // The reference page asks with nothing configured, and reads the
+        // sentence for an identifier that is missing.
+        message: (c) =>
+            installationNotNamed(
+                '`tenantBilling.subscriptionEnds.deletion.installation`',
+                installationIdentifierProblem(declaredDeletion(c)?.installation) ?? 'missing',
+            ),
+    },
+    {
+        id: 'subscription-ends.requires-installation-marks',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) => Boolean(declaredDeletion(c)?.marks ?? bundle(c)?.core?.installationMark),
+        message:
+            'tenantBilling is on, but there is nowhere to read the mark of the installation ' +
+            'from (SC-PRIV-021): a tenant is deleted only from a database marked as this ' +
+            "installation's own, and a brake that cannot be read cannot hold. Set " +
+            '`tenantBilling.subscriptionEnds.deletion.marks` or use a bundle providing ' +
+            '`persistence.core.installationMark` — both shipped adapters do, from the ' +
+            '`InstallationMark` model of `@saasicat/spec`.',
     },
     {
         id: 'subscription-notices.requires-port',

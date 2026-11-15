@@ -546,6 +546,13 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'Only an administrator of this account can take its export, not the provider acting as the account.',
     TENANT_EXPORT_IN_PROGRESS:
         'The export of this account is being produced already. Please try again once it has arrived.',
+    // ── installation ──
+    INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS:
+        'The identifier {given} is not the one this environment names ({environment}); a database is marked only as the installation of the environment that marks it.',
+    INSTALLATION_MARKED_OTHERWISE:
+        'This database is marked as installation {marked} already; replacing that mark is a deliberate step of its own.',
+    INSTALLATION_MARK_MOVED:
+        'The mark of this database changed while it was being replaced. Nothing was written; read it again.',
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED: 'The tax adapter {adapter} does not support this case: {reason}',
     TAX_VAT_ID_CHECK_NOT_COMPLETED:

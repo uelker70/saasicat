@@ -13,6 +13,7 @@ import { DrizzleAppliedSettingsRepository } from './drizzle-applied-settings.rep
 import { DrizzleAuditAdapter } from './drizzle-audit.adapter.js';
 import { DrizzleAuditQueryAdapter } from './drizzle-audit-query.adapter.js';
 import { DrizzleAuditStatsAdapter } from './drizzle-audit-stats.adapter.js';
+import { DrizzleInstallationMarkRepository } from './drizzle-installation-mark.repository.js';
 import { DrizzleMaintenanceWindowRepository } from './drizzle-maintenance-window.repository.js';
 import { DrizzleTenantAccessHoldRepository } from './drizzle-tenant-access-hold.repository.js';
 import { DrizzleSubscriptionEndRepository } from './drizzle-subscription-end.repository.js';
@@ -156,6 +157,7 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
                 'core.maintenanceWindows',
                 provide((client) => new DrizzleMaintenanceWindowRepository(client)),
             ),
+            installationMark: provide((client) => new DrizzleInstallationMarkRepository(client)),
             tenantAccessHolds: provide((client) => new DrizzleTenantAccessHoldRepository(client)),
             subscriptionEnds: provide((client) => new DrizzleSubscriptionEndRepository(client)),
             termsArchive: unless(

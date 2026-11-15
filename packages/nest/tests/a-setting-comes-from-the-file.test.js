@@ -26,9 +26,11 @@ import {
 } from '../dist/billing/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
 import {
+    FakeInstallationMarkRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
+import { aDeletion } from './helpers/installation-mark.js';
 import { anExport } from './helpers/tenant-data-export.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
@@ -62,6 +64,7 @@ const PERSISTENCE = {
     core: {
         tenantAccessHolds: new FakeTenantAccessHoldRepository(),
         subscriptionEnds: new FakeSubscriptionEndRepository(),
+        installationMark: new FakeInstallationMarkRepository(),
         mfa: spec,
         audit: spec,
         rlsBypass: spec,
@@ -90,7 +93,7 @@ async function boot(catalog, tenantBillingExtras = {}) {
                     usageSnapshotPort: { snapshot: async () => ({}) },
                     subscriptionWritePort: {},
                     notices: { port: sendingPort(), record: noticeRecord() },
-                    subscriptionEnds: { export: anExport() },
+                    subscriptionEnds: { export: anExport(), deletion: aDeletion() },
                     ...tenantBillingExtras,
                 },
                 entitlement: { defaultPlanId: 'PRO' },

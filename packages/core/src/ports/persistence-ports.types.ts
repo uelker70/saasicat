@@ -64,6 +64,7 @@ import type { SubscriptionNoticeRepository } from './subscription-notice-ports.t
 import type { BundleVersionRetirementRepository } from './bundle-version-retirement-ports.types.js';
 import type { VersionRetirementRepository } from './version-retirement-ports.types.js';
 import type { FeatureWithdrawalRepository } from './feature-withdrawal-ports.types.js';
+import type { InstallationMarkPort } from './installation-mark-ports.types.js';
 
 /** Class reference usable as a DI token (e.g. the consumer's `PrismaService`). */
 export type PersistenceClassRef = abstract new (...args: never[]) => unknown;
@@ -165,6 +166,15 @@ export interface SaaSiCatPersistenceCore {
      * cannot be told or kept.
      */
     subscriptionEnds?: PersistenceProvider<SubscriptionEndPort>;
+    /**
+     * Where the mark of the installation is kept (`SC-PRIV-021`): the
+     * identifier the operator marked the database with, which a deletion
+     * compares with its environment's before it erases anything. Optional so
+     * an adapter written before it existed still compiles; an installation
+     * that serves tenants without one is refused at start-up, since a brake
+     * that cannot be read cannot hold.
+     */
+    installationMark?: PersistenceProvider<InstallationMarkPort>;
     /**
      * Where the versions of the operator's terms are kept (`config/saas.yaml#terms`,
      * `SC-CFG-038`). Absent where the schema leaves `TermsVersion` out; an

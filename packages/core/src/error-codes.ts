@@ -1162,6 +1162,34 @@ export const TENANT_ACCESS_ERROR_CODES = {
 export type TenantAccessErrorCode =
     (typeof TENANT_ACCESS_ERROR_CODES)[keyof typeof TENANT_ACCESS_ERROR_CODES];
 
+/**
+ * Codes of the mark a database carries as its installation's own
+ * (`SC-PRIV-021`): the identifier the operator marks it with has to be the one
+ * the environment of the marking process names, and a mark that stands is
+ * replaced only on purpose.
+ */
+export const INSTALLATION_ERROR_CODES = {
+    /**
+     * The identifier given is not the one the environment of this process
+     * names (`400`); `given` and `environment` say both. A database marked so
+     * would hold every deletion of this environment from then on.
+     */
+    INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS: 'INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS',
+    /**
+     * The database is marked as another installation already, `marked` (`409`).
+     * Nothing was written; replacing the mark, as after restoring a backup into
+     * another environment, is its own deliberate step.
+     */
+    INSTALLATION_MARKED_OTHERWISE: 'INSTALLATION_MARKED_OTHERWISE',
+    /**
+     * The mark changed between reading it and replacing it — somebody else
+     * marked the database meanwhile (`409`). Nothing was written; read it again.
+     */
+    INSTALLATION_MARK_MOVED: 'INSTALLATION_MARK_MOVED',
+} as const;
+export type InstallationErrorCode =
+    (typeof INSTALLATION_ERROR_CODES)[keyof typeof INSTALLATION_ERROR_CODES];
+
 /** Codes of the installation's tax adapter (ADR 0013). */
 export const TAX_ERROR_CODES = {
     /**
@@ -1209,6 +1237,7 @@ export const PLATFORM_ERROR_CODES = {
     ...SETTINGS_ERROR_CODES,
     ...MAINTENANCE_ERROR_CODES,
     ...TENANT_ACCESS_ERROR_CODES,
+    ...INSTALLATION_ERROR_CODES,
     ...TAX_ERROR_CODES,
 } as const;
 
@@ -1226,6 +1255,7 @@ export type PlatformErrorCode =
     | SettingsErrorCode
     | MaintenanceErrorCode
     | TenantAccessErrorCode
+    | InstallationErrorCode
     | TaxErrorCode;
 
 /**

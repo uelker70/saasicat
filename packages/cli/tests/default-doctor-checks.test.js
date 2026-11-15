@@ -6,13 +6,15 @@ import {
     AdminManifestDoctorCheck,
     ContractFeaturesDoctorCheck,
     DiscoverySnapshotDoctorCheck,
+    InstallationMarkDoctorCheck,
     IssuerIdentityDoctorCheck,
     MaintenanceDoctorCheck,
     PlanCatalogDoctorCheck,
     PLATFORM_DOCTOR_CHECK_PROVIDERS,
     UserPortDoctorCheck,
 } from '../dist/index.js';
-import { givenPlanCatalogSource } from '@saasicat/nest';
+import { InstallationMarkService, givenPlanCatalogSource } from '@saasicat/nest';
+import { FakeInstallationMarkRepository } from '@saasicat/nest/testing';
 
 describe('PlanCatalogDoctorCheck', () => {
     test('error when no plans', async () => {
@@ -225,6 +227,62 @@ describe('IssuerIdentityDoctorCheck', () => {
     });
 });
 
+// @requirement SC-PRIV-021 — A tenant is deleted only in the database its installation marked as its own
+describe('InstallationMarkDoctorCheck', () => {
+    /** The check over the platform's service, in environment `environment`, on a database marked `standing`. */
+    async function checkIn(environment, standing = null) {
+        const store = new FakeInstallationMarkRepository();
+        if (standing) {
+            await store.markIfUnmarked({
+                identifier: standing,
+                markedAt: new Date('2026-11-01T09:00:00Z'),
+                markedBy: 'cli:ops@example.com:deploy-host',
+            });
+        }
+        return new InstallationMarkDoctorCheck(
+            new InstallationMarkService(store, environment, null),
+        ).run();
+    }
+
+    test('is silent where the database is this environment’s', async () => {
+        const result = await checkIn('prod', 'prod');
+        assert.deepEqual(
+            [result.severity, result.message],
+            ['ok', 'This database is marked as installation prod, the one this environment names.'],
+        );
+    });
+
+    test('warns, before the first mark, that nothing is deleted until the operator marks it', async () => {
+        const result = await checkIn('prod');
+        assert.equal(result.severity, 'warning');
+        assert.match(result.message, /nothing is deleted in it/);
+        assert.match(result.message, /`<app> installation mark prod`/);
+    });
+
+    test('is an error where the database is another installation’s, naming both', async () => {
+        const result = await checkIn('staging', 'prod');
+        assert.equal(result.severity, 'error');
+        assert.match(
+            result.message,
+            /marked as installation prod, but this environment names staging/,
+        );
+        assert.deepEqual(result.details, { expected: 'staging', marked: 'prod' });
+    });
+
+    test('is an error where the mark cannot be read, and fine where nothing is deleted at all', async () => {
+        const unreadable = await new InstallationMarkDoctorCheck({
+            verdict: async () => {
+                throw new Error('relation "installation_marks" does not exist');
+            },
+        }).run();
+        const notWired = await new InstallationMarkDoctorCheck(null).run();
+
+        assert.equal(unreadable.severity, 'error');
+        assert.match(unreadable.message, /installation_marks/);
+        assert.equal(notWired.severity, 'ok');
+    });
+});
+
 describe('PLATFORM_DOCTOR_CHECK_PROVIDERS', () => {
     test('holds every platform check, and nothing else', () => {
         assert.deepEqual(PLATFORM_DOCTOR_CHECK_PROVIDERS, [
@@ -235,6 +293,7 @@ describe('PLATFORM_DOCTOR_CHECK_PROVIDERS', () => {
             IssuerIdentityDoctorCheck,
             MaintenanceDoctorCheck,
             ContractFeaturesDoctorCheck,
+            InstallationMarkDoctorCheck,
         ]);
     });
 });

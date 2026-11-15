@@ -103,6 +103,10 @@ export {
 export { SubscriptionEndCron } from './subscription-end.cron.js';
 export { DeletionReminderService, type DeletionReminderRun } from './deletion-reminder.service.js';
 export {
+    InstallationMarkService,
+    type InstallationMarkOutcome,
+} from './deletion/installation-mark.service.js';
+export {
     SubscriptionCancellationService,
     type CancellationProjection,
     type DeclaredCancellation,

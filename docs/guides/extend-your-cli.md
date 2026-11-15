@@ -63,6 +63,11 @@ Optional but strongly recommended integration for ops workflows.
         SubscriberJoinCliFlow,
         SubscribersCommands,
         SubscribersJoinCommand,
+        // Where tenant billing keeps the ends of subscriptions (`subscriptionEnds`):
+        InstallationCliFlow,
+        InstallationCommands,
+        InstallationStatusCommand,
+        InstallationMarkCommand,
     ],
 })
 export class CliModule {}
@@ -86,6 +91,12 @@ inside `RlsBypassPort`, which the admin module provides from its `rlsBypassPort`
 command reads the invoice's tenant as none. An application that cannot turn `adminResources` on
 ([what the operator's side needs](wire-the-backend.md#what-the-operators-side-needs)) has no
 `invoices cancel` either.
+
+The installation commands take `InstallationMarkService`, which the tenant billing module provides
+where `tenantBilling.subscriptionEnds` is wired. The CLI process names the identifier of its
+environment the way the application does, from the same variable: `installation mark` writes only
+that identifier, so run it with the variables of the environment whose database it marks. See
+[mark the installation before the first deletion](wire-the-backend.md#mark-the-installation-before-the-first-deletion).
 
 The admin module binds the same `secretSealer` as the application, under the same key:
 `admin mfa-setup` seals a SuperAdmin's secret here, and the application opens it when the code is
@@ -111,6 +122,8 @@ myapp invoices export --from 2026-01 --until 2026-12 \
     --as-of 2027-01-15T10:00 --locale de --out ./handover    # the year for a tax advisor
 myapp subscribers join --from 10234 --into 10045 \
     --reason "Returning customer, confirmed by phone"        # what a join would move
+myapp installation status                                    # whose database this is
+myapp installation mark prod                                 # once per environment
 ```
 
 The `maintenance` commands ask for no second factor: a deploy script has nobody to type one. They

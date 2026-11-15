@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 35 rules, in 18 areas.
+There are 37 rules, in 18 areas.
 
 ## core
 
@@ -147,6 +147,25 @@ for the tenant to take it (SC-PRIV-020).
 which nobody delivers the export as: an application that delivers the tenant's
 full export itself declares `{ deliveredBy: 'application' }`, and one that hands
 it over passes a TenantDataExportPort instead (SC-PRIV-020).
+
+### subscription-ends.requires-installation
+
+`tenantBilling.subscriptionEnds.deletion.installation` is missing: wherever the
+end of a subscription is kept, a tenant is deleted only from a database marked
+as this installation's own (SC-PRIV-021), so pass the identifier of the
+environment this process runs in the way the application passes its other
+settings from there — such as `deletion: { installation:
+process.env.SAASICAT_INSTALLATION }` — and mark the database once with `<app>
+installation mark <identifier>`.
+
+### subscription-ends.requires-installation-marks
+
+TenantBilling is on, but there is nowhere to read the mark of the installation
+from (SC-PRIV-021): a tenant is deleted only from a database marked as this
+installation's own, and a brake that cannot be read cannot hold. Set
+`tenantBilling.subscriptionEnds.deletion.marks` or use a bundle providing
+`persistence.core.installationMark` — both shipped adapters do, from the
+`InstallationMark` model of `@saasicat/spec`.
 
 ## subscription-notices
 

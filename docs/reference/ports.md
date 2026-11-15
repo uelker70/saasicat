@@ -9,7 +9,7 @@ them against the canonical schema already.
 Why the seam is here, and what an adapter may and may not decide:
 [ADR 0007](../explanation/adr/0007-ports-and-adapters.md).
 
-Generated from `packages/core/src/ports` — 26 ports. Do not edit by hand:
+Generated from `packages/core/src/ports` — 27 ports. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Administration
@@ -191,6 +191,18 @@ Adapter for MFA secret persistence.
 | `getSecret(userId: string): Promise<string \| null>`               | Returns the stored secret or null.                            |
 | `setSecret(userId: string, secret: string \| null): Promise<void>` | Persists or deletes (null) the sealed secret, as it is given. |
 | `isEnabled(userId: string): Promise<boolean>`                      | The platform calls this during the mfa-setup command.         |
+
+## Installation mark
+
+### `InstallationMarkPort`
+
+Keeps the one mark of the installation (`installation_marks`, a single row).
+
+| Member                                                                                | What it does                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `find(): Promise<InstallationMark \| null>`                                           | The mark, or `null` where nobody has marked the database yet.                                                                                                                    |
+| `markIfUnmarked(mark: InstallationMark): Promise<InstallationMark>`                   | Writes `mark` where none stands; returns what stands after the call — the earlier one where one stood.                                                                           |
+| `replace(current: string, mark: InstallationMark): Promise<InstallationMark \| null>` | Replaces the mark only while `current` is the identifier that stands; returns the new mark, or `null` where `current` no longer stands — or none does — and nothing was written. |
 
 ## Maintenance
 

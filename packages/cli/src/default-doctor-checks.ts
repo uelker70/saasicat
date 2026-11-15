@@ -4,7 +4,7 @@
 // in `CliContextModule.forRoot()` — analogous to
 // `DEFAULT_MANIFEST_CHECKS`.
 //
-// Seven platform checks:
+// Eight platform checks:
 //
 //   1. **`platform.plan-catalog`** — `PLAN_CATALOG_SOURCE_TOKEN` is available in
 //      DI, reads, and the catalogue it reads contains at least one plan.
@@ -24,6 +24,9 @@
 //      features hold a key the application no longer knows, or lack one the
 //      versions they cover grant today (`SC-ENTL-022`). Reports and changes
 //      nothing; `<app> contracts refresh` carries the vocabulary over.
+//   8. **`platform.installation-mark`** — whether the database is marked as
+//      the installation of the environment this process names, which is what
+//      a tenant's deletion runs only behind (`SC-PRIV-021`).
 //
 
 import { Inject, Injectable, Optional, type Type } from '@nestjs/common';
@@ -32,6 +35,7 @@ import {
     ContractRefreshService,
     type ContractRefreshPreview,
     DISCOVERY_SNAPSHOT_TOKEN,
+    InstallationMarkService,
     IssuerIdentityInspector,
     MaintenanceService,
     PLAN_CATALOG_SOURCE_TOKEN,
@@ -41,6 +45,7 @@ import {
 import type { PlanCatalog, UserPort } from '@saasicat/core';
 import type { DoctorCheck, DoctorCheckResult } from './doctor-flow.js';
 import { USER_PORT_TOKEN } from './cli.tokens.js';
+import { installationVerdictText } from './installation-verdict.js';
 
 @Injectable()
 export class PlanCatalogDoctorCheck implements DoctorCheck {
@@ -367,6 +372,54 @@ export class ContractFeaturesDoctorCheck implements DoctorCheck {
     }
 }
 
+/**
+ * Whether the database belongs to the environment this process runs in.
+ *
+ * Unmarked is a warning, not an error: it is how an installation stands before
+ * its operator turns deletion on, and nothing is deleted while it lasts. A
+ * mark naming another environment is an error — the process is pointed at
+ * another installation's database, or a backup was restored without marking
+ * it again.
+ */
+@Injectable()
+export class InstallationMarkDoctorCheck implements DoctorCheck {
+    readonly id = 'platform.installation-mark';
+    readonly label = 'Installation mark against the environment';
+    constructor(
+        @Optional()
+        @Inject(InstallationMarkService)
+        private readonly marks: Pick<InstallationMarkService, 'verdict'> | null = null,
+    ) {}
+
+    async run(): Promise<DoctorCheckResult> {
+        if (!this.marks) {
+            return {
+                severity: 'ok',
+                message: 'The ends of subscriptions are not kept here, so nothing is deleted.',
+            };
+        }
+        let verdict;
+        try {
+            verdict = await this.marks.verdict();
+        } catch (err) {
+            return {
+                severity: 'error',
+                message:
+                    'The installation mark cannot be read, so nothing will be deleted: ' +
+                    `${err instanceof Error ? err.message : String(err)}`,
+            };
+        }
+        const message = installationVerdictText(verdict);
+        if (verdict.kind === 'matches') return { severity: 'ok', message };
+        if (verdict.kind === 'unmarked') return { severity: 'warning', message };
+        return {
+            severity: 'error',
+            message,
+            details: { expected: verdict.expected, marked: verdict.marked },
+        };
+    }
+}
+
 /** Up to `CONTRACTS_NAMED` contracts, each with what `describe` says of it, and the rest counted. */
 function named(
     contracts: readonly ContractRefreshPreview[],
@@ -417,4 +470,5 @@ export const PLATFORM_DOCTOR_CHECK_PROVIDERS: Array<Type<DoctorCheck>> = [
     IssuerIdentityDoctorCheck,
     MaintenanceDoctorCheck,
     ContractFeaturesDoctorCheck,
+    InstallationMarkDoctorCheck,
 ];

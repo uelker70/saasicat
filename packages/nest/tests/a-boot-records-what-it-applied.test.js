@@ -29,9 +29,11 @@ import {
 import { settingsSubtreeOf } from '@saasicat/core';
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
 import {
+    FakeInstallationMarkRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
+import { aDeletion } from './helpers/installation-mark.js';
 import { anExport } from './helpers/tenant-data-export.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
@@ -69,6 +71,7 @@ const persistenceWith = (appliedSettings) => ({
     core: {
         tenantAccessHolds: new FakeTenantAccessHoldRepository(),
         subscriptionEnds: new FakeSubscriptionEndRepository(),
+        installationMark: new FakeInstallationMarkRepository(),
         mfa: spec,
         audit: spec,
         rlsBypass: spec,
@@ -448,7 +451,7 @@ describe('the record is a mirror, never a source', () => {
                         usageSnapshotPort: { snapshot: async () => ({}) },
                         subscriptionWritePort: {},
                         notices: { port: sendingPort(), record: noticeRecord() },
-                        subscriptionEnds: { export: anExport() },
+                        subscriptionEnds: { export: anExport(), deletion: aDeletion() },
                     },
                     entitlement: { defaultPlanId: 'PRO' },
                 }),

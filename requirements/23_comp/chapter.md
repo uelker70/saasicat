@@ -514,6 +514,13 @@ _Tested by:_
     - the check never prints two answers to one question
         - an enum a reported field names is not also listed as not adopted
         - and a model nothing reported still is
+        - the closing advice names only what was found › a model of the application’s own under a
+          platform name is not asked for fields
+        - the closing advice names only what was found › a relation that deletes with the tenant is
+          not asked for fields
+        - the closing advice names only what was found › a missing field is
+        - the closing advice names only what was found › a diverging field is asked to be reviewed,
+          and nothing to be added
         - a model the persistence bundle can leave out is handed over as the option to pass
     - the models a start serving tenants needs
         - missing, are named apart with the rule that refuses the start, and not as a decision
@@ -535,7 +542,7 @@ _Tested by:_
     - identical attributes produce no finding
     - a missing index is reported but does not fail the check
     - a missing unique constraint fails the check
-    - a diverging @@map fails the check and names both sides
+    - a diverging @@map fails the check as a name clash, naming both tables
     - whitespace and attribute options do not create false findings
     - extra consumer indexes are not reported
     - a cascade from the tenant onto the contract fails the check, naming the relation
@@ -848,6 +855,14 @@ _Tested by:_
         - stores a file once, and compares one stored before by its checksum
         - reads a file back as bytes of its own, and nothing where none is kept
         - says what would let a kept confirmation change, from the enabled triggers of its table
+- `packages/adapter-prisma/tests/prisma-installation-mark.repository.test.js`
+    - PrismaInstallationMarkRepository
+        - the mark is the one row under its fixed id, read column by column
+        - no row is no mark
+        - marking leaves the refusal to the primary key, and answers what stands after it
+        - a row gone after the insert is an error, not a mark that was never written
+        - a replacement is guarded on the identifier the caller read
+        - a replacement that matched nothing answers null and reads nothing back
 - `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
     - writing an invoice’s next attempt
         - the first is started in the invoice’s turn after its attempts were read

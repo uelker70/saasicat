@@ -80,6 +80,16 @@ information, not as a failure — not adopting a fragment is a decision. Fields
 you added on top of a platform model are never reported: extending them is
 supported.
 
+A platform model is recognised by its table. Where a model of yours carries a
+platform model's name and maps another table — `model SubscriptionInvoice`
+with `@@map("invoices")` for the invoices your application sends its own
+customers, or with no `@@map` at all — it is your own model, and the check says
+so under **Your own model under a platform model's name**, with both tables.
+Its fields are not compared, since the platform's columns are not what it is
+missing. It fails the check all the same: one schema cannot hold two models of
+one name, so rename yours before you adopt the platform's. If the model was
+meant to be the platform's, map it to the platform's table instead.
+
 Some models are no such decision. Wherever `tenantBilling` is on, a start
 needs a place for the records they hold — a tenant's holds, the end of its
 subscription, the notices sent to it — and refuses to start without one; the
@@ -514,12 +524,14 @@ import { aesGcmSecretSealer, defineSaaSiCat, SaaSiCatModule } from '@saasicat/ne
                             inject: [SubscriptionNoticeMailer],
                         },
                     },
-                    // Your application's export of a tenant's data; required.
+                    // Your application's export of a tenant's data, and the
+                    // identifier of this environment; both required.
                     subscriptionEnds: {
                         export: {
                             useFactory: (prisma: PrismaService) => new MyTenantDataExport(prisma),
                             inject: [PrismaService],
                         },
+                        deletion: { installation: process.env.SAASICAT_INSTALLATION },
                     },
                     extraProviders: [SubscriptionNoticeMailer],
                 },
@@ -2120,7 +2132,10 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     ```ts
     tenantBilling: {
         authGuards: [JwtAuthGuard, TenantGuard],
-        subscriptionEnds: { export: { deliveredBy: 'application' } },
+        subscriptionEnds: {
+            export: { deliveredBy: 'application' },
+            deletion: { installation: process.env.SAASICAT_INSTALLATION },
+        },
     },
     ```
 
@@ -2200,6 +2215,81 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     ```
 
 The day is recorded and kept; nothing is deleted on it by this release.
+
+### Mark the installation before the first deletion
+
+A tenant's deletion erases what nobody can bring back, and the process that runs it finds its
+database through a connection string. A staging process whose `DATABASE_URL` still names
+production's database, or a developer's process pointed at a shared one, would delete another
+installation's tenants on their deletion day. So the database carries the identifier of the
+installation it belongs to, every process names the identifier of the environment it runs in, and
+a deletion runs only where both name the same (`SC-PRIV-021`).
+
+- **The identifier of this environment** is `tenantBilling.subscriptionEnds.deletion.installation`,
+  passed from the environment as it is, the way the secret sealer's key is:
+
+    ```ts
+    subscriptionEnds: {
+        export: myTenantDataExport,
+        deletion: { installation: process.env.SAASICAT_INSTALLATION },
+    },
+    ```
+
+    It is required wherever `subscriptionEnds` is wired. Give it no fallback: a default in the code
+    names every environment the same, and then the brake holds nothing. An identifier is letters,
+    digits, `.`, `_` and `-`, begins with a letter or a digit, and is at most 64 characters; a
+    start without one, or with a value that is none — a blank, a stray space — is refused
+    (`subscription-ends.requires-installation`), and the refusal never repeats the value. The
+    comparison is exact: `PROD` is not `prod`.
+
+- **The mark** is kept in `installation_marks`, one row, which both shipped adapters keep through
+  `persistence.core.installationMark` from the `InstallationMark` model of `@saasicat/spec`.
+  `deletion.marks` takes an `InstallationMarkPort` of your own instead; a start with neither is
+  refused (`subscription-ends.requires-installation-marks`). `TenantBillingModule` wired by hand
+  takes both, `deletion: { installation, marks }`, and refuses a start without either. The table
+  comes with `1.0-the-installation-is-marked.postgres.sql` from `@saasicat/spec/sql/`.
+- **Nothing writes the mark on its own.** No start writes it: otherwise the first process to start
+  against a database after the migration — a developer's, against a shared one — would claim it.
+  The operator marks each database once, from the command line, as the installation of the
+  environment the command runs in:
+
+    ```bash
+    <app> installation status        # whose database this is; -o json for a script
+    <app> installation mark prod     # second factor; --yes against production
+    ```
+
+    `installation mark` asks for the operator's second factor and, against production, the
+    confirmation, before it writes, and records `INSTALLATION_MARKED` in the audit log. It refuses
+    an identifier that is not the one this environment names
+    (`INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS`, exit 1): a mark naming another environment
+    would hold every deletion here from then on. Run again with the same identifier, it writes
+    nothing and says since when the database is marked. Register the commands in your CLI module
+    ([Extend your CLI](extend-your-cli.md)).
+
+- **Until the database is marked, nothing is deleted in it.** That is the state to start from: the
+  installation records ends and tells deletion days, and deletes nothing until the operator says
+  this database is this environment's. `<app> doctor` reports it as a warning
+  (`platform.installation-mark`), a mark that matches as fine, and a mark naming another
+  installation as an error, with both identifiers.
+- **After restoring a backup into another environment** the database carries the mark of the one
+  it came from, and `installation status` says so. Nothing is deleted there until you mark it
+  again, on purpose:
+
+    ```bash
+    <app> installation mark staging --replace
+    ```
+
+    Without `--replace` the command refuses where another mark stands and names it
+    (`INSTALLATION_MARKED_OTHERWISE`, exit 6). With it, the same second factor and confirmation are
+    asked for, and `INSTALLATION_MARK_REPLACED` records the old and the new identifier. Where the
+    mark changed between reading and replacing it, the command writes nothing
+    (`INSTALLATION_MARK_MOVED`, exit 6); read it again.
+
+**Where the brake stops.** It protects against a process meant for another environment. It cannot
+tell an environment that was copied from production with its identifier included: a staging
+environment whose variables were cloned from production's names `prod`, and so does production's
+database restored into it — both agree, and the brake lets the deletion through. Give each
+environment its own identifier, and keep it out of what you copy between them.
 
 ## Telling Subscribers of a Newer Version
 

@@ -99,8 +99,13 @@ SaaSiCatModule.forRoot(
             // Your app's notice port: it tells a tenant's administrators, in your words,
             // what the platform decides is due — such as the day its data is deleted.
             notices: { port: myNoticeMailer },
-            // Your app's export of a tenant, taken once its subscription has ended.
-            subscriptionEnds: { export: myTenantDataExport },
+            // Your app's export of a tenant, taken once its subscription has ended, and
+            // the identifier of this environment: a tenant is deleted only from a
+            // database marked with it.
+            subscriptionEnds: {
+                export: myTenantDataExport,
+                deletion: { installation: process.env.SAASICAT_INSTALLATION },
+            },
         },
         subscriptionBundles: true,
         adminResources: true,

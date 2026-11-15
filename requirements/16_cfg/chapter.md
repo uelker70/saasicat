@@ -448,6 +448,11 @@ _Tested by:_
         - an unchanged identity says what changing it would cost
         - a declared correction is reported before the start applies it
         - the first naming, and an installation that names none
+    - InstallationMarkDoctorCheck
+        - is silent where the database is this environment’s
+        - warns, before the first mark, that nothing is deleted until the operator marks it
+        - is an error where the database is another installation’s, naming both
+        - is an error where the mark cannot be read, and fine where nothing is deleted at all
     - PLATFORM_DOCTOR_CHECK_PROVIDERS
         - holds every platform check, and nothing else
 - `packages/cli/tests/doctor-flow.test.js`

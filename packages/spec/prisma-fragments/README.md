@@ -57,6 +57,11 @@ regenerated after fragment changes (`tests/reference-sql-drift.test.js`).
 | [`25-terms.prisma`](25-terms.prisma)                                                     | `TermsVersion`                                                                                                                                                              |
 | [`26-contract-confirmation.prisma`](26-contract-confirmation.prisma)                     | `ContractConfirmation`, `ContractConfirmationArchive`                                                                                                                       |
 | [`27-subscriber-join.prisma`](27-subscriber-join.prisma)                                 | `SubscriberJoin`                                                                                                                                                            |
+| [`28-tenant-access-hold.prisma`](28-tenant-access-hold.prisma)                           | `TenantAccessHold`                                                                                                                                                          |
+| [`29-subscription-end.prisma`](29-subscription-end.prisma)                               | `SubscriptionEnd`                                                                                                                                                           |
+| [`30-subscription-end-announcement.prisma`](30-subscription-end-announcement.prisma)     | `SubscriptionEndAnnouncement`                                                                                                                                               |
+| [`31-tenant-export-download.prisma`](31-tenant-export-download.prisma)                   | `TenantExportDownload`                                                                                                                                                      |
+| [`32-installation-mark.prisma`](32-installation-mark.prisma)                             | `InstallationMark`                                                                                                                                                          |
 
 ## How the consumer uses the fragments
 

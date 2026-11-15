@@ -7,9 +7,11 @@ import { SaaSiCatModule } from '../dist/platform/index.js';
 import { PlanChangePreviewService, TenantBillingModule } from '../dist/billing/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
 import {
+    FakeInstallationMarkRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
+import { aDeletion } from './helpers/installation-mark.js';
 import { anExport } from './helpers/tenant-data-export.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
@@ -193,6 +195,7 @@ function persistenceWith(repo) {
         core: {
             tenantAccessHolds: new FakeTenantAccessHoldRepository(),
             subscriptionEnds: new FakeSubscriptionEndRepository(),
+            installationMark: new FakeInstallationMarkRepository(),
             mfa: spec,
             audit: spec,
             // What an installation without row policies binds: the preview's
@@ -247,7 +250,7 @@ async function bootWithBookings(bookings, subscription = SUBSCRIPTION) {
                     usageSnapshotPort: { snapshot: async () => ({ users: 1 }) },
                     subscriptionWritePort: {},
                     notices: { port: sendingPort(), record: noticeRecord() },
-                    subscriptionEnds: { export: anExport() },
+                    subscriptionEnds: { export: anExport(), deletion: aDeletion() },
                 },
                 subscriptionBundles: {},
                 entitlement: { defaultPlanId: 'PRO' },

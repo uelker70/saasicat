@@ -18,6 +18,7 @@
 //   - invoice-cancel-cli-flow: InvoiceCancelCliFlow for `<app> invoices cancel`
 //   - invoice-export-cli-flow: InvoiceExportCliFlow for `<app> invoices export`
 //   - subscriber-join-cli-flow: SubscriberJoinCliFlow for `<app> subscribers join`
+//   - installation-cli-flow: InstallationCliFlow for `<app> installation status|mark`
 //   - manifest-cli-flow:   ManifestCliFlow + ManifestCheck interface
 //   - manifest-checks:     DEFAULT_MANIFEST_CHECKS (10 platform defaults)
 //   - migration-constraints: where the non-DSL constraints go in a migration
@@ -72,5 +73,7 @@ export * from './invoice-export-cli-flow.js';
 export * from './invoices.command.js';
 export * from './subscriber-join-cli-flow.js';
 export * from './subscribers.command.js';
+export * from './installation-cli-flow.js';
+export * from './installation.command.js';
 export * from './discovery.command.js';
 export * from './user.command.js';

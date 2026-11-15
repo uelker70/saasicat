@@ -109,6 +109,13 @@ import { germanTaxAdapterFactory } from '@saasicat/tax-de';
                             useFactory: (prisma: PrismaService) => new NotesDataExport(prisma),
                             inject: [PrismaService],
                         },
+                        // A tenant's data is deleted only from a database marked
+                        // as the installation of the environment this process
+                        // runs in. The identifier comes from the environment as
+                        // it is, with no fallback: a default here would name
+                        // every environment the same, and the brake would hold
+                        // nothing. The platform refuses to start without it.
+                        deletion: { installation: process.env.SAASICAT_INSTALLATION },
                     },
                     // Before the data is deleted, the tenant hears of it at the
                     // lead times `config/saas.yaml` names — its users no longer

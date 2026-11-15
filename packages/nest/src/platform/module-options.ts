@@ -57,6 +57,7 @@ import {
 } from '../billing/subscription-bundles.module.js';
 import {
     type TenantBillingModuleOptions,
+    type SubscriptionDeletionOptions,
     type SubscriptionEndsOptions,
     type SubscriptionNoticesOptions,
 } from '../billing/tenant-billing.module.js';
@@ -224,9 +225,18 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
      * only the quarter-hourly run, for an application that calls
      * `SubscriptionEndService.recordEnded` and then
      * `DeletionReminderService.remindDue` from a scheduler of its own.
+     * `deletion.installation` is required as well: the identifier of the
+     * environment this process runs in, passed from there as it is, which a
+     * tenant's deletion compares with the mark of the database
+     * (`SC-PRIV-021`); a start without one is refused. The mark is read from
+     * `persistence.core.installationMark` unless `deletion.marks` names
+     * another place.
      */
-    subscriptionEnds: Partial<Omit<SubscriptionEndsOptions, 'export'>> &
-        Pick<SubscriptionEndsOptions, 'export'>;
+    subscriptionEnds: Partial<Omit<SubscriptionEndsOptions, 'export' | 'deletion'>> &
+        Pick<SubscriptionEndsOptions, 'export'> & {
+            deletion: Partial<Pick<SubscriptionDeletionOptions, 'marks'>> &
+                Pick<SubscriptionDeletionOptions, 'installation'>;
+        };
 }
 
 /**

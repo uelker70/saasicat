@@ -58,6 +58,7 @@ const SERVING_TENANTS = {
                 fileName: 'export.json',
             }),
         },
+        deletion: { installation: 'probe' },
     },
 };
 

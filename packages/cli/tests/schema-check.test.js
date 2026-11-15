@@ -248,17 +248,13 @@ model Subscription {
         assert.equal(report.ok, false);
     });
 
-    test('a diverging @@map fails the check and names both sides', () => {
+    test('a diverging @@map fails the check as a name clash, naming both tables', () => {
         const app = WITH_ATTRS.replace('@@map("subscriptions")', '@@map("abos")');
         const report = checkSchema(WITH_ATTRS, app);
-        assert.deepEqual(report.missingBlockAttributes, [
-            {
-                model: 'Subscription',
-                kind: 'map',
-                expected: '@@map("subscriptions")',
-                actual: 'abos',
-            },
+        assert.deepEqual(report.nameClashes, [
+            { model: 'Subscription', platformTable: 'subscriptions', applicationTable: 'abos' },
         ]);
+        assert.deepEqual(report.missingBlockAttributes, []);
         assert.equal(report.ok, false);
     });
 
@@ -283,14 +279,22 @@ describe('parser hardening (review findings)', () => {
     test('a commented-out @@unique or @@map counts as absent, not present', () => {
         const spec =
             'model S {\n  id String @id\n  tenantId String\n\n  @@unique([tenantId])\n  @@map("subscriptions")\n}';
-        const app =
-            'model S {\n  id String @id\n  tenantId String\n\n  // @@unique([tenantId])\n  // @@map("subscriptions")\n}';
-        const report = checkSchema(spec, app);
-        assert.equal(report.ok, false);
-        assert.deepEqual(report.missingBlockAttributes.map((a) => a.kind).sort(), [
-            'map',
-            'unique',
-        ]);
+        const withoutUnique = spec.replace('@@unique', '// @@unique');
+        const withoutMap = spec.replace('@@map', '// @@map');
+
+        const unique = checkSchema(spec, withoutUnique);
+        const map = checkSchema(spec, withoutMap);
+
+        assert.equal(unique.ok, false);
+        assert.deepEqual(
+            unique.missingBlockAttributes.map((a) => a.kind),
+            ['unique'],
+        );
+        assert.equal(map.ok, false);
+        assert.deepEqual(
+            map.nameClashes.map((clash) => clash.applicationTable),
+            ['S'],
+        );
     });
 
     test('a brace inside a string default does not close the model early', () => {

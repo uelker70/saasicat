@@ -1,0 +1,33 @@
+// =============================================================================
+// SaaS platform Prisma fragment: InstallationMark
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// The identifier of the installation this database belongs to (`SC-PRIV-021`).
+// A tenant's deletion erases what nobody can bring back, and it runs only where
+// this row names the same identifier as the environment of the process that
+// runs it: a process meant for staging, started against a restored copy of
+// production's database, deletes nothing.
+//
+// The operator writes the row, with `<app> installation mark <identifier>`.
+// No start writes it: a developer's process started against a shared database
+// right after the migration would otherwise claim that database for its own
+// environment. Until somebody marks it, nothing is deleted at all.
+//
+// One row per installation, like `applied_settings`: the `CHECK` in
+// sql/constraints.postgres.sql holds it to one row, and the default only lands
+// a caller that omits the id on the right one.
+//
+// Required wherever tenants are served, together with fragments 29 to 31.
+
+model InstallationMark {
+    id         String   @id @default("installation")
+    // As the operator typed it and the environment names it: compared exactly.
+    identifier String
+    // When it was set, and by whom: an actor tag, as the audit log writes it.
+    markedAt   DateTime
+    markedBy   String
+
+    @@map("installation_marks")
+}

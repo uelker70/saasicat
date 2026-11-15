@@ -57,6 +57,7 @@ export { DrizzlePlanCatalogReadSink } from './drizzle-plan-catalog-read-sink.ada
 export { DrizzlePlanCatalogImportSink } from './drizzle-plan-catalog-import-sink.adapter.js';
 export { DrizzleAppliedSettingsRepository } from './drizzle-applied-settings.repository.js';
 export { DrizzleMaintenanceWindowRepository } from './drizzle-maintenance-window.repository.js';
+export { DrizzleInstallationMarkRepository } from './drizzle-installation-mark.repository.js';
 export { DrizzleTenantAccessHoldRepository } from './drizzle-tenant-access-hold.repository.js';
 export { DrizzleSubscriptionEndRepository } from './drizzle-subscription-end.repository.js';
 export { DrizzleSubscriptionNoticeRepository } from './drizzle-subscription-notice.repository.js';

@@ -87,6 +87,7 @@ export { PrismaSubscriberRepository } from './prisma-subscriber.repository.js';
 export { PrismaSubscriberJoinRepository } from './prisma-subscriber-join.repository.js';
 export { PrismaAppliedSettingsRepository } from './prisma-applied-settings.repository.js';
 export { PrismaMaintenanceWindowRepository } from './prisma-maintenance-window.repository.js';
+export { PrismaInstallationMarkRepository } from './prisma-installation-mark.repository.js';
 export { PrismaTenantAccessHoldRepository } from './prisma-tenant-access-hold.repository.js';
 export { PrismaSubscriptionEndRepository } from './prisma-subscription-end.repository.js';
 export { PrismaSubscriptionNoticeRepository } from './prisma-subscription-notice.repository.js';

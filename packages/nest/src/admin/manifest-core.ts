@@ -374,6 +374,16 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 severity: 'medium',
             },
             {
+                key: 'INSTALLATION_MARKED',
+                label: "Database marked as this installation's own, so that tenants are deleted in it",
+                severity: 'high',
+            },
+            {
+                key: 'INSTALLATION_MARK_REPLACED',
+                label: "Another installation's mark replaced, as after restoring a backup into another environment",
+                severity: 'high',
+            },
+            {
                 key: 'TENANT_EXPORT_DOWNLOAD',
                 label: "Tenant's full export downloaded by its administrator after its subscription ended",
                 severity: 'medium',

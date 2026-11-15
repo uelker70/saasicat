@@ -45,8 +45,8 @@ export async function cliErrorOf(fn) {
     assert.fail('expected a CliError');
 }
 
-/** What `command.run` wrote to stdout. */
-export async function printed(command, flags = {}) {
+/** What `command.run` wrote to stdout, given `flags` and the positional `args`. */
+export async function printed(command, flags = {}, args = []) {
     const chunks = [];
     const write = process.stdout.write;
     process.stdout.write = (chunk) => {
@@ -54,7 +54,7 @@ export async function printed(command, flags = {}) {
         return true;
     };
     try {
-        await command.run([], flags);
+        await command.run(args, flags);
     } finally {
         process.stdout.write = write;
     }

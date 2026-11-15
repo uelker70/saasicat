@@ -34,6 +34,7 @@
 --   prisma-fragments/29-subscription-end.prisma
 --   prisma-fragments/30-subscription-end-announcement.prisma
 --   prisma-fragments/31-tenant-export-download.prisma
+--   prisma-fragments/32-installation-mark.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -1217,6 +1218,16 @@ CREATE TABLE "tenant_export_downloads" (
     CONSTRAINT "tenant_export_downloads_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "installation_marks" (
+    "id" TEXT NOT NULL DEFAULT 'installation',
+    "identifier" TEXT NOT NULL,
+    "markedAt" TIMESTAMP(3) NOT NULL,
+    "markedBy" TEXT NOT NULL,
+
+    CONSTRAINT "installation_marks_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -1868,6 +1879,16 @@ ALTER TABLE applied_settings
     DROP CONSTRAINT IF EXISTS applied_settings_is_a_singleton;
 ALTER TABLE applied_settings
     ADD CONSTRAINT applied_settings_is_a_singleton CHECK ("id" = 'installation');
+
+-- `installation_marks` holds at most ONE row: the installation's identifier.
+--
+-- Same reasoning and the same two plain statements. A database belongs to one
+-- installation, so it carries one identifier, which a deletion compares with
+-- its environment's before it erases anything.
+ALTER TABLE installation_marks
+    DROP CONSTRAINT IF EXISTS installation_marks_is_a_singleton;
+ALTER TABLE installation_marks
+    ADD CONSTRAINT installation_marks_is_a_singleton CHECK ("id" = 'installation');
 
 -- A booking's scheduled switch names its version AND the moment it takes
 -- effect, or neither. A version without a moment would never be made, and a

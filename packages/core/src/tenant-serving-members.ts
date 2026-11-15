@@ -63,6 +63,12 @@ export const TENANT_SERVING_MEMBERS = {
         orOption: 'tenantBilling.subscriptionEnds.store',
         models: ['SubscriptionEnd', 'SubscriptionEndAnnouncement', 'TenantExportDownload'],
     },
+    'core.installationMark': {
+        refusedBy: 'subscription-ends.requires-installation-marks',
+        neededWith: ['tenantBilling'],
+        orOption: 'tenantBilling.subscriptionEnds.deletion.marks',
+        models: ['InstallationMark'],
+    },
     'tenantBilling.subscriptionNotices': {
         refusedBy: 'subscription-notices.requires-record',
         neededWith: ['tenantBilling'],

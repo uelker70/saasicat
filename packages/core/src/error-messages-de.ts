@@ -564,6 +564,13 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Den Export dieses Kontos kann nur ein Administrator des Kontos abrufen, nicht der Anbieter, der als das Konto handelt.',
     TENANT_EXPORT_IN_PROGRESS:
         'Der Export dieses Kontos wird bereits erstellt. Bitte versuchen Sie es erneut, sobald er angekommen ist.',
+    // ── installation ──
+    INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS:
+        'Die Kennung {given} ist nicht die dieser Umgebung ({environment}); eine Datenbank wird nur als Installation der Umgebung markiert, die sie markiert.',
+    INSTALLATION_MARKED_OTHERWISE:
+        'Diese Datenbank ist bereits als Installation {marked} markiert; diese Markierung zu ersetzen ist ein eigener, bewusster Schritt.',
+    INSTALLATION_MARK_MOVED:
+        'Die Markierung dieser Datenbank hat sich geändert, während sie ersetzt wurde. Es wurde nichts geschrieben; lesen Sie sie erneut.',
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED:
         'Der Steueradapter {adapter} unterstützt diesen Fall nicht: {reason}',

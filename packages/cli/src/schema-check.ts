@@ -28,6 +28,15 @@
 // halfway, which is exactly the drift this check exists for. A fragment left
 // out whole puts its model in `absentModels`, where no field of it is compared
 // at all, so exempting enums would only ever have covered the partial case.
+//
+// A model under a platform model's name is the platform's only where it keeps
+// the platform's table. One that maps another — or none, and so keeps the
+// table its own name gives it — is a model of the application's own that
+// happens to share the name, and an application that invoices its own
+// customers may well have one. Comparing its fields would report every column
+// of the platform's model as missing, and ask the integrator to turn their own
+// records into the platform's. So it is reported once, as a name clash, and
+// otherwise treated as what it is: the platform's model is not there.
 
 import type { TenantServingMember } from '@saasicat/core';
 
@@ -84,15 +93,22 @@ export interface FieldMismatch {
     actual: string;
 }
 
-export type BlockAttributeKind = 'index' | 'unique' | 'map';
+export type BlockAttributeKind = 'index' | 'unique';
 
 export interface MissingBlockAttribute {
     model: string;
     kind: BlockAttributeKind;
     /** Rendered attribute, e.g. `@@index([planId, validFrom])`. */
     expected: string;
-    /** For `map`: what the consumer maps to instead. */
-    actual?: string;
+}
+
+/** A model of the application's own under the name of a platform model. */
+export interface NameClash {
+    readonly model: string;
+    /** The table the platform's model maps. */
+    readonly platformTable: string;
+    /** The table the application's model maps; its own name where it has no `@@map`. */
+    readonly applicationTable: string;
 }
 
 /**
@@ -129,15 +145,17 @@ export interface FragmentUnits {
 export interface SchemaCheckReport {
     /** Platform models the consumer does not carry — informational, unless listed as a companion. */
     absentModels: string[];
+    /**
+     * Models of the consumer's own that carry a platform model's name and keep
+     * another table. Their fields and attributes are not compared.
+     */
+    nameClashes: NameClash[];
     /** Platform enums the consumer does not carry — informational. */
     absentEnums: string[];
     missingFields: MissingField[];
     missingEnumValues: MissingEnumValue[];
     fieldMismatches: FieldMismatch[];
-    /**
-     * Block-level attributes the spec declares and the consumer lacks:
-     * `@@index`, `@@unique`, and a diverging `@@map`.
-     */
+    /** Block-level attributes the spec declares and the consumer lacks: `@@index` and `@@unique`. */
     missingBlockAttributes: MissingBlockAttribute[];
     /**
      * Relations that cascade from the tenant onto a model the platform keeps
@@ -306,9 +324,6 @@ function compareBlockAttributes(
     app: BlockAttributes,
     out: MissingBlockAttribute[],
 ): void {
-    if (spec.map !== app.map) {
-        out.push({ model, kind: 'map', expected: `@@map("${spec.map}")`, actual: app.map });
-    }
     for (const fields of spec.uniques) {
         if (!app.uniques.has(fields)) {
             out.push({ model, kind: 'unique', expected: `@@unique(${fields})` });
@@ -322,10 +337,9 @@ function compareBlockAttributes(
 }
 
 /**
- * A missing index costs query time; a missing `@@unique` or a diverging
- * `@@map` breaks correctness — the platform relies on the constraint holding,
- * and on finding the table under its canonical name. Only the latter two fail
- * the check.
+ * A missing index costs query time; a missing `@@unique` breaks correctness —
+ * the platform relies on the constraint holding. Only the latter fails the
+ * check.
  */
 export function breaksContract(attribute: MissingBlockAttribute): boolean {
     return attribute.kind !== 'index';
@@ -399,6 +413,11 @@ export function checkSchema(
     // built up as the comparison walks.
     const absentModels = [...spec.models.keys()].filter((name) => !app.models.has(name));
     const absentEnums = [...spec.enums.keys()].filter((name) => !app.enums.has(name));
+    const nameClashes = nameClashesOf(spec, app);
+    // The platform's model is not there where the consumer's own carries its
+    // name: nothing of it is compared, and nothing else is asked to point at it.
+    const clashing = new Set(nameClashes.map((clash) => clash.model));
+    const adopted = new Map([...app.models].filter(([name]) => !clashing.has(name)));
     // A model the platform ships and the consumer does not have. `known` is the
     // whole shipped set where a caller passes it and the spec otherwise, which
     // is what makes `--fragments=…` behave like a full run: with a narrowed
@@ -410,10 +429,10 @@ export function checkSchema(
     // fragments nor the consumer have is a reference to something the consumer
     // owns and has not written, which is still drift.
     const shipped = knownModels ?? new Set(spec.models.keys());
-    const notAdopted = new Set([...shipped].filter((name) => !app.models.has(name)));
+    const notAdopted = new Set([...shipped].filter((name) => !adopted.has(name)));
 
     for (const [model, specFields] of spec.models) {
-        const appFields = app.models.get(model);
+        const appFields = adopted.get(model);
         if (!appFields) continue;
         compareFields(
             model,
@@ -433,11 +452,11 @@ export function checkSchema(
 
     const appBlocks = extractBlocks(appSchema, 'model');
     const tenantCascades = modelsKeptPastTheTenant(specSchema).flatMap((model) => {
-        const block = appBlocks.get(model);
+        const block = adopted.has(model) ? appBlocks.get(model) : undefined;
         return block ? cascadesFromTenant(model, block) : [];
     });
 
-    const missingCompanions = units ? companionsLeftOut(units, app.models) : [];
+    const missingCompanions = units ? companionsLeftOut(units, adopted) : [];
 
     const missingEnumValues: MissingEnumValue[] = [];
 
@@ -453,6 +472,7 @@ export function checkSchema(
 
     return {
         absentModels,
+        nameClashes,
         absentEnums,
         missingFields,
         missingEnumValues,
@@ -460,9 +480,10 @@ export function checkSchema(
         missingBlockAttributes,
         tenantCascades,
         missingCompanions,
-        checkedModelCount: spec.models.size - absentModels.length,
+        checkedModelCount: spec.models.size - absentModels.length - nameClashes.length,
         checkedEnumCount: spec.enums.size - absentEnums.length,
         ok:
+            nameClashes.length === 0 &&
             missingFields.length === 0 &&
             missingEnumValues.length === 0 &&
             fieldMismatches.length === 0 &&
@@ -470,6 +491,17 @@ export function checkSchema(
             missingCompanions.length === 0 &&
             !missingBlockAttributes.some(breaksContract),
     };
+}
+
+/** The consumer's models that carry a platform model's name and map another table. */
+function nameClashesOf(spec: ParsedSchema, app: ParsedSchema): NameClash[] {
+    const clashes: NameClash[] = [];
+    for (const [model, platform] of spec.modelAttributes) {
+        const application = app.modelAttributes.get(model);
+        if (!application || application.map === platform.map) continue;
+        clashes.push({ model, platformTable: platform.map, applicationTable: application.map });
+    }
+    return clashes;
 }
 
 /**

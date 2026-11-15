@@ -22,6 +22,7 @@ import {
 import { PrismaBundleRepository } from './prisma-bundle.repository.js';
 import { PrismaCatalogEntryRepository } from './prisma-catalog-entry.repository.js';
 import { PrismaMarketingProjectionRepository } from './prisma-marketing-projection.repository.js';
+import { PrismaInstallationMarkRepository } from './prisma-installation-mark.repository.js';
 import { PrismaMaintenanceWindowRepository } from './prisma-maintenance-window.repository.js';
 import { PrismaTenantAccessHoldRepository } from './prisma-tenant-access-hold.repository.js';
 import { PrismaSubscriptionEndRepository } from './prisma-subscription-end.repository.js';
@@ -80,6 +81,7 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     appliedSettings: unknown;
     settingsChange: unknown;
     maintenanceWindow: unknown;
+    installationMark: unknown;
     tenantAccessHold: unknown;
     subscriptionEnd: unknown;
     subscriptionEndAnnouncement: unknown;
@@ -244,6 +246,9 @@ export function prismaPersistence<M extends OptionalCanonicalModel = never>(
             maintenanceWindows: unless(
                 'core.maintenanceWindows',
                 provide((prisma) => new PrismaMaintenanceWindowRepository(canonical(prisma))),
+            ),
+            installationMark: provide(
+                (prisma) => new PrismaInstallationMarkRepository(canonical(prisma)),
             ),
             tenantAccessHolds: provide(
                 (prisma) => new PrismaTenantAccessHoldRepository(canonical(prisma)),

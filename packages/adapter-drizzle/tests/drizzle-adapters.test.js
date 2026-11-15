@@ -7,6 +7,7 @@ import { getTableName } from 'drizzle-orm';
 import {
     AsyncLocalRlsBypassAdapter,
     DrizzleAppliedSettingsRepository,
+    DrizzleInstallationMarkRepository,
     DrizzleMfaAdapter,
     DrizzleSuperAdminBootstrapAdapter,
     DrizzleTransactionRunner,
@@ -33,6 +34,7 @@ describe('schema table map', () => {
             superAdminMfa: 'super_admin_mfa',
             appliedSettings: 'applied_settings',
             settingsChanges: 'settings_changes',
+            installationMarks: 'installation_marks',
         };
         for (const [exportName, tableName] of Object.entries(expected)) {
             assert.equal(getTableName(saasicatSchema[exportName]), tableName, exportName);
@@ -62,6 +64,7 @@ describe('drizzlePersistence()', () => {
         assert.ok(bundle.core.transactionRunner instanceof DrizzleTransactionRunner);
         assert.ok(bundle.core.rlsBypass instanceof AsyncLocalRlsBypassAdapter);
         assert.ok(bundle.core.appliedSettings instanceof DrizzleAppliedSettingsRepository);
+        assert.ok(bundle.core.installationMark instanceof DrizzleInstallationMarkRepository);
         assert.equal(
             bundle.core.superAdminProvisioning,
             undefined,

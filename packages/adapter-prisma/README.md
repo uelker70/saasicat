@@ -114,6 +114,7 @@ PromoCodesModule.forRoot({
 | `PrismaSubscriberLedgerRepository`        | `SubscriberLedgerRepository`        | `subscriber_ledger_entries`                                         |
 | `PrismaAppliedSettingsRepository`         | `AppliedSettingsPort`               | `applied_settings`, `settings_changes`                              |
 | `PrismaMaintenanceWindowRepository`       | `MaintenanceWindowPort`             | `maintenance_windows`                                               |
+| `PrismaInstallationMarkRepository`        | `InstallationMarkPort`              | `installation_marks`                                                |
 | `PrismaSubscriptionNoticeRepository`      | `SubscriptionNoticeRepository`      | `subscription_notices`                                              |
 | `PrismaVersionRetirementRepository`       | `VersionRetirementRepository`       | `version_retirements`                                               |
 | `PrismaBundleVersionRetirementRepository` | `BundleVersionRetirementRepository` | `bundle_version_retirements`                                        |
