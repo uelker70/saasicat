@@ -98,6 +98,64 @@ describe('the check never prints two answers to one question', () => {
         );
     });
 
+    describe('the closing advice names only what was found', () => {
+        const ADD_FIELDS = /Add the missing fields and enum values, then migrate\./;
+        const REVIEW_FIELDS = /Review diverging fields/;
+
+        test('a model of the application’s own under a platform name is not asked for fields', async () => {
+            const own = 'model SubscriptionEnd {\n    id String @id\n\n    @@map("ends")\n}\n';
+
+            const { stdout, code } = await check(own, '--fragments=29');
+
+            assert.equal(code, 1, stdout);
+            assert.match(stdout, /Rename your own models/);
+            assert.doesNotMatch(stdout, ADD_FIELDS);
+            assert.doesNotMatch(stdout, REVIEW_FIELDS);
+        });
+
+        test('a relation that deletes with the tenant is not asked for fields', async () => {
+            const cascading = (await fragment('29-subscription-end.prisma')).replace(
+                '    tenantId       String\n',
+                '    tenantId       String\n' +
+                    '    tenant         Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)\n',
+            );
+
+            const { stdout, code } = await check(cascading, '--fragments=29');
+
+            assert.equal(code, 1, stdout);
+            assert.match(stdout, /Deleted together with the tenant/);
+            assert.doesNotMatch(stdout, ADD_FIELDS);
+            assert.doesNotMatch(stdout, REVIEW_FIELDS);
+        });
+
+        test('a missing field is', async () => {
+            const missing = (await fragment('29-subscription-end.prisma')).replace(
+                '    recordedBy     String\n',
+                '',
+            );
+
+            const { stdout, code } = await check(missing, '--fragments=29');
+
+            assert.equal(code, 1, stdout);
+            assert.match(stdout, /SubscriptionEnd\.recordedBy/);
+            assert.match(stdout, ADD_FIELDS);
+            assert.doesNotMatch(stdout, REVIEW_FIELDS);
+        });
+
+        test('a diverging field is asked to be reviewed, and nothing to be added', async () => {
+            const diverging = (await fragment('29-subscription-end.prisma')).replace(
+                '    recordedBy     String\n',
+                '    recordedBy     Int\n',
+            );
+
+            const { stdout, code } = await check(diverging, '--fragments=29');
+
+            assert.equal(code, 1, stdout);
+            assert.match(stdout, REVIEW_FIELDS);
+            assert.doesNotMatch(stdout, ADD_FIELDS);
+        });
+    });
+
     // @requirement SC-COMP-016 — What the schema check calls not adopted, the persistence bundle can be told
     test('a model the persistence bundle can leave out is handed over as the option to pass', async () => {
         const { stdout, code } = await check(

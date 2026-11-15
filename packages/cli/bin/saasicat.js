@@ -272,6 +272,21 @@ const MISMATCH_LABELS = {
  * @param servesTenants whether `--serves-tenants` said the application does
  */
 function printCheckReport(report, needed, servesTenants) {
+    if (report.nameClashes.length > 0) {
+        console.log(
+            `✗ Your own model under a platform model's name (${report.nameClashes.length}):`,
+        );
+        for (const { model, platformTable, applicationTable } of report.nameClashes) {
+            console.log(
+                `    ${model.padEnd(28)} your table ${applicationTable}, the platform's ${platformTable}`,
+            );
+        }
+        console.log("  The platform's model keeps the platform's table; one of yours that keeps");
+        console.log('  another is your own and is not compared. Two models cannot share a name in');
+        console.log("  one schema: rename yours. Meant as the platform's? Map it to its table.");
+        console.log('');
+    }
+
     if (report.missingFields.length > 0) {
         console.log(`✗ Missing fields (${report.missingFields.length}):`);
         for (const { model, field, type } of report.missingFields) {
@@ -323,9 +338,8 @@ function printCheckReport(report, needed, servesTenants) {
     const breaking = report.missingBlockAttributes.filter((a) => a.kind !== 'index');
     if (breaking.length > 0) {
         console.log(`✗ Missing constraints (${breaking.length}):`);
-        for (const { model, kind, expected, actual } of breaking) {
-            const suffix = kind === 'map' ? ` — found: @@map("${actual}")` : '';
-            console.log(`    ${model.padEnd(28)} ${expected}${suffix}`);
+        for (const { model, expected } of breaking) {
+            console.log(`    ${model.padEnd(28)} ${expected}`);
         }
         console.log('');
     }
@@ -490,8 +504,14 @@ async function cmdSchemaCheck(args) {
     }
 
     console.log(`✗ Drift found (checked ${checked}).`);
-    if (!report.ok) {
+    // One line per kind of finding, printed only where that kind was found.
+    if (report.nameClashes.length > 0) {
+        console.log("  Rename your own models that carry a platform model's name.");
+    }
+    if (report.missingFields.length > 0 || report.missingEnumValues.length > 0) {
         console.log('  Add the missing fields and enum values, then migrate.');
+    }
+    if (report.fieldMismatches.length > 0) {
         console.log('  Review diverging fields: platform code reads them with the spec type.');
     }
     if (lacksWhatServingNeeds) {

@@ -80,6 +80,16 @@ information, not as a failure — not adopting a fragment is a decision. Fields
 you added on top of a platform model are never reported: extending them is
 supported.
 
+A platform model is recognised by its table. Where a model of yours carries a
+platform model's name and maps another table — `model SubscriptionInvoice`
+with `@@map("invoices")` for the invoices your application sends its own
+customers, or with no `@@map` at all — it is your own model, and the check says
+so under **Your own model under a platform model's name**, with both tables.
+Its fields are not compared, since the platform's columns are not what it is
+missing. It fails the check all the same: one schema cannot hold two models of
+one name, so rename yours before you adopt the platform's. If the model was
+meant to be the platform's, map it to the platform's table instead.
+
 Some models are no such decision. Wherever `tenantBilling` is on, a start
 needs a place for the records they hold — a tenant's holds, the end of its
 subscription, the notices sent to it — and refuses to start without one; the

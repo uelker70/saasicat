@@ -116,7 +116,7 @@ _Tested by:_
     - identical attributes produce no finding
     - a missing index is reported but does not fail the check
     - a missing unique constraint fails the check
-    - a diverging @@map fails the check and names both sides
+    - a diverging @@map fails the check as a name clash, naming both tables
     - whitespace and attribute options do not create false findings
     - extra consumer indexes are not reported
     - a cascade from the tenant onto the contract fails the check, naming the relation

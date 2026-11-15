@@ -262,7 +262,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-SCOPE-013 — Subscriber and invoice models avoid the application's own names, and a clash is reported
 
-🟡 _(Decided, not yet delivered.)_ The fragments are copied into the application's own schema,
+🟢 The fragments are copied into the application's own schema,
 where an application may already invoice its own customers or collect from its members. Every
 such model carries `Subscription` or `Subscriber` in its name, which keeps it clear of the names
 those applications use. A prefix cannot rule out a clash with a name nobody has seen, so
@@ -271,3 +271,17 @@ different shape, rather than leaving it to surface as a schema error. The applic
 invoicing stays the application's.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/schema-check-names-a-model-of-the-applications-own.test.js`
+    - an application model under a platform model’s name
+        - is a name clash, with neither its fields nor its table reported as drift
+        - is a name clash where it maps no table, and keeps the table its name gives it
+        - is not counted as compared, and a relation to the platform’s model is not asked of it
+    - schema check
+        - names the model, both tables, and what to do about it
+
+<!-- END proof -->

@@ -132,11 +132,10 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 703 entries: 🟢 607 stand today, 🟡 32 decided but not yet delivered, ⚪ 0 drafts,
+Of 703 entries: 🟢 608 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
 🔵 57 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
-[SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
 [SC-SUB-017](#sc-sub-017--a-subscribers-legal-identity-can-be-corrected-not-replaced-under-a-running-contract),
 [SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
@@ -499,7 +498,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-SCOPE-013 — Subscriber and invoice models avoid the application's own names, and a clash is reported
 
-🟡 _(Decided, not yet delivered.)_ The fragments are copied into the application's own schema,
+🟢 The fragments are copied into the application's own schema,
 where an application may already invoice its own customers or collect from its members. Every
 such model carries `Subscription` or `Subscriber` in its name, which keeps it clear of the names
 those applications use. A prefix cannot rule out a clash with a name nobody has seen, so
@@ -508,6 +507,20 @@ different shape, rather than leaving it to surface as a schema error. The applic
 invoicing stays the application's.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/schema-check-names-a-model-of-the-applications-own.test.js`
+    - an application model under a platform model’s name
+        - is a name clash, with neither its fields nor its table reported as drift
+        - is a name clash where it maps no table, and keeps the table its name gives it
+        - is not counted as compared, and a relation to the platform’s model is not asked of it
+    - schema check
+        - names the model, both tables, and what to do about it
+
+<!-- END proof -->
 
 ## 2. Capabilities, features and quotas
 
@@ -26047,7 +26060,7 @@ _Tested by:_
     - identical attributes produce no finding
     - a missing index is reported but does not fail the check
     - a missing unique constraint fails the check
-    - a diverging @@map fails the check and names both sides
+    - a diverging @@map fails the check as a name clash, naming both tables
     - whitespace and attribute options do not create false findings
     - extra consumer indexes are not reported
     - a cascade from the tenant onto the contract fails the check, naming the relation
@@ -27305,6 +27318,13 @@ _Tested by:_
     - the check never prints two answers to one question
         - an enum a reported field names is not also listed as not adopted
         - and a model nothing reported still is
+        - the closing advice names only what was found › a model of the application’s own under a
+          platform name is not asked for fields
+        - the closing advice names only what was found › a relation that deletes with the tenant is
+          not asked for fields
+        - the closing advice names only what was found › a missing field is
+        - the closing advice names only what was found › a diverging field is asked to be reviewed,
+          and nothing to be added
         - a model the persistence bundle can leave out is handed over as the option to pass
     - the models a start serving tenants needs
         - missing, are named apart with the rule that refuses the start, and not as a decision
@@ -27326,7 +27346,7 @@ _Tested by:_
     - identical attributes produce no finding
     - a missing index is reported but does not fail the check
     - a missing unique constraint fails the check
-    - a diverging @@map fails the check and names both sides
+    - a diverging @@map fails the check as a name clash, naming both tables
     - whitespace and attribute options do not create false findings
     - extra consumer indexes are not reported
     - a cascade from the tenant onto the contract fails the check, naming the relation
