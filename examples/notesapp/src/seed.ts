@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+import { NestFactory } from '@nestjs/core';
 import { PrismaClient } from '@prisma/client';
 import { PrismaSubscriberRepository } from '@saasicat/adapter-prisma';
 import {
@@ -9,6 +11,12 @@ import { loadPlanCatalogFromFile } from '@saasicat/nest/billing';
 import { aesGcmSecretSealer } from '@saasicat/nest/platform';
 import { SubscriberService } from '@saasicat/nest/subscriber';
 
+import {
+    activateSeededSubscriptions,
+    seedActivationPlatformOf,
+    type SeededSubscription,
+} from './seed-activation';
+import { SeedModule } from './seed.module';
 import { DEMO_SUPER_ADMIN, seedSuperAdmin } from './seed-super-admin';
 
 /**
@@ -227,12 +235,14 @@ const PROMOTION_WINDOW_DAYS = 90;
 interface SubscriptionSeed {
     tenantId: string;
     planKey: string;
+    /** Add-on bundles booked with it, by key, at their published v1 — so the tenant bundle store has data. */
+    addOns: string[];
 }
 
 const SUBSCRIPTIONS: SubscriptionSeed[] = [
-    { tenantId: 'tenant-a', planKey: 'STARTER' },
-    { tenantId: 'acme', planKey: 'PRO' },
-    { tenantId: 'globex', planKey: 'PRO' },
+    { tenantId: 'tenant-a', planKey: 'STARTER', addOns: [] },
+    { tenantId: 'acme', planKey: 'PRO', addOns: ['EXPORT_PRO'] },
+    { tenantId: 'globex', planKey: 'PRO', addOns: [] },
 ];
 
 /** Days a seeded subscription's current billing period runs for (YEARLY). */
@@ -524,9 +534,19 @@ async function seedMarketing(prisma: PrismaClient): Promise<void> {
     }
 }
 
-async function seedSubscriptions(prisma: PrismaClient): Promise<void> {
+/**
+ * Writes each demo subscription where its tenant has none, and returns them as
+ * they stand, each with the add-ons it has no booking of yet. A subscription
+ * that exists is left as it is: its plan, its add-ons and its contract change
+ * only the way the platform changes them, and a seed that wrote a plan back
+ * over a contract would bill the one while the other is in force. The add-ons
+ * are booked by the platform, when it activates the subscription
+ * (`activateSeededSubscriptions`).
+ */
+async function seedSubscriptions(prisma: PrismaClient): Promise<SeededSubscription[]> {
     const now = new Date();
     const periodEnd = new Date(now.getTime() + SUBSCRIPTION_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+    const seeded: SeededSubscription[] = [];
     for (const spec of SUBSCRIPTIONS) {
         const planVersion = await prisma.planVersion.findUnique({
             where: { planId_version: { planId: spec.planKey, version: 1 } },
@@ -536,7 +556,7 @@ async function seedSubscriptions(prisma: PrismaClient): Promise<void> {
                 `No seeded PlanVersion for plan ${spec.planKey} — run seedPlans first.`,
             );
         }
-        await prisma.subscription.upsert({
+        const row = await prisma.subscription.upsert({
             where: { tenantId: spec.tenantId },
             create: {
                 tenantId: spec.tenantId,
@@ -547,65 +567,51 @@ async function seedSubscriptions(prisma: PrismaClient): Promise<void> {
                 startedAt: now,
                 currentPeriodStart: now,
                 currentPeriodEnd: periodEnd,
+                // The day the window opened, as the platform writes it when it
+                // opens one.
+                billingAnchorDay: now.getUTCDate(),
             },
-            // Re-seeding restores the ACTIVE/plan baseline (e.g. after a
-            // suspend/reactivate demo through the UI). Set SEED_ON_START=false
-            // to keep UI-made changes.
-            update: {
-                plan: spec.planKey,
-                billingCycle: 'YEARLY',
-                status: 'ACTIVE',
-                planVersionId: planVersion.id,
-            },
+            update: {},
+        });
+        seeded.push({
+            id: row.id,
+            tenantId: row.tenantId,
+            plan: row.plan,
+            billingCycle: row.billingCycle,
+            currentPeriodStart: row.currentPeriodStart,
+            currentPeriodEnd: row.currentPeriodEnd,
+            billingAnchorDay: row.billingAnchorDay,
+            canceledAt: row.canceledAt,
+            canceledEffectiveAt: row.canceledEffectiveAt,
+            addOns: await addOnsNotYetBooked(prisma, row.id, spec.addOns),
         });
     }
+    return seeded;
 }
 
-/**
- * Books one standalone add-on bundle so the tenant bundle store has data:
- * `acme` gets EXPORT_PRO's published v1. `SubscriptionBundle` has no natural
- * unique key, so a fixed `id` keeps the upsert idempotent; re-seeding clears any
- * cancellation to restore the "active add-on" baseline.
- */
-const ACME_BUNDLE_TENANT = 'acme';
-const ACME_BUNDLE_KEY = 'EXPORT_PRO';
-const ACME_BUNDLE_BOOKING_ID = '33333333-3333-4333-8333-333333333333';
-
-async function seedSubscriptionBundles(prisma: PrismaClient): Promise<void> {
-    const subscription = await prisma.subscription.findUnique({
-        where: { tenantId: ACME_BUNDLE_TENANT },
-    });
-    if (!subscription) {
-        throw new Error(
-            `No seeded subscription for ${ACME_BUNDLE_TENANT} — run seedSubscriptions first.`,
-        );
+/** The published v1 of each add-on in `bundleKeys` that `subscriptionId` has no booking of, cancelled or not. */
+async function addOnsNotYetBooked(
+    prisma: PrismaClient,
+    subscriptionId: string,
+    bundleKeys: readonly string[],
+): Promise<string[]> {
+    const versionIds: string[] = [];
+    for (const bundleKey of bundleKeys) {
+        const bundle = await prisma.bundle.findUnique({ where: { bundleKey } });
+        const version = bundle
+            ? await prisma.bundleVersion.findUnique({
+                  where: { bundleId_version: { bundleId: bundle.id, version: 1 } },
+              })
+            : null;
+        if (!version) {
+            throw new Error(`No seeded ${bundleKey} BundleVersion v1 — run seedBundles first.`);
+        }
+        const booked = await prisma.subscriptionBundle.findFirst({
+            where: { subscriptionId, bundleVersionId: version.id },
+        });
+        if (!booked) versionIds.push(version.id);
     }
-    const bundle = await prisma.bundle.findUnique({
-        where: { bundleKey: ACME_BUNDLE_KEY },
-    });
-    const bundleVersion = bundle
-        ? await prisma.bundleVersion.findUnique({
-              where: { bundleId_version: { bundleId: bundle.id, version: 1 } },
-          })
-        : null;
-    if (!bundleVersion) {
-        throw new Error(`No seeded ${ACME_BUNDLE_KEY} BundleVersion v1 — run seedBundles first.`);
-    }
-    await prisma.subscriptionBundle.upsert({
-        where: { id: ACME_BUNDLE_BOOKING_ID },
-        create: {
-            id: ACME_BUNDLE_BOOKING_ID,
-            subscriptionId: subscription.id,
-            bundleVersionId: bundleVersion.id,
-            startedAt: new Date(),
-        },
-        update: {
-            subscriptionId: subscription.id,
-            bundleVersionId: bundleVersion.id,
-            canceledAt: null,
-            canceledEffectiveAt: null,
-        },
-    });
+    return versionIds;
 }
 
 async function seedPromoCodes(prisma: PrismaClient): Promise<void> {
@@ -651,6 +657,23 @@ async function seedPromoCodes(prisma: PrismaClient): Promise<void> {
     }
 }
 
+/**
+ * Starts the platform from the application's options and activates each seeded
+ * subscription through it (`activateSeededSubscriptions`).
+ */
+async function activateThroughThePlatform(
+    subscriptions: readonly SeededSubscription[],
+): Promise<string[]> {
+    const app = await NestFactory.createApplicationContext(SeedModule, {
+        logger: ['error', 'warn'],
+    });
+    try {
+        return await activateSeededSubscriptions(seedActivationPlatformOf(app), subscriptions);
+    } finally {
+        await app.close();
+    }
+}
+
 async function seed(): Promise<void> {
     const prisma = new PrismaClient();
     try {
@@ -665,14 +688,15 @@ async function seed(): Promise<void> {
         await seedPlans(prisma);
         await seedBundles(prisma);
         await seedMarketing(prisma);
-        await seedSubscriptions(prisma);
-        await seedSubscriptionBundles(prisma);
+        const subscriptions = await seedSubscriptions(prisma);
         await seedPromoCodes(prisma);
+        const activated = await activateThroughThePlatform(subscriptions);
         const notes = DEMO_TENANTS.reduce((sum, t) => sum + t.notes, 0);
         console.log(
             `seeded ${DEMO_TENANTS.length} tenants, ${notes} notes, ` +
                 `${PLANS.length} plans, ${BUNDLES.length} bundles, ` +
-                `${SUBSCRIPTIONS.length} subscriptions (1 add-on bundle), ` +
+                `${SUBSCRIPTIONS.length} subscriptions (1 add-on bundle; ` +
+                `${activated.length} activated by this run), ` +
                 `${PROMO_CODES.length} promo codes, ` +
                 `${PROMOTIONS.length} promotions, 1 marketing-settings row, ` +
                 `SuperAdmin ${DEMO_SUPER_ADMIN.email} / ${DEMO_SUPER_ADMIN.password}`,

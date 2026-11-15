@@ -55,9 +55,13 @@ Every one of these ports is a default you can move: copy `.env.example` to
 ports, so the admin still reaches the API and no other file needs editing.
 
 The backend container applies `prisma db push` and seeds the demo data on every
-start; both are idempotent. Set `SEED_ON_START=false` to keep data you changed
-through the UI. nginx serves the admin and proxies `/api` to the backend, so
-both share an origin and the backend needs no CORS configuration.
+start; both are idempotent. The seed writes a subscription only where its tenant
+has none, and activates it through the platform — its add-ons, its first
+contract, its first charges — as an application does; a subscription that
+exists keeps its plan, its add-ons and its contracts. Set `SEED_ON_START=false`
+to keep the rest of the data you changed through the UI as well. nginx serves
+the admin and proxies `/api` to the backend, so both share an origin and the
+backend needs no CORS configuration.
 
 ## Run it locally
 
