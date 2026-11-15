@@ -3086,3 +3086,14 @@ _Tested by:_
         - an invoice paid in part past its due date says what it still owes of its total
 
 <!-- END proof -->
+
+### SC-ADM-057 — An application with its own administration gets the operator's billing pages
+
+🟡 _(Decided, not yet delivered.)_ An application that serves its own pages for tenants, users,
+the audit log and subscriptions turns the platform's administration on without its generic
+routes, and keeps every route of its own. The operator's billing pages — the invoice register
+and documents, the cancellation, the contracts, the subscriber's record and account, the open
+items, the credits and the reconciliation — are served all the same, and ask the application
+for no more than finding a tenant by its identifier and by its slug.
+
+_Source:_ #338 (decided 2026-11-14, autohauspro#883 D8)
