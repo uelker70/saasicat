@@ -47,6 +47,16 @@ ALTER TABLE applied_settings
 ALTER TABLE applied_settings
     ADD CONSTRAINT applied_settings_is_a_singleton CHECK ("id" = 'installation');
 
+-- `installation_marks` holds at most ONE row: the installation's identifier.
+--
+-- Same reasoning and the same two plain statements. A database belongs to one
+-- installation, so it carries one identifier, which a deletion compares with
+-- its environment's before it erases anything.
+ALTER TABLE installation_marks
+    DROP CONSTRAINT IF EXISTS installation_marks_is_a_singleton;
+ALTER TABLE installation_marks
+    ADD CONSTRAINT installation_marks_is_a_singleton CHECK ("id" = 'installation');
+
 -- A booking's scheduled switch names its version AND the moment it takes
 -- effect, or neither. A version without a moment would never be made, and a
 -- moment without a version would make the run look for nothing every quarter
