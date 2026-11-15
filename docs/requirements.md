@@ -27584,6 +27584,14 @@ _Tested by:_
         - stores a file once, and compares one stored before by its checksum
         - reads a file back as bytes of its own, and nothing where none is kept
         - says what would let a kept confirmation change, from the enabled triggers of its table
+- `packages/adapter-prisma/tests/prisma-installation-mark.repository.test.js`
+    - PrismaInstallationMarkRepository
+        - the mark is the one row under its fixed id, read column by column
+        - no row is no mark
+        - marking leaves the refusal to the primary key, and answers what stands after it
+        - a row gone after the insert is an error, not a mark that was never written
+        - a replacement is guarded on the identifier the caller read
+        - a replacement that matched nothing answers null and reads nothing back
 - `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
     - writing an invoice’s next attempt
         - the first is started in the invoice’s turn after its attempts were read
