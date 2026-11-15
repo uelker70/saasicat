@@ -2962,14 +2962,14 @@ _Tested by:_
 
 🟢 💰 Every row of every table that names the subscriber joined — its tenant link, contracts, charges,
 invoices, payments, credits, refunds, reversals, cases to reconcile, payment methods, checks of its
-VAT number, corrections and changes of its tax origin — moves to the earlier subscriber in one
-transaction, or nothing does: a table that would move other rows than were counted, as a row-level
-policy hiding rows from the platform would make it, leaves nothing written. The join is recorded,
-with its reason and the digest of what was decided, in the same transaction, and in the audit log
-after it. Both subscribers' rows are held for the whole of it. A charge run, an invoice run or a
-payment that read which subscriber a row belongs to before the join and writes it while the join
-runs waits for the join, is refused, and writes the row at the earlier subscriber on its next
-attempt: the database refuses a row for a subscriber joined
+VAT number, corrections, changes of its tax origin and the records of its deleted tenants — moves to
+the earlier subscriber in one transaction, or nothing does: a table that would move other rows than
+were counted, as a row-level policy hiding rows from the platform would make it, leaves nothing
+written. The join is recorded, with its reason and the digest of what was decided, in the same
+transaction, and in the audit log after it. Both subscribers' rows are held for the whole of it. A
+charge run, an invoice run or a payment that read which subscriber a row belongs to before the join
+and writes it while the join runs waits for the join, is refused, and writes the row at the earlier
+subscriber on its next attempt: the database refuses a row for a subscriber joined
 (`1.0-a-subscriber-is-joined.postgres.sql`), and the platform does not start joining beside a
 database that lacks that guard. A schema that leaves `SubscriberJoin` out offers no join.
 
@@ -3007,6 +3007,10 @@ _Tested by:_
     - joining subscribers
         - turned on without anywhere to join them, refuses to start, saying so
         - refuses to start beside a database that would let a join leave rows behind
+- `tests/every-table-that-names-a-subscriber-is-guarded-against-a-join.test.js`
+    - the fragments are read: some models name a subscriber
+    - every model that names a subscriber is in the list a join moves, under its table
+    - the join migration guards every table in that list, and no other
 
 <!-- END proof -->
 

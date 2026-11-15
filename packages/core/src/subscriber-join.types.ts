@@ -43,6 +43,7 @@ export const SUBSCRIBER_OWNED_TABLES = [
     { table: 'subscriber_refunds', model: 'SubscriberRefund' },
     { table: 'subscriber_reversals', model: 'SubscriberReversal' },
     { table: 'subscriber_reconciliation_cases', model: 'SubscriberReconciliationCase' },
+    { table: 'subscriber_tenant_deletions', model: 'SubscriberTenantDeletion' },
 ] as const;
 
 export type SubscriberOwnedTable = (typeof SUBSCRIBER_OWNED_TABLES)[number]['table'];

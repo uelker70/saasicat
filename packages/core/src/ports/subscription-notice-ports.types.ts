@@ -84,8 +84,11 @@ export interface SubscriptionNoticeRepository {
      * Empties the recipients of every notice of `tenantId` whose recipients
      * are not forgotten yet, keeping their number as `recipientCount` and
      * `at` as `recipientsForgottenAt`, in the caller's transaction where one
-     * is given. Answers how many notices it changed. A deleted tenant's
-     * notices say how many they went to, not to whom (`SC-PRIV-023`).
+     * is given. Answers how many notices it changed. A notice not delivered
+     * has no recipients and no number to keep, and is marked all the same. A
+     * number already kept stands; where none is, it is the recipients'. A
+     * deleted tenant's notices say how many they went to, not to whom
+     * (`SC-PRIV-023`).
      */
     forgetRecipients(tenantId: string, at: Date, tx?: TransactionContext): Promise<number>;
 }

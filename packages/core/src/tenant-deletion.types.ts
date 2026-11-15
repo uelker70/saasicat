@@ -295,6 +295,7 @@ export interface TenantDeletionStore {
     /** Its place in the order the stores are erased in, from 0. */
     readonly position: number;
     readonly countedAt: Date | null;
+    /** What it counted, by category, the keys compared character by character. */
     readonly counts: readonly TenantCount[];
     readonly erasedAt: Date | null;
 }
@@ -316,7 +317,11 @@ export interface TenantDeletionRecord {
      * (`SC-PRIV-024`).
      */
     readonly exportBlockedBySuspension: boolean;
-    /** What the tenant was told to keep itself, as the deletion began. */
+    /**
+     * What the tenant was told to keep itself, as the deletion began, by
+     * category, the keys compared character by character rather than by a
+     * database's collation: the record keeps no order of the application's.
+     */
     readonly keep: readonly TenantKeepLine[];
     /** The subscriber's commercial record before the first store erased. */
     readonly commercialBefore: CommercialRecordCounts | null;

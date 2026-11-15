@@ -145,7 +145,8 @@ BEGIN
         'subscriber_credits',
         'subscriber_refunds',
         'subscriber_reversals',
-        'subscriber_reconciliation_cases'
+        'subscriber_reconciliation_cases',
+        'subscriber_tenant_deletions'
     ] LOOP
         IF to_regclass(owned) IS NULL THEN
             CONTINUE;

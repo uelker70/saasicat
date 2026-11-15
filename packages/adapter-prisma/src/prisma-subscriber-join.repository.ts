@@ -58,6 +58,7 @@ const DELEGATE_OF = {
     subscriber_refunds: 'subscriberRefund',
     subscriber_reversals: 'subscriberReversal',
     subscriber_reconciliation_cases: 'subscriberReconciliationCase',
+    subscriber_tenant_deletions: 'subscriberTenantDeletion',
 } as const satisfies Record<SubscriberOwnedTable, string>;
 
 type OwnedDelegates = {

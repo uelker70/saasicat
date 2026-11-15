@@ -1050,6 +1050,28 @@ export class FakeTenantAccessHoldRepository implements TenantAccessHoldPort {
         return { ...hold };
     }
 
+    async listAllOf(tenantId: string): Promise<TenantAccessHold[]> {
+        return oldestFirst(
+            this.holds.filter((hold) => hold.tenantId === tenantId),
+            (hold) => hold.since,
+        );
+    }
+
+    /** One caller at a time runs here, so the lock is the check alone. */
+    async lockOpen(id: string): Promise<TenantAccessHold | null> {
+        const hold = this.open().find((candidate) => candidate.id === id);
+        return hold ? { ...hold } : null;
+    }
+
+    async replaceActors(
+        replacements: readonly { id: string; recordedBy: string; liftedBy: string | null }[],
+    ): Promise<void> {
+        for (const { id, recordedBy, liftedBy } of replacements) {
+            const hold = this.holds.find((candidate) => candidate.id === id);
+            if (hold) Object.assign(hold, { recordedBy, liftedBy });
+        }
+    }
+
     private open(): TenantAccessHold[] {
         return this.holds
             .filter((hold) => hold.liftedAt === null)
@@ -1142,6 +1164,62 @@ export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
             )
             .map((download) => ({ ...download }));
     }
+
+    async listEndsOfTenant(tenantId: string): Promise<SubscriptionEnd[]> {
+        return oldestFirst(
+            this.ends.filter((end) => end.tenantId === tenantId),
+            (end) => end.recordedAt,
+        );
+    }
+
+    async listAnnouncedOfTenant(tenantId: string): Promise<SubscriptionEndAnnouncement[]> {
+        return oldestFirst(
+            this.announcements.filter((announced) => announced.tenantId === tenantId),
+            (announced) => announced.announcedAt,
+        );
+    }
+
+    async listExportDownloadsOfTenant(tenantId: string): Promise<TenantExportDownload[]> {
+        return oldestFirst(
+            this.downloads.filter((download) => download.tenantId === tenantId),
+            (download) => download.downloadedAt,
+        );
+    }
+
+    async replaceActors(replacements: {
+        readonly ends: readonly { readonly id: string; readonly recordedBy: string }[];
+        readonly announcements: readonly { readonly id: string; readonly announcedBy: string }[];
+        readonly downloads: readonly {
+            readonly id: string;
+            readonly downloadedBy: string;
+            readonly downloadedByUserId: string;
+        }[];
+    }): Promise<void> {
+        for (const { id, recordedBy } of replacements.ends) {
+            const end = this.ends.find((candidate) => candidate.id === id);
+            if (end) end.recordedBy = recordedBy;
+        }
+        for (const { id, announcedBy } of replacements.announcements) {
+            const announced = this.announcements.find((candidate) => candidate.id === id);
+            if (announced) announced.announcedBy = announcedBy;
+        }
+        for (const { id, downloadedBy, downloadedByUserId } of replacements.downloads) {
+            const download = this.downloads.find((candidate) => candidate.id === id);
+            if (download) Object.assign(download, { downloadedBy, downloadedByUserId });
+        }
+    }
+}
+
+/** Copies of `rows`, the oldest by `at` first, then by id. */
+function oldestFirst<Row extends { id: string }>(
+    rows: readonly Row[],
+    at: (row: Row) => Date,
+): Row[] {
+    return rows
+        .map((row) => ({ ...row }))
+        .sort(
+            (a, b) => at(a).getTime() - at(b).getTime() || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+        );
 }
 
 /**

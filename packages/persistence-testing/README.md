@@ -130,6 +130,8 @@ persistenceAdapterContract({
         'subscriptionEnds',
         'cancelledSubscriptions',
         'subscriptionNotices',
+        'uncountedNoticeSeed',
+        'tenantDeletions',
         'versionRetirements',
         'boundSubscriptions',
         'bundleVersionRetirements',

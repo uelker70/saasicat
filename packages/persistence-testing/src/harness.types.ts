@@ -15,6 +15,7 @@ import type {
     SubscriberPaymentRepository,
     MaintenanceWindowPort,
     TenantAccessHoldPort,
+    TenantDeletionRecordPort,
     SubscriptionEndPort,
     MfaPort,
     PaymentEventLog,
@@ -268,6 +269,18 @@ export interface ContractAdapterInstances {
      */
     subscriptionNotices?: SubscriptionNoticeRepository;
     /**
+     * Enables the deletion record scenarios: one record per tenant however
+     * many runs begin it at once, and in the transaction that holds the
+     * tenant back for it; a claim taken by one run at a time and taken over
+     * once it is stale; what a store counted and when it confirmed recorded
+     * once, the first standing; and the subscriber's commercial record
+     * counted, its own and no other's. A deletion that could begin twice
+     * would erase a tenant from two runs at once, and one whose counts a
+     * second run overwrote would record nothing where a store had erased.
+     * A record names its subscriber, so they also need `seed.createSubscriber`.
+     */
+    tenantDeletions?: TenantDeletionRecordPort;
+    /**
      * Enables the retirement announcement scenarios: an announcement kept with
      * both versions, when and by whom, and written in one transaction with the
      * notices that say what it means for each subscription. A retirement whose
@@ -395,6 +408,15 @@ export interface ContractSeed {
      * `clearBookingRequestDate` is.
      */
     markContractWrittenBeforeConfirmations?(contractId: string): Promise<void>;
+    /**
+     * Clears the count of a delivered notice, as
+     * `1.0-the-ends-are-read-by-day-and-the-notices-by-tenant.postgres.sql`
+     * leaves a notice its migrating role could not see: delivered, with its
+     * recipients and no `recipientCount`. No repository writes that, since a
+     * confirmation writes both. Optional for the reason
+     * `clearBookingRequestDate` is.
+     */
+    markNoticeDeliveredBeforeItsCount?(noticeId: string): Promise<void>;
 }
 
 export interface PersistenceContractHarness {
@@ -460,6 +482,8 @@ export type ContractGap =
     | 'subscriptionEnds'
     | 'cancelledSubscriptions'
     | 'subscriptionNotices'
+    | 'uncountedNoticeSeed'
+    | 'tenantDeletions'
     | 'versionRetirements'
     | 'boundSubscriptions'
     | 'bundleVersionRetirements'

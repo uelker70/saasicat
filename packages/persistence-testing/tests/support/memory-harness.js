@@ -143,6 +143,7 @@ export const MEMORY_ROWS_OF_TABLE = {
     subscriber_refunds: 'refunds',
     subscriber_reversals: 'reversals',
     subscriber_reconciliation_cases: 'cases',
+    subscriber_tenant_deletions: 'tenantDeletions',
 };
 
 export function createMemoryHarness() {
@@ -206,6 +207,7 @@ export function createMemoryHarness() {
         versionRetirements: [],
         bundleVersionRetirements: [],
         featureWithdrawals: [],
+        tenantDeletions: [],
     });
 
     let transactionCounter = 0;
@@ -1746,6 +1748,10 @@ export function createMemoryHarness() {
         async markContractWrittenBeforeConfirmations(contractId) {
             state.contractsWrittenBeforeConfirmations.add(contractId);
         },
+        async markNoticeDeliveredBeforeItsCount(noticeId) {
+            const row = state.subscriptionNotices.find((candidate) => candidate.id === noticeId);
+            if (row) row.recipientCount = null;
+        },
         async createSubscriber(input) {
             const row = {
                 id: nextId('subscriber'),
@@ -1984,6 +1990,24 @@ export function createMemoryHarness() {
             const held = openHolds().filter((row) => kinds.includes(row.kind));
             return [...new Set(held.map((row) => row.tenantId))];
         },
+        async listAllOf(tenantId) {
+            return structuredClone(
+                state.tenantAccessHolds
+                    .filter((row) => row.tenantId === tenantId)
+                    .sort((a, b) => a.since - b.since || (a.id < b.id ? -1 : 1)),
+            );
+        },
+        // One caller at a time runs here, so the lock is the check alone.
+        async lockOpen(id) {
+            const row = openHolds().find((candidate) => candidate.id === id);
+            return row ? structuredClone(row) : null;
+        },
+        async replaceActors(replacements) {
+            for (const { id, recordedBy, liftedBy } of replacements) {
+                const row = state.tenantAccessHolds.find((candidate) => candidate.id === id);
+                if (row) Object.assign(row, { recordedBy, liftedBy });
+            }
+        },
         async record(hold) {
             const taken = openHolds().some(
                 (row) =>
@@ -2016,6 +2040,13 @@ export function createMemoryHarness() {
      * Subscription ends and their announcements: one of each per subscription, as the unique keys
      * keep them. The downloads of a tenant's export: every one kept, as no key refuses one.
      */
+    /** The rows of `tenantId`, by the moment `at` names, then by id. */
+    const oldestFirst = (rows, tenantId, at) =>
+        structuredClone(
+            rows
+                .filter((row) => row.tenantId === tenantId)
+                .sort((a, b) => a[at] - b[at] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+        );
     const subscriptionEnds = {
         async record(end) {
             if (state.subscriptionEnds.some((row) => row.subscriptionId === end.subscriptionId)) {
@@ -2082,6 +2113,26 @@ export function createMemoryHarness() {
                     ),
             );
         },
+        async listEndsOfTenant(tenantId) {
+            return oldestFirst(state.subscriptionEnds, tenantId, 'recordedAt');
+        },
+        async listAnnouncedOfTenant(tenantId) {
+            return oldestFirst(state.subscriptionEndAnnouncements, tenantId, 'announcedAt');
+        },
+        async listExportDownloadsOfTenant(tenantId) {
+            return oldestFirst(state.tenantExportDownloads, tenantId, 'downloadedAt');
+        },
+        async replaceActors({ ends, announcements, downloads }) {
+            const replace = (rows, replacements) => {
+                for (const { id, ...actors } of replacements) {
+                    const row = rows.find((candidate) => candidate.id === id);
+                    if (row) Object.assign(row, actors);
+                }
+            };
+            replace(state.subscriptionEnds, ends);
+            replace(state.subscriptionEndAnnouncements, announcements);
+            replace(state.tenantExportDownloads, downloads);
+        },
     };
 
     /**
@@ -2104,6 +2155,8 @@ export function createMemoryHarness() {
                     claimedAt: null,
                     deliveredAt: null,
                     delivery: null,
+                    recipientCount: null,
+                    recipientsForgottenAt: null,
                 });
             }
             const row = state.subscriptionNotices.find(
@@ -2123,8 +2176,20 @@ export function createMemoryHarness() {
             Object.assign(row, {
                 deliveredAt: now,
                 delivery: { recipients: [...delivery.recipients], channel: delivery.channel },
+                recipientCount: delivery.recipients.length,
             });
             return true;
+        },
+        async forgetRecipients(tenantId, at) {
+            const forgotten = state.subscriptionNotices.filter(
+                (row) => row.tenantId === tenantId && row.recipientsForgottenAt === null,
+            );
+            for (const row of forgotten) {
+                row.recipientCount ??= row.delivery ? row.delivery.recipients.length : null;
+                if (row.delivery) row.delivery.recipients = [];
+                row.recipientsForgottenAt = at;
+            }
+            return forgotten.length;
         },
         async release(id, claimedAt) {
             const row = heldNotice(id, claimedAt);
@@ -2159,6 +2224,8 @@ export function createMemoryHarness() {
                     claimedAt: null,
                     deliveredAt: null,
                     delivery: null,
+                    recipientCount: null,
+                    recipientsForgottenAt: null,
                 });
                 written += 1;
             }
@@ -2180,6 +2247,120 @@ export function createMemoryHarness() {
                 )
                 .sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1));
             return structuredClone(rows);
+        },
+    };
+
+    /**
+     * Tenant deletions: one record per tenant, as the unique key keeps it; a
+     * claim, a renewal and a release conditional on the claim the caller holds;
+     * each store's counts and confirmation written where none is yet. Kept
+     * lines and counts read back by their keys, compared as strings are.
+     */
+    const byCategory = (a, b) => (a.category < b.category ? -1 : a.category > b.category ? 1 : 0);
+    const deletionRecordOf = (row) => {
+        const record = structuredClone(row);
+        record.keep.sort(byCategory);
+        record.stores.sort((a, b) => a.position - b.position);
+        for (const store of record.stores) store.counts.sort(byCategory);
+        return record;
+    };
+    const openDeletion = (id) =>
+        state.tenantDeletions.find((row) => row.id === id && row.closedAt === null);
+    const deletionStore = (id, name) =>
+        state.tenantDeletions
+            .find((row) => row.id === id)
+            ?.stores.find((store) => store.store === name);
+    const tenantDeletions = {
+        async begin(record) {
+            if (state.tenantDeletions.some((row) => row.tenantId === record.tenantId)) return null;
+            const row = {
+                id: nextId('deletion'),
+                ...structuredClone(record),
+                stores: record.stores.map(({ store, position }) => ({
+                    store,
+                    position,
+                    countedAt: null,
+                    counts: [],
+                    erasedAt: null,
+                })),
+                commercialBefore: null,
+                commercialAfter: null,
+                claimedAt: null,
+                attempts: 0,
+                lastFailure: null,
+                halt: null,
+                closedAt: null,
+            };
+            refuseARowForAJoinedSubscriber('subscriber_tenant_deletions', row.subscriberId);
+            state.tenantDeletions.push(row);
+            return deletionRecordOf(row);
+        },
+        async findForTenants(tenantIds) {
+            return state.tenantDeletions
+                .filter((row) => tenantIds.includes(row.tenantId))
+                .map(deletionRecordOf);
+        },
+        async findForSubscriber(subscriberId) {
+            return state.tenantDeletions
+                .filter((row) => row.subscriberId === subscriberId)
+                .sort((a, b) => b.startedAt - a.startedAt || (a.id < b.id ? 1 : -1))
+                .map(deletionRecordOf);
+        },
+        async claim(id, now, staleBefore) {
+            const row = openDeletion(id);
+            if (!row || (row.claimedAt !== null && row.claimedAt >= staleBefore)) return null;
+            row.claimedAt = now;
+            return deletionRecordOf(row);
+        },
+        async renew(id, claimedAt, now) {
+            const row = openDeletion(id);
+            if (row?.claimedAt?.getTime() !== claimedAt.getTime()) return false;
+            row.claimedAt = now;
+            return true;
+        },
+        async release(id, claimedAt) {
+            const row = openDeletion(id);
+            if (row?.claimedAt?.getTime() === claimedAt.getTime()) row.claimedAt = null;
+        },
+        async recordCounts(id, name, counts, at) {
+            const store = deletionStore(id, name);
+            if (!store || store.countedAt !== null) return;
+            Object.assign(store, { countedAt: at, counts: structuredClone([...counts]) });
+        },
+        async recordErased(id, name, at) {
+            const store = deletionStore(id, name);
+            if (store && store.erasedAt === null) store.erasedAt = at;
+        },
+        async recordCommercial(id, which, counts) {
+            const row = state.tenantDeletions.find((candidate) => candidate.id === id);
+            if (!row) return;
+            row[which === 'before' ? 'commercialBefore' : 'commercialAfter'] = { ...counts };
+        },
+        async recordFailure(id, failure, halt) {
+            const row = state.tenantDeletions.find((candidate) => candidate.id === id);
+            if (!row) return;
+            Object.assign(row, {
+                lastFailure: { ...failure },
+                attempts: row.attempts + 1,
+                halt,
+            });
+        },
+        async close(id, at) {
+            const row = openDeletion(id);
+            if (!row) return false;
+            row.closedAt = at;
+            return true;
+        },
+        async countCommercialRecord(subscriberId) {
+            const of = (rows) => rows.filter((row) => row.subscriberId === subscriberId).length;
+            return {
+                subscriber: state.subscribers.filter((row) => row.id === subscriberId).length,
+                contracts: of(state.contracts),
+                charges: of(state.ledgerEntries),
+                invoices: of(state.invoices),
+                payments: of(state.payments),
+                credits: of(state.credits),
+            };
         },
     };
 
@@ -4015,6 +4196,7 @@ export function createMemoryHarness() {
             tenantAccessHolds,
             subscriptionEnds,
             subscriptionNotices,
+            tenantDeletions,
             versionRetirements,
             bundleVersionRetirements,
             featureWithdrawals,
