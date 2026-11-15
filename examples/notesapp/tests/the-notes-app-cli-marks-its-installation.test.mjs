@@ -187,3 +187,81 @@ describe("the notes app's operators", () => {
         }
     });
 });
+
+describe('the seeded SuperAdmin the command line acts as', () => {
+    const KEY = 'ZGVtby1rZXktZm9yLXRoZS1ub3Rlc2FwcC1zdGFjayE=';
+
+    /** `super_admin_users` and `super_admin_mfa`, holding `factor` for the demo admin. */
+    function tables(factor = null) {
+        const written = { users: [], factors: [] };
+        const prisma = {
+            superAdminUser: {
+                upsert: async (args) => {
+                    written.users.push(args);
+                },
+            },
+            superAdminMfa: {
+                findUnique: async ({ where }) =>
+                    factor && where.userId === factor.userId ? factor : null,
+                upsert: async (args) => {
+                    written.factors.push(args);
+                },
+            },
+        };
+        return { prisma, written };
+    }
+
+    async function seeding() {
+        const { seedSuperAdmin } = await import('../dist/seed-super-admin.js');
+        const { aesGcmSecretSealer } = require('@saasicat/nest/platform');
+        return { seedSuperAdmin, sealer: aesGcmSecretSealer(KEY) };
+    }
+
+    /** The secret an otpauth URI hands to the authenticator. */
+    const secretOf = (uri) => new URL(uri).searchParams.get('secret');
+
+    test('keeps the operator and its second factor under one id, also for a row seeded under another', async () => {
+        const { seedSuperAdmin, sealer } = await seeding();
+        const { prisma, written } = tables();
+
+        await seedSuperAdmin(prisma, sealer);
+
+        const [user] = written.users;
+        const [factor] = written.factors;
+        assert.equal(user.create.id, 'demo-user-admin');
+        assert.equal(user.update.id, 'demo-user-admin');
+        assert.equal(factor.where.userId, 'demo-user-admin');
+    });
+
+    test('stores the second factor sealed with the installation key, as the platform opens it', async () => {
+        const { seedSuperAdmin, sealer } = await seeding();
+        const { prisma, written } = tables();
+
+        const uri = await seedSuperAdmin(prisma, sealer);
+
+        const stored = written.factors[0].create.secret;
+        assert.notEqual(stored, secretOf(uri));
+        assert.equal(await sealer.open(stored), secretOf(uri));
+    });
+
+    test('keeps a second factor the key opens, so an authenticator set up once keeps working', async () => {
+        const { seedSuperAdmin, sealer } = await seeding();
+        const sealed = await sealer.seal('JBSWY3DPEHPK3PXP');
+        const { prisma, written } = tables({ userId: 'demo-user-admin', secret: sealed });
+
+        assert.equal(await seedSuperAdmin(prisma, sealer), null);
+        assert.deepEqual(written.factors, []);
+    });
+
+    test('replaces a second factor the key cannot open, which checks no code', async () => {
+        const { seedSuperAdmin, sealer } = await seeding();
+        const { prisma, written } = tables({
+            userId: 'demo-user-admin',
+            secret: 'JBSWY3DPEHPK3PXP',
+        });
+
+        const uri = await seedSuperAdmin(prisma, sealer);
+
+        assert.equal(await sealer.open(written.factors[0].update.secret), secretOf(uri));
+    });
+});

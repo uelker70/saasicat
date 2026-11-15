@@ -31,11 +31,14 @@ Optional but strongly recommended integration for ops workflows.
         // App-specific commands:
         CatalogApplyCommand,
         PilotCreateCommand,
-        // Platform flow wrappers:
+        // Platform flow wrappers, each family with its parent command:
+        AdminCommands, // `admin`
         AdminMfaSetupCommand, // wraps MfaSetupFlow
         AdminWhoamiCommand, // wraps WhoAmIFlow
+        AuditCommands, // `audit`
         AuditTailCommand, // wraps AuditTailFlow
         DoctorCommands, // wraps DoctorFlow
+        ManifestCommands, // `manifest`
         ManifestDumpCommand, // wraps ManifestCliFlow.dump
         ManifestHashCommand, // wraps ManifestCliFlow.hash
         ManifestValidateCommand, // wraps ManifestCliFlow.validate
@@ -72,6 +75,12 @@ Optional but strongly recommended integration for ops workflows.
 })
 export class CliModule {}
 ```
+
+A command with sub-commands is registered as its parent (`…Commands`) and every sub-command beside
+it. `nest-commander` offers none of a family whose parent is missing from `providers`, and leaves out
+a sub-command that is missing, without a word; the notes app's
+[CLI test](../../examples/notesapp/tests/the-notes-app-cli-marks-its-installation.test.mjs) reads
+the commands it offers off the program for that reason.
 
 `PlanCatalogModule` and `AdminModule` come from `@saasicat/nest`. The catalogue module takes the
 settings [loaded at boot](wire-the-backend.md#loading-the-plan-catalog-at-boot) and the read sink

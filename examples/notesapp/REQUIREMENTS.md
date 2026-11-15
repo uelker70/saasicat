@@ -376,6 +376,8 @@ _Source:_ current practice
 
 ### NAP-LIMIT-003 — The example collects no payments, and says what that does not change
 
+_Withdrawn on 2026-11-15: the example issues invoices and collects them; see `NAP-LIMIT-007`._
+
 A reader is told that adding payment collection later leaves the packaging and enforcement
 model where it is, so nobody delays adopting the platform until a payment provider is chosen.
 
@@ -402,6 +404,16 @@ Inside this repository the example consumes the platform from the workspace. A r
 building their own application is told to install the published packages instead.
 
 _Source:_ `README.md`
+
+### NAP-LIMIT-007 — The example issues invoices but moves no money, and says which part is which
+
+The example concludes contracts, issues, archives and delivers invoices and collects them, so a
+reader sees the whole billing path run. A reader is told which parts stand as they are — the
+numbers, the documents, the archive, the records — and which a real application replaces: the
+development gateway that confirms every payment without moving money, and the log that stands in
+for sending an invoice by e-mail.
+
+_Source:_ #338
 
 ## 7. Comprehensibility
 
