@@ -205,4 +205,30 @@ describe('schema check', () => {
         assert.match(failure.stdout, /rename yours/);
         assert.doesNotMatch(failure.stdout, /Missing fields|Missing constraints|taken halfway/);
     });
+
+    test('names a model it clashes with as needed to serve tenants, in the same run', async () => {
+        const file = join(workspace, 'own-subscriptions.prisma');
+        await writeFile(
+            file,
+            'model Subscription {\n    id String @id\n\n    @@map("customer_subscriptions")\n}\n',
+            'utf8',
+        );
+
+        const failure = await run(process.execPath, [
+            CLI,
+            'schema',
+            'check',
+            `--prisma-schema=${file}`,
+            '--fragments=01',
+            '--serves-tenants',
+        ]).then(
+            () => assert.fail('the check passed'),
+            (error) => error,
+        );
+
+        assert.match(failure.stdout, /✗ Your own model under a platform model's name \(1\):/);
+        const needed = failure.stdout.slice(failure.stdout.indexOf('✗ Needed to serve tenants'));
+        assert.ok(needed.startsWith('✗ Needed to serve tenants'), failure.stdout);
+        assert.match(needed, /^ {4}Subscription /m);
+    });
 });

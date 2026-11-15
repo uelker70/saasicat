@@ -283,5 +283,6 @@ _Tested by:_
         - is not counted as compared, and a relation to the platform’s model is not asked of it
     - schema check
         - names the model, both tables, and what to do about it
+        - names a model it clashes with as needed to serve tenants, in the same run
 
 <!-- END proof -->

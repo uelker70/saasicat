@@ -488,10 +488,14 @@ async function cmdSchemaCheck(args) {
     };
 
     const report = checkSchema(fragments.join('\n'), schema, knownModels, units);
-    // A model taken out of a fragment adopted halfway is reported there.
+    // A model taken out of a fragment adopted halfway is reported there. One of
+    // the application's own under a platform model's name leaves the platform's
+    // model just as absent, so serving tenants needs it named in the same run.
     const companions = new Set(report.missingCompanions.map((companion) => companion.model));
     const needed = modelsServingTenantsNeeds(
-        report.absentModels.filter((model) => !companions.has(model)),
+        [...report.absentModels, ...report.nameClashes.map((clash) => clash.model)].filter(
+            (model) => !companions.has(model),
+        ),
         TENANT_SERVING_MEMBERS,
     );
     printCheckReport(report, needed, servesTenants);
