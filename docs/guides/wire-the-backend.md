@@ -1420,12 +1420,16 @@ what each needs of tenant billing, and the manifest announces it only there:
 Without `adminResources` the tenant's routes and the runs that issue, archive, mail and collect work
 as described here, and the operator has none of these pages. `adminResources` also mounts the
 administration's generic controller: `GET admin/tenants`, `GET admin/tenants/:slug` with its suspend
-and reactivate, `GET admin/users`, `GET admin/audit` and `GET admin/subscriptions`, and it cannot be
-left out. An application that keeps tenant, user, audit or subscription routes of its own at those
-paths therefore cannot turn `adminResources` on beside them — the generic controller would declare
-the same routes a second time — and has no operator pages for its invoices. Mounting them without
-the generic controller is planned
-([#338](https://github.com/uelker70/saasicat/issues/338), step 9f).
+and reactivate, `GET admin/users`, `GET admin/audit` and `GET admin/subscriptions`. An application
+that keeps tenant, user, audit or subscription routes of its own at those paths turns the option on
+without it — `adminResources: { includeController: false }` — and keeps every route of its own
+(`SC-ADM-057`). The pages above are mounted all the same, and `GET admin/tenants/:slug/subscriber`
+with them. Of the application they need no more than an `AdminTenantLookupPort` as
+`adminResources.resources`: `getTenantDetail(slug)`, which the subscriber of a tenant is found
+through, and `findTenantsByIds(ids)`, which the contract register, the subscribers page and each
+subscriber's record name their tenants by. Without either that port or `persistence.adminResources`
+the start is refused, naming both methods. See
+[route collisions abort the boot](integrate-into-an-existing-app.md#step-4--route-collisions-abort-the-boot).
 
 ### Its document, the archive and the mail
 

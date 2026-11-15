@@ -1,4 +1,5 @@
-import { randomBytes, scryptSync } from 'node:crypto';
+import 'reflect-metadata';
+import { NestFactory } from '@nestjs/core';
 import { PrismaClient } from '@prisma/client';
 import { PrismaSubscriberRepository } from '@saasicat/adapter-prisma';
 import {
@@ -7,7 +8,16 @@ import {
     type SubscriberRecord,
 } from '@saasicat/core';
 import { loadPlanCatalogFromFile } from '@saasicat/nest/billing';
+import { aesGcmSecretSealer } from '@saasicat/nest/platform';
 import { SubscriberService } from '@saasicat/nest/subscriber';
+
+import {
+    activateSeededSubscriptions,
+    seedActivationPlatformOf,
+    type SeededSubscription,
+} from './seed-activation';
+import { SeedModule } from './seed.module';
+import { DEMO_SUPER_ADMIN, seedSuperAdmin } from './seed-super-admin';
 
 /**
  * Seeds the demo data for both surfaces:
@@ -80,21 +90,6 @@ const SEEDED_BY = 'seed:notesapp';
 
 /** The one `marketing_settings` row, matching the schema's constant default. */
 const MARKETING_SETTINGS_ROW_ID = 'marketing-settings';
-
-/** Matches DemoPasswordHasher — scrypt with a 64-byte key. */
-const SUPER_ADMIN = { email: 'admin@notesapp.example', password: 'demo' };
-
-/**
- * Who DemoAuthGuard says the admin app's caller is (`x-demo-tenant: admin`),
- * which is the id the platform looks the second factor up under.
- */
-const DEMO_ADMIN_USER_ID = 'demo-user-admin';
-
-/** RFC 4648 base32, the form an authenticator app takes a TOTP secret in. */
-const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-
-/** Twenty random bytes, the secret length RFC 4226 recommends. */
-const TOTP_SECRET_BYTES = 20;
 
 /** A plan stem plus its single published v1 (mirrors config/saas.yaml). */
 interface PlanSeed {
@@ -240,12 +235,14 @@ const PROMOTION_WINDOW_DAYS = 90;
 interface SubscriptionSeed {
     tenantId: string;
     planKey: string;
+    /** Add-on bundles booked with it, by key, at their published v1 — so the tenant bundle store has data. */
+    addOns: string[];
 }
 
 const SUBSCRIPTIONS: SubscriptionSeed[] = [
-    { tenantId: 'tenant-a', planKey: 'STARTER' },
-    { tenantId: 'acme', planKey: 'PRO' },
-    { tenantId: 'globex', planKey: 'PRO' },
+    { tenantId: 'tenant-a', planKey: 'STARTER', addOns: [] },
+    { tenantId: 'acme', planKey: 'PRO', addOns: ['EXPORT_PRO'] },
+    { tenantId: 'globex', planKey: 'PRO', addOns: [] },
 ];
 
 /** Days a seeded subscription's current billing period runs for (YEARLY). */
@@ -311,11 +308,6 @@ const PROMO_CODES: PromoCodeSeed[] = [
         validUntilInDays: -30,
     },
 ];
-
-function hashPassword(plain: string): string {
-    const salt = randomBytes(16).toString('hex');
-    return `scrypt:${salt}:${scryptSync(plain, salt, 64).toString('hex')}`;
-}
 
 async function seedTenants(prisma: PrismaClient): Promise<void> {
     for (const tenant of DEMO_TENANTS) {
@@ -399,61 +391,6 @@ function addressGapsOf(
             (field) => [field, address[field]],
         ),
     );
-}
-
-async function seedSuperAdmin(prisma: PrismaClient): Promise<void> {
-    await prisma.superAdminUser.upsert({
-        where: { email: SUPER_ADMIN.email },
-        create: {
-            email: SUPER_ADMIN.email,
-            passwordHash: hashPassword(SUPER_ADMIN.password),
-            firstName: 'Demo',
-            lastName: 'Admin',
-        },
-        // Keep an existing password — re-seeding should not invalidate a
-        // password the developer changed through the UI.
-        update: { isActive: true, deletedAt: null },
-    });
-}
-
-function base32(bytes: Uint8Array): string {
-    let buffer = 0;
-    let bits = 0;
-    let out = '';
-    for (const byte of bytes) {
-        buffer = (buffer << 8) | byte;
-        bits += 8;
-        while (bits >= 5) {
-            bits -= 5;
-            out += BASE32_ALPHABET[(buffer >> bits) & 31];
-        }
-        buffer &= (1 << bits) - 1;
-    }
-    if (bits > 0) out += BASE32_ALPHABET[(buffer << (5 - bits)) & 31];
-    return out;
-}
-
-/**
- * Gives the demo admin a second factor, because publishing, ending or purging
- * a plan and suspending a tenant ask for its code.
- *
- * DEMO ONLY. The secret is random per database and kept on a re-seed, so an
- * authenticator set up once keeps working. Returns the otpauth URI when the
- * secret was created by this run, and `null` when one already existed.
- */
-async function seedSuperAdminMfa(prisma: PrismaClient): Promise<string | null> {
-    const existing = await prisma.superAdminMfa.findUnique({
-        where: { userId: DEMO_ADMIN_USER_ID },
-    });
-    if (existing?.secret) return null;
-    const secret = base32(randomBytes(TOTP_SECRET_BYTES));
-    await prisma.superAdminMfa.upsert({
-        where: { userId: DEMO_ADMIN_USER_ID },
-        create: { userId: DEMO_ADMIN_USER_ID, secret, enabledAt: new Date() },
-        update: { secret, enabledAt: new Date() },
-    });
-    const label = encodeURIComponent(`NotesApp:${SUPER_ADMIN.email}`);
-    return `otpauth://totp/${label}?secret=${secret}&issuer=NotesApp`;
 }
 
 async function seedPlans(prisma: PrismaClient): Promise<void> {
@@ -597,9 +534,19 @@ async function seedMarketing(prisma: PrismaClient): Promise<void> {
     }
 }
 
-async function seedSubscriptions(prisma: PrismaClient): Promise<void> {
+/**
+ * Writes each demo subscription where its tenant has none, and returns them as
+ * they stand, each with the add-ons it has no booking of yet. A subscription
+ * that exists is left as it is: its plan, its add-ons and its contract change
+ * only the way the platform changes them, and a seed that wrote a plan back
+ * over a contract would bill the one while the other is in force. The add-ons
+ * are booked by the platform, when it activates the subscription
+ * (`activateSeededSubscriptions`).
+ */
+async function seedSubscriptions(prisma: PrismaClient): Promise<SeededSubscription[]> {
     const now = new Date();
     const periodEnd = new Date(now.getTime() + SUBSCRIPTION_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+    const seeded: SeededSubscription[] = [];
     for (const spec of SUBSCRIPTIONS) {
         const planVersion = await prisma.planVersion.findUnique({
             where: { planId_version: { planId: spec.planKey, version: 1 } },
@@ -609,7 +556,7 @@ async function seedSubscriptions(prisma: PrismaClient): Promise<void> {
                 `No seeded PlanVersion for plan ${spec.planKey} — run seedPlans first.`,
             );
         }
-        await prisma.subscription.upsert({
+        const row = await prisma.subscription.upsert({
             where: { tenantId: spec.tenantId },
             create: {
                 tenantId: spec.tenantId,
@@ -620,69 +567,57 @@ async function seedSubscriptions(prisma: PrismaClient): Promise<void> {
                 startedAt: now,
                 currentPeriodStart: now,
                 currentPeriodEnd: periodEnd,
+                // The day the window opened, as the platform writes it when it
+                // opens one.
+                billingAnchorDay: now.getUTCDate(),
             },
-            // Re-seeding restores the ACTIVE/plan baseline (e.g. after a
-            // suspend/reactivate demo through the UI). Set SEED_ON_START=false
-            // to keep UI-made changes.
-            update: {
-                plan: spec.planKey,
-                billingCycle: 'YEARLY',
-                status: 'ACTIVE',
-                planVersionId: planVersion.id,
-            },
+            update: {},
+        });
+        seeded.push({
+            id: row.id,
+            tenantId: row.tenantId,
+            plan: row.plan,
+            billingCycle: row.billingCycle,
+            currentPeriodStart: row.currentPeriodStart,
+            currentPeriodEnd: row.currentPeriodEnd,
+            billingAnchorDay: row.billingAnchorDay,
+            canceledAt: row.canceledAt,
+            canceledEffectiveAt: row.canceledEffectiveAt,
+            addOns: await addOnsNotYetBooked(prisma, row.id, spec.addOns),
         });
     }
+    return seeded;
 }
 
-/**
- * Books one standalone add-on bundle so the tenant bundle store has data:
- * `acme` gets EXPORT_PRO's published v1. `SubscriptionBundle` has no natural
- * unique key, so a fixed `id` keeps the upsert idempotent; re-seeding clears any
- * cancellation to restore the "active add-on" baseline.
- */
-const ACME_BUNDLE_TENANT = 'acme';
-const ACME_BUNDLE_KEY = 'EXPORT_PRO';
-const ACME_BUNDLE_BOOKING_ID = '33333333-3333-4333-8333-333333333333';
-
-async function seedSubscriptionBundles(prisma: PrismaClient): Promise<void> {
-    const subscription = await prisma.subscription.findUnique({
-        where: { tenantId: ACME_BUNDLE_TENANT },
-    });
-    if (!subscription) {
-        throw new Error(
-            `No seeded subscription for ${ACME_BUNDLE_TENANT} — run seedSubscriptions first.`,
-        );
+/** The published v1 of each add-on in `bundleKeys` that `subscriptionId` has no booking of, cancelled or not. */
+async function addOnsNotYetBooked(
+    prisma: PrismaClient,
+    subscriptionId: string,
+    bundleKeys: readonly string[],
+): Promise<string[]> {
+    const versionIds: string[] = [];
+    for (const bundleKey of bundleKeys) {
+        const bundle = await prisma.bundle.findUnique({ where: { bundleKey } });
+        const version = bundle
+            ? await prisma.bundleVersion.findUnique({
+                  where: { bundleId_version: { bundleId: bundle.id, version: 1 } },
+              })
+            : null;
+        if (!version) {
+            throw new Error(`No seeded ${bundleKey} BundleVersion v1 — run seedBundles first.`);
+        }
+        const booked = await prisma.subscriptionBundle.findFirst({
+            where: { subscriptionId, bundleVersionId: version.id },
+        });
+        if (!booked) versionIds.push(version.id);
     }
-    const bundle = await prisma.bundle.findUnique({
-        where: { bundleKey: ACME_BUNDLE_KEY },
-    });
-    const bundleVersion = bundle
-        ? await prisma.bundleVersion.findUnique({
-              where: { bundleId_version: { bundleId: bundle.id, version: 1 } },
-          })
-        : null;
-    if (!bundleVersion) {
-        throw new Error(`No seeded ${ACME_BUNDLE_KEY} BundleVersion v1 — run seedBundles first.`);
-    }
-    await prisma.subscriptionBundle.upsert({
-        where: { id: ACME_BUNDLE_BOOKING_ID },
-        create: {
-            id: ACME_BUNDLE_BOOKING_ID,
-            subscriptionId: subscription.id,
-            bundleVersionId: bundleVersion.id,
-            startedAt: new Date(),
-        },
-        update: {
-            subscriptionId: subscription.id,
-            bundleVersionId: bundleVersion.id,
-            canceledAt: null,
-            canceledEffectiveAt: null,
-        },
-    });
+    return versionIds;
 }
 
 async function seedPromoCodes(prisma: PrismaClient): Promise<void> {
-    const admin = await prisma.superAdminUser.findUnique({ where: { email: SUPER_ADMIN.email } });
+    const admin = await prisma.superAdminUser.findUnique({
+        where: { email: DEMO_SUPER_ADMIN.email },
+    });
     const createdById = admin?.id ?? 'seed';
     const now = Date.now();
     for (const spec of PROMO_CODES) {
@@ -722,32 +657,54 @@ async function seedPromoCodes(prisma: PrismaClient): Promise<void> {
     }
 }
 
+/**
+ * Starts the platform from the application's options and activates each seeded
+ * subscription through it (`activateSeededSubscriptions`).
+ */
+async function activateThroughThePlatform(
+    subscriptions: readonly SeededSubscription[],
+): Promise<string[]> {
+    const app = await NestFactory.createApplicationContext(SeedModule, {
+        logger: ['error', 'warn'],
+    });
+    try {
+        return await activateSeededSubscriptions(seedActivationPlatformOf(app), subscriptions);
+    } finally {
+        await app.close();
+    }
+}
+
 async function seed(): Promise<void> {
     const prisma = new PrismaClient();
     try {
         await seedTenants(prisma);
         await seedSubscribers(prisma);
-        await seedSuperAdmin(prisma);
-        const otpauthUri = await seedSuperAdminMfa(prisma);
+        // The installation's sealer, under the key the application opens
+        // the second factor with.
+        const otpauthUri = await seedSuperAdmin(
+            prisma,
+            aesGcmSecretSealer(process.env.SECRET_SEALER_KEY),
+        );
         await seedPlans(prisma);
         await seedBundles(prisma);
         await seedMarketing(prisma);
-        await seedSubscriptions(prisma);
-        await seedSubscriptionBundles(prisma);
+        const subscriptions = await seedSubscriptions(prisma);
         await seedPromoCodes(prisma);
+        const activated = await activateThroughThePlatform(subscriptions);
         const notes = DEMO_TENANTS.reduce((sum, t) => sum + t.notes, 0);
         console.log(
             `seeded ${DEMO_TENANTS.length} tenants, ${notes} notes, ` +
                 `${PLANS.length} plans, ${BUNDLES.length} bundles, ` +
-                `${SUBSCRIPTIONS.length} subscriptions (1 add-on bundle), ` +
+                `${SUBSCRIPTIONS.length} subscriptions (1 add-on bundle; ` +
+                `${activated.length} activated by this run), ` +
                 `${PROMO_CODES.length} promo codes, ` +
                 `${PROMOTIONS.length} promotions, 1 marketing-settings row, ` +
-                `SuperAdmin ${SUPER_ADMIN.email} / ${SUPER_ADMIN.password}`,
+                `SuperAdmin ${DEMO_SUPER_ADMIN.email} / ${DEMO_SUPER_ADMIN.password}`,
         );
         console.log(
             otpauthUri
-                ? `second factor for ${SUPER_ADMIN.email} — add to an authenticator app: ${otpauthUri}`
-                : `second factor for ${SUPER_ADMIN.email} already set up — the authenticator entry from the first seed still applies`,
+                ? `second factor for ${DEMO_SUPER_ADMIN.email} — add to an authenticator app: ${otpauthUri}`
+                : `second factor for ${DEMO_SUPER_ADMIN.email} already set up — the authenticator entry from the first seed still applies`,
         );
     } finally {
         await prisma.$disconnect();

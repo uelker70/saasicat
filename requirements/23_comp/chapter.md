@@ -1365,6 +1365,47 @@ _Tested by:_
 - `examples/notesapp/tests/notesapp-smoke.test.mjs`
     - notesapp platform wiring (smoke)
         - static entitlement resolves the STARTER plan for every tenant
+- `examples/notesapp/tests/the-demo-guard-names-its-caller.test.mjs`
+    - the demo guard
+        - names a tenant's user under `id`, where the platform reads who acted
+        - names the admin app’s caller as the SuperAdmin the seed gives a second factor
+- `examples/notesapp/tests/the-notes-app-cli-marks-its-installation.test.mjs`
+    - the notes app's command line
+        - offers the installation status, marking it, and the doctor — and no other command
+        - runs the platform's checks in the doctor, the installation's mark among them
+    - the notes app's operators
+        - finds the seeded SuperAdmin by its e-mail, under the id its second factor is kept by
+        - knows nobody under an e-mail no SuperAdmin has
+        - says an operator is gone, and since when, rather than leaving it out
+        - holds the role the row names, and no other
+        - refuses a row whose role is no platform role, rather than guessing one
+        - refuses a tenant's users with a sentence, since the notes CLI has no user commands
+    - the seeded SuperAdmin the command line acts as
+        - keeps the operator and its second factor under one id, also for a row seeded under another
+        - stores the second factor sealed with the installation key, as the platform opens it
+        - keeps a second factor the key opens, so an authenticator set up once keeps working
+        - replaces a second factor the key cannot open, which checks no code
+- `examples/notesapp/tests/the-notes-app-issues-invoices.test.mjs`
+    - the notes app's contract freeze source
+        - names the version the subscription is bound to, by its plan
+        - names no version for a tenant without a subscription
+        - prices each active booking in its own rhythm, at the price its plan pays
+        - books nothing for a tenant without a subscription
+        - refuses a booking whose version cannot be found, rather than leaving it out
+    - the notes app's invoice mail
+        - writes the invoice, its subscriber, its file and its size — not the file, not the address
+        - writes a contract's confirmation with each file it attaches
+        - writes a notice about collecting an invoice by its kind and invoice
+    - the notes app with invoices on
+        - passes the start checks of invoicing and composes the invoice run
+- `examples/notesapp/tests/the-seed-activates-its-subscriptions.test.mjs`
+    - the seed's activation of a subscription
+        - books the add-ons in the window, freezes the contract from its start, then charges
+        - leaves a tenant that has a contract alone, so a second run activates nothing
+        - ends the add-ons and the contract of a cancelled subscription where it lands
+        - refuses a subscription without a billing period, and books and freezes nothing
+    - the seed's start of the platform
+        - hands the seed the platform's own add-on booking, contract freeze, contracts and charges
 - `examples/notesapp/tests/the-tenants-export-is-what-the-app-keeps.test.mjs`
     - the notes app's export of a tenant
         - is the tenant, its users and its notes as one JSON file named after it

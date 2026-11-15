@@ -22,6 +22,7 @@ import type {
     AdminAuditListFilter,
     AdminResourcesPort,
     AdminSubscriptionListRow,
+    AdminTenantLookupPort,
     AdminTenantDetail,
     AdminTenantAccessReason,
     AdminTenantDetailEntry,
@@ -75,11 +76,23 @@ interface AdminRequest {
     };
 }
 
+/** The reads only the generic administration asks, which a two-method lookup does not answer. */
+const GENERIC_READS = ['listTenants', 'listUsers', 'listAudit', 'listSubscriptions'] as const;
+type GenericRead = (typeof GENERIC_READS)[number];
+
+function answersEveryRead(port: AdminTenantLookupPort): port is AdminResourcesPort {
+    const candidate: Partial<AdminResourcesPort> = port;
+    return GENERIC_READS.every((read) => typeof candidate[read] === 'function');
+}
+
 @Injectable()
 export class AdminResourcesService {
     constructor(
+        // The full port where the generic administration is mounted; only the
+        // two lookups where the application serves it itself
+        // (`includeController: false`).
         @Inject(ADMIN_RESOURCES_PORT_TOKEN)
-        private readonly resources: AdminResourcesPort,
+        private readonly resources: AdminTenantLookupPort | AdminResourcesPort,
         @Inject(AdminAuditService)
         private readonly audit: AdminAuditService,
         @Inject(TenantAccessService)
@@ -99,10 +112,10 @@ export class AdminResourcesService {
         const filter = askedFor(query);
         const { status, ...rest } = filter;
         const mayAct = mayActFilterOf(status);
-        if (mayAct === undefined)
-            return this.withAccessOf(await this.resources.listTenants(filter));
+        const resources = this.everyRead('listTenants');
+        if (mayAct === undefined) return this.withAccessOf(await resources.listTenants(filter));
         const heldBackTenantIds = await this.access.tenantsHeldBack();
-        const rows = await this.resources.listTenants({ ...rest, mayAct, heldBackTenantIds });
+        const rows = await resources.listTenants({ ...rest, mayAct, heldBackTenantIds });
         // Again on the rows, which changes nothing where the application
         // applied the filter, and keeps a port that ignores it from listing
         // suspended tenants as active.
@@ -142,15 +155,31 @@ export class AdminResourcesService {
     }
 
     listUsers(filter: AdminUserListFilter): Promise<AdminUserListRow[]> {
-        return this.resources.listUsers(filter);
+        return this.everyRead('listUsers').listUsers(filter);
     }
 
     listAudit(filter: AdminAuditListFilter): Promise<AuditEntry[]> {
-        return this.resources.listAudit(filter);
+        return this.everyRead('listAudit').listAudit(filter);
     }
 
     listSubscriptions(): Promise<AdminSubscriptionListRow[]> {
-        return this.resources.listSubscriptions();
+        return this.everyRead('listSubscriptions').listSubscriptions();
+    }
+
+    /**
+     * The full port, for a read only the generic administration asks. Where
+     * the application bound the two lookups alone, nothing of the platform's
+     * calls it — the routes that do are not mounted —, so a call is a
+     * programming error and says so rather than failing on a missing method.
+     */
+    private everyRead(read: GenericRead): AdminResourcesPort {
+        if (answersEveryRead(this.resources)) return this.resources;
+        throw new Error(
+            `AdminResourcesService.${read} reads through an AdminResourcesPort, and the ` +
+                'application bound an AdminTenantLookupPort with its two lookups ' +
+                '(`adminResources.includeController: false`). Serve the read from the ' +
+                "application's own administration, or bind the full port.",
+        );
     }
 
     /**
@@ -285,12 +314,30 @@ function mayActFilterOf(status: string | undefined): boolean | undefined {
     return undefined;
 }
 
-export interface AdminResourcesModuleOptions {
-    resources: ProviderSpec<AdminResourcesPort>;
+interface AdminResourcesModuleCommonOptions {
     guards: Array<Type<CanActivate>>;
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     global?: boolean;
 }
+
+export type AdminResourcesModuleOptions = AdminResourcesModuleCommonOptions &
+    (
+        | {
+              /** Mount the generic tenant, user, audit and subscription routes. Default `true`. */
+              includeController?: true;
+              resources: ProviderSpec<AdminResourcesPort>;
+          }
+        | {
+              /**
+               * The application serves `admin/tenants`, `admin/users`,
+               * `admin/audit` and `admin/subscriptions` itself: the routes are
+               * not mounted, and the service, which the billing pages read
+               * tenants through, needs only the two lookups (`SC-ADM-057`).
+               */
+              includeController: false;
+              resources: ProviderSpec<AdminTenantLookupPort>;
+          }
+    );
 
 function actorFromRequest(request: AdminRequest): AdminActor {
     const userId = request.user?.id ?? request.user?.userId ?? 'unknown';
@@ -384,7 +431,10 @@ export class AdminResourcesModule {
             module: AdminResourcesModule,
             global: options.global ?? false,
             imports: options.imports ?? [],
-            controllers: [buildAdminResourcesController(options.guards)],
+            controllers:
+                options.includeController === false
+                    ? []
+                    : [buildAdminResourcesController(options.guards)],
             providers: [
                 asProvider(ADMIN_RESOURCES_PORT_TOKEN, options.resources),
                 AdminResourcesService,

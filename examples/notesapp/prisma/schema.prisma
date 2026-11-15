@@ -14,8 +14,14 @@
 //   12 (the applied settings and their changes)
 //   13 (Subscriber, its tenants and corrections)
 //   14 (the subscriber's payment method and the gateway events)
+//   15 (the subscriber's account: one charge per contract line and period)
 //   16 (maintenance windows)
 //   17 (what each subscriber was told)
+//   20 (the invoices issued from those charges, and their number range)
+//   22 (each invoice's document, archived and never changed)
+//   23 (the attempts to collect an invoice through its payment gateway)
+//   24 (what the collections brought: payments, credits, refunds, reversals)
+//   26 (the confirmation each contract is due, and its archived file)
 //   27 (a returning customer's subscriber joined into the one it had)
 // The platform blocks below are hand-maintained copies of the fragments, with
 // the consumer relations to Tenant/User enabled. `schema apply` seeds them —
@@ -1177,7 +1183,11 @@ model SubscriptionContract {
     promoCodeSnapshots  Json @default("[]")
     termsSnapshot       Json?
 
-    lineItems ContractLineItem[]
+    lineItems           ContractLineItem[]
+    ledgerEntries       SubscriberLedgerEntry[]
+    invoices            SubscriptionInvoice[]
+    confirmation        ContractConfirmation?
+    confirmationArchive ContractConfirmationArchive?
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -1222,7 +1232,9 @@ model ContractLineItem {
 
     createdAt DateTime @default(now())
 
-    contract SubscriptionContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+    contract      SubscriptionContract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+    ledgerEntries SubscriberLedgerEntry[]
+    invoiceLines  SubscriptionInvoiceLine[]
 
     @@index([contractId, kind])
     @@index([sourceVersionId])
@@ -1510,6 +1522,13 @@ model Subscriber {
     contracts           SubscriptionContract[]
     paymentMethods      SubscriberPaymentMethod[]
     paymentMethodSetups SubscriberPaymentMethodSetup[]
+    ledgerEntries       SubscriberLedgerEntry[]
+    invoices            SubscriptionInvoice[]
+    payments            SubscriberPayment[]
+    credits             SubscriberCredit[]
+    refunds             SubscriberRefund[]
+    reversals           SubscriberReversal[]
+    reconciliationCases SubscriberReconciliationCase[]
     joinedInto          SubscriberJoin?  @relation("SubscriberJoinFrom")
     joinedFrom          SubscriberJoin[] @relation("SubscriberJoinInto")
 
@@ -1813,4 +1832,748 @@ model InstallationMark {
     markedBy   String
 
     @@map("installation_marks")
+}
+
+// =============================================================================
+// SaaS platform Prisma fragment: SubscriberLedgerEntry
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// The subscriber's account: one row per charge that became due, one per
+// contract line and period. The platform derives each charge from the contract
+// in force, the billing windows and the bookings, and writes it once — the
+// unique index below is what makes a second derivation of the same charge a
+// no-op, however many run at the same time. A row is never updated or deleted:
+// a mistake is answered with a counter-entry.
+//
+// A charge is net. The tax is the invoice's, decided by the tax adapter when
+// the charge is invoiced (ADR 0013), so this table records the amount, its
+// currency and the period, and nothing that a later invoice would have to
+// agree with to the cent.
+//
+// The account belongs to the subscriber, not to the tenant, and outlives it
+// (ADR 0012): `tenantId` and `subscriptionId` are kept as values, and the keys
+// that point anywhere point at the subscriber and the contract line, which are
+// kept as long as the documents that need them.
+//
+// `origin` and `source` are text holding a closed set, checked when a row is
+// read (`toSubscriberChargeRecord` in @saasicat/core):
+//   origin: activation | renewal | planChange | bundleBooking | bundleChange | credit | correction
+//           | reductionTakenBack
+//   source: plan | bundle | discount
+//
+// A `correction` is a counter-entry: written only by the cancellation of the
+// invoice its charge stood on, it names that charge, that invoice and the
+// reason, and only that cancellation's replacement invoices it — the invoice
+// run never does. Its `sourceRef` is `<invoiceId>/<chargeId>`, so each
+// correction is an entry of its own under the unique index.
+//
+// Optional: adopt it where `tenantBilling.chargeJournal` is configured, which
+// needs frozen contracts (`contractFreeze`).
+//
+// Contract: @saasicat/core (SubscriberLedgerRepository).
+
+model SubscriberLedgerEntry {
+    id                 String @id @default(uuid())
+    subscriberId       String
+    tenantId           String
+    subscriptionId     String
+    contractId         String
+    contractLineItemId String
+
+    origin String
+    source String
+    // The subscription id for the plan, the booking id for an add-on, the
+    // discount's key — stable across the contracts that replace one another.
+    sourceRef String
+
+    periodStart DateTime
+    periodEnd   DateTime
+
+    currency  String
+    amountNet Decimal @db.Decimal(10, 2)
+
+    bookedAt  DateTime
+    createdAt DateTime @default(now())
+
+    // A correction's three parts, all set on a correction and none on any
+    // other charge (`toSubscriberChargeRecord`). The invoice is a value rather
+    // than a key, so the journal stands without the invoice fragments.
+    correctsChargeId   String?
+    correctedInvoiceId String?
+    correctionReason   String?
+
+    subscriber       Subscriber           @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    contract         SubscriptionContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+    contractLineItem ContractLineItem     @relation(fields: [contractLineItemId], references: [id], onDelete: Restrict)
+    // The lines that invoice it: the invoice it was first issued on, and the
+    // cancellation and replacement of each invoice of that chain.
+    invoiceLines     SubscriptionInvoiceLine[] // see 20-subscription-invoice.prisma
+    // The charge a correction corrects, and the corrections of a charge.
+    corrects         SubscriberLedgerEntry?    @relation("ChargeCorrection", fields: [correctsChargeId], references: [id], onDelete: Restrict)
+    correctedBy      SubscriberLedgerEntry[]   @relation("ChargeCorrection")
+
+    @@unique([subscriptionId, source, sourceRef, periodStart, origin])
+    @@index([subscriberId, bookedAt])
+    @@index([contractLineItemId])
+    @@index([correctsChargeId])
+    @@map("subscriber_ledger_entries")
+}
+
+// =============================================================================
+// SaaS platform Prisma fragment: SubscriptionInvoice
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// The invoices issued from the charge journal (15-subscriber-ledger.prisma):
+// the charges a billing period opens with on one invoice, a charge that arises
+// later on an invoice of its own. An invoice copies everything it states when
+// it is issued — the issuer, the subscriber, the tax treatment the adapter
+// decided, the tax per rate — so a later change leaves it as it was. Nothing
+// updates or deletes an invoice; a correction is a cancellation invoice and its
+// replacement (`SubscriptionInvoiceCancellation`), written together.
+//
+// An invoice and the invoices that correct it are one chain (`SC-PRIC-036`):
+// `chainId` names the invoice it began with — its own id for an invoice issued
+// on the journal's charges — and `chainStep` its step there: 0 that invoice, 1
+// its cancellation, 2 the replacement, 3 the replacement's cancellation and so
+// on. Whatever changes what an invoice of a chain owes or how it is collected —
+// a payment, a reversal, a cancellation, a collection attempt — takes the turn
+// of the chain's first invoice, so two of them never read the same replacement
+// at once.
+//
+// A line invoices one charge, and a charge stands on one line per step of a
+// chain — the invoice it was first issued on, its cancellation, the
+// replacement: the unique (`chargeId`, `chainStep`) is what makes a second run
+// issuing the same charges write nothing, however many run at the same time.
+//
+// The number range is the table `subscription_invoice_numbers`, one row per
+// year holding the last number drawn. An invoice draws its number by raising
+// that row in the transaction that writes the invoice, so an invoice that
+// fails to be written leaves no gap, and two at the same time wait for each
+// other rather than drawing the same number. One installation is the range of
+// one issuer; the number is `<prefix>-<year>-<sequence>`.
+//
+// The days an invoice states — its issue date, its due date, the period its
+// charges cover, a direct debit's collection date — are calendar days in the
+// installation's time zone, kept as `date` columns; `issuedAt` is the instant
+// it was issued.
+//
+// `origin` and `source` on a line are text holding the charge's closed sets,
+// checked when a row is read (`toSubscriptionInvoiceRecord` in @saasicat/core).
+//
+// Optional: adopt it, all five models together, where
+// `tenantBilling.chargeJournal.invoices` is configured, which needs the charge
+// journal.
+//
+// Contract: @saasicat/core (SubscriptionInvoiceRepository).
+
+model SubscriptionInvoice {
+    id             String @id @default(uuid())
+    number         String @unique
+    numberPrefix   String
+    numberYear     Int
+    numberSequence Int
+
+    tenantId       String
+    subscriberId   String
+    subscriptionId String
+    contractId     String
+
+    chainId   String
+    chainStep Int    @default(0)
+
+    issuedAt           DateTime
+    issueDate          DateTime @db.Date
+    dueDate            DateTime @db.Date
+    servicePeriodFrom  DateTime @db.Date
+    servicePeriodUntil DateTime @db.Date
+
+    // The payment method it is collected with, copied when it was issued —
+    // its id, account, type and masked details, and a direct debit's mandate
+    // reference; null where it is not collected. A direct debit's collection
+    // date, which the invoice announces and falls due on; null otherwise.
+    payment        Json?
+    collectionDate DateTime? @db.Date
+
+    currency        String
+    // The parties as the invoice names them, copied when it was issued.
+    issuerParty     Json
+    subscriberParty Json
+    // The footer lines config/saas.yaml named on the issue date (SC-PRIC-093).
+    footer          Json    @default("[]")
+    // The adapter's treatment, with its name and version, and the tax per rate.
+    taxTreatment    Json
+    taxes           Json
+    totalNet        Decimal @db.Decimal(12, 2)
+    totalTax        Decimal @db.Decimal(12, 2)
+    totalGross      Decimal @db.Decimal(12, 2)
+    // What a replacement took over, when it was issued, of what was paid for
+    // the invoice it replaces (`SC-PRIC-095`); its document states it as paid.
+    // Zero on every other invoice.
+    paidOnIssue     Decimal @default(0) @db.Decimal(12, 2)
+
+    createdAt DateTime @default(now())
+
+    subscriber Subscriber                   @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    contract   SubscriptionContract         @relation(fields: [contractId], references: [id], onDelete: Restrict)
+    lines      SubscriptionInvoiceLine[]
+    document    SubscriptionInvoiceDocument?
+    archive     SubscriptionInvoiceArchive?
+    collections SubscriptionInvoiceCollection[]
+    payments    SubscriberPayment[]             // see 24-subscriber-payments.prisma
+    settlements SubscriptionInvoiceSettlement[]
+    credit      SubscriberCredit?
+
+    chainStart    SubscriptionInvoice              @relation("SubscriptionInvoiceChain", fields: [chainId], references: [id], onDelete: Restrict)
+    chainInvoices SubscriptionInvoice[]            @relation("SubscriptionInvoiceChain")
+    cancelledBy   SubscriptionInvoiceCancellation? @relation("CancelledInvoice")
+    cancels       SubscriptionInvoiceCancellation? @relation("CancellationInvoice")
+    replaces      SubscriptionInvoiceCancellation? @relation("ReplacementInvoice")
+
+    @@unique([numberYear, numberSequence])
+    @@index([subscriberId, issuedAt])
+    @@index([subscriptionId])
+    @@index([chainId])
+    @@map("subscription_invoices")
+}
+
+model SubscriptionInvoiceLine {
+    id                 String @id @default(uuid())
+    invoiceId          String
+    position           Int
+    chargeId           String
+    contractLineItemId String
+    // The step of its invoice in the chain.
+    chainStep          Int    @default(0)
+    // On a cancellation, the position of the line it cancels; on a replacement,
+    // of the line it replaces, on the invoice the cancellation names
+    // (`SC-AUD-013`). Null on an invoice's own line.
+    correctedPosition  Int?
+    // On a correction's line, the position on this same invoice of the line
+    // whose charge it corrects, so the document can say which (`SC-AUD-013`).
+    // Null on every other line; `constraints.postgres.sql` holds which.
+    correctsPosition   Int?
+
+    title  String
+    origin String
+    source String
+
+    periodFrom  DateTime @db.Date
+    periodUntil DateTime @db.Date
+
+    amountNet Decimal @db.Decimal(10, 2)
+    taxRate   Decimal @db.Decimal(5, 2)
+
+    invoice          SubscriptionInvoice   @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+    charge           SubscriberLedgerEntry @relation(fields: [chargeId], references: [id], onDelete: Restrict)
+    contractLineItem ContractLineItem      @relation(fields: [contractLineItemId], references: [id], onDelete: Restrict)
+    corrects         SubscriptionInvoiceLine?  @relation("LineCorrection", fields: [invoiceId, correctsPosition], references: [invoiceId, position], onDelete: Restrict, onUpdate: Restrict)
+    correctedBy      SubscriptionInvoiceLine[] @relation("LineCorrection")
+
+    @@unique([chargeId, chainStep])
+    @@unique([invoiceId, position])
+    @@index([contractLineItemId])
+    @@map("subscription_invoice_lines")
+}
+
+// A cancellation (`SC-PRIC-095`): the invoice it cancels, the cancellation
+// invoice that does, and the replacement for what is still owed — none where
+// nothing is —, written in one transaction with both invoices and the moving
+// of what was paid (24-subscriber-payments.prisma). The operator's reason, the
+// subscriber's details corrected for the replacement — each with the value it
+// replaces —, an address to deliver to where the subscriber's record holds no
+// invoice email (`SC-PRIC-094`), who cancelled and when. An invoice is
+// cancelled once: the unique `cancelledInvoiceId` refuses a second.
+model SubscriptionInvoiceCancellation {
+    id                    String   @id @default(uuid())
+    cancelledInvoiceId    String   @unique
+    cancellationInvoiceId String   @unique
+    replacementInvoiceId  String?  @unique
+    reason                String
+    correctedSubscriber   Json?
+    deliverTo             String?
+    cancelledBy           String
+    cancelledAt           DateTime
+
+    cancelledInvoice    SubscriptionInvoice             @relation("CancelledInvoice", fields: [cancelledInvoiceId], references: [id], onDelete: Restrict)
+    cancellationInvoice SubscriptionInvoice             @relation("CancellationInvoice", fields: [cancellationInvoiceId], references: [id], onDelete: Restrict)
+    replacementInvoice  SubscriptionInvoice?            @relation("ReplacementInvoice", fields: [replacementInvoiceId], references: [id], onDelete: Restrict)
+    settlements         SubscriptionInvoiceSettlement[]
+    credits             SubscriberCredit[]
+
+    @@map("subscription_invoice_cancellations")
+}
+
+// Where an invoice's document stands. The checksum is recorded once, before
+// the file is archived, and every later download is checked against it; the
+// archive's confirmation and the delivery are set once each. A rendering with
+// another checksum is refused rather than recorded over the first. A run claims
+// the mail before it sends it, so of several instances one does.
+model SubscriptionInvoiceDocument {
+    invoiceId         String    @id
+    // SHA-256 of the rendered file, 64 lower-case hex digits.
+    checksum          String
+    mediaType         String
+    fileName          String
+    // In bytes.
+    size              Int
+    renderedAt        DateTime
+    // Null while the invoice waits for its document.
+    archivedAt        DateTime?
+    // When the run mailing it took it on; null while no run holds it.
+    deliveryClaimedAt DateTime?
+    // Null until the invoice is handed to the mail.
+    deliveredAt       DateTime?
+    deliveredTo       String?
+
+    invoice SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+    @@index([archivedAt])
+    @@map("subscription_invoice_documents")
+}
+
+model SubscriptionInvoiceNumber {
+    // The year the numbers count in; the range restarts at 1 each year.
+    year Int @id
+    // The last number drawn in that year.
+    last Int
+
+    @@map("subscription_invoice_numbers")
+}
+
+// =============================================================================
+// SaaSiCat platform Prisma fragment: SubscriptionInvoiceArchive
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// The database archive of the invoices' documents (20-subscription-invoice.prisma):
+// one file per invoice, under its invoice, with the checksum recorded when it
+// was rendered. A row is written once and never changed: the migration
+// `1.0-an-invoice-document-is-archived.postgres.sql` installs a trigger that
+// refuses every UPDATE and DELETE, whoever asks. Keep it, with its database
+// backups, as long as the law asks — in Germany 8 years from the end of the
+// calendar year an invoice was issued in — and in the European Union.
+//
+// Optional: adopt it where the invoices' documents are kept in the database,
+// as `persistence.entitlement.subscriptionInvoiceArchive` keeps them. An
+// installation that archives elsewhere, such as object storage with a
+// retention lock, binds its own `InvoiceArchivePort` instead.
+//
+// Contract: @saasicat/core (InvoiceArchivePort).
+
+model SubscriptionInvoiceArchive {
+    invoiceId  String   @id
+    // SHA-256 of `content`, 64 lower-case hex digits.
+    checksum   String
+    mediaType  String
+    fileName   String
+    content    Bytes
+    archivedAt DateTime
+
+    invoice SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+    @@map("subscription_invoice_archive")
+}
+
+// =============================================================================
+// SaaSiCat platform Prisma fragment: SubscriptionInvoiceCollection
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// The attempts to collect an invoice (20-subscription-invoice.prisma) through
+// its payment gateway: each request the platform makes, with everything it
+// carries, and what became of it. An attempt is written as `SUBMITTED` before
+// its request leaves, under the key `saasicat:collect:<invoice>:<attempt>`, so
+// a request whose answer was lost is repeated as the same request, after the
+// gateway was asked what became of it. `heldAt` is when a run last took it on;
+// another run leaves it alone until that is old enough.
+//
+// An attempt after a failure, or with a payment method that replaced the one
+// the invoice named, is planned first: `SCHEDULED` for `collectOn`, with
+// nothing sent and neither `submittedAt` nor `heldAt`. A planned direct debit
+// is announced to the subscriber before it is collected, and `announcedAt`
+// records when; a planned attempt whose payment method is no longer in use is
+// `WITHDRAWN`. A succeeded attempt whose payment a reversal took back, opening
+// its invoice again, is `REVERSED` (24-subscriber-payments.prisma), and the
+// invoice is collected anew only with another payment method. `followedUpAt`
+// records that what follows a failure or a reversal was decided.
+//
+// An invoice has at most one attempt that is open (`SCHEDULED`, `SUBMITTED`,
+// `PENDING`), and none after one succeeded and stands: a partial unique index in
+// sql/constraints.postgres.sql, which the Prisma DSL cannot express. `status`,
+// `paymentMethodType` and `failureReason` are text holding closed sets, checked
+// when a row is read (`toInvoiceCollectionRecord` in @saasicat/core).
+//
+// Optional: adopt it where invoices are collected through a gateway —
+// `tenantBilling.chargeJournal.invoices.collections` — which needs the
+// invoices and the payment methods (14-payments.prisma).
+//
+// Contract: @saasicat/core (InvoiceCollectionRepository).
+
+model SubscriptionInvoiceCollection {
+    id                String @id @default(uuid())
+    invoiceId         String
+    // From 1, per invoice.
+    attempt           Int
+    attemptKey        String @unique
+
+    // The request as it left, so a repeat is the same request.
+    gatewayAccount    String
+    paymentMethodId   String
+    paymentMethodType String // card | sepa_debit
+    customerRef       String
+    paymentMethodRef  String
+    invoiceNumber     String
+    amount            Decimal @db.Decimal(12, 2)
+    currency          String
+
+    status        String // SCHEDULED | SUBMITTED | PENDING | SUCCEEDED | FAILED | WITHDRAWN | REVERSED
+    // The gateway's reference to what it created for the attempt.
+    paymentRef    String?
+    failureReason String?
+    // The gateway's own code for the failure.
+    failureCode   String?
+
+    submittedAt  DateTime?
+    heldAt       DateTime?
+    resolvedAt   DateTime?
+    // The day a planned attempt is collected from.
+    collectOn    DateTime? @db.Date
+    announcedAt  DateTime?
+    followedUpAt DateTime?
+
+    invoice  SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+    payments SubscriberPayment[] // see 24-subscriber-payments.prisma
+
+    @@unique([invoiceId, attempt])
+    @@index([status, heldAt])
+    @@map("subscription_invoice_collections")
+}
+
+// =============================================================================
+// SaaSiCat platform Prisma fragment: SubscriberPayment, SubscriptionInvoiceSettlement,
+// SubscriberCredit, SubscriberCreditEntry, SubscriberRefund, SubscriberReversal,
+// SubscriberReconciliationCase
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// What money moved between a subscriber and the operator. A payment is what
+// the gateway confirmed for an invoice's collection attempt
+// (23-subscription-invoice-collection.prisma), recorded once by its gateway
+// account and the gateway's reference however often it is reported. What it
+// settles of its invoice is a settlement of its own; what it brought beyond
+// that, and an invoice whose total is negative, is a credit the subscriber is
+// owed. A credit is never offset against a later invoice: the operator pays it
+// out, by a refund in the gateway — recorded when the gateway reports it — or
+// by a payout outside it, each an entry against the credit. A refund that
+// fails or is canceled gives back what it paid out, as an entry of its own.
+//
+// A cancellation (20-subscription-invoice.prisma) moves what each payment
+// settled of the cancelled invoice onto the replacement, as two settlements of
+// that payment — `MOVED_OUT` of the one, `MOVED_IN` of the other —, the oldest
+// payment first; what the replacement does not take is a credit that names both
+// the payment and the cancellation, so a later reversal of the payment finds
+// it as its own (`SC-PRIC-095`, `SC-PRIC-084`).
+//
+// A reversal — a direct debit the bank returned, a chargeback — takes back
+// what its payment brought, the credit first: entries against the credit for
+// its open part, and settlements that open the invoice again for the rest. The
+// gateway giving it back writes the same entries the other way. What matches
+// nothing — a refund no credit takes, a reversal that meets a credit already
+// paid out — is a case for the operator to reconcile, closed with a note.
+//
+// Nothing here is updated but a refund's status, what a reversal withdrew and
+// was given back, and a case's closing: every other change is a new row.
+// `kind` and `status` are text holding closed sets, checked when a row is read
+// (`toSubscriberCreditRecord` and the other readers in @saasicat/core), and so
+// is a credit's origin — a payment, an invoice, a reversal, or a payment and
+// the cancellation that moved it. A payment leaves at most one credit of its
+// own and one per cancellation: two partial unique indexes in
+// sql/constraints.postgres.sql, which the Prisma DSL cannot express.
+//
+// Optional, as one: adopt all seven where invoices are collected through a
+// gateway — `tenantBilling.chargeJournal.invoices.payments` — beside the
+// collection attempts, which every payment points at.
+//
+// Contract: @saasicat/core (SubscriberPaymentRepository).
+
+model SubscriberPayment {
+    id             String   @id @default(uuid())
+    subscriberId   String
+    // The tenant the invoice was for, as a trace; no relation to it.
+    tenantId       String
+    invoiceId      String
+    collectionId   String
+    gatewayAccount String
+    provider       String
+    // The gateway's own reference to the payment, unique within its account.
+    gatewayRef     String
+    amount         Decimal  @db.Decimal(12, 2)
+    currency       String
+    recordedAt     DateTime @default(now())
+
+    subscriber  Subscriber                    @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    invoice     SubscriptionInvoice           @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+    collection  SubscriptionInvoiceCollection @relation(fields: [collectionId], references: [id], onDelete: Restrict)
+    settlements SubscriptionInvoiceSettlement[]
+    credits     SubscriberCredit[]
+    refunds     SubscriberRefund[]
+    reversals   SubscriberReversal[]
+    cases       SubscriberReconciliationCase[]
+
+    @@unique([gatewayAccount, gatewayRef])
+    @@index([invoiceId])
+    @@index([subscriberId])
+    @@map("subscriber_payments")
+}
+
+model SubscriptionInvoiceSettlement {
+    id         String   @id @default(uuid())
+    invoiceId  String
+    paymentId  String
+    kind       String // PAYMENT | REVERSAL | REINSTATEMENT | MOVED_OUT | MOVED_IN
+    // Positive: what a PAYMENT, a REINSTATEMENT or a MOVED_IN takes off what
+    // the invoice owes, what a REVERSAL or a MOVED_OUT adds back to it.
+    amount     Decimal  @db.Decimal(12, 2)
+    // The reversal, for a REVERSAL and its REINSTATEMENT.
+    reversalId String?
+    // The cancellation that moved it, for a MOVED_OUT and a MOVED_IN.
+    cancellationId String?
+    recordedAt DateTime @default(now())
+
+    invoice      SubscriptionInvoice              @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+    payment      SubscriberPayment                @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+    reversal     SubscriberReversal?              @relation(fields: [reversalId], references: [id], onDelete: Restrict)
+    cancellation SubscriptionInvoiceCancellation? @relation(fields: [cancellationId], references: [id], onDelete: Restrict)
+
+    @@index([invoiceId])
+    @@index([paymentId])
+    @@index([reversalId])
+    @@index([cancellationId])
+    @@map("subscription_invoice_settlements")
+}
+
+model SubscriberCredit {
+    id              String   @id @default(uuid())
+    subscriberId    String
+    // The tenant it arose in, as a trace; no relation to it.
+    tenantId        String
+    // What the subscriber is owed, positive.
+    amount          Decimal  @db.Decimal(12, 2)
+    currency        String
+    // The payment that brought more than its invoice owed, the invoice whose
+    // total is negative, or the reversal the gateway gave back beyond what the
+    // invoices it opened still owed — a reversal can be given back in parts,
+    // so it can leave more than one. A credit a cancellation left names the
+    // payment whose share the replacement did not take, and the cancellation.
+    originPaymentId      String?
+    originInvoiceId      String?  @unique
+    originReversalId     String?
+    originCancellationId String?
+    createdAt            DateTime @default(now())
+
+    subscriber         Subscriber                       @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    originPayment      SubscriberPayment?               @relation(fields: [originPaymentId], references: [id], onDelete: Restrict)
+    originInvoice      SubscriptionInvoice?             @relation(fields: [originInvoiceId], references: [id], onDelete: Restrict)
+    originReversal     SubscriberReversal?              @relation("ReversalCredits", fields: [originReversalId], references: [id], onDelete: Restrict)
+    originCancellation SubscriptionInvoiceCancellation? @relation(fields: [originCancellationId], references: [id], onDelete: Restrict)
+    entries            SubscriberCreditEntry[]
+
+    @@index([subscriberId, createdAt])
+    @@index([originPaymentId])
+    @@index([originReversalId])
+    @@unique([originCancellationId, originPaymentId])
+    @@map("subscriber_credits")
+}
+
+model SubscriberCreditEntry {
+    id         String    @id @default(uuid())
+    creditId   String
+    kind       String // REFUND | REFUND_FAILED | PAYOUT | REVERSAL | REVERSAL_TAKEN_BACK
+    // Positive: what a REFUND, a PAYOUT or a REVERSAL pays out, what a
+    // REFUND_FAILED or a REVERSAL_TAKEN_BACK gives back.
+    amount     Decimal   @db.Decimal(12, 2)
+    // The refund, for a REFUND and its REFUND_FAILED.
+    refundId   String?
+    // The reversal, for a REVERSAL and its REVERSAL_TAKEN_BACK.
+    reversalId String?
+    // A payout's: the transfer's reference, the day it left, who recorded it.
+    reference  String?
+    paidOn     DateTime? @db.Date
+    recordedBy String?
+    note       String?
+    recordedAt DateTime  @default(now())
+
+    credit   SubscriberCredit    @relation(fields: [creditId], references: [id], onDelete: Restrict)
+    refund   SubscriberRefund?   @relation(fields: [refundId], references: [id], onDelete: Restrict)
+    reversal SubscriberReversal? @relation(fields: [reversalId], references: [id], onDelete: Restrict)
+
+    @@unique([refundId, creditId, kind])
+    @@index([creditId])
+    @@index([reversalId])
+    @@map("subscriber_credit_entries")
+}
+
+model SubscriberRefund {
+    id             String    @id @default(uuid())
+    subscriberId   String
+    paymentId      String
+    gatewayAccount String
+    // The gateway's own reference to the refund, unique within its account.
+    gatewayRef     String
+    amount         Decimal   @db.Decimal(12, 2)
+    currency       String
+    status         String // PENDING | SUCCEEDED | FAILED | CANCELED
+    recordedAt     DateTime  @default(now())
+    // When it was recorded as failed or canceled.
+    endedAt        DateTime?
+
+    subscriber Subscriber                     @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    payment    SubscriberPayment              @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+    entries    SubscriberCreditEntry[]
+    cases      SubscriberReconciliationCase[]
+
+    @@unique([gatewayAccount, gatewayRef])
+    @@index([paymentId])
+    @@map("subscriber_refunds")
+}
+
+model SubscriberReversal {
+    id                String    @id @default(uuid())
+    subscriberId      String
+    // The tenant the payment's invoice was for, as a trace; no relation to it.
+    tenantId          String
+    paymentId         String
+    gatewayAccount    String
+    // The gateway's own reference to it, such as a dispute's, unique within its account.
+    gatewayRef        String
+    // What the gateway withdrew so far, positive.
+    amount            Decimal   @db.Decimal(12, 2)
+    currency          String
+    // The part of `amount` taken from the credit the payment left, open or paid out.
+    fromCredit        Decimal   @db.Decimal(12, 2)
+    // What the gateway gave back of `amount` so far, a dispute won.
+    reinstated        Decimal   @db.Decimal(12, 2)
+    // The part of `reinstated` that covered the reversal's cases, written as it is given back.
+    reinstatedToCases Decimal   @default(0) @db.Decimal(12, 2)
+    recordedAt        DateTime  @default(now())
+    // When the gateway last gave something back.
+    reinstatedAt      DateTime?
+
+    subscriber  Subscriber                     @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    payment     SubscriberPayment              @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+    settlements SubscriptionInvoiceSettlement[]
+    entries     SubscriberCreditEntry[]
+    credits     SubscriberCredit[]             @relation("ReversalCredits")
+    cases       SubscriberReconciliationCase[]
+
+    @@unique([gatewayAccount, gatewayRef])
+    @@index([paymentId])
+    @@map("subscriber_reversals")
+}
+
+model SubscriberReconciliationCase {
+    id             String    @id @default(uuid())
+    subscriberId   String
+    // The tenant the payment's invoice was for, as a trace; no relation to it.
+    tenantId       String
+    kind           String // REFUND_UNMATCHED | REVERSAL_UNMATCHED
+    // What matched nothing, positive.
+    amount         Decimal   @db.Decimal(12, 2)
+    currency       String
+    paymentId      String
+    // Exactly what its kind is about: the refund, or the reversal.
+    refundId       String?
+    reversalId     String?
+    gatewayAccount String
+    // The refund's or the reversal's reference at the gateway.
+    gatewayRef     String
+    recordedAt     DateTime  @default(now())
+    // Closed with a note; `closedBy` is empty where SaaSiCat closed it.
+    closedAt       DateTime?
+    closedBy       String?
+    note           String?
+
+    subscriber Subscriber          @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    payment    SubscriberPayment   @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+    refund     SubscriberRefund?   @relation(fields: [refundId], references: [id], onDelete: Restrict)
+    reversal   SubscriberReversal? @relation(fields: [reversalId], references: [id], onDelete: Restrict)
+
+    @@unique([refundId])
+    @@index([reversalId])
+    @@index([closedAt, recordedAt])
+    @@index([subscriberId, closedAt])
+    @@map("subscriber_reconciliation_cases")
+}
+
+// =============================================================================
+// SaaSiCat platform Prisma fragment: ContractConfirmation, ContractConfirmationArchive
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// What a subscriber keeps of the contract they are bound by (SC-AUD-016): a
+// confirmation per contract the platform writes once confirmations exist
+// (08-subscription-contract.prisma, `confirmationDue`), rendered from the
+// contract, archived and mailed to the invoice email with the terms of the
+// version the contract records.
+//
+// `ContractConfirmation` is where it stands: the checksum is recorded once,
+// before the file is archived, and every later download is checked against it;
+// the archive's confirmation and the delivery are set once each. A run claims
+// the mail before it sends it, so of several instances one does.
+//
+// `ContractConfirmationArchive` keeps the file, written once and never changed:
+// the migration `1.0-a-contract-confirmation-is-archived.postgres.sql`, run
+// after `db push`, installs triggers that refuse every UPDATE, DELETE and
+// TRUNCATE, whoever asks. Keep it, with its database backups, for as long as
+// the contract is kept.
+//
+// Required with invoicing (`tenantBilling.chargeJournal.invoices`), whose start
+// refuses invoices without a confirmation repository and archive.
+//
+// Contract: @saasicat/core (ContractConfirmationRepository,
+// ContractConfirmationArchivePort).
+
+model ContractConfirmation {
+    contractId        String    @id
+    // SHA-256 of the rendered file, 64 lower-case hex digits.
+    checksum          String
+    mediaType         String
+    fileName          String
+    // In bytes.
+    size              Int
+    renderedAt        DateTime
+    // Null while the contract waits for its confirmation.
+    archivedAt        DateTime?
+    // When the run mailing it took it on; null while no run holds it.
+    deliveryClaimedAt DateTime?
+    // Null until the confirmation is handed to the mail.
+    deliveredAt       DateTime?
+    deliveredTo       String?
+
+    contract SubscriptionContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+
+    @@index([archivedAt])
+    @@map("contract_confirmations")
+}
+
+model ContractConfirmationArchive {
+    contractId String   @id
+    // SHA-256 of `content`, 64 lower-case hex digits.
+    checksum   String
+    mediaType  String
+    fileName   String
+    content    Bytes
+    archivedAt DateTime
+
+    contract SubscriptionContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+
+    @@map("contract_confirmation_archive")
 }

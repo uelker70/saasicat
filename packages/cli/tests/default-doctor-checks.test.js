@@ -51,6 +51,15 @@ describe('PlanCatalogDoctorCheck', () => {
         assert.match(r.message, /2 plan\(s\), 1 feature/);
         assert.deepEqual(r.details.planIds, ['starter', 'pro']);
     });
+
+    test('names no feature count where the catalogue lists no features, since discovery supplies them', async () => {
+        const check = new PlanCatalogDoctorCheck(
+            givenPlanCatalogSource({ app: { name: 'App' }, plans: [{ id: 'starter' }] }),
+        );
+        const r = await check.run();
+        assert.equal(r.severity, 'ok');
+        assert.equal(r.message, '1 plan(s) loaded.');
+    });
 });
 
 describe('DiscoverySnapshotDoctorCheck', () => {

@@ -23,7 +23,9 @@ import { isSaaSiCatPublicRoute } from '@saasicat/nest/platform';
  * role gets 403 on every one of them.
  *
  * It fills `request.user` with the shape the platform guards read by
- * default (`request.tenantId ?? request.user?.tenantId` + `platformRole`).
+ * default (`request.tenantId ?? request.user?.tenantId` + `platformRole`), and
+ * the user under `id`, where every platform route that records who acted reads
+ * it — a tenant's plan change is refused without one.
  * A real app replaces this with its JWT guard — nothing else changes.
  *
  * Registered as a global guard, it lets the routes SaaSiCat marks public
@@ -50,7 +52,7 @@ export class DemoAuthGuard implements CanActivate {
         const request = context.switchToHttp().getRequest<{
             headers: Record<string, string | string[] | undefined>;
             user?: {
-                userId: string;
+                id: string;
                 tenantId: string;
                 platformRole?: string;
                 email: string;
@@ -65,7 +67,7 @@ export class DemoAuthGuard implements CanActivate {
         }
         const platformRole = firstHeader(request.headers['x-demo-role']);
         request.user = {
-            userId: `demo-user-${tenantId}`,
+            id: `demo-user-${tenantId}`,
             tenantId,
             platformRole,
             email:

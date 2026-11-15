@@ -99,11 +99,18 @@ import { PrismaUserPortAdapter } from './adapters/prisma-user-port';
         PilotCreateCommand,
         PilotGrantCommand,
         DiscountAddCommand,
+        // Platform flow wrappers, each family with its parent command:
+        AdminCommands, // `admin`
         AdminMfaSetupCommand, // wraps MfaSetupFlow
-        AdminWhoAmICommand, // wraps WhoAmIFlow
+        AdminWhoamiCommand, // wraps WhoAmIFlow
+        AuditCommands, // `audit`
         AuditTailCommand, // wraps AuditTailFlow
-        DoctorCommand, // wraps DoctorFlow
-        ManifestCommand, // wraps ManifestCliFlow (sub-commands)
+        DoctorCommands, // wraps DoctorFlow
+        ManifestCommands, // `manifest`
+        ManifestDumpCommand, // wraps ManifestCliFlow.dump
+        ManifestHashCommand, // wraps ManifestCliFlow.hash
+        ManifestValidateCommand, // wraps ManifestCliFlow.validate
+        ManifestCheckCommand, // wraps ManifestCliFlow.check
     ],
 })
 export class CliModule {}

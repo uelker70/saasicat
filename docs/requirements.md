@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 56      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 57      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 703 entries: 🟢 608 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
 🔵 57 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -233,7 +233,7 @@ Of 703 entries: 🟢 608 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 703 requirements. Do not edit by hand:
+Generated from `requirements/` — 704 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -19438,6 +19438,35 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-ADM-057 — An application with its own administration gets the operator's billing pages
+
+🟢 An application that serves its own pages for tenants, users,
+the audit log and subscriptions turns the platform's administration on without its generic
+routes, and keeps every route of its own. The operator's billing pages — the invoice register
+and documents, the cancellation, the contracts, the subscriber's record and account, the open
+items, the credits and the reconciliation — are served all the same, and ask the application
+for no more than finding a tenant by its identifier and by its slug.
+
+_Source:_ #338 (decided 2026-11-14, autohauspro#883 D8)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-application-with-its-own-administration-gets-the-billing-pages.test.js`
+    - an application with its own administration gets the billing pages
+        - the switch takes away the seven generic routes and keeps every other one
+        - without the switch, the seven generic routes are mounted
+        - the application's own GET admin/tenants starts beside them on Fastify
+        - with the platform's controller mounted, the same route refuses to start on Fastify
+        - a full port with the switch starts as well
+        - the contracts read their tenants through the application's lookup
+        - the tenant's subscriber is found through the application's lookup by slug
+        - a generic read asked of the two-method lookup says what it needs
+        - without a lookup and without the bundle, the start is refused naming the two methods
+
+<!-- END proof -->
+
 ## 15. Working in the interface
 
 The administration is an application SaaSiCat hands over; the tenant-facing pieces are guests in
@@ -22194,6 +22223,8 @@ _Tested by:_
         - error when no plans
         - error when the catalogue cannot be read
         - ok with plans + details contain planIds
+        - names no feature count where the catalogue lists no features, since discovery supplies
+          them
     - DiscoverySnapshotDoctorCheck
         - warning when snapshot empty
         - ok with content
@@ -28170,6 +28201,47 @@ _Tested by:_
 - `examples/notesapp/tests/notesapp-smoke.test.mjs`
     - notesapp platform wiring (smoke)
         - static entitlement resolves the STARTER plan for every tenant
+- `examples/notesapp/tests/the-demo-guard-names-its-caller.test.mjs`
+    - the demo guard
+        - names a tenant's user under `id`, where the platform reads who acted
+        - names the admin app’s caller as the SuperAdmin the seed gives a second factor
+- `examples/notesapp/tests/the-notes-app-cli-marks-its-installation.test.mjs`
+    - the notes app's command line
+        - offers the installation status, marking it, and the doctor — and no other command
+        - runs the platform's checks in the doctor, the installation's mark among them
+    - the notes app's operators
+        - finds the seeded SuperAdmin by its e-mail, under the id its second factor is kept by
+        - knows nobody under an e-mail no SuperAdmin has
+        - says an operator is gone, and since when, rather than leaving it out
+        - holds the role the row names, and no other
+        - refuses a row whose role is no platform role, rather than guessing one
+        - refuses a tenant's users with a sentence, since the notes CLI has no user commands
+    - the seeded SuperAdmin the command line acts as
+        - keeps the operator and its second factor under one id, also for a row seeded under another
+        - stores the second factor sealed with the installation key, as the platform opens it
+        - keeps a second factor the key opens, so an authenticator set up once keeps working
+        - replaces a second factor the key cannot open, which checks no code
+- `examples/notesapp/tests/the-notes-app-issues-invoices.test.mjs`
+    - the notes app's contract freeze source
+        - names the version the subscription is bound to, by its plan
+        - names no version for a tenant without a subscription
+        - prices each active booking in its own rhythm, at the price its plan pays
+        - books nothing for a tenant without a subscription
+        - refuses a booking whose version cannot be found, rather than leaving it out
+    - the notes app's invoice mail
+        - writes the invoice, its subscriber, its file and its size — not the file, not the address
+        - writes a contract's confirmation with each file it attaches
+        - writes a notice about collecting an invoice by its kind and invoice
+    - the notes app with invoices on
+        - passes the start checks of invoicing and composes the invoice run
+- `examples/notesapp/tests/the-seed-activates-its-subscriptions.test.mjs`
+    - the seed's activation of a subscription
+        - books the add-ons in the window, freezes the contract from its start, then charges
+        - leaves a tenant that has a contract alone, so a second run activates nothing
+        - ends the add-ons and the contract of a cancelled subscription where it lands
+        - refuses a subscription without a billing period, and books and freezes nothing
+    - the seed's start of the platform
+        - hands the seed the platform's own add-on booking, contract freeze, contracts and charges
 - `examples/notesapp/tests/the-tenants-export-is-what-the-app-keeps.test.mjs`
     - the notes app's export of a tenant
         - is the tenant, its users and its notes as one JSON file named after it

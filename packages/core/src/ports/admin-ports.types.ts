@@ -314,13 +314,13 @@ export interface AdminTenantStateResult {
 }
 
 /**
- * One narrow backend boundary for the generic Tenant/User/Audit/Subscription
- * SuperAdmin pages. The canonical Prisma adapter implements it out of the box;
- * custom schemas replace only this port, while controllers and DTOs stay in
- * SaaSiCat.
+ * The two ways the operator's billing pages find a tenant: by its slug and by
+ * its identifier. An application that serves its own pages for tenants, users,
+ * the audit log and subscriptions implements only this, and turns the
+ * platform's administration on without its generic routes (`SC-ADM-057`).
  */
-export interface AdminResourcesPort {
-    listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]>;
+export interface AdminTenantLookupPort {
+    /** The tenant with this slug, or `null` when the application has none. */
     getTenantDetail(slug: string): Promise<AdminTenantDetail | null>;
     /**
      * The tenants among `tenantIds` the application still has, soft-deleted
@@ -329,6 +329,16 @@ export interface AdminResourcesPort {
      * left out, and the record says so rather than guessing (`SC-ADM-036`).
      */
     findTenantsByIds(tenantIds: readonly string[]): Promise<AdminTenantSummary[]>;
+}
+
+/**
+ * One narrow backend boundary for the generic Tenant/User/Audit/Subscription
+ * SuperAdmin pages. The canonical Prisma adapter implements it out of the box;
+ * custom schemas replace only this port, while controllers and DTOs stay in
+ * SaaSiCat.
+ */
+export interface AdminResourcesPort extends AdminTenantLookupPort {
+    listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]>;
     listUsers(filter: AdminUserListFilter): Promise<AdminUserListRow[]>;
     listAudit(filter: AdminAuditListFilter): Promise<AuditEntry[]>;
     listSubscriptions(): Promise<AdminSubscriptionListRow[]>;

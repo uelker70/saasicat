@@ -46,7 +46,10 @@ services:
             # a demo (see .env.example).
             SECRET_SEALER_KEY: ZGVtby1rZXktZm9yLXRoZS1ub3Rlc2FwcC1zdGFjayE=
             # The installation this stack is; a tenant is deleted only from a
-            # database marked with it (see .env.example).
+            # database marked with it (see .env.example). Mark it once, with
+            # the seeded SuperAdmin's one-time code:
+            #   docker compose -f examples/notesapp/docker-compose.yml exec backend \
+            #       node dist/cli/main.js installation mark notesapp-compose --as admin@notesapp.example
             SAASICAT_INSTALLATION: notesapp-compose
             PORT: '3000'
             # Set to false to keep data you changed through the UI across restarts.

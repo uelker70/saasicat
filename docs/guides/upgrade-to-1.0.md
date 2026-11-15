@@ -2767,7 +2767,7 @@ rate, and the cancellation offered from its row as from the subscriber's record 
 is served and announced where the invoices' documents are, under `invoices.read`, at
 `GET admin/invoices` and `GET admin/invoice-totals` — which, like every operator page about
 invoicing, needs `adminResources`; an application that keeps tenant, user, audit or subscription
-routes of its own cannot turn that on beside them yet
+routes of its own turns it on without its controller
 ([what the operator's side needs](wire-the-backend.md#what-the-operators-side-needs)). Beyond
 that, nothing is to be wired for it, with three exceptions:
 
@@ -5064,6 +5064,33 @@ name: rename yours, or, where it was meant to be the platform's, map it to the p
 1. Where you run `saasicat schema check`, nothing to do.
 2. Where code of yours reads the report of `checkSchema`, read a diverging table from
    `nameClashes` instead of a `missingBlockAttributes` entry of kind `map`.
+
+### The billing pages beside an administration of your own
+
+An application that serves its own routes for tenants, users, the audit log and subscriptions could
+not turn `adminResources` on: its generic controller declared `GET admin/tenants` and the rest a
+second time, Fastify refused to start, and the operator's billing pages, which are mounted only
+beside `adminResources`, stayed out of reach. `adminResources: { includeController: false }` now
+mounts those pages without the generic routes (`SC-ADM-057`), and asks of the application an
+`AdminTenantLookupPort` — `getTenantDetail(slug)` and `findTenantsByIds(ids)` — rather than the
+eight methods of `AdminResourcesPort`, which now extends it. See
+[what the operator's side needs](wire-the-backend.md#what-the-operators-side-needs).
+
+`SaaSiCatAdminResourcesOptions` and `AdminResourcesModuleOptions` become unions on
+`includeController`, which breaks code that names them:
+
+| before                                                 | after                                                                                  |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `interface SaaSiCatAdminResourcesOptions`              | a `type`: an interface of yours cannot `extends` it, an intersection can               |
+| `interface AdminResourcesModuleOptions`                | a `type`, the same way; `includeController: false` takes an `AdminTenantLookupPort`    |
+| `AdminResourcesService` reads every method of the port | `listTenants`, `listUsers`, `listAudit`, `listSubscriptions` refuse a lookup-only port |
+
+1. Where you pass `adminResources: true` or an object without `includeController`, nothing to do.
+2. Where you serve those routes yourself and turned `adminResources` off for it, turn it on with
+   `includeController: false` and give it the two lookups as `resources` — or leave it off, and
+   the operator keeps having no billing pages.
+3. Where code of yours names either options type in an `interface … extends`, write a `type` with
+   `&` instead.
 
 ## What the codemod leaves to you
 

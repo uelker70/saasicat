@@ -1,24 +1,15 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
-import { prismaPersistence } from '@saasicat/adapter-prisma';
-import { LimitExceededFilter, loadPlanCatalogFromFile } from '@saasicat/nest/billing';
-import { DevPaymentGateway } from '@saasicat/nest/payments';
-import { aesGcmSecretSealer, defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
+import { LimitExceededFilter } from '@saasicat/nest/billing';
+import { SaaSiCatModule } from '@saasicat/nest/platform';
 
-import { DemoAuthGuard } from './auth/demo-auth.guard';
 import { DemoAuthModule } from './auth/demo-auth.module';
-import { DemoPasswordHasher } from './auth/demo-password.hasher';
 import { HealthController } from './health.controller';
 import { NotesModule } from './notes/notes.module';
 import { PrismaModule } from './prisma/prisma.module';
-import { PrismaService } from './prisma/prisma.service';
-import { NOTES_FEATURE_UI_REGISTRY } from './saas/feature-ui-registry';
 import { NotesAdminModule } from './saas/notesapp-admin.module';
-import { NotesQuotaProvider } from './saas/notes-quota.provider';
-import { NotesDataExport } from './saas/notes-data-export';
-import { NotesNoticeLog } from './saas/notes-notice-log';
-import { germanTaxAdapterFactory } from '@saasicat/tax-de';
+import { NOTES_SAASICAT_CONFIG } from './saasicat.config';
 
 @Module({
     imports: [
@@ -29,132 +20,9 @@ import { germanTaxAdapterFactory } from '@saasicat/tax-de';
         // that day — are scheduled by this module.
         ScheduleModule.forRoot(),
 
-        SaaSiCatModule.forRoot(
-            defineSaaSiCat({
-                // Static quickstart path: identity + plans straight from the YAML.
-                planCatalog: loadPlanCatalogFromFile({ path: 'config/saas.yaml' }),
-                // Real apps pass their JwtAuthGuard here.
-                controller: { guards: [DemoAuthGuard] },
-                imports: [DemoAuthModule, PrismaModule],
-                // The whole persistence wiring: the client, and what the schema leaves out.
-                persistence: prismaPersistence({
-                    client: PrismaService,
-                    passwordHasher: DemoPasswordHasher,
-                    adminResources: { tenantMetrics: ['notes', 'users'] },
-                    // What `saasicat schema check` names as not adopted: the notes app
-                    // issues no invoices, so their tables are not in its schema, and
-                    // the bundle — a join of subscribers among it — leaves them out.
-                    notAdopted: [
-                        'SubscriberLedgerEntry',
-                        'SubscriptionInvoice',
-                        'SubscriptionInvoiceLine',
-                        'SubscriptionInvoiceCancellation',
-                        'SubscriptionInvoiceDocument',
-                        'SubscriptionInvoiceNumber',
-                        'SubscriptionInvoiceArchive',
-                        'SubscriptionInvoiceCollection',
-                        'SubscriberPayment',
-                        'SubscriptionInvoiceSettlement',
-                        'SubscriberCredit',
-                        'SubscriberCreditEntry',
-                        'SubscriberRefund',
-                        'SubscriberReversal',
-                        'SubscriberReconciliationCase',
-                        'ContractConfirmation',
-                        'ContractConfirmationArchive',
-                    ],
-                }),
-                // A returning customer's subscriber joined into the one it had, in
-                // its record and with `subscribers join`: the schema adopts
-                // `SubscriberJoin`, and the entrypoint runs the migration that
-                // guards it.
-                subscriberJoins: true,
-                // A platform administrator's second factor is stored sealed, so a
-                // dump or a backup of the database does not carry it along. The
-                // key is the installation's — 32 random bytes, base64, from the
-                // environment — and an unset one stops the boot.
-                adapters: { secretSealer: aesGcmSecretSealer(process.env.SECRET_SEALER_KEY) },
-                // The standard stack takes every repository from the persistence
-                // bundle. No forwarding Catalog/Billing modules are needed.
-                entitlement: {
-                    resolutionConfig: {
-                        defaultTrialEntitlementPlan: 'STARTER',
-                        // What a subscription keeps once its cancellation has
-                        // taken effect. Omitted — as here — it keeps nothing,
-                        // which is what ending a contract means. Name a plan to
-                        // leave a floor instead: a read-only tier a former
-                        // customer can export from, or a free plan.
-                        //
-                        //   canceledEntitlementPlan: 'STARTER',
-                    },
-                },
-                catalog: {
-                    featureUiRegistry: NOTES_FEATURE_UI_REGISTRY,
-                    strictModeCheckMode: 'warn-only',
-                    autoSyncDiscoveryAtBoot: true,
-                },
-                tenantBilling: {
-                    authGuards: [DemoAuthGuard],
-                    // The notice period and the blocked plans are not here:
-                    // they live in `config/saas.yaml` under `tenantBilling:`,
-                    // which is the one place they live. Passing either one
-                    // here refuses the boot rather than being ignored.
-                    //
-                    // Once a subscription has ended, its tenant's administrator
-                    // takes everything the app keeps for the tenant as one
-                    // file, until the data is deleted. Only the app knows what
-                    // that is; the platform refuses to start without it.
-                    subscriptionEnds: {
-                        export: {
-                            useFactory: (prisma: PrismaService) => new NotesDataExport(prisma),
-                            inject: [PrismaService],
-                        },
-                        // A tenant's data is deleted only from a database marked
-                        // as the installation of the environment this process
-                        // runs in. The identifier comes from the environment as
-                        // it is, with no fallback: a default here would name
-                        // every environment the same, and the brake would hold
-                        // nothing. The platform refuses to start without it.
-                        deletion: { installation: process.env.SAASICAT_INSTALLATION },
-                    },
-                    // Before the data is deleted, the tenant hears of it at the
-                    // lead times `config/saas.yaml` names — its users no longer
-                    // sign in, so a notice is how they learn the day. The app
-                    // says it in its own words through this port; the platform
-                    // decides when and keeps the record. Required.
-                    notices: {
-                        port: {
-                            useFactory: (prisma: PrismaService) => new NotesNoticeLog(prisma),
-                            inject: [PrismaService],
-                        },
-                    },
-                },
-                subscriptionBundles: true,
-                // One gateway per account in `config/saas.yaml#payments`. An app
-                // that takes real payment methods binds its provider's gateway
-                // adapter here, built with its keys from the environment.
-                // The tenant's payment method card needs the billing permission,
-                // which the tenant's administrator holds unless
-                // `tenantBilling.billingPermissionGuards` says otherwise.
-                payments: {
-                    gateways: { dev: new DevPaymentGateway() },
-                },
-                // The factory of the tax adapter `config/saas.yaml#tax` names;
-                // what the operator declares to it, such as `smallBusiness`,
-                // stays in the file.
-                tax: { adapter: germanTaxAdapterFactory() },
-                adminResources: true,
-                promoCodes: true,
-                quotaProviders: [NotesQuotaProvider],
-                tenantManifest: true,
-                // Maintenance windows: announced from the administration or
-                // `<app> maintenance`, and while one is locked every tenant
-                // request is refused with 503. The health route below is marked
-                // as reachable during maintenance, so a deploy's health gate
-                // still gets its answer.
-                maintenance: true,
-            }),
-        ),
+        // The platform's options, in a file of their own because the CLI
+        // starts the same platform (`src/cli/cli.module.ts`).
+        SaaSiCatModule.forRoot(NOTES_SAASICAT_CONFIG),
 
         NotesModule,
         // Manifest contribution + KPI endpoints for the SuperAdmin UI.

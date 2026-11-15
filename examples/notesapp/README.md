@@ -14,18 +14,20 @@ keeps the integration in one place.
 
 What it demonstrates:
 
-| Concern                                      | Where                                                                                                                          |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| App identity + plans (static path)           | [`config/saas.yaml`](config/saas.yaml)                                                                                         |
-| Canonical platform tables next to app tables | [`prisma/schema.prisma`](prisma/schema.prisma) (fragments 04/06/10)                                                            |
-| Standard platform wiring                     | [`src/app.module.ts`](src/app.module.ts) — one `SaaSiCatModule.forRoot(...)` call                                              |
-| Countable quota declaration                  | [`src/saas/notes-quota.provider.ts`](src/saas/notes-quota.provider.ts) — `@DefinesQuota`                                       |
-| Enforcement decorators                       | [`src/notes/notes.controller.ts`](src/notes/notes.controller.ts) — `@ImplementsCapability`, `@RequireFeature`, `@EnforceQuota` |
-| Full standard Admin backend                  | `adminResources: true` + `promoCodes: true` in [`src/app.module.ts`](src/app.module.ts)                                        |
-| Full SuperAdmin UI                           | [`admin/src/pages`](admin/src/pages) — discovery, catalog, plans, bundles, tenants, users, audit, subscriptions and promos     |
-| 402 quota responses                          | `LimitExceededFilter` as `APP_FILTER` in `app.module.ts`                                                                       |
-| Auth ordering (global guard!)                | [`src/auth/demo-auth.guard.ts`](src/auth/demo-auth.guard.ts) + `DemoAuthModule`                                                |
-| DB-free platform test                        | [`tests/notesapp-smoke.test.mjs`](tests/notesapp-smoke.test.mjs)                                                               |
+| Concern                                      | Where                                                                                                                                                                       |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App identity + plans (static path)           | [`config/saas.yaml`](config/saas.yaml)                                                                                                                                      |
+| Canonical platform tables next to app tables | [`prisma/schema.prisma`](prisma/schema.prisma) (fragments 04/06/10)                                                                                                         |
+| Standard platform wiring                     | [`src/saasicat.config.ts`](src/saasicat.config.ts) — the options of one `SaaSiCatModule.forRoot(...)`, shared by the app and its CLI                                        |
+| Countable quota declaration                  | [`src/saas/notes-quota.provider.ts`](src/saas/notes-quota.provider.ts) — `@DefinesQuota`                                                                                    |
+| Enforcement decorators                       | [`src/notes/notes.controller.ts`](src/notes/notes.controller.ts) — `@ImplementsCapability`, `@RequireFeature`, `@EnforceQuota`                                              |
+| Full standard Admin backend                  | `adminResources: true` + `promoCodes: true` in [`src/saasicat.config.ts`](src/saasicat.config.ts)                                                                           |
+| Full SuperAdmin UI                           | [`admin/src/pages`](admin/src/pages) — discovery, catalog, plans, bundles, tenants, users, audit, subscriptions and promos                                                  |
+| 402 quota responses                          | `LimitExceededFilter` as `APP_FILTER` in `app.module.ts`                                                                                                                    |
+| Auth ordering (global guard!)                | [`src/auth/demo-auth.guard.ts`](src/auth/demo-auth.guard.ts) + `DemoAuthModule`                                                                                             |
+| Contracts and invoices                       | `tenantBilling.contractFreeze` and `chargeJournal` in [`src/saasicat.config.ts`](src/saasicat.config.ts), `invoicing` and `terms` in [`config/saas.yaml`](config/saas.yaml) |
+| Operator command line                        | [`src/cli`](src/cli) — `installation status`, `installation mark`, `doctor`                                                                                                 |
+| DB-free platform test                        | [`tests/notesapp-smoke.test.mjs`](tests/notesapp-smoke.test.mjs)                                                                                                            |
 
 > **Demo auth:** the app identifies callers from an `x-demo-tenant` header —
 > obviously NOT authentication. Swap `DemoAuthGuard` for your JWT guard; it
@@ -53,9 +55,13 @@ Every one of these ports is a default you can move: copy `.env.example` to
 ports, so the admin still reaches the API and no other file needs editing.
 
 The backend container applies `prisma db push` and seeds the demo data on every
-start; both are idempotent. Set `SEED_ON_START=false` to keep data you changed
-through the UI. nginx serves the admin and proxies `/api` to the backend, so
-both share an origin and the backend needs no CORS configuration.
+start; both are idempotent. The seed writes a subscription only where its tenant
+has none, and activates it through the platform — its add-ons, its first
+contract, its first charges — as an application does; a subscription that
+exists keeps its plan, its add-ons and its contracts. Set `SEED_ON_START=false`
+to keep the rest of the data you changed through the UI as well. nginx serves
+the admin and proxies `/api` to the backend, so both share an origin and the
+backend needs no CORS configuration.
 
 ## Run it locally
 
@@ -116,6 +122,90 @@ jq '[.capabilities[].capabilityKey]' var/discovery-snapshot.json
 # → ["notes.create", "notes.export"]
 ```
 
+## Invoices
+
+A plan change concludes a contract with the tenant's subscriber, and every
+quarter of an hour the platform issues what the contracts owe: it numbers the
+invoice on the range [`config/saas.yaml`](config/saas.yaml) names under
+`invoicing`, renders the ZUGFeRD PDF, archives it in the database, hands it to
+the mail port, and confirms the contract with the terms it was concluded
+under. Run against the stack, after the walkthrough:
+
+```bash
+# tenant-a moves to Pro; the tenant's administrator may change what it pays
+curl -s $BASE/billing/plan/preview -H 'x-demo-tenant: tenant-a' \
+     -H 'x-demo-role: TENANT_ADMIN' -H 'content-type: application/json' \
+     -d '{"plan":"PRO","billingCycle":"YEARLY"}' | jq -r .target.planVersionId
+curl -s $BASE/billing/plan -H 'x-demo-tenant: tenant-a' \
+     -H 'x-demo-role: TENANT_ADMIN' -H 'content-type: application/json' \
+     -d '{"plan":"PRO","billingCycle":"YEARLY","planVersionId":"<the id above>"}'
+# → {"plan":"PRO","billingCycle":"YEARLY","immediate":true}
+
+# at the next quarter hour the backend logs
+#   Invoice NOTES-2026-000001 to the invoice email of subscriber …, attaching NOTES-2026-000001.pdf (… bytes).
+curl -s $BASE/admin/invoices -H 'x-demo-tenant: admin' \
+     -H 'x-demo-role: SUPER_ADMIN' | jq '.invoices[].number'   # → "NOTES-2026-000001"
+```
+
+The SuperAdmin UI shows it under Invoices, with the subscriber's record, the
+contracts, the open items and the reconciliation beside it; the tenant sees it
+on the billing page of the web UI.
+
+What stands as it is: the numbers, the documents, the archive and every record
+the platform keeps. What a real application replaces:
+
+- **The mail port.** [`src/saas/notes-invoice-mail-log.ts`](src/saas/notes-invoice-mail-log.ts)
+  writes a line to the log — never the address, never the file — where a real
+  application sends the invoice by e-mail.
+- **The payment gateway.** `DevPaymentGateway` confirms every payment method
+  on the spot and moves no money. A real application binds its provider's
+  gateway, such as `@saasicat/payment-stripe`, and names its account in
+  `config/saas.yaml#payments`.
+- **The issuer and the terms.** `issuer` in `config/saas.yaml` and
+  [`config/terms-2026-11.pdf`](config/terms-2026-11.pdf) are an example
+  company's; the platform archives the terms file at every start.
+
+## Mark the installation
+
+A tenant's data is deleted only from a database marked as the installation of
+the environment the process runs in (`SAASICAT_INSTALLATION`), and nothing
+marks it on its own. The notes app's command line, [`src/cli`](src/cli), does
+that and nothing else: it registers the platform's `installation` and `doctor`
+commands, and starts the platform from the application's own options
+([`src/saasicat.config.ts`](src/saasicat.config.ts)) and environment, so it
+marks the database the application serves. The `bin` entry in `package.json`
+names it `notesapp`, the way an installed application exposes its command.
+[Extend your CLI](../../docs/guides/extend-your-cli.md) lists every other
+command an application can register.
+
+```bash
+# in the compose stack, from the repo root
+docker compose -f examples/notesapp/docker-compose.yml exec backend \
+    node dist/cli/main.js installation status
+docker compose -f examples/notesapp/docker-compose.yml exec backend \
+    node dist/cli/main.js installation mark notesapp-compose --as admin@notesapp.example
+
+# locally, from examples/notesapp, in the environment `pnpm start` runs in
+pnpm run cli installation status
+pnpm run cli installation mark notesapp-local --as admin@notesapp.example
+pnpm run cli doctor --as admin@notesapp.example
+```
+
+- `installation status` says whether the database carries this environment's
+  mark. It only reads, and asks for nobody.
+- `installation mark <identifier>` writes the mark, for the environment's own
+  `SAASICAT_INSTALLATION` only. It acts as a SuperAdmin (`--as`, or
+  `NOTESAPP_ADMIN_EMAIL`) and asks for that SuperAdmin's one-time code, so the
+  second factor has to be set up already. Here the seed sets it up for
+  `admin@notesapp.example` and prints its `otpauth://` URI on the first run. A
+  real application's operators enrol with `admin mfa-setup`, which this command
+  line leaves out.
+- `doctor` runs the platform's checks as a SuperAdmin, the installation's mark
+  among them.
+
+`NOTESAPP_SKIP_MFA=1` skips the one-time code unless `NOTESAPP_ENV=production`,
+for a scripted demo; an installation that holds real data does not set it.
+
 ## Why `src/saas` is still there
 
 The standard module removed the former catalog module, billing module, plan
@@ -136,8 +226,9 @@ NotesApp labels, columns and plan choices.
   Its `services/http.ts` sends this example's demo auth headers instead of a
   bearer token — swap it for your auth backend.
 - **Real payment collection:** keep the current contract and entitlement
-  model. A payment-provider adapter can be added later without moving product
-  capabilities or quota logic into the provider integration.
+  model, and swap the development gateway for your provider's (see
+  [Invoices](#invoices)); product capabilities and quota logic stay out of the
+  provider integration.
 - **Drizzle instead of Prisma:** swap the bundle for
   `drizzlePersistence({ db })` from `@saasicat/adapter-drizzle` for the core
   slices. Catalog and tenant-billing adapters are not bundled there yet, so

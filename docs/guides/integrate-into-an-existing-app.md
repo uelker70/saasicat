@@ -138,7 +138,11 @@ platform one off:
 
 - `includeManifestController: false` — you serve `/admin/manifest` yourself
 - `promoCodes: { adminController: false }` — you serve `/admin/promo-codes` yourself
-- `adminResources: false` — you serve tenants/users/audit yourself
+- `adminResources: { includeController: false }` — you serve `admin/tenants`, `admin/users`,
+  `admin/audit` and `admin/subscriptions` yourself, and keep the operator's billing pages (below)
+- `adminResources: false` — turns those billing pages off as well: the invoice register and
+  documents, the cancellation, the contracts, the subscriber's record and account, the open items,
+  the credits and the reconciliation are only mounted beside `adminResources`
 
 Delete the app controller **and** flip the flag in the same commit, never in two.
 
@@ -179,9 +183,40 @@ the error lists the delegates your client does have — so a typo shows up at
 boot, not on the first request to the tenants page.
 
 What the mapping does not change is the **shape**. A consumer with an m:n
-tenant-user relation, or tenants that have no activity flag at all, should keep
-this option `false` and retain its own controllers — or implement
-`AdminResourcesPort` directly, which needs no new controllers or DTOs.
+tenant-user relation, or tenants that have no activity flag at all, keeps its own
+controllers and turns the platform's off — or implements `AdminResourcesPort`
+directly, which needs no new controllers or DTOs.
+
+Keeping your own controllers does not cost you the operator's billing pages
+(`SC-ADM-057`). Turn the option on without its controller, and give it the two
+lookups those pages find a tenant through:
+
+```ts
+adminResources: {
+    includeController: false,
+    // An AdminTenantLookupPort: a full AdminResourcesPort answers it too.
+    resources: {
+        getTenantDetail: (slug) => tenants.detailBySlug(slug), // AdminTenantDetail | null
+        findTenantsByIds: (ids) => tenants.summariesByIds(ids), // soft-deleted ones included
+    },
+},
+```
+
+None of `GET admin/tenants`, `GET admin/tenants/:slug`, the `suspend` and
+`reactivate` routes, `GET admin/users`, `GET admin/audit` and
+`GET admin/subscriptions` is mounted then, so yours start beside the platform's.
+The routes are yours, but the platform's access state is not: a `suspended` hold is
+what `TenantAccessService.enforce` refuses a tenant on (`SC-ADM-055`), and the reasons a
+tenant is held back — a suspension, an overdue invoice, an ended subscription
+(`SC-ADM-053`) — come with the tenant's detail. So let your own suspend, reactivate and
+tenant detail routes delegate to `AdminResourcesService.suspendTenant`,
+`reactivateTenant` and `getTenantDetail`, which need only the two lookups above; a
+suspension written only to your own tenant row is not enforced by the platform, and your
+detail page does not show the overdue invoices the billing pages create. The manifest
+still announces those pages, and the pages of `@saasicat/ui-vue` read the same paths: where
+you mount them, your routes answer them in the shapes `@saasicat/core` names. Without `resources` the
+persistence bundle's port is used; with neither, the start is refused and says
+which two methods to write.
 
 Turning it on also costs pagination (`AdminTenantListFilter` has no page size,
 hard cap 200) and MFA on the write routes. A suspension is kept by the platform

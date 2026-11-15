@@ -64,5 +64,8 @@ if [ "${SEED_ON_START:-true}" = "true" ]; then
     node dist/seed.js
 fi
 
+# The installation is not marked here: marking takes an operator's one-time
+# code, which no start script holds. `docker compose exec backend node
+# dist/cli/main.js installation mark …` does it once (README).
 echo "notesapp: starting…"
 exec node dist/main.js

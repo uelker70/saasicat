@@ -307,9 +307,14 @@ const RULE_SPECS: readonly RuleSpec[] = [
             return !optionsOf(c.options.adminResources)?.resources;
         },
         assert: (c) => Boolean(bundle(c)?.adminResources),
-        message:
-            'adminResources is enabled, but `persistence.adminResources` is missing. Use a ' +
-            'complete persistence bundle, or pass your own `adminResources.resources`.',
+        message: (c) =>
+            optionsOf(c.options.adminResources)?.includeController === false
+                ? 'adminResources is enabled without its controller, but neither ' +
+                  '`adminResources.resources` nor `persistence.adminResources` is given. The ' +
+                  'billing pages find a tenant through an AdminTenantLookupPort: pass one with ' +
+                  '`getTenantDetail(slug)` and `findTenantsByIds(ids)` as `adminResources.resources`.'
+                : 'adminResources is enabled, but `persistence.adminResources` is missing. Use a ' +
+                  'complete persistence bundle, or pass your own `adminResources.resources`.',
     },
     {
         id: 'promo-codes.requires-persistence-and-transactions',

@@ -9,7 +9,7 @@ them against the canonical schema already.
 Why the seam is here, and what an adapter may and may not decide:
 [ADR 0007](../explanation/adr/0007-ports-and-adapters.md).
 
-Generated from `packages/core/src/ports` — 27 ports. Do not edit by hand:
+Generated from `packages/core/src/ports` — 28 ports. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Administration
@@ -54,15 +54,24 @@ Read/query adapter for audit logs.
 | ------------------------------------------------- | ------------ |
 | `list(filter: AuditQuery): Promise<AuditEntry[]>` | —            |
 
+### `AdminTenantLookupPort`
+
+The two ways the operator's billing pages find a tenant: by its slug and by its identifier.
+
+| Member                                                                          | What it does                                                                                                                                                          |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getTenantDetail(slug: string): Promise<AdminTenantDetail \| null>`             | The tenant with this slug, or `null` when the application has none.                                                                                                   |
+| `findTenantsByIds(tenantIds: readonly string[]): Promise<AdminTenantSummary[]>` | The tenants among `tenantIds` the application still has, soft-deleted ones included, in one read: what the subscriber's record names the tenants it was linked to by. |
+
 ### `AdminResourcesPort`
 
 One narrow backend boundary for the generic Tenant/User/Audit/Subscription SuperAdmin pages.
 
 | Member                                                                          | What it does                                                                                                                                                          |
 | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]>`     | —                                                                                                                                                                     |
-| `getTenantDetail(slug: string): Promise<AdminTenantDetail \| null>`             | —                                                                                                                                                                     |
+| `getTenantDetail(slug: string): Promise<AdminTenantDetail \| null>`             | The tenant with this slug, or `null` when the application has none.                                                                                                   |
 | `findTenantsByIds(tenantIds: readonly string[]): Promise<AdminTenantSummary[]>` | The tenants among `tenantIds` the application still has, soft-deleted ones included, in one read: what the subscriber's record names the tenants it was linked to by. |
+| `listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]>`     | —                                                                                                                                                                     |
 | `listUsers(filter: AdminUserListFilter): Promise<AdminUserListRow[]>`           | —                                                                                                                                                                     |
 | `listAudit(filter: AdminAuditListFilter): Promise<AuditEntry[]>`                | —                                                                                                                                                                     |
 | `listSubscriptions(): Promise<AdminSubscriptionListRow[]>`                      | —                                                                                                                                                                     |

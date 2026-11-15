@@ -3086,3 +3086,32 @@ _Tested by:_
         - an invoice paid in part past its due date says what it still owes of its total
 
 <!-- END proof -->
+
+### SC-ADM-057 — An application with its own administration gets the operator's billing pages
+
+🟢 An application that serves its own pages for tenants, users,
+the audit log and subscriptions turns the platform's administration on without its generic
+routes, and keeps every route of its own. The operator's billing pages — the invoice register
+and documents, the cancellation, the contracts, the subscriber's record and account, the open
+items, the credits and the reconciliation — are served all the same, and ask the application
+for no more than finding a tenant by its identifier and by its slug.
+
+_Source:_ #338 (decided 2026-11-14, autohauspro#883 D8)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-application-with-its-own-administration-gets-the-billing-pages.test.js`
+    - an application with its own administration gets the billing pages
+        - the switch takes away the seven generic routes and keeps every other one
+        - without the switch, the seven generic routes are mounted
+        - the application's own GET admin/tenants starts beside them on Fastify
+        - with the platform's controller mounted, the same route refuses to start on Fastify
+        - a full port with the switch starts as well
+        - the contracts read their tenants through the application's lookup
+        - the tenant's subscriber is found through the application's lookup by slug
+        - a generic read asked of the two-method lookup says what it needs
+        - without a lookup and without the bundle, the start is refused naming the two methods
+
+<!-- END proof -->
