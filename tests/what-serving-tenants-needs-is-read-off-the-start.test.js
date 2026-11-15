@@ -58,7 +58,11 @@ const SERVING_TENANTS = {
                 fileName: 'export.json',
             }),
         },
-        deletion: { installation: 'probe' },
+        deletion: {
+            installation: 'probe',
+            erasers: [{ name: 'data', count: async () => [], erase: async () => {} }],
+            keep: { keep: async () => [] },
+        },
     },
 };
 

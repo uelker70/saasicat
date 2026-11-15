@@ -20,6 +20,7 @@ import { controllersIn, handlersOf } from './helpers/operator-routes.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
 import {
     FakeInstallationMarkRepository,
+    FakeTenantDeletionRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
@@ -289,12 +290,14 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
                 tenantAccessHolds: new FakeTenantAccessHoldRepository(),
                 subscriptionEnds: new FakeSubscriptionEndRepository(),
                 installationMark: new FakeInstallationMarkRepository(),
+                tenantDeletions: new FakeTenantDeletionRepository(),
                 mfa: {},
                 audit: { write: async () => {} },
                 rlsBypass,
                 transactionRunner: { run: (fn) => fn({}) },
             },
             entitlement: {
+                subscriberRepository: { findByTenantId: async () => null },
                 subscriptionRepository: { findByTenantId: async () => null },
                 planVersionRepository: { findById: async () => null },
             },

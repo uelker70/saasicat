@@ -6,6 +6,13 @@
 
 import type {
     CalendarDay,
+    CommercialRecordCounts,
+    NewTenantDeletionRecord,
+    TenantCount,
+    TenantDeletionFailure,
+    TenantDeletionRecord,
+    TenantDeletionRecordHalt,
+    TenantDeletionRecordPort,
     InstallationMark,
     InstallationMarkPort,
     NewTenantAccessHold,
@@ -1243,6 +1250,158 @@ export class FakeInstallationMarkRepository implements InstallationMarkPort {
         if (this.mark?.identifier !== current) return null;
         this.mark = { ...mark };
         return { ...this.mark };
+    }
+}
+
+/** No commercial record at all: what a subscriber nobody invoiced counts. */
+const NO_COMMERCIAL_RECORD: CommercialRecordCounts = {
+    subscriber: 0,
+    contracts: 0,
+    charges: 0,
+    invoices: 0,
+    payments: 0,
+    credits: 0,
+};
+
+/** A record and its stores, as a writer may change them; the port hands out copies. */
+type MutableDeletion = {
+    -readonly [Key in keyof TenantDeletionRecord]: TenantDeletionRecord[Key];
+} & {
+    stores: {
+        store: string;
+        position: number;
+        countedAt: Date | null;
+        counts: readonly TenantCount[];
+        erasedAt: Date | null;
+    }[];
+};
+
+/**
+ * In-memory `TenantDeletionRecordPort` for tests: one record per tenant, as
+ * the unique key holds it in the database, claims that hold until they go
+ * stale, and counts and confirmations recorded once. What the commercial
+ * record counts is the test's to say through `commercialRecord`; a
+ * transaction is the caller's, so nothing here rolls back.
+ */
+export class FakeTenantDeletionRepository implements TenantDeletionRecordPort {
+    readonly deletions: MutableDeletion[] = [];
+    commercialRecord: (subscriberId: string) => CommercialRecordCounts = () => ({
+        ...NO_COMMERCIAL_RECORD,
+    });
+    private nextId = 1;
+
+    async begin(record: NewTenantDeletionRecord): Promise<TenantDeletionRecord | null> {
+        if (this.deletions.some((row) => row.tenantId === record.tenantId)) return null;
+        const row: MutableDeletion = {
+            ...structuredClone(record),
+            id: `deletion-${this.nextId++}`,
+            stores: record.stores.map(({ store, position }) => ({
+                store,
+                position,
+                countedAt: null,
+                counts: [],
+                erasedAt: null,
+            })),
+            commercialBefore: null,
+            commercialAfter: null,
+            claimedAt: null,
+            attempts: 0,
+            lastFailure: null,
+            halt: null,
+            closedAt: null,
+        };
+        this.deletions.push(row);
+        return structuredClone(row);
+    }
+
+    async findForTenants(tenantIds: readonly string[]): Promise<TenantDeletionRecord[]> {
+        return this.deletions
+            .filter((row) => tenantIds.includes(row.tenantId))
+            .map((row) => structuredClone(row));
+    }
+
+    async findForSubscriber(subscriberId: string): Promise<TenantDeletionRecord[]> {
+        return this.deletions
+            .filter((row) => row.subscriberId === subscriberId)
+            .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+            .map((row) => structuredClone(row));
+    }
+
+    async claim(id: string, now: Date, staleBefore: Date): Promise<TenantDeletionRecord | null> {
+        const row = this.open(id);
+        if (!row || (row.claimedAt !== null && row.claimedAt >= staleBefore)) return null;
+        row.claimedAt = now;
+        return structuredClone(row);
+    }
+
+    async renew(id: string, claimedAt: Date, now: Date): Promise<boolean> {
+        const row = this.open(id);
+        if (row?.claimedAt?.getTime() !== claimedAt.getTime()) return false;
+        row.claimedAt = now;
+        return true;
+    }
+
+    async release(id: string, claimedAt: Date): Promise<void> {
+        const row = this.open(id);
+        if (row?.claimedAt?.getTime() === claimedAt.getTime()) row.claimedAt = null;
+    }
+
+    async recordCounts(
+        id: string,
+        store: string,
+        counts: readonly TenantCount[],
+        at: Date,
+    ): Promise<void> {
+        const part = this.part(id, store);
+        if (!part || part.countedAt !== null) return;
+        Object.assign(part, { countedAt: at, counts: structuredClone([...counts]) });
+    }
+
+    async recordErased(id: string, store: string, at: Date): Promise<void> {
+        const part = this.part(id, store);
+        if (part && part.erasedAt === null) part.erasedAt = at;
+    }
+
+    async recordCommercial(
+        id: string,
+        which: 'before' | 'after',
+        counts: CommercialRecordCounts,
+    ): Promise<void> {
+        const row = this.deletions.find((candidate) => candidate.id === id);
+        if (!row) return;
+        if (which === 'before') row.commercialBefore = { ...counts };
+        else row.commercialAfter = { ...counts };
+    }
+
+    async recordFailure(
+        id: string,
+        failure: TenantDeletionFailure,
+        halt: TenantDeletionRecordHalt | null,
+    ): Promise<void> {
+        const row = this.deletions.find((candidate) => candidate.id === id);
+        if (!row) return;
+        Object.assign(row, { lastFailure: { ...failure }, attempts: row.attempts + 1, halt });
+    }
+
+    async close(id: string, at: Date): Promise<boolean> {
+        const row = this.open(id);
+        if (!row) return false;
+        row.closedAt = at;
+        return true;
+    }
+
+    async countCommercialRecord(subscriberId: string): Promise<CommercialRecordCounts> {
+        return this.commercialRecord(subscriberId);
+    }
+
+    private open(id: string): MutableDeletion | undefined {
+        return this.deletions.find((row) => row.id === id && row.closedAt === null);
+    }
+
+    private part(id: string, store: string): MutableDeletion['stores'][number] | undefined {
+        return this.deletions
+            .find((row) => row.id === id)
+            ?.stores.find((part) => part.store === store);
     }
 }
 

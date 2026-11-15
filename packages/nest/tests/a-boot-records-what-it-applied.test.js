@@ -30,6 +30,7 @@ import { settingsSubtreeOf } from '@saasicat/core';
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
 import {
     FakeInstallationMarkRepository,
+    FakeTenantDeletionRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
@@ -72,6 +73,7 @@ const persistenceWith = (appliedSettings) => ({
         tenantAccessHolds: new FakeTenantAccessHoldRepository(),
         subscriptionEnds: new FakeSubscriptionEndRepository(),
         installationMark: new FakeInstallationMarkRepository(),
+        tenantDeletions: new FakeTenantDeletionRepository(),
         mfa: spec,
         audit: spec,
         rlsBypass: spec,
@@ -434,6 +436,7 @@ describe('the record is a mirror, never a source', () => {
                     persistence: {
                         ...persistenceWith(port),
                         entitlement: {
+                            subscriberRepository: { findByTenantId: async () => null },
                             subscriptionRepository: { findByTenantId: async () => null },
                             planVersionRepository: {
                                 findActive: async () => null,

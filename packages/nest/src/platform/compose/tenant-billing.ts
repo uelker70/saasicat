@@ -7,9 +7,11 @@ import type {
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriberPaymentRepository,
+    SubscriberRepository,
     SubscriptionEndPort,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
+    TenantDeletionRecordPort,
     TenantSubscriptionWritePort,
     TransactionRunner,
 } from '@saasicat/core';
@@ -25,6 +27,7 @@ import { normalizeTenantAuthGuards, quotaUsageSnapshotProvider } from './tenant-
 import { resolveBundleRepository } from './bundle-repository-source.js';
 import { optionsOf, type CompositionContext } from './context.js';
 import { featureWithdrawalsOf } from './feature-withdrawal.js';
+import { subscriberRepositoryOf } from './subscriber-admin.js';
 import { versionRetirementsOf } from './version-retirement.js';
 
 /**
@@ -146,6 +149,24 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
                 // member is the provider spec `PersistenceProvider` types it as.
                 marks: (subscriptionEnds?.deletion?.marks ??
                     ctx.persistence?.core.installationMark) as ProviderSpec<InstallationMarkPort>,
+                erasers: subscriptionEnds?.deletion?.erasers,
+                keep: subscriptionEnds?.deletion?.keep,
+                // SAFETY: `subscription-ends.requires-tenant-deletions` has
+                // refused a configuration that reaches here with no store of
+                // the deletions named and none in the bundle, and the bundle's
+                // member is the provider spec `PersistenceProvider` types it as.
+                records: (subscriptionEnds?.deletion?.records ??
+                    ctx.persistence?.core
+                        .tenantDeletions) as ProviderSpec<TenantDeletionRecordPort>,
+                // SAFETY: `subscription-ends.requires-subscribers` has refused a
+                // configuration that reaches here with no subscribers named and
+                // none in the bundle or for `subscriptionContract`.
+                subscribers: (subscriptionEnds?.deletion?.subscribers ??
+                    subscriberRepositoryOf(ctx)) as ProviderSpec<SubscriberRepository>,
+                // SAFETY: `entitlement.requires-adapters` has refused a start
+                // serving tenants without the platform's transaction runner.
+                transactionRunner: ctx.adapters
+                    .transactionRunner as ProviderSpec<TransactionRunner>,
             },
         },
         imports: tenantImports ?? ctx.options.imports,

@@ -416,6 +416,8 @@ describe('the end of a subscription its tenant was told a day for', () => {
 describe('the quarter-hourly run', () => {
     /** The reminders after the ends, which none of these cases is about. */
     const NO_REMINDERS = { remindDue: async () => ({ told: 0, failed: 0 }) };
+    /** The deletions after the reminders, which none of these cases is about either. */
+    const NO_DELETIONS = { deleteDue: async () => ({ deleted: 0, halted: 0, failed: 0 }) };
     const quietly = (cron) => {
         // Silenced, so the error a failing run logs does not read as a failure here.
         cron.logger = new Logger('test');
@@ -428,7 +430,9 @@ describe('the quarter-hourly run', () => {
         let asked = 0;
         const service = { recordEnded: async () => ({ ended: (asked += 1) }) };
         const locked = quietly(
-            new SubscriptionEndCron(service, NO_REMINDERS, { isLocked: async () => true }),
+            new SubscriptionEndCron(service, NO_REMINDERS, NO_DELETIONS, {
+                isLocked: async () => true,
+            }),
         );
 
         await locked.recordAndRemind();
@@ -445,7 +449,7 @@ describe('the quarter-hourly run', () => {
                 return { ended: 0 };
             },
         };
-        const cron = quietly(new SubscriptionEndCron(service, NO_REMINDERS, null));
+        const cron = quietly(new SubscriptionEndCron(service, NO_REMINDERS, NO_DELETIONS, null));
 
         await cron.recordAndRemind();
         await cron.recordAndRemind();

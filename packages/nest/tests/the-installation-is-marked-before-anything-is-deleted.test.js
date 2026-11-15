@@ -27,7 +27,7 @@ import {
     FakeSubscriptionEndRepository,
 } from '../dist/testing/index.js';
 import { bootable, everythingOnOptions } from './helpers/operator-routes.js';
-import { THIS_INSTALLATION } from './helpers/installation-mark.js';
+import { THIS_INSTALLATION, aHandWiredDeletion } from './helpers/installation-mark.js';
 import { anExport } from './helpers/tenant-data-export.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
@@ -177,9 +177,7 @@ describe("the identifier of this process's environment, which a start serving te
             () => wiredByHand({ installation: 'prod' }),
             /TenantBillingModule: `subscriptionEnds\.deletion\.marks` is missing/,
         );
-        assert.doesNotThrow(() =>
-            wiredByHand({ installation: 'prod', marks: new FakeInstallationMarkRepository() }),
-        );
+        assert.doesNotThrow(() => wiredByHand({ ...aHandWiredDeletion(), installation: 'prod' }));
     });
 
     test('a start that serves tenants compares with the identifier its environment names', async () => {

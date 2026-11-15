@@ -107,6 +107,12 @@ export {
     type InstallationMarkOutcome,
 } from './deletion/installation-mark.service.js';
 export {
+    DELETION_CLAIM_LEASE_MS,
+    DELETION_STEP_TIMEOUT_MS,
+    TenantDeletionService,
+    type TenantDeletionRun,
+} from './deletion/tenant-deletion.service.js';
+export {
     SubscriptionCancellationService,
     type CancellationProjection,
     type DeclaredCancellation,

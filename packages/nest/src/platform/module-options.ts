@@ -224,19 +224,28 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
      * application delivers the export itself and records each download through
      * `TenantExportDeliveryService`. Always on: `includeCron: false` leaves out
      * only the quarter-hourly run, for an application that calls
-     * `SubscriptionEndService.recordEnded` and then
-     * `DeletionReminderService.remindDue` from a scheduler of its own.
+     * `SubscriptionEndService.recordEnded`, `DeletionReminderService.remindDue`
+     * and `TenantDeletionService.deleteDue` from a scheduler of its own.
      * `deletion.installation` is required as well: the identifier of the
      * environment this process runs in, passed from there as it is, which a
      * tenant's deletion compares with the mark of the database
      * (`SC-PRIV-021`); a start without one is refused. The mark is read from
      * `persistence.core.installationMark` unless `deletion.marks` names
-     * another place.
+     * another place. `deletion.erasers` and `deletion.keep` are the
+     * application's own and required too (`SC-PRIV-022`): its stores, erased
+     * for a tenant in the order listed on its deletion day, and what a tenant
+     * keeps itself. Each deletion is recorded in
+     * `persistence.core.tenantDeletions` unless `deletion.records` names
+     * another place, with the subscriber `persistence.entitlement.subscriberRepository`
+     * finds unless `deletion.subscribers` names another; a start with neither
+     * is refused.
      */
     subscriptionEnds: Partial<Omit<SubscriptionEndsOptions, 'export' | 'deletion'>> &
         Pick<SubscriptionEndsOptions, 'export'> & {
-            deletion: Partial<Pick<SubscriptionDeletionOptions, 'marks'>> &
-                Pick<SubscriptionDeletionOptions, 'installation'>;
+            deletion: Partial<
+                Pick<SubscriptionDeletionOptions, 'marks' | 'records' | 'subscribers'>
+            > &
+                Pick<SubscriptionDeletionOptions, 'installation' | 'erasers' | 'keep'>;
         };
 }
 

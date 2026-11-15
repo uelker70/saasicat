@@ -183,6 +183,27 @@ export const INSTALLATION_MARK_PORT_TOKEN = Symbol.for('saasicat/nest/Installati
  */
 export const INSTALLATION_IDENTIFIER_TOKEN = Symbol.for('saasicat/nest/InstallationIdentifier');
 
+/** The application's erasers, one per store, in the order a tenant is erased (`TenantEraser[]`). */
+export const TENANT_ERASERS_TOKEN = Symbol.for('saasicat/nest/TenantErasers');
+
+/** Adapter token: the application's report of what a tenant keeps itself (`TenantKeepReportPort`). */
+export const TENANT_KEEP_REPORT_PORT_TOKEN = Symbol.for('saasicat/nest/TenantKeepReportPort');
+
+/** Adapter token: where each tenant's deletion is recorded (`TenantDeletionRecordPort`). */
+export const TENANT_DELETION_RECORD_PORT_TOKEN = Symbol.for(
+    'saasicat/nest/TenantDeletionRecordPort',
+);
+
+/** Begins a deletion — its record and the `deleting` reason — in one transaction (`TransactionRunner`). */
+export const TENANT_DELETION_TRANSACTION_RUNNER_TOKEN = Symbol.for(
+    'saasicat/nest/TenantDeletionTransactionRunner',
+);
+
+/** Finds the subscriber a tenant's deletion is recorded with (`SubscriberRepository`). */
+export const TENANT_DELETION_SUBSCRIBERS_TOKEN = Symbol.for(
+    'saasicat/nest/TenantDeletionSubscribers',
+);
+
 /**
  * Adapter token: where the record of each subscriber notice is kept
  * (`tenantBilling.notices.record`).

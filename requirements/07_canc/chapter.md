@@ -776,7 +776,7 @@ _Tested by:_
         - count the installation's day ahead of UTC, not UTC's
         - count the installation's day behind UTC, not UTC's
     - the quarter-hourly run
-        - records the ends first and reminds after
+        - records the ends first, reminds after, and sets off the deletions last
         - a run whose recording fails still reminds the ends recorded before
         - a run whose reminding fails lets the next one try again
         - under a maintenance lock neither records nor reminds; the next run catches up

@@ -384,6 +384,21 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 severity: 'high',
             },
             {
+                key: 'TENANT_DELETION_BEGUN',
+                label: "Tenant's deletion begun on its day: recorded with its subscriber, and the tenant held back for good",
+                severity: 'high',
+            },
+            {
+                key: 'TENANT_DELETION_CLOSED',
+                label: "Tenant's deletion closed: every store of the application confirmed",
+                severity: 'high',
+            },
+            {
+                key: 'TENANT_DELETION_HALTED',
+                label: "Tenant's deletion halted until the operator acts",
+                severity: 'high',
+            },
+            {
                 key: 'TENANT_EXPORT_DOWNLOAD',
                 label: "Tenant's full export downloaded by its administrator after its subscription ended",
                 severity: 'medium',

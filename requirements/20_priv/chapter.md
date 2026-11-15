@@ -199,6 +199,9 @@ _Tested by:_
         - one tenant named passes
         - anything else is refused, naming the problem
         - the refusal does not repeat the value, which may be anything
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - the tenant a store is asked about
+        - is never one an end names as nobody
 
 <!-- END proof -->
 
@@ -223,6 +226,30 @@ already empty, still leave the counts that were erased rather than a record that
 deleted.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - the beginning of a deletion
+        - records the deletion and holds the tenant back in one transaction: where it fails, neither
+          stands
+        - keeps what the tenant was told to keep, and stops at lines nobody can read
+    - the stores
+        - all count before the first erases, each in the order the application lists them
+        - a count nobody can read stops the deletion before anything is erased
+        - listed otherwise than when the deletion began, stop it before anything more is erased
+    - a deletion broken off
+        - goes on after the store that confirmed, and keeps the code of the failure, never its
+          message
+        - by a store that did not answer in time is left to it until the claim goes stale; the
+          counts it took first stand
+    - two instances at once
+        - begin a deletion once, and each store is asked once
+        - going on with a deletion begun before, one claims it and the other leaves it
+
+<!-- END proof -->
 
 ### SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
 
@@ -498,6 +525,12 @@ _Tested by:_
         - the same identifier matches
         - another case is another identifier, never the same one
         - a backup of production restored into staging differs
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - the installation mark in front of the run
+        - over a database unmarked, or marked as another installation, nothing begins and the log
+          says so once for the run
+        - a mark changed while a deletion is under way stops it before the next store, and the
+          record stays open
 - `packages/nest/tests/the-compiler-asks-for-what-serving-tenants-needs.test.js`
     - the options of an application that serves tenants
         - compile with the environment's identifier passed as the environment gives it
@@ -550,6 +583,38 @@ inside the application, such as a member or a case, still honours the applicatio
 
 _Source:_ #338 (decided 2026-11-15)
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - a tenant whose subscription ended
+        - is not deleted in the last second before its day in the installation zone, and is on the
+          first
+        - is deleted where its day passed already
+        - is not deleted where the reason holding it to reading was lifted, though its end stands
+        - is held back from then on, even from the operator acting as it and only reading
+        - has nothing erased and no record begun where it has no subscriber to keep the record with
+    - the quarter-hourly run
+        - sets the deletions off without waiting for them, and starts no second beside the first
+- `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
+    - the application's stores a tenant is erased from, which the ends cannot start without
+        - wired, nothing is refused, and the run is there to be called
+        - erasers missing, none listed, one named twice or named with no stable key: the start is
+          refused in one sentence naming the option and the requirement
+        - erasers a factory builds are held to the same once built, before anything runs
+        - without the report of what a tenant keeps, the start is refused, naming the option and the
+          port
+        - with nowhere to record a deletion or to find its subscriber, the start is refused; the
+          bundle's, or one named, is enough
+        - tenant billing wired by hand is refused the same way, naming each option it lacks
+- `packages/nest/tests/the-compiler-asks-for-what-serving-tenants-needs.test.js`
+    - the options of an application that serves tenants
+        - do not compile with the deletion named and the erasers or the report of what is kept left
+          out
+
+<!-- END proof -->
+
 ### SC-PRIV-023 — A tenant's deletion leaves a record with the subscriber that names no person
 
 🟡 _(Decided, not yet delivered.)_ 🔒 What was deleted, when and by which run, as counts per
@@ -599,3 +664,14 @@ moment the end is recorded even where a suspension kept the tenant from taking i
 says that the tenant was suspended.
 
 _Source:_ #338 (decided 2026-11-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - the record of when the export could be taken
+        - says a suspension kept it from being taken where one held after the end
+        - says none did where the suspension was lifted before the end
+
+<!-- END proof -->

@@ -8,6 +8,7 @@ import { PlanChangePreviewService, TenantBillingModule } from '../dist/billing/i
 import { storeSecretsInPlainText } from '../dist/index.js';
 import {
     FakeInstallationMarkRepository,
+    FakeTenantDeletionRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
@@ -196,6 +197,7 @@ function persistenceWith(repo) {
             tenantAccessHolds: new FakeTenantAccessHoldRepository(),
             subscriptionEnds: new FakeSubscriptionEndRepository(),
             installationMark: new FakeInstallationMarkRepository(),
+            tenantDeletions: new FakeTenantDeletionRepository(),
             mfa: spec,
             audit: spec,
             // What an installation without row policies binds: the preview's
@@ -204,6 +206,7 @@ function persistenceWith(repo) {
             transactionRunner: spec,
         },
         entitlement: {
+            subscriberRepository: { findByTenantId: async () => null },
             // Enough of the entitlement path for the preview to compute limits;
             // what this test is about is one level above it.
             subscriptionRepository: {

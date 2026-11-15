@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 37 rules, in 18 areas.
+There are 41 rules, in 18 areas.
 
 ## core
 
@@ -166,6 +166,38 @@ installation's own, and a brake that cannot be read cannot hold. Set
 `tenantBilling.subscriptionEnds.deletion.marks` or use a bundle providing
 `persistence.core.installationMark` — both shipped adapters do, from the
 `InstallationMark` model of `@saasicat/spec`.
+
+### subscription-ends.requires-erasers
+
+`tenantBilling.subscriptionEnds.deletion.erasers` is missing: wherever the end
+of a subscription is kept, a tenant's data and files are deleted on its day
+through the application's erasers, one per store and called in the order listed,
+and the record keeps what each counted under its name (SC-PRIV-022), so list at
+least one TenantEraser, each named once.
+
+### subscription-ends.requires-keep-report
+
+`tenantBilling.subscriptionEnds.deletion.keep` is missing: wherever the end of a
+subscription is kept, a tenant is told before its deletion what it has to keep
+for obligations of its own, and the record keeps it (SC-PRIV-022) — pass a
+TenantKeepReportPort, which answers no lines for a tenant with nothing to keep.
+
+### subscription-ends.requires-tenant-deletions
+
+TenantBilling is on, but there is nowhere to record the deletion of a tenant
+(SC-PRIV-023): a deletion that is not recorded cannot be proved. Set
+`tenantBilling.subscriptionEnds.deletion.records` or use a bundle providing
+`persistence.core.tenantDeletions` — both shipped adapters do, from the
+`SubscriberTenantDeletion` models of `@saasicat/spec`.
+
+### subscription-ends.requires-subscribers
+
+TenantBilling is on, but there is nowhere to find the subscriber the deletion of
+a tenant is recorded with (SC-PRIV-023): the record outlives the tenant as the
+subscriber's invoices do. Set
+`tenantBilling.subscriptionEnds.deletion.subscribers` or use a bundle providing
+`persistence.entitlement.subscriberRepository` — both shipped adapters do, from
+the `Subscriber` model of `@saasicat/spec`.
 
 ## subscription-notices
 

@@ -653,15 +653,24 @@ describe('the quarter-hourly run', () => {
                 return remindDue ? remindDue() : { told: 0, failed: 0 };
             },
         };
-        return { asked, cron: quietly(new SubscriptionEndCron(ends, reminders, maintenance)) };
+        const deletions = {
+            deleteDue: async () => {
+                asked.push('delete');
+                return { deleted: 0, halted: 0, failed: 0 };
+            },
+        };
+        return {
+            asked,
+            cron: quietly(new SubscriptionEndCron(ends, reminders, deletions, maintenance)),
+        };
     }
 
-    test('records the ends first and reminds after', async () => {
+    test('records the ends first, reminds after, and sets off the deletions last', async () => {
         const { asked, cron } = cronOver();
 
         await cron.recordAndRemind();
 
-        assert.deepEqual(asked, ['record', 'remind']);
+        assert.deepEqual(asked, ['record', 'remind', 'delete']);
     });
 
     test('a run whose recording fails still reminds the ends recorded before', async () => {
@@ -673,7 +682,7 @@ describe('the quarter-hourly run', () => {
 
         await cron.recordAndRemind();
 
-        assert.deepEqual(asked, ['record', 'remind']);
+        assert.deepEqual(asked, ['record', 'remind', 'delete']);
     });
 
     test('a run whose reminding fails lets the next one try again', async () => {
@@ -689,7 +698,7 @@ describe('the quarter-hourly run', () => {
         failing = false;
         await cron.recordAndRemind();
 
-        assert.deepEqual(asked, ['record', 'remind', 'record', 'remind']);
+        assert.deepEqual(asked, ['record', 'remind', 'delete', 'record', 'remind', 'delete']);
     });
 
     test('under a maintenance lock neither records nor reminds; the next run catches up', async () => {
@@ -712,7 +721,7 @@ describe('the quarter-hourly run', () => {
         finish();
         await running;
 
-        assert.deepEqual(asked, ['record', 'remind']);
+        assert.deepEqual(asked, ['record', 'remind', 'delete']);
     });
 });
 

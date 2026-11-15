@@ -27,6 +27,7 @@ import {
 import { storeSecretsInPlainText } from '../dist/index.js';
 import {
     FakeInstallationMarkRepository,
+    FakeTenantDeletionRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
@@ -65,12 +66,14 @@ const PERSISTENCE = {
         tenantAccessHolds: new FakeTenantAccessHoldRepository(),
         subscriptionEnds: new FakeSubscriptionEndRepository(),
         installationMark: new FakeInstallationMarkRepository(),
+        tenantDeletions: new FakeTenantDeletionRepository(),
         mfa: spec,
         audit: spec,
         rlsBypass: spec,
         transactionRunner: spec,
     },
     entitlement: {
+        subscriberRepository: { findByTenantId: async () => null },
         subscriptionRepository: { findByTenantId: async () => null },
         planVersionRepository: { findActive: async () => null, findById: async () => null },
     },

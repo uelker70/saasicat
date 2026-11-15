@@ -32,7 +32,8 @@
 // `halt` is text holding a closed set, checked in sql/constraints.postgres.sql
 // together with the counts and the kinds of a count.
 //
-// Adopt it wherever tenants are served, together with fragments 28 to 32: a
+// Required wherever tenants are served, together with fragments 28 to 32: the
+// platform refuses to start without a place to record each deletion, since a
 // deletion that is not recorded cannot be proved.
 //
 // Contract: @saasicat/core (TenantDeletionRecordPort).
