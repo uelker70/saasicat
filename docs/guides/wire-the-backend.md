@@ -688,10 +688,14 @@ export class SubscriptionNoticeMailer implements SubscriptionNoticePort {
 function messageOf(notice: SubscriptionNotice): { template: string; data: object } {
     switch (notice.kind) {
         case 'deletion-reminder':
-            // Both days, not a count of days, and where to take the export first.
+            // Both days, not a count of days, where to take the export first, and what to keep.
             return {
                 template: 'data-deletion-reminder',
-                data: { readOnlyUntil: notice.readOnlyUntil, deletesOn: notice.deletesOn },
+                data: {
+                    readOnlyUntil: notice.readOnlyUntil,
+                    deletesOn: notice.deletesOn,
+                    keep: notice.keep,
+                },
             };
         case 'version-offered':
         case 'bundle-version-offered':
@@ -2014,28 +2018,34 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   port every notice goes through
   ([Notices to a tenant's administrators](#notices-to-a-tenants-administrators)): `tenantId`,
   `subscriptionId`, `subscriptionEndId`, `daysBefore` — the lead time it answers —, `readOnlyUntil`,
-  the last day the tenant can still read and take its export on, and `deletesOn`, both days in the
-  installation's zone. Write the two days rather than a count of days: a reminder that covers lead
-  times passed while no run ran goes out later than `daysBefore` days before the deletion. Tell the
-  administrator to take the export first — from `GET /billing/export`, or from your own download
-  where your application delivers it (below); your application knows the address it serves it at.
-  Each
-  reminder is recorded under the end and the lead time, `<end id>:<days>`, so of several instances
-  one sends it. One your port tells nobody is recorded as told to nobody and not tried again — a
-  read-only tenant cannot add an administrator — and the next lead time still goes on its day; one
-  your port throws for, or that cannot be put together, is tried again by the next run. While one
-  of an end's reminders is held by a run — claimed and not answered yet, for up to a quarter of an
-  hour — no other reminder of that end goes out beside it, and a reminder of a larger lead time that
-  was never delivered is not sent once a smaller one is due: the smaller one says the same, nearer
-  the day. Of two instances that decide on different lead times for one end at once — one restarted
-  with other lead times and one not, or clocks on either side of the installation's midnight — at
-  most one sends: each reads the end's reminders again after claiming its own, and lets go where
-  another is held or one was told since it decided; where each sees the other, neither sends, and
-  the next run decides again. Two instances that keep running with different lead times — a canary,
-  or a second slot kept warm — reach an end at the same moment every run, so they can keep letting
-  go of the lead times they disagree on until one both name is due. A suspended tenant is reminded
-  all the same, since a suspension does not stop the deletion; while it lasts, the suspension
-  refuses the export as it refuses every request.
+  the last day the tenant can still read and take its export on, `deletesOn`, both days in the
+  installation's zone, and `keep`: what the tenant has to keep for obligations of its own, as your
+  `subscriptionEnds.deletion.keep` report answers when the reminder is put together. Write the two
+  days rather than a count of days: a reminder that covers lead times passed while no run ran goes
+  out later than `daysBefore` days before the deletion. Tell the administrator to take the export
+  first — from `GET /billing/export`, or from your own download where your application delivers it
+  (below); your application knows the address it serves it at. List the `keep` lines, each with its
+  count and in the administrator's words (`labels` by locale, `en` where theirs is not named), as
+  records to take along before the deletion day: the deletion does not wait for them. A report that
+  throws, answers lines it may not, or does not answer within a minute fails that reminder, and the
+  next run tries again. No reminder goes to a tenant whose deletion has begun, nor for an end whose
+  reason was lifted: neither tenant is deleted on that day. Each reminder is recorded under the end
+  and the lead time, `<end id>:<days>`, so of several instances one sends it. One your port tells
+  nobody is recorded as told to nobody and not tried again — a read-only tenant cannot add an
+  administrator — and the next lead time still goes on its day; one your port throws for, or that
+  cannot be put together, is tried again by the next run. While one of an end's reminders is held by
+  a run — claimed and not answered yet, for up to a quarter of an hour — no other reminder of that
+  end goes out beside it, and a reminder of a larger lead time that was never delivered is not sent
+  once a smaller one is due: the smaller one says the same, nearer the day. Of two instances that
+  decide on different lead times for one end at once — one restarted with other lead times and one
+  not, or clocks on either side of the installation's midnight — at most one sends: each reads the
+  end's reminders again after claiming its own, and lets go where another is held or one was told
+  since it decided; where each sees the other, neither sends, and the next run decides again. Two
+  instances that keep running with different lead times — a canary, or a second slot kept warm —
+  reach an end at the same moment every run, so they can keep letting go of the lead times they
+  disagree on until one both name is due. A suspended tenant is reminded all the same, since a
+  suspension does not stop the deletion; while it lasts, the suspension refuses the export as it
+  refuses every request.
 - **Told before it is confirmed.** `GET billing/usage` answers what cancelling now would tell as
   `cancellation.deletion` — `readOnlyDays`, `readOnlyUntil` and `deletesOn` — and what was told as
   `announcedDeletion`. Once a cancellation is declared, `cancellation.deletion` is the day

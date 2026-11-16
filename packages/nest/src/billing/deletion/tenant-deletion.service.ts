@@ -238,7 +238,8 @@ export class TenantDeletionService implements OnModuleInit {
         if (!this.holds) {
             this.logger.warn(
                 'Nothing keeps the reasons a tenant is held back, so no end holds its tenant and ' +
-                    'no tenant is ever found due for deletion; SaaSiCatModule provides them.',
+                    'no tenant is ever reminded of its deletion or found due for it; ' +
+                    'SaaSiCatModule provides them.',
             );
         }
     }

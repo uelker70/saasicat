@@ -8207,6 +8207,13 @@ _Tested by:_
         - a port that tells nobody is recorded as told to nobody and not tried again; the next lead
           time still goes on its day
         - a reminder that cannot be put together fails for its end alone, and the next run sends it
+    - an end the deletion no longer waits for
+        - a tenant whose deletion is under way is reminded of nothing, and its report of what to
+          keep is not asked
+        - an end whose reason was lifted is reminded of nothing: its tenant is not deleted on that
+          day
+        - a reason held for another of the tenant's subscriptions does not hold this end
+        - without the reasons kept, no end holds its tenant, none is deleted, and none is reminded
     - a reminder another run still holds
         - holds back the smaller lead time, so no second e-mail goes out alongside it
         - once delivered, covers what it covers, and the smaller lead time goes by the next run
@@ -8234,8 +8241,8 @@ _Tested by:_
         - under a maintenance lock neither records nor reminds; the next run catches up
         - a run still going when the next is due lets it pass, and nothing is asked twice
     - the reminders, as the platform wires them
-        - an end the run records is reminded by the same run where a lead time is already due,
-          through the port and into the record named
+        - an end the run records is reminded by the same run where a lead time is already due, with
+          what its tenant keeps, through the port and into the record named
         - the run that records the ends reminds after them; without it, the reminders are there for
           the application to call
         - a suspended tenant is reminded all the same: a suspension does not stop its deletion
@@ -25531,6 +25538,14 @@ _Tested by:_
         - has nothing erased and no record begun where it has no subscriber to keep the record with
     - the quarter-hourly run
         - sets the deletions off without waiting for them, and starts no second beside the first
+- `packages/nest/tests/a-tenant-is-reminded-before-its-deletion.test.js`
+    - what a reminder tells the tenant to keep
+        - carries the application's lines, to the port and into the record
+        - a report that fails fails the reminder of its end alone, and the next run sends it with
+          the lines
+        - lines the report gets wrong fail the reminder as a report that fails does
+        - a report that does not answer fails the reminder in time, so the run that records the ends
+          is not held up
 - `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
     - the application's stores a tenant is erased from, which the ends cannot start without
         - wired, nothing is refused, and the run is there to be called

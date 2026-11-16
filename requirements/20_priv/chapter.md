@@ -627,6 +627,14 @@ _Tested by:_
         - has nothing erased and no record begun where it has no subscriber to keep the record with
     - the quarter-hourly run
         - sets the deletions off without waiting for them, and starts no second beside the first
+- `packages/nest/tests/a-tenant-is-reminded-before-its-deletion.test.js`
+    - what a reminder tells the tenant to keep
+        - carries the application's lines, to the port and into the record
+        - a report that fails fails the reminder of its end alone, and the next run sends it with
+          the lines
+        - lines the report gets wrong fail the reminder as a report that fails does
+        - a report that does not answer fails the reminder in time, so the run that records the ends
+          is not held up
 - `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
     - the application's stores a tenant is erased from, which the ends cannot start without
         - wired, nothing is refused, and the run is there to be called

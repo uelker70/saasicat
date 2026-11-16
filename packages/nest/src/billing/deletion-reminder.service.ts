@@ -14,11 +14,24 @@
 // The lead times are the ones the file named when the application started,
 // not at the end's recording: after a restart with other lead times, one added
 // is reminded of on its day, also to ends recorded before, and a reminder told
-// for one the file no longer names still covers what it covered. Every end whose deletion
-// day is after today is reminded, whatever else holds its tenant back — a
-// suspension does not stop a deletion, so it does not stop the warning. No end
-// is left out as being deleted already: nothing records a deletion under way
-// yet — the `deleting` hold has no writer — so there is none to leave out.
+// for one the file no longer names still covers what it covered.
+//
+// An end is reminded of while it holds its tenant to reading — the reasons
+// `TenantDeletionService` finds the deletions due by — whatever else holds
+// the tenant back: a suspension does not stop a deletion, so it does not stop
+// the warning. An end whose reason was lifted is reminded of nothing, since
+// its tenant is not deleted on its day, and neither is a tenant whose deletion
+// is under way: once `deleting` holds it there is nothing left to warn of.
+// Where nothing keeps the reasons — tenant billing wired by hand without
+// `SaaSiCatModule` — no end holds its tenant, none is deleted, and none is
+// reminded.
+//
+// Every reminder carries what the tenant has to keep for obligations of its
+// own, as the application's `TenantKeepReportPort` reports it when the
+// reminder is put together (`SC-PRIV-022`): the read-only period is the time
+// to take those records along. A report that fails, answers lines it may not,
+// or does not answer in time fails the reminder of that end alone, as a notice
+// the application cannot send does, and the next run tries again.
 //
 // Platform-wide: the ends and the reminders are read across tenants, through
 // `RlsBypassPort` (`SC-SEC-020`).
@@ -31,6 +44,7 @@ import {
     deletionReminderSubjectIn,
     deletionReminderSubjectOf,
     installationZoneOf,
+    keepLinesProblem,
     type CalendarDay,
     type DeletionReminderNotice,
     type EndOfSubscriptionSettings,
@@ -41,10 +55,15 @@ import {
     type SubscriptionNoticePort,
     type SubscriptionNoticeRecord,
     type SubscriptionNoticeRepository,
+    type TenantAccessHoldPort,
+    type TenantKeepLine,
+    type TenantKeepReportPort,
 } from '@saasicat/core';
 
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
+import { withTimeout } from '../core/with-timeout.js';
+import { TENANT_ACCESS_HOLDS_TOKEN } from '../tenant-access/tenant-access.tokens.js';
 import {
     NOTICE_CLAIM_LEASE_MS,
     NOTICE_DELIVERY_TIMEOUT_MS,
@@ -57,6 +76,7 @@ import {
     SUBSCRIPTION_END_PORT_TOKEN,
     SUBSCRIPTION_NOTICE_PORT_TOKEN,
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
+    TENANT_KEEP_REPORT_PORT_TOKEN,
 } from './tenant-billing.tokens.js';
 
 const KIND = 'deletion-reminder';
@@ -98,10 +118,17 @@ export class DeletionReminderService {
         @Inject(END_OF_SUBSCRIPTION_TOKEN) private readonly period: EndOfSubscriptionSettings,
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
         private readonly settings: Pick<PlanCatalogSettings, 'timeZone'>,
+        @Inject(TENANT_KEEP_REPORT_PORT_TOKEN) private readonly keep: TenantKeepReportPort,
         // The run is the installation's, not a tenant's.
         @Optional()
         @Inject(RLS_BYPASS_PORT_TOKEN)
         private readonly rlsBypass: RlsBypassPort | null = null,
+        // Absent only where tenant billing is wired by hand without
+        // `SaaSiCatModule`: nothing keeps the reasons then, so no end holds
+        // its tenant, no tenant is deleted, and none is reminded.
+        @Optional()
+        @Inject(TENANT_ACCESS_HOLDS_TOKEN)
+        private readonly holds: TenantAccessHoldPort | null = null,
     ) {
         // A reminder told to nobody is not tried again: a read-only tenant
         // cannot add an administrator, so a retry would reach nobody again.
@@ -129,7 +156,7 @@ export class DeletionReminderService {
     async remindDue(now: Date): Promise<DeletionReminderRun> {
         const today = dayInZone(now, installationZoneOf(this.settings));
         return readAcrossTenants(this.rlsBypass, async () => {
-            const ends = await this.ends.listDeletingAfter(today);
+            const ends = await this.awaitingDeletion(await this.ends.listDeletingAfter(today));
             if (ends.length === 0) return { told: 0, failed: 0 };
             const reminders = await this.remindersOf(ends, now);
             let told = 0;
@@ -141,6 +168,30 @@ export class DeletionReminderService {
             }
             return { told, failed };
         });
+    }
+
+    /**
+     * Those of `ends` whose tenant is held to reading by the end and whose
+     * deletion has not begun, in one read of the reasons: the ends a deletion
+     * still waits for.
+     */
+    private async awaitingDeletion(ends: SubscriptionEnd[]): Promise<SubscriptionEnd[]> {
+        if (!this.holds || ends.length === 0) return [];
+        const open = await this.holds.listOpenFor([...new Set(ends.map((end) => end.tenantId))]);
+        const deleting = new Set<string>();
+        const endedBy = new Map<string, Set<string>>();
+        for (const hold of open) {
+            if (hold.kind === 'deleting') deleting.add(hold.tenantId);
+            if (hold.kind !== 'ended' || hold.reference === null) continue;
+            const references = endedBy.get(hold.tenantId) ?? new Set<string>();
+            references.add(hold.reference);
+            endedBy.set(hold.tenantId, references);
+        }
+        return ends.filter(
+            (end) =>
+                !deleting.has(end.tenantId) &&
+                (endedBy.get(end.tenantId)?.has(end.subscriptionId) ?? false),
+        );
     }
 
     /**
@@ -163,9 +214,10 @@ export class DeletionReminderService {
     }
 
     /**
-     * Sends `end` the reminder due today. One that cannot be put together
-     * fails for this end alone, as one the application could not send does,
-     * and the next run tries again.
+     * Sends `end` the reminder due today. One that cannot be put together —
+     * the application's report of what the tenant keeps included — fails for
+     * this end alone, as one the application could not send does, and the
+     * next run tries again.
      */
     private async remind(
         end: SubscriptionEnd,
@@ -176,7 +228,7 @@ export class DeletionReminderService {
         if (reminders?.held) return null;
         let reminder: DeletionReminderNotice | null;
         try {
-            reminder = this.reminderOf(end, reminders?.told ?? [], today);
+            reminder = await this.reminderOf(end, reminders?.told ?? [], today);
         } catch (error) {
             this.logger.error(
                 `The reminder of the deletion of tenant ${end.tenantId} on ${end.deletesOn} could ` +
@@ -235,12 +287,15 @@ export class DeletionReminderService {
         return sameLeadTimes(fresh.told, decidedOn);
     }
 
-    /** The reminder due for `end` today, or null where none is. */
-    private reminderOf(
+    /**
+     * The reminder due for `end` today, or null where none is. The
+     * application is asked what the tenant keeps only once one is due.
+     */
+    private async reminderOf(
         end: SubscriptionEnd,
         toldDaysBefore: readonly number[],
         today: CalendarDay,
-    ): DeletionReminderNotice | null {
+    ): Promise<DeletionReminderNotice | null> {
         const daysBefore = deletionReminderDue({
             deletesOn: end.deletesOn,
             reminderDaysBefore: this.period.reminderDaysBefore,
@@ -248,6 +303,7 @@ export class DeletionReminderService {
             today,
         });
         if (daysBefore === null) return null;
+        const keep = await this.keptBy(end.tenantId);
         return {
             kind: KIND,
             tenantId: end.tenantId,
@@ -256,7 +312,22 @@ export class DeletionReminderService {
             daysBefore,
             readOnlyUntil: addDaysToDay(end.deletesOn, -1),
             deletesOn: end.deletesOn,
+            keep,
         };
+    }
+
+    /**
+     * What `tenantId` has to keep, as the application reports it, checked.
+     * Bounded as the delivery is: the run that records the ends waits for
+     * the reminders, and must not wait on a report that never answers.
+     */
+    private async keptBy(tenantId: string): Promise<readonly TenantKeepLine[]> {
+        const keep = await withTimeout(() => this.keep.keep(tenantId), NOTICE_DELIVERY_TIMEOUT_MS);
+        const problem = keepLinesProblem(keep);
+        if (problem !== null) {
+            throw new Error(`The TenantKeepReportPort answered lines whose ${problem} is wrong.`);
+        }
+        return keep;
     }
 }
 

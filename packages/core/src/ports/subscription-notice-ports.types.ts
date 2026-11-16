@@ -110,7 +110,9 @@ export interface SubscriptionNoticeRepository {
  * A reminder of a deletion (`deletion-reminder`) told to nobody is not tried
  * again either: a read-only tenant cannot add an administrator, so a retry
  * would reach nobody again; the record keeps that nobody could be told. The
- * next lead time is still reminded of on its day.
+ * next lead time is still reminded of on its day. Each one carries `keep`,
+ * what the tenant has to keep for obligations of its own: say it, so the
+ * administrator takes those records along before the deletion day.
  */
 export interface SubscriptionNoticePort {
     deliver(notice: SubscriptionNotice): Promise<SubscriptionNoticeDelivery>;
