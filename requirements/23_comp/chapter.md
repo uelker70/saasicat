@@ -742,6 +742,9 @@ _Tested by:_
         - token db → factory specs injecting the token
         - hasher instance + instance db enables provisioning
         - transaction runner passes the drizzle tx through as context
+- `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - a deletion counts a subscriber's commercial record in the tables the schema has
+        - a model the schema does not adopt counts 0, and its table is not asked
 - `packages/adapter-drizzle/tests/the-archived-invoice-documents-are-read.test.js`
     - the invoices whose document is archived
         - are read by one statement over the ids asked for, the archived ones only
@@ -777,6 +780,7 @@ _Tested by:_
         - secret roundtrip incl. enabledAt handling
     - PrismaAuditAdapter
         - write maps actor to userId + actorTag on audit_logs
+        - write keeps the tenant it is handed
         - write without changes defaults to {}
     - PrismaAuditQueryAdapter
         - maps wildcard actorTag, pagination and row → AuditEntry
@@ -928,7 +932,10 @@ _Tested by:_
         - a claim records the notice where it is new, then takes it in one guarded update
         - a claim that takes no row answers null without reading
         - a confirmation and a release name the claim they hold
+        - a confirmation of a notice whose recipients were forgotten writes how many, not whom
         - a confirmation that finds the claim gone answers false
+        - a tenant's recipients are forgotten in one statement, for that tenant and not yet
+          forgotten
         - what was delivered is read as sent, and a delivery nobody can read stops the read
         - the subscriptions told of a subject are the delivered ones
 - `packages/adapter-prisma/tests/prisma-tenant-access-hold.repository.test.js`
@@ -938,7 +945,28 @@ _Tested by:_
         - a reason is recorded under an id made here, the index deciding a second
         - a lift asks for a reason still open, and one already lifted answers null
         - the tenants held back by some kinds are read once each, from open reasons
+        - every reason of a tenant is read, the lifted ones too, oldest first
+        - a record and a lift given a transaction write on it, not on the client
+        - a lock is taken on the row in the transaction, and the reason read open only after it
+        - the actors are replaced row by row, by id, and nothing else is written
+        - a tenant's notes are emptied in one write, on the rows that have one, and nothing else
         - a row with a kind the platform does not know is refused
+- `packages/adapter-prisma/tests/prisma-tenant-deletion.repository.test.js`
+    - PrismaTenantDeletionRepository
+        - a beginning writes the record, its stores and its kept lines in one transaction of its own
+        - a tenant begun already writes nothing more and answers null
+        - a beginning given the caller's transaction writes on it and opens none
+        - a claim names the open record and the lease, and one that takes no row reads nothing
+        - a renewal and a release name the claim they hold
+        - a store's counts are written only by the call that marked it counted
+        - a confirmation is written where none is yet
+        - a failure counts its attempt in the statement that records it, its moment as text
+        - the commercial record is written to the column it was counted for
+        - a close names the open record, on the transaction given
+        - the records are read by tenant, or by subscriber the most recently begun first
+        - the commercial record counts each part of one subscriber
+        - a model the schema does not adopt counts 0 and is not asked
+        - a model the client lacks and nobody said is left out is an error, not a 0
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record
         - dates leave as ISO strings, and an undeleted plan says so
@@ -1023,6 +1051,8 @@ _Tested by:_
         - with the one against an update or a delete disabled, that one
     - a join says what would let a subscriber joined be given a row
         - names a table whose trigger does not fire, and none where every one does
+    - a deletion counts a subscriber's commercial record in the tables the schema has
+        - a model the schema does not adopt counts 0, and its table is not asked
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -1059,6 +1089,7 @@ _Tested by:_
         - secret roundtrip incl. enabledAt handling
     - PrismaAuditAdapter
         - write maps actor to userId + actorTag on audit_logs
+        - write keeps the tenant it is handed
         - write without changes defaults to {}
     - PrismaAuditQueryAdapter
         - maps wildcard actorTag, pagination and row → AuditEntry
@@ -1237,6 +1268,8 @@ _Tested by:_
         - with the one against an update or a delete disabled, that one
     - a join says what would let a subscriber joined be given a row
         - names a table whose trigger does not fire, and none where every one does
+    - a deletion counts a subscriber's commercial record in the tables the schema has
+        - a model the schema does not adopt counts 0, and its table is not asked
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -1356,12 +1389,19 @@ _Tested by:_
 - `examples/notesapp/tests/a-tenant-hears-before-its-notes-are-deleted.test.mjs`
     - the notes app's notice port
         - tells the tenant's own users the deletion day and where the export is, and says so
+        - names what the tenant has to keep itself, with its count, and says nothing of it where
+          there is nothing
         - tells nobody of a tenant without users, and says so
 - `examples/notesapp/tests/dev-proxy-targets-own-backend.test.mjs`
     - docker-compose declares a default for every port the dev server needs
     - the vite config reads the ports from the file, not from the shell
     - ${variable}: the config fallback equals the compose default
     - .env.example documents the same defaults it tells people to override
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what
+          the platform keeps of the tenant
+        - erasing the tenant again is done, and changes nothing
 - `examples/notesapp/tests/notesapp-smoke.test.mjs`
     - notesapp platform wiring (smoke)
         - static entitlement resolves the STARTER plan for every tenant
@@ -1385,6 +1425,15 @@ _Tested by:_
         - stores the second factor sealed with the installation key, as the platform opens it
         - keeps a second factor the key opens, so an authenticator set up once keeps working
         - replaces a second factor the key cannot open, which checks no code
+- `examples/notesapp/tests/the-notes-app-erases-one-tenant.test.mjs`
+    - the notes app's eraser
+        - is named with a stable key
+        - refuses what does not name exactly one tenant before it asks the database anything
+        - counts the tenant's notes, users and audit entries, and no other tenant's
+        - erases the tenant's audit entries, then its row, in one transaction and for it alone
+        - erasing a tenant already gone is done, and erases nothing of another
+    - the notes app's report of what a tenant keeps
+        - is nothing: the notes app holds nothing a tenant has to keep for obligations of its own
 - `examples/notesapp/tests/the-notes-app-issues-invoices.test.mjs`
     - the notes app's contract freeze source
         - names the version the subscription is bound to, by its plan

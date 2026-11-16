@@ -1,5 +1,5 @@
 // An invoice unpaid on its due date makes its subscriber's tenant read-only,
-// and settling it lifts that reason and no other (`SC-PRIC-098`).
+// and settling it lifts that reason and no other (`SC-PRIC-104`).
 //
 // Every case runs over the collecting installation in memory: the invoice of
 // February is issued on 1 February and due on 15 February — fourteen days of
@@ -8,7 +8,7 @@
 // midnight in Berlin, and not a moment before. A direct debit is collected on
 // that day.
 
-// @requirement SC-PRIC-098 — An invoice unpaid on its due date makes the tenant read-only until it is paid
+// @requirement SC-PRIC-104 — An invoice unpaid on its due date makes the tenant read-only until it is paid
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -857,5 +857,80 @@ describe('a payment that lands while the run compares', () => {
 
         assert.deepEqual(openReasons(installation.holds), []);
         assert.equal(await stateOf(installation.access, 't1'), 'open');
+    });
+});
+
+// @requirement SC-PRIV-025 — No invoice or suspension reaches a tenant being deleted; its close lifts the rest
+describe('a tenant whose deletion has begun', () => {
+    clockFrom(FIRST_RUN);
+
+    /** Begins the deletion of `tenantId` as the deletion run does: its reason opens and stays. */
+    const deletionBegins = (holds, tenantId, at) =>
+        holds.record({
+            tenantId,
+            kind: 'deleting',
+            reference: `subscription-${tenantId}`,
+            note: null,
+            since: at,
+            recordedBy: 'job:platform:tenant-deletions',
+        });
+
+    test('gets no reason from an invoice unpaid on its due date; another tenant does', async () => {
+        quietLog();
+        const { overdue, holds, invoices } = await unpaidInvoices(['t1', 't2']);
+        await deletionBegins(holds, 't1', BEFORE_DUE_DAY);
+
+        const run = await overdue.holdBackDue(clockAt(DUE_DAY));
+
+        assert.deepEqual(run, { held: 1, lifted: 0 });
+        assert.deepEqual(openReasons(holds), [
+            ['t1', 'deleting', 'subscription-t1'],
+            ['t2', 'overdue', invoices[1].id],
+        ]);
+    });
+
+    test('keeps the reason it had when its invoice is paid: the run lifts none, the close does', async () => {
+        quietLog();
+        const installation = await unpaidInvoices();
+        const { overdue, holds, payments, invoices } = installation;
+        await overdue.holdBackDue(clockAt(DUE_DAY));
+        await deletionBegins(holds, 't1', later(DUE_DAY, 5));
+        await payments.recordPayment({
+            invoiceId: invoices[0].id,
+            collectionId: null,
+            gatewayAccount: 'main',
+            provider: 'stripe',
+            gatewayRef: 'pi_elsewhere',
+            amount: invoices[0].totalGross,
+            currency: 'EUR',
+            at: later(DUE_DAY, 10),
+        });
+
+        const run = await overdue.holdBackDue(clockAt(later(DUE_DAY, 15)));
+
+        assert.deepEqual(run, { held: 0, lifted: 0 });
+        assert.deepEqual(openReasons(holds), [
+            ['t1', 'overdue', invoices[0].id],
+            ['t1', 'deleting', 'subscription-t1'],
+        ]);
+    });
+
+    test('keeps the reason it had when the payment that settles its invoice comes in', async () => {
+        quietLog();
+        const installation = await unpaidInvoices();
+        const { overdue, holds, access, paying, payments, invoices } = installation;
+        await overdue.holdBackDue(clockAt(DUE_DAY));
+        await deletionBegins(holds, 't1', later(DUE_DAY, 5));
+        await replaceCard(installation, paying[0].subscriber.id, DUE_DAY);
+
+        await installation.collect(clockAt(later(DUE_DAY, 15)));
+
+        assert.equal(await payments.owedBy(invoices[0].id), 0, 'the premise: paid');
+        assert.equal(await stateOf(access, 't1'), 'deleting');
+        assert.deepEqual(openReasons(holds), [
+            ['t1', 'overdue', invoices[0].id],
+            ['t1', 'deleting', 'subscription-t1'],
+        ]);
+        assert.equal(await overdue.liftSettled(invoices[0].id, later(DUE_DAY, 20), PAYMENT_TAG), 0);
     });
 });

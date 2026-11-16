@@ -47,6 +47,7 @@ import {
     PrismaInstallationMarkRepository,
     PrismaTenantAccessHoldRepository,
     PrismaSubscriptionEndRepository,
+    PrismaTenantDeletionRepository,
     PrismaSubscriptionNoticeRepository,
     PrismaMarketingProjectionRepository,
     PrismaPaymentEventLog,
@@ -84,6 +85,9 @@ await rebuildFromReferenceSchema(prisma);
 await applyShippedMigration('1.0-a-subscriber-is-joined.postgres.sql');
 
 const PLATFORM_TABLES = [
+    'subscriber_tenant_deletion_counts',
+    'subscriber_tenant_deletion_stores',
+    'subscriber_tenant_deletions',
     'subscriber_joins',
     'subscriber_credit_entries',
     'subscriber_refunds',
@@ -178,6 +182,7 @@ function createHarness() {
             installationMark: new PrismaInstallationMarkRepository(prisma),
             tenantAccessHolds: new PrismaTenantAccessHoldRepository(prisma),
             subscriptionEnds: new PrismaSubscriptionEndRepository(prisma),
+            tenantDeletions: new PrismaTenantDeletionRepository(prisma),
             subscriptionNotices: new PrismaSubscriptionNoticeRepository(prisma),
             versionRetirements: new PrismaVersionRetirementRepository(prisma),
             bundleVersionRetirements: new PrismaBundleVersionRetirementRepository(prisma),
@@ -256,6 +261,12 @@ function createHarness() {
                 await prisma.subscriptionContract.update({
                     where: { id: contractId },
                     data: { confirmationDue: false },
+                });
+            },
+            async markNoticeDeliveredBeforeItsCount(noticeId) {
+                await prisma.subscriptionNotice.update({
+                    where: { id: noticeId },
+                    data: { recipientCount: null },
                 });
             },
             async createSubscriber(input) {
@@ -608,6 +619,7 @@ describe('a join says what would let a subscriber joined be given a row', () => 
             'subscriberRefund',
             'subscriberReversal',
             'subscriberReconciliationCase',
+            'subscriberTenantDeletion',
         ]) {
             without[delegate] = prisma[delegate];
         }

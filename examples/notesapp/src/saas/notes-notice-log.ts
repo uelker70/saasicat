@@ -45,8 +45,16 @@ export class NotesNoticeLog implements SubscriptionNoticePort {
 /** What the notice says, in the notes app's words. */
 function wordingOf(notice: SubscriptionNotice): string {
     if (notice.kind !== 'deletion-reminder') return `A notice of kind ${notice.kind}.`;
-    return (
+    const deletion =
         `Your notes are deleted on ${notice.deletesOn}. Until ${notice.readOnlyUntil} you can ` +
-        'still read them and take everything as one file from GET billing/export.'
+        'still read them and take everything as one file from GET billing/export.';
+    // The notes app's own report keeps nothing (`NotesKeepReport`), so this
+    // sentence never appears in its log; an app that reports lines says them
+    // here, in the reader's language where `labels` names it.
+    if (notice.keep.length === 0) return deletion;
+    const lines = notice.keep.map((line) => `${line.labels.en}: ${line.count}`).join(', ');
+    return (
+        `${deletion} Take along what you have to keep yourself, as the deletion does not wait ` +
+        `for them: ${lines}.`
     );
 }

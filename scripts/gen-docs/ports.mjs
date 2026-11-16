@@ -33,6 +33,7 @@ const AREA = {
     'tenant-access-ports.types.ts': 'Tenant access',
     'subscription-end-ports.types.ts': 'Subscription ends',
     'installation-mark-ports.types.ts': 'Installation mark',
+    'tenant-deletion-ports.types.ts': 'Tenant deletion',
 };
 
 /**

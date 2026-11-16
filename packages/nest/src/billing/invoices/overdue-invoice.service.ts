@@ -1,5 +1,5 @@
 // An invoice unpaid on its due date holds its tenant back to reading, and
-// stops once it no longer owes (`SC-PRIC-098`, `SC-ADM-055`).
+// stops once it no longer owes (`SC-PRIC-104`, `SC-ADM-055`).
 //
 // The quarter-hourly run compares the invoices that hold their tenant back
 // with the open `overdue` reasons and records and lifts the difference, so a
@@ -13,6 +13,12 @@
 // tenant to the subscriber it joined, and a subscriber without a live tenant
 // holds nobody back.
 //
+// Neither the run nor a payment records or lifts a reason on a tenant whose
+// deletion has begun (`SC-PRIV-025`): the deletion holds it back more strictly
+// than any invoice, lifts its reasons when it closes, and leaves nothing to
+// hold back once the tenant is gone. What the subscriber owes stays in its
+// ledger.
+//
 // Platform-wide: the invoices are read across tenants, through `RlsBypassPort`.
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
@@ -22,6 +28,7 @@ import {
     installationZoneOf,
     invoiceChainHoldsBack,
     overdueHoldChanges,
+    tenantsBeingDeleted,
     type InvoiceCollectionRepository,
     type OverdueInvoice,
     type PlanCatalogSettings,
@@ -96,14 +103,18 @@ export class OverdueInvoiceService {
      * Records a reason for every invoice that holds its tenant back on `at` —
      * open on or after its due date, and not merely waiting for its first
      * answer — on the tenant its subscriber is live for, and lifts every
-     * `overdue` reason whose invoice that no longer describes.
+     * `overdue` reason whose invoice that no longer describes; a tenant whose
+     * deletion has begun is left as it stands.
      */
     async holdBackDue(at: Date): Promise<OverdueInvoiceRun> {
         const holds = this.holds;
         if (!holds) return { held: 0, lifted: 0 };
         const overdue = await this.overdueOn(at);
-        const heldTenants = await holds.listTenantIdsHeldBy(['overdue']);
-        const open = heldTenants.length > 0 ? await holds.listOpenFor(heldTenants) : [];
+        // The reasons of every tenant the comparison touches, the deletion's
+        // own among them: those held already, and those an invoice would hold.
+        const tenants = new Set(await holds.listTenantIdsHeldBy(['overdue']));
+        for (const invoice of overdue) tenants.add(invoice.tenantId);
+        const open = tenants.size > 0 ? await holds.listOpenFor([...tenants]) : [];
         const changes = overdueHoldChanges(overdue, open);
         // Another instance running at the same moment may record or lift a
         // reason first; the store answers null then, and it is not counted.
@@ -140,7 +151,7 @@ export class OverdueInvoiceService {
      * Lifts the reason `invoiceId` holds its tenant back for, at `at` and as
      * `liftedBy`, where it owes nothing any more — what a payment that settles
      * it does at once rather than leaving to the next run. Returns the reasons
-     * lifted.
+     * lifted; none on a tenant whose deletion has begun.
      */
     async liftSettled(invoiceId: string, at: Date, liftedBy: string): Promise<number> {
         const holds = this.holds;
@@ -298,7 +309,8 @@ export class OverdueInvoiceService {
      * invoices it replaced, which a run may not have moved onto it yet: paying
      * it pays what they were held back for. Read for that tenant alone, so a
      * payment costs the same however many tenants are held back; a reason left
-     * on a tenant the subscriber has left is the next run's to lift.
+     * on a tenant the subscriber has left is the next run's to lift, and one
+     * on a tenant whose deletion has begun is the deletion's.
      */
     private async reasonsOf(
         holds: TenantAccessHoldPort,
@@ -310,7 +322,9 @@ export class OverdueInvoiceService {
             return { held: tenant, chain: chainOf.get(invoiceId) ?? [invoiceId] };
         });
         if (!held) return [];
-        return (await holds.listOpen(held.tenantId)).filter(
+        const open = await holds.listOpen(held.tenantId);
+        if (tenantsBeingDeleted(open).has(held.tenantId)) return [];
+        return open.filter(
             (hold) =>
                 hold.kind === 'overdue' &&
                 hold.reference !== null &&

@@ -18,6 +18,7 @@
 // reasons alone.
 
 import {
+    ConflictException,
     type ExecutionContext,
     ForbiddenException,
     Inject,
@@ -45,6 +46,7 @@ import {
     tenantAccessOf,
     tenantAccessRefusal,
     tenantAccessViewOf,
+    tenantsBeingDeleted,
 } from '@saasicat/core';
 
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
@@ -286,6 +288,12 @@ export class TenantAccessService {
      * keeps its own note and moment. Written through the bypass, as the
      * operator writes for the platform rather than for a tenant: the same
      * row is written whichever frame the caller is in.
+     *
+     * Refused with `TENANT_DELETION_BEGUN` once the tenant's deletion has
+     * begun: the deletion already holds it back more strictly, and from then
+     * on only the deletion changes its reasons, but for the operator lifting
+     * a suspension that stands, so none is left open, or naming a person,
+     * after the tenant is gone (`SC-PRIV-025`).
      */
     async suspend(
         tenantId: string,
@@ -293,16 +301,21 @@ export class TenantAccessService {
         recordedBy: string,
         at: Date,
     ): Promise<TenantAccessHold | null> {
-        return this.throughTheBypass(() =>
-            this.holds.record({
+        return this.throughTheBypass(async () => {
+            if (tenantsBeingDeleted(await this.holds.listOpen(tenantId)).has(tenantId)) {
+                throw new ConflictException(
+                    codedError(TENANT_ACCESS_ERROR_CODES.TENANT_DELETION_BEGUN, { tenantId }),
+                );
+            }
+            return this.holds.record({
                 tenantId,
                 kind: 'suspended',
                 reference: null,
                 note,
                 since: at,
                 recordedBy,
-            }),
-        );
+            });
+        });
     }
 
     /**

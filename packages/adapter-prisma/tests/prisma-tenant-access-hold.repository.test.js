@@ -4,9 +4,11 @@
 // however many record it at once, a lift that lands once — are the contract's,
 // and run against PostgreSQL in tests/integration/. What this holds is the
 // translation: that an open reason is `liftedAt: null`, that the insert leaves
-// the refusal to the index (`skipDuplicates`) under an id made here, and that
-// the lift's `WHERE` asks for a reason still open. A repository that lifted by
-// id alone would pass its own unit tests and let two lifts both land.
+// the refusal to the index (`skipDuplicates`) under an id made here, that
+// the lift's `WHERE` asks for a reason still open, that a write given a
+// transaction runs on it, and that a lock is taken on the row and the reason
+// read open only afterwards. A repository that lifted by id alone would pass
+// its own unit tests and let two lifts both land.
 
 // @requirement SC-COMP-010 — An integrator's own data access translates; it does not decide
 
@@ -29,7 +31,12 @@ const ROW = {
     addedLater: 'x',
 };
 
-function fakeClient({ inserted = [ROW], lifted = 1 } = {}) {
+function fakeClient({
+    inserted = [ROW],
+    lifted = 1,
+    read = { ...ROW, liftedAt: ROW.since },
+    locked = [{ id: ROW.id }],
+} = {}) {
     const calls = [];
     const record = (name, answer) => async (args) => {
         calls.push([name, args]);
@@ -39,9 +46,13 @@ function fakeClient({ inserted = [ROW], lifted = 1 } = {}) {
         calls,
         tenantAccessHold: {
             findMany: record('findMany', [ROW]),
-            findUnique: record('findUnique', { ...ROW, liftedAt: ROW.since }),
+            findUnique: record('findUnique', read),
             createManyAndReturn: record('createManyAndReturn', inserted),
             updateMany: record('updateMany', { count: lifted }),
+        },
+        async $queryRaw(strings, ...values) {
+            calls.push(['$queryRaw', { sql: strings.join('?'), values }]);
+            return locked;
         },
     };
 }
@@ -123,6 +134,90 @@ describe('PrismaTenantAccessHoldRepository', () => {
         });
         assert.deepEqual(await repository.listTenantIdsHeldBy([]), []);
         assert.equal(client.calls.length, 1, 'no query for no kinds');
+    });
+
+    test('every reason of a tenant is read, the lifted ones too, oldest first', async () => {
+        const client = fakeClient();
+        await new PrismaTenantAccessHoldRepository(client).listAllOf('t-1');
+        const [[name, args]] = client.calls;
+        assert.equal(name, 'findMany');
+        assert.deepEqual(args.where, { tenantId: 't-1' });
+        assert.deepEqual(args.orderBy, [{ since: 'asc' }, { id: 'asc' }]);
+        assert.equal(args.select.addedLater, undefined);
+    });
+
+    test('a record and a lift given a transaction write on it, not on the client', async () => {
+        const client = fakeClient();
+        const tx = fakeClient();
+        const repository = new PrismaTenantAccessHoldRepository(client);
+        const { id: _id, liftedAt: _l, liftedBy: _b, addedLater: _a, ...hold } = ROW;
+        await repository.record(hold, tx);
+        await repository.lift('h-1', new Date('2026-11-05T16:45:00.000Z'), 'ops', tx);
+        assert.deepEqual(client.calls, []);
+        assert.deepEqual(
+            tx.calls.map(([name]) => name),
+            ['createManyAndReturn', 'updateMany', 'findUnique'],
+        );
+    });
+
+    test('a lock is taken on the row in the transaction, and the reason read open only after it', async () => {
+        const tx = fakeClient({ read: ROW });
+        const repository = new PrismaTenantAccessHoldRepository(fakeClient());
+        const locked = await repository.lockOpen('h-1', tx);
+        const [[lock, { sql, values }], [read, args]] = tx.calls;
+        assert.equal(lock, '$queryRaw');
+        assert.match(sql, /FOR UPDATE/);
+        assert.deepEqual(values, ['h-1']);
+        assert.equal(read, 'findUnique');
+        assert.deepEqual(args.where, { id: 'h-1' });
+        assert.equal(locked.id, 'h-1');
+
+        const waitedForALift = new PrismaTenantAccessHoldRepository(fakeClient());
+        assert.equal(
+            await waitedForALift.lockOpen('h-1', fakeClient()),
+            null,
+            'a reason lifted while the lock was waited for was read open',
+        );
+        const none = fakeClient({ locked: [] });
+        assert.equal(await repository.lockOpen('h-9', none), null);
+        assert.deepEqual(
+            none.calls.map(([name]) => name),
+            ['$queryRaw'],
+            'no row locked is no reason, without a read',
+        );
+    });
+
+    test('the actors are replaced row by row, by id, and nothing else is written', async () => {
+        const client = fakeClient();
+        const tx = fakeClient();
+        await new PrismaTenantAccessHoldRepository(client).replaceActors(
+            [
+                { id: 'h-1', recordedBy: 'operator', liftedBy: 'operator' },
+                { id: 'h-2', recordedBy: 'run', liftedBy: null },
+            ],
+            tx,
+        );
+        assert.deepEqual(client.calls, []);
+        assert.deepEqual(
+            tx.calls.map(([, args]) => args),
+            [
+                { where: { id: 'h-1' }, data: { recordedBy: 'operator', liftedBy: 'operator' } },
+                { where: { id: 'h-2' }, data: { recordedBy: 'run', liftedBy: null } },
+            ],
+        );
+    });
+
+    test("a tenant's notes are emptied in one write, on the rows that have one, and nothing else", async () => {
+        const client = fakeClient();
+        const tx = fakeClient();
+        await new PrismaTenantAccessHoldRepository(client).forgetNotes('t-1', tx);
+        assert.deepEqual(client.calls, []);
+        assert.deepEqual(tx.calls, [
+            [
+                'updateMany',
+                { where: { tenantId: 't-1', note: { not: null } }, data: { note: null } },
+            ],
+        ]);
     });
 
     test('a row with a kind the platform does not know is refused', async () => {

@@ -8,6 +8,7 @@ import { SaaSiCatModule } from '../dist/platform/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
 import {
     FakeInstallationMarkRepository,
+    FakeTenantDeletionRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
@@ -56,12 +57,14 @@ function persistenceWithoutPlanCatalogue({ bundleRepository = {} } = {}) {
             tenantAccessHolds: new FakeTenantAccessHoldRepository(),
             subscriptionEnds: new FakeSubscriptionEndRepository(),
             installationMark: new FakeInstallationMarkRepository(),
+            tenantDeletions: new FakeTenantDeletionRepository(),
             mfa: spec,
             audit: spec,
             rlsBypass: spec,
             transactionRunner: spec,
         },
         entitlement: {
+            subscriberRepository: { findByTenantId: async () => null },
             subscriptionRepository: spec,
             planVersionRepository: spec,
             subscriptionBundleRepository: spec,

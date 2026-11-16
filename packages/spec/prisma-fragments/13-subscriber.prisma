@@ -81,6 +81,7 @@ model Subscriber {
     refunds             SubscriberRefund[]
     reversals           SubscriberReversal[]
     reconciliationCases SubscriberReconciliationCase[]
+    tenantDeletions     SubscriberTenantDeletion[] // see 33-subscriber-tenant-deletion.prisma
     // A subscriber joined into another has one join that names it; the one
     // it was joined into names every subscriber joined into it.
     joinedInto SubscriberJoin?  @relation("SubscriberJoinFrom") // see 27-subscriber-join.prisma

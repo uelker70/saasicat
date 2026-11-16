@@ -6,7 +6,7 @@
 // produces nor sends it. What the platform keeps is the record: once the whole
 // file has gone out, the application calls `recordDelivered`, and the download
 // is recorded beside the end and audited exactly as one the platform served,
-// as the tenant's acknowledgement (`SC-PRIV-017`). So here the order is the
+// as the tenant's acknowledgement (`SC-PRIV-024`). So here the order is the
 // other way round from the platform's route: the file has left before its
 // record is written, and a download that broke off, or that the application
 // never reports, leaves none. Nor does a `HEAD`: the application's `GET`
@@ -111,10 +111,12 @@ export class TenantExportDeliveryService implements OnModuleInit {
      * `TENANT_EXPORT_NOT_FOR_OPERATOR` for the operator, with
      * `TENANT_ADMIN_REQUIRED` for a user who is not the tenant's administrator,
      * with `TENANT_CONTEXT_MISSING` where the session names no tenant or no
-     * user, and with `TENANT_EXPORT_NOT_OFFERED` where no end of the tenant's
-     * subscription is recorded. A failure to record is thrown as
-     * it is. Nothing is recorded or audited on any of these paths; the
-     * application keeps its own trace of the download.
+     * user, with `TENANT_EXPORT_NOT_OFFERED` where no end of the tenant's
+     * subscription is recorded, and with `TENANT_DELETION_BEGUN` once the
+     * tenant's deletion has begun, however long before the file went out its
+     * download started. A failure to record is thrown as it is. Nothing is
+     * recorded or audited on any of these paths; the application keeps its
+     * own trace of the download.
      */
     async recordDelivered(
         request: unknown,

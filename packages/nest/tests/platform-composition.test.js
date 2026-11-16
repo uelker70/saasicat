@@ -19,7 +19,10 @@ import { PaymentGatewayRegistry } from '../dist/payments/index.js';
 import { CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN } from '../dist/checkout-offer/index.js';
 import { CONTRACT_TRANSACTION_RUNNER_TOKEN } from '../dist/subscription-contract/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
-import { FakeInstallationMarkRepository } from '../dist/testing/index.js';
+import {
+    FakeInstallationMarkRepository,
+    FakeTenantDeletionRepository,
+} from '../dist/testing/index.js';
 import { aDeletion } from './helpers/installation-mark.js';
 import { anExport } from './helpers/tenant-data-export.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
@@ -74,7 +77,10 @@ after(() => {
 
 /** The persistence bundle the probe binds, shared by both places it appears. */
 const PERSISTENCE = {
-    core: { installationMark: new FakeInstallationMarkRepository() },
+    core: {
+        installationMark: new FakeInstallationMarkRepository(),
+        tenantDeletions: new FakeTenantDeletionRepository(),
+    },
     catalog: {
         planRepository: REPO,
         bundleRepository: REPO,
@@ -438,6 +444,8 @@ describe('the checkout offer composer', () => {
         const entitlement = { ...PERSISTENCE.entitlement, subscriptionContractRepository: REPO };
         delete entitlement.subscriberRepository;
         ctx.persistence = { ...PERSISTENCE, entitlement };
+        // Tenant billing finds the subscribers of its deletions where it is told to.
+        ctx.options.tenantBilling.subscriptionEnds.deletion.subscribers = REPO;
         // The contract module refuses to mount without one on its own; this asks
         // about the checkout offer alone.
         ctx.options.subscriptionContract = false;
@@ -465,6 +473,9 @@ describe('the checkout offer composer', () => {
             },
         };
         delete ctx.adapters.transactionRunner;
+        // Tenant billing begins its deletions in a transaction, so it is left
+        // out here; this asks about the checkout offer alone.
+        delete ctx.options.tenantBilling;
         assert.equal(concludes(ctx), false);
     });
 });

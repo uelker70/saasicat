@@ -113,6 +113,14 @@ export interface AuditPort {
         entityId: string;
         action: string;
         changes?: Record<string, unknown>;
+        /**
+         * The one tenant the entry concerns: where somebody acts in the
+         * tenant, or the tenant's running state — its subscription, its
+         * add-ons, its suspension — is what changes. Absent for an act on
+         * no tenant, and for an operator's or a run's act on the subscriber's
+         * commercial record. A tenant's data eraser finds its entries by it.
+         */
+        tenantId?: string;
     }): Promise<void>;
 }
 

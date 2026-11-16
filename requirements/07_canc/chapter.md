@@ -621,7 +621,7 @@ ending it on the spot (`SC-CANC-003`), gets its date computed from the period at
 A later change to the period moves neither, and the one way to delete earlier is `SC-ADM-020`'s. A
 new subscription for the tenant before that date lifts it, and that subscription ending records a
 date of its own. What a tenant may do during the period is `SC-ADM-052`'s to enforce, and how the
-deletion runs is `SC-PRIV-014`'s.
+deletion runs is `SC-PRIV-022`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -704,11 +704,11 @@ _Tested by:_
 ### SC-CANC-022 — A tenant is reminded before its data is deleted
 
 🟡 _(Decided, not yet delivered.)_ 🔒 By email to the tenant's administrators, who can take the export
-(`SC-PRIV-017`), at each lead time `config/saas.yaml` names in days before the deletion date
+(`SC-PRIV-024`), at each lead time `config/saas.yaml` names in days before the deletion date
 (`SC-CANC-027`). Lead times that have already passed when the subscription ends are covered by one
 reminder sent at once rather than skipped, so a period shorter than a lead time still gives notice,
 and a run that repeats sends no reminder twice. Each reminder sent is part of the deletion record
-(`SC-PRIV-017`).
+(`SC-PRIV-024`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -755,6 +755,16 @@ _Tested by:_
         - a port that tells nobody is recorded as told to nobody and not tried again; the next lead
           time still goes on its day
         - a reminder that cannot be put together fails for its end alone, and the next run sends it
+    - an end the deletion no longer waits for
+        - a tenant whose deletion is under way is reminded of nothing, and its report of what to
+          keep is not asked
+        - an end whose reason was lifted is reminded of nothing: its tenant is not deleted on that
+          day
+        - a reason held for another of the tenant's subscriptions does not hold this end
+        - of two ends holding one tenant, only the one that ended last is reminded of, with its day
+        - a tenant whose contract runs past the end that decides it is reminded of nothing; one
+          without such a contract is
+        - without the reasons kept, no end holds its tenant, none is deleted, and none is reminded
     - a reminder another run still holds
         - holds back the smaller lead time, so no second e-mail goes out alongside it
         - once delivered, covers what it covers, and the smaller lead time goes by the next run
@@ -776,14 +786,14 @@ _Tested by:_
         - count the installation's day ahead of UTC, not UTC's
         - count the installation's day behind UTC, not UTC's
     - the quarter-hourly run
-        - records the ends first and reminds after
+        - records the ends first, reminds after, and sets off the deletions last
         - a run whose recording fails still reminds the ends recorded before
         - a run whose reminding fails lets the next one try again
         - under a maintenance lock neither records nor reminds; the next run catches up
         - a run still going when the next is due lets it pass, and nothing is asked twice
     - the reminders, as the platform wires them
-        - an end the run records is reminded by the same run where a lead time is already due,
-          through the port and into the record named
+        - an end the run records is reminded by the same run where a lead time is already due, with
+          what its tenant keeps, through the port and into the record named
         - the run that records the ends reminds after them; without it, the reminders are there for
           the application to call
         - a suspended tenant is reminded all the same: a suspension does not stop its deletion
@@ -1192,7 +1202,7 @@ gets its day from the period, counted from the day it ended, or from the day Saa
 end where that is later, so nobody is given less than the period's notice. A later change to the
 period moves no day already recorded, and the one way to delete earlier is `SC-ADM-020`'s. From the
 moment it ended until that day the tenant is read-only (`SC-ADM-055`); a new subscription before it
-is `SC-CANC-028`'s, and how the deletion runs is `SC-PRIV-014`'s.
+is `SC-CANC-028`'s, and how the deletion runs is `SC-PRIV-022`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #337
 

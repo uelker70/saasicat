@@ -60,6 +60,90 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
+
+🟢 🔒 An entry names the tenant where somebody acts in it — on the tenant's own routes, its users
+changing the plan, ending an add-on, taking the export or paying what is open, the operator giving
+it a new administrator with `user reassign-admin` — and where what the tenant runs on changes,
+whoever changed it: its subscription, its add-ons, its contract, its suspension. It names none where
+it records an act on no tenant; none where the operator acts on a person found by e-mail address — a
+password reset, a deactivation — because one person may belong to several tenants; and none where
+the operator or a run acts on the subscriber's commercial record, which outlives the tenant: a
+payment recorded, an invoice held, a credit paid out, an archived file checked or held, a collection
+run. The application's data eraser finds a tenant's entries by that name and deletes them before the
+tenant (`SC-PRIV-022`). An entry written before SaaSiCat named the tenant on entries keeps naming
+none.
+
+_Source:_ #519 · #338 (decided 2026-11-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/the-user-command-names-the-tenant-it-acts-in.test.js`
+    - the user command names a tenant only where it acts in one
+        - a new administrator given to a tenant names the tenant the application answered with
+        - a password reset of a person found by e-mail address names no tenant
+        - a deactivation of a person found by e-mail address names no tenant
+- `packages/nest/tests/a-cancellation-announces-the-day-its-data-is-deleted.test.js`
+    - confirming a cancellation
+        - records exactly the days the account stated, and the answer, the audit entry and the
+          account afterwards repeat them
+- `packages/nest/tests/a-newer-add-on-version-is-taken.test.js`
+    - POST billing/subscription-bundles/:id/version-offer/accept
+        - switches the caller’s own tenant and records who did it
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - the move at the date
+        - records the move under the platform job, naming both versions
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - the day its data is deleted on, where a subscription ends at once
+        - through the route, where the day cannot be recorded, the end stands, answers, is audited
+          without a day, credits and tells
+- `packages/nest/tests/a-subscription-change-is-recorded-before-and-after.test.js`
+    - a plan change is recorded with what it was before and after
+        - the entry names the plan and cycle on both sides of the change
+- `packages/nest/tests/a-switch-taken-for-a-term-end-is-made.test.js`
+    - a switch whose moment has come
+        - moves the booking, writes the contract that marks it, clears the schedule and records it
+- `packages/nest/tests/a-tenant-takes-its-export-before-its-deletion.test.js`
+    - a tenant's administrator takes its export once its subscription ended
+        - and written to the audit log under a key the audit page can name
+- `packages/nest/tests/a-trial-that-ran-out-is-ended-by-the-application.test.js`
+    - a trial that ran out, ended by the application
+        - lets the entitlements, the contract and the audit log know, as a cancellation does
+- `packages/nest/tests/admin-resources.test.js`
+    - a suspension is the platform's record
+        - suspending records the reason with its note and who, audits it, and answers the state
+        - reactivating lifts the suspension and leaves an overdue invoice holding
+- `packages/nest/tests/an-add-on-booking-moves-at-its-date.test.js`
+    - the move at the date
+        - moves each booking onto the replacement, keeping its period, terms and rhythm
+- `packages/nest/tests/an-audit-entry-names-the-tenant-it-concerns.test.js`
+    - an audit entry names the tenant it concerns
+        - the audit service hands the tenant to the log, and names none where it was given none
+        - a download the application delivered names its tenant, although it is recorded across
+          tenants
+        - an operator's act on a promotional code names no tenant
+        - collecting what a subscriber owes › the run names no tenant on what it plans and tries
+        - collecting what a subscriber owes › a tenant's user paying now names the tenant on each
+          step of the collection it starts
+        - collecting what a subscriber owes › a tenant's user paying now by direct debit names the
+          tenant on its announcement
+        - collecting what a subscriber owes › the payment it brings is recorded with the subscriber,
+          and names no tenant
+- `packages/nest/tests/an-operator-carries-a-vocabulary-into-running-contracts.test.js`
+    - carrying the features over
+        - the refresh is in the audit log, with the contract it replaced
+- `packages/nest/tests/an-operator-exports-the-invoice-register.test.js`
+    - the audit log
+        - records who took which archive: the months, the moment, the language, what it holds and
+          its SHA-256
+- `packages/nest/tests/the-application-delivers-the-tenants-export.test.js`
+    - the application records a download it delivered in full
+        - and written to the audit log as a download the platform serves is
+
+<!-- END proof -->
+
 ### SC-AUD-003 — Every change to a subscription is recorded with what it was before and after
 
 🟢 Plan changes, scheduled changes, activations, accepted versions and cancellations.

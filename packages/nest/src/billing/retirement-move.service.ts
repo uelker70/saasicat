@@ -263,6 +263,7 @@ export class RetirementMoveService {
                 actor: platformJobActor(JOB),
                 entity: 'Subscription',
                 entityId: notice.subscriptionId,
+                tenantId: notice.tenantId,
                 action,
                 changes: {
                     tenantId: notice.tenantId,

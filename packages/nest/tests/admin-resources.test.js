@@ -95,8 +95,20 @@ const ACTOR = {
 const openOf = (holds, tenantId) =>
     holds.holds.filter((hold) => hold.tenantId === tenantId && !hold.liftedAt);
 
+/** Begins the deletion of `tenantId` as the deletion run does: its reason opens and stays. */
+const deletionBegun = (holds, tenantId) =>
+    holds.record({
+        tenantId,
+        kind: 'deleting',
+        reference: `subscription-${tenantId}`,
+        note: null,
+        since: SINCE,
+        recordedBy: 'job:platform:tenant-deletions',
+    });
+
 // @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
 describe("a suspension is the platform's record", () => {
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('suspending records the reason with its note and who, audits it, and answers the state', async () => {
         const { service, holds, audits } = platform();
 
@@ -112,6 +124,7 @@ describe("a suspension is the platform's record", () => {
                 actor: ACTOR,
                 entity: 'Tenant',
                 entityId: 'tenant-1',
+                tenantId: 'tenant-1',
                 action: 'TENANT_SUSPEND',
                 changes: { slug: 'acme', reason: 'Contract under review' },
             },
@@ -134,6 +147,34 @@ describe("a suspension is the platform's record", () => {
         assert.equal(audits.length, 1, 'a refused suspension is not audited');
     });
 
+    // @requirement SC-PRIV-025 — No invoice or suspension reaches a tenant being deleted; its close lifts the rest
+    test('suspending a tenant whose deletion has begun is refused, and nothing is recorded or audited', async () => {
+        const { service, holds, audits } = platform();
+        await deletionBegun(holds, 'tenant-1');
+
+        await assert.rejects(
+            service.suspendTenant('acme', 'Contract under review', ACTOR),
+            (error) =>
+                error.getStatus() === 409 && error.getResponse().code === 'TENANT_DELETION_BEGUN',
+        );
+        assert.deepEqual(
+            openOf(holds, 'tenant-1').map((hold) => hold.kind),
+            ['deleting'],
+        );
+        assert.deepEqual(audits, []);
+    });
+
+    // @requirement SC-PRIV-025 — No invoice or suspension reaches a tenant being deleted; its close lifts the rest
+    test("another tenant's deletion leaves a suspension of this one as it is", async () => {
+        const { service, holds } = platform();
+        await deletionBegun(holds, 'tenant-2');
+
+        const result = await service.suspendTenant('acme', 'Contract under review', ACTOR);
+
+        assert.equal(result.access, 'suspended');
+    });
+
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('reactivating lifts the suspension and leaves an overdue invoice holding', async () => {
         const { service, holds, audits } = platform();
         await service.suspendTenant('acme', 'review', ACTOR);
@@ -154,6 +195,7 @@ describe("a suspension is the platform's record", () => {
             ['overdue'],
         );
         assert.equal(audits.at(-1).action, 'TENANT_REACTIVATE');
+        assert.equal(audits.at(-1).tenantId, 'tenant-1');
     });
 
     test('reactivating a tenant that is not suspended is refused', async () => {

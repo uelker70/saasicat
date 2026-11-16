@@ -78,7 +78,7 @@ export function isStartedByThePlatform(reaches: CalendarDay, dueDate: CalendarDa
 /**
  * The day a tenant is read-only from for an invoice nothing collects by its
  * due date, until it is paid: its due date, or `today` where that is later —
- * a refusal or a reversal learned after it (`SC-PRIC-098`).
+ * a refusal or a reversal learned after it (`SC-PRIC-104`).
  */
 export function readOnlyFromFor(dueDate: CalendarDay, today: CalendarDay): CalendarDay {
     return today > dueDate ? today : dueDate;

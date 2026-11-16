@@ -163,6 +163,7 @@ export class TrialEndService {
             actor: by,
             entity: 'Subscription',
             entityId: tenantId,
+            tenantId,
             action: 'CANCEL_SUBSCRIPTION',
             changes: {
                 reason: 'trial-ran-out',

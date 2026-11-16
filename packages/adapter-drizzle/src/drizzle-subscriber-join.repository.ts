@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, count, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import type {
     SubscriberJoinMoves,
@@ -36,6 +36,7 @@ import {
     subscriberRefunds,
     subscriberReversals,
     subscriberTaxOriginChanges,
+    subscriberTenantDeletions,
     subscriberTenants,
     subscriberVatIdChecks,
     subscribers,
@@ -60,6 +61,7 @@ const TABLE_OF = {
     subscriber_refunds: subscriberRefunds,
     subscriber_reversals: subscriberReversals,
     subscriber_reconciliation_cases: subscriberReconciliationCases,
+    subscriber_tenant_deletions: subscriberTenantDeletions,
 } as const satisfies Record<SubscriberOwnedTable, PgTable>;
 
 /**
@@ -92,8 +94,9 @@ export class DrizzleSubscriberJoinRepository implements SubscriberJoinRepository
             .where(inArray(subscribers.id, [fromSubscriberId, intoSubscriberId]))
             .orderBy(subscribers.id)
             .for('update');
-        const from = await sideOf(db, fromSubscriberId);
-        const into = await sideOf(db, intoSubscriberId);
+        const deletions = this.tables.includes('subscriber_tenant_deletions');
+        const from = await sideOf(db, fromSubscriberId, deletions);
+        const into = await sideOf(db, intoSubscriberId, deletions);
         if (!from || !into) return null;
         const moving: SubscriberJoinMoves = {};
         for (const table of this.tables) {
@@ -265,8 +268,15 @@ function presentIn(result: unknown): boolean {
     return typeof row === 'object' && row !== null && 'present' in row && row.present === true;
 }
 
-/** A subscriber with every link it has and had, as a join reads it. */
-async function sideOf(db: DrizzleClient, subscriberId: string): Promise<SubscriberJoinSide | null> {
+/**
+ * A subscriber with every link it has and had, as a join reads it; its
+ * deletions under way only where the schema keeps `deletions`.
+ */
+async function sideOf(
+    db: DrizzleClient,
+    subscriberId: string,
+    deletions: boolean,
+): Promise<SubscriberJoinSide | null> {
     const [row] = await db
         .select()
         .from(subscribers)
@@ -305,11 +315,23 @@ async function sideOf(db: DrizzleClient, subscriberId: string): Promise<Subscrib
                 eq(subscriberPaymentMethods.status, 'ACTIVE'),
             ),
         );
+    const [underWay] = deletions
+        ? await db
+              .select({ n: count() })
+              .from(subscriberTenantDeletions)
+              .where(
+                  and(
+                      eq(subscriberTenantDeletions.subscriberId, subscriberId),
+                      isNull(subscriberTenantDeletions.closedAt),
+                  ),
+              )
+        : [];
     return {
         subscriber: toSubscriberRecord(row, live?.tenantId ?? null),
         links,
         joinedIntoId: joined?.intoSubscriberId ?? null,
         countingVatIdCheck: check ? toSubscriberVatIdCheckRecord(check) : null,
         paymentMethodsInUse: inUse?.n ?? 0,
+        deletionsUnderWay: underWay?.n ?? 0,
     };
 }

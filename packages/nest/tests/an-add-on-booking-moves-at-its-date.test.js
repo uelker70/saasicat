@@ -138,6 +138,7 @@ function journal({ failures = 0 } = {}) {
 
 // @requirement SC-BUN-049 — A booking continues on the replacement at the date it was told
 describe('the move at the date', () => {
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('moves each booking onto the replacement, keeping its period, terms and rhythm', async () => {
         const world = await announced({
             bookings: [
@@ -188,10 +189,15 @@ describe('the move at the date', () => {
         // Nobody asked for the move, so the contract keeps what was agreed.
         assert.ok(frozen.every(([, , , , , terms]) => terms.kind === 'move'));
         assert.deepEqual(
-            audited.map((entry) => [entry.action, entry.entityId, entry.changes.toBundleVersionId]),
+            audited.map((entry) => [
+                entry.action,
+                entry.entityId,
+                entry.tenantId,
+                entry.changes.toBundleVersionId,
+            ]),
             [
-                ['BUNDLE_VERSION_RETIREMENT_MOVE', 'sb-t1', REPLACEMENT.id],
-                ['BUNDLE_VERSION_RETIREMENT_MOVE', 'sb-t2', REPLACEMENT.id],
+                ['BUNDLE_VERSION_RETIREMENT_MOVE', 'sb-t1', 't1', REPLACEMENT.id],
+                ['BUNDLE_VERSION_RETIREMENT_MOVE', 'sb-t2', 't2', REPLACEMENT.id],
             ],
         );
     });

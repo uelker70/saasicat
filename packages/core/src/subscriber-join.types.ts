@@ -43,6 +43,7 @@ export const SUBSCRIBER_OWNED_TABLES = [
     { table: 'subscriber_refunds', model: 'SubscriberRefund' },
     { table: 'subscriber_reversals', model: 'SubscriberReversal' },
     { table: 'subscriber_reconciliation_cases', model: 'SubscriberReconciliationCase' },
+    { table: 'subscriber_tenant_deletions', model: 'SubscriberTenantDeletion' },
 ] as const;
 
 export type SubscriberOwnedTable = (typeof SUBSCRIBER_OWNED_TABLES)[number]['table'];
@@ -61,6 +62,13 @@ export interface SubscriberJoinSide {
     countingVatIdCheck: SubscriberVatIdCheckRecord | null;
     /** How many of its payment methods are in use: none or one. */
     paymentMethodsInUse: number;
+    /**
+     * How many deletions of its tenants have begun and not closed. A
+     * deletion reads its subscriber once, when it begins, and counts the
+     * subscriber's commercial record after every store, so it is joined only
+     * while this is none.
+     */
+    deletionsUnderWay: number;
 }
 
 /** Everything a join is decided from: both sides, and what the subscriber joined holds. */

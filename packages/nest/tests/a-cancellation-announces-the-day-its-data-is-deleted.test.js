@@ -310,6 +310,7 @@ describe('what the account says confirming a cancellation already declared would
 describe('confirming a cancellation', () => {
     // @requirement SC-CANC-021 — The read-only period and the deletion date are stated before a tenant cancels
     // @requirement SC-CANC-031 — The deletion day a tenant confirmed is the one it was shown
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('records exactly the days the account stated, and the answer, the audit entry and the account afterwards repeat them', async () => {
         const { controller, ends, audited } = account();
         const shown = (await controller.getUsage(ADMIN)).cancellation.deletion;
@@ -334,10 +335,16 @@ describe('confirming a cancellation', () => {
         assert.deepEqual(
             {
                 action: audited[0].action,
+                tenantId: audited[0].tenantId,
                 deletesOn: audited[0].changes.deletesOn,
                 readOnlyDays: audited[0].changes.readOnlyDays,
             },
-            { action: 'CANCEL_SUBSCRIPTION', deletesOn: '2100-01-31', readOnlyDays: 30 },
+            {
+                action: 'CANCEL_SUBSCRIPTION',
+                tenantId: 't1',
+                deletesOn: '2100-01-31',
+                readOnlyDays: 30,
+            },
         );
         assert.deepEqual((await controller.getUsage(ADMIN)).announcedDeletion, shown);
     });

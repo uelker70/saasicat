@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gte, isNotNull, isNull, lt, or } from 'drizzle-orm';
+import { type SQL, and, asc, desc, eq, gte, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import {
     type NoticeToRecord,
     type SubscriptionNoticeDelivery,
@@ -61,22 +61,60 @@ export class DrizzleSubscriptionNoticeRepository implements SubscriptionNoticeRe
         return row ? toSubscriptionNoticeRecord(row) : null;
     }
 
+    /**
+     * Two guarded `UPDATE`s, the second only where the first changed nothing:
+     * a notice whose recipients a tenant's deletion forgot while it was held
+     * keeps how many it went to and not to whom. Recipients once forgotten stay
+     * forgotten, so a deletion between the two leaves the second to match.
+     */
     async confirm(
         id: string,
         claimedAt: Date,
         delivery: SubscriptionNoticeDelivery,
         now: Date,
     ): Promise<boolean> {
-        const rows = await this.db
+        const deliver = (recipients: readonly string[], forgotten: SQL) =>
+            this.db
+                .update(subscriptionNotices)
+                .set({
+                    deliveredAt: now,
+                    recipients: [...recipients],
+                    channel: delivery.channel,
+                    recipientCount: delivery.recipients.length,
+                })
+                .where(and(this.heldBy(id, claimedAt), forgotten))
+                .returning({ id: subscriptionNotices.id });
+        const told = await deliver(
+            delivery.recipients,
+            isNull(subscriptionNotices.recipientsForgottenAt),
+        );
+        if (told.length === 1) return true;
+        const forgotten = await deliver([], isNotNull(subscriptionNotices.recipientsForgottenAt));
+        return forgotten.length === 1;
+    }
+
+    /**
+     * One `UPDATE`: the number is counted from the recipients the same
+     * statement empties. A notice not delivered keeps no recipients to empty,
+     * and is marked all the same.
+     */
+    async forgetRecipients(tenantId: string, at: Date, tx?: TransactionContext): Promise<number> {
+        const { recipients, recipientCount } = subscriptionNotices;
+        const forgotten = await resolveDb(this.db, tx)
             .update(subscriptionNotices)
             .set({
-                deliveredAt: now,
-                recipients: [...delivery.recipients],
-                channel: delivery.channel,
+                recipientCount: sql`COALESCE(${recipientCount}, CASE WHEN jsonb_typeof(${recipients}) = 'array' THEN jsonb_array_length(${recipients}) END)`,
+                recipients: sql`CASE WHEN ${recipients} IS NULL THEN NULL ELSE '[]'::jsonb END`,
+                recipientsForgottenAt: at,
             })
-            .where(this.heldBy(id, claimedAt))
+            .where(
+                and(
+                    eq(subscriptionNotices.tenantId, tenantId),
+                    isNull(subscriptionNotices.recipientsForgottenAt),
+                ),
+            )
             .returning({ id: subscriptionNotices.id });
-        return rows.length === 1;
+        return forgotten.length;
     }
 
     async release(id: string, claimedAt: Date): Promise<void> {

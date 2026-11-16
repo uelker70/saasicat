@@ -2,7 +2,7 @@
 // deleted (`SC-PRIV-020`): its administrator downloads it from
 // `GET billing/export`, the application hands the file over through
 // `TenantDataExportPort`, and every download is recorded beside the end before
-// the file is sent — the tenant's acknowledgement `SC-PRIV-017` names.
+// the file is sent — the tenant's acknowledgement `SC-PRIV-024` names.
 //
 // The order is what the record proves, so each step is broken on its own: the
 // application failing records nothing, a record that cannot be written sends
@@ -252,6 +252,7 @@ describe("a tenant's administrator takes its export once its subscription ended"
         );
     });
 
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('and written to the audit log under a key the audit page can name', async () => {
         const { service, ends, audited } = await installation();
 
@@ -262,6 +263,7 @@ describe("a tenant's administrator takes its export once its subscription ended"
                 actor: ACTOR,
                 entity: 'Tenant',
                 entityId: 't1',
+                tenantId: 't1',
                 action: 'TENANT_EXPORT_DOWNLOAD',
                 changes: {
                     subscriptionId: 'sub-t1',
@@ -601,6 +603,62 @@ describe('one export of a tenant at a time, since each is held in memory as a wh
         assert.deepEqual(port.askedFor, ['t1', 't2']);
         assert.equal(first.value, FILE);
         assert.equal(other.value, FILE);
+    });
+});
+
+/**
+ * Begins the deletion of `tenantId` as the deletion run does, and where
+ * `closed`, lifts its other reasons as the close does; the `deleting` reason
+ * stays open either way.
+ */
+async function deletionBegun(holds, tenantId, { closed }) {
+    const others = await holds.listOpen(tenantId);
+    await held(holds, tenantId, 'deleting');
+    if (!closed) return;
+    for (const hold of others) await holds.lift(hold.id, LATER, 'job:platform:tenant-deletions');
+}
+
+// @requirement SC-PRIV-023 — A tenant's deletion leaves a record with the subscriber that names no person
+describe('an export whose deletion begins while it is produced is not handed out', () => {
+    for (const closed of [false, true]) {
+        test(`a deletion ${closed ? 'closed' : 'under way'} by the time the file arrives: refused, nothing recorded or audited`, async () => {
+            const port = heldPort();
+            const { holds, service, ends, audited } = await installation({ port });
+
+            const taken = outcomeOf(service.take('t1', ACTOR, NOW));
+            await ticks();
+            await deletionBegun(holds, 't1', { closed });
+            port.release();
+            await ticks();
+
+            assert.ok(
+                refusedWith(ConflictException, 'TENANT_DELETION_BEGUN')(taken.error),
+                `the export came to ${taken.settled ? 'something else' : 'nothing yet'}`,
+            );
+            assert.deepEqual(ends.downloads, []);
+            assert.deepEqual(audited, []);
+        });
+    }
+
+    test("another tenant's export produced at the same time is handed out and recorded", async () => {
+        const port = heldPort();
+        const ends = new FakeSubscriptionEndRepository();
+        const { holds, service, audited } = await installation({ port, ends });
+        await held(holds, 't2', 'ended');
+        await ended(ends, 't2');
+
+        const other = outcomeOf(service.take('t2', ACTOR, NOW));
+        await ticks();
+        await deletionBegun(holds, 't1', { closed: false });
+        port.release();
+        await ticks();
+
+        assert.equal(other.value, FILE);
+        assert.deepEqual(
+            ends.downloads.map((download) => download.tenantId),
+            ['t2'],
+        );
+        assert.equal(audited.length, 1);
     });
 });
 

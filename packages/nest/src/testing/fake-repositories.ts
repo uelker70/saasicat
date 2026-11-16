@@ -6,6 +6,13 @@
 
 import type {
     CalendarDay,
+    CommercialRecordCounts,
+    NewTenantDeletionRecord,
+    TenantCount,
+    TenantDeletionFailure,
+    TenantDeletionRecord,
+    TenantDeletionRecordHalt,
+    TenantDeletionRecordPort,
     InstallationMark,
     InstallationMarkPort,
     NewTenantAccessHold,
@@ -560,18 +567,30 @@ export class FakeSubscriberRepository implements SubscriberRepository {
     }
 
     /**
-     * Closes the subscriber's live tenant link at `at`, as an application's
-     * deletion of the tenant does; nothing in the port does it, so a test
-     * that needs a subscriber without a live tenant calls this.
+     * Closes the subscriber's live tenant link at `at`, as the deletion of its
+     * tenant does (`unlinkTenant`), named by the subscriber: a test that needs
+     * a subscriber without a live tenant calls this rather than deleting one.
      */
     closeTenantLink(subscriberId: string, at: Date = new Date()): void {
-        const record = this.byId.get(subscriberId);
         const live = this.links.find(
             (link) => link.subscriberId === subscriberId && link.unlinkedAt === null,
         );
-        if (!record || !live) return;
+        if (live) this.unlink(live, at);
+    }
+
+    async unlinkTenant(tenantId: string, unlinkedAt: Date): Promise<boolean> {
+        const live = this.links.find(
+            (link) => link.tenantId === tenantId && link.unlinkedAt === null,
+        );
+        if (!live) return false;
+        this.unlink(live, unlinkedAt);
+        return true;
+    }
+
+    private unlink(live: SubscriberTenantLinkRecord & { subscriberId: string }, at: Date): void {
         live.unlinkedAt = at;
-        this.byId.set(subscriberId, { ...record, tenantId: null });
+        const record = this.byId.get(live.subscriberId);
+        if (record) this.byId.set(live.subscriberId, { ...record, tenantId: null });
     }
 
     async search(search: SubscriberSearch): Promise<SubscriberSearchPage> {
@@ -914,15 +933,23 @@ export class FakeSubscriberRepository implements SubscriberRepository {
  * the links, corrections, changes of the tax origin and checks of the VAT id
  * it keeps move with a join, and the join is recorded. The other tables that
  * name a subscriber live in no fake here, so a join counts none of them, and no
- * payment method is in use. No database, so nothing to guard: a write after a
- * join is refused by the database's triggers (`SC-ADM-027`), which only the
- * persistence contract reaches.
+ * payment method is in use. Deletions under way are read from the
+ * `FakeTenantDeletionRepository` it is given, and none is without one. No
+ * database, so nothing to guard: a write after a join is refused by the
+ * database's triggers (`SC-ADM-027`), which only the persistence contract
+ * reaches.
  */
 export class FakeSubscriberJoinRepository implements SubscriberJoinRepository {
     private readonly joins: SubscriberJoinRecord[] = [];
     private nextJoinId = 1;
 
-    constructor(private readonly subscribers: FakeSubscriberRepository) {}
+    constructor(
+        private readonly subscribers: FakeSubscriberRepository,
+        private readonly tenantDeletions: Pick<
+            FakeTenantDeletionRepository,
+            'deletions'
+        > | null = null,
+    ) {}
 
     async hold(
         fromSubscriberId: string,
@@ -936,6 +963,10 @@ export class FakeSubscriberJoinRepository implements SubscriberJoinRepository {
                 ...kept,
                 joinedIntoId: joined?.intoSubscriberId ?? null,
                 paymentMethodsInUse: 0,
+                deletionsUnderWay: (this.tenantDeletions?.deletions ?? []).filter(
+                    (deletion) =>
+                        deletion.subscriberId === subscriberId && deletion.closedAt === null,
+                ).length,
             };
         };
         const from = side(fromSubscriberId);
@@ -1050,6 +1081,39 @@ export class FakeTenantAccessHoldRepository implements TenantAccessHoldPort {
         return { ...hold };
     }
 
+    async listAllOf(tenantId: string): Promise<TenantAccessHold[]> {
+        return oldestFirst(
+            this.holds.filter((hold) => hold.tenantId === tenantId),
+            (hold) => hold.since,
+        );
+    }
+
+    /** One caller at a time runs here, so the lock is the check alone. */
+    async lockOpen(id: string): Promise<TenantAccessHold | null> {
+        const hold = this.open().find((candidate) => candidate.id === id);
+        return hold ? { ...hold } : null;
+    }
+
+    /** One caller at a time runs here, so the lock is the read alone. */
+    async lockAllOf(tenantId: string): Promise<TenantAccessHold[]> {
+        return this.listAllOf(tenantId);
+    }
+
+    async replaceActors(
+        replacements: readonly { id: string; recordedBy: string; liftedBy: string | null }[],
+    ): Promise<void> {
+        for (const { id, recordedBy, liftedBy } of replacements) {
+            const hold = this.holds.find((candidate) => candidate.id === id);
+            if (hold) Object.assign(hold, { recordedBy, liftedBy });
+        }
+    }
+
+    async forgetNotes(tenantId: string): Promise<void> {
+        for (const hold of this.holds) {
+            if (hold.tenantId === tenantId) hold.note = null;
+        }
+    }
+
     private open(): TenantAccessHold[] {
         return this.holds
             .filter((hold) => hold.liftedAt === null)
@@ -1142,6 +1206,62 @@ export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
             )
             .map((download) => ({ ...download }));
     }
+
+    async listEndsOfTenant(tenantId: string): Promise<SubscriptionEnd[]> {
+        return oldestFirst(
+            this.ends.filter((end) => end.tenantId === tenantId),
+            (end) => end.recordedAt,
+        );
+    }
+
+    async listAnnouncedOfTenant(tenantId: string): Promise<SubscriptionEndAnnouncement[]> {
+        return oldestFirst(
+            this.announcements.filter((announced) => announced.tenantId === tenantId),
+            (announced) => announced.announcedAt,
+        );
+    }
+
+    async listExportDownloadsOfTenant(tenantId: string): Promise<TenantExportDownload[]> {
+        return oldestFirst(
+            this.downloads.filter((download) => download.tenantId === tenantId),
+            (download) => download.downloadedAt,
+        );
+    }
+
+    async replaceActors(replacements: {
+        readonly ends: readonly { readonly id: string; readonly recordedBy: string }[];
+        readonly announcements: readonly { readonly id: string; readonly announcedBy: string }[];
+        readonly downloads: readonly {
+            readonly id: string;
+            readonly downloadedBy: string;
+            readonly downloadedByUserId: string;
+        }[];
+    }): Promise<void> {
+        for (const { id, recordedBy } of replacements.ends) {
+            const end = this.ends.find((candidate) => candidate.id === id);
+            if (end) end.recordedBy = recordedBy;
+        }
+        for (const { id, announcedBy } of replacements.announcements) {
+            const announced = this.announcements.find((candidate) => candidate.id === id);
+            if (announced) announced.announcedBy = announcedBy;
+        }
+        for (const { id, downloadedBy, downloadedByUserId } of replacements.downloads) {
+            const download = this.downloads.find((candidate) => candidate.id === id);
+            if (download) Object.assign(download, { downloadedBy, downloadedByUserId });
+        }
+    }
+}
+
+/** Copies of `rows`, the oldest by `at` first, then by id. */
+function oldestFirst<Row extends { id: string }>(
+    rows: readonly Row[],
+    at: (row: Row) => Date,
+): Row[] {
+    return rows
+        .map((row) => ({ ...row }))
+        .sort(
+            (a, b) => at(a).getTime() - at(b).getTime() || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+        );
 }
 
 /**
@@ -1165,6 +1285,161 @@ export class FakeInstallationMarkRepository implements InstallationMarkPort {
         if (this.mark?.identifier !== current) return null;
         this.mark = { ...mark };
         return { ...this.mark };
+    }
+}
+
+/** No commercial record at all: what a subscriber nobody invoiced counts. */
+const NO_COMMERCIAL_RECORD: CommercialRecordCounts = {
+    subscriber: 0,
+    contracts: 0,
+    charges: 0,
+    invoices: 0,
+    payments: 0,
+    credits: 0,
+};
+
+/** A record and its stores, as a writer may change them; the port hands out copies. */
+type MutableDeletion = {
+    -readonly [Key in keyof TenantDeletionRecord]: TenantDeletionRecord[Key];
+} & {
+    stores: {
+        store: string;
+        position: number;
+        countedAt: Date | null;
+        counts: readonly TenantCount[];
+        erasedAt: Date | null;
+    }[];
+};
+
+/**
+ * In-memory `TenantDeletionRecordPort` for tests: one record per tenant, as
+ * the unique key holds it in the database, claims that hold until they go
+ * stale, and counts and confirmations recorded once. What the commercial
+ * record counts is the test's to say through `commercialRecord`, which may
+ * count the test's own in-memory stores; none at all unless it says. A
+ * transaction is the caller's, so nothing here rolls back.
+ */
+export class FakeTenantDeletionRepository implements TenantDeletionRecordPort {
+    readonly deletions: MutableDeletion[] = [];
+    commercialRecord: (
+        subscriberId: string,
+    ) => CommercialRecordCounts | Promise<CommercialRecordCounts> = () => ({
+        ...NO_COMMERCIAL_RECORD,
+    });
+    private nextId = 1;
+
+    async begin(record: NewTenantDeletionRecord): Promise<TenantDeletionRecord | null> {
+        if (this.deletions.some((row) => row.tenantId === record.tenantId)) return null;
+        const row: MutableDeletion = {
+            ...structuredClone(record),
+            id: `deletion-${this.nextId++}`,
+            stores: record.stores.map(({ store, position }) => ({
+                store,
+                position,
+                countedAt: null,
+                counts: [],
+                erasedAt: null,
+            })),
+            commercialBefore: null,
+            commercialAfter: null,
+            claimedAt: null,
+            attempts: 0,
+            lastFailure: null,
+            halt: null,
+            closedAt: null,
+        };
+        this.deletions.push(row);
+        return structuredClone(row);
+    }
+
+    async findForTenants(tenantIds: readonly string[]): Promise<TenantDeletionRecord[]> {
+        return this.deletions
+            .filter((row) => tenantIds.includes(row.tenantId))
+            .map((row) => structuredClone(row));
+    }
+
+    async findForSubscriber(subscriberId: string): Promise<TenantDeletionRecord[]> {
+        return this.deletions
+            .filter((row) => row.subscriberId === subscriberId)
+            .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+            .map((row) => structuredClone(row));
+    }
+
+    async claim(id: string, now: Date, staleBefore: Date): Promise<TenantDeletionRecord | null> {
+        const row = this.open(id);
+        if (!row || (row.claimedAt !== null && row.claimedAt >= staleBefore)) return null;
+        row.claimedAt = now;
+        return structuredClone(row);
+    }
+
+    async renew(id: string, claimedAt: Date, now: Date): Promise<boolean> {
+        const row = this.open(id);
+        if (row?.claimedAt?.getTime() !== claimedAt.getTime()) return false;
+        row.claimedAt = now;
+        return true;
+    }
+
+    async release(id: string, claimedAt: Date): Promise<void> {
+        const row = this.open(id);
+        if (row?.claimedAt?.getTime() === claimedAt.getTime()) row.claimedAt = null;
+    }
+
+    async recordCounts(
+        id: string,
+        store: string,
+        counts: readonly TenantCount[],
+        at: Date,
+    ): Promise<void> {
+        const part = this.part(id, store);
+        if (!part || part.countedAt !== null) return;
+        Object.assign(part, { countedAt: at, counts: structuredClone([...counts]) });
+    }
+
+    async recordErased(id: string, store: string, at: Date): Promise<void> {
+        const part = this.part(id, store);
+        if (part && part.erasedAt === null) part.erasedAt = at;
+    }
+
+    async recordCommercial(
+        id: string,
+        which: 'before' | 'after',
+        counts: CommercialRecordCounts,
+    ): Promise<void> {
+        const row = this.deletions.find((candidate) => candidate.id === id);
+        if (!row) return;
+        if (which === 'before') row.commercialBefore = { ...counts };
+        else row.commercialAfter = { ...counts };
+    }
+
+    async recordFailure(
+        id: string,
+        failure: TenantDeletionFailure,
+        halt: TenantDeletionRecordHalt | null,
+    ): Promise<void> {
+        const row = this.deletions.find((candidate) => candidate.id === id);
+        if (!row) return;
+        Object.assign(row, { lastFailure: { ...failure }, attempts: row.attempts + 1, halt });
+    }
+
+    async close(id: string, at: Date): Promise<boolean> {
+        const row = this.open(id);
+        if (!row) return false;
+        row.closedAt = at;
+        return true;
+    }
+
+    async countCommercialRecord(subscriberId: string): Promise<CommercialRecordCounts> {
+        return this.commercialRecord(subscriberId);
+    }
+
+    private open(id: string): MutableDeletion | undefined {
+        return this.deletions.find((row) => row.id === id && row.closedAt === null);
+    }
+
+    private part(id: string, store: string): MutableDeletion['stores'][number] | undefined {
+        return this.deletions
+            .find((row) => row.id === id)
+            ?.stores.find((part) => part.store === store);
     }
 }
 

@@ -58,6 +58,7 @@ const DELEGATE_OF = {
     subscriber_refunds: 'subscriberRefund',
     subscriber_reversals: 'subscriberReversal',
     subscriber_reconciliation_cases: 'subscriberReconciliationCase',
+    subscriber_tenant_deletions: 'subscriberTenantDeletion',
 } as const satisfies Record<SubscriberOwnedTable, string>;
 
 type OwnedDelegates = {
@@ -155,6 +156,12 @@ export class PrismaSubscriberJoinRepository implements SubscriberJoinRepository 
             paymentMethodsInUse: await db.subscriberPaymentMethod.count({
                 where: { subscriberId, status: 'ACTIVE' },
             }),
+            // A schema without the deletions keeps none to be under way.
+            deletionsUnderWay: this.tables.includes('subscriber_tenant_deletions')
+                ? await db.subscriberTenantDeletion.count({
+                      where: { subscriberId, closedAt: null },
+                  })
+                : 0,
         };
     }
 

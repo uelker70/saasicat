@@ -10,7 +10,7 @@
 // and the record named once, the other runs that read the same record — it is
 // compiled as `SaaSiCatModule` starts it.
 
-import { describe, test } from 'node:test';
+import { describe, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
@@ -20,10 +20,12 @@ import {
     DeletionReminderService,
     SubscriptionEndCron,
     SubscriptionEndService,
+    TenantDeletionService,
     VersionNoticeCron,
 } from '../dist/billing/index.js';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import {
+    FakeSubscriptionContractRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
@@ -35,6 +37,7 @@ import {
     quietLog,
 } from './helpers/invoice-collection.js';
 import { bootable, everythingOnOptions } from './helpers/operator-routes.js';
+import { contracted } from './helpers/tenant-deletion.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
 const BERLIN = { timeZone: 'Europe/Berlin' };
@@ -57,12 +60,43 @@ function remindAt(run, at) {
 /** The lead times the reminders `port` was handed answer, in order. */
 const leadTimesSent = (port) => port.sent.map((notice) => notice.daysBefore);
 
-/** Records an end of `tenantId`'s subscription, deleted on `deletesOn`, and answers it as stored. */
-async function anEnd(ends, { tenantId = 't-1', deletesOn = DELETES_ON, recordedAt } = {}) {
+/** The reasons kept beside each store of ends, as the platform keeps them beside its ends. */
+const reasonsBeside = new WeakMap();
+
+/** The reasons a tenant is held back, kept beside `ends`. */
+function holdsBeside(ends) {
+    if (!reasonsBeside.has(ends)) reasonsBeside.set(ends, new FakeTenantAccessHoldRepository());
+    return reasonsBeside.get(ends);
+}
+
+/**
+ * Records the end of `tenantId`'s subscription `subscriptionId` at `endsAt`,
+ * deleted on `deletesOn`, and answers it as stored — after the reason that
+ * holds its tenant to reading, kept beside `ends`, as the run that records the
+ * ends keeps both.
+ */
+async function anEnd(
+    ends,
+    {
+        tenantId = 't-1',
+        subscriptionId = `sub-${tenantId}`,
+        endsAt = inBerlin('2026-12-31', '23:59'),
+        deletesOn = DELETES_ON,
+        recordedAt,
+    } = {},
+) {
+    await holdsBeside(ends).record({
+        tenantId,
+        kind: 'ended',
+        reference: subscriptionId,
+        note: null,
+        since: endsAt,
+        recordedBy: RUN,
+    });
     return ends.record({
         tenantId,
-        subscriptionId: `sub-${tenantId}`,
-        endsAt: inBerlin('2026-12-31', '23:59'),
+        subscriptionId,
+        endsAt,
         deletesOn,
         recordedAt: recordedAt ?? inBerlin('2027-01-01', '00:15'),
         recordedBy: RUN,
@@ -70,8 +104,25 @@ async function anEnd(ends, { tenantId = 't-1', deletesOn = DELETES_ON, recordedA
 }
 
 /**
+ * The application's report of what a tenant has to keep: what `answer` says
+ * for each tenant asked — nothing, unless the test says otherwise — with the
+ * tenants it was asked about, in order.
+ */
+function keepReport(answer = () => []) {
+    const report = {
+        asked: [],
+        async keep(tenantId) {
+            report.asked.push(tenantId);
+            return answer(tenantId);
+        },
+    };
+    return report;
+}
+
+/**
  * The run over the stores given, or fresh ones, with how often it was let
- * across tenants and whether it is across them now.
+ * across tenants and whether it is across them now. `holds: null` is tenant
+ * billing wired without the reasons kept.
  */
 function runOver({
     ends = new FakeSubscriptionEndRepository(),
@@ -79,8 +130,20 @@ function runOver({
     port = sendingPort(),
     period = LEAD_TIMES,
     settings = BERLIN,
+    keep = keepReport(),
+    holds = holdsBeside(ends),
+    contracts = null,
 } = {}) {
-    const run = { ends, notices, port, bypassed: 0, acrossTenants: false };
+    const run = {
+        ends,
+        notices,
+        port,
+        keep,
+        holds,
+        contracts,
+        bypassed: 0,
+        acrossTenants: false,
+    };
     const bypass = {
         runWithBypass: async (work) => {
             run.bypassed += 1;
@@ -93,7 +156,17 @@ function runOver({
         },
     };
     run.service = quietly(
-        new DeletionReminderService(ends, notices, port, period, settings, bypass),
+        new DeletionReminderService(
+            ends,
+            notices,
+            port,
+            period,
+            settings,
+            keep,
+            bypass,
+            holds,
+            contracts,
+        ),
     );
     return run;
 }
@@ -150,6 +223,7 @@ describe('the reminders before a deletion', () => {
                 daysBefore: 29,
                 readOnlyUntil: '2027-01-30',
                 deletesOn: DELETES_ON,
+                keep: [],
             },
         ]);
         const row = rowOf(run.notices, end, 29);
@@ -234,6 +308,12 @@ describe('the reminders before a deletion', () => {
             reads += 1;
             return run.acrossTenants ? listOfKindSince(...args) : [];
         };
+        let reasonReads = 0;
+        const listOpenFor = run.holds.listOpenFor.bind(run.holds);
+        run.holds.listOpenFor = async (...args) => {
+            reasonReads += 1;
+            return run.acrossTenants ? listOpenFor(...args) : [];
+        };
 
         await remindAt(run, inBerlin('2027-01-02'));
 
@@ -242,6 +322,7 @@ describe('the reminders before a deletion', () => {
             ['t-1', 't-2'],
         );
         assert.equal(reads, 1, 'one read of the reminders, not one per end');
+        assert.equal(reasonReads, 1, 'one read of the reasons, not one per end');
         assert.equal(run.bypassed, 1);
     });
 
@@ -329,6 +410,212 @@ describe('the reminders before a deletion', () => {
             run.port.sent.map((notice) => notice.tenantId),
             ['t-sound', 't-broken'],
         );
+    });
+});
+
+/** Holds `tenantId` back as its deletion begins, as the deletion run does. */
+const deletionBegunFor = (run, tenantId) =>
+    run.holds.record({
+        tenantId,
+        kind: 'deleting',
+        reference: `sub-${tenantId}`,
+        note: null,
+        since: inBerlin('2027-01-01', '12:00'),
+        recordedBy: 'job:platform:tenant-deletions',
+    });
+
+/** Lifts the reason that holds `tenantId` to reading, as an operator does. */
+async function endLiftedFor(run, tenantId) {
+    const [ended] = (await run.holds.listOpen(tenantId)).filter((hold) => hold.kind === 'ended');
+    await run.holds.lift(ended.id, inBerlin('2027-01-01', '12:00'), 'web:operator@example.com:s1');
+}
+
+/** The tenants the reminders `port` was handed are for, in order. */
+const tenantsSent = (port) => port.sent.map((notice) => notice.tenantId);
+
+// @requirement SC-CANC-022 — A tenant is reminded before its data is deleted
+describe('an end the deletion no longer waits for', () => {
+    clockFrom(inBerlin('2027-01-01'));
+    test('a tenant whose deletion is under way is reminded of nothing, and its report of what to keep is not asked', async () => {
+        const run = runOver();
+        await anEnd(run.ends, { tenantId: 't-deleting' });
+        await anEnd(run.ends, { tenantId: 't-waiting' });
+        await deletionBegunFor(run, 't-deleting');
+
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-02', '00:15')), {
+            told: 1,
+            failed: 0,
+        });
+        assert.deepEqual(tenantsSent(run.port), ['t-waiting']);
+        assert.deepEqual(run.keep.asked, ['t-waiting']);
+    });
+
+    test('an end whose reason was lifted is reminded of nothing: its tenant is not deleted on that day', async () => {
+        const run = runOver();
+        await anEnd(run.ends, { tenantId: 't-lifted' });
+        await anEnd(run.ends, { tenantId: 't-waiting' });
+        await endLiftedFor(run, 't-lifted');
+
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-02', '00:15')), {
+            told: 1,
+            failed: 0,
+        });
+        assert.deepEqual(tenantsSent(run.port), ['t-waiting']);
+    });
+
+    test("a reason held for another of the tenant's subscriptions does not hold this end", async () => {
+        const run = runOver();
+        await anEnd(run.ends);
+        await endLiftedFor(run, 't-1');
+        await run.holds.record({
+            tenantId: 't-1',
+            kind: 'ended',
+            reference: 'sub-other',
+            note: null,
+            since: inBerlin('2026-12-31', '23:59'),
+            recordedBy: RUN,
+        });
+
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-02', '00:15')), {
+            told: 0,
+            failed: 0,
+        });
+        assert.deepEqual(run.port.sent, []);
+    });
+
+    test('of two ends holding one tenant, only the one that ended last is reminded of, with its day', async () => {
+        const run = runOver();
+        await anEnd(run.ends);
+        const later = await anEnd(run.ends, {
+            subscriptionId: 'sub-t-1-again',
+            endsAt: inBerlin('2027-01-10'),
+            deletesOn: '2027-02-09',
+            recordedAt: inBerlin('2027-01-10', '09:15'),
+        });
+
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-11', '00:15')), {
+            told: 1,
+            failed: 0,
+        });
+        assert.deepEqual(
+            run.port.sent.map(({ subscriptionEndId, deletesOn }) => ({
+                subscriptionEndId,
+                deletesOn,
+            })),
+            [{ subscriptionEndId: later.id, deletesOn: '2027-02-09' }],
+        );
+    });
+
+    test('a tenant whose contract runs past the end that decides it is reminded of nothing; one without such a contract is', async () => {
+        const run = runOver({ contracts: new FakeSubscriptionContractRepository() });
+        await anEnd(run.ends, { tenantId: 't-contracted' });
+        await anEnd(run.ends, { tenantId: 't-waiting' });
+        await contracted(run, 't-contracted', inBerlin('2027-01-01', '12:00'));
+        // The contract the end closed, ending with it, holds nothing.
+        await contracted(run, 't-waiting', inBerlin('2026-01-01'), inBerlin('2026-12-31', '23:59'));
+
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-02', '00:15')), {
+            told: 1,
+            failed: 0,
+        });
+        assert.deepEqual(tenantsSent(run.port), ['t-waiting']);
+        assert.deepEqual(run.keep.asked, ['t-waiting']);
+    });
+
+    test('without the reasons kept, no end holds its tenant, none is deleted, and none is reminded', async () => {
+        const run = runOver({ holds: null });
+        await anEnd(run.ends);
+
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-02', '00:15')), {
+            told: 0,
+            failed: 0,
+        });
+        assert.deepEqual(run.port.sent, []);
+    });
+});
+
+const RECEIPTS = [{ category: 'receipts', count: 42, labels: { en: 'Receipts' } }];
+
+// @requirement SC-PRIV-022 — A tenant is erased by the application's stores, after it was told what to keep
+describe('what a reminder tells the tenant to keep', () => {
+    clockFrom(inBerlin('2027-01-01'));
+    test("carries the application's lines, to the port and into the record", async () => {
+        const run = runOver({ keep: keepReport(() => RECEIPTS) });
+        const end = await anEnd(run.ends);
+
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-02', '00:15')), {
+            told: 1,
+            failed: 0,
+        });
+        assert.deepEqual(run.keep.asked, ['t-1']);
+        assert.deepEqual(run.port.sent[0]?.keep, RECEIPTS);
+        assert.deepEqual(rowOf(run.notices, end, 29)?.content?.keep, RECEIPTS);
+    });
+
+    test('a report that fails fails the reminder of its end alone, and the next run sends it with the lines', async () => {
+        let broken = true;
+        const run = runOver({
+            keep: keepReport((tenantId) => {
+                if (broken && tenantId === 't-broken') throw new Error('archive unreachable');
+                return RECEIPTS;
+            }),
+        });
+        const end = await anEnd(run.ends, { tenantId: 't-broken' });
+        await anEnd(run.ends, { tenantId: 't-sound' });
+
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-02', '00:15')), {
+            told: 1,
+            failed: 1,
+        });
+        assert.deepEqual(tenantsSent(run.port), ['t-sound']);
+        assert.equal(rowOf(run.notices, end, 29), undefined, 'nothing taken on for it');
+
+        broken = false;
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-02', '00:30')), {
+            told: 1,
+            failed: 0,
+        });
+        assert.deepEqual(tenantsSent(run.port), ['t-sound', 't-broken']);
+        assert.deepEqual(run.port.sent[1]?.keep, RECEIPTS);
+    });
+
+    test('lines the report gets wrong fail the reminder as a report that fails does', async () => {
+        const run = runOver({
+            keep: keepReport(() => [{ category: 'receipts', count: 42, labels: { de: 'Belege' } }]),
+        });
+        await anEnd(run.ends);
+
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-02', '00:15')), {
+            told: 0,
+            failed: 1,
+        });
+        assert.deepEqual(run.port.sent, []);
+    });
+
+    test('a report that does not answer fails the reminder in time, so the run that records the ends is not held up', async () => {
+        mock.timers.reset();
+        mock.timers.enable({ apis: ['setTimeout', 'Date'], now: inBerlin('2027-01-02', '00:15') });
+        const run = runOver({ keep: keepReport(() => new Promise(() => {})) });
+        await anEnd(run.ends);
+
+        let settled = null;
+        void run.service
+            .remindDue(inBerlin('2027-01-02', '00:15'))
+            .then((outcome) => (settled = outcome));
+        // Both waits bounded, so a run that never asks the report, or waits
+        // on it for good, fails here rather than hanging.
+        const aFewTurns = async (until) => {
+            for (let turn = 0; turn < 100 && !until(); turn += 1) {
+                await new Promise((resolve) => setImmediate(resolve));
+            }
+        };
+        await aFewTurns(() => run.keep.asked.length > 0);
+        assert.deepEqual(run.keep.asked, ['t-1']);
+        mock.timers.tick(60 * 60_000);
+        await aFewTurns(() => settled !== null);
+
+        assert.deepEqual(settled, { told: 0, failed: 1 });
+        assert.deepEqual(run.port.sent, []);
     });
 });
 
@@ -653,15 +940,24 @@ describe('the quarter-hourly run', () => {
                 return remindDue ? remindDue() : { told: 0, failed: 0 };
             },
         };
-        return { asked, cron: quietly(new SubscriptionEndCron(ends, reminders, maintenance)) };
+        const deletions = {
+            deleteDue: async () => {
+                asked.push('delete');
+                return { deleted: 0, halted: 0, failed: 0 };
+            },
+        };
+        return {
+            asked,
+            cron: quietly(new SubscriptionEndCron(ends, reminders, deletions, maintenance)),
+        };
     }
 
-    test('records the ends first and reminds after', async () => {
+    test('records the ends first, reminds after, and sets off the deletions last', async () => {
         const { asked, cron } = cronOver();
 
         await cron.recordAndRemind();
 
-        assert.deepEqual(asked, ['record', 'remind']);
+        assert.deepEqual(asked, ['record', 'remind', 'delete']);
     });
 
     test('a run whose recording fails still reminds the ends recorded before', async () => {
@@ -673,7 +969,7 @@ describe('the quarter-hourly run', () => {
 
         await cron.recordAndRemind();
 
-        assert.deepEqual(asked, ['record', 'remind']);
+        assert.deepEqual(asked, ['record', 'remind', 'delete']);
     });
 
     test('a run whose reminding fails lets the next one try again', async () => {
@@ -689,7 +985,7 @@ describe('the quarter-hourly run', () => {
         failing = false;
         await cron.recordAndRemind();
 
-        assert.deepEqual(asked, ['record', 'remind', 'record', 'remind']);
+        assert.deepEqual(asked, ['record', 'remind', 'delete', 'record', 'remind', 'delete']);
     });
 
     test('under a maintenance lock neither records nor reminds; the next run catches up', async () => {
@@ -712,29 +1008,43 @@ describe('the quarter-hourly run', () => {
         finish();
         await running;
 
-        assert.deepEqual(asked, ['record', 'remind']);
+        assert.deepEqual(asked, ['record', 'remind', 'delete']);
     });
 });
 
 /**
  * The platform as `SaaSiCatModule` composes it, its ends, holds and subscription
  * usage in memory, and the notices going through `port` into `record`, both
- * named under `tenantBilling.notices`. The file keeps a read-only period of ten
- * days, shorter than the 29-day lead time and as long as the 10-day one.
+ * named under `tenantBilling.notices`, and what each tenant keeps reported by
+ * `keep` where it is given. The file keeps a read-only period of ten days,
+ * shorter than the 29-day lead time and as long as the 10-day one.
  */
 async function platformOver({
     cancelled = [],
     port,
     record,
     holds,
+    keep,
     versionNotices,
     includeCron = true,
 }) {
     const options = everythingOnOptions();
+    const subscriptionEnds = options.tenantBilling.subscriptionEnds;
+    // A store the reminders can ask whether a contract runs past an end, as
+    // the deletion run asks it; the stub of the options answers nothing.
+    const contracts = new FakeSubscriptionContractRepository();
     const tenantBilling = {
         ...options.tenantBilling,
+        contractFreeze: {
+            ...options.tenantBilling.contractFreeze,
+            subscriptionContractRepository: contracts,
+        },
         notices: { port, record },
-        subscriptionEnds: { ...options.tenantBilling.subscriptionEnds, includeCron },
+        subscriptionEnds: {
+            ...subscriptionEnds,
+            includeCron,
+            deletion: keep ? { ...subscriptionEnds.deletion, keep } : subscriptionEnds.deletion,
+        },
     };
     if (versionNotices) tenantBilling.versionNotices = versionNotices;
     const composed = bootable({
@@ -749,6 +1059,7 @@ async function platformOver({
         tenantBilling,
     });
     composed.persistence.core.rlsBypass = { runWithBypass: (work) => work() };
+    composed.persistence.entitlement.subscriptionContractRepository = contracts;
     composed.persistence.core.subscriptionEnds = new FakeSubscriptionEndRepository();
     composed.persistence.core.tenantAccessHolds = holds ?? new FakeTenantAccessHoldRepository();
     composed.persistence.tenantBilling.subscriptionUsagePort = {
@@ -773,25 +1084,28 @@ const cancelledFor = (tenantId, effectiveAt) => ({
 
 // @requirement SC-CANC-022 — A tenant is reminded before its data is deleted
 describe('the reminders, as the platform wires them', () => {
-    test('an end the run records is reminded by the same run where a lead time is already due, through the port and into the record named', async (t) => {
+    test('an end the run records is reminded by the same run where a lead time is already due, with what its tenant keeps, through the port and into the record named', async (t) => {
         t.mock.timers.enable({ apis: ['Date'], now: inBerlin('2027-01-21', '00:15') });
         const port = sendingPort();
         const record = noticeRecord();
+        const keep = keepReport(() => RECEIPTS);
         const moduleRef = await platformOver({
             cancelled: [cancelledFor('t-1', inBerlin('2027-01-20', '23:59'))],
             port,
             record,
+            keep,
         });
 
         await quietly(moduleRef.get(SubscriptionEndCron, { strict: false })).recordAndRemind();
 
         assert.deepEqual(
-            port.sent.map(({ kind, tenantId, daysBefore, readOnlyUntil, deletesOn }) => ({
+            port.sent.map(({ kind, tenantId, daysBefore, readOnlyUntil, deletesOn, keep }) => ({
                 kind,
                 tenantId,
                 daysBefore,
                 readOnlyUntil,
                 deletesOn,
+                keep,
             })),
             [
                 {
@@ -800,6 +1114,7 @@ describe('the reminders, as the platform wires them', () => {
                     daysBefore: 10,
                     readOnlyUntil: '2027-01-30',
                     deletesOn: '2027-01-31',
+                    keep: RECEIPTS,
                 },
             ],
         );
@@ -819,6 +1134,10 @@ describe('the reminders, as the platform wires them', () => {
         const scheduled = await platformOver({ port: sendingPort(), record: noticeRecord() });
         const reminders = find(scheduled, DeletionReminderService);
         assert.ok(reminders instanceof DeletionReminderService);
+        // Asks the contracts the deletion run asks, so a contract that holds
+        // the deletion holds its reminders too.
+        assert.ok(reminders.contracts);
+        assert.equal(reminders.contracts, find(scheduled, TenantDeletionService)?.contracts);
         assert.equal(find(scheduled, SubscriptionEndCron)?.reminders, reminders);
         await scheduled.close();
 

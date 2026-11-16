@@ -14,8 +14,7 @@ A tenant's deletion erases what nobody can bring back, and the process that
 runs it finds its database through a connection string. So the database now
 carries the identifier of its installation, every process names the identifier
 of the environment it runs in, and a deletion runs only where both are the same
-(`SC-PRIV-021`). This release deletes nothing yet; the brake is in place before
-the release that does.
+(`SC-PRIV-021`). Until a database is marked, nothing is deleted in it.
 
 **Breaking:** `tenantBilling.subscriptionEnds.deletion` is required. Pass the
 identifier from the environment, with no fallback:
@@ -23,7 +22,12 @@ identifier from the environment, with no fallback:
 ```ts
 subscriptionEnds: {
     export: myTenantDataExport,
-    deletion: { installation: process.env.SAASICAT_INSTALLATION },
+    deletion: {
+        installation: process.env.SAASICAT_INSTALLATION,
+        // Required as well: the erasers that delete a tenant on its day.
+        erasers: myTenantErasers,
+        keep: myKeepReport,
+    },
 },
 ```
 
@@ -31,7 +35,8 @@ A start without an identifier, or with a value that is none — a blank, a space
 around it, a character outside letters, digits, `.`, `_` and `-` — is refused
 (`subscription-ends.requires-installation`), and so is a start with nowhere to
 read the mark from (`subscription-ends.requires-installation-marks`).
-`TenantBillingModule` wired by hand takes `deletion: { installation, marks }`.
+`TenantBillingModule` wired by hand takes `installation` and `marks` in
+`deletion`.
 
 - `@saasicat/spec` ships the `InstallationMark` model
   (`32-installation-mark.prisma`, table `installation_marks`, one row) and

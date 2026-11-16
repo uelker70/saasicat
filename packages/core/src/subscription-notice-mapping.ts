@@ -44,6 +44,8 @@ export interface CanonicalSubscriptionNoticeRow {
     deliveredAt: Date | null;
     recipients: unknown;
     channel: string | null;
+    recipientCount: number | null;
+    recipientsForgottenAt: Date | null;
 }
 
 /**
@@ -70,6 +72,8 @@ export function toSubscriptionNoticeRecord(
         claimedAt: row.claimedAt,
         deliveredAt: row.deliveredAt,
         delivery: row.deliveredAt === null ? null : deliveryOf(row),
+        recipientCount: row.recipientCount,
+        recipientsForgottenAt: row.recipientsForgottenAt,
     };
 }
 

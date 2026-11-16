@@ -31,6 +31,7 @@ import { SubscriberService } from '../dist/subscriber/index.js';
 import {
     FakeSubscriberRepository,
     FakeInstallationMarkRepository,
+    FakeTenantDeletionRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
@@ -1040,6 +1041,7 @@ describe('SaaSiCatModule composes payments', () => {
             tenantAccessHolds: new FakeTenantAccessHoldRepository(),
             subscriptionEnds: new FakeSubscriptionEndRepository(),
             installationMark: new FakeInstallationMarkRepository(),
+            tenantDeletions: new FakeTenantDeletionRepository(),
             mfa: {},
             audit: {},
             rlsBypass: {},

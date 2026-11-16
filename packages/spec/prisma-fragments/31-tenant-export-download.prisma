@@ -9,7 +9,7 @@
 // export itself is the application's, handed over through
 // `TenantDataExportPort`; the row is written once the application has handed it
 // over and before the file is sent, and it is the tenant's acknowledgement that
-// the export was offered (`SC-PRIV-017`). It shows that the export was produced
+// the export was offered (`SC-PRIV-024`). It shows that the export was produced
 // for that person at that moment, not that the browser saved it.
 //
 // As many rows per subscription as downloads were taken: there is no unique

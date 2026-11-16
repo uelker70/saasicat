@@ -11,6 +11,7 @@
 // and none goes twice. From the deletion day on nothing is reminded: the
 // deletion itself is due.
 
+import type { TenantKeepLine } from './tenant-deletion.types.js';
 import { calendarDaysBetween, type CalendarDay } from './zoned-day.js';
 
 /**
@@ -40,6 +41,16 @@ export interface DeletionReminderNotice {
     readonly readOnlyUntil: CalendarDay;
     /** The installation's day the tenant's data is deleted on. */
     readonly deletesOn: CalendarDay;
+    /**
+     * What the tenant has to keep for obligations of its own, such as receipts
+     * under a retention period, as the application's `TenantKeepReportPort`
+     * answered when the reminder was put together (`SC-PRIV-022`); empty where
+     * it keeps nothing. Say each line with its count, in the administrator's
+     * words — `labels` by locale, `en` where theirs is not named — and that the
+     * read-only period is the time to take those records along: the deletion
+     * does not wait for them.
+     */
+    readonly keep: readonly TenantKeepLine[];
 }
 
 /** What a reminder is recorded under, read apart: the end and the lead time. */

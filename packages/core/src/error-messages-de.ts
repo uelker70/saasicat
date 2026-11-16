@@ -489,7 +489,9 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIBER_JOIN_WITHOUT_LIVE_TENANT:
         'Vertragspartner {customerNumber} hat keinen aktiven Mandanten; zusammengeführt wird der neue Mandant eines zurückkehrenden Kunden mit dem Vertragspartner, den er hatte.',
     SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT:
-        'Vertragspartner {customerNumber} hat noch einen aktiven Mandanten ({tenantId}), und ein Vertragspartner hat höchstens einen. Hat die Anwendung diesen Mandanten gelöscht, schließt sie zuerst seine Verknüpfung.',
+        'Vertragspartner {customerNumber} hat noch einen aktiven Mandanten ({tenantId}), und ein Vertragspartner hat höchstens einen. Die Verknüpfung endet, sobald die Löschung dieses Mandanten abgeschlossen ist.',
+    SUBSCRIBER_JOIN_DELETION_UNDER_WAY:
+        'Ein Mandant von Vertragspartner {customerNumber} wird gerade gelöscht. Der Vertragspartner lässt sich zusammenführen, sobald diese Löschung abgeschlossen ist.',
     SUBSCRIBER_JOIN_PREVIEW_CHANGED:
         'Was die Zusammenführung bewirken würde, hat sich seit der Anzeige geändert. Bitte vor dem Zusammenführen noch einmal ansehen.',
     SUBSCRIBER_JOINED:
@@ -556,6 +558,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     TENANT_BEING_DELETED: 'Dieses Konto wird gelöscht.',
     TENANT_ALREADY_SUSPENDED: 'Dieser Mandant ist bereits gesperrt.',
     TENANT_NOT_SUSPENDED: 'Dieser Mandant ist nicht gesperrt.',
+    TENANT_DELETION_BEGUN:
+        'Dieser Mandant wird gelöscht: Er kann nicht mehr gesperrt und sein Export nicht mehr abgerufen werden.',
     TENANT_EXPORT_NOT_OFFERED:
         'Der Export dieses Kontos steht bereit, sobald sein Abonnement geendet hat.',
     TENANT_EXPORT_FAILED:

@@ -26,6 +26,7 @@ import { PrismaInstallationMarkRepository } from './prisma-installation-mark.rep
 import { PrismaMaintenanceWindowRepository } from './prisma-maintenance-window.repository.js';
 import { PrismaTenantAccessHoldRepository } from './prisma-tenant-access-hold.repository.js';
 import { PrismaSubscriptionEndRepository } from './prisma-subscription-end.repository.js';
+import { PrismaTenantDeletionRepository } from './prisma-tenant-deletion.repository.js';
 import { PrismaSubscriptionNoticeRepository } from './prisma-subscription-notice.repository.js';
 import { PrismaVersionRetirementRepository } from './prisma-version-retirement.repository.js';
 import { PrismaBundleVersionRetirementRepository } from './prisma-bundle-version-retirement.repository.js';
@@ -86,6 +87,9 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     subscriptionEnd: unknown;
     subscriptionEndAnnouncement: unknown;
     tenantExportDownload: unknown;
+    subscriberTenantDeletion: unknown;
+    subscriberTenantDeletionStore: unknown;
+    subscriberTenantDeletionCount: unknown;
     termsVersion: unknown;
     subscriber: unknown;
     subscriberTenant: unknown;
@@ -255,6 +259,12 @@ export function prismaPersistence<M extends OptionalCanonicalModel = never>(
             ),
             subscriptionEnds: provide(
                 (prisma) => new PrismaSubscriptionEndRepository(canonical(prisma)),
+            ),
+            // The record of each tenant's deletion, kept with its subscriber;
+            // the commercial record it counts leaves out what is not adopted.
+            tenantDeletions: provide(
+                (prisma) =>
+                    new PrismaTenantDeletionRepository(canonical(prisma), options.notAdopted),
             ),
             termsArchive: unless(
                 'core.termsArchive',

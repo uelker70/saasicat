@@ -27,7 +27,13 @@ Verified scenarios:
   checkouts race for it, and ends exactly once — released, expired, or turned into the
   redemption on the transaction it was handed over on and no other
 - one promo redemption per subscription (unique guard)
-- audit write → query roundtrip incl. `actorTag` wildcard filters
+- audit write → query roundtrip incl. `actorTag` wildcard filters and the tenant an entry names
+- a tenant's deletion begins once however many runs race for it, in the transaction that holds the
+  tenant back, and under a lock on the reason it begins on; one run holds it at a time, a store's
+  first counts stand, and it closes once
+- once a tenant is deleted, its reasons, its end and the downloads of its export name roles, its
+  reasons keep no note, and its notices keep how many they went to — written in one transaction,
+  and for that tenant alone
 - MFA secret roundtrip
 - a gateway event is claimed once per account, a session is confirmed once however many events
   report it, an event that changed nothing gives its session back while staying claimed itself, and
@@ -130,6 +136,8 @@ persistenceAdapterContract({
         'subscriptionEnds',
         'cancelledSubscriptions',
         'subscriptionNotices',
+        'uncountedNoticeSeed',
+        'tenantDeletions',
         'versionRetirements',
         'boundSubscriptions',
         'bundleVersionRetirements',

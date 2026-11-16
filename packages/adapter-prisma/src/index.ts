@@ -90,6 +90,7 @@ export { PrismaMaintenanceWindowRepository } from './prisma-maintenance-window.r
 export { PrismaInstallationMarkRepository } from './prisma-installation-mark.repository.js';
 export { PrismaTenantAccessHoldRepository } from './prisma-tenant-access-hold.repository.js';
 export { PrismaSubscriptionEndRepository } from './prisma-subscription-end.repository.js';
+export { PrismaTenantDeletionRepository } from './prisma-tenant-deletion.repository.js';
 export { PrismaSubscriptionNoticeRepository } from './prisma-subscription-notice.repository.js';
 export { PrismaVersionRetirementRepository } from './prisma-version-retirement.repository.js';
 export { PrismaBundleVersionRetirementRepository } from './prisma-bundle-version-retirement.repository.js';

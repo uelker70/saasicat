@@ -358,6 +358,7 @@ describe('the audit log', () => {
         await exporter.moduleRef.close();
     });
 
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('records who took which archive: the months, the moment, the language, what it holds and its SHA-256', async () => {
         const { installation, payments } = await aFebruary();
         const exporter = await anExporter(installation, { payments });
@@ -374,6 +375,8 @@ describe('the audit log', () => {
                 },
                 entity: 'SubscriptionInvoiceExport',
                 entityId: sha256Of(bytes),
+                // The register is the installation's, not one tenant's.
+                tenantId: undefined,
                 action: EXPORTED,
                 changes: {
                     from: '2026-02',

@@ -19,6 +19,7 @@ import { PLAN_CATALOG_SOURCE_TOKEN } from '../dist/billing/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
 import {
     FakeInstallationMarkRepository,
+    FakeTenantDeletionRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
@@ -57,6 +58,7 @@ function fakeBundle(capabilityOverrides = {}) {
             tenantAccessHolds: new FakeTenantAccessHoldRepository(),
             subscriptionEnds: new FakeSubscriptionEndRepository(),
             installationMark: new FakeInstallationMarkRepository(),
+            tenantDeletions: new FakeTenantDeletionRepository(),
             mfa: spec,
             audit: spec,
             rlsBypass: spec,
@@ -224,6 +226,7 @@ describe('SaaSiCatModule persistence bundle', () => {
                 tenantAccessHolds: new FakeTenantAccessHoldRepository(),
                 subscriptionEnds: new FakeSubscriptionEndRepository(),
                 installationMark: new FakeInstallationMarkRepository(),
+                tenantDeletions: new FakeTenantDeletionRepository(),
                 mfa: {
                     getSecret: async () => null,
                     setSecret: async () => {},
@@ -311,7 +314,12 @@ describe('SaaSiCatModule persistence bundle', () => {
                 tenantBilling: {
                     authGuards: [],
                     notices: { port: sendingPort() },
-                    subscriptionEnds: { export: anExport(), deletion: aDeletion() },
+                    subscriptionEnds: {
+                        export: anExport(),
+                        // Named here: a subscriber repository in the bundle
+                        // would add the subscriber's own modules to the count.
+                        deletion: { ...aDeletion(), subscribers: {} },
+                    },
                 },
                 subscriptionBundles: true,
                 adminResources: true,
@@ -373,6 +381,7 @@ describe('SaaSiCatModule persistence bundle', () => {
                 tenantAccessHolds: new FakeTenantAccessHoldRepository(),
                 subscriptionEnds: new FakeSubscriptionEndRepository(),
                 installationMark: new FakeInstallationMarkRepository(),
+                tenantDeletions: new FakeTenantDeletionRepository(),
                 mfa: {
                     getSecret: async () => null,
                     setSecret: async () => {},
@@ -383,6 +392,7 @@ describe('SaaSiCatModule persistence bundle', () => {
                 transactionRunner: { run: (fn) => fn({}) },
             },
             entitlement: {
+                subscriberRepository: { findByTenantId: async () => null },
                 subscriptionRepository: {
                     useFactory: () => ({
                         findByTenantId: async () => null,

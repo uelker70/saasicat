@@ -41,9 +41,10 @@ export interface SubscriptionNoticeRepository {
         staleBefore: Date,
     ): Promise<SubscriptionNoticeRecord | null>;
     /**
-     * Records the notice `id` as delivered, provided it is still held by the
-     * claim taken at `claimedAt` and not delivered. Returns false where it is
-     * not: the claim went stale and another run took the notice on.
+     * Records the notice `id` as delivered, and how many it went to as
+     * `recipientCount`, provided it is still held by the claim taken at
+     * `claimedAt` and not delivered. Returns false where it is not: the claim
+     * went stale and another run took the notice on.
      */
     confirm(
         id: string,
@@ -79,6 +80,17 @@ export interface SubscriptionNoticeRepository {
         kind: SubscriptionNoticeKind,
         staleBefore: Date,
     ): Promise<SubscriptionNoticeRecord[]>;
+    /**
+     * Empties the recipients of every notice of `tenantId` whose recipients
+     * are not forgotten yet, keeping their number as `recipientCount` and
+     * `at` as `recipientsForgottenAt`, in the caller's transaction where one
+     * is given. Answers how many notices it changed. A notice not delivered
+     * has no recipients and no number to keep, and is marked all the same. A
+     * number already kept stands; where none is, it is the recipients'. A
+     * deleted tenant's notices say how many they went to, not to whom
+     * (`SC-PRIV-023`).
+     */
+    forgetRecipients(tenantId: string, at: Date, tx?: TransactionContext): Promise<number>;
 }
 
 /**
@@ -98,7 +110,9 @@ export interface SubscriptionNoticeRepository {
  * A reminder of a deletion (`deletion-reminder`) told to nobody is not tried
  * again either: a read-only tenant cannot add an administrator, so a retry
  * would reach nobody again; the record keeps that nobody could be told. The
- * next lead time is still reminded of on its day.
+ * next lead time is still reminded of on its day. Each one carries `keep`,
+ * what the tenant has to keep for obligations of its own: say it, so the
+ * administrator takes those records along before the deletion day.
  */
 export interface SubscriptionNoticePort {
     deliver(notice: SubscriptionNotice): Promise<SubscriptionNoticeDelivery>;

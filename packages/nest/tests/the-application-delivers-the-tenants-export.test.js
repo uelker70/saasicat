@@ -7,7 +7,7 @@
 // refuses with a stable code and records nothing, and the application keeps
 // its own trace.
 //
-// The record is the tenant's acknowledgement (`SC-PRIV-017`), so each rule is
+// The record is the tenant's acknowledgement (`SC-PRIV-024`), so each rule is
 // broken on its own, and each refusal is shown to leave nothing behind.
 
 import { describe, test } from 'node:test';
@@ -151,6 +151,7 @@ describe('the application records a download it delivered in full', () => {
         assert.deepEqual(download, ends.downloads[0]);
     });
 
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('and written to the audit log as a download the platform serves is', async () => {
         const { delivery, ends, audited } = await delivering();
 
@@ -166,6 +167,7 @@ describe('the application records a download it delivered in full', () => {
                 },
                 entity: 'Tenant',
                 entityId: 't1',
+                tenantId: 't1',
                 action: 'TENANT_EXPORT_DOWNLOAD',
                 changes: {
                     subscriptionId: 'sub-t1',
@@ -296,6 +298,38 @@ describe('a delivery is recorded only once an end is recorded', () => {
             refusedWith(ConflictException, 'TENANT_EXPORT_NOT_OFFERED'),
         );
         assert.deepEqual(ends.downloads, []);
+    });
+});
+
+// @requirement SC-PRIV-023 — A tenant's deletion leaves a record with the subscriber that names no person
+describe('a delivery reported once the deletion has begun is not recorded', () => {
+    // A closed deletion lifted the `ended` reason, so its end is no longer
+    // offered and the refusal comes before this one.
+    test('a deletion under way, however long ago the download started: refused, nothing recorded or audited', async () => {
+        const { holds, delivery, ends, audited } = await delivering();
+        await holdFor(holds, 't1', 'deleting');
+
+        await assert.rejects(
+            delivery.recordDelivered(servedTo(), DELIVERED, NOW),
+            refusedWith(ConflictException, 'TENANT_DELETION_BEGUN'),
+        );
+        assert.deepEqual(ends.downloads, []);
+        assert.deepEqual(audited, []);
+    });
+
+    test("another tenant's delivery is still recorded", async () => {
+        const { holds, ends, delivery, audited } = await delivering();
+        await holdFor(holds, 't2', 'ended');
+        await endOf(ends, 't2');
+        await holdFor(holds, 't1', 'deleting');
+
+        await delivery.recordDelivered(servedTo('t2'), DELIVERED, NOW);
+
+        assert.deepEqual(
+            ends.downloads.map((download) => download.tenantId),
+            ['t2'],
+        );
+        assert.equal(audited.length, 1);
     });
 });
 

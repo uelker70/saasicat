@@ -50,7 +50,8 @@ import {
     assertOnePlanLine,
     assertTaxRatePercent,
 } from './contract-refusals.js';
-import { ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES, CONTRACT_ERROR_CODES } from '@saasicat/core';
+import { contractRunsFrom } from './contract-runs-from.js';
+import { CONTRACT_ERROR_CODES } from '@saasicat/core';
 import { offerMoneyAtRate, type OfferMoney } from '../checkout-offer/offer-money-at-rate.js';
 import {
     agreementNamed,
@@ -551,11 +552,7 @@ export class SubscriptionContractService implements OnModuleInit {
         const contracts = await this.repo.list({ tenantId });
         return (
             contracts
-                .filter(
-                    (contract) =>
-                        ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES.includes(contract.status) &&
-                        (contract.effectiveUntil === null || contract.effectiveUntil > at),
-                )
+                .filter((contract) => contractRunsFrom(contract, at))
                 .sort((a, b) => a.effectiveFrom.getTime() - b.effectiveFrom.getTime())[0] ?? null
         );
     }

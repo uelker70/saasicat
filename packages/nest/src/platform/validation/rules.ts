@@ -44,6 +44,13 @@ import {
     exportNotWired,
 } from '../../billing/tenant-export-option.js';
 import { installationNotNamed } from '../../billing/deletion/installation-mark-option.js';
+import {
+    erasersRefused,
+    isListedInPlace,
+    keepReportNotWired,
+    tenantErasersProblem,
+    type TenantErasersProblem,
+} from '../../billing/deletion/tenant-deletion-option.js';
 import { resolveBundleRepository } from '../compose/bundle-repository-source.js';
 import { servesTenantAccess } from '../compose/tenant-access.js';
 
@@ -151,6 +158,16 @@ const declaredExport = (c: PlatformConfiguration): unknown =>
 /** What `tenantBilling.subscriptionEnds.deletion` was given, as it was given. */
 const declaredDeletion = (c: PlatformConfiguration) =>
     optionsOf(c.options.tenantBilling)?.subscriptionEnds?.deletion;
+
+/**
+ * What is wrong with the erasers as given: all of it where they are listed in
+ * place, and only whether there are any where a factory builds them, which
+ * `TenantDeletionService` checks once it has.
+ */
+function erasersProblemOf(erasers: unknown): TenantErasersProblem | null {
+    if (erasers === undefined || erasers === null) return { kind: 'missing' };
+    return isListedInPlace(erasers) ? tenantErasersProblem(erasers) : null;
+}
 
 /** The persistence bundle, or `undefined` when the app binds ports one by one. */
 const bundle = (c: PlatformConfiguration): SaaSiCatPersistenceAdapter | undefined =>
@@ -433,6 +450,51 @@ const RULE_SPECS: readonly RuleSpec[] = [
             '`tenantBilling.subscriptionEnds.deletion.marks` or use a bundle providing ' +
             '`persistence.core.installationMark` — both shipped adapters do, from the ' +
             '`InstallationMark` model of `@saasicat/spec`.',
+    },
+    {
+        id: 'subscription-ends.requires-erasers',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) => erasersProblemOf(declaredDeletion(c)?.erasers) === null,
+        // The reference page asks with nothing configured, and reads the
+        // sentence for erasers that are missing.
+        message: (c) =>
+            erasersRefused(
+                '`tenantBilling.subscriptionEnds.deletion.erasers`',
+                erasersProblemOf(declaredDeletion(c)?.erasers) ?? { kind: 'missing' },
+            ),
+    },
+    {
+        id: 'subscription-ends.requires-keep-report',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) => Boolean(declaredDeletion(c)?.keep),
+        message: keepReportNotWired('`tenantBilling.subscriptionEnds.deletion.keep`'),
+    },
+    {
+        id: 'subscription-ends.requires-tenant-deletions',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) => Boolean(declaredDeletion(c)?.records ?? bundle(c)?.core?.tenantDeletions),
+        message:
+            'tenantBilling is on, but there is nowhere to record the deletion of a tenant ' +
+            '(SC-PRIV-023): a deletion that is not recorded cannot be proved. Set ' +
+            '`tenantBilling.subscriptionEnds.deletion.records` or use a bundle providing ' +
+            '`persistence.core.tenantDeletions` — both shipped adapters do, from the ' +
+            '`SubscriberTenantDeletion` models of `@saasicat/spec`.',
+    },
+    {
+        id: 'subscription-ends.requires-subscribers',
+        when: (c) => Boolean(c.options.tenantBilling),
+        assert: (c) =>
+            Boolean(
+                declaredDeletion(c)?.subscribers ??
+                optionsOf(c.options.subscriptionContract)?.subscriberRepository ??
+                bundle(c)?.entitlement?.subscriberRepository,
+            ),
+        message:
+            'tenantBilling is on, but there is nowhere to find the subscriber the deletion of a ' +
+            'tenant is recorded with (SC-PRIV-023): the record outlives the tenant as the ' +
+            "subscriber's invoices do. Set `tenantBilling.subscriptionEnds.deletion.subscribers` " +
+            'or use a bundle providing `persistence.entitlement.subscriberRepository` — both ' +
+            'shipped adapters do, from the `Subscriber` model of `@saasicat/spec`.',
     },
     {
         id: 'subscription-notices.requires-port',

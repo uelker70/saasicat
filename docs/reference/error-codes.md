@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 317 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 319 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -316,30 +316,31 @@ Invoices issued from the charge journal.
 
 The party a contract is concluded with.
 
-| Code                                         | Shipped English text                                                                                                                                                     |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `SUBSCRIBER_ALREADY_EXISTS`                  | Tenant '{tenantId}' already has a subscriber.                                                                                                                            |
-| `SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT`   | Whether the subscriber is a business is part of its tax origin and changes only as a recorded change that names who made it.                                             |
-| `SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED` | A change of whether the subscriber is a business needs a reason.                                                                                                         |
-| `SUBSCRIBER_CHANGE_ACTOR_REQUIRED`           | A change of the subscriber's details has to say who makes it.                                                                                                            |
-| `SUBSCRIBER_CORRECTION_ACTOR_REQUIRED`       | A correction of the legal identity has to say who makes it.                                                                                                              |
-| `SUBSCRIBER_CORRECTION_CHANGES_NOTHING`      | The correction changes nothing: every value it names is already recorded.                                                                                                |
-| `SUBSCRIBER_CORRECTION_REASON_REQUIRED`      | A correction of the legal identity needs a reason.                                                                                                                       |
-| `SUBSCRIBER_DETAIL_INVALID`                  | The subscriber's {field} is not valid.                                                                                                                                   |
-| `SUBSCRIBER_IDENTITY_INCOMPLETE`             | The subscriber's billing address is not complete yet: a contract names it only with street and number, postal code, city and country.                                    |
-| `SUBSCRIBER_IDENTITY_NOT_A_CONTACT`          | {field} is part of the subscriber's legal identity and changes only as a correction, with a reason.                                                                      |
-| `SUBSCRIBER_JOINED`                          | Subscriber {customerNumber} was joined into another subscriber; its record stays as it was and takes no change.                                                          |
-| `SUBSCRIBER_JOIN_ALREADY_JOINED`             | Subscriber {customerNumber} was joined into another subscriber already; its record names which.                                                                          |
-| `SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT`       | Subscriber {customerNumber} still has a live tenant ({tenantId}), and a subscriber has at most one. Where the application deleted that tenant, it closes the link first. |
-| `SUBSCRIBER_JOIN_PREVIEW_CHANGED`            | What the join would do changed since it was shown. Look at it again before joining.                                                                                      |
-| `SUBSCRIBER_JOIN_REASON_REQUIRED`            | Joining a subscriber into the one it had needs a reason.                                                                                                                 |
-| `SUBSCRIBER_JOIN_SAME_SUBSCRIBER`            | A subscriber cannot be joined into itself.                                                                                                                               |
-| `SUBSCRIBER_JOIN_WITHOUT_LIVE_TENANT`        | Subscriber {customerNumber} has no live tenant, and a join brings a returning customer's new tenant to the subscriber it had.                                            |
-| `SUBSCRIBER_LEGAL_NAME_REQUIRED`             | A subscriber needs its legal name.                                                                                                                                       |
-| `SUBSCRIBER_NOT_FOUND`                       | Subscriber '{subscriberId}' not found                                                                                                                                    |
-| `SUBSCRIBER_REQUIRED`                        | Tenant '{tenantId}' has no subscriber. Nothing is agreed or charged without the party to it: create the tenant's subscriber first.                                       |
-| `SUBSCRIBER_TAKEOVER_IS_A_TRANSFER`          | Another legal entity taking over a subscriber is a transfer, not a correction, and cannot be recorded as an edit.                                                        |
-| `SUBSCRIBER_VAT_ID_MISSING`                  | The subscriber has no VAT identification number to check.                                                                                                                |
+| Code                                         | Shipped English text                                                                                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SUBSCRIBER_ALREADY_EXISTS`                  | Tenant '{tenantId}' already has a subscriber.                                                                                                                |
+| `SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT`   | Whether the subscriber is a business is part of its tax origin and changes only as a recorded change that names who made it.                                 |
+| `SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED` | A change of whether the subscriber is a business needs a reason.                                                                                             |
+| `SUBSCRIBER_CHANGE_ACTOR_REQUIRED`           | A change of the subscriber's details has to say who makes it.                                                                                                |
+| `SUBSCRIBER_CORRECTION_ACTOR_REQUIRED`       | A correction of the legal identity has to say who makes it.                                                                                                  |
+| `SUBSCRIBER_CORRECTION_CHANGES_NOTHING`      | The correction changes nothing: every value it names is already recorded.                                                                                    |
+| `SUBSCRIBER_CORRECTION_REASON_REQUIRED`      | A correction of the legal identity needs a reason.                                                                                                           |
+| `SUBSCRIBER_DETAIL_INVALID`                  | The subscriber's {field} is not valid.                                                                                                                       |
+| `SUBSCRIBER_IDENTITY_INCOMPLETE`             | The subscriber's billing address is not complete yet: a contract names it only with street and number, postal code, city and country.                        |
+| `SUBSCRIBER_IDENTITY_NOT_A_CONTACT`          | {field} is part of the subscriber's legal identity and changes only as a correction, with a reason.                                                          |
+| `SUBSCRIBER_JOINED`                          | Subscriber {customerNumber} was joined into another subscriber; its record stays as it was and takes no change.                                              |
+| `SUBSCRIBER_JOIN_ALREADY_JOINED`             | Subscriber {customerNumber} was joined into another subscriber already; its record names which.                                                              |
+| `SUBSCRIBER_JOIN_DELETION_UNDER_WAY`         | A tenant of subscriber {customerNumber} is being deleted. The subscriber can be joined once that deletion has closed.                                        |
+| `SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT`       | Subscriber {customerNumber} still has a live tenant ({tenantId}), and a subscriber has at most one. The link closes when the deletion of that tenant closes. |
+| `SUBSCRIBER_JOIN_PREVIEW_CHANGED`            | What the join would do changed since it was shown. Look at it again before joining.                                                                          |
+| `SUBSCRIBER_JOIN_REASON_REQUIRED`            | Joining a subscriber into the one it had needs a reason.                                                                                                     |
+| `SUBSCRIBER_JOIN_SAME_SUBSCRIBER`            | A subscriber cannot be joined into itself.                                                                                                                   |
+| `SUBSCRIBER_JOIN_WITHOUT_LIVE_TENANT`        | Subscriber {customerNumber} has no live tenant, and a join brings a returning customer's new tenant to the subscriber it had.                                |
+| `SUBSCRIBER_LEGAL_NAME_REQUIRED`             | A subscriber needs its legal name.                                                                                                                           |
+| `SUBSCRIBER_NOT_FOUND`                       | Subscriber '{subscriberId}' not found                                                                                                                        |
+| `SUBSCRIBER_REQUIRED`                        | Tenant '{tenantId}' has no subscriber. Nothing is agreed or charged without the party to it: create the tenant's subscriber first.                           |
+| `SUBSCRIBER_TAKEOVER_IS_A_TRANSFER`          | Another legal entity taking over a subscriber is a transfer, not a correction, and cannot be recorded as an edit.                                            |
+| `SUBSCRIBER_VAT_ID_MISSING`                  | The subscriber has no VAT identification number to check.                                                                                                    |
 
 ## Payments
 
@@ -412,17 +413,18 @@ The lock that refuses tenant requests, and the operator routes around it.
 
 What a held-back tenant's users meet, with the open reasons in `params.reasons`, the operator's suspension, and the export a tenant takes once its subscription ended.
 
-| Code                             | Shipped English text                                                                               |
-| -------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `TENANT_ALREADY_SUSPENDED`       | This tenant is suspended already.                                                                  |
-| `TENANT_BEING_DELETED`           | This account is being deleted.                                                                     |
-| `TENANT_EXPORT_FAILED`           | The export of this account could not be produced just now. Please try again later.                 |
-| `TENANT_EXPORT_IN_PROGRESS`      | The export of this account is being produced already. Please try again once it has arrived.        |
-| `TENANT_EXPORT_NOT_FOR_OPERATOR` | Only an administrator of this account can take its export, not the provider acting as the account. |
-| `TENANT_EXPORT_NOT_OFFERED`      | The export of this account is offered once its subscription has ended.                             |
-| `TENANT_NOT_SUSPENDED`           | This tenant is not suspended.                                                                      |
-| `TENANT_READ_ONLY`               | This account can be read but not changed at the moment. You can still view and export its data.    |
-| `TENANT_SUSPENDED`               | This account is suspended. Please contact your provider.                                           |
+| Code                             | Shipped English text                                                                                |
+| -------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `TENANT_ALREADY_SUSPENDED`       | This tenant is suspended already.                                                                   |
+| `TENANT_BEING_DELETED`           | This account is being deleted.                                                                      |
+| `TENANT_DELETION_BEGUN`          | This tenant is being deleted: it can no longer be suspended, and its export can no longer be taken. |
+| `TENANT_EXPORT_FAILED`           | The export of this account could not be produced just now. Please try again later.                  |
+| `TENANT_EXPORT_IN_PROGRESS`      | The export of this account is being produced already. Please try again once it has arrived.         |
+| `TENANT_EXPORT_NOT_FOR_OPERATOR` | Only an administrator of this account can take its export, not the provider acting as the account.  |
+| `TENANT_EXPORT_NOT_OFFERED`      | The export of this account is offered once its subscription has ended.                              |
+| `TENANT_NOT_SUSPENDED`           | This tenant is not suspended.                                                                       |
+| `TENANT_READ_ONLY`               | This account can be read but not changed at the moment. You can still view and export its data.     |
+| `TENANT_SUSPENDED`               | This account is suspended. Please contact your provider.                                            |
 
 ## Installation
 

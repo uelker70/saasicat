@@ -34,7 +34,10 @@ import type {
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
     TenantDataExportPort,
+    TenantDeletionRecordPort,
+    TenantEraser,
     TenantExportDeliveredByTheApplication,
+    TenantKeepReportPort,
     TenantSubscriptionWritePort,
     TransactionRunner,
     UsageSnapshotPort,
@@ -52,6 +55,16 @@ import {
     installationNotNamed,
 } from './deletion/installation-mark-option.js';
 import { InstallationMarkService } from './deletion/installation-mark.service.js';
+import {
+    deletionRecordsNotWired,
+    deletionSubscribersNotWired,
+    deletionTransactionsNotWired,
+    erasersRefused,
+    isListedInPlace,
+    keepReportNotWired,
+    tenantErasersProblem,
+} from './deletion/tenant-deletion-option.js';
+import { TenantDeletionService } from './deletion/tenant-deletion.service.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { TenantAccessStateController } from './tenant-access-state.controller.js';
@@ -167,6 +180,11 @@ import {
     END_OF_SUBSCRIPTION_TOKEN,
     INSTALLATION_IDENTIFIER_TOKEN,
     INSTALLATION_MARK_PORT_TOKEN,
+    TENANT_DELETION_RECORD_PORT_TOKEN,
+    TENANT_DELETION_SUBSCRIBERS_TOKEN,
+    TENANT_DELETION_TRANSACTION_RUNNER_TOKEN,
+    TENANT_ERASERS_TOKEN,
+    TENANT_KEEP_REPORT_PORT_TOKEN,
     TENANT_DATA_EXPORT_PORT_TOKEN,
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
@@ -361,23 +379,32 @@ export interface SubscriptionEndsOptions {
     /**
      * Default `true`: a run every quarter of an hour records the subscriptions
      * that ended, then reminds each tenant whose deletion day is near
-     * (`SC-CANC-022`). Needs `ScheduleModule`; set `false` where none runs, or
-     * where the application calls `SubscriptionEndService.recordEnded` and then
-     * `DeletionReminderService.remindDue` from a scheduler of its own — both,
-     * in that order, or a tenant whose subscription ended is never warned.
+     * (`SC-CANC-022`), then sets off the deletion of each tenant whose day has
+     * come (`SC-PRIV-022`) without waiting for it. Needs `ScheduleModule`; set
+     * `false` where none runs, or where the application calls
+     * `SubscriptionEndService.recordEnded`, then
+     * `DeletionReminderService.remindDue`, then
+     * `TenantDeletionService.deleteDue` from a scheduler of its own — all
+     * three, in that order, or a tenant whose subscription ended is never
+     * warned, or never deleted.
      */
     includeCron?: boolean;
     /**
-     * The brake in front of every deletion (`SC-PRIV-021`): the identifier of
-     * the environment this process runs in, and where the mark of the database
-     * is read from. A tenant is deleted only where both name the same
+     * How a tenant is deleted on its day (`SC-PRIV-022`), and the brake in
+     * front of every deletion (`SC-PRIV-021`): the identifier of the
+     * environment this process runs in, and where the mark of the database is
+     * read from. A tenant is deleted only where both name the same
      * installation; until the operator marks the database with
      * `<app> installation mark <identifier>`, nothing is deleted at all.
      */
     deletion: SubscriptionDeletionOptions;
 }
 
-/** The identifier of this environment, and where the mark of its database is kept (`SC-PRIV-021`). */
+/**
+ * The brake in front of a tenant's deletion (`SC-PRIV-021`), the
+ * application's stores it is erased from and what it keeps itself
+ * (`SC-PRIV-022`), and where the deletion is recorded (`SC-PRIV-023`).
+ */
 export interface SubscriptionDeletionOptions {
     /**
      * This environment's identifier, passed from the environment as it is —
@@ -388,6 +415,40 @@ export interface SubscriptionDeletionOptions {
     installation: string | undefined;
     /** Where the mark of the database is kept. */
     marks: ProviderSpec<InstallationMarkPort>;
+    /**
+     * The application's stores, erased for a tenant in this order on its
+     * deletion day (`SC-PRIV-022`): at least one `TenantEraser`, each named
+     * once with a stable key. A store whose files are found through rows comes
+     * before the store that holds the rows.
+     */
+    erasers: ProviderSpec<readonly TenantEraser[]>;
+    /** What a tenant keeps itself for obligations of its own, told before its deletion (`SC-PRIV-022`). */
+    keep: ProviderSpec<TenantKeepReportPort>;
+    /** Where each deletion is recorded, with the tenant's subscriber (`SC-PRIV-023`). */
+    records: ProviderSpec<TenantDeletionRecordPort>;
+    /** Where the subscriber a deletion is recorded with is found. */
+    subscribers: ProviderSpec<SubscriberRepository>;
+    /** Begins a deletion — its record and the reason holding the tenant back — in one transaction. */
+    transactionRunner: ProviderSpec<TransactionRunner>;
+}
+
+/**
+ * Refuses `TenantBillingModule` wired by hand with a deletion it cannot carry
+ * out: every option the deletion run needs, and the erasers, where they are
+ * listed in place, as a list a tenant can be erased through. A factory's list
+ * is checked by `TenantDeletionService` once it is built.
+ */
+function refuseDeletionNotWired(deletion: SubscriptionDeletionOptions): void {
+    const option = (name: string) => `TenantBillingModule: \`subscriptionEnds.deletion.${name}\``;
+    const erasers: unknown = deletion.erasers;
+    const erasersProblem = isListedInPlace(erasers) ? tenantErasersProblem(erasers) : null;
+    if (erasersProblem) throw new Error(erasersRefused(option('erasers'), erasersProblem));
+    if (!deletion.keep) throw new Error(keepReportNotWired(option('keep')));
+    if (!deletion.records) throw new Error(deletionRecordsNotWired(option('records')));
+    if (!deletion.subscribers) throw new Error(deletionSubscribersNotWired(option('subscribers')));
+    if (!deletion.transactionRunner) {
+        throw new Error(deletionTransactionsNotWired(option('transactionRunner')));
+    }
 }
 
 /**
@@ -972,6 +1033,7 @@ export class TenantBillingModule {
                     ),
                 );
             }
+            refuseDeletionNotWired(deletion);
             const exportProviders = deliversItsOwnExport(subscriptionEnds.export)
                 ? [TenantExportDeliveryService]
                 : [
@@ -995,6 +1057,12 @@ export class TenantBillingModule {
                 { provide: INSTALLATION_IDENTIFIER_TOKEN, useValue: deletion.installation },
                 asProvider(INSTALLATION_MARK_PORT_TOKEN, deletion.marks),
                 InstallationMarkService,
+                asProvider(TENANT_ERASERS_TOKEN, deletion.erasers),
+                asProvider(TENANT_KEEP_REPORT_PORT_TOKEN, deletion.keep),
+                asProvider(TENANT_DELETION_RECORD_PORT_TOKEN, deletion.records),
+                asProvider(TENANT_DELETION_SUBSCRIBERS_TOKEN, deletion.subscribers),
+                asProvider(TENANT_DELETION_TRANSACTION_RUNNER_TOKEN, deletion.transactionRunner),
+                TenantDeletionService,
             );
         }
         const versionNotices = options.versionNotices;
@@ -1145,6 +1213,7 @@ export class TenantBillingModule {
                           TrialEndService,
                           DeletionReminderService,
                           InstallationMarkService,
+                          TenantDeletionService,
                       ]
                     : []),
                 ...(exportDelivered ? [TenantExportDeliveryService] : []),

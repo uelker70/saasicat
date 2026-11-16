@@ -440,6 +440,7 @@ describe('carrying the features over', () => {
         assert.ok(successor.entitlementSnapshot.features.includes('TEAM'));
     });
 
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('the refresh is in the audit log, with the contract it replaced', async () => {
         const { t, contract } = await frozenBeforeTheRename();
 
@@ -449,9 +450,10 @@ describe('carrying the features over', () => {
             t.audit.entries.map((entry) => [
                 entry.action,
                 entry.entityId,
+                entry.tenantId,
                 entry.changes.supersedes,
             ]),
-            [['SUBSCRIPTION_CONTRACT_REFRESH', outcome.successorId, contract.id]],
+            [['SUBSCRIPTION_CONTRACT_REFRESH', outcome.successorId, 't1', contract.id]],
         );
     });
 });

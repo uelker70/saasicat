@@ -1,7 +1,7 @@
 // A tenant's full export, taken by its administrator once its subscription has
 // ended from `GET billing/export`, where the application hands the file over
 // rather than delivering it itself (`SC-PRIV-020`), and the record of each
-// download — the tenant's acknowledgement that `SC-PRIV-017` names.
+// download — the tenant's acknowledgement that `SC-PRIV-024` names.
 //
 // The platform does not assemble the export: the application hands it over
 // through `TenantDataExportPort`, asked for the session's tenant on every
@@ -18,7 +18,8 @@
 // recorded — found through the open `ended` reason, whose reference is the
 // subscription — and still after its deletion day, while the data is there.
 // A suspension and a deletion under way refuse it before it gets here, as they
-// refuse every request.
+// refuse every request; a deletion that begins while the file is produced
+// refuses its record, so that file is not sent either.
 //
 // The whole file is held in memory while it is produced, recorded and sent, so
 // one tenant produces one export at a time: a second request while the first
@@ -93,10 +94,11 @@ export class TenantDataExportService implements OnModuleInit {
      * download is recorded. Refused with `TENANT_EXPORT_NOT_OFFERED` where no
      * end of the tenant's subscription is recorded, with
      * `TENANT_EXPORT_IN_PROGRESS` while this process is producing the tenant's
-     * export for another request, and with `TENANT_EXPORT_FAILED` where the
-     * application hands no file over; a failure to record the download is
-     * thrown as it is. Nothing is recorded on any of these paths, and nothing
-     * is handed back on any.
+     * export for another request, with `TENANT_EXPORT_FAILED` where the
+     * application hands no file over, and with `TENANT_DELETION_BEGUN` where
+     * the tenant's deletion began while it was produced; a failure to record
+     * the download is thrown as it is. Nothing is recorded on any of these
+     * paths, and nothing is handed back on any.
      */
     async take(tenantId: string, actor: AdminActor, now: Date): Promise<TenantDataExport> {
         const end = await this.downloads.endOffered(tenantId);

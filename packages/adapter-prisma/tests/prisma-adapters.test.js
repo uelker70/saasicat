@@ -358,15 +358,26 @@ describe('PrismaAuditAdapter', () => {
         });
         assert.equal(p.state.auditLogs.length, 1);
         const row = p.state.auditLogs[0];
-        // A SuperAdmin action belongs to the platform, not to a tenant, and
-        // the row says so rather than leaving the column out — a missing field
-        // and a deliberate null read the same to a consumer that only checks
-        // for truthiness.
+        // An entry handed no tenant says so rather than leaving the column out
+        // — a missing field and a deliberate null read the same to a consumer
+        // that only checks for truthiness.
         assert.ok('tenantId' in row);
         assert.equal(row.tenantId, null);
         assert.equal(row.userId, 'u1');
         assert.equal(row.actorTag, 'cli:x@y.z:host');
         assert.deepEqual(row.changes, { reason: 'demo' });
+    });
+
+    test('write keeps the tenant it is handed', async () => {
+        const p = fakePrisma();
+        await new PrismaAuditAdapter(p).write({
+            actor: { userId: 'u1', email: 'x@t1.example', source: 'web', context: 'sess' },
+            entity: 'Subscription',
+            entityId: 't1',
+            action: 'CHANGE_PLAN',
+            tenantId: 't1',
+        });
+        assert.equal(p.state.auditLogs[0].tenantId, 't1');
     });
 
     test('write without changes defaults to {}', async () => {

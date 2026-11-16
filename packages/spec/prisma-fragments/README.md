@@ -62,6 +62,7 @@ regenerated after fragment changes (`tests/reference-sql-drift.test.js`).
 | [`30-subscription-end-announcement.prisma`](30-subscription-end-announcement.prisma)     | `SubscriptionEndAnnouncement`                                                                                                                                               |
 | [`31-tenant-export-download.prisma`](31-tenant-export-download.prisma)                   | `TenantExportDownload`                                                                                                                                                      |
 | [`32-installation-mark.prisma`](32-installation-mark.prisma)                             | `InstallationMark`                                                                                                                                                          |
+| [`33-subscriber-tenant-deletion.prisma`](33-subscriber-tenant-deletion.prisma)           | `SubscriberTenantDeletion`, `SubscriberTenantDeletionStore`, `SubscriberTenantDeletionCount`                                                                                |
 
 ## How the consumer uses the fragments
 

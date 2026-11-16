@@ -537,6 +537,15 @@ export interface SubscriberRepository {
      */
     listTenantLinks(subscriberId: string): Promise<SubscriberTenantLinkRecord[]>;
     /**
+     * Closes the live link of `tenantId` as of `unlinkedAt`, whichever
+     * subscriber holds it, in the caller's transaction where one is given:
+     * the subscriber keeps the link as an earlier one and has no live tenant
+     * from then on. Returns false where the tenant has no live link, and
+     * changes nothing then. What the deletion of a tenant does as it closes
+     * (`SC-PRIV-027`).
+     */
+    unlinkTenant(tenantId: string, unlinkedAt: Date, tx?: TransactionContext): Promise<boolean>;
+    /**
      * Writes the members given and keeps the rest; `null` when no such
      * subscriber exists. Read and written under the lock a correction takes. A
      * change of the country is a change of the tax origin and is recorded as

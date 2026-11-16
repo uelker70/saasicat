@@ -329,6 +329,7 @@ export class BundleVersionSwitchRunService implements OnModuleInit {
                 actor: platformJobActor(JOB),
                 entity: 'SubscriptionBundle',
                 entityId: due.subscriptionBundleId,
+                tenantId: due.tenantId,
                 action,
                 changes: {
                     tenantId: due.tenantId,

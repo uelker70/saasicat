@@ -476,7 +476,9 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     SUBSCRIBER_JOIN_WITHOUT_LIVE_TENANT:
         "Subscriber {customerNumber} has no live tenant, and a join brings a returning customer's new tenant to the subscriber it had.",
     SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT:
-        'Subscriber {customerNumber} still has a live tenant ({tenantId}), and a subscriber has at most one. Where the application deleted that tenant, it closes the link first.',
+        'Subscriber {customerNumber} still has a live tenant ({tenantId}), and a subscriber has at most one. The link closes when the deletion of that tenant closes.',
+    SUBSCRIBER_JOIN_DELETION_UNDER_WAY:
+        'A tenant of subscriber {customerNumber} is being deleted. The subscriber can be joined once that deletion has closed.',
     SUBSCRIBER_JOIN_PREVIEW_CHANGED:
         'What the join would do changed since it was shown. Look at it again before joining.',
     SUBSCRIBER_JOINED:
@@ -538,6 +540,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     TENANT_BEING_DELETED: 'This account is being deleted.',
     TENANT_ALREADY_SUSPENDED: 'This tenant is suspended already.',
     TENANT_NOT_SUSPENDED: 'This tenant is not suspended.',
+    TENANT_DELETION_BEGUN:
+        'This tenant is being deleted: it can no longer be suspended, and its export can no longer be taken.',
     TENANT_EXPORT_NOT_OFFERED:
         'The export of this account is offered once its subscription has ended.',
     TENANT_EXPORT_FAILED:

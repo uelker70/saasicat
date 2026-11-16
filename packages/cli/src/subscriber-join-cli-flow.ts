@@ -49,6 +49,7 @@ const MOVING_LABELS: Record<SubscriberOwnedTable, string> = {
     subscriber_refunds: 'refunds',
     subscriber_reversals: 'reversals',
     subscriber_reconciliation_cases: 'cases to reconcile',
+    subscriber_tenant_deletions: 'deletion records',
 };
 
 export interface SubscriberJoinOptions {

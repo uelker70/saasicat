@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 103     |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 104     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -126,14 +126,14 @@ properties it has while doing it.
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
-| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 21      |
-| 21  | Answering the question afterwards            | `SC-AUD-…`   | 20      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 27      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 21      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
-🔵 57 superseded, 🔴 7 withdrawn.
+Of 712 entries: 🟢 617 stand today, 🟡 27 decided but not yet delivered, ⚪ 0 drafts,
+🔵 61 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -156,15 +156,11 @@ Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
 [SC-ADM-055](#sc-adm-055--a-suspended-tenant-cannot-act-and-a-read-only-one-writes-only-to-pay-or-to-leave),
-[SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
-[SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
-[SC-PRIV-014](#sc-priv-014--a-tenant-is-deleted-through-the-application-which-first-names-what-to-keep),
-[SC-PRIV-015](#sc-priv-015--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),
-[SC-PRIV-016](#sc-priv-016--erasing-a-tenants-data-or-files-is-refused-unless-exactly-one-tenant-is-named),
-[SC-PRIV-017](#sc-priv-017--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
-[SC-PRIV-018](#sc-priv-018--a-tenants-deletion-can-safely-run-again-and-is-done-only-once-every-store-confirms),
 [SC-PRIV-021](#sc-priv-021--a-tenant-is-deleted-only-in-the-database-its-installation-marked-as-its-own),
+[SC-PRIV-022](#sc-priv-022--a-tenant-is-erased-by-the-applications-stores-after-it-was-told-what-to-keep),
+[SC-PRIV-023](#sc-priv-023--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),
+[SC-PRIV-024](#sc-priv-024--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to)
 
 🔵 **Superseded** — [SC-BUN-009](#sc-bun-009--an-add-on-can-be-cancelled-at-any-time-and-ends-with-the-period-it-is-in),
@@ -201,6 +197,7 @@ Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-PRIC-082](#sc-pric-082--an-invoice-is-collected-as-it-or-an-announcement-after-it-says),
 [SC-PRIC-035](#sc-pric-035--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-081](#sc-pric-081--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
+[SC-PRIC-098](#sc-pric-098--an-invoice-unpaid-on-its-due-date-makes-the-tenant-read-only-until-it-is-paid),
 [SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
 [SC-PRIC-047](#sc-pric-047--every-invoice-reaches-the-subscriber-by-email-with-its-file-attached),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
@@ -221,6 +218,9 @@ Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-SEC-003](#sc-sec-003--reads-that-legitimately-cross-tenants-are-named-as-the-exceptions-they-are),
 [SC-SEC-018](#sc-sec-018--reads-that-cross-tenants-are-named-and-a-tenants-reaches-only-its-own-subscriber),
 [SC-SEC-019](#sc-sec-019--reads-past-the-tenant-policy-are-named-a-tenants-reach-only-its-subscriber-and-itself),
+[SC-PRIV-014](#sc-priv-014--a-tenant-is-deleted-through-the-application-which-first-names-what-to-keep),
+[SC-PRIV-015](#sc-priv-015--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),
+[SC-PRIV-017](#sc-priv-017--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
 [SC-PRIV-019](#sc-priv-019--once-its-subscription-has-ended-a-tenants-administrator-takes-its-full-export),
 [SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),
 [SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered)
@@ -233,7 +233,7 @@ Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 704 requirements. Do not edit by hand:
+Generated from `requirements/` — 712 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5646,6 +5646,7 @@ _Tested by:_
     - a notice read back
         - not yet delivered carries no delivery
         - delivered carries to whom and how, and nobody where nobody was told
+        - whose recipients were forgotten keeps how many it went to, and since when
         - of every kind the platform sends is read back as that kind
         - of a kind the platform does not know is refused, naming the row
         - delivered without a readable delivery is refused, naming the row
@@ -8069,7 +8070,7 @@ ending it on the spot (`SC-CANC-003`), gets its date computed from the period at
 A later change to the period moves neither, and the one way to delete earlier is `SC-ADM-020`'s. A
 new subscription for the tenant before that date lifts it, and that subscription ending records a
 date of its own. What a tenant may do during the period is `SC-ADM-052`'s to enforce, and how the
-deletion runs is `SC-PRIV-014`'s.
+deletion runs is `SC-PRIV-022`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -8152,11 +8153,11 @@ _Tested by:_
 ### SC-CANC-022 — A tenant is reminded before its data is deleted
 
 🟡 _(Decided, not yet delivered.)_ 🔒 By email to the tenant's administrators, who can take the export
-(`SC-PRIV-017`), at each lead time `config/saas.yaml` names in days before the deletion date
+(`SC-PRIV-024`), at each lead time `config/saas.yaml` names in days before the deletion date
 (`SC-CANC-027`). Lead times that have already passed when the subscription ends are covered by one
 reminder sent at once rather than skipped, so a period shorter than a lead time still gives notice,
 and a run that repeats sends no reminder twice. Each reminder sent is part of the deletion record
-(`SC-PRIV-017`).
+(`SC-PRIV-024`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -8203,6 +8204,16 @@ _Tested by:_
         - a port that tells nobody is recorded as told to nobody and not tried again; the next lead
           time still goes on its day
         - a reminder that cannot be put together fails for its end alone, and the next run sends it
+    - an end the deletion no longer waits for
+        - a tenant whose deletion is under way is reminded of nothing, and its report of what to
+          keep is not asked
+        - an end whose reason was lifted is reminded of nothing: its tenant is not deleted on that
+          day
+        - a reason held for another of the tenant's subscriptions does not hold this end
+        - of two ends holding one tenant, only the one that ended last is reminded of, with its day
+        - a tenant whose contract runs past the end that decides it is reminded of nothing; one
+          without such a contract is
+        - without the reasons kept, no end holds its tenant, none is deleted, and none is reminded
     - a reminder another run still holds
         - holds back the smaller lead time, so no second e-mail goes out alongside it
         - once delivered, covers what it covers, and the smaller lead time goes by the next run
@@ -8224,14 +8235,14 @@ _Tested by:_
         - count the installation's day ahead of UTC, not UTC's
         - count the installation's day behind UTC, not UTC's
     - the quarter-hourly run
-        - records the ends first and reminds after
+        - records the ends first, reminds after, and sets off the deletions last
         - a run whose recording fails still reminds the ends recorded before
         - a run whose reminding fails lets the next one try again
         - under a maintenance lock neither records nor reminds; the next run catches up
         - a run still going when the next is due lets it pass, and nothing is asked twice
     - the reminders, as the platform wires them
-        - an end the run records is reminded by the same run where a lead time is already due,
-          through the port and into the record named
+        - an end the run records is reminded by the same run where a lead time is already due, with
+          what its tenant keeps, through the port and into the record named
         - the run that records the ends reminds after them; without it, the reminders are there for
           the application to call
         - a suspended tenant is reminded all the same: a suspension does not stop its deletion
@@ -8640,7 +8651,7 @@ gets its day from the period, counted from the day it ended, or from the day Saa
 end where that is later, so nobody is given less than the period's notice. A later change to the
 period moves no day already recorded, and the one way to delete earlier is `SC-ADM-020`'s. From the
 moment it ended until that day the tenant is read-only (`SC-ADM-055`); a new subscription before it
-is `SC-CANC-028`'s, and how the deletion runs is `SC-PRIV-014`'s.
+is `SC-CANC-028`'s, and how the deletion runs is `SC-PRIV-022`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #337
 
@@ -10989,7 +11000,7 @@ comes back the same way, and charging a card again after a chargeback counts aga
 —, so the notice asks the subscriber to replace it; where another payment method is already in
 use, the invoice is collected with that one, as after a failure that asks for a replacement
 (`SC-PRIC-080`). A reversal that only shrinks a credit opens nothing and tells nobody. An invoice
-left open is unpaid like any other (`SC-PRIC-098`).
+left open is unpaid like any other (`SC-PRIC-104`).
 
 _Source:_ #333 (decided 2026-10-14)
 
@@ -11469,7 +11480,7 @@ _Tested by:_
 🟢 💰 A user of the tenant holding the billing permission (`SC-UI-023`) can pay every invoice still
 open at once with the payment method in use, read-only included (`SC-ADM-055`), from the account
 that shows what is open (`SC-PRIC-049`): a card is charged at once, and the tenant is let go once
-the payment is there (`SC-PRIC-098`); a direct debit is announced and collected the lead time after
+the payment is there (`SC-PRIC-104`); a direct debit is announced and collected the lead time after
 (`SC-PRIC-028`), and the tenant stays read-only until the bank confirms it. Before paying, the user
 is told that a card opens the account again at once and a direct debit only once it is collected and
 the bank confirms it, with the day a direct debit announced then is collected on — the lead time
@@ -11546,7 +11557,7 @@ announced again. Otherwise nothing is collected until the subscriber starts it �
 pay now where the payment method in use can still pay it, or to replace it where it cannot. Where
 nothing that follows reaches the account by the due date, and unpaid invoices hold their tenant
 back, the notice names the day the tenant is read-only from until the invoice is paid
-(`SC-PRIC-098`): the due date, or the day the failure was learned where that is later. A gateway
+(`SC-PRIC-104`): the due date, or the day the failure was learned where that is later. A gateway
 tries nothing again of its own. The invoice stays as it was issued, its due date included.
 
 _Source:_ #333 (decided 2026-10-13 and 2026-10-14) · #276 · #337 (decided 2026-11-09)
@@ -11729,7 +11740,7 @@ otherwise the notice asks the subscriber to pay now with it (`SC-PRIC-100`), or,
 replace the payment method, which then collects it (`SC-PRIC-099`). Where nothing reaches the
 account by the due date, and unpaid invoices hold their tenant back, the notice names the day the
 tenant is read-only from until the invoice is paid — the due date, or the day the reversal was
-learned where that is later (`SC-PRIC-098`). A reversal that only shrinks a credit opens nothing and
+learned where that is later (`SC-PRIC-104`). A reversal that only shrinks a credit opens nothing and
 tells nobody. An invoice left open is unpaid like any other.
 
 _Source:_ #333 (decided 2026-10-14) · #337 (decided 2026-11-09)
@@ -11781,7 +11792,7 @@ _Tested by:_
 method, they are told beforehand that a new card is charged at once for what is due, and that a new
 direct debit is collected no earlier than the day the lead time this installation sets puts after
 today (`SC-PRIC-028`) — that day named — so that whoever has to pay before an invoice's due date
-can choose the card (`SC-PRIC-098`, `SC-PRIC-099`). A direct debit entered after an invoice was
+can choose the card (`SC-PRIC-104`, `SC-PRIC-099`). A direct debit entered after an invoice was
 issued is collected then even where that falls after its due date, and the tenant is read-only from
 the due date until it is paid; the notice before replacing is what says so in advance.
 
@@ -11821,7 +11832,7 @@ the subscriber is told. An invoice still open when the grace period named in `co
 passed, counted from its due date (`SC-PRIC-046`), puts the tenant into read-only (`SC-ADM-024`),
 where a user holding the billing permission (`SC-UI-023`) can still replace the payment method.
 Settling every overdue invoice lifts that reason and no other: a tenant whose subscription has ended
-(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-014`) stays as
+(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-022`) stays as
 restricted as that reason makes it. Suspending the tenant stays the operator's decision
 (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a completed collection
 (`SC-REG-022`), and this is what keeps that from being service against an invoice nobody pays.
@@ -11837,7 +11848,7 @@ as `SC-PRIC-080` says. An invoice still open when the grace period named in `con
 passed, counted from its due date (`SC-PRIC-046`), puts the tenant into read-only (`SC-ADM-024`),
 where a user holding the billing permission (`SC-UI-023`) can still replace the payment method.
 Settling every overdue invoice lifts that reason and no other: a tenant whose subscription has ended
-(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-014`) stays as
+(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-022`) stays as
 restricted as that reason makes it. Suspending the tenant stays the operator's decision
 (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a completed collection
 (`SC-REG-022`), and this is what keeps that from being service against an invoice nobody pays.
@@ -11848,9 +11859,36 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIC-098 — An invoice unpaid on its due date makes the tenant read-only until it is paid
 
+🔵 _(Superseded on 2026-11-16 by `SC-PRIC-104`.)_ 💰 An invoice still open on its due date
+(`SC-PRIC-046`) makes the tenant its subscriber is live for read-only (`SC-ADM-055`) from that day,
+within the quarter of an hour the run takes, until it is paid; there is no grace period, and before
+its due date an invoice holds nobody back, unless an invoice it replaced had come due, was refused
+and still owed when it was replaced: a correction is not a payment, and the tenant stays read-only
+until the replacement is paid, whatever day the replacement states. A refusal a later payment made
+good before the correction counts no more, and a payment taken back after it counts against the
+replacement. The one thing that keeps an unpaid invoice from holding back is a collection sent by
+its due date and still on its way, with nothing failed before it, of the invoice or of one it
+replaced: a direct debit sent on the due date holds nobody back while the bank has not answered, and
+its refusal days later holds the tenant back once it is there. A card declined, a direct debit
+refused or returned, a chargeback (`SC-PRIC-084`), a collection planned for a later day and no
+payment method at all leave the tenant read-only, and so does a collection started again after a
+refusal while it waits for the bank: the tenant is let go when the payment is there, not before. A
+user holding the billing permission (`SC-UI-023`) can still replace the payment method, and the
+replacement collects the invoice. The payment that settles an invoice lifts that reason at once and
+no other: a tenant whose subscription has ended (`SC-CANC-027`), that the operator suspended or that
+is being deleted (`SC-PRIV-022`) stays as restricted as that reason makes it, and with two invoices
+unpaid the tenant stays read-only until both are paid. Suspending the tenant stays the operator's
+decision (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a completed
+collection (`SC-REG-022`), and this is what keeps that from being service against an invoice nobody
+pays.
+
+_Source:_ #276 · #337 (decided 2026-11-09) · #498
+
+### SC-PRIC-104 — An invoice unpaid on its due date makes the tenant read-only until it is paid
+
 🟢 💰 An invoice still open on its due date (`SC-PRIC-046`) makes the tenant its subscriber is live
-for read-only (`SC-ADM-055`) from that day, within the quarter of an hour the run takes, until it
-is paid; there is no grace period, and before its due date an invoice holds nobody back, unless an
+for read-only (`SC-ADM-055`) from that day, within the quarter of an hour the run takes, until it is
+paid; there is no grace period, and before its due date an invoice holds nobody back, unless an
 invoice it replaced had come due, was refused and still owed when it was replaced: a correction is
 not a payment, and the tenant stays read-only until the replacement is paid, whatever day the
 replacement states. A refusal a later payment made good before the correction counts no more, and a
@@ -11858,20 +11896,20 @@ payment taken back after it counts against the replacement. The one thing that k
 invoice from holding back is a collection sent by its due date and still on its way, with nothing
 failed before it, of the invoice or of one it replaced: a direct debit sent on the due date holds
 nobody back while the bank has not answered, and its refusal days later holds the tenant back once
-it is there. A card declined, a direct debit
-refused or returned, a chargeback (`SC-PRIC-084`), a collection planned for a later day and no
-payment method at all leave the tenant read-only, and so does a collection started again after a
-refusal while it waits for the bank: the tenant is let go when the payment is there, not before. A
-user holding the billing permission (`SC-UI-023`) can still replace the payment method, and the
-replacement collects the invoice. The payment that settles an invoice lifts that reason at once and
-no other: a tenant whose subscription has ended (`SC-CANC-027`), that the operator suspended or
-that is being deleted (`SC-PRIV-014`) stays as restricted as that reason makes it, and with two
-invoices unpaid the tenant stays read-only until both are paid. Suspending the tenant stays the
-operator's decision (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a
-completed collection (`SC-REG-022`), and this is what keeps that from being service against an
+it is there. A card declined, a direct debit refused or returned, a chargeback (`SC-PRIC-084`), a
+collection planned for a later day and no payment method at all leave the tenant read-only, and so
+does a collection started again after a refusal while it waits for the bank: the tenant is let go
+when the payment is there, not before. A user holding the billing permission (`SC-UI-023`) can still
+replace the payment method, and the replacement collects the invoice. The payment that settles an
+invoice lifts that reason at once and no other, unless the tenant's deletion has begun, whose close
+lifts it (`SC-PRIV-025`): a tenant whose subscription has ended (`SC-CANC-027`), that the operator
+suspended or that is being deleted (`SC-PRIV-022`) stays as restricted as that reason makes it, and
+with two invoices unpaid the tenant stays read-only until both are paid. Suspending the tenant stays
+the operator's decision (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than
+a completed collection (`SC-REG-022`), and this is what keeps that from being service against an
 invoice nobody pays.
 
-_Source:_ #276 · #337 (decided 2026-11-09) · #498
+_Source:_ #276 · #337 (decided 2026-11-09) · #498 · #338 (decided 2026-11-16)
 
 <!-- BEGIN proof -->
 
@@ -11891,6 +11929,8 @@ _Tested by:_
           twice
         - an invoice listed twice is one reason
         - two invoices of one tenant are two reasons, so settling one leaves the other holding
+        - a tenant whose deletion has begun gets no reason and loses none; another tenant does
+        - a deletion reason lifted holds the rule back no more
     - what a replaced invoice still owed when it was replaced
         - is its total where nothing settled it
         - is nothing where a payment settled it before, a refusal before that made good
@@ -11954,6 +11994,10 @@ _Tested by:_
     - a payment that lands while the run compares
         - before its reason is recorded leaves no reason standing
         - after the reason it lifts was read as gone leaves none recorded again
+    - a tenant whose deletion has begun
+        - gets no reason from an invoice unpaid on its due date; another tenant does
+        - keeps the reason it had when its invoice is paid: the run lifts none, the close does
+        - keeps the reason it had when the payment that settles its invoice comes in
 
 <!-- END proof -->
 
@@ -12491,7 +12535,7 @@ _Tested by:_
 
 🟢 💰 An invoice collected by direct debit is due on the collection
 date it announces (`SC-PRIC-028`), any other on its issue date plus the payment term named in
-`config/saas.yaml`. An invoice still unpaid on that day holds its tenant back (`SC-PRIC-098`), and
+`config/saas.yaml`. An invoice still unpaid on that day holds its tenant back (`SC-PRIC-104`), and
 a collection announced again with a later date leaves the due date as the invoice states it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
@@ -15408,7 +15452,7 @@ _Tested by:_
 🟢 Or not at all: only after the gateway confirmed the payment
 method, which sign-up asks for in the gateway's own form, together with the master data an invoice
 needs (`SC-PRIC-032`), and a partial creation is undone. A first collection that then fails leaves
-an invoice unpaid like any other, as `SC-PRIC-098` says.
+an invoice unpaid like any other, as `SC-PRIC-104` says.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -16709,6 +16753,9 @@ _Tested by:_
     - a suspension is the platform's record
         - suspending records the reason with its note and who, audits it, and answers the state
         - a second suspension is refused, and the first keeps its note
+        - suspending a tenant whose deletion has begun is refused, and nothing is recorded or
+          audited
+        - another tenant's deletion leaves a suspension of this one as it is
         - reactivating lifts the suspension and leaves an overdue invoice holding
         - reactivating a tenant that is not suspended is refused
         - an unknown tenant is refused by name
@@ -17177,7 +17224,7 @@ invoice, correcting a subscriber's legal identity (`SC-SUB-017`), joining a tena
 a returning customer had (`SC-ADM-027`), and deleting a tenant before the
 deletion date recorded when its subscription ended (`SC-CANC-027`, `SC-CANC-021`). The reason is
 part of the record. An early deletion is for a legal reason, such as abuse or an order from an
-authority, and only once the export was offered (`SC-PRIV-017`): the operator is shown the announced
+authority, and only once the export was offered (`SC-PRIV-024`): the operator is shown the announced
 date, and nothing is deleted until the operator confirms the deletion against it. Cancelling an
 invoice records, beside the reason, any party detail the replacement has to carry corrected
 (`SC-PRIC-095`), and an address to deliver to where the subscriber's record no longer holds an
@@ -17284,7 +17331,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 🔵 _(Superseded on 2026-11-09 by `SC-ADM-052`.)_ 🔒 SaaSiCat decides the state, and records it with
 every reason that holds, such as an ended subscription (`SC-CANC-020`), an invoice unpaid on its due
-date (`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a
+date (`SC-PRIC-104`), a suspension or a deletion under way; the strictest of them applies, a
 deletion under way before a suspension and a suspension before read-only, and ending one reason
 lifts only that one. The application checks it on every request through a port, sign-in included, so
 a session that was already open when the state changed is held to it on its next request; SaaSiCat
@@ -17306,7 +17353,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 🔵 _(Superseded on 2026-11-12 by `SC-ADM-055`.)_ 🔒 SaaSiCat decides the state, and records it with
 every reason that holds, such as an ended subscription (`SC-CANC-027`), an invoice unpaid on its due
-date (`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a
+date (`SC-PRIC-104`), a suspension or a deletion under way; the strictest of them applies, a
 deletion under way before a suspension and a suspension before read-only, and ending one reason
 lifts only that one. The application checks it on every request through a port, sign-in included, so
 a session that was already open when the state changed is held to it on its next request; SaaSiCat
@@ -17329,7 +17376,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 🟡 _(Decided, not yet delivered.)_ 🔒 SaaSiCat decides the state, and records it with every reason
 that holds, such as an ended subscription (`SC-CANC-027`), an invoice unpaid on its due date
-(`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a deletion
+(`SC-PRIC-104`), a suspension or a deletion under way; the strictest of them applies, a deletion
 under way before a suspension and a suspension before read-only, and ending one reason lifts only
 that one. The application checks it on every request through a port, sign-in included, so a session
 that was already open when the state changed is held to it on its next request; SaaSiCat does the
@@ -17434,6 +17481,9 @@ _Tested by:_
     - a suspension is the platform's record
         - suspending records the reason with its note and who, audits it, and answers the state
         - a second suspension is refused, and the first keeps its note
+        - suspending a tenant whose deletion has begun is refused, and nothing is recorded or
+          audited
+        - another tenant's deletion leaves a suspension of this one as it is
         - reactivating lifts the suspension and leaves an overdue invoice holding
         - reactivating a tenant that is not suspended is refused
         - an unknown tenant is refused by name
@@ -17520,7 +17570,7 @@ _Tested by:_
 🟢 🔒 The operator's page for a tenant names every reason it is held back for (`SC-ADM-055`), the
 oldest first: what it is, the day it began in the installation's days, the operator's own note on
 a suspension, and an invoice unpaid on its due date by its number, with the way into the record of
-the subscriber it belongs to (`SC-PRIC-098`). A tenant held back by nothing says so. Where the
+the subscriber it belongs to (`SC-PRIC-104`). A tenant held back by nothing says so. Where the
 installation cannot read invoices, an unpaid invoice is still listed as a reason, without a number.
 The list beside it keeps showing only the state.
 
@@ -17899,6 +17949,14 @@ _Tested by:_
         - for a subscriber joined already, either way
         - for a subscriber nobody keeps
         - where what it would do changed since the preview, with the preview as it stands
+    - a join while a deletion of either subscriber's tenants is under way
+        - is refused into a subscriber whose tenant is being deleted, naming it, and nothing moves
+        - is refused from a subscriber whose tenant is being deleted, naming it
+        - is made once that deletion has closed
+        - is made where only an unrelated subscriber's tenant is being deleted
+    - a returning customer whose earlier tenant the platform deleted
+        - leaves the subscriber it had without a live tenant, its link ended as the deletion closed
+        - is joined into the subscriber it had
     - a subscriber joined
         - takes no correction of its identity or its business status
     - a payment method confirmed on a form opened before the join
@@ -18146,7 +18204,7 @@ where it is once the tenant is gone (`SC-ADM-021`). The record names every tenan
 linked to, the live one first and then the earlier ones, the latest first, with when each link began
 and ended, and leads to the tenant's page where the application still has the tenant. Where a link
 is still open and the application no longer has its tenant, the record says so instead of reading
-the link as ended: a link ends when the application's deletion of the tenant closes it, and a tenant
+the link as ended: a link ends when the tenant's deletion closes it (`SC-PRIV-027`), and a tenant
 the application soft-deleted can come back. Only the platform administrator reaches the list and the
 record (`SC-ADM-001`), and both read past the tenants' row-level policy the way the administration
 does (`SC-SEC-020`).
@@ -19313,14 +19371,14 @@ _Tested by:_
 
 🟢 💰 Every row of every table that names the subscriber joined — its tenant link, contracts, charges,
 invoices, payments, credits, refunds, reversals, cases to reconcile, payment methods, checks of its
-VAT number, corrections and changes of its tax origin — moves to the earlier subscriber in one
-transaction, or nothing does: a table that would move other rows than were counted, as a row-level
-policy hiding rows from the platform would make it, leaves nothing written. The join is recorded,
-with its reason and the digest of what was decided, in the same transaction, and in the audit log
-after it. Both subscribers' rows are held for the whole of it. A charge run, an invoice run or a
-payment that read which subscriber a row belongs to before the join and writes it while the join
-runs waits for the join, is refused, and writes the row at the earlier subscriber on its next
-attempt: the database refuses a row for a subscriber joined
+VAT number, corrections, changes of its tax origin and the records of its deleted tenants — moves to
+the earlier subscriber in one transaction, or nothing does: a table that would move other rows than
+were counted, as a row-level policy hiding rows from the platform would make it, leaves nothing
+written. The join is recorded, with its reason and the digest of what was decided, in the same
+transaction, and in the audit log after it. Both subscribers' rows are held for the whole of it. A
+charge run, an invoice run or a payment that read which subscriber a row belongs to before the join
+and writes it while the join runs waits for the join, is refused, and writes the row at the earlier
+subscriber on its next attempt: the database refuses a row for a subscriber joined
 (`1.0-a-subscriber-is-joined.postgres.sql`), and the platform does not start joining beside a
 database that lacks that guard. A schema that leaves `SubscriberJoin` out offers no join.
 
@@ -19358,6 +19416,10 @@ _Tested by:_
     - joining subscribers
         - turned on without anywhere to join them, refuses to start, saying so
         - refuses to start beside a database that would let a join leave rows behind
+- `tests/every-table-that-names-a-subscriber-is-guarded-against-a-join.test.js`
+    - the fragments are read: some models name a subscriber
+    - every model that names a subscriber is in the list a join moves, under its table
+    - the join migration guards every table in that list, and no other
 
 <!-- END proof -->
 
@@ -25021,18 +25083,56 @@ _Source:_ #222 · `docs/guides/upgrade-to-1.0.md`
 
 ### SC-PRIV-011 — Contracts, invoices and payments outlive the tenant they were for
 
-🟡 _(Decided, not yet delivered.)_ 💰 They belong to the subscriber (`SC-SCOPE-012`) and are kept
+🟢 💰 They belong to the subscriber (`SC-SCOPE-012`) and are kept
 for as long as they have to be.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/what-the-subscriber-keeps-outlives-the-deletion.test.js`
+    - the subscriber's commercial record
+        - outlives the tenant's deletion whole, and the charge not yet invoiced is invoiced after it
+        - taken by a store stops the deletion there: the record stays open and halted, naming the
+          store, and no later store erases
+        - taken by a store whose count after it failed is laid at that store on the next run, before
+          any later store erases
+        - that grew while a store erased lost nothing, and the deletion closes
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what
+          the platform keeps of the tenant
+
+<!-- END proof -->
+
 ### SC-PRIV-012 — A record kept for tax purposes is not deleted automatically
 
-🟡 _(Decided, not yet delivered.)_ 💰 A retention period in configuration can be set too short,
+🟢 💰 A retention period in configuration can be set too short,
 and the first one runs out years from now. Removing records whose period has passed is a later
 and deliberate addition.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/what-the-subscriber-keeps-outlives-the-deletion.test.js`
+    - the subscriber's commercial record
+        - outlives the tenant's deletion whole, and the charge not yet invoiced is invoiced after it
+        - taken by a store stops the deletion there: the record stays open and halted, naming the
+          store, and no later store erases
+        - taken by a store whose count after it failed is laid at that store on the next run, before
+          any later store erases
+        - that grew while a store erased lost nothing, and the deletion closes
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what
+          the platform keeps of the tenant
+
+<!-- END proof -->
 
 ### SC-PRIV-013 — A subscriber with no live tenant and no claim left keeps only what its documents need
 
@@ -25052,36 +25152,61 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIV-014 — A tenant is deleted through the application, which first names what to keep
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The application erases all of the tenant's data and files,
-records it locks against deletion included, and provides a full export. Beforehand it reports
-what the tenant has to keep for obligations of its own, such as receipts under a retention
+🔵 _(Superseded on 2026-11-15 by `SC-PRIV-022`.)_ 🔒 The application erases all of the tenant's data
+and files, records it locks against deletion included, and provides a full export. Beforehand it
+reports what the tenant has to keep for obligations of its own, such as receipts under a retention
 period, and that report does not stop the deletion: keeping those records is the tenant's
-obligation, not the operator's, and the read-only period of `SC-CANC-027` is the time to take
-them along. SaaSiCat decides when, asks for confirmation and records that it happened. Deleting
-a single record inside the application, such as a member or a case, still honours the
-application's own locks.
+obligation, not the operator's, and the read-only period of `SC-CANC-027` is the time to take them
+along. SaaSiCat decides when, asks for confirmation and records that it happened. Deleting a single
+record inside the application, such as a member or a case, still honours the application's own
+locks.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 ### SC-PRIV-015 — A tenant's deletion leaves a record with the subscriber that names no person
 
-🟡 _(Decided, not yet delivered.)_ 🔒 What was deleted, when and by which run, as counts per
-category. A deletion earlier than announced also records the announced date, the reason and that
-the operator confirmed it against that date (`SC-ADM-020`). It is kept with the subscriber rather
-than in the audit log, which an installation may prune.
+🔵 _(Superseded on 2026-11-15 by `SC-PRIV-023`.)_ 🔒 What was deleted, when and by which run, as
+counts per category. A deletion earlier than announced also records the announced date, the reason
+and that the operator confirmed it against that date (`SC-ADM-020`). It is kept with the subscriber
+rather than in the audit log, which an installation may prune.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 ### SC-PRIV-016 — Erasing a tenant's data or files is refused unless exactly one tenant is named
 
-🟡 _(Decided, not yet delivered.)_ 🔒 An empty or missing tenant identifier would reach every
+🟢 🔒 An empty or missing tenant identifier would reach every
 tenant at once, so such a request is refused before anything is erased.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tenant-is-erased-only-when-one-tenant-is-named.test.js`
+    - a tenant identifier is checked as it was given
+        - nothing given is missing
+        - a value that is not text is named as such, a list of one tenant included
+        - empty text and spaces alone are blank
+        - a space or a line break around it is refused, not trimmed
+        - the longest identifier is allowed, one character more is not
+        - a slug or a uuid names one tenant
+    - an eraser asks first
+        - one tenant named passes
+        - anything else is refused, naming the problem
+        - the refusal does not repeat the value, which may be anything
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - the tenant a store is asked about
+        - is never one an end names as nobody
+- `examples/notesapp/tests/the-notes-app-erases-one-tenant.test.mjs`
+    - the notes app's eraser
+        - refuses what does not name exactly one tenant before it asks the database anything
+
+<!-- END proof -->
+
 ### SC-PRIV-017 — A tenant is deleted only after its full export was offered in the read-only period
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The offer, the reminders sent and the tenant's
+🔵 _(Superseded on 2026-11-15 by `SC-PRIV-024`.)_ 🔒 The offer, the reminders sent and the tenant's
 acknowledgement, where it gave one, are part of the deletion record (`SC-PRIV-015`). An
 acknowledgement that never comes does not stop the deletion.
 
@@ -25089,10 +25214,10 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIV-018 — A tenant's deletion can safely run again, and is done only once every store confirms
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Data and files live in different stores, and a call can time
+🟢 🔒 Data and files live in different stores, and a call can time
 out after it has already erased. Each eraser treats what is already gone as done, a run that stops
 partway is reported and repeated rather than left half-finished, and the deletion record
-(`SC-PRIV-015`) is written only when every store has confirmed. Once a run has begun the tenant is
+(`SC-PRIV-023`) is written only when every store has confirmed. Once a run has begun the tenant is
 being deleted: nobody writes to it any more, the operator acting as the tenant included
 (`SC-ADM-055`). Before its first destructive call, each store counts what it is about to erase and
 keeps those counts with the run, so a call whose answer was lost, and a repeat that finds the store
@@ -25100,6 +25225,42 @@ already empty, still leave the counts that were erased rather than a record that
 deleted.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - the beginning of a deletion
+        - records the deletion and holds the tenant back in one transaction: where it fails, neither
+          stands
+        - keeps what the tenant was told to keep, and stops at lines nobody can read
+    - the stores
+        - all count before the first erases, each in the order the application lists them
+        - a count nobody can read stops the deletion before anything is erased
+        - listed otherwise than when the deletion began, stop it before anything more is erased
+    - a deletion broken off
+        - goes on after the store that confirmed, and keeps the code of the failure, never its
+          message
+        - by a store that did not answer in time is left to it until the claim goes stale; the
+          counts it took first stand
+    - two instances at once
+        - begin a deletion once, and each store is asked once
+        - going on with a deletion begun before, one claims it and the other leaves it
+- `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
+    - a join while a deletion of either subscriber's tenants is under way
+        - is refused into a subscriber whose tenant is being deleted, naming it, and nothing moves
+        - is refused from a subscriber whose tenant is being deleted, naming it
+        - is made once that deletion has closed
+        - is made where only an unrelated subscriber's tenant is being deleted
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - erasing the tenant again is done, and changes nothing
+- `examples/notesapp/tests/the-notes-app-erases-one-tenant.test.mjs`
+    - the notes app's eraser
+        - erasing a tenant already gone is done, and erases nothing of another
+
+<!-- END proof -->
 
 ### SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
 
@@ -25142,7 +25303,7 @@ recorded; otherwise it records nothing and says why with a stable code. There th
 before its record is written, so a download that broke off, or that the application does not report,
 leaves no record. On either path a `HEAD`, which carries no file, is answered `405` and records
 nothing. Either way every download recorded is a record of its own, with its moment, who took it and
-its size, kept beside the end; it is the tenant's acknowledgement that `SC-PRIV-017` names. A
+its size, kept beside the end; it is the tenant's acknowledgement that `SC-PRIV-024` names. A
 download shows that the file was produced or delivered for that request; it cannot show that it was
 saved.
 
@@ -25375,6 +25536,12 @@ _Tested by:_
         - the same identifier matches
         - another case is another identifier, never the same one
         - a backup of production restored into staging differs
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - the installation mark in front of the run
+        - over a database unmarked, or marked as another installation, nothing begins and the log
+          says so once for the run
+        - a mark changed while a deletion is under way stops it before the next store, and the
+          record stays open
 - `packages/nest/tests/the-compiler-asks-for-what-serving-tenants-needs.test.js`
     - the options of an application that serves tenants
         - compile with the environment's identifier passed as the environment gives it
@@ -25409,6 +25576,242 @@ _Tested by:_
         - where this environment stands already, it changes nothing
         - a mark changed between the read and the write is refused, and nothing is written
         - a mark set by another installation between the read and the write is refused as moved
+
+<!-- END proof -->
+
+### SC-PRIV-022 — A tenant is erased by the application's stores, after it was told what to keep
+
+🟡 _(Decided, not yet delivered.)_ 🔒 The application erases all of the tenant's data and files, store
+by store, records it locks against deletion included, and provides a full export (`SC-PRIV-020`).
+Beforehand it reports what the tenant has to keep for obligations of its own, such as receipts under
+a retention period, as lines of a category and a count. Those lines appear in the banner of the
+read-only period, in every reminder (`SC-CANC-022`) and in the deletion record (`SC-PRIV-023`), and
+they do not stop the deletion: keeping those records is the tenant's obligation, not the operator's,
+and the read-only period of `SC-CANC-027` is the time to take them along. SaaSiCat decides when and
+records that it happened. The confirmation it deletes on is the installation's, given once by
+marking its database (`SC-PRIV-021`), not one asked for each deletion. Deleting a single record
+inside the application, such as a member or a case, still honours the application's own locks.
+
+_Source:_ #338 (decided 2026-11-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - a tenant whose subscription ended
+        - is not deleted in the last second before its day in the installation zone, and is on the
+          first
+        - is deleted where its day passed already
+        - is not deleted where the reason holding it to reading was lifted, though its end stands
+        - is held back from then on, even from the operator acting as it and only reading
+        - is not deleted by an earlier end, its day past, while a later reason names an end not
+          recorded yet
+        - held by two ends of one moment, is deleted on the later of their days
+        - has nothing erased and no record begun where it has no subscriber to keep the record with
+    - the quarter-hourly run
+        - sets the deletions off without waiting for them, and starts no second beside the first
+- `packages/nest/tests/a-tenant-is-reminded-before-its-deletion.test.js`
+    - what a reminder tells the tenant to keep
+        - carries the application's lines, to the port and into the record
+        - a report that fails fails the reminder of its end alone, and the next run sends it with
+          the lines
+        - lines the report gets wrong fail the reminder as a report that fails does
+        - a report that does not answer fails the reminder in time, so the run that records the ends
+          is not held up
+- `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
+    - the application's stores a tenant is erased from, which the ends cannot start without
+        - wired, nothing is refused, and the run is there to be called
+        - erasers missing, none listed, one named twice or named with no stable key: the start is
+          refused in one sentence naming the option and the requirement
+        - erasers a factory builds are held to the same once built, before anything runs
+        - without the report of what a tenant keeps, the start is refused, naming the option and the
+          port
+        - with nowhere to record a deletion or to find its subscriber, the start is refused; the
+          bundle's, or one named, is enough
+        - tenant billing wired by hand is refused the same way, naming each option it lacks
+- `packages/nest/tests/the-compiler-asks-for-what-serving-tenants-needs.test.js`
+    - the options of an application that serves tenants
+        - do not compile with the deletion named and the erasers or the report of what is kept left
+          out
+
+<!-- END proof -->
+
+### SC-PRIV-023 — A tenant's deletion leaves a record with the subscriber that names no person
+
+🟡 _(Decided, not yet delivered.)_ 🔒 What was deleted, when and by which run, as counts per
+category. A deletion earlier than announced also records the announced date, the reason and that
+the operator confirmed it against that date (`SC-ADM-020`). Where the tenant was suspended at some
+moment between the end of its subscription and the beginning of its deletion, so that its export
+could not be taken then, the record says so. It is kept with the subscriber rather than in the audit
+log, which an installation may prune. The rows the platform keeps of the tenant beyond its deletion
+— its holds, its end and the day it was told, the downloads of its export and the notices it was
+sent — keep the role somebody acted in, the tenant's administrator, the operator or a run, rather
+than who it was; a hold keeps its kind and its days but not its note, which is free text and may
+name anybody; and a notice keeps how many it went to rather than to whom.
+
+_Source:_ #338 (decided 2026-11-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-deletion-record-is-read-back-as-it-was-kept.test.js`
+    - a deletion record read back
+        - has its stores in their order, each with its own counts, and the kept lines apart
+        - reads a day kept as text as the same day
+        - a failure written is read back as it was
+        - the one halt a record keeps is read back as it was
+        - the count rows to write say what each is
+        - refuses a value the platform never writes, naming its row
+- `packages/core/tests/a-person-becomes-the-role-it-acted-in.test.js`
+    - a person in a row that outlives its tenant becomes the role it acted in
+        - a run is the run, whichever column it wrote
+        - the command line is the operator, whichever column it wrote
+        - a suspension recorded from the web is the operator
+        - any other hold recorded from the web is the run
+        - a hold lifted from the web is the operator
+        - an end recorded from the web is the tenant administrator
+        - an announcement from the web is the tenant administrator
+        - a download from the web is the tenant administrator
+        - a tag of no known kind is read as the web, never kept
+- `packages/nest/tests/a-deleted-tenant-leaves-roles-not-persons.test.js`
+    - the rows a deleted tenant leaves
+        - name the role somebody acted in, and a notice how many it went to, never who
+        - keep who acted where the transaction that closes the deletion fails, and the next run
+          closes it
+        - lift every reason still open but the deletion’s own, as the run, once the deletion closes
+        - keep the operator’s lift of a suspension that lands while the deletion closes, as the
+          operator’s
+- `packages/nest/tests/a-tenant-takes-its-export-before-its-deletion.test.js`
+    - an export whose deletion begins while it is produced is not handed out
+        - a deletion ${closed ? 'closed' : 'under way'} by the time the file arrives: refused,
+          nothing recorded or audited
+        - another tenant's export produced at the same time is handed out and recorded
+- `packages/nest/tests/the-application-delivers-the-tenants-export.test.js`
+    - a delivery reported once the deletion has begun is not recorded
+        - a deletion under way, however long ago the download started: refused, nothing recorded or
+          audited
+        - another tenant's delivery is still recorded
+
+<!-- END proof -->
+
+### SC-PRIV-024 — A tenant is deleted only after its full export was offered in the read-only period
+
+🟡 _(Decided, not yet delivered.)_ 🔒 The offer, the reminders sent and the tenant's
+acknowledgement, where it gave one, are part of the deletion record (`SC-PRIV-023`). An
+acknowledgement that never comes does not stop the deletion. The export counts as offered from the
+moment the end is recorded even where a suspension kept the tenant from taking it, and the record
+says that the tenant was suspended.
+
+_Source:_ #338 (decided 2026-11-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - the record of when the export could be taken
+        - says a suspension kept it from being taken where one held after the end
+        - says none did where the suspension was lifted before the end
+
+<!-- END proof -->
+
+### SC-PRIV-025 — No invoice or suspension reaches a tenant being deleted; its close lifts the rest
+
+🟢 🔒 Once a tenant's deletion has begun, nothing changes its reasons but the deletion itself, with
+one exception, so that none is left standing, or naming a person, once the tenant is gone. An
+invoice records or lifts no reason on it any more, neither through the quarter-hourly run nor
+through the payment that settles it (`SC-PRIC-104`), and the operator cannot suspend it: the
+deletion already holds it back more strictly than either (`SC-ADM-055`). The exception is lifting a
+suspension that stands, which stays the operator's (`SC-ADM-005`), and whose record names a role
+once the tenant is gone (`SC-PRIV-023`). When the deletion closes, every reason of the tenant still
+open — an unpaid invoice, a suspension, the end of its subscription — is lifted by the run, and only
+the deletion's own stays open, since nobody acts in a deleted tenant again. Nothing is recorded
+against the tenant afterwards while its subscriber still owes: the claim itself stays in the
+subscriber's ledger (`SC-PRIV-013`) and is settled without a tenant (`SC-ADM-055`).
+
+_Source:_ #338 (decided 2026-11-16)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-unpaid-on-its-due-date-holds-its-tenant-back.test.js`
+    - the reasons a run records and lifts
+        - a tenant whose deletion has begun gets no reason and loses none; another tenant does
+        - a deletion reason lifted holds the rule back no more
+- `packages/nest/tests/a-deleted-tenant-leaves-roles-not-persons.test.js`
+    - the rows a deleted tenant leaves
+        - lift every reason still open but the deletion’s own, as the run, once the deletion closes
+        - keep the operator’s lift of a suspension that lands while the deletion closes, as the
+          operator’s
+- `packages/nest/tests/admin-resources.test.js`
+    - a suspension is the platform's record
+        - suspending a tenant whose deletion has begun is refused, and nothing is recorded or
+          audited
+        - another tenant's deletion leaves a suspension of this one as it is
+- `packages/nest/tests/an-invoice-unpaid-on-its-due-date-holds-its-tenant-back.test.js`
+    - a tenant whose deletion has begun
+        - gets no reason from an invoice unpaid on its due date; another tenant does
+        - keeps the reason it had when its invoice is paid: the run lifts none, the close does
+        - keeps the reason it had when the payment that settles its invoice comes in
+
+<!-- END proof -->
+
+### SC-PRIV-026 — A tenant is not deleted while a contract of it runs past the end that made it due
+
+🟢 🔒 A tenant whose subscription ended is due for deletion on the day its end names, and its
+deletion does not begin while a contract of the tenant is in force at that end or begins after it —
+one concluded since, as a checkout offer may be for a tenant whose earlier contract has ended
+(`SC-MKT-028`). The run holds it, writes nothing and says so in the server log, and asks again on
+its next run; a contract that ended before that end, or with it, does not hold it. It holds beside
+the new subscription that lifts the deletion day (`SC-CANC-028`), so that no tenant under contract
+is erased for an end its contracts have moved past. Where it stops: the contracts are read just
+before the deletion begins rather than in the transaction that begins it, so one concluded in that
+moment is not seen, and a deletion already begun is not stopped by one concluded afterwards.
+
+_Source:_ #338 (decided 2026-11-16)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - a tenant whose contract runs past the end that made it due
+        - a contract concluded after the end, in force on the deletion day, holds the deletion:
+          nothing written, nothing erased, the log says so
+        - a contract beginning only after the deletion day holds it too
+        - the contract the end closed, ending with it, does not hold it
+        - a contract that ended before the end does not hold it
+        - another tenant's contract holds only that tenant
+    - a tenant held by two ends, with a contract concluded between them
+        - the contract ended ${how}: deleted on the later end's day, not before, and recorded
+          against it
+
+<!-- END proof -->
+
+### SC-PRIV-027 — The deletion of a tenant ends its subscriber's link to it
+
+🟢 🔒 The transaction that closes a tenant's deletion also ends the link between the tenant and its
+subscriber, so that the subscriber keeps the tenant as one it was linked to, with when the link
+ended, and has no live tenant from then on: the operator finds it among the subscribers without one
+(`SC-ADM-036`), and a returning customer's new subscriber can be joined into it (`SC-ADM-027`). A
+deletion that does not close leaves the link open, and another tenant's link stays as it is.
+
+_Source:_ #338 (decided 2026-11-16)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-deleted-tenant-leaves-roles-not-persons.test.js`
+    - the subscriber's link to a deleted tenant
+        - is closed by the transaction that closes the deletion, and only by it
+- `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
+    - a returning customer whose earlier tenant the platform deleted
+        - leaves the subscriber it had without a live tenant, its link ended as the deletion closed
+        - is joined into the subscriber it had
 
 <!-- END proof -->
 
@@ -25469,6 +25872,90 @@ _Tested by:_
 - `packages/adapter-prisma/tests/prisma-adapters.test.js`
     - PrismaAuditAdapter
         - write maps actor to userId + actorTag on audit_logs
+
+<!-- END proof -->
+
+### SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
+
+🟢 🔒 An entry names the tenant where somebody acts in it — on the tenant's own routes, its users
+changing the plan, ending an add-on, taking the export or paying what is open, the operator giving
+it a new administrator with `user reassign-admin` — and where what the tenant runs on changes,
+whoever changed it: its subscription, its add-ons, its contract, its suspension. It names none where
+it records an act on no tenant; none where the operator acts on a person found by e-mail address — a
+password reset, a deactivation — because one person may belong to several tenants; and none where
+the operator or a run acts on the subscriber's commercial record, which outlives the tenant: a
+payment recorded, an invoice held, a credit paid out, an archived file checked or held, a collection
+run. The application's data eraser finds a tenant's entries by that name and deletes them before the
+tenant (`SC-PRIV-022`). An entry written before SaaSiCat named the tenant on entries keeps naming
+none.
+
+_Source:_ #519 · #338 (decided 2026-11-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/the-user-command-names-the-tenant-it-acts-in.test.js`
+    - the user command names a tenant only where it acts in one
+        - a new administrator given to a tenant names the tenant the application answered with
+        - a password reset of a person found by e-mail address names no tenant
+        - a deactivation of a person found by e-mail address names no tenant
+- `packages/nest/tests/a-cancellation-announces-the-day-its-data-is-deleted.test.js`
+    - confirming a cancellation
+        - records exactly the days the account stated, and the answer, the audit entry and the
+          account afterwards repeat them
+- `packages/nest/tests/a-newer-add-on-version-is-taken.test.js`
+    - POST billing/subscription-bundles/:id/version-offer/accept
+        - switches the caller’s own tenant and records who did it
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - the move at the date
+        - records the move under the platform job, naming both versions
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - the day its data is deleted on, where a subscription ends at once
+        - through the route, where the day cannot be recorded, the end stands, answers, is audited
+          without a day, credits and tells
+- `packages/nest/tests/a-subscription-change-is-recorded-before-and-after.test.js`
+    - a plan change is recorded with what it was before and after
+        - the entry names the plan and cycle on both sides of the change
+- `packages/nest/tests/a-switch-taken-for-a-term-end-is-made.test.js`
+    - a switch whose moment has come
+        - moves the booking, writes the contract that marks it, clears the schedule and records it
+- `packages/nest/tests/a-tenant-takes-its-export-before-its-deletion.test.js`
+    - a tenant's administrator takes its export once its subscription ended
+        - and written to the audit log under a key the audit page can name
+- `packages/nest/tests/a-trial-that-ran-out-is-ended-by-the-application.test.js`
+    - a trial that ran out, ended by the application
+        - lets the entitlements, the contract and the audit log know, as a cancellation does
+- `packages/nest/tests/admin-resources.test.js`
+    - a suspension is the platform's record
+        - suspending records the reason with its note and who, audits it, and answers the state
+        - reactivating lifts the suspension and leaves an overdue invoice holding
+- `packages/nest/tests/an-add-on-booking-moves-at-its-date.test.js`
+    - the move at the date
+        - moves each booking onto the replacement, keeping its period, terms and rhythm
+- `packages/nest/tests/an-audit-entry-names-the-tenant-it-concerns.test.js`
+    - an audit entry names the tenant it concerns
+        - the audit service hands the tenant to the log, and names none where it was given none
+        - a download the application delivered names its tenant, although it is recorded across
+          tenants
+        - an operator's act on a promotional code names no tenant
+        - collecting what a subscriber owes › the run names no tenant on what it plans and tries
+        - collecting what a subscriber owes › a tenant's user paying now names the tenant on each
+          step of the collection it starts
+        - collecting what a subscriber owes › a tenant's user paying now by direct debit names the
+          tenant on its announcement
+        - collecting what a subscriber owes › the payment it brings is recorded with the subscriber,
+          and names no tenant
+- `packages/nest/tests/an-operator-carries-a-vocabulary-into-running-contracts.test.js`
+    - carrying the features over
+        - the refresh is in the audit log, with the contract it replaced
+- `packages/nest/tests/an-operator-exports-the-invoice-register.test.js`
+    - the audit log
+        - records who took which archive: the months, the moment, the language, what it holds and
+          its SHA-256
+- `packages/nest/tests/the-application-delivers-the-tenants-export.test.js`
+    - the application records a download it delivered in full
+        - and written to the audit log as a download the platform serves is
 
 <!-- END proof -->
 
@@ -26299,6 +26786,17 @@ _Tested by:_
         - a database from before gains the tables of the confirmations as the fragments declare them
         - an archived confirmation refuses ${what}, and stays
         - an archived confirmation still refuses a delete after the migration ran a second time
+    - a tenant's deletion is recorded with its subscriber
+        - a database from before ends up with the schema the fragments declare, twice
+        - a store's count and what the tenant keeps go in ${ground}
+        - the one halt a deletion keeps goes in ${ground}
+        - ${what} is refused ${ground}
+        - an installation without subscribers is left without them, and runs through
+    - a notice keeps how many it went to
+        - a database from before ends up with the schema the fragments declare, twice
+        - a notice delivered before counts its recipients, and one not delivered counts none
+        - a second run keeps the number of a notice whose recipients were forgotten
+        - an installation without notices and ends is left without them, and runs through
 
 <!-- END proof -->
 
@@ -26485,6 +26983,17 @@ _Tested by:_
         - a database from before gains the tables of the confirmations as the fragments declare them
         - an archived confirmation refuses ${what}, and stays
         - an archived confirmation still refuses a delete after the migration ran a second time
+    - a tenant's deletion is recorded with its subscriber
+        - a database from before ends up with the schema the fragments declare, twice
+        - a store's count and what the tenant keeps go in ${ground}
+        - the one halt a deletion keeps goes in ${ground}
+        - ${what} is refused ${ground}
+        - an installation without subscribers is left without them, and runs through
+    - a notice keeps how many it went to
+        - a database from before ends up with the schema the fragments declare, twice
+        - a notice delivered before counts its recipients, and one not delivered counts none
+        - a second run keeps the number of a notice whose recipients were forgotten
+        - an installation without notices and ends is left without them, and runs through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit
@@ -27578,6 +28087,9 @@ _Tested by:_
         - token db → factory specs injecting the token
         - hasher instance + instance db enables provisioning
         - transaction runner passes the drizzle tx through as context
+- `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - a deletion counts a subscriber's commercial record in the tables the schema has
+        - a model the schema does not adopt counts 0, and its table is not asked
 - `packages/adapter-drizzle/tests/the-archived-invoice-documents-are-read.test.js`
     - the invoices whose document is archived
         - are read by one statement over the ids asked for, the archived ones only
@@ -27613,6 +28125,7 @@ _Tested by:_
         - secret roundtrip incl. enabledAt handling
     - PrismaAuditAdapter
         - write maps actor to userId + actorTag on audit_logs
+        - write keeps the tenant it is handed
         - write without changes defaults to {}
     - PrismaAuditQueryAdapter
         - maps wildcard actorTag, pagination and row → AuditEntry
@@ -27764,7 +28277,10 @@ _Tested by:_
         - a claim records the notice where it is new, then takes it in one guarded update
         - a claim that takes no row answers null without reading
         - a confirmation and a release name the claim they hold
+        - a confirmation of a notice whose recipients were forgotten writes how many, not whom
         - a confirmation that finds the claim gone answers false
+        - a tenant's recipients are forgotten in one statement, for that tenant and not yet
+          forgotten
         - what was delivered is read as sent, and a delivery nobody can read stops the read
         - the subscriptions told of a subject are the delivered ones
 - `packages/adapter-prisma/tests/prisma-tenant-access-hold.repository.test.js`
@@ -27774,7 +28290,28 @@ _Tested by:_
         - a reason is recorded under an id made here, the index deciding a second
         - a lift asks for a reason still open, and one already lifted answers null
         - the tenants held back by some kinds are read once each, from open reasons
+        - every reason of a tenant is read, the lifted ones too, oldest first
+        - a record and a lift given a transaction write on it, not on the client
+        - a lock is taken on the row in the transaction, and the reason read open only after it
+        - the actors are replaced row by row, by id, and nothing else is written
+        - a tenant's notes are emptied in one write, on the rows that have one, and nothing else
         - a row with a kind the platform does not know is refused
+- `packages/adapter-prisma/tests/prisma-tenant-deletion.repository.test.js`
+    - PrismaTenantDeletionRepository
+        - a beginning writes the record, its stores and its kept lines in one transaction of its own
+        - a tenant begun already writes nothing more and answers null
+        - a beginning given the caller's transaction writes on it and opens none
+        - a claim names the open record and the lease, and one that takes no row reads nothing
+        - a renewal and a release name the claim they hold
+        - a store's counts are written only by the call that marked it counted
+        - a confirmation is written where none is yet
+        - a failure counts its attempt in the statement that records it, its moment as text
+        - the commercial record is written to the column it was counted for
+        - a close names the open record, on the transaction given
+        - the records are read by tenant, or by subscriber the most recently begun first
+        - the commercial record counts each part of one subscriber
+        - a model the schema does not adopt counts 0 and is not asked
+        - a model the client lacks and nobody said is left out is an error, not a 0
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record
         - dates leave as ISO strings, and an undeleted plan says so
@@ -27859,6 +28396,8 @@ _Tested by:_
         - with the one against an update or a delete disabled, that one
     - a join says what would let a subscriber joined be given a row
         - names a table whose trigger does not fire, and none where every one does
+    - a deletion counts a subscriber's commercial record in the tables the schema has
+        - a model the schema does not adopt counts 0, and its table is not asked
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -27895,6 +28434,7 @@ _Tested by:_
         - secret roundtrip incl. enabledAt handling
     - PrismaAuditAdapter
         - write maps actor to userId + actorTag on audit_logs
+        - write keeps the tenant it is handed
         - write without changes defaults to {}
     - PrismaAuditQueryAdapter
         - maps wildcard actorTag, pagination and row → AuditEntry
@@ -28073,6 +28613,8 @@ _Tested by:_
         - with the one against an update or a delete disabled, that one
     - a join says what would let a subscriber joined be given a row
         - names a table whose trigger does not fire, and none where every one does
+    - a deletion counts a subscriber's commercial record in the tables the schema has
+        - a model the schema does not adopt counts 0, and its table is not asked
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -28192,12 +28734,19 @@ _Tested by:_
 - `examples/notesapp/tests/a-tenant-hears-before-its-notes-are-deleted.test.mjs`
     - the notes app's notice port
         - tells the tenant's own users the deletion day and where the export is, and says so
+        - names what the tenant has to keep itself, with its count, and says nothing of it where
+          there is nothing
         - tells nobody of a tenant without users, and says so
 - `examples/notesapp/tests/dev-proxy-targets-own-backend.test.mjs`
     - docker-compose declares a default for every port the dev server needs
     - the vite config reads the ports from the file, not from the shell
     - ${variable}: the config fallback equals the compose default
     - .env.example documents the same defaults it tells people to override
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what
+          the platform keeps of the tenant
+        - erasing the tenant again is done, and changes nothing
 - `examples/notesapp/tests/notesapp-smoke.test.mjs`
     - notesapp platform wiring (smoke)
         - static entitlement resolves the STARTER plan for every tenant
@@ -28221,6 +28770,15 @@ _Tested by:_
         - stores the second factor sealed with the installation key, as the platform opens it
         - keeps a second factor the key opens, so an authenticator set up once keeps working
         - replaces a second factor the key cannot open, which checks no code
+- `examples/notesapp/tests/the-notes-app-erases-one-tenant.test.mjs`
+    - the notes app's eraser
+        - is named with a stable key
+        - refuses what does not name exactly one tenant before it asks the database anything
+        - counts the tenant's notes, users and audit entries, and no other tenant's
+        - erases the tenant's audit entries, then its row, in one transaction and for it alone
+        - erasing a tenant already gone is done, and erases nothing of another
+    - the notes app's report of what a tenant keeps
+        - is nothing: the notes app holds nothing a tenant has to keep for obligations of its own
 - `examples/notesapp/tests/the-notes-app-issues-invoices.test.mjs`
     - the notes app's contract freeze source
         - names the version the subscription is bound to, by its plan

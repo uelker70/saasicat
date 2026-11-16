@@ -158,6 +158,13 @@ export function subscriberJoinRefusal(
             });
         }
     }
+    for (const side of [from, into]) {
+        if (side.deletionsUnderWay > 0) {
+            return refused(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_JOIN_DELETION_UNDER_WAY, {
+                customerNumber: side.subscriber.customerNumber,
+            });
+        }
+    }
     if (!liveLinkOf(from)) {
         return refused(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_JOIN_WITHOUT_LIVE_TENANT, {
             customerNumber: from.subscriber.customerNumber,

@@ -15,7 +15,7 @@
 
 model AuditLog {
     id        String  @id @default(uuid())
-    tenantId  String? // null for platform-global actions (plan publish etc.)
+    tenantId  String? // the tenant it concerns; null for none or the commercial record
     userId    String? // actor — null for system cron or pre-auth actions
     entity    String // e.g. "Subscription", "PromoCode", "PlanVersion"
     entityId  String

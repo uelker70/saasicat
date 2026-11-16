@@ -46,7 +46,7 @@ export interface CollectionFailedNotice extends CollectionNoticeInvoice {
     readonly next: CollectionFailureNext;
     /**
      * The day the tenant is read-only from until the invoice is paid
-     * (`SC-PRIC-098`), where nothing that follows collects it by its due
+     * (`SC-PRIC-104`), where nothing that follows collects it by its due
      * date: that day, or the day the failure was learned where it is later.
      * `null` where what follows collects it by then, and where the
      * installation holds no tenant back. A notice recorded before this field

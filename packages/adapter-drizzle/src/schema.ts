@@ -471,6 +471,8 @@ export const subscriptionNotices = pgTable('subscription_notices', {
     deliveredAt: ts('deliveredAt'),
     recipients: jsonb('recipients'),
     channel: text('channel'),
+    recipientCount: integer('recipientCount'),
+    recipientsForgottenAt: ts('recipientsForgottenAt'),
 });
 
 // ---------------------------------------------------------------------------
@@ -728,6 +730,51 @@ export const tenantExportDownloads = pgTable('tenant_export_downloads', {
     downloadedByUserId: text('downloadedByUserId').notNull(),
     size: bigint('size', { mode: 'number' }).notNull(),
     createdAt: writtenAt('createdAt'),
+});
+
+// The record of each tenant's deletion, kept with its subscriber: one per
+// tenant, a row per store of the application's, and a row per category counted
+// or kept. The DDL authority, the unique keys a second deletion of one tenant
+// and a second count of one category collide with, are
+// `subscriber_tenant_deletions_tenantId_key` and
+// `subscriber_tenant_deletion_counts_deletionId_kind_store_cat_key`.
+export const subscriberTenantDeletions = pgTable('subscriber_tenant_deletions', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenantId').notNull().unique('subscriber_tenant_deletions_tenantId_key'),
+    subscriberId: text('subscriberId').notNull(),
+    subscriptionId: text('subscriptionId').notNull(),
+    subscriptionEndId: text('subscriptionEndId').notNull(),
+    deletesOn: day('deletesOn').notNull(),
+    exportOfferedFrom: ts('exportOfferedFrom').notNull(),
+    exportBlockedBySuspension: boolean('exportBlockedBySuspension').notNull(),
+    commercialBefore: jsonb('commercialBefore'),
+    commercialAfter: jsonb('commercialAfter'),
+    startedAt: ts('startedAt').notNull(),
+    claimedAt: ts('claimedAt'),
+    attempts: integer('attempts').notNull().default(0),
+    lastFailure: jsonb('lastFailure'),
+    halt: text('halt'),
+    closedAt: ts('closedAt'),
+    createdAt: writtenAt('createdAt'),
+});
+
+export const subscriberTenantDeletionStores = pgTable('subscriber_tenant_deletion_stores', {
+    id: text('id').primaryKey(),
+    deletionId: text('deletionId').notNull(),
+    store: text('store').notNull(),
+    position: integer('position').notNull(),
+    countedAt: ts('countedAt'),
+    erasedAt: ts('erasedAt'),
+});
+
+export const subscriberTenantDeletionCounts = pgTable('subscriber_tenant_deletion_counts', {
+    id: text('id').primaryKey(),
+    deletionId: text('deletionId').notNull(),
+    kind: text('kind').notNull(),
+    store: text('store'),
+    category: text('category').notNull(),
+    count: integer('count').notNull(),
+    labels: jsonb('labels'),
 });
 
 // The invoices issued from the charge journal. The DDL authority, the unique

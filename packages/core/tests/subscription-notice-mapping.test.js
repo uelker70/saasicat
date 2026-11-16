@@ -19,12 +19,15 @@ const ROW = {
     deliveredAt: null,
     recipients: null,
     channel: null,
+    recipientCount: null,
+    recipientsForgottenAt: null,
 };
 const DELIVERED = {
     ...ROW,
     deliveredAt: new Date('2026-10-15T09:00:01.000Z'),
     recipients: ['admin@example.com'],
     channel: 'email',
+    recipientCount: 1,
 };
 
 // @requirement SC-SUB-023 — Every notice to a subscriber is recorded: once, with when and to whom it went
@@ -42,6 +45,20 @@ describe('a notice read back', () => {
             recipients: [],
             channel: 'email',
         });
+    });
+
+    test('whose recipients were forgotten keeps how many it went to, and since when', () => {
+        const forgottenAt = new Date('2026-12-01T00:15:00.000Z');
+        const record = toSubscriptionNoticeRecord({
+            ...DELIVERED,
+            recipients: [],
+            recipientCount: 2,
+            recipientsForgottenAt: forgottenAt,
+        });
+        assert.deepEqual(record.delivery, { recipients: [], channel: 'email' });
+        assert.equal(record.recipientCount, 2);
+        assert.equal(record.recipientsForgottenAt, forgottenAt);
+        assert.equal(toSubscriptionNoticeRecord(DELIVERED).recipientsForgottenAt, null);
     });
 
     test('of every kind the platform sends is read back as that kind', () => {

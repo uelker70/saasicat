@@ -13,6 +13,7 @@ import {
 } from '../../dist/platform/index.js';
 import {
     FakeInstallationMarkRepository,
+    FakeTenantDeletionRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../../dist/testing/index.js';
@@ -65,6 +66,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             tenantAccessHolds: new FakeTenantAccessHoldRepository(),
             subscriptionEnds: new FakeSubscriptionEndRepository(),
             installationMark: new FakeInstallationMarkRepository(),
+            tenantDeletions: new FakeTenantDeletionRepository(),
             appliedSettings: PORT,
             termsArchive: PORT,
         },

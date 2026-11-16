@@ -73,6 +73,7 @@ function buildController(audit, subscription = ACTIVE) {
 
 describe('a plan change is recorded with what it was before and after', () => {
     // @requirement SC-AUD-003 — Every change to a subscription is recorded with what it was before and after
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('the entry names the plan and cycle on both sides of the change', async () => {
         const audit = auditService();
         const controller = buildController(audit);
@@ -87,6 +88,7 @@ describe('a plan change is recorded with what it was before and after', () => {
         assert.ok(entry, 'a plan change went unrecorded');
         assert.equal(entry.entity, 'Subscription');
         assert.equal(entry.entityId, 't1');
+        assert.equal(entry.tenantId, 't1');
         assert.equal(entry.changes.fromPlan, 'STARTER');
         assert.equal(entry.changes.fromCycle, 'YEARLY');
         assert.equal(entry.changes.toPlan, 'PRO');

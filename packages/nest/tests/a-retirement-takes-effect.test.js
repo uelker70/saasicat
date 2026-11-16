@@ -170,6 +170,7 @@ describe('the move at the date', () => {
         assert.deepEqual(invalidated, ['t1']);
     });
 
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('records the move under the platform job, naming both versions', async () => {
         const { service, audited } = await aRun();
 
@@ -185,6 +186,7 @@ describe('the move at the date', () => {
         });
         assert.equal(entry.action, 'PLAN_VERSION_RETIREMENT_MOVE');
         assert.equal(entry.entityId, 'sub-t1');
+        assert.equal(entry.tenantId, 't1');
         assert.deepEqual(entry.changes, {
             tenantId: 't1',
             retirementId: 'ret-1',

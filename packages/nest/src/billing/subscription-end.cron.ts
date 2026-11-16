@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 
 import { MaintenanceService } from '../maintenance/maintenance.service.js';
 import { DeletionReminderService } from './deletion-reminder.service.js';
+import { TenantDeletionService } from './deletion/tenant-deletion.service.js';
 import { runStep } from './run-step.js';
 import { SubscriptionEndService } from './subscription-end.service.js';
 
@@ -11,21 +12,30 @@ import { SubscriptionEndService } from './subscription-end.service.js';
  * is held to reading within one of its cancellation landing and its deletion
  * day is fixed then (`SC-CANC-027`) — and then reminds the administrators of
  * each tenant whose deletion day is near (`SC-CANC-022`), an end recorded in
- * the same run included.
+ * the same run included — and then sets off the deletion of each tenant whose
+ * day has come (`SC-PRIV-022`).
+ *
+ * The deletion is set off, not waited for: a store may take hours to erase,
+ * and the ends and the reminders of the next quarter of an hour do not wait
+ * for it. One deletion step runs at a time in a process; one still going when
+ * the next is due lets it pass.
  *
  * Needs `ScheduleModule` in the application. Left out with
  * `tenantBilling.subscriptionEnds.includeCron: false` — for a CLI boot, or an
- * application that calls `SubscriptionEndService.recordEnded` and then
- * `DeletionReminderService.remindDue` from a scheduler of its own.
+ * application that calls `SubscriptionEndService.recordEnded`,
+ * `DeletionReminderService.remindDue` and `TenantDeletionService.deleteDue`
+ * from a scheduler of its own.
  */
 @Injectable()
 export class SubscriptionEndCron {
     private readonly logger = new Logger(SubscriptionEndCron.name);
     private running = false;
+    private deleting = false;
 
     constructor(
         private readonly ends: SubscriptionEndService,
         private readonly reminders: DeletionReminderService,
+        private readonly deletions: TenantDeletionService,
         // Optional: without it maintenance is not on, and nothing pauses.
         @Optional()
         @Inject(MaintenanceService)
@@ -65,8 +75,27 @@ export class SubscriptionEndCron {
                     `Deletion reminders: ${reminded.told} sent, ${reminded.failed} to try again.`,
                 );
             }
+            this.setOffDeletions();
         } finally {
             this.running = false;
         }
+    }
+
+    /** Starts the deletion step where none is running, and returns without waiting for it. */
+    private setOffDeletions(): void {
+        if (this.deleting) return;
+        this.deleting = true;
+        void runStep(this.logger, 'Tenant deletions', () => this.deletions.deleteDue(new Date()))
+            .then((run) => {
+                if (run && run.deleted + run.halted + run.failed > 0) {
+                    this.logger.log(
+                        `Tenant deletions: ${run.deleted} deleted, ${run.halted} held, ` +
+                            `${run.failed} to go on with.`,
+                    );
+                }
+            })
+            .finally(() => {
+                this.deleting = false;
+            });
     }
 }

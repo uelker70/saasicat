@@ -208,3 +208,54 @@ ALTER TABLE subscription_contracts
     DROP CONSTRAINT IF EXISTS subscription_contracts_notice_is_days;
 ALTER TABLE subscription_contracts
     ADD CONSTRAINT subscription_contracts_notice_is_days CHECK ("cancellationNoticeDays" >= 0);
+
+-- A deletion is halted only for the reason the platform keeps, and counts its
+-- attempts from none. Same two plain statements as above, for each check.
+ALTER TABLE subscriber_tenant_deletions
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletions_known_halt;
+ALTER TABLE subscriber_tenant_deletions
+    ADD CONSTRAINT subscriber_tenant_deletions_known_halt
+    CHECK ("halt" IN ('commercial-record-lost'));
+
+ALTER TABLE subscriber_tenant_deletions
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletions_attempts_are_counted;
+ALTER TABLE subscriber_tenant_deletions
+    ADD CONSTRAINT subscriber_tenant_deletions_attempts_are_counted CHECK ("attempts" >= 0);
+
+-- A store takes its place in the order of a deletion from 0.
+ALTER TABLE subscriber_tenant_deletion_stores
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletion_stores_position_is_a_place;
+ALTER TABLE subscriber_tenant_deletion_stores
+    ADD CONSTRAINT subscriber_tenant_deletion_stores_position_is_a_place CHECK ("position" >= 0);
+
+-- A count of a deletion is what a store erased, which names the store, or what
+-- the tenant keeps itself, which names none and carries the words for it.
+-- A count is a number of things, so none is the least.
+ALTER TABLE subscriber_tenant_deletion_counts
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletion_counts_known_kind;
+ALTER TABLE subscriber_tenant_deletion_counts
+    ADD CONSTRAINT subscriber_tenant_deletion_counts_known_kind CHECK ("kind" IN ('erased', 'kept'));
+
+ALTER TABLE subscriber_tenant_deletion_counts
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletion_counts_erased_names_its_store;
+ALTER TABLE subscriber_tenant_deletion_counts
+    ADD CONSTRAINT subscriber_tenant_deletion_counts_erased_names_its_store
+    CHECK (("kind" = 'erased') = ("store" IS NOT NULL));
+
+ALTER TABLE subscriber_tenant_deletion_counts
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletion_counts_kept_carries_its_words;
+ALTER TABLE subscriber_tenant_deletion_counts
+    ADD CONSTRAINT subscriber_tenant_deletion_counts_kept_carries_its_words
+    CHECK (("kind" = 'kept') = ("labels" IS NOT NULL));
+
+ALTER TABLE subscriber_tenant_deletion_counts
+    DROP CONSTRAINT IF EXISTS subscriber_tenant_deletion_counts_count_is_a_number_of_things;
+ALTER TABLE subscriber_tenant_deletion_counts
+    ADD CONSTRAINT subscriber_tenant_deletion_counts_count_is_a_number_of_things
+    CHECK ("count" >= 0);
+
+-- What the tenant keeps is told once per category. The unique key of the
+-- fragment cannot hold it, because PostgreSQL counts the missing store of two
+-- kept rows as two different values.
+CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenant_deletion_counts_kept_once_per_category
+    ON subscriber_tenant_deletion_counts ("deletionId", "category") WHERE "kind" = 'kept';

@@ -1,6 +1,6 @@
 // Read-only lets a payment be started: while one of the subscriber's invoices
 // is open, a user of the tenant can still replace the payment method
-// (`SC-ADM-055`, `SC-PRIC-098`). A suspension and a deletion under way have no
+// (`SC-ADM-055`, `SC-PRIC-104`). A suspension and a deletion under way have no
 // such exception, and whether the user may change the payment method at all
 // is still the billing permission's.
 //

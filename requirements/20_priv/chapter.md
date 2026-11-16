@@ -125,18 +125,56 @@ _Source:_ #222 · `docs/guides/upgrade-to-1.0.md`
 
 ### SC-PRIV-011 — Contracts, invoices and payments outlive the tenant they were for
 
-🟡 _(Decided, not yet delivered.)_ 💰 They belong to the subscriber (`SC-SCOPE-012`) and are kept
+🟢 💰 They belong to the subscriber (`SC-SCOPE-012`) and are kept
 for as long as they have to be.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/what-the-subscriber-keeps-outlives-the-deletion.test.js`
+    - the subscriber's commercial record
+        - outlives the tenant's deletion whole, and the charge not yet invoiced is invoiced after it
+        - taken by a store stops the deletion there: the record stays open and halted, naming the
+          store, and no later store erases
+        - taken by a store whose count after it failed is laid at that store on the next run, before
+          any later store erases
+        - that grew while a store erased lost nothing, and the deletion closes
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what
+          the platform keeps of the tenant
+
+<!-- END proof -->
+
 ### SC-PRIV-012 — A record kept for tax purposes is not deleted automatically
 
-🟡 _(Decided, not yet delivered.)_ 💰 A retention period in configuration can be set too short,
+🟢 💰 A retention period in configuration can be set too short,
 and the first one runs out years from now. Removing records whose period has passed is a later
 and deliberate addition.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/what-the-subscriber-keeps-outlives-the-deletion.test.js`
+    - the subscriber's commercial record
+        - outlives the tenant's deletion whole, and the charge not yet invoiced is invoiced after it
+        - taken by a store stops the deletion there: the record stays open and halted, naming the
+          store, and no later store erases
+        - taken by a store whose count after it failed is laid at that store on the next run, before
+          any later store erases
+        - that grew while a store erased lost nothing, and the deletion closes
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what
+          the platform keeps of the tenant
+
+<!-- END proof -->
 
 ### SC-PRIV-013 — A subscriber with no live tenant and no claim left keeps only what its documents need
 
@@ -156,36 +194,61 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIV-014 — A tenant is deleted through the application, which first names what to keep
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The application erases all of the tenant's data and files,
-records it locks against deletion included, and provides a full export. Beforehand it reports
-what the tenant has to keep for obligations of its own, such as receipts under a retention
+🔵 _(Superseded on 2026-11-15 by `SC-PRIV-022`.)_ 🔒 The application erases all of the tenant's data
+and files, records it locks against deletion included, and provides a full export. Beforehand it
+reports what the tenant has to keep for obligations of its own, such as receipts under a retention
 period, and that report does not stop the deletion: keeping those records is the tenant's
-obligation, not the operator's, and the read-only period of `SC-CANC-027` is the time to take
-them along. SaaSiCat decides when, asks for confirmation and records that it happened. Deleting
-a single record inside the application, such as a member or a case, still honours the
-application's own locks.
+obligation, not the operator's, and the read-only period of `SC-CANC-027` is the time to take them
+along. SaaSiCat decides when, asks for confirmation and records that it happened. Deleting a single
+record inside the application, such as a member or a case, still honours the application's own
+locks.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 ### SC-PRIV-015 — A tenant's deletion leaves a record with the subscriber that names no person
 
-🟡 _(Decided, not yet delivered.)_ 🔒 What was deleted, when and by which run, as counts per
-category. A deletion earlier than announced also records the announced date, the reason and that
-the operator confirmed it against that date (`SC-ADM-020`). It is kept with the subscriber rather
-than in the audit log, which an installation may prune.
+🔵 _(Superseded on 2026-11-15 by `SC-PRIV-023`.)_ 🔒 What was deleted, when and by which run, as
+counts per category. A deletion earlier than announced also records the announced date, the reason
+and that the operator confirmed it against that date (`SC-ADM-020`). It is kept with the subscriber
+rather than in the audit log, which an installation may prune.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 ### SC-PRIV-016 — Erasing a tenant's data or files is refused unless exactly one tenant is named
 
-🟡 _(Decided, not yet delivered.)_ 🔒 An empty or missing tenant identifier would reach every
+🟢 🔒 An empty or missing tenant identifier would reach every
 tenant at once, so such a request is refused before anything is erased.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tenant-is-erased-only-when-one-tenant-is-named.test.js`
+    - a tenant identifier is checked as it was given
+        - nothing given is missing
+        - a value that is not text is named as such, a list of one tenant included
+        - empty text and spaces alone are blank
+        - a space or a line break around it is refused, not trimmed
+        - the longest identifier is allowed, one character more is not
+        - a slug or a uuid names one tenant
+    - an eraser asks first
+        - one tenant named passes
+        - anything else is refused, naming the problem
+        - the refusal does not repeat the value, which may be anything
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - the tenant a store is asked about
+        - is never one an end names as nobody
+- `examples/notesapp/tests/the-notes-app-erases-one-tenant.test.mjs`
+    - the notes app's eraser
+        - refuses what does not name exactly one tenant before it asks the database anything
+
+<!-- END proof -->
+
 ### SC-PRIV-017 — A tenant is deleted only after its full export was offered in the read-only period
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The offer, the reminders sent and the tenant's
+🔵 _(Superseded on 2026-11-15 by `SC-PRIV-024`.)_ 🔒 The offer, the reminders sent and the tenant's
 acknowledgement, where it gave one, are part of the deletion record (`SC-PRIV-015`). An
 acknowledgement that never comes does not stop the deletion.
 
@@ -193,10 +256,10 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIV-018 — A tenant's deletion can safely run again, and is done only once every store confirms
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Data and files live in different stores, and a call can time
+🟢 🔒 Data and files live in different stores, and a call can time
 out after it has already erased. Each eraser treats what is already gone as done, a run that stops
 partway is reported and repeated rather than left half-finished, and the deletion record
-(`SC-PRIV-015`) is written only when every store has confirmed. Once a run has begun the tenant is
+(`SC-PRIV-023`) is written only when every store has confirmed. Once a run has begun the tenant is
 being deleted: nobody writes to it any more, the operator acting as the tenant included
 (`SC-ADM-055`). Before its first destructive call, each store counts what it is about to erase and
 keeps those counts with the run, so a call whose answer was lost, and a repeat that finds the store
@@ -204,6 +267,42 @@ already empty, still leave the counts that were erased rather than a record that
 deleted.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - the beginning of a deletion
+        - records the deletion and holds the tenant back in one transaction: where it fails, neither
+          stands
+        - keeps what the tenant was told to keep, and stops at lines nobody can read
+    - the stores
+        - all count before the first erases, each in the order the application lists them
+        - a count nobody can read stops the deletion before anything is erased
+        - listed otherwise than when the deletion began, stop it before anything more is erased
+    - a deletion broken off
+        - goes on after the store that confirmed, and keeps the code of the failure, never its
+          message
+        - by a store that did not answer in time is left to it until the claim goes stale; the
+          counts it took first stand
+    - two instances at once
+        - begin a deletion once, and each store is asked once
+        - going on with a deletion begun before, one claims it and the other leaves it
+- `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
+    - a join while a deletion of either subscriber's tenants is under way
+        - is refused into a subscriber whose tenant is being deleted, naming it, and nothing moves
+        - is refused from a subscriber whose tenant is being deleted, naming it
+        - is made once that deletion has closed
+        - is made where only an unrelated subscriber's tenant is being deleted
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - erasing the tenant again is done, and changes nothing
+- `examples/notesapp/tests/the-notes-app-erases-one-tenant.test.mjs`
+    - the notes app's eraser
+        - erasing a tenant already gone is done, and erases nothing of another
+
+<!-- END proof -->
 
 ### SC-PRIV-019 — Once its subscription has ended, a tenant's administrator takes its full export
 
@@ -246,7 +345,7 @@ recorded; otherwise it records nothing and says why with a stable code. There th
 before its record is written, so a download that broke off, or that the application does not report,
 leaves no record. On either path a `HEAD`, which carries no file, is answered `405` and records
 nothing. Either way every download recorded is a record of its own, with its moment, who took it and
-its size, kept beside the end; it is the tenant's acknowledgement that `SC-PRIV-017` names. A
+its size, kept beside the end; it is the tenant's acknowledgement that `SC-PRIV-024` names. A
 download shows that the file was produced or delivered for that request; it cannot show that it was
 saved.
 
@@ -479,6 +578,12 @@ _Tested by:_
         - the same identifier matches
         - another case is another identifier, never the same one
         - a backup of production restored into staging differs
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - the installation mark in front of the run
+        - over a database unmarked, or marked as another installation, nothing begins and the log
+          says so once for the run
+        - a mark changed while a deletion is under way stops it before the next store, and the
+          record stays open
 - `packages/nest/tests/the-compiler-asks-for-what-serving-tenants-needs.test.js`
     - the options of an application that serves tenants
         - compile with the environment's identifier passed as the environment gives it
@@ -513,5 +618,241 @@ _Tested by:_
         - where this environment stands already, it changes nothing
         - a mark changed between the read and the write is refused, and nothing is written
         - a mark set by another installation between the read and the write is refused as moved
+
+<!-- END proof -->
+
+### SC-PRIV-022 — A tenant is erased by the application's stores, after it was told what to keep
+
+🟡 _(Decided, not yet delivered.)_ 🔒 The application erases all of the tenant's data and files, store
+by store, records it locks against deletion included, and provides a full export (`SC-PRIV-020`).
+Beforehand it reports what the tenant has to keep for obligations of its own, such as receipts under
+a retention period, as lines of a category and a count. Those lines appear in the banner of the
+read-only period, in every reminder (`SC-CANC-022`) and in the deletion record (`SC-PRIV-023`), and
+they do not stop the deletion: keeping those records is the tenant's obligation, not the operator's,
+and the read-only period of `SC-CANC-027` is the time to take them along. SaaSiCat decides when and
+records that it happened. The confirmation it deletes on is the installation's, given once by
+marking its database (`SC-PRIV-021`), not one asked for each deletion. Deleting a single record
+inside the application, such as a member or a case, still honours the application's own locks.
+
+_Source:_ #338 (decided 2026-11-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - a tenant whose subscription ended
+        - is not deleted in the last second before its day in the installation zone, and is on the
+          first
+        - is deleted where its day passed already
+        - is not deleted where the reason holding it to reading was lifted, though its end stands
+        - is held back from then on, even from the operator acting as it and only reading
+        - is not deleted by an earlier end, its day past, while a later reason names an end not
+          recorded yet
+        - held by two ends of one moment, is deleted on the later of their days
+        - has nothing erased and no record begun where it has no subscriber to keep the record with
+    - the quarter-hourly run
+        - sets the deletions off without waiting for them, and starts no second beside the first
+- `packages/nest/tests/a-tenant-is-reminded-before-its-deletion.test.js`
+    - what a reminder tells the tenant to keep
+        - carries the application's lines, to the port and into the record
+        - a report that fails fails the reminder of its end alone, and the next run sends it with
+          the lines
+        - lines the report gets wrong fail the reminder as a report that fails does
+        - a report that does not answer fails the reminder in time, so the run that records the ends
+          is not held up
+- `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
+    - the application's stores a tenant is erased from, which the ends cannot start without
+        - wired, nothing is refused, and the run is there to be called
+        - erasers missing, none listed, one named twice or named with no stable key: the start is
+          refused in one sentence naming the option and the requirement
+        - erasers a factory builds are held to the same once built, before anything runs
+        - without the report of what a tenant keeps, the start is refused, naming the option and the
+          port
+        - with nowhere to record a deletion or to find its subscriber, the start is refused; the
+          bundle's, or one named, is enough
+        - tenant billing wired by hand is refused the same way, naming each option it lacks
+- `packages/nest/tests/the-compiler-asks-for-what-serving-tenants-needs.test.js`
+    - the options of an application that serves tenants
+        - do not compile with the deletion named and the erasers or the report of what is kept left
+          out
+
+<!-- END proof -->
+
+### SC-PRIV-023 — A tenant's deletion leaves a record with the subscriber that names no person
+
+🟡 _(Decided, not yet delivered.)_ 🔒 What was deleted, when and by which run, as counts per
+category. A deletion earlier than announced also records the announced date, the reason and that
+the operator confirmed it against that date (`SC-ADM-020`). Where the tenant was suspended at some
+moment between the end of its subscription and the beginning of its deletion, so that its export
+could not be taken then, the record says so. It is kept with the subscriber rather than in the audit
+log, which an installation may prune. The rows the platform keeps of the tenant beyond its deletion
+— its holds, its end and the day it was told, the downloads of its export and the notices it was
+sent — keep the role somebody acted in, the tenant's administrator, the operator or a run, rather
+than who it was; a hold keeps its kind and its days but not its note, which is free text and may
+name anybody; and a notice keeps how many it went to rather than to whom.
+
+_Source:_ #338 (decided 2026-11-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-deletion-record-is-read-back-as-it-was-kept.test.js`
+    - a deletion record read back
+        - has its stores in their order, each with its own counts, and the kept lines apart
+        - reads a day kept as text as the same day
+        - a failure written is read back as it was
+        - the one halt a record keeps is read back as it was
+        - the count rows to write say what each is
+        - refuses a value the platform never writes, naming its row
+- `packages/core/tests/a-person-becomes-the-role-it-acted-in.test.js`
+    - a person in a row that outlives its tenant becomes the role it acted in
+        - a run is the run, whichever column it wrote
+        - the command line is the operator, whichever column it wrote
+        - a suspension recorded from the web is the operator
+        - any other hold recorded from the web is the run
+        - a hold lifted from the web is the operator
+        - an end recorded from the web is the tenant administrator
+        - an announcement from the web is the tenant administrator
+        - a download from the web is the tenant administrator
+        - a tag of no known kind is read as the web, never kept
+- `packages/nest/tests/a-deleted-tenant-leaves-roles-not-persons.test.js`
+    - the rows a deleted tenant leaves
+        - name the role somebody acted in, and a notice how many it went to, never who
+        - keep who acted where the transaction that closes the deletion fails, and the next run
+          closes it
+        - lift every reason still open but the deletion’s own, as the run, once the deletion closes
+        - keep the operator’s lift of a suspension that lands while the deletion closes, as the
+          operator’s
+- `packages/nest/tests/a-tenant-takes-its-export-before-its-deletion.test.js`
+    - an export whose deletion begins while it is produced is not handed out
+        - a deletion ${closed ? 'closed' : 'under way'} by the time the file arrives: refused,
+          nothing recorded or audited
+        - another tenant's export produced at the same time is handed out and recorded
+- `packages/nest/tests/the-application-delivers-the-tenants-export.test.js`
+    - a delivery reported once the deletion has begun is not recorded
+        - a deletion under way, however long ago the download started: refused, nothing recorded or
+          audited
+        - another tenant's delivery is still recorded
+
+<!-- END proof -->
+
+### SC-PRIV-024 — A tenant is deleted only after its full export was offered in the read-only period
+
+🟡 _(Decided, not yet delivered.)_ 🔒 The offer, the reminders sent and the tenant's
+acknowledgement, where it gave one, are part of the deletion record (`SC-PRIV-023`). An
+acknowledgement that never comes does not stop the deletion. The export counts as offered from the
+moment the end is recorded even where a suspension kept the tenant from taking it, and the record
+says that the tenant was suspended.
+
+_Source:_ #338 (decided 2026-11-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - the record of when the export could be taken
+        - says a suspension kept it from being taken where one held after the end
+        - says none did where the suspension was lifted before the end
+
+<!-- END proof -->
+
+### SC-PRIV-025 — No invoice or suspension reaches a tenant being deleted; its close lifts the rest
+
+🟢 🔒 Once a tenant's deletion has begun, nothing changes its reasons but the deletion itself, with
+one exception, so that none is left standing, or naming a person, once the tenant is gone. An
+invoice records or lifts no reason on it any more, neither through the quarter-hourly run nor
+through the payment that settles it (`SC-PRIC-104`), and the operator cannot suspend it: the
+deletion already holds it back more strictly than either (`SC-ADM-055`). The exception is lifting a
+suspension that stands, which stays the operator's (`SC-ADM-005`), and whose record names a role
+once the tenant is gone (`SC-PRIV-023`). When the deletion closes, every reason of the tenant still
+open — an unpaid invoice, a suspension, the end of its subscription — is lifted by the run, and only
+the deletion's own stays open, since nobody acts in a deleted tenant again. Nothing is recorded
+against the tenant afterwards while its subscriber still owes: the claim itself stays in the
+subscriber's ledger (`SC-PRIV-013`) and is settled without a tenant (`SC-ADM-055`).
+
+_Source:_ #338 (decided 2026-11-16)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-unpaid-on-its-due-date-holds-its-tenant-back.test.js`
+    - the reasons a run records and lifts
+        - a tenant whose deletion has begun gets no reason and loses none; another tenant does
+        - a deletion reason lifted holds the rule back no more
+- `packages/nest/tests/a-deleted-tenant-leaves-roles-not-persons.test.js`
+    - the rows a deleted tenant leaves
+        - lift every reason still open but the deletion’s own, as the run, once the deletion closes
+        - keep the operator’s lift of a suspension that lands while the deletion closes, as the
+          operator’s
+- `packages/nest/tests/admin-resources.test.js`
+    - a suspension is the platform's record
+        - suspending a tenant whose deletion has begun is refused, and nothing is recorded or
+          audited
+        - another tenant's deletion leaves a suspension of this one as it is
+- `packages/nest/tests/an-invoice-unpaid-on-its-due-date-holds-its-tenant-back.test.js`
+    - a tenant whose deletion has begun
+        - gets no reason from an invoice unpaid on its due date; another tenant does
+        - keeps the reason it had when its invoice is paid: the run lifts none, the close does
+        - keeps the reason it had when the payment that settles its invoice comes in
+
+<!-- END proof -->
+
+### SC-PRIV-026 — A tenant is not deleted while a contract of it runs past the end that made it due
+
+🟢 🔒 A tenant whose subscription ended is due for deletion on the day its end names, and its
+deletion does not begin while a contract of the tenant is in force at that end or begins after it —
+one concluded since, as a checkout offer may be for a tenant whose earlier contract has ended
+(`SC-MKT-028`). The run holds it, writes nothing and says so in the server log, and asks again on
+its next run; a contract that ended before that end, or with it, does not hold it. It holds beside
+the new subscription that lifts the deletion day (`SC-CANC-028`), so that no tenant under contract
+is erased for an end its contracts have moved past. Where it stops: the contracts are read just
+before the deletion begins rather than in the transaction that begins it, so one concluded in that
+moment is not seen, and a deletion already begun is not stopped by one concluded afterwards.
+
+_Source:_ #338 (decided 2026-11-16)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - a tenant whose contract runs past the end that made it due
+        - a contract concluded after the end, in force on the deletion day, holds the deletion:
+          nothing written, nothing erased, the log says so
+        - a contract beginning only after the deletion day holds it too
+        - the contract the end closed, ending with it, does not hold it
+        - a contract that ended before the end does not hold it
+        - another tenant's contract holds only that tenant
+    - a tenant held by two ends, with a contract concluded between them
+        - the contract ended ${how}: deleted on the later end's day, not before, and recorded
+          against it
+
+<!-- END proof -->
+
+### SC-PRIV-027 — The deletion of a tenant ends its subscriber's link to it
+
+🟢 🔒 The transaction that closes a tenant's deletion also ends the link between the tenant and its
+subscriber, so that the subscriber keeps the tenant as one it was linked to, with when the link
+ended, and has no live tenant from then on: the operator finds it among the subscribers without one
+(`SC-ADM-036`), and a returning customer's new subscriber can be joined into it (`SC-ADM-027`). A
+deletion that does not close leaves the link open, and another tenant's link stays as it is.
+
+_Source:_ #338 (decided 2026-11-16)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-deleted-tenant-leaves-roles-not-persons.test.js`
+    - the subscriber's link to a deleted tenant
+        - is closed by the transaction that closes the deletion, and only by it
+- `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
+    - a returning customer whose earlier tenant the platform deleted
+        - leaves the subscriber it had without a live tenant, its link ended as the deletion closed
+        - is joined into the subscriber it had
 
 <!-- END proof -->

@@ -17,16 +17,14 @@ import {
     TenantBillingModule,
     TenantDataExportController,
     TenantDataExportService,
+    TenantDeletionService,
     TenantExportDeliveryService,
     TrialEndService,
 } from '../dist/billing/index.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../dist/entitlement/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
 import { SaaSiCatModule, findViolations } from '../dist/platform/index.js';
-import {
-    FakeInstallationMarkRepository,
-    FakeSubscriptionEndRepository,
-} from '../dist/testing/index.js';
+import { FakeSubscriptionEndRepository } from '../dist/testing/index.js';
 import {
     bootable,
     controllersIn,
@@ -34,7 +32,7 @@ import {
     handlersOf,
 } from './helpers/operator-routes.js';
 import { usageRecord } from './helpers/subscription-fixtures.js';
-import { aDeletion } from './helpers/installation-mark.js';
+import { aDeletion, aHandWiredDeletion } from './helpers/installation-mark.js';
 import { anExport } from './helpers/tenant-data-export.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
@@ -299,13 +297,136 @@ describe('the declaration that the application delivers the export itself', () =
             subscriptionEnds: {
                 store: new FakeSubscriptionEndRepository(),
                 export: DELIVERED_BY_THE_APPLICATION,
-                deletion: { ...aDeletion(), marks: new FakeInstallationMarkRepository() },
+                deletion: aHandWiredDeletion(),
             },
         });
 
         assert.ok(!module.controllers.includes(TenantDataExportController));
         assert.ok(module.exports.includes(TenantExportDeliveryService));
         assert.ok(!module.providers.includes(TenantDataExportService));
+    });
+});
+
+// @requirement SC-PRIV-022 — A tenant is erased by the application's stores, after it was told what to keep
+describe("the application's stores a tenant is erased from, which the ends cannot start without", () => {
+    const DELETION_RULES = new Set([
+        'subscription-ends.requires-erasers',
+        'subscription-ends.requires-keep-report',
+        'subscription-ends.requires-tenant-deletions',
+        'subscription-ends.requires-subscribers',
+    ]);
+    const violationsOf = (options) =>
+        findViolations({ options, adapters: { secretSealer: storeSecretsInPlainText() } }).filter(
+            (violation) => DELETION_RULES.has(violation.id),
+        );
+    const withDeletion = (deletion) => withEnds({ export: anExport(), deletion });
+    const eraser = (name) => ({ name, count: async () => [], erase: async () => {} });
+
+    test('wired, nothing is refused, and the run is there to be called', async () => {
+        assert.deepEqual(violationsOf(withDeletion(aDeletion())), []);
+        const moduleRef = await Test.createTestingModule({
+            imports: [SaaSiCatModule.forRoot(bootable(withDeletion(aDeletion())))],
+        }).compile();
+        assert.ok(
+            moduleRef.get(TenantDeletionService, { strict: false }) instanceof
+                TenantDeletionService,
+        );
+        await moduleRef.close();
+    });
+
+    test('erasers missing, none listed, one named twice or named with no stable key: the start is refused in one sentence naming the option and the requirement', () => {
+        for (const [erasers, says] of [
+            [undefined, 'is missing'],
+            [[], 'lists no eraser'],
+            [[eraser('data'), eraser('data')], 'position 1 as an eraser before it is named'],
+            [[eraser('Data')], 'position 0 with something other than a stable key'],
+            [[{ name: 'data' }], 'position 0 that is no TenantEraser'],
+        ]) {
+            const [violation, ...more] = violationsOf(withDeletion({ ...aDeletion(), erasers }));
+            assert.deepEqual(more, [], says);
+            assert.equal(violation?.id, 'subscription-ends.requires-erasers', says);
+            const message = String(violation.message);
+            assert.ok(
+                message.includes('`tenantBilling.subscriptionEnds.deletion.erasers`'),
+                message,
+            );
+            assert.ok(message.includes(says), message);
+            assert.ok(message.includes('SC-PRIV-022'), message);
+        }
+    });
+
+    test('erasers a factory builds are held to the same once built, before anything runs', async () => {
+        const options = withDeletion({ ...aDeletion(), erasers: { useFactory: () => [] } });
+        assert.deepEqual(violationsOf(options), []);
+        const moduleRef = await Test.createTestingModule({
+            imports: [SaaSiCatModule.forRoot(bootable(options))],
+        }).compile();
+        await assert.rejects(
+            moduleRef.init(),
+            /`subscriptionEnds\.deletion\.erasers` lists no eraser: .*SC-PRIV-022/,
+        );
+    });
+
+    test('without the report of what a tenant keeps, the start is refused, naming the option and the port', () => {
+        const [violation] = violationsOf(withDeletion({ ...aDeletion(), keep: undefined }));
+        assert.equal(violation?.id, 'subscription-ends.requires-keep-report');
+        assert.match(
+            String(violation.message),
+            /`tenantBilling\.subscriptionEnds\.deletion\.keep` is missing: .*TenantKeepReportPort/,
+        );
+    });
+
+    test("with nowhere to record a deletion or to find its subscriber, the start is refused; the bundle's, or one named, is enough", () => {
+        const options = withDeletion(aDeletion());
+        const { tenantDeletions: _records, ...core } = options.persistence.core;
+        const { subscriberRepository: _subscribers, ...entitlement } =
+            options.persistence.entitlement;
+        const bare = { ...options, persistence: { ...options.persistence, core, entitlement } };
+        assert.deepEqual(
+            violationsOf(bare)
+                .map((violation) => violation.id)
+                .sort(),
+            [
+                'subscription-ends.requires-subscribers',
+                'subscription-ends.requires-tenant-deletions',
+            ],
+        );
+        const named = withDeletion({ ...aDeletion(), records: {}, subscribers: {} });
+        assert.deepEqual(
+            violationsOf({ ...named, persistence: { ...named.persistence, core, entitlement } }),
+            [],
+        );
+    });
+
+    test('tenant billing wired by hand is refused the same way, naming each option it lacks', () => {
+        const wiredWith = (deletion) =>
+            TenantBillingModule.forRoot({
+                authGuards: [class Guard {}],
+                subscriptionUsagePort: {},
+                usageSnapshotPort: {},
+                subscriptionWritePort: {},
+                notices: { port: sendingPort(), record: noticeRecord() },
+                subscriptionEnds: {
+                    store: new FakeSubscriptionEndRepository(),
+                    export: anExport(),
+                    deletion,
+                },
+            });
+        for (const option of ['erasers', 'keep', 'records', 'subscribers', 'transactionRunner']) {
+            assert.throws(
+                () => wiredWith({ ...aHandWiredDeletion(), [option]: undefined }),
+                (error) =>
+                    error.message.startsWith(
+                        `TenantBillingModule: \`subscriptionEnds.deletion.${option}\` is missing:`,
+                    ),
+                option,
+            );
+        }
+        assert.throws(
+            () => wiredWith({ ...aHandWiredDeletion(), erasers: [eraser('Data')] }),
+            /`subscriptionEnds\.deletion\.erasers` names the eraser at position 0/,
+        );
+        assert.doesNotThrow(() => wiredWith(aHandWiredDeletion()));
     });
 });
 
@@ -380,7 +501,7 @@ describe('the routes a tenant ends its subscription through', () => {
         const route = await handWired({
             store: new FakeSubscriptionEndRepository(),
             export: anExport(),
-            deletion: { ...aDeletion(), marks: new FakeInstallationMarkRepository() },
+            deletion: aHandWiredDeletion(),
         });
         const usage = await route.getUsage({ user: { tenantId: 't1', sub: 'u1' }, headers: {} });
         assert.deepEqual(usage.cancellation.deletion, {

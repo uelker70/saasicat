@@ -524,14 +524,28 @@ import { aesGcmSecretSealer, defineSaaSiCat, SaaSiCatModule } from '@saasicat/ne
                             inject: [SubscriptionNoticeMailer],
                         },
                     },
-                    // Your application's export of a tenant's data, and the
-                    // identifier of this environment; both required.
+                    // Your application's export of a tenant's data, the
+                    // identifier of this environment, the erasers of its
+                    // stores and what a tenant keeps itself; all required.
                     subscriptionEnds: {
                         export: {
                             useFactory: (prisma: PrismaService) => new MyTenantDataExport(prisma),
                             inject: [PrismaService],
                         },
-                        deletion: { installation: process.env.SAASICAT_INSTALLATION },
+                        deletion: {
+                            installation: process.env.SAASICAT_INSTALLATION,
+                            erasers: {
+                                useFactory: (files: MyFileStore, prisma: PrismaService) => [
+                                    new MyTenantFilesEraser(files),
+                                    new MyTenantDataEraser(prisma),
+                                ],
+                                inject: [MyFileStore, PrismaService],
+                            },
+                            keep: {
+                                useFactory: (prisma: PrismaService) => new MyKeepReport(prisma),
+                                inject: [PrismaService],
+                            },
+                        },
                     },
                     extraProviders: [SubscriptionNoticeMailer],
                 },
@@ -654,7 +668,8 @@ administrators learn that day (`SC-CANC-022`). So an application that serves ten
 port, and does not start without one.
 
 The platform decides when a notice is due and keeps a record of each: what it said, when it went
-out, to whom and how (`SC-SUB-023`). Your application decides who the administrators are, what the
+out, to whom and how (`SC-SUB-023`) — once the tenant is deleted, to how many rather than to whom
+(`SC-PRIV-023`). Your application decides who the administrators are, what the
 message says and how it travels. Adopt `prisma-fragments/17-subscription-notice.prisma`, run
 `sql/1.0-a-subscriber-is-told-once.postgres.sql` once, before `db push` where you use one, and bind
 a `SubscriptionNoticePort` as `tenantBilling.notices.port`, as the example above does:
@@ -688,10 +703,14 @@ export class SubscriptionNoticeMailer implements SubscriptionNoticePort {
 function messageOf(notice: SubscriptionNotice): { template: string; data: object } {
     switch (notice.kind) {
         case 'deletion-reminder':
-            // Both days, not a count of days, and where to take the export first.
+            // Both days, not a count of days, where to take the export first, and what to keep.
             return {
                 template: 'data-deletion-reminder',
-                data: { readOnlyUntil: notice.readOnlyUntil, deletesOn: notice.deletesOn },
+                data: {
+                    readOnlyUntil: notice.readOnlyUntil,
+                    deletesOn: notice.deletesOn,
+                    keep: notice.keep,
+                },
             };
         case 'version-offered':
         case 'bundle-version-offered':
@@ -1112,10 +1131,11 @@ them a page at a time, the latest customer number first — every one, those a c
 name or VAT number matches, or with `withoutLiveTenant=true` those whose every tenant link is closed
 —, and `GET admin/subscribers/:id` answers the head of a subscriber's record: its master data, its
 standing, and every tenant it was linked to, each named as your application answers for it now and
-`known: false` where it no longer has the tenant. A link ends only when it is closed, so **a deletion
-of a tenant in your application closes its subscriber's link** (`subscriber_tenants.unlinkedAt`);
-the record does not read a tenant your application no longer has as one the subscriber left. Your
-own `SubscriberRepository` implements `search` and `listTenantLinks`, reading the search terms
+`known: false` where it no longer has the tenant. A link ends only when it is closed, and **the
+platform's deletion of a tenant closes its subscriber's link** (`subscriber_tenants.unlinkedAt`,
+`SC-PRIV-027`) in the transaction that closes the deletion; the record does not read a tenant your
+application no longer has as one the subscriber left. Your own `SubscriberRepository` implements
+`search`, `listTenantLinks` and `unlinkTenant`, reading the search terms
 `subscriberSearchTermsOf` makes of what the operator typed; your own `AdminResourcesPort` implements
 `findTenantsByIds`, which names a page's tenants in one question — the shipped
 `PrismaAdminResourcesAdapter` does. A persistence harness of your own either closes a link with the
@@ -1167,9 +1187,10 @@ what the earlier record takes, and `POST admin/subscribers/:id/join` with `kind:
 `SUBSCRIBER_JOIN_PREVIEW_CHANGED` and the new preview where anything changed since. The audit log
 records `SUBSCRIBER_JOINED`. Each other refusal has its code in the
 [error codes](../reference/error-codes.md): no reason, another legal entity declared, the same
-subscriber, either joined already, a subscriber without a live tenant to join, an earlier one that
-still has one. A deletion of a tenant in your application closes its subscriber's link, as above —
-an earlier subscriber whose link is still open cannot be joined into. From the command line,
+subscriber, either joined already, either with a tenant whose deletion has begun and not closed, a
+subscriber without a live tenant to join, an earlier one that still has one. The deletion of a
+tenant closes its subscriber's link, as above — an earlier subscriber whose link is still open
+cannot be joined into. From the command line,
 `<app> subscribers join --from <customer number> --into <customer number> --reason "…"` does the
 same ([Extend your CLI](extend-your-cli.md)); it runs where your persistence keeps joins, also
 without `adminResources`.
@@ -1906,7 +1927,7 @@ application issuing for the same issuer is not supported.
 ### An invoice unpaid on its due date
 
 An invoice still open on its due date makes the tenant its subscriber is live for read-only from
-that day until it is paid (`SC-PRIC-098`, `SC-ADM-055`); there is no grace period, and before its due
+that day until it is paid (`SC-PRIC-104`, `SC-ADM-055`); there is no grace period, and before its due
 date an invoice holds nobody back. A subscription paid on its date sets `invoicing.paymentTermDays`
 to `0`: the invoice is then due the day it is issued, and a card declined in the run that issues it
 makes the tenant read-only in that run.
@@ -2014,28 +2035,34 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   port every notice goes through
   ([Notices to a tenant's administrators](#notices-to-a-tenants-administrators)): `tenantId`,
   `subscriptionId`, `subscriptionEndId`, `daysBefore` — the lead time it answers —, `readOnlyUntil`,
-  the last day the tenant can still read and take its export on, and `deletesOn`, both days in the
-  installation's zone. Write the two days rather than a count of days: a reminder that covers lead
-  times passed while no run ran goes out later than `daysBefore` days before the deletion. Tell the
-  administrator to take the export first — from `GET /billing/export`, or from your own download
-  where your application delivers it (below); your application knows the address it serves it at.
-  Each
-  reminder is recorded under the end and the lead time, `<end id>:<days>`, so of several instances
-  one sends it. One your port tells nobody is recorded as told to nobody and not tried again — a
-  read-only tenant cannot add an administrator — and the next lead time still goes on its day; one
-  your port throws for, or that cannot be put together, is tried again by the next run. While one
-  of an end's reminders is held by a run — claimed and not answered yet, for up to a quarter of an
-  hour — no other reminder of that end goes out beside it, and a reminder of a larger lead time that
-  was never delivered is not sent once a smaller one is due: the smaller one says the same, nearer
-  the day. Of two instances that decide on different lead times for one end at once — one restarted
-  with other lead times and one not, or clocks on either side of the installation's midnight — at
-  most one sends: each reads the end's reminders again after claiming its own, and lets go where
-  another is held or one was told since it decided; where each sees the other, neither sends, and
-  the next run decides again. Two instances that keep running with different lead times — a canary,
-  or a second slot kept warm — reach an end at the same moment every run, so they can keep letting
-  go of the lead times they disagree on until one both name is due. A suspended tenant is reminded
-  all the same, since a suspension does not stop the deletion; while it lasts, the suspension
-  refuses the export as it refuses every request.
+  the last day the tenant can still read and take its export on, `deletesOn`, both days in the
+  installation's zone, and `keep`: what the tenant has to keep for obligations of its own, as your
+  `subscriptionEnds.deletion.keep` report answers when the reminder is put together. Write the two
+  days rather than a count of days: a reminder that covers lead times passed while no run ran goes
+  out later than `daysBefore` days before the deletion. Tell the administrator to take the export
+  first — from `GET /billing/export`, or from your own download where your application delivers it
+  (below); your application knows the address it serves it at. List the `keep` lines, each with its
+  count and in the administrator's words (`labels` by locale, `en` where theirs is not named), as
+  records to take along before the deletion day: the deletion does not wait for them. A report that
+  throws, answers lines it may not, or does not answer within a minute fails that reminder, and the
+  next run tries again. No reminder goes to a tenant whose deletion has begun, nor for an end whose
+  reason was lifted: neither tenant is deleted on that day. Each reminder is recorded under the end
+  and the lead time, `<end id>:<days>`, so of several instances one sends it. One your port tells
+  nobody is recorded as told to nobody and not tried again — a read-only tenant cannot add an
+  administrator — and the next lead time still goes on its day; one your port throws for, or that
+  cannot be put together, is tried again by the next run. While one of an end's reminders is held by
+  a run — claimed and not answered yet, for up to a quarter of an hour — no other reminder of that
+  end goes out beside it, and a reminder of a larger lead time that was never delivered is not sent
+  once a smaller one is due: the smaller one says the same, nearer the day. Of two instances that
+  decide on different lead times for one end at once — one restarted with other lead times and one
+  not, or clocks on either side of the installation's midnight — at most one sends: each reads the
+  end's reminders again after claiming its own, and lets go where another is held or one was told
+  since it decided; where each sees the other, neither sends, and the next run decides again. Two
+  instances that keep running with different lead times — a canary, or a second slot kept warm —
+  reach an end at the same moment every run, so they can keep letting go of the lead times they
+  disagree on until one both name is due. A suspended tenant is reminded all the same, since a
+  suspension does not stop the deletion; while it lasts, the suspension refuses the export as it
+  refuses every request.
 - **Told before it is confirmed.** `GET billing/usage` answers what cancelling now would tell as
   `cancellation.deletion` — `readOnlyDays`, `readOnlyUntil` and `deletesOn` — and what was told as
   `announcedDeletion`. Once a cancellation is declared, `cancellation.deletion` is the day
@@ -2056,11 +2083,15 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
   for each one that has landed and has no end yet records the `ended` reason and one row in
   `subscription_ends`; then the same run sends the reminders due, so an end it records is reminded
   in it where a lead time has already come. A run whose recording fails still reminds the ends
-  recorded before. It needs `ScheduleModule` in your application. With
-  `tenantBilling.subscriptionEnds.includeCron: false` your own scheduler calls
-  `SubscriptionEndService.recordEnded(new Date())` and then
-  `DeletionReminderService.remindDue(new Date())` instead, both from `@saasicat/nest/billing` —
-  both, in that order, or a tenant whose subscription ended is never warned.
+  recorded before. Then it sets off the deletion of every tenant whose day has come
+  ([Erase a tenant's stores](#erase-a-tenants-stores)) and does not wait for it: a store may take
+  hours, and the next quarter of an hour records and reminds all the same. One deletion step runs at
+  a time in a process; one still going when the next is due lets it pass. It needs `ScheduleModule`
+  in your application. With `tenantBilling.subscriptionEnds.includeCron: false` your own scheduler
+  calls `SubscriptionEndService.recordEnded(new Date())`, then
+  `DeletionReminderService.remindDue(new Date())`, then `TenantDeletionService.deleteDue(new Date())`
+  instead, all three from `@saasicat/nest/billing` and in that order — without the first a tenant
+  whose subscription ended is never warned, and without the third it is never deleted.
 - **The store** is `persistence.core.subscriptionEnds`, which both shipped adapters provide from the
   `SubscriptionEnd` model of `@saasicat/spec`; a start without one is refused
   (`subscription-ends.requires-store`). It keeps every download of the tenant's export too, in
@@ -2119,13 +2150,15 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     guard let through with `actingAsOperator: true` — with `403 TENANT_EXPORT_NOT_FOR_OPERATOR`, a
     `HEAD` with `405` and `Allow: GET`, and a second request for the same tenant while its export is
     produced with `409 TENANT_EXPORT_IN_PROGRESS`, since each is held in memory as a whole; a
-    suspension and a deletion under way refuse it as they refuse every request. Your port is asked
-    on every download, for the session's tenant only. Once it has handed the file over, the download
-    is recorded in `tenant_export_downloads` — the moment, who took it by the user's id and as the
-    audit log tags them, and the file's size — and only then sent, and it is audited as
-    `TENANT_EXPORT_DOWNLOAD` where the audit log is wired; the operator reads every download under
-    "Access" on the tenant's page. That record is the tenant's acknowledgement (`SC-PRIV-017`): it
-    shows that the file was produced for that request, not that it was saved.
+    suspension and a deletion under way refuse it as they refuse every request, and a deletion that
+    begins while your port produces the file refuses it with `409 TENANT_DELETION_BEGUN`, recording
+    and sending nothing. Your port is asked on every download, for the session's tenant only. Once
+    it has handed the file over, the download is recorded in `tenant_export_downloads` — the moment,
+    who took it by the user's id and as the audit log tags them, and the file's size — and only then
+    sent, and it is audited as `TENANT_EXPORT_DOWNLOAD` where the audit log is wired; the operator
+    reads every download under "Access" on the tenant's page. That record is the tenant's
+    acknowledgement (`SC-PRIV-024`): it shows that the file was produced for that request, not that
+    it was saved.
 
     Where the export cannot be held in memory as one file — a ZIP of every document, say — your
     application delivers it itself, and the platform records each download once it has gone out in
@@ -2138,7 +2171,11 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
         authGuards: [JwtAuthGuard, TenantGuard],
         subscriptionEnds: {
             export: { deliveredBy: 'application' },
-            deletion: { installation: process.env.SAASICAT_INSTALLATION },
+            deletion: {
+                installation: process.env.SAASICAT_INSTALLATION,
+                erasers: myTenantErasers,
+                keep: myKeepReport,
+            },
         },
     },
     ```
@@ -2196,17 +2233,18 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     the download beside the end and audits it as `TENANT_EXPORT_DOWNLOAD` exactly as one it served.
     It refuses where those rules do not hold, records nothing, and your own trace is all there is:
     `409 TENANT_EXPORT_NOT_OFFERED` where no end of the tenant's subscription is recorded — your
-    export may well be open to the tenant before that —, `403 TENANT_EXPORT_NOT_FOR_OPERATOR` for the
-    operator, `403 TENANT_ADMIN_REQUIRED` for a user who is not the tenant's administrator,
-    `503 TENANT_EXPORT_FAILED` for a size that is not a whole number of at least one byte, or a media
-    type outside printable ASCII, and `405` for a `HEAD`: the handler runs for one, the response
-    takes the whole stream and finishes, and no file reaches anybody — so the route above answers a
-    `HEAD` before it opens the archive, as the platform's own route does. It reads the end and
-    writes the download past the tenants' row policy, by the tenant the session names
-    (`SC-SEC-020`), since a response's last event runs after your handler returned, in no frame your
-    interceptor can be relied on to have kept open. One download of a tenant at a time, and how
-    long one may take, are yours to bound on this path. The platform mounts no
-    `GET /billing/export` then. The tenant's state says
+    export may well be open to the tenant before that —, `409 TENANT_DELETION_BEGUN` once the
+    tenant's deletion has begun, however long before your download started,
+    `403 TENANT_EXPORT_NOT_FOR_OPERATOR` for the operator, `403 TENANT_ADMIN_REQUIRED` for a user
+    who is not the tenant's administrator, `503 TENANT_EXPORT_FAILED` for a size that is not a whole
+    number of at least one byte, or a media type outside printable ASCII, and `405` for a `HEAD`:
+    the handler runs for one, the response takes the whole stream and finishes, and no file reaches
+    anybody — so the route above answers a `HEAD` before it opens the archive, as the platform's own
+    route does. It reads the end and writes the download past the tenants' row policy, by the tenant
+    the session names (`SC-SEC-020`), since a response's last event runs after your handler
+    returned, in no frame your interceptor can be relied on to have kept open. One download of a
+    tenant at a time, and how long one may take, are yours to bound on this path. The platform
+    mounts no `GET /billing/export` then. The tenant's state says
     `exportDeliveredBy: 'application'` to the administrator it offers the export to, and
     `TenantAccessBanner` starts your download instead of loading a file: bind it to `@take-export`.
     Where nothing is bound, the banner says so in the browser's console as soon as it offers the
@@ -2218,7 +2256,8 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     <TenantAccessBanner :format-date="formatDate" @take-export="startTenantExport" />
     ```
 
-The day is recorded and kept; nothing is deleted on it by this release.
+On that day the tenant is deleted, through your application's erasers and only in a database
+marked as this installation's: the next two sections.
 
 ### Mark the installation before the first deletion
 
@@ -2235,7 +2274,11 @@ a deletion runs only where both name the same (`SC-PRIV-021`).
     ```ts
     subscriptionEnds: {
         export: myTenantDataExport,
-        deletion: { installation: process.env.SAASICAT_INSTALLATION },
+        deletion: {
+            installation: process.env.SAASICAT_INSTALLATION,
+            erasers: myTenantErasers,
+            keep: myKeepReport,
+        },
     },
     ```
 
@@ -2250,7 +2293,8 @@ a deletion runs only where both name the same (`SC-PRIV-021`).
   `persistence.core.installationMark` from the `InstallationMark` model of `@saasicat/spec`.
   `deletion.marks` takes an `InstallationMarkPort` of your own instead; a start with neither is
   refused (`subscription-ends.requires-installation-marks`). `TenantBillingModule` wired by hand
-  takes both, `deletion: { installation, marks }`, and refuses a start without either. The table
+  takes both in `deletion`, beside what the deletion itself needs
+  ([Erase a tenant's stores](#erase-a-tenants-stores)), and refuses a start without either. The table
   comes with `1.0-the-installation-is-marked.postgres.sql` from `@saasicat/spec/sql/`.
 - **Nothing writes the mark on its own.** No start writes it: otherwise the first process to start
   against a database after the migration — a developer's, against a shared one — would claim it.
@@ -2288,6 +2332,251 @@ a deletion runs only where both name the same (`SC-PRIV-021`).
     asked for, and `INSTALLATION_MARK_REPLACED` records the old and the new identifier. Where the
     mark changed between reading and replacing it, the command writes nothing
     (`INSTALLATION_MARK_MOVED`, exit 6); read it again.
+
+### Erase a tenant's stores
+
+On its deletion day, in the installation's zone, a tenant whose subscription ended is deleted
+(`SC-PRIV-022`). Only your application knows where it keeps a tenant — its database, its files, a
+search index — so it erases them, one eraser per store. The platform decides when, holds the
+subscriber's commercial record against every store, and keeps the record of the deletion with the
+subscriber (`SC-PRIV-023`). There is no schedule and no switch to set: an installation that serves
+tenants deletes, once its database is marked as the installation's own (previous section). Why
+the work is split this way:
+[ADR 0015](../explanation/adr/0015-the-application-erases-a-tenant.md).
+
+```ts
+subscriptionEnds: {
+    export: myTenantDataExport,
+    deletion: {
+        installation: process.env.SAASICAT_INSTALLATION,
+        erasers: {
+            useFactory: (files: MyFileStore, prisma: PrismaService) => [
+                new MyTenantFilesEraser(files),
+                new MyTenantDataEraser(prisma),
+            ],
+            inject: [MyFileStore, PrismaService],
+        },
+        keep: {
+            useFactory: (prisma: PrismaService) => new MyKeepReport(prisma),
+            inject: [PrismaService],
+        },
+    },
+},
+```
+
+- **`deletion.erasers`** is required: a list of `TenantEraser`, at least one, erased in the order
+  listed. Each has a `name` the record keeps its counts under — a stable key of lower-case letters,
+  digits and dashes, beginning with a letter, at most 64 characters, once in the list — so do not
+  rename one. A start without the list, with an empty one, or with a name twice or that is no key,
+  is refused (`subscription-ends.requires-erasers`); a list a factory builds is held to the same
+  once it is built, before anything runs. A deletion keeps the stores it began with: while one is
+  under way, a store added, removed or renamed fails it on every run with `stores-changed`, until
+  the list is the one it began with again.
+- **`deletion.keep`** is required: your `TenantKeepReportPort`
+  ([What a tenant keeps itself](#what-a-tenant-keeps-itself)); a start without it is refused
+  (`subscription-ends.requires-keep-report`).
+- **`deletion.records`**, where each deletion is recorded, is `persistence.core.tenantDeletions`
+  unless you name a `TenantDeletionRecordPort` of your own; both shipped adapters provide it from
+  the `SubscriberTenantDeletion` models of `@saasicat/spec`. **`deletion.subscribers`**, where the
+  subscriber it is recorded with is found, is the `subscriberRepository` given to
+  `subscriptionContract`, or else `persistence.entitlement.subscriberRepository`. A start with
+  either nowhere is refused (`subscription-ends.requires-tenant-deletions`,
+  `subscription-ends.requires-subscribers`).
+- **`TenantBillingModule` wired by hand** takes all of them in `deletion` — `installation`, `marks`,
+  `erasers`, `keep`, `records`, `subscribers` — and `transactionRunner`, the `TransactionRunner` of
+  the database the records are kept in, since a deletion begins with its record and the reason
+  holding the tenant back in one transaction. It refuses a start without any of them, naming it.
+  Without a `TenantAccessHoldPort` in scope, which `SaaSiCatModule` provides, no end holds its
+  tenant, so no tenant is reminded or deleted, and the start says so in a warning.
+
+#### Writing an eraser
+
+```ts
+import { assertOneTenant, type TenantCount, type TenantEraser } from '@saasicat/core';
+
+export class MyTenantFilesEraser implements TenantEraser {
+    readonly name = 'files';
+
+    constructor(private readonly files: MyFileStore) {}
+
+    async count(tenantId: string): Promise<readonly TenantCount[]> {
+        assertOneTenant(tenantId);
+        return [{ category: 'documents', count: await this.files.countUnder(`${tenantId}/`) }];
+    }
+
+    async erase(tenantId: string): Promise<void> {
+        assertOneTenant(tenantId);
+        // Deletes what is under the prefix, batch by batch; whatever is left
+        // when a call runs out of time is deleted by the next call.
+        await this.files.deleteUnder(`${tenantId}/`);
+    }
+}
+
+export class MyTenantDataEraser implements TenantEraser {
+    readonly name = 'data';
+
+    constructor(private readonly prisma: PrismaService) {}
+
+    async count(tenantId: string): Promise<readonly TenantCount[]> {
+        assertOneTenant(tenantId);
+        const [users, auditEntries] = await Promise.all([
+            this.prisma.user.count({ where: { tenantId } }),
+            this.prisma.auditLog.count({ where: { tenantId } }),
+        ]);
+        return [
+            { category: 'users', count: users },
+            { category: 'audit-entries', count: auditEntries },
+        ];
+    }
+
+    async erase(tenantId: string): Promise<void> {
+        assertOneTenant(tenantId);
+        await this.prisma.$transaction(async (tx) => {
+            await tx.auditLog.deleteMany({ where: { tenantId } });
+            await tx.tenant.deleteMany({ where: { id: tenantId } });
+        });
+    }
+}
+```
+
+The notes app's `NotesDataEraser` (`examples/notesapp/src/saas/notes-data-eraser.ts`) is the second
+one, whole; the notes app keeps no files.
+
+- **Begin both methods with `assertOneTenant(tenantId)`** from `@saasicat/core` (`SC-PRIV-016`).
+  The platform calls an eraser only with one tenant's identifier — text, not blank, without a space
+  around it, at most 200 characters — but it cannot hold your code to the same: called from
+  elsewhere, with an identifier that is `undefined`, `where: { tenantId }` matches every tenant's
+  rows. `assertOneTenant` throws `TenantIdRefused`, naming the problem and never the value. That the
+  first line asks is a rule of this page, which nothing in the platform can check in your code; the
+  notes app's test of its eraser holds its own to it.
+- **What is already gone is done** (`SC-PRIV-018`). `erase` is called again for a store that erased
+  already: a call whose answer was lost, a run that stopped and was repeated. Resolve then —
+  `deleteMany`, not `delete`, which throws for a row that is gone. Where a store has transactions,
+  erase in one, so a call that fails leaves the tenant as it found it.
+- **`count` is asked once, before any store erases** — every store's, in the order listed — and its
+  counts stand: a store counted again after it erased would count nothing. Each category is a stable
+  key like a store's name, once in the list, with a whole count of 0 or more; a store that answers
+  anything else fails the deletion at that store (`invalid-counts`), and nothing erases.
+- **Files before the rows that find them.** A store whose files are found through rows — a key or a
+  path kept in a table — is listed before the store that holds the rows. Erased the other way round,
+  the files are left with nothing that names them.
+- **The audit entries before the tenant's row.** The platform's audit entries name the tenant they
+  concern (`SC-AUD-021`), and your data eraser finds them by `tenantId`. In the canonical schema
+  nothing ties `audit_logs` to the tenant, so the tenant's row takes none of them along; where your
+  schema ties them by a foreign key, that key refuses the row's deletion while they remain. They
+  include the deletion's own `TENANT_DELETION_BEGUN`; `TENANT_DELETION_CLOSED` and
+  `TENANT_DELETION_HALTED` are written after the stores and name no person. An `AuditPort` of your
+  own stores the `tenantId` it is given, or your eraser finds nothing by it.
+- **What the tenant's row takes along, and what it must leave.** In the notes app the tenant's row
+  takes its users, notes, subscription, add-on bookings and promo code redemptions along by their
+  foreign keys. It must not take the subscriber's commercial record — the subscriber, its contracts,
+  charges, invoices, payments and credits (`SC-PRIV-011`). In the canonical schema those name the
+  tenant by value and hang off the subscriber, so no foreign key reaches them from the tenant's
+  row; nor does one reach the rows the platform keeps of the tenant beyond its deletion — its
+  reasons, its end and the day it was told, the downloads of its export, its notices and the record
+  of its deletion. Read your schema's foreign keys towards the tenant before you mark the
+  installation: one that cascades into a contract or an invoice takes it along with the first
+  deletion.
+- **The guard** (`SC-PRIV-011`). Before the first store erases, the platform counts the
+  subscriber's commercial record — the subscriber, its contracts, charges, invoices, payments and
+  credits — and again after every store. Where a count is lower afterwards, the deletion halts at
+  that store with `commercial-record-lost`: the record keeps the store and both counts, the server
+  log names the store and what it took on `error`, `TENANT_DELETION_HALTED` is audited, and no
+  further store is called. The guard finds a loss; it does not undo one. Restore what the store took
+  from a backup and repair the eraser: no run takes a halted deletion up again, and the tenant stays
+  held back meanwhile. A count that grew lost nothing — an invoice may be issued while a deletion
+  runs, and a charge not yet invoiced is invoiced after the tenant is gone.
+- **Inside the bypass.** The erasers are called inside `RlsBypassPort`, as the platform's other work
+  across tenants is. Under row-level security that honours the bypass, an eraser's statements reach
+  every tenant's rows, and the `tenantId` in its `where` is all that bounds them.
+- **Time.** One call of `count` or `erase` may take up to five hours (`DELETION_STEP_TIMEOUT_MS`).
+  The run holds the deletion under a claim of six (`DELETION_CLAIM_LEASE_MS`), renewed before each
+  store, so of several instances one works on it. A call that runs past its time is recorded as
+  `timeout` and keeps the claim until it goes stale, so no second run erases beside a call that may
+  still be erasing; the next run after that calls the store again. A store too large to erase in
+  one call's time — a bucket of documents, say — makes progress on each call, in batches for
+  instance, and is called again until it resolves: the platform does not ask an eraser how far it
+  got.
+
+#### What a tenant keeps itself
+
+A tenant may have records to keep for obligations of its own — receipts under a retention period,
+contracts with its own customers — and the deletion takes them too. Your `TenantKeepReportPort`
+answers what they are, one line per category: a stable key, a count, and the category in your words
+by locale, `en` required and shown where the reader's locale is not named.
+
+```ts
+import { Injectable } from '@nestjs/common';
+import type { TenantKeepLine, TenantKeepReportPort } from '@saasicat/core';
+
+@Injectable()
+export class MyKeepReport implements TenantKeepReportPort {
+    constructor(private readonly prisma: PrismaService) {}
+
+    async keep(tenantId: string): Promise<readonly TenantKeepLine[]> {
+        const receipts = await this.prisma.receipt.count({ where: { tenantId } });
+        if (receipts === 0) return [];
+        return [
+            { category: 'receipts', count: receipts, labels: { en: 'Receipts', de: 'Belege' } },
+        ];
+    }
+}
+```
+
+The lines do not stop the deletion: keeping those records is the tenant's obligation, not the
+operator's, and the read-only period and its export are the time and the means to take them along.
+Every reminder carries them as `keep`, for your notice port to list
+([A subscription that ended](#a-subscription-that-ended)), and the record of the deletion keeps them
+as they stood when it began. A tenant with nothing to keep is answered with no lines; the notes
+app's `NotesKeepReport` answers none for every tenant. A report that throws, answers a line it may
+not or does not answer in time fails that reminder, or the beginning of that deletion, and the next
+run asks again.
+
+#### What happens on the day
+
+- **Due.** A tenant is due from the first moment of its deletion day in the installation's zone,
+  while the `ended` reason its end recorded is still open. Where that reason was lifted the tenant is
+  not deleted, whatever the end says, and is not reminded either. Nor does its deletion begin while
+  a contract of the tenant is in force at that end or begins after it — one a checkout offer
+  concluded since, say (`SC-PRIV-026`): the run holds it, writes nothing, says so in the server log
+  and asks again on its next run. A contract that ended before the end, or with it, holds nothing.
+- **The brake first.** The run asks the installation's mark once
+  ([Mark the installation before the first deletion](#mark-the-installation-before-the-first-deletion)).
+  Where the database is not marked, or is marked as another installation, nothing begins — no
+  reason, no record, no store called — and the server log says so once for the run, with how many
+  tenants are due and the command that marks it. The mark is asked again before each store, so a
+  mark changed while a deletion is under way stops it before the next store.
+- **It begins in one transaction**: the record, with the subscriber, and a `deleting` reason on the
+  tenant. From then on nobody is let into the tenant, the operator acting as it included and only
+  reading included (`TENANT_BEING_DELETED`); the operator cannot suspend it
+  (`409 TENANT_DELETION_BEGUN`), though lifting a suspension that stands is still the operator's; no
+  download of its export is recorded or handed out, not even one produced or streamed before the
+  deletion began (`409 TENANT_DELETION_BEGUN`); no invoice records or lifts a reason on it, the
+  quarter-hourly run's nor a settling payment's (`SC-PRIV-025`, `SC-PRIC-104`); no reminder goes to
+  it; and its subscriber is joined to no other until the deletion closes
+  (`409 SUBSCRIBER_JOIN_DELETION_UNDER_WAY`), since the deletion keeps its record with that
+  subscriber and counts its commercial record after every store. `TENANT_DELETION_BEGUN` is audited.
+- **Every store counts, then each erases in turn**, the guard after each. A step that fails is
+  recorded with the step, the store and a code — the error's own `code`, or its name, and never its
+  message, which may name anybody; the stack goes to the server log alone. The next run goes on
+  after the last store that confirmed.
+- **It closes in one transaction once every store has confirmed.** The record is closed, and the
+  rows the platform keeps of the tenant name the role somebody acted in — `tenant-admin`, `operator`
+  or `run` — rather than who it was; its reasons lose their notes, and its notices keep how many
+  they went to rather than to whom (`SC-PRIV-023`). Every reason still open but the `deleting` one —
+  an unpaid invoice, a suspension, the end of its subscription — is lifted by the run, while what
+  its subscriber owes stays in the ledger (`SC-PRIV-025`). The `deleting` reason stays open: nobody
+  acts in a deleted tenant again. The subscriber's link to the tenant is closed, so the subscriber
+  has no live tenant from then on and a returning customer's new subscriber can be joined into it
+  (`SC-PRIV-027`). `TENANT_DELETION_CLOSED` is audited.
+- **Held instead of begun.** A tenant whose end names no single tenant (`tenant-id-invalid`) or
+  which has no subscriber to keep the record with (`no-subscriber`) is not begun, and the server log
+  says so on every run until it is put right.
+
+Each run that found anything logs `Tenant deletions: <n> deleted, <n> held, <n> to go on with.` The
+record of every deletion is in `subscriber_tenant_deletions` and its two tables of parts
+([the data model](../explanation/data-model.md#tenant-deletions)); the operator sees the `deleting`
+reason among the tenant's reasons on its page.
 
 **Where the brake stops.** It protects against a process meant for another environment. It cannot
 tell an environment that was copied from production with its identifier included: a staging

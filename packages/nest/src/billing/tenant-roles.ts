@@ -58,7 +58,7 @@ export function isTheOperator(request: unknown, actingAsOperator: boolean): bool
  * download is refused by: the tenant's own administrator alone. The export
  * holds every user's data, which `TenantAdminGuard` keeps from the tenant's
  * other users, and each download is the tenant's acknowledgement
- * (`SC-PRIV-017`), which the operator acting as the tenant cannot give for it.
+ * (`SC-PRIV-024`), which the operator acting as the tenant cannot give for it.
  */
 export function mayTakeTheTenantsExport(request: unknown, actingAsOperator: boolean): boolean {
     return isTenantAdministrator(request) && !isTheOperator(request, actingAsOperator);

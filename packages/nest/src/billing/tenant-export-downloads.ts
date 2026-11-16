@@ -1,5 +1,5 @@
 // The record of each download of a tenant's export, kept beside the end of its
-// subscription — the tenant's acknowledgement `SC-PRIV-017` names — and what
+// subscription — the tenant's acknowledgement `SC-PRIV-024` names — and what
 // the tenant's state and the operator's page read of those ends.
 //
 // One record, whoever delivers the file (`SC-PRIV-020`): the platform's own
@@ -18,6 +18,7 @@ import {
     type SubscriptionEndPort,
     type TenantExportDeliverer,
     type TenantExportDownload,
+    tenantsBeingDeleted,
 } from '@saasicat/core';
 
 import type { AdminAuditService } from '../admin/admin-audit.service.js';
@@ -30,6 +31,7 @@ import type {
     NamedEnd,
     TenantAccessService,
 } from '../tenant-access/tenant-access.service.js';
+import { lastEndOf } from './deciding-end.js';
 
 /** The audit log's key for one download of a tenant's export. */
 const TENANT_EXPORT_DOWNLOAD_ACTION = 'TENANT_EXPORT_DOWNLOAD';
@@ -115,15 +117,13 @@ export class TenantExportDownloads implements EndedSubscriptionSource {
 
     /**
      * The end the export of `tenantId` is offered for: of the subscriptions
-     * the open `ended` reasons name, the one whose end is recorded, the latest
-     * where there are several. Refused with `TENANT_EXPORT_NOT_OFFERED` where
-     * there is none.
+     * the open `ended` reasons name, the one whose end is recorded, the one
+     * that ended last where there are several. Refused with
+     * `TENANT_EXPORT_NOT_OFFERED` where there is none.
      */
     async endOffered(tenantId: string): Promise<SubscriptionEnd> {
         const holds = this.access ? (await this.access.accessOf(tenantId)).holds : [];
-        const [latest] = (await this.endsOf(tenantId, referencesOf(holds, 'ended'))).sort(
-            (a, b) => b.endsAt.getTime() - a.endsAt.getTime(),
-        );
+        const latest = lastEndOf(await this.endsOf(tenantId, referencesOf(holds, 'ended')));
         if (!latest) {
             throw new ConflictException(
                 codedError(TENANT_ACCESS_ERROR_CODES.TENANT_EXPORT_NOT_OFFERED),
@@ -134,8 +134,10 @@ export class TenantExportDownloads implements EndedSubscriptionSource {
 
     /**
      * Records that `actor` took `file`, the export of `tenantId`, at `now`,
-     * beside `end`, and audits it. A failure to record is thrown as it is, and
-     * nothing is audited then.
+     * beside `end`, and audits it. Refused with `TENANT_DELETION_BEGUN` once
+     * the tenant's deletion has begun, and nothing is recorded or audited then
+     * (`SC-PRIV-023`). A failure to record is thrown as it is, and nothing is
+     * audited then.
      */
     async record(
         tenantId: string,
@@ -144,6 +146,7 @@ export class TenantExportDownloads implements EndedSubscriptionSource {
         file: DeliveredTenantExport,
         now: Date,
     ): Promise<TenantExportDownload> {
+        await this.refuseOnceDeletionBegan(tenantId);
         const download = await this.ends.recordExportDownload({
             tenantId,
             subscriptionId: end.subscriptionId,
@@ -154,6 +157,26 @@ export class TenantExportDownloads implements EndedSubscriptionSource {
         });
         await this.audited(actor, download, file);
         return download;
+    }
+
+    /**
+     * Refuses the record of a download once the deletion of `tenantId` has
+     * begun. Asked right before the row is written rather than where the
+     * request began, since producing or streaming the file may take as long
+     * as the deletion: the deletion's close has the rows of the tenant name
+     * roles instead of persons, and nothing reads them again after it. A
+     * deletion that begins after this read still finds the row when it
+     * closes; only one that began and closed in between would miss it, and
+     * closing takes every store's erasure.
+     */
+    private async refuseOnceDeletionBegan(tenantId: string): Promise<void> {
+        if (!this.access) return;
+        const { holds } = await this.access.accessOf(tenantId);
+        if (tenantsBeingDeleted(holds).has(tenantId)) {
+            throw new ConflictException(
+                codedError(TENANT_ACCESS_ERROR_CODES.TENANT_DELETION_BEGUN, { tenantId }),
+            );
+        }
     }
 
     /**
@@ -172,6 +195,7 @@ export class TenantExportDownloads implements EndedSubscriptionSource {
                 actor,
                 entity: 'Tenant',
                 entityId: download.tenantId,
+                tenantId: download.tenantId,
                 action: TENANT_EXPORT_DOWNLOAD_ACTION,
                 changes: {
                     subscriptionId: download.subscriptionId,

@@ -193,8 +193,23 @@ type PlannedBecause =
     /** The subscriber paid now (`SC-PRIC-100`). */
     | 'started-by-subscriber';
 
-/** Who started collecting what is open: the subscriber paying now, or entering a payment method. */
-type CollectionStartedBy = 'paying-now' | 'payment-method-entered';
+/**
+ * Who started collecting what is open: a user of `tenantId` paying now, or a
+ * payment method the gateway confirmed for the subscriber, which names no
+ * tenant of its own.
+ */
+type CollectionStartedBy =
+    { by: 'paying-now'; tenantId: string } | { by: 'payment-method-entered' };
+
+/**
+ * A pass over invoices: what it did, and the tenant it acts in where a user
+ * of that tenant started it, which every audit entry it writes names
+ * (`SC-AUD-021`). A run, or a payment method a gateway confirmed, acts in no
+ * tenant.
+ */
+interface CollectionPass extends InvoiceCollectionRun {
+    readonly actingIn?: string;
+}
 
 /** What an audit entry about a collection records. */
 type CollectionAudit =
@@ -341,7 +356,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             );
         }
         this.paymentMethodChanges?.afterConfirming((subscriberId) =>
-            this.collectOpenNow(subscriberId, 'payment-method-entered'),
+            this.collectOpenNow(subscriberId, { by: 'payment-method-entered' }),
         );
     }
 
@@ -353,7 +368,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     async payNow(tenantId: string, now: Date = new Date()): Promise<TenantPaymentStarted> {
         const subscriber = await this.subscribers?.findByTenantId(tenantId);
         if (!subscriber) return nothingStarted(false);
-        return this.collectOpenNow(subscriber.id, 'paying-now', now);
+        return this.collectOpenNow(subscriber.id, { by: 'paying-now', tenantId }, now);
     }
 
     /**
@@ -383,7 +398,10 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             const method = methods ? await methods.findActive(subscriberId) : null;
             if (!method) return nothingStarted(false);
             const started = nothingStarted(true);
-            const run = emptyRun();
+            const run: CollectionPass =
+                startedBy.by === 'paying-now'
+                    ? { ...emptyRun(), actingIn: startedBy.tenantId }
+                    : emptyRun();
             const today = dayInZone(now, this.timeZone());
             const invoices = await this.invoices.listBySubscriber(subscriberId);
             const cancelled = new Set(
@@ -415,13 +433,13 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                 }
                 const because = plannedBecauseOf(startedBy, invoice);
                 for (const later of attempts.filter((each) => each.status === 'SCHEDULED')) {
-                    await this.giveWay(invoice, later, because);
+                    await this.giveWay(invoice, later, because, run);
                 }
                 const planned = await this.planWith(
                     invoice,
                     attempts.at(-1)?.attempt ?? 0,
                     method,
-                    startedBy === 'paying-now' ? today : notBeforeItsDay(invoice, today),
+                    startedBy.by === 'paying-now' ? today : notBeforeItsDay(invoice, today),
                     because,
                     run,
                 );
@@ -440,17 +458,23 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         invoice: SubscriptionInvoiceRecord,
         planned: InvoiceCollectionRecord,
         because: PlannedBecause,
+        pass: CollectionPass,
     ): Promise<void> {
         if (!(await this.collections.withdraw(planned.id, new Date()))) return;
-        await this.writeAudit(invoice.id, {
-            action: 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN',
-            changes: {
-                number: invoice.number,
-                attempt: planned.attempt,
-                paymentMethodId: planned.paymentMethodId,
-                because: because === 'started-by-subscriber' ? because : 'payment-method-replaced',
+        await this.writeAudit(
+            invoice.id,
+            {
+                action: 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN',
+                changes: {
+                    number: invoice.number,
+                    attempt: planned.attempt,
+                    paymentMethodId: planned.paymentMethodId,
+                    because:
+                        because === 'started-by-subscriber' ? because : 'payment-method-replaced',
+                },
             },
-        });
+            pass.actingIn,
+        );
     }
 
     /**
@@ -1000,7 +1024,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         method: SubscriberPaymentMethodRecord,
         collectOn: CalendarDay,
         because: PlannedBecause,
-        run: InvoiceCollectionRun,
+        run: CollectionPass,
     ): Promise<InvoiceCollectionRecord | null> {
         const planned = await this.collections.plan(
             planRequestOf(invoice, after, method, collectOn),
@@ -1016,19 +1040,23 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         invoice: SubscriptionInvoiceRecord,
         planned: InvoiceCollectionRecord,
         because: PlannedBecause,
-        run: InvoiceCollectionRun,
+        run: CollectionPass,
     ): Promise<void> {
         run.planned += 1;
-        await this.writeAudit(invoice.id, {
-            action: 'SUBSCRIPTION_INVOICE_COLLECTION_PLANNED',
-            changes: {
-                number: invoice.number,
-                attempt: planned.attempt,
-                paymentMethodType: planned.paymentMethodType,
-                collectOn: plannedDayOf(planned),
-                because,
+        await this.writeAudit(
+            invoice.id,
+            {
+                action: 'SUBSCRIPTION_INVOICE_COLLECTION_PLANNED',
+                changes: {
+                    number: invoice.number,
+                    attempt: planned.attempt,
+                    paymentMethodType: planned.paymentMethodType,
+                    collectOn: plannedDayOf(planned),
+                    because,
+                },
             },
-        });
+            run.actingIn,
+        );
     }
 
     /**
@@ -1036,7 +1064,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
      * longer in use, announces a direct debit not announced yet, and sends it
      * on its day.
      */
-    private async takeUp(id: string, today: CalendarDay, run: InvoiceCollectionRun): Promise<void> {
+    private async takeUp(id: string, today: CalendarDay, run: CollectionPass): Promise<void> {
         const attempt = await this.collections.findById(id);
         if (attempt?.status !== 'SCHEDULED') return;
         const invoice = await this.invoiceOf(attempt.invoiceId);
@@ -1044,15 +1072,19 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         const paid = !(await this.recording().payments.owes(invoice.id));
         if (paid || method?.id !== attempt.paymentMethodId) {
             if (!(await this.collections.withdraw(id, new Date()))) return;
-            await this.writeAudit(invoice.id, {
-                action: 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN',
-                changes: {
-                    number: invoice.number,
-                    attempt: attempt.attempt,
-                    paymentMethodId: attempt.paymentMethodId,
-                    because: paid ? 'paid' : 'payment-method-replaced',
+            await this.writeAudit(
+                invoice.id,
+                {
+                    action: 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN',
+                    changes: {
+                        number: invoice.number,
+                        attempt: attempt.attempt,
+                        paymentMethodId: attempt.paymentMethodId,
+                        because: paid ? 'paid' : 'payment-method-replaced',
+                    },
                 },
-            });
+                run.actingIn,
+            );
             return;
         }
         if (attempt.paymentMethodType === 'sepa_debit' && attempt.announcedAt === null) {
@@ -1078,7 +1110,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         invoice: SubscriptionInvoiceRecord,
         method: SubscriberPaymentMethodRecord,
         today: CalendarDay,
-        run: InvoiceCollectionRun,
+        run: CollectionPass,
     ): Promise<void> {
         if (!method.mandateReference) {
             await this.recordWaiting(
@@ -1141,14 +1173,18 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         invoice: SubscriptionInvoiceRecord,
         collectOn: CalendarDay,
         at: Date,
-        run: InvoiceCollectionRun,
+        run: CollectionPass,
     ): Promise<void> {
         if (!(await this.collections.announce(attempt.id, collectOn, at))) return;
         run.announced += 1;
-        await this.writeAudit(invoice.id, {
-            action: 'SUBSCRIPTION_INVOICE_COLLECTION_ANNOUNCED',
-            changes: { number: invoice.number, attempt: attempt.attempt, collectOn },
-        });
+        await this.writeAudit(
+            invoice.id,
+            {
+                action: 'SUBSCRIPTION_INVOICE_COLLECTION_ANNOUNCED',
+                changes: { number: invoice.number, attempt: attempt.attempt, collectOn },
+            },
+            run.actingIn,
+        );
     }
 
     /**
@@ -1351,7 +1387,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     private async recordWaiting(
         invoice: SubscriptionInvoiceRecord,
         waiting: Waiting,
-        run: InvoiceCollectionRun,
+        run: CollectionPass,
     ): Promise<void> {
         run.waiting += 1;
         this.logger.warn(
@@ -1363,19 +1399,28 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         await this.audited.record(
             `${invoice.id}|${waiting.code}|${JSON.stringify(waiting.params)}`,
             () =>
-                this.writeAudit(invoice.id, {
-                    action: 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING',
-                    changes: { number: invoice.number, ...waiting },
-                }),
+                this.writeAudit(
+                    invoice.id,
+                    {
+                        action: 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING',
+                        changes: { number: invoice.number, ...waiting },
+                    },
+                    run.actingIn,
+                ),
         );
     }
 
     /**
-     * Writes an audit entry about an invoice; `true` where it was written or
+     * Writes an audit entry about an invoice, naming `actingIn` where a user
+     * of that tenant started what it records; `true` where it was written or
      * there is no audit log. A write that fails is said loudly and leaves the
      * collection as it stands.
      */
-    private async writeAudit(invoiceId: string, entry: CollectionAudit): Promise<boolean> {
+    private async writeAudit(
+        invoiceId: string,
+        entry: CollectionAudit,
+        actingIn?: string,
+    ): Promise<boolean> {
         try {
             await this.audit?.log({
                 actor: platformJobActor(JOB),
@@ -1383,6 +1428,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                 entityId: invoiceId,
                 action: entry.action,
                 changes: entry.changes,
+                tenantId: actingIn,
             });
             return true;
         } catch (error) {
@@ -1615,7 +1661,7 @@ function plannedBecauseOf(
     startedBy: CollectionStartedBy,
     invoice: SubscriptionInvoiceRecord,
 ): PlannedBecause {
-    if (startedBy === 'paying-now') return 'started-by-subscriber';
+    if (startedBy.by === 'paying-now') return 'started-by-subscriber';
     return invoice.payment ? 'payment-method-replaced' : 'payment-method-entered';
 }
 

@@ -69,6 +69,22 @@ export const TENANT_SERVING_MEMBERS = {
         orOption: 'tenantBilling.subscriptionEnds.deletion.marks',
         models: ['InstallationMark'],
     },
+    'core.tenantDeletions': {
+        refusedBy: 'subscription-ends.requires-tenant-deletions',
+        neededWith: ['tenantBilling'],
+        orOption: 'tenantBilling.subscriptionEnds.deletion.records',
+        models: [
+            'SubscriberTenantDeletion',
+            'SubscriberTenantDeletionStore',
+            'SubscriberTenantDeletionCount',
+        ],
+    },
+    'entitlement.subscriberRepository': {
+        refusedBy: 'subscription-ends.requires-subscribers',
+        neededWith: ['tenantBilling'],
+        orOption: 'tenantBilling.subscriptionEnds.deletion.subscribers',
+        models: ['Subscriber', 'SubscriberTenant'],
+    },
     'tenantBilling.subscriptionNotices': {
         refusedBy: 'subscription-notices.requires-record',
         neededWith: ['tenantBilling'],

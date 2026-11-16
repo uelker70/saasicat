@@ -92,6 +92,19 @@ export function noticeRecord() {
                 )
                 .sort((a, b) => a.createdAt - b.createdAt);
         },
+        async forgetRecipients(tenantId, at) {
+            const changed = [...rows.values()].filter(
+                (row) => row.tenantId === tenantId && !row.recipientsForgottenAt,
+            );
+            for (const row of changed) {
+                Object.assign(row, {
+                    recipientCount: row.recipientCount ?? row.delivery?.recipients.length ?? null,
+                    delivery: row.delivery && { ...row.delivery, recipients: [] },
+                    recipientsForgottenAt: at,
+                });
+            }
+            return changed.length;
+        },
         /** The transaction each `record` was given, in order. */
         recordedIn,
     };

@@ -11,7 +11,7 @@
 export interface AuditEvent {
     id: string;
     /**
-     * null = platform action (e.g. SUPER_ADMIN without tenant context).
+     * The one tenant the entry concerns: somebody acted in the tenant, or what the tenant runs on changed. null = an act on no tenant, or the operator's or a run's act on the subscriber's commercial record.
      */
     tenantId?: string | null;
     /**

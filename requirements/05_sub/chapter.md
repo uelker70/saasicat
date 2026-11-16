@@ -603,6 +603,7 @@ _Tested by:_
     - a notice read back
         - not yet delivered carries no delivery
         - delivered carries to whom and how, and nobody where nobody was told
+        - whose recipients were forgotten keeps how many it went to, and since when
         - of every kind the platform sends is read back as that kind
         - of a kind the platform does not know is refused, naming the row
         - delivered without a readable delivery is refused, naming the row

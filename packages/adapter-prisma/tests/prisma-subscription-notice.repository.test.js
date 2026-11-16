@@ -6,8 +6,10 @@
 // tests/integration/. What this holds is the translation: that the insert
 // leaves a duplicate to the unique key (`skipDuplicates`), that a claim is one
 // guarded update naming the delivery and the lease in its `WHERE`, that a
-// confirmation and a release name the claim they hold, and that a read hands on
-// the columns it asked for and checks what it reads.
+// confirmation and a release name the claim they hold, that a confirmation
+// writes no recipients a tenant's deletion forgot, that forgetting them is one
+// statement for one tenant, and that a read hands on the columns it asked for
+// and checks what it reads.
 
 // @requirement SC-COMP-010 — An integrator's own data access translates; it does not decide
 
@@ -34,23 +36,34 @@ const ROW = {
     deliveredAt: null,
     recipients: null,
     channel: null,
+    recipientCount: null,
+    recipientsForgottenAt: null,
     // A column a later release might add; the read must not hand it on.
     addedLater: 'x',
 };
 
-function fakeClient({ row = ROW, updated = 1 } = {}) {
+/** A client whose `updateMany` answers the counts of `updated` in turn, the last one after. */
+function fakeClient({ row = ROW, updated = [1], forgotten = 0 } = {}) {
     const calls = [];
     const record = (name, answer) => async (args) => {
         calls.push([name, args]);
         return answer;
     };
+    const counts = [...updated];
     return {
         calls,
         subscriptionNotice: {
             createMany: record('createMany', { count: 1 }),
-            updateMany: record('updateMany', { count: updated }),
+            updateMany: async (args) => {
+                calls.push(['updateMany', args]);
+                return { count: counts.length > 1 ? counts.shift() : counts[0] };
+            },
             findFirst: record('findFirst', row),
             findMany: record('findMany', [row]),
+        },
+        async $executeRaw(strings, ...values) {
+            calls.push(['$executeRaw', { sql: strings.join('?'), values }]);
+            return forgotten;
         },
     };
 }
@@ -83,7 +96,7 @@ describe('PrismaSubscriptionNoticeRepository', () => {
     });
 
     test('a claim that takes no row answers null without reading', async () => {
-        const client = fakeClient({ updated: 0 });
+        const client = fakeClient({ updated: [0] });
         const repository = new PrismaSubscriptionNoticeRepository(client);
         assert.equal(await repository.claim(KEY, {}, NOW, STALE_BEFORE), null);
         assert.deepEqual(
@@ -99,23 +112,67 @@ describe('PrismaSubscriptionNoticeRepository', () => {
         assert.equal(await repository.confirm('n-1', NOW, delivery, NOW), true);
         await repository.release('n-1', NOW);
         const [[, confirmed], [, released]] = client.calls;
-        assert.deepEqual(confirmed.where, { id: 'n-1', claimedAt: NOW, deliveredAt: null });
+        assert.deepEqual(confirmed.where, {
+            id: 'n-1',
+            claimedAt: NOW,
+            deliveredAt: null,
+            recipientsForgottenAt: null,
+        });
         assert.deepEqual(confirmed.data, {
             deliveredAt: NOW,
             recipients: ['admin@example.com'],
             channel: 'email',
+            recipientCount: 1,
         });
-        assert.deepEqual(released.where, confirmed.where);
+        assert.deepEqual(released.where, { id: 'n-1', claimedAt: NOW, deliveredAt: null });
         assert.deepEqual(released.data, { claimedAt: null });
     });
 
+    test('a confirmation of a notice whose recipients were forgotten writes how many, not whom', async () => {
+        const client = fakeClient({ updated: [0, 1] });
+        const delivery = { recipients: ['a@example.com', 'b@example.com'], channel: 'email' };
+        assert.equal(
+            await new PrismaSubscriptionNoticeRepository(client).confirm('n-1', NOW, delivery, NOW),
+            true,
+        );
+        const [, [, forgotten]] = client.calls;
+        assert.deepEqual(forgotten.where, {
+            id: 'n-1',
+            claimedAt: NOW,
+            deliveredAt: null,
+            recipientsForgottenAt: { not: null },
+        });
+        assert.deepEqual(forgotten.data, {
+            deliveredAt: NOW,
+            recipients: [],
+            channel: 'email',
+            recipientCount: 2,
+        });
+    });
+
     test('a confirmation that finds the claim gone answers false', async () => {
-        const client = fakeClient({ updated: 0 });
+        const client = fakeClient({ updated: [0] });
         const delivery = { recipients: [], channel: 'email' };
         assert.equal(
             await new PrismaSubscriptionNoticeRepository(client).confirm('n-1', NOW, delivery, NOW),
             false,
         );
+        assert.equal(client.calls.length, 2, 'both the told and the forgotten case were asked');
+    });
+
+    test("a tenant's recipients are forgotten in one statement, for that tenant and not yet forgotten", async () => {
+        const client = fakeClient({ forgotten: 3 });
+        const at = new Date('2027-02-01T03:20:00.123Z');
+        assert.equal(
+            await new PrismaSubscriptionNoticeRepository(client).forgetRecipients('t1', at),
+            3,
+        );
+        const [[name, { sql, values }]] = client.calls;
+        assert.equal(name, '$executeRaw');
+        assert.ok(sql.includes('"tenantId" = ?'), sql);
+        assert.ok(sql.includes('"recipientsForgottenAt" IS NULL'), sql);
+        assert.ok(sql.includes('COALESCE'), 'a number already kept stands');
+        assert.deepEqual(values, [at.toISOString(), 't1']);
     });
 
     test('what was delivered is read as sent, and a delivery nobody can read stops the read', async () => {

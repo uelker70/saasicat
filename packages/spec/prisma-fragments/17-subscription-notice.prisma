@@ -14,8 +14,8 @@
 //
 // A run takes a notice on by setting `claimedAt`, and lets it go again where the
 // sending failed; a claim older than a quarter of an hour counts as abandoned.
-// `deliveredAt`, `recipients` and `channel` are set together, when the
-// application confirms it sent the notice.
+// `deliveredAt`, `recipients`, `channel` and `recipientCount` are set together,
+// when the application confirms it sent the notice.
 //
 // The record is evidence of what a subscriber was told, and outlives the
 // subscription like the subscriber's account does (ADR 0012): `tenantId` and
@@ -47,14 +47,21 @@ model SubscriptionNotice {
     // The notice as it was last handed to the application.
     content Json
 
-    createdAt   DateTime  @default(now())
-    claimedAt   DateTime?
-    deliveredAt DateTime?
+    createdAt             DateTime  @default(now())
+    claimedAt             DateTime?
+    deliveredAt           DateTime?
     // Who it went to and how, in the application's own terms.
-    recipients  Json?
-    channel     String?
+    recipients            Json?
+    channel               String?
+    // How many it went to. Kept when the recipients are forgotten: once a
+    // tenant is deleted, its notices say how many they went to, not to whom
+    // (`SC-PRIV-023`), and `recipientsForgottenAt` says since when.
+    recipientCount        Int?
+    recipientsForgottenAt DateTime?
 
     @@unique([subscriptionId, kind, subject])
     @@index([kind, subject])
+    // A tenant's deletion reads its notices by the tenant.
+    @@index([tenantId])
     @@map("subscription_notices")
 }

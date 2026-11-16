@@ -13,6 +13,7 @@ import {
     FakeSubscriberRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
+    FakeTenantDeletionRepository,
 } from '../../dist/testing/index.js';
 import { storeSecretsInPlainText } from '../../dist/index.js';
 import {
@@ -112,7 +113,8 @@ export async function aPlatform({
         },
     };
     const repo = new FakeSubscriberRepository();
-    const joinRepo = new FakeSubscriberJoinRepository(repo);
+    const tenantDeletions = new FakeTenantDeletionRepository();
+    const joinRepo = new FakeSubscriberJoinRepository(repo, tenantDeletions);
     for (const [tenantId, details] of Object.entries(SUBSCRIBERS)) {
         await repo.createForTenant({ tenantId, ...detailsOf(details) });
     }
@@ -237,6 +239,7 @@ export async function aPlatform({
         seen,
         repo,
         joinRepo,
+        tenantDeletions,
         methods,
         gateway,
         /** Where a gateway's callbacks are handled, and the tenant's form opened; with `payments`. */

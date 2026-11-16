@@ -420,6 +420,7 @@ describe('POST billing/subscription-bundles/:id/version-offer/accept', () => {
         }
     });
 
+    // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('switches the caller’s own tenant and records who did it', async () => {
         const taken = [];
         const audited = [];
@@ -453,6 +454,7 @@ describe('POST billing/subscription-bundles/:id/version-offer/accept', () => {
                 },
                 entity: 'SubscriptionBundle',
                 entityId: 'sb-t1',
+                tenantId: 't1',
                 action: 'SCHEDULE_ADD_ON_VERSION_SWITCH',
                 changes: {
                     tenantId: 't1',

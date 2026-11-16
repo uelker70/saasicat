@@ -60,6 +60,7 @@ export { DrizzleMaintenanceWindowRepository } from './drizzle-maintenance-window
 export { DrizzleInstallationMarkRepository } from './drizzle-installation-mark.repository.js';
 export { DrizzleTenantAccessHoldRepository } from './drizzle-tenant-access-hold.repository.js';
 export { DrizzleSubscriptionEndRepository } from './drizzle-subscription-end.repository.js';
+export { DrizzleTenantDeletionRepository } from './drizzle-tenant-deletion.repository.js';
 export { DrizzleSubscriptionNoticeRepository } from './drizzle-subscription-notice.repository.js';
 export { DrizzleVersionRetirementRepository } from './drizzle-version-retirement.repository.js';
 export { DrizzleBundleVersionRetirementRepository } from './drizzle-bundle-version-retirement.repository.js';

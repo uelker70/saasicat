@@ -19,6 +19,8 @@ import type {
     InstallationMark,
     NewMaintenanceWindow,
     NewTenantAccessHold,
+    NewTenantDeletionRecord,
+    TenantDeletionRecordPort,
     NewSubscriptionEnd,
     NewSubscriptionEndAnnouncement,
     NewTenantExportDownload,
@@ -657,6 +659,15 @@ const CONTRACT_GAPS: Record<
     subscriptionNotices: {
         reason: 'adapter provides no SubscriptionNoticeRepository',
         present: ({ adapter }) => Boolean(adapter.subscriptionNotices),
+    },
+    uncountedNoticeSeed: {
+        reason: 'harness cannot write a delivered notice without its count, which no repository method does',
+        present: ({ seed }) => typeof seed.markNoticeDeliveredBeforeItsCount === 'function',
+    },
+    tenantDeletions: {
+        reason: 'adapter provides no TenantDeletionRecordPort, or no subscriber seed for it',
+        present: ({ adapter, seed }) =>
+            Boolean(adapter.tenantDeletions && typeof seed.createSubscriber === 'function'),
     },
     versionRetirements: {
         reason: 'adapter provides no VersionRetirementRepository',
@@ -3963,6 +3974,50 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(cliOnly[0].action, 'TENANT_SUSPEND');
         });
 
+        test('an entry keeps the tenant it was written for, and one written for none names none', async (t) => {
+            const { adapter } = harness;
+            if (!adapter.audit || !adapter.auditQuery) {
+                missing(t, 'audit');
+                return;
+            }
+            const actor = {
+                userId: 'u-1',
+                email: 'admin@t1.example',
+                source: 'web',
+                context: 'sess1',
+            } as const;
+            await adapter.audit.write({
+                actor,
+                entity: 'Subscription',
+                entityId: 't1',
+                action: 'CHANGE_PLAN',
+                tenantId: 't1',
+            });
+            await adapter.audit.write({
+                actor,
+                entity: 'Subscription',
+                entityId: 't2',
+                action: 'CHANGE_PLAN',
+                tenantId: 't2',
+            });
+            await adapter.audit.write({
+                actor,
+                entity: 'PromoCode',
+                entityId: 'promo-1',
+                action: 'PROMO_CODE_CREATE',
+            });
+
+            const tenantOf = async (entityId: string) =>
+                (await adapter.auditQuery!.list({ entityId }))[0]?.tenantId;
+            assert.equal(await tenantOf('t1'), 't1');
+            assert.equal(await tenantOf('promo-1'), null);
+            assert.deepEqual(
+                (await adapter.auditQuery.list({ tenantId: 't1' })).map((entry) => entry.entityId),
+                ['t1'],
+                "a tenant's entries are found by it, and no other tenant's",
+            );
+        });
+
         // @requirement SC-AUD-018
         test('an actor pattern finds a person whatever they acted through, and ignores case', async (t) => {
             const { adapter } = harness;
@@ -5244,6 +5299,56 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     unlinkedAt?.toISOString() ?? null,
                 ]),
                 [['tenant-search-other', closedAt.toISOString()]],
+            );
+        });
+
+        // @requirement SC-PRIV-027
+        test("a tenant's link is closed once, at its subscriber only, in the transaction it is closed in", async (t) => {
+            const four = await fourToSearch(t);
+            if (!four) return;
+            const { adapter } = harness;
+            const { subscribers, andere, muster, ids } = four;
+            const unlinkedAt = new Date('2026-12-01T09:00:00.000Z');
+            if (adapter.capabilities.transactions) {
+                await assert.rejects(
+                    adapter.transactionRunner.run(async (tx) => {
+                        assert.equal(
+                            await subscribers.unlinkTenant('tenant-search-other', unlinkedAt, tx),
+                            true,
+                        );
+                        throw new Error('the transaction fails after the write');
+                    }),
+                    /the transaction fails after the write/,
+                );
+                assert.equal(
+                    (await subscribers.findByTenantId('tenant-search-other'))?.id,
+                    andere.id,
+                    'a link closed in a transaction that failed stays open',
+                );
+            }
+
+            assert.equal(await subscribers.unlinkTenant('tenant-search-other', unlinkedAt), true);
+            assert.equal(
+                await subscribers.unlinkTenant('tenant-search-other', new Date()),
+                false,
+                'a link closed already is closed again',
+            );
+            assert.equal(await subscribers.unlinkTenant('tenant-nobody-linked', unlinkedAt), false);
+
+            assert.equal(await subscribers.findByTenantId('tenant-search-other'), null);
+            assert.equal((await subscribers.findById(andere.id))?.tenantId, null);
+            assert.deepEqual(
+                (await subscribers.listTenantLinks(andere.id)).map((link) => [
+                    link.tenantId,
+                    link.unlinkedAt?.toISOString() ?? null,
+                ]),
+                [['tenant-search-other', unlinkedAt.toISOString()]],
+            );
+            assert.deepEqual(await ids('', { withoutLiveTenant: true }), [andere.id]);
+            assert.equal(
+                (await subscribers.findByTenantId('tenant-search-muster'))?.id,
+                muster.id,
+                "another tenant's link stays open",
             );
         });
 
@@ -10491,7 +10596,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
          * `beyond` more than the invoice owed: the attempt succeeded, and the
          * payment is recorded with the credit it left.
          */
-        async function paidOnce(t: TestContext, tenantId: string, beyond = 0) {
+        async function paidOnce(
+            t: TestContext,
+            tenantId: string,
+            beyond = 0,
+            paymentRef = 'pi_paid',
+        ) {
             const account = await payable(t, tenantId);
             if (!account) return null;
             const { collections, payments, attempts, grosses, paymentOf, ids } = account;
@@ -10502,13 +10612,13 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 attempt.id,
                 {
                     status: 'succeeded',
-                    paymentRef: 'pi_paid',
+                    paymentRef,
                     amountCents: Math.round(brought * 100),
                     currency: 'EUR',
                 },
                 PAID_AT,
             );
-            const recorded = await payments.recordPayment(paymentOf(attempt, 'pi_paid', brought));
+            const recorded = await payments.recordPayment(paymentOf(attempt, paymentRef, brought));
             assert.ok(recorded, 'the payment was not recorded');
             return { ...account, attempt, gross, brought, recorded, invoiceId: ids[0]! };
         }
@@ -13934,6 +14044,225 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(await port.listTenantIdsHeldBy([]), []);
         });
 
+        /** Runs `write` in a transaction that fails after it, and answers that it failed. */
+        async function rolledBack(write: (tx: TransactionContext) => Promise<unknown>) {
+            await assert.rejects(
+                harness.adapter.transactionRunner.run(async (tx) => {
+                    await write(tx);
+                    throw new Error('the transaction fails after the write');
+                }),
+                /the transaction fails after the write/,
+            );
+        }
+
+        test('a reason recorded or lifted in a transaction lands with it, or not at all', async (t) => {
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            await rolledBack((tx) => port.record(holdOf(), tx));
+            assert.deepEqual(
+                await port.listAllOf('tenant-held'),
+                [],
+                'a rolled-back reason stayed',
+            );
+
+            const recorded = await harness.adapter.transactionRunner.run((tx) =>
+                port.record(holdOf(), tx),
+            );
+            assert.ok(recorded, 'a reason recorded in a transaction did not land');
+            await rolledBack((tx) => port.lift(recorded.id, LIFTED_AT, HOLDING_OPERATOR, tx));
+            assert.deepEqual(
+                (await port.listOpen('tenant-held')).map((hold) => hold.id),
+                [recorded.id],
+                'a rolled-back lift landed',
+            );
+            const lifted = await harness.adapter.transactionRunner.run((tx) =>
+                port.lift(recorded.id, LIFTED_AT, HOLDING_OPERATOR, tx),
+            );
+            assert.equal(lifted?.liftedAt?.toISOString(), LIFTED_AT.toISOString());
+            assert.deepEqual(await port.listOpen('tenant-held'), []);
+        });
+
+        test('every reason of a tenant is read, the lifted ones too, oldest first', async (t) => {
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            const minutes = (count: number) => new Date(HELD_SINCE.getTime() + count * 60_000);
+            const suspension = await port.record(holdOf());
+            assert.ok(suspension);
+            await port.lift(suspension.id, LIFTED_AT, HOLDING_OPERATOR);
+            const overdue = await port.record(
+                holdOf({ kind: 'overdue', reference: 'invoice-1', note: null, since: minutes(1) }),
+            );
+            const ended = await port.record(
+                holdOf({ kind: 'ended', reference: 'sub-1', note: null, since: minutes(-1) }),
+            );
+            await port.record(holdOf({ tenantId: 'tenant-other' }));
+            assert.ok(overdue && ended);
+
+            const all = await port.listAllOf('tenant-held');
+
+            assert.deepEqual(
+                all.map((hold) => hold.id),
+                [ended.id, suspension.id, overdue.id],
+            );
+            assert.deepEqual(all[1], {
+                ...suspension,
+                liftedAt: LIFTED_AT,
+                liftedBy: HOLDING_OPERATOR,
+            });
+            assert.deepEqual(await port.listAllOf('tenant-nobody'), []);
+        });
+
+        test('an open reason is locked for a transaction, and a lifted one or none is not', async (t) => {
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            const open = await port.record(holdOf());
+            const lifted = await port.record(holdOf({ kind: 'ended', reference: 'sub-1' }));
+            assert.ok(open && lifted);
+            await port.lift(lifted.id, LIFTED_AT, HOLDING_OPERATOR);
+
+            const locked = await harness.adapter.transactionRunner.run(async (tx) => ({
+                open: await port.lockOpen(open.id, tx),
+                lifted: await port.lockOpen(lifted.id, tx),
+                none: await port.lockOpen('no-such-reason', tx),
+            }));
+
+            assert.deepEqual(locked, { open, lifted: null, none: null });
+        });
+
+        // The race the reversal of an end will run against a deletion: one
+        // transaction lifts the reason a deletion would begin on, the other
+        // begins on it. Both lock the same row, so without the lock the second
+        // would read the reason open and record a deletion for an end that was
+        // lifted.
+        test('of a lift and a beginning that lock one reason, the second sees it lifted', async (t) => {
+            if (!harness.adapter.capabilities.pessimisticLocking) {
+                t.skip('adapter declares no pessimistic-locking capability');
+                return;
+            }
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            const ended = await port.record(
+                holdOf({ kind: 'ended', reference: 'sub-1', note: null, recordedBy: 'job:run' }),
+            );
+            assert.ok(ended);
+            await Promise.all([1, 2].map(() => port.listOpen('tenant-held')));
+
+            const lifting = harness.adapter.transactionRunner.run(async (tx) => {
+                assert.ok(await port.lockOpen(ended.id, tx), 'the lift found the reason lifted');
+                await sleep(LOCK_HOLD_MS);
+                return port.lift(ended.id, LIFTED_AT, HOLDING_OPERATOR, tx);
+            });
+            await sleep(LOCK_HOLD_MS / 3);
+            const beginning = harness.adapter.transactionRunner.run(async (tx) => {
+                const held = await port.lockOpen(ended.id, tx);
+                if (!held) return null;
+                return port.record(
+                    holdOf({
+                        kind: 'deleting',
+                        reference: 'sub-1',
+                        note: null,
+                        recordedBy: 'job:run',
+                    }),
+                    tx,
+                );
+            });
+
+            const [lift, begun] = await Promise.all([lifting, beginning]);
+            assert.ok(lift, 'the lift did not land');
+            assert.equal(begun, null, 'a deletion began on a reason that was lifted');
+            assert.deepEqual(await port.listOpen('tenant-held'), []);
+        });
+
+        // @requirement SC-PRIV-025
+        test('every reason of a tenant is locked for a transaction and read as it stands, the lifted ones too', async (t) => {
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            const suspension = await port.record(holdOf());
+            assert.ok(suspension);
+            await port.lift(suspension.id, LIFTED_AT, HOLDING_OPERATOR);
+            const ended = await port.record(
+                holdOf({
+                    kind: 'ended',
+                    reference: 'sub-1',
+                    note: null,
+                    since: new Date(HELD_SINCE.getTime() - 60_000),
+                }),
+            );
+            await port.record(holdOf({ tenantId: 'tenant-other' }));
+            assert.ok(ended);
+
+            const locked = await harness.adapter.transactionRunner.run(async (tx) => ({
+                held: await port.lockAllOf('tenant-held', tx),
+                nobody: await port.lockAllOf('tenant-nobody', tx),
+            }));
+
+            assert.deepEqual(locked, {
+                held: await port.listAllOf('tenant-held'),
+                nobody: [],
+            });
+            assert.deepEqual(
+                locked.held.map((hold) => [hold.id, hold.liftedBy]),
+                [
+                    [ended.id, null],
+                    [suspension.id, HOLDING_OPERATOR],
+                ],
+            );
+        });
+
+        // The race the close of a deletion runs against the operator: the
+        // close locks every reason of the tenant and rewrites who acted from
+        // what it read, while the operator lifts the suspension. Without the
+        // lock the lift would land between the read and the write, and the
+        // close would write over it.
+        // @requirement SC-PRIV-025
+        test('a lift of a reason locked with every reason of its tenant waits, and finds it lifted', async (t) => {
+            if (!harness.adapter.capabilities.pessimisticLocking) {
+                t.skip('adapter declares no pessimistic-locking capability');
+                return;
+            }
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            const closingRun = 'run';
+            const suspension = await port.record(holdOf());
+            assert.ok(suspension);
+            await Promise.all([1, 2].map(() => port.listOpen('tenant-held')));
+
+            const closing = harness.adapter.transactionRunner.run(async (tx) => {
+                const [read] = await port.lockAllOf('tenant-held', tx);
+                assert.equal(read?.liftedAt, null, 'the close found the suspension lifted');
+                await sleep(LOCK_HOLD_MS);
+                return port.lift(suspension.id, LIFTED_AT, closingRun, tx);
+            });
+            await sleep(LOCK_HOLD_MS / 3);
+            const operator = port.lift(suspension.id, LIFTED_AT, HOLDING_OPERATOR);
+
+            const [closed, lifted] = await Promise.all([closing, operator]);
+            assert.ok(closed, "the close's lift did not land");
+            assert.equal(lifted, null, 'the operator lifted a reason the close had read open');
+            assert.deepEqual(
+                (await port.listAllOf('tenant-held')).map((hold) => hold.liftedBy),
+                [closingRun],
+            );
+        });
+
         // -------------------------------------------------------------
         // Subscription ends — one per subscription, one announced day per
         // subscription beside it, and the subscriptions a cancellation was
@@ -14377,6 +14706,98 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
         });
 
+        /** A moment `minute` minutes into 2027. */
+        const endMinute = (minute: number) => new Date(Date.UTC(2027, 0, 1, 0, minute, 0, 123));
+        /** An end, an announcement and a download of a tenant's subscription, recorded at `minute`. */
+        const tenantEndOf = (
+            tenantId: string,
+            subscriptionId: string,
+            minute: number,
+        ): NewSubscriptionEnd => ({
+            tenantId,
+            subscriptionId,
+            endsAt: new Date('2026-12-31T23:00:00.000Z'),
+            deletesOn: '2027-01-31',
+            recordedAt: endMinute(minute),
+            recordedBy: 'job:platform:subscription-ends',
+        });
+        const tenantAnnouncementOf = (
+            tenantId: string,
+            subscriptionId: string,
+            minute: number,
+        ): NewSubscriptionEndAnnouncement => ({
+            tenantId,
+            subscriptionId,
+            endsAt: new Date('2026-12-31T23:00:00.000Z'),
+            readOnlyDays: 30,
+            deletesOn: '2027-01-31',
+            announcedAt: endMinute(minute),
+            announcedBy: 'web:admin@example.com:app',
+        });
+        const tenantDownloadOf = (
+            tenantId: string,
+            subscriptionId: string,
+            minute: number,
+        ): NewTenantExportDownload => ({
+            tenantId,
+            subscriptionId,
+            downloadedAt: endMinute(minute),
+            downloadedBy: 'web:admin@example.com:app',
+            downloadedByUserId: 'user-admin',
+            size: 2048,
+        });
+
+        describe('the ends, announcements and downloads of one tenant', () => {
+            test('are read across its subscriptions, the oldest first, and no other tenant’s', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                // Recorded out of their order, the later subscription id first,
+                // so neither the order of writing nor the ids read them so.
+                const later = await port.record(tenantEndOf('tenant-gone', 'sub-a', 9));
+                const earlier = await port.record(tenantEndOf('tenant-gone', 'sub-b', 1));
+                await port.record(tenantEndOf('tenant-stays', 'sub-c', 5));
+                const laterAnnounced = await port.announce(
+                    tenantAnnouncementOf('tenant-gone', 'sub-a', 8),
+                );
+                const earlierAnnounced = await port.announce(
+                    tenantAnnouncementOf('tenant-gone', 'sub-b', 2),
+                );
+                await port.announce(tenantAnnouncementOf('tenant-stays', 'sub-c', 4));
+                const third = await port.recordExportDownload(
+                    tenantDownloadOf('tenant-gone', 'sub-a', 7),
+                );
+                const first = await port.recordExportDownload(
+                    tenantDownloadOf('tenant-gone', 'sub-b', 3),
+                );
+                const second = await port.recordExportDownload(
+                    tenantDownloadOf('tenant-gone', 'sub-b', 6),
+                );
+                await port.recordExportDownload(tenantDownloadOf('tenant-stays', 'sub-c', 4));
+
+                assert.deepEqual(await port.listEndsOfTenant('tenant-gone'), [earlier, later]);
+                assert.deepEqual(await port.listAnnouncedOfTenant('tenant-gone'), [
+                    earlierAnnounced,
+                    laterAnnounced,
+                ]);
+                assert.deepEqual(await port.listExportDownloadsOfTenant('tenant-gone'), [
+                    first,
+                    second,
+                    third,
+                ]);
+                assert.deepEqual(
+                    [
+                        await port.listEndsOfTenant('tenant-nobody'),
+                        await port.listAnnouncedOfTenant('tenant-nobody'),
+                        await port.listExportDownloadsOfTenant('tenant-nobody'),
+                    ],
+                    [[], [], []],
+                );
+            });
+        });
+
         // @requirement SC-CANC-027
         describe('the subscriptions a cancellation was declared for', () => {
             test('are read across tenants with both dates as stored, landed or not, and nothing else', async (t) => {
@@ -14741,6 +15162,788 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     );
                 },
             );
+
+            scenario(
+                'a confirmed notice keeps how many it went to, and its recipients are not forgotten',
+                async (notices) => {
+                    const claimed = await notices.claim(NOTICE, CONTENT, RUN_AT, LEASE_START);
+                    assert.ok(claimed?.claimedAt);
+                    assert.equal(claimed.recipientCount, null, 'counted before it was sent');
+                    await notices.confirm(claimed.id, claimed.claimedAt, DELIVERY, LATER);
+                    const [kept] = await notices.listForSubscription('sub-told');
+                    assert.deepEqual(
+                        [kept?.recipientCount, kept?.recipientsForgottenAt],
+                        [DELIVERY.recipients.length, null],
+                    );
+                },
+            );
+        });
+
+        // -------------------------------------------------------------
+        // The deletion of a tenant — one record per tenant, begun with
+        // the reason that holds the tenant back, worked on by one run at
+        // a time, and what each store counted recorded once
+        // -------------------------------------------------------------
+
+        const DELETION_STARTED = new Date('2027-02-01T03:15:00.123Z');
+        const EXPORT_OFFERED_FROM = new Date('2027-01-01T00:05:00.456Z');
+        const DELETION_RUN = 'job:platform:tenant-deletions';
+        /** A moment `minutes` after the deletion began. */
+        const deletionMinute = (minutes: number) =>
+            new Date(DELETION_STARTED.getTime() + minutes * 60_000);
+        const KEPT_RECEIPTS = {
+            category: 'receipts',
+            count: 12,
+            labels: { en: 'Receipts', de: 'Belege' },
+        };
+        const KEPT_CONTRACTS = { category: 'contracts', count: 2, labels: { en: 'Contracts' } };
+
+        /** The record port, a subscriber of its own, and a deletion to begin for it. */
+        async function aDeletionStore(t: TestContext) {
+            const deletions = harness.adapter.tenantDeletions;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
+            if (!deletions || !createSubscriber) {
+                missing(t, 'tenantDeletions');
+                return null;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Gelöscht GmbH' });
+            // The stores are given out of their order, and the kept lines out of
+            // their categories', so neither reads back in the order written.
+            const deletionOf = (
+                overrides: Partial<NewTenantDeletionRecord> = {},
+            ): NewTenantDeletionRecord => ({
+                tenantId: 'tenant-deleted',
+                subscriberId,
+                subscriptionId: 'sub-deleted',
+                subscriptionEndId: 'end-deleted',
+                deletesOn: '2027-01-31',
+                exportOfferedFrom: EXPORT_OFFERED_FROM,
+                exportBlockedBySuspension: true,
+                keep: [KEPT_RECEIPTS, KEPT_CONTRACTS],
+                startedAt: DELETION_STARTED,
+                stores: [
+                    { store: 'files', position: 1 },
+                    { store: 'notes-data', position: 0 },
+                ],
+                ...overrides,
+            });
+            return { deletions, subscriberId, deletionOf, createSubscriber };
+        }
+
+        /** The record of `tenantId` as the port reads it now. */
+        async function deletionOfTenant(deletions: TenantDeletionRecordPort, tenantId: string) {
+            const [record] = await deletions.findForTenants([tenantId]);
+            assert.ok(record, `no deletion of ${tenantId} is recorded`);
+            return record;
+        }
+
+        // @requirement SC-PRIV-023
+        describe('the deletion of a tenant', () => {
+            test('begins once per tenant, and reads back unclaimed, nothing counted, its stores in their order', async (t) => {
+                const store = await aDeletionStore(t);
+                if (!store) return;
+                const { deletions, subscriberId, deletionOf } = store;
+
+                const begun = await deletions.begin(deletionOf());
+
+                assert.ok(begun?.id, 'the adapter assigns the id');
+                assert.deepEqual(begun, {
+                    id: begun.id,
+                    tenantId: 'tenant-deleted',
+                    subscriberId,
+                    subscriptionId: 'sub-deleted',
+                    subscriptionEndId: 'end-deleted',
+                    deletesOn: '2027-01-31',
+                    exportOfferedFrom: EXPORT_OFFERED_FROM,
+                    exportBlockedBySuspension: true,
+                    keep: [KEPT_CONTRACTS, KEPT_RECEIPTS],
+                    commercialBefore: null,
+                    commercialAfter: null,
+                    startedAt: DELETION_STARTED,
+                    claimedAt: null,
+                    attempts: 0,
+                    lastFailure: null,
+                    halt: null,
+                    closedAt: null,
+                    stores: [
+                        {
+                            store: 'notes-data',
+                            position: 0,
+                            countedAt: null,
+                            counts: [],
+                            erasedAt: null,
+                        },
+                        {
+                            store: 'files',
+                            position: 1,
+                            countedAt: null,
+                            counts: [],
+                            erasedAt: null,
+                        },
+                    ],
+                });
+                assert.deepEqual(
+                    await deletions.findForTenants(['tenant-deleted', 'tenant-nobody']),
+                    [begun],
+                );
+                assert.deepEqual(await deletions.findForTenants([]), []);
+                assert.equal(
+                    await deletions.begin(
+                        deletionOf({ subscriptionId: 'sub-later', startedAt: deletionMinute(30) }),
+                    ),
+                    null,
+                    'a tenant was begun twice',
+                );
+                assert.deepEqual(await deletionOfTenant(deletions, 'tenant-deleted'), begun);
+                const nothingKept = await deletions.begin(
+                    deletionOf({ tenantId: 'tenant-deleted-too', keep: [] }),
+                );
+                assert.deepEqual(nothingKept?.keep, [], 'another tenant is another record');
+            });
+
+            test('of several runs beginning one tenant at once, exactly one writes', async (t) => {
+                const store = await aDeletionStore(t);
+                if (!store) return;
+                const { deletions, deletionOf } = store;
+                // Read at once first, so a store that opens its connections on
+                // demand has one per racer and the beginnings below do race.
+                await Promise.all(
+                    [1, 2, 3].map(() => deletions.findForTenants(['tenant-deleted'])),
+                );
+
+                const begun = await Promise.all([1, 2, 3].map(() => deletions.begin(deletionOf())));
+
+                assert.equal(begun.filter((record) => record !== null).length, 1);
+                assert.equal((await deletions.findForTenants(['tenant-deleted'])).length, 1);
+            });
+
+            test('begins in the transaction that holds the tenant back for it, or not at all', async (t) => {
+                const store = await aDeletionStore(t);
+                if (!store) return;
+                const holds = harness.adapter.tenantAccessHolds;
+                if (!holds) {
+                    missing(t, 'tenantAccessHolds');
+                    return;
+                }
+                const { deletions, deletionOf } = store;
+                const deleting = holdOf({
+                    tenantId: 'tenant-deleted',
+                    kind: 'deleting',
+                    reference: 'sub-deleted',
+                    note: null,
+                    since: DELETION_STARTED,
+                    recordedBy: DELETION_RUN,
+                });
+
+                await rolledBack(async (tx) => {
+                    assert.ok(await deletions.begin(deletionOf(), tx));
+                    assert.ok(await holds.record(deleting, tx));
+                });
+
+                assert.deepEqual(await deletions.findForTenants(['tenant-deleted']), []);
+                assert.deepEqual(await holds.listAllOf('tenant-deleted'), []);
+                const both = await harness.adapter.transactionRunner.run(async (tx) => ({
+                    record: await deletions.begin(deletionOf(), tx),
+                    hold: await holds.record(deleting, tx),
+                }));
+                assert.ok(both.record && both.hold);
+                assert.deepEqual(await deletions.findForTenants(['tenant-deleted']), [both.record]);
+                assert.deepEqual(await holds.listOpen('tenant-deleted'), [both.hold]);
+            });
+
+            test('is claimed where no run holds it or the claim went stale, and renewed only by its holder', async (t) => {
+                const store = await aDeletionStore(t);
+                if (!store) return;
+                const { deletions, deletionOf } = store;
+                const begun = await deletions.begin(deletionOf());
+                assert.ok(begun);
+                const at = deletionMinute;
+
+                const first = await deletions.claim(begun.id, at(1), at(0));
+                assert.deepEqual(first, { ...begun, claimedAt: at(1) });
+                assert.equal(
+                    await deletions.claim(begun.id, at(2), at(1)),
+                    null,
+                    'a claim taken as the lease starts is fresh',
+                );
+                const second = await deletions.claim(
+                    begun.id,
+                    at(20),
+                    new Date(at(1).getTime() + 1),
+                );
+                assert.equal(second?.claimedAt?.toISOString(), at(20).toISOString());
+                assert.equal(
+                    await deletions.renew(begun.id, at(1), at(21)),
+                    false,
+                    'the run whose claim was taken over renewed it',
+                );
+                assert.equal(await deletions.renew(begun.id, at(20), at(21)), true);
+                await deletions.release(begun.id, at(20));
+                assert.equal(
+                    await deletions.claim(begun.id, at(22), at(21)),
+                    null,
+                    'a release under a claim no longer held let the record go',
+                );
+                await deletions.release(begun.id, at(21));
+                assert.equal(
+                    (await deletions.claim(begun.id, at(23), at(0)))?.claimedAt?.toISOString(),
+                    at(23).toISOString(),
+                    'a released record is free for the next run',
+                );
+                assert.equal(await deletions.close(begun.id, at(24)), true);
+                assert.equal(
+                    await deletions.claim(begun.id, at(99), at(99)),
+                    null,
+                    'a closed record was claimed',
+                );
+                assert.equal(await deletions.claim('no-such-deletion', at(1), at(0)), null);
+            });
+
+            test('of several runs claiming one record at once, exactly one holds it', async (t) => {
+                const store = await aDeletionStore(t);
+                if (!store) return;
+                const { deletions, deletionOf } = store;
+                const begun = await deletions.begin(deletionOf());
+                assert.ok(begun);
+                await Promise.all(
+                    [1, 2, 3, 4].map(() => deletions.findForTenants(['tenant-deleted'])),
+                );
+
+                const claims = await Promise.all(
+                    [1, 2, 3, 4].map(() =>
+                        deletions.claim(begun.id, deletionMinute(1), deletionMinute(0)),
+                    ),
+                );
+
+                assert.equal(claims.filter((claim) => claim !== null).length, 1);
+            });
+
+            test('keeps what each store counted and when it confirmed, the first time standing', async (t) => {
+                const store = await aDeletionStore(t);
+                if (!store) return;
+                const { deletions, deletionOf } = store;
+                const begun = await deletions.begin(deletionOf());
+                assert.ok(begun);
+                const at = deletionMinute;
+
+                await deletions.recordCounts(
+                    begun.id,
+                    'notes-data',
+                    [
+                        { category: 'notes', count: 3 },
+                        { category: 'note-links', count: 0 },
+                    ],
+                    at(1),
+                );
+                await deletions.recordCounts(
+                    begun.id,
+                    'files',
+                    [{ category: 'notes', count: 4 }],
+                    at(2),
+                );
+                await deletions.recordErased(begun.id, 'notes-data', at(3));
+                // A store counted again after it erased counts nothing, and a
+                // call whose answer was lost confirms again.
+                await deletions.recordCounts(
+                    begun.id,
+                    'notes-data',
+                    [{ category: 'notes', count: 0 }],
+                    at(5),
+                );
+                await deletions.recordErased(begun.id, 'notes-data', at(6));
+
+                const read = await deletionOfTenant(deletions, 'tenant-deleted');
+                assert.deepEqual(read.stores, [
+                    {
+                        store: 'notes-data',
+                        position: 0,
+                        countedAt: at(1),
+                        // By character: a collation that skips the hyphen
+                        // would put `notes` first.
+                        counts: [
+                            { category: 'note-links', count: 0 },
+                            { category: 'notes', count: 3 },
+                        ],
+                        erasedAt: at(3),
+                    },
+                    {
+                        store: 'files',
+                        position: 1,
+                        countedAt: at(2),
+                        counts: [{ category: 'notes', count: 4 }],
+                        erasedAt: null,
+                    },
+                ]);
+                assert.deepEqual(read.keep, begun.keep, 'a count moved what the tenant keeps');
+            });
+
+            test('keeps a store that counted nothing as counted', async (t) => {
+                const store = await aDeletionStore(t);
+                if (!store) return;
+                const { deletions, deletionOf } = store;
+                const begun = await deletions.begin(deletionOf());
+                assert.ok(begun);
+
+                await deletions.recordCounts(begun.id, 'files', [], deletionMinute(1));
+
+                const [, files] = (await deletionOfTenant(deletions, 'tenant-deleted')).stores;
+                assert.deepEqual(files, {
+                    store: 'files',
+                    position: 1,
+                    countedAt: deletionMinute(1),
+                    counts: [],
+                    erasedAt: null,
+                });
+            });
+
+            test('keeps the commercial record before and after, the last failure, and its close once', async (t) => {
+                const store = await aDeletionStore(t);
+                if (!store) return;
+                const { deletions, deletionOf } = store;
+                const begun = await deletions.begin(deletionOf());
+                assert.ok(begun);
+                const at = deletionMinute;
+                const before = {
+                    subscriber: 1,
+                    contracts: 2,
+                    charges: 3,
+                    invoices: 1,
+                    payments: 1,
+                    credits: 1,
+                };
+                const timedOut = {
+                    step: 'erase',
+                    store: 'files',
+                    code: 'ETIMEDOUT',
+                    at: at(4),
+                } as const;
+                const lost = {
+                    step: 'guard',
+                    store: 'files',
+                    code: 'commercial-record-lost',
+                    at: at(5),
+                } as const;
+
+                await deletions.recordCommercial(begun.id, 'before', before);
+                await deletions.recordFailure(begun.id, timedOut, null);
+                const once = await deletionOfTenant(deletions, 'tenant-deleted');
+                assert.deepEqual(
+                    [
+                        once.commercialBefore,
+                        once.commercialAfter,
+                        once.attempts,
+                        once.lastFailure,
+                        once.halt,
+                    ],
+                    [before, null, 1, timedOut, null],
+                );
+                await deletions.recordCommercial(begun.id, 'after', { ...before, invoices: 0 });
+                await deletions.recordFailure(begun.id, lost, 'commercial-record-lost');
+                const twice = await deletionOfTenant(deletions, 'tenant-deleted');
+                assert.deepEqual(
+                    [twice.commercialAfter, twice.attempts, twice.lastFailure, twice.halt],
+                    [{ ...before, invoices: 0 }, 2, lost, 'commercial-record-lost'],
+                );
+                const atTheClose = {
+                    step: 'close',
+                    store: null,
+                    code: 'Error',
+                    at: at(6),
+                } as const;
+                await deletions.recordFailure(begun.id, atTheClose, null);
+                assert.deepEqual(
+                    (await deletionOfTenant(deletions, 'tenant-deleted')).lastFailure,
+                    atTheClose,
+                );
+
+                await rolledBack((tx) => deletions.close(begun.id, at(7), tx));
+                assert.equal((await deletionOfTenant(deletions, 'tenant-deleted')).closedAt, null);
+                assert.equal(await deletions.close(begun.id, at(8)), true);
+                assert.equal(await deletions.close(begun.id, at(9)), false);
+                assert.deepEqual(
+                    (await deletionOfTenant(deletions, 'tenant-deleted')).closedAt,
+                    at(8),
+                );
+            });
+
+            test('reads the records of a subscriber, the most recently begun first', async (t) => {
+                const store = await aDeletionStore(t);
+                if (!store) return;
+                const { deletions, subscriberId, deletionOf, createSubscriber } = store;
+                const { subscriberId: otherSubscriberId } = await createSubscriber({
+                    legalName: 'Andere GmbH',
+                });
+                await deletions.begin(deletionOf({ tenantId: 'tenant-first' }));
+                await deletions.begin(
+                    deletionOf({ tenantId: 'tenant-second', startedAt: deletionMinute(10) }),
+                );
+                await deletions.begin(
+                    deletionOf({ tenantId: 'tenant-elsewhere', subscriberId: otherSubscriberId }),
+                );
+
+                assert.deepEqual(
+                    (await deletions.findForSubscriber(subscriberId)).map(
+                        (record) => record.tenantId,
+                    ),
+                    ['tenant-second', 'tenant-first'],
+                );
+                assert.deepEqual(await deletions.findForSubscriber('no-such-subscriber'), []);
+            });
+
+            test('counts the commercial record of one subscriber, and of no other', async (t) => {
+                const deletions = harness.adapter.tenantDeletions;
+                if (!deletions || !CONTRACT_GAPS.tenantDeletions.present(harness)) {
+                    missing(t, 'tenantDeletions');
+                    return;
+                }
+                // A contract with a charge, an invoice, its payment and the
+                // credit the payment left beyond it; a second contract with two
+                // charges; and another subscriber with the same.
+                const paid = await paidOnce(t, 'tenant-commercial', 20);
+                if (!paid) return;
+                const second = await anAccount(t, 'tenant-commercial-second', {
+                    subscriberId: paid.subscriberId,
+                });
+                if (!second) return;
+                await second.ledger.recordCharges([
+                    second.charge(monthly(2)),
+                    second.charge(monthly(3)),
+                ]);
+                assert.ok(await paidOnce(t, 'tenant-commercial-other', 20, 'pi_other'));
+
+                assert.deepEqual(await deletions.countCommercialRecord(paid.subscriberId), {
+                    subscriber: 1,
+                    contracts: 2,
+                    charges: 3,
+                    invoices: 1,
+                    payments: 1,
+                    credits: 1,
+                });
+                assert.deepEqual(await deletions.countCommercialRecord('no-such-subscriber'), {
+                    subscriber: 0,
+                    contracts: 0,
+                    charges: 0,
+                    invoices: 0,
+                    payments: 0,
+                    credits: 0,
+                });
+            });
+        });
+
+        // -------------------------------------------------------------
+        // Who acted, once the tenant is gone — what a deletion leaves of a
+        // tenant's reasons, ends and notices names roles and numbers, not
+        // persons, and nothing of another tenant changes
+        // -------------------------------------------------------------
+
+        // @requirement SC-PRIV-023
+        describe('who acted, once the tenant is gone', () => {
+            test('the reasons of a tenant take the roles given, and nothing else of them changes', async (t) => {
+                const port = harness.adapter.tenantAccessHolds;
+                if (!port) {
+                    missing(t, 'tenantAccessHolds');
+                    return;
+                }
+                const suspension = await port.record(holdOf());
+                assert.ok(suspension);
+                await port.lift(suspension.id, LIFTED_AT, HOLDING_OPERATOR);
+                // A minute later, so the two read back in one order whatever ids
+                // the adapter assigns.
+                const ended = await port.record(
+                    holdOf({
+                        kind: 'ended',
+                        reference: 'sub-1',
+                        note: null,
+                        recordedBy: DELETION_RUN,
+                        since: new Date(HELD_SINCE.getTime() + 60_000),
+                    }),
+                );
+                const other = await port.record(holdOf({ tenantId: 'tenant-other' }));
+                assert.ok(ended && other);
+                const before = await port.listAllOf('tenant-held');
+                const roles = [
+                    { id: suspension.id, recordedBy: 'operator', liftedBy: 'operator' },
+                    { id: ended.id, recordedBy: 'run', liftedBy: null },
+                ];
+
+                await rolledBack((tx) => port.replaceActors(roles, tx));
+                assert.deepEqual(await port.listAllOf('tenant-held'), before);
+                await port.replaceActors(roles);
+                await port.replaceActors([]);
+
+                assert.deepEqual(await port.listAllOf('tenant-held'), [
+                    { ...before[0], recordedBy: 'operator', liftedBy: 'operator' },
+                    { ...before[1], recordedBy: 'run', liftedBy: null },
+                ]);
+                assert.deepEqual(await port.listAllOf('tenant-other'), [other]);
+            });
+
+            test('the reasons of a tenant forget their notes, lifted ones too, and nothing else of them changes', async (t) => {
+                const port = harness.adapter.tenantAccessHolds;
+                if (!port) {
+                    missing(t, 'tenantAccessHolds');
+                    return;
+                }
+                const suspension = await port.record(
+                    holdOf({ note: 'Suspended until Mr Müller calls back' }),
+                );
+                assert.ok(suspension);
+                await port.lift(suspension.id, LIFTED_AT, HOLDING_OPERATOR);
+                const open = await port.record(
+                    holdOf({ since: new Date(HELD_SINCE.getTime() + 60_000) }),
+                );
+                const ended = await port.record(
+                    holdOf({
+                        kind: 'ended',
+                        reference: 'sub-1',
+                        note: null,
+                        recordedBy: DELETION_RUN,
+                        since: new Date(HELD_SINCE.getTime() + 120_000),
+                    }),
+                );
+                const other = await port.record(holdOf({ tenantId: 'tenant-other' }));
+                assert.ok(open && ended && other);
+                const before = await port.listAllOf('tenant-held');
+
+                await rolledBack((tx) => port.forgetNotes('tenant-held', tx));
+                assert.deepEqual(await port.listAllOf('tenant-held'), before);
+                await port.forgetNotes('tenant-held');
+                await port.forgetNotes('tenant-held');
+
+                assert.deepEqual(
+                    await port.listAllOf('tenant-held'),
+                    before.map((hold) => ({ ...hold, note: null })),
+                );
+                assert.deepEqual(await port.listAllOf('tenant-other'), [other]);
+            });
+
+            test('the ends, announcements and downloads of a tenant take the roles given, and nothing else changes', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const end = await port.record(tenantEndOf('tenant-gone', 'sub-a', 1));
+                const announced = await port.announce(
+                    tenantAnnouncementOf('tenant-gone', 'sub-a', 2),
+                );
+                const taken = await port.recordExportDownload(
+                    tenantDownloadOf('tenant-gone', 'sub-a', 3),
+                );
+                const takenAgain = await port.recordExportDownload(
+                    tenantDownloadOf('tenant-gone', 'sub-a', 4),
+                );
+                assert.ok(end && announced);
+                const others = {
+                    end: await port.record(tenantEndOf('tenant-stays', 'sub-b', 1)),
+                    announced: await port.announce(
+                        tenantAnnouncementOf('tenant-stays', 'sub-b', 2),
+                    ),
+                    taken: await port.recordExportDownload(
+                        tenantDownloadOf('tenant-stays', 'sub-b', 3),
+                    ),
+                };
+                const roles = {
+                    ends: [{ id: end.id, recordedBy: 'tenant-admin' }],
+                    announcements: [{ id: announced.id, announcedBy: 'tenant-admin' }],
+                    downloads: [
+                        {
+                            id: taken.id,
+                            downloadedBy: 'tenant-admin',
+                            downloadedByUserId: 'tenant-admin',
+                        },
+                    ],
+                };
+
+                await rolledBack((tx) => port.replaceActors(roles, tx));
+                assert.deepEqual(await port.listEndsOfTenant('tenant-gone'), [end]);
+                await port.replaceActors(roles);
+
+                assert.deepEqual(
+                    {
+                        ends: await port.listEndsOfTenant('tenant-gone'),
+                        announced: await port.listAnnouncedOfTenant('tenant-gone'),
+                        taken: await port.listExportDownloadsOfTenant('tenant-gone'),
+                    },
+                    {
+                        ends: [{ ...end, recordedBy: 'tenant-admin' }],
+                        announced: [{ ...announced, announcedBy: 'tenant-admin' }],
+                        taken: [
+                            {
+                                ...taken,
+                                downloadedBy: 'tenant-admin',
+                                downloadedByUserId: 'tenant-admin',
+                            },
+                            takenAgain,
+                        ],
+                    },
+                );
+                assert.deepEqual(
+                    {
+                        end: await port.listEndsOfTenant('tenant-stays'),
+                        announced: await port.listAnnouncedOfTenant('tenant-stays'),
+                        taken: await port.listExportDownloadsOfTenant('tenant-stays'),
+                    },
+                    { end: [others.end], announced: [others.announced], taken: [others.taken] },
+                );
+            });
+
+            const FORGOTTEN_AT = new Date('2027-02-01T03:20:00.123Z');
+            const NOTICE_RUN = new Date('2027-01-05T09:00:00.000Z');
+            const noticeOf = (tenantId: string, subscriptionId: string): SubscriptionNoticeKey => ({
+                tenantId,
+                subscriptionId,
+                kind: 'version-offered',
+                subject: 'pv-standard-2',
+            });
+            /** A notice of `key`, sent to `recipients` where they are given, or held and not sent. */
+            async function told(
+                notices: SubscriptionNoticeRepository,
+                key: SubscriptionNoticeKey,
+                recipients?: string[],
+            ) {
+                const claimed = await notices.claim(
+                    key,
+                    { kind: key.kind },
+                    NOTICE_RUN,
+                    NOTICE_RUN,
+                );
+                assert.ok(claimed?.claimedAt, 'a notice was not claimed');
+                if (recipients) {
+                    const delivery = { recipients, channel: 'email' };
+                    assert.ok(
+                        await notices.confirm(claimed.id, claimed.claimedAt, delivery, NOTICE_RUN),
+                    );
+                }
+                return claimed.id;
+            }
+            /** What a notice of `subscriptionId` says of whom it went to. */
+            async function toWhom(notices: SubscriptionNoticeRepository, subscriptionId: string) {
+                const [notice] = await notices.listForSubscription(subscriptionId);
+                assert.ok(notice, `no notice of ${subscriptionId}`);
+                return {
+                    recipients: notice.delivery?.recipients ?? null,
+                    recipientCount: notice.recipientCount,
+                    recipientsForgottenAt: notice.recipientsForgottenAt,
+                };
+            }
+
+            test('the notices of a tenant forget whom they went to and keep how many, once', async (t) => {
+                const notices = harness.adapter.subscriptionNotices;
+                if (!notices) {
+                    missing(t, 'subscriptionNotices');
+                    return;
+                }
+                await told(notices, noticeOf('tenant-gone', 'sub-a'), [
+                    'a@example.com',
+                    'b@example.com',
+                ]);
+                await told(notices, noticeOf('tenant-gone', 'sub-b'), ['a@example.com']);
+                await told(notices, noticeOf('tenant-gone', 'sub-c'));
+                await told(notices, noticeOf('tenant-stays', 'sub-d'), ['c@example.com']);
+
+                await rolledBack((tx) => notices.forgetRecipients('tenant-gone', FORGOTTEN_AT, tx));
+                assert.deepEqual((await toWhom(notices, 'sub-a')).recipientsForgottenAt, null);
+                const changed = await notices.forgetRecipients('tenant-gone', FORGOTTEN_AT);
+
+                assert.equal(changed, 3);
+                assert.deepEqual(
+                    [
+                        await toWhom(notices, 'sub-a'),
+                        await toWhom(notices, 'sub-b'),
+                        await toWhom(notices, 'sub-c'),
+                        await toWhom(notices, 'sub-d'),
+                    ],
+                    [
+                        { recipients: [], recipientCount: 2, recipientsForgottenAt: FORGOTTEN_AT },
+                        { recipients: [], recipientCount: 1, recipientsForgottenAt: FORGOTTEN_AT },
+                        {
+                            recipients: null,
+                            recipientCount: null,
+                            recipientsForgottenAt: FORGOTTEN_AT,
+                        },
+                        {
+                            recipients: ['c@example.com'],
+                            recipientCount: 1,
+                            recipientsForgottenAt: null,
+                        },
+                    ],
+                );
+                assert.equal(
+                    await notices.forgetRecipients(
+                        'tenant-gone',
+                        new Date(FORGOTTEN_AT.getTime() + 1),
+                    ),
+                    0,
+                );
+                assert.deepEqual(await toWhom(notices, 'sub-a'), {
+                    recipients: [],
+                    recipientCount: 2,
+                    recipientsForgottenAt: FORGOTTEN_AT,
+                });
+            });
+
+            test('a notice delivered before its count was kept is counted as its recipients are forgotten', async (t) => {
+                const notices = harness.adapter.subscriptionNotices;
+                if (!notices) {
+                    missing(t, 'subscriptionNotices');
+                    return;
+                }
+                const uncount = harness.seed.markNoticeDeliveredBeforeItsCount?.bind(harness.seed);
+                if (!uncount) {
+                    missing(t, 'uncountedNoticeSeed');
+                    return;
+                }
+                const id = await told(notices, noticeOf('tenant-gone', 'sub-a'), [
+                    'a@example.com',
+                    'b@example.com',
+                    'c@example.com',
+                ]);
+                await uncount(id);
+                assert.equal((await toWhom(notices, 'sub-a')).recipientCount, null);
+
+                assert.equal(await notices.forgetRecipients('tenant-gone', FORGOTTEN_AT), 1);
+
+                assert.deepEqual(await toWhom(notices, 'sub-a'), {
+                    recipients: [],
+                    recipientCount: 3,
+                    recipientsForgottenAt: FORGOTTEN_AT,
+                });
+            });
+
+            // A reminder run may hold a notice while the deletion forgets the
+            // tenant's recipients, and confirm it afterwards: the notice says how
+            // many it went to, and still not to whom.
+            test('a notice confirmed after its recipients were forgotten keeps how many, not whom', async (t) => {
+                const notices = harness.adapter.subscriptionNotices;
+                if (!notices) {
+                    missing(t, 'subscriptionNotices');
+                    return;
+                }
+                const claimed = await notices.claim(
+                    noticeOf('tenant-gone', 'sub-a'),
+                    { kind: 'version-offered' },
+                    NOTICE_RUN,
+                    NOTICE_RUN,
+                );
+                assert.ok(claimed?.claimedAt, 'a notice was not claimed');
+                assert.equal(await notices.forgetRecipients('tenant-gone', FORGOTTEN_AT), 1);
+
+                const delivery = {
+                    recipients: ['a@example.com', 'b@example.com'],
+                    channel: 'email',
+                };
+                assert.equal(
+                    await notices.confirm(claimed.id, claimed.claimedAt, delivery, FORGOTTEN_AT),
+                    true,
+                );
+
+                assert.deepEqual(await toWhom(notices, 'sub-a'), {
+                    recipients: [],
+                    recipientCount: 2,
+                    recipientsForgottenAt: FORGOTTEN_AT,
+                });
+            });
         });
 
         // -------------------------------------------------------------
@@ -16081,6 +17284,50 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        // @requirement SC-PRIV-018
+        test('a join reads the deletions of either subscriber begun and not closed', async (t) => {
+            const customer = await aReturningCustomer(t, 'tenant-join-deleting');
+            if (!customer) return;
+            const deletions = harness.adapter.tenantDeletions;
+            if (!deletions || !CONTRACT_GAPS.tenantDeletions.present(harness)) {
+                missing(t, 'tenantDeletions');
+                return;
+            }
+            const { joins, earlier, returning } = customer;
+            const underWay = () =>
+                harness.adapter.transactionRunner.run(async (tx) => {
+                    const state = await joins.hold(returning.id, earlier.id, tx);
+                    assert.ok(state, 'a join did not find both subscribers');
+                    return [state.from.deletionsUnderWay, state.into.deletionsUnderWay];
+                });
+            assert.deepEqual(await underWay(), [0, 0]);
+
+            const begun = await deletions.begin({
+                tenantId: 'tenant-join-deleting-old',
+                subscriberId: earlier.id,
+                subscriptionId: 'sub-join-deleting-old',
+                subscriptionEndId: 'end-join-deleting-old',
+                deletesOn: '2026-04-30',
+                exportOfferedFrom: new Date('2026-03-31T00:00:00.000Z'),
+                exportBlockedBySuspension: false,
+                keep: [],
+                startedAt: new Date('2026-04-29T22:00:00.000Z'),
+                stores: [{ store: 'data', position: 0 }],
+            });
+            assert.ok(begun, 'the deletion did not begin');
+            assert.deepEqual(await underWay(), [0, 1]);
+
+            assert.equal(
+                await deletions.close(begun.id, new Date('2026-04-30T09:00:00.000Z')),
+                true,
+            );
+            assert.deepEqual(
+                await underWay(),
+                [0, 0],
+                'a deletion closed still reads as under way',
+            );
+        });
+
         // @requirement SC-ADM-027
         // @requirement SC-ADM-050
         test('a join moves every row, writes what was decided, and records itself', async (t) => {
@@ -16181,6 +17428,32 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 (await joins.listFor([earlier.id])).map((join) => join.id),
                 [recorded.join.id],
             );
+        });
+
+        // @requirement SC-ADM-050
+        test('a join moves the records of the deleted tenants with the rest', async (t) => {
+            const customer = await aReturningCustomer(t, 'tenant-join-deleted');
+            if (!customer) return;
+            const store = await aDeletionStore(t);
+            if (!store) return;
+            const { joins, earlier, returning, writeOf } = customer;
+            const { deletions, deletionOf } = store;
+            const begun = await deletions.begin(
+                deletionOf({ tenantId: 'tenant-join-deleted-gone', subscriberId: returning.id }),
+            );
+            assert.ok(begun);
+
+            await harness.adapter.transactionRunner.run(async (tx) => {
+                const state = await joins.hold(returning.id, earlier.id, tx);
+                assert.ok(state);
+                assert.equal(state.moving.subscriber_tenant_deletions, 1);
+                await joins.join(writeOf(state), tx);
+            });
+
+            assert.deepEqual(await deletions.findForSubscriber(earlier.id), [
+                { ...begun, subscriberId: earlier.id },
+            ]);
+            assert.deepEqual(await deletions.findForSubscriber(returning.id), []);
         });
 
         // @requirement SC-ADM-027

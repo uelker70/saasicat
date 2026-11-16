@@ -6,7 +6,11 @@ export type ActorTag = string;
 
 export interface AuditEntry {
     id: string;
-    /** null = platform action without tenant context (SUPER_ADMIN). */
+    /**
+     * The one tenant the entry concerns, as `AuditPort.write` was handed it;
+     * null where it concerns none, or records the operator's or a run's act on
+     * the subscriber's commercial record.
+     */
     tenantId: string | null;
     /** null = system / cron-triggered. */
     userId: string | null;

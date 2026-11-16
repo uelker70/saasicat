@@ -358,6 +358,9 @@ _Tested by:_
     - a suspension is the platform's record
         - suspending records the reason with its note and who, audits it, and answers the state
         - a second suspension is refused, and the first keeps its note
+        - suspending a tenant whose deletion has begun is refused, and nothing is recorded or
+          audited
+        - another tenant's deletion leaves a suspension of this one as it is
         - reactivating lifts the suspension and leaves an overdue invoice holding
         - reactivating a tenant that is not suspended is refused
         - an unknown tenant is refused by name
@@ -826,7 +829,7 @@ invoice, correcting a subscriber's legal identity (`SC-SUB-017`), joining a tena
 a returning customer had (`SC-ADM-027`), and deleting a tenant before the
 deletion date recorded when its subscription ended (`SC-CANC-027`, `SC-CANC-021`). The reason is
 part of the record. An early deletion is for a legal reason, such as abuse or an order from an
-authority, and only once the export was offered (`SC-PRIV-017`): the operator is shown the announced
+authority, and only once the export was offered (`SC-PRIV-024`): the operator is shown the announced
 date, and nothing is deleted until the operator confirms the deletion against it. Cancelling an
 invoice records, beside the reason, any party detail the replacement has to carry corrected
 (`SC-PRIC-095`), and an address to deliver to where the subscriber's record no longer holds an
@@ -933,7 +936,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 🔵 _(Superseded on 2026-11-09 by `SC-ADM-052`.)_ 🔒 SaaSiCat decides the state, and records it with
 every reason that holds, such as an ended subscription (`SC-CANC-020`), an invoice unpaid on its due
-date (`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a
+date (`SC-PRIC-104`), a suspension or a deletion under way; the strictest of them applies, a
 deletion under way before a suspension and a suspension before read-only, and ending one reason
 lifts only that one. The application checks it on every request through a port, sign-in included, so
 a session that was already open when the state changed is held to it on its next request; SaaSiCat
@@ -955,7 +958,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 🔵 _(Superseded on 2026-11-12 by `SC-ADM-055`.)_ 🔒 SaaSiCat decides the state, and records it with
 every reason that holds, such as an ended subscription (`SC-CANC-027`), an invoice unpaid on its due
-date (`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a
+date (`SC-PRIC-104`), a suspension or a deletion under way; the strictest of them applies, a
 deletion under way before a suspension and a suspension before read-only, and ending one reason
 lifts only that one. The application checks it on every request through a port, sign-in included, so
 a session that was already open when the state changed is held to it on its next request; SaaSiCat
@@ -978,7 +981,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 🟡 _(Decided, not yet delivered.)_ 🔒 SaaSiCat decides the state, and records it with every reason
 that holds, such as an ended subscription (`SC-CANC-027`), an invoice unpaid on its due date
-(`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a deletion
+(`SC-PRIC-104`), a suspension or a deletion under way; the strictest of them applies, a deletion
 under way before a suspension and a suspension before read-only, and ending one reason lifts only
 that one. The application checks it on every request through a port, sign-in included, so a session
 that was already open when the state changed is held to it on its next request; SaaSiCat does the
@@ -1083,6 +1086,9 @@ _Tested by:_
     - a suspension is the platform's record
         - suspending records the reason with its note and who, audits it, and answers the state
         - a second suspension is refused, and the first keeps its note
+        - suspending a tenant whose deletion has begun is refused, and nothing is recorded or
+          audited
+        - another tenant's deletion leaves a suspension of this one as it is
         - reactivating lifts the suspension and leaves an overdue invoice holding
         - reactivating a tenant that is not suspended is refused
         - an unknown tenant is refused by name
@@ -1169,7 +1175,7 @@ _Tested by:_
 🟢 🔒 The operator's page for a tenant names every reason it is held back for (`SC-ADM-055`), the
 oldest first: what it is, the day it began in the installation's days, the operator's own note on
 a suspension, and an invoice unpaid on its due date by its number, with the way into the record of
-the subscriber it belongs to (`SC-PRIC-098`). A tenant held back by nothing says so. Where the
+the subscriber it belongs to (`SC-PRIC-104`). A tenant held back by nothing says so. Where the
 installation cannot read invoices, an unpaid invoice is still listed as a reason, without a number.
 The list beside it keeps showing only the state.
 
@@ -1548,6 +1554,14 @@ _Tested by:_
         - for a subscriber joined already, either way
         - for a subscriber nobody keeps
         - where what it would do changed since the preview, with the preview as it stands
+    - a join while a deletion of either subscriber's tenants is under way
+        - is refused into a subscriber whose tenant is being deleted, naming it, and nothing moves
+        - is refused from a subscriber whose tenant is being deleted, naming it
+        - is made once that deletion has closed
+        - is made where only an unrelated subscriber's tenant is being deleted
+    - a returning customer whose earlier tenant the platform deleted
+        - leaves the subscriber it had without a live tenant, its link ended as the deletion closed
+        - is joined into the subscriber it had
     - a subscriber joined
         - takes no correction of its identity or its business status
     - a payment method confirmed on a form opened before the join
@@ -1795,7 +1809,7 @@ where it is once the tenant is gone (`SC-ADM-021`). The record names every tenan
 linked to, the live one first and then the earlier ones, the latest first, with when each link began
 and ended, and leads to the tenant's page where the application still has the tenant. Where a link
 is still open and the application no longer has its tenant, the record says so instead of reading
-the link as ended: a link ends when the application's deletion of the tenant closes it, and a tenant
+the link as ended: a link ends when the tenant's deletion closes it (`SC-PRIV-027`), and a tenant
 the application soft-deleted can come back. Only the platform administrator reaches the list and the
 record (`SC-ADM-001`), and both read past the tenants' row-level policy the way the administration
 does (`SC-SEC-020`).
@@ -2962,14 +2976,14 @@ _Tested by:_
 
 🟢 💰 Every row of every table that names the subscriber joined — its tenant link, contracts, charges,
 invoices, payments, credits, refunds, reversals, cases to reconcile, payment methods, checks of its
-VAT number, corrections and changes of its tax origin — moves to the earlier subscriber in one
-transaction, or nothing does: a table that would move other rows than were counted, as a row-level
-policy hiding rows from the platform would make it, leaves nothing written. The join is recorded,
-with its reason and the digest of what was decided, in the same transaction, and in the audit log
-after it. Both subscribers' rows are held for the whole of it. A charge run, an invoice run or a
-payment that read which subscriber a row belongs to before the join and writes it while the join
-runs waits for the join, is refused, and writes the row at the earlier subscriber on its next
-attempt: the database refuses a row for a subscriber joined
+VAT number, corrections, changes of its tax origin and the records of its deleted tenants — moves to
+the earlier subscriber in one transaction, or nothing does: a table that would move other rows than
+were counted, as a row-level policy hiding rows from the platform would make it, leaves nothing
+written. The join is recorded, with its reason and the digest of what was decided, in the same
+transaction, and in the audit log after it. Both subscribers' rows are held for the whole of it. A
+charge run, an invoice run or a payment that read which subscriber a row belongs to before the join
+and writes it while the join runs waits for the join, is refused, and writes the row at the earlier
+subscriber on its next attempt: the database refuses a row for a subscriber joined
 (`1.0-a-subscriber-is-joined.postgres.sql`), and the platform does not start joining beside a
 database that lacks that guard. A schema that leaves `SubscriberJoin` out offers no join.
 
@@ -3007,6 +3021,10 @@ _Tested by:_
     - joining subscribers
         - turned on without anywhere to join them, refuses to start, saying so
         - refuses to start beside a database that would let a join leave rows behind
+- `tests/every-table-that-names-a-subscriber-is-guarded-against-a-join.test.js`
+    - the fragments are read: some models name a subscriber
+    - every model that names a subscriber is in the list a join moves, under its table
+    - the join migration guards every table in that list, and no other
 
 <!-- END proof -->
 

@@ -83,7 +83,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 103     |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 104     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -94,14 +94,14 @@ properties it has while doing it.
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
-| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 21      |
-| 21  | Answering the question afterwards            | `SC-AUD-…`   | 20      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 27      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 21      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
-🔵 57 superseded, 🔴 7 withdrawn.
+Of 712 entries: 🟢 617 stand today, 🟡 27 decided but not yet delivered, ⚪ 0 drafts,
+🔵 61 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -124,15 +124,11 @@ Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
 [SC-ADM-055](#sc-adm-055--a-suspended-tenant-cannot-act-and-a-read-only-one-writes-only-to-pay-or-to-leave),
-[SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
-[SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
-[SC-PRIV-014](#sc-priv-014--a-tenant-is-deleted-through-the-application-which-first-names-what-to-keep),
-[SC-PRIV-015](#sc-priv-015--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),
-[SC-PRIV-016](#sc-priv-016--erasing-a-tenants-data-or-files-is-refused-unless-exactly-one-tenant-is-named),
-[SC-PRIV-017](#sc-priv-017--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
-[SC-PRIV-018](#sc-priv-018--a-tenants-deletion-can-safely-run-again-and-is-done-only-once-every-store-confirms),
 [SC-PRIV-021](#sc-priv-021--a-tenant-is-deleted-only-in-the-database-its-installation-marked-as-its-own),
+[SC-PRIV-022](#sc-priv-022--a-tenant-is-erased-by-the-applications-stores-after-it-was-told-what-to-keep),
+[SC-PRIV-023](#sc-priv-023--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),
+[SC-PRIV-024](#sc-priv-024--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to)
 
 🔵 **Superseded** — [SC-BUN-009](#sc-bun-009--an-add-on-can-be-cancelled-at-any-time-and-ends-with-the-period-it-is-in),
@@ -169,6 +165,7 @@ Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-PRIC-082](#sc-pric-082--an-invoice-is-collected-as-it-or-an-announcement-after-it-says),
 [SC-PRIC-035](#sc-pric-035--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-081](#sc-pric-081--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
+[SC-PRIC-098](#sc-pric-098--an-invoice-unpaid-on-its-due-date-makes-the-tenant-read-only-until-it-is-paid),
 [SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
 [SC-PRIC-047](#sc-pric-047--every-invoice-reaches-the-subscriber-by-email-with-its-file-attached),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
@@ -189,6 +186,9 @@ Of 704 entries: 🟢 609 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-SEC-003](#sc-sec-003--reads-that-legitimately-cross-tenants-are-named-as-the-exceptions-they-are),
 [SC-SEC-018](#sc-sec-018--reads-that-cross-tenants-are-named-and-a-tenants-reaches-only-its-own-subscriber),
 [SC-SEC-019](#sc-sec-019--reads-past-the-tenant-policy-are-named-a-tenants-reach-only-its-subscriber-and-itself),
+[SC-PRIV-014](#sc-priv-014--a-tenant-is-deleted-through-the-application-which-first-names-what-to-keep),
+[SC-PRIV-015](#sc-priv-015--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),
+[SC-PRIV-017](#sc-priv-017--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
 [SC-PRIV-019](#sc-priv-019--once-its-subscription-has-ended-a-tenants-administrator-takes-its-full-export),
 [SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),
 [SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered)
