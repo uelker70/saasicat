@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 57      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 58      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 712 entries: 🟢 617 stand today, 🟡 27 decided but not yet delivered, ⚪ 0 drafts,
+Of 713 entries: 🟢 617 stand today, 🟡 28 decided but not yet delivered, ⚪ 0 drafts,
 🔵 61 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -156,6 +156,7 @@ Of 712 entries: 🟢 617 stand today, 🟡 27 decided but not yet delivered, ⚪
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
 [SC-ADM-055](#sc-adm-055--a-suspended-tenant-cannot-act-and-a-read-only-one-writes-only-to-pay-or-to-leave),
+[SC-ADM-058](#sc-adm-058--the-operator-sees-where-a-tenants-deletion-stands),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
 [SC-PRIV-021](#sc-priv-021--a-tenant-is-deleted-only-in-the-database-its-installation-marked-as-its-own),
 [SC-PRIV-022](#sc-priv-022--a-tenant-is-erased-by-the-applications-stores-after-it-was-told-what-to-keep),
@@ -233,7 +234,7 @@ Of 712 entries: 🟢 617 stand today, 🟡 27 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 712 requirements. Do not edit by hand:
+Generated from `requirements/` — 713 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -17610,6 +17611,40 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-ADM-058 — The operator sees where a tenant's deletion stands
+
+🟡 _(Decided, not yet delivered.)_ 🔒 The operator's page for a tenant and the record of its
+subscriber say whether its deletion is scheduled, due, halted — with every reason that holds it and
+what each one names — under way, retried after a failure, or done; the record also once the
+application no longer has the tenant (`SC-ADM-021`). A deletion halted by the installation's mark is
+the operator's preview (`SC-PRIV-021`). The pages only show: what lets a halted deletion go on is the
+operator's act elsewhere.
+
+_Source:_ #338 (decided 2026-11-17)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/where-a-tenants-deletion-stands.test.js`
+    - a deletion not begun waits for its day in the installation
+        - at ${now.toISOString()} it is ${kind}
+        - nothing to show for a tenant with neither an end nor a record
+        - its day has ${hasCome ? '' : 'not '}come on ${today}
+    - a begun deletion stands where its record says
+        - a run holding a fresh claim is erasing, counting the stores done
+        - a claim ${name}: ${kind}
+        - a deletion retried names its attempts and the failure it met last
+        - begun, held by no run and failed nowhere, it waits for the next run as under way
+        - a call that timed out keeps its claim, and the deletion is under way with that failure
+        - a store that took the commercial record along halts it, naming the store and the parts
+        - a mark that does not match holds an open deletion before its next store
+        - a subscriber or a contract asked before the beginning holds nothing once it began
+        - a closed deletion is done, also once no end holds its tenant any more
+        - a run ${goesOn ? 'goes on with' : 'leaves'} ${name}
+
+<!-- END proof -->
+
 ### SC-ADM-054 — A tenant's users read why it is held back
 
 🟢 🔒 Every user of a tenant held back (`SC-ADM-055`) reads why above the application, in every
@@ -25536,6 +25571,15 @@ _Tested by:_
         - the same identifier matches
         - another case is another identifier, never the same one
         - a backup of production restored into staging differs
+- `packages/core/tests/where-a-tenants-deletion-stands.test.js`
+    - what holds a due deletion before it begins
+        - an unmarked database holds it on its day, naming what the process expects
+        - a database marked for another installation names both identifiers
+        - before its day it is scheduled, with what would hold it were the day today
+        - before its day with nothing that would hold it, the forecast is empty
+        - every reason that holds is named, in the order the run asks them
+        - ${name} is held by that alone
+        - a marked database, a subscriber and no contract past the end leave it due
 - `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
     - the installation mark in front of the run
         - over a database unmarked, or marked as another installation, nothing begins and the log

@@ -1215,6 +1215,40 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-ADM-058 — The operator sees where a tenant's deletion stands
+
+🟡 _(Decided, not yet delivered.)_ 🔒 The operator's page for a tenant and the record of its
+subscriber say whether its deletion is scheduled, due, halted — with every reason that holds it and
+what each one names — under way, retried after a failure, or done; the record also once the
+application no longer has the tenant (`SC-ADM-021`). A deletion halted by the installation's mark is
+the operator's preview (`SC-PRIV-021`). The pages only show: what lets a halted deletion go on is the
+operator's act elsewhere.
+
+_Source:_ #338 (decided 2026-11-17)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/where-a-tenants-deletion-stands.test.js`
+    - a deletion not begun waits for its day in the installation
+        - at ${now.toISOString()} it is ${kind}
+        - nothing to show for a tenant with neither an end nor a record
+        - its day has ${hasCome ? '' : 'not '}come on ${today}
+    - a begun deletion stands where its record says
+        - a run holding a fresh claim is erasing, counting the stores done
+        - a claim ${name}: ${kind}
+        - a deletion retried names its attempts and the failure it met last
+        - begun, held by no run and failed nowhere, it waits for the next run as under way
+        - a call that timed out keeps its claim, and the deletion is under way with that failure
+        - a store that took the commercial record along halts it, naming the store and the parts
+        - a mark that does not match holds an open deletion before its next store
+        - a subscriber or a contract asked before the beginning holds nothing once it began
+        - a closed deletion is done, also once no end holds its tenant any more
+        - a run ${goesOn ? 'goes on with' : 'leaves'} ${name}
+
+<!-- END proof -->
+
 ### SC-ADM-054 — A tenant's users read why it is held back
 
 🟢 🔒 Every user of a tenant held back (`SC-ADM-055`) reads why above the application, in every

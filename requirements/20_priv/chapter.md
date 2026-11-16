@@ -578,6 +578,15 @@ _Tested by:_
         - the same identifier matches
         - another case is another identifier, never the same one
         - a backup of production restored into staging differs
+- `packages/core/tests/where-a-tenants-deletion-stands.test.js`
+    - what holds a due deletion before it begins
+        - an unmarked database holds it on its day, naming what the process expects
+        - a database marked for another installation names both identifiers
+        - before its day it is scheduled, with what would hold it were the day today
+        - before its day with nothing that would hold it, the forecast is empty
+        - every reason that holds is named, in the order the run asks them
+        - ${name} is held by that alone
+        - a marked database, a subscriber and no contract past the end leave it due
 - `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
     - the installation mark in front of the run
         - over a database unmarked, or marked as another installation, nothing begins and the log
