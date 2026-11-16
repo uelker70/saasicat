@@ -21,6 +21,11 @@ import type { TransactionContext } from './core-ports.types.js';
  * `assertOneTenant(tenantId)` all the same (`SC-PRIV-016`), since the platform
  * cannot hold the application's code to it.
  *
+ * The platform calls the erasers inside `RlsBypassPort`, as it does its other
+ * work across tenants: under row-level security that honours the bypass, a
+ * store's statements reach every tenant's rows, and the identifier in their
+ * condition is all that bounds them.
+ *
  * `erase` may be called again for a store that erased already — a call whose
  * answer was lost, or a run that stopped and was repeated — so what is already
  * gone is done: resolve (`SC-PRIV-018`). A store too large to erase in one

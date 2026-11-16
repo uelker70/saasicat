@@ -48,6 +48,17 @@ administrators wraps that mailer: the port finds them, words the message, sends 
 whom and how; the platform keeps the record
 ([notices to a tenant's administrators](wire-the-backend.md#notices-to-a-tenants-administrators)).
 
+**Where tenant billing is on, your application erases a tenant on its deletion day** through
+erasers of its own, one `TenantEraser` per store — its files, then the database whose rows find
+them — passed as `tenantBilling.subscriptionEnds.deletion.erasers`, and reports what a tenant has
+to keep for obligations of its own through a `TenantKeepReportPort` passed as `deletion.keep`; the
+start is refused without either (`subscription-ends.requires-erasers`,
+`subscription-ends.requires-keep-report`). The platform decides the day, deletes only in a database
+marked as the installation's, holds the subscriber's contracts, invoices and payments against every
+store and keeps the record of the deletion (`SC-PRIV-022`). An application that already deletes
+tenants in a run of its own turns its steps into erasers and retires the run
+([erase a tenant's stores](wire-the-backend.md#erase-a-tenants-stores)).
+
 Expect the savings to come from **wiring**, not from your domain code.
 Application-specific workflows, controllers and adapters stay in the consumer
 because the platform cannot know their domain semantics or database shape.

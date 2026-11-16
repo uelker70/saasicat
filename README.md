@@ -99,12 +99,17 @@ SaaSiCatModule.forRoot(
             // Your app's notice port: it tells a tenant's administrators, in your words,
             // what the platform decides is due — such as the day its data is deleted.
             notices: { port: myNoticeMailer },
-            // Your app's export of a tenant, taken once its subscription has ended, and
-            // the identifier of this environment: a tenant is deleted only from a
-            // database marked with it.
+            // Your app's export of a tenant, taken once its subscription has ended; the
+            // identifier of this environment, since a tenant is deleted only from a
+            // database marked with it; your app's erasers, one per store, which delete
+            // the tenant on its day; and what a tenant has to keep itself.
             subscriptionEnds: {
                 export: myTenantDataExport,
-                deletion: { installation: process.env.SAASICAT_INSTALLATION },
+                deletion: {
+                    installation: process.env.SAASICAT_INSTALLATION,
+                    erasers: [myTenantFilesEraser, myTenantDataEraser],
+                    keep: myKeepReport,
+                },
             },
         },
         subscriptionBundles: true,
