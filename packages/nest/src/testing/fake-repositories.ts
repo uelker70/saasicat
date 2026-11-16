@@ -921,15 +921,23 @@ export class FakeSubscriberRepository implements SubscriberRepository {
  * the links, corrections, changes of the tax origin and checks of the VAT id
  * it keeps move with a join, and the join is recorded. The other tables that
  * name a subscriber live in no fake here, so a join counts none of them, and no
- * payment method is in use. No database, so nothing to guard: a write after a
- * join is refused by the database's triggers (`SC-ADM-027`), which only the
- * persistence contract reaches.
+ * payment method is in use. Deletions under way are read from the
+ * `FakeTenantDeletionRepository` it is given, and none is without one. No
+ * database, so nothing to guard: a write after a join is refused by the
+ * database's triggers (`SC-ADM-027`), which only the persistence contract
+ * reaches.
  */
 export class FakeSubscriberJoinRepository implements SubscriberJoinRepository {
     private readonly joins: SubscriberJoinRecord[] = [];
     private nextJoinId = 1;
 
-    constructor(private readonly subscribers: FakeSubscriberRepository) {}
+    constructor(
+        private readonly subscribers: FakeSubscriberRepository,
+        private readonly tenantDeletions: Pick<
+            FakeTenantDeletionRepository,
+            'deletions'
+        > | null = null,
+    ) {}
 
     async hold(
         fromSubscriberId: string,
@@ -943,6 +951,10 @@ export class FakeSubscriberJoinRepository implements SubscriberJoinRepository {
                 ...kept,
                 joinedIntoId: joined?.intoSubscriberId ?? null,
                 paymentMethodsInUse: 0,
+                deletionsUnderWay: (this.tenantDeletions?.deletions ?? []).filter(
+                    (deletion) =>
+                        deletion.subscriberId === subscriberId && deletion.closedAt === null,
+                ).length,
             };
         };
         const from = side(fromSubscriberId);

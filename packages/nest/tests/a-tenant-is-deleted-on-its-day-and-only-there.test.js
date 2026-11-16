@@ -19,6 +19,7 @@ import {
 } from '../dist/billing/index.js';
 import { TenantAccessService } from '../dist/index.js';
 import { FakeInstallationMarkRepository } from '../dist/testing/index.js';
+import { partiesNamed } from './helpers/contract-parties.js';
 import { THIS_INSTALLATION } from './helpers/installation-mark.js';
 import {
     DAY,
@@ -92,6 +93,91 @@ describe('a tenant whose subscription ended', () => {
         assert.deepEqual(run.calls, []);
         assert.equal(recordOf(run, 't1'), undefined);
         assert.deepEqual(await openKinds(run, 't1'), ['ended']);
+    });
+});
+
+/** Concludes a contract for `tenantId` in force from `effectiveFrom`, until `effectiveUntil` where given. */
+function contracted(run, tenantId, effectiveFrom, effectiveUntil = null) {
+    return run.contracts.create({
+        tenantId,
+        status: 'active',
+        effectiveFrom,
+        effectiveUntil,
+        priceSnapshot: {
+            currency: 'EUR',
+            billingCycle: 'monthly',
+            subtotalNet: 49,
+            discountNet: 0,
+            totalNet: 49,
+            vatRate: 19,
+            totalGross: 58.31,
+        },
+        entitlementSnapshot: { plan: 'STANDARD', quotas: {}, features: [] },
+        lineItems: [],
+        parties: partiesNamed('Tenant One GmbH'),
+    });
+}
+
+// @requirement SC-PRIV-026 — A tenant is not deleted while a contract of it runs past the end that made it due
+describe('a tenant whose contract runs past the end that made it due', () => {
+    const CONCLUDED_AFTER_THE_END = new Date('2026-11-15T09:00:00.000Z');
+
+    test('a contract concluded after the end, in force on the deletion day, holds the deletion: nothing written, nothing erased, the log says so', async () => {
+        const run = await setUp();
+        await ended(run, 't1');
+        const contract = await contracted(run, 't1', CONCLUDED_AFTER_THE_END);
+
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 0, halted: 1, failed: 0 });
+        assert.deepEqual(run.calls, []);
+        assert.equal(recordOf(run, 't1'), undefined);
+        assert.deepEqual(await openKinds(run, 't1'), ['ended']);
+        assert.equal(run.said.warn.length, 1);
+        assert.ok(run.said.warn[0].includes(`contract ${contract.id} runs`), run.said.warn[0]);
+
+        // Asked again on the next run, and held again.
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 0, halted: 1, failed: 0 });
+        assert.equal(recordOf(run, 't1'), undefined);
+    });
+
+    test('a contract beginning only after the deletion day holds it too', async () => {
+        const run = await setUp();
+        await ended(run, 't1');
+        await contracted(run, 't1', new Date('2027-01-01T00:00:00.000Z'));
+
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 0, halted: 1, failed: 0 });
+        assert.equal(recordOf(run, 't1'), undefined);
+    });
+
+    test('the contract the end closed, ending with it, does not hold it', async () => {
+        const run = await setUp();
+        await ended(run, 't1');
+        await contracted(run, 't1', new Date('2026-01-01T00:00:00.000Z'), ENDED_AT);
+
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 1, halted: 0, failed: 0 });
+    });
+
+    test('a contract that ended before the end does not hold it', async () => {
+        const run = await setUp();
+        await ended(run, 't1');
+        await contracted(
+            run,
+            't1',
+            new Date('2025-01-01T00:00:00.000Z'),
+            new Date('2026-01-01T00:00:00.000Z'),
+        );
+
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 1, halted: 0, failed: 0 });
+    });
+
+    test("another tenant's contract holds only that tenant", async () => {
+        const run = await setUp();
+        await ended(run, 't1');
+        await ended(run, 't2');
+        await contracted(run, 't2', CONCLUDED_AFTER_THE_END);
+
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 1, halted: 1, failed: 0 });
+        assert.equal(recordOf(run, 't1').closedAt instanceof Date, true);
+        assert.equal(recordOf(run, 't2'), undefined);
     });
 });
 

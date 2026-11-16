@@ -1219,9 +1219,11 @@ paths:
                     description: No subscriber under one of the ids (`SUBSCRIBER_NOT_FOUND`)
                 '409':
                     description: >-
-                        Either was joined already, the subscriber has no live
-                        tenant, or the earlier one still has one
+                        Either was joined already, a deletion of either's tenant
+                        is under way, the subscriber has no live tenant, or the
+                        earlier one still has one
                         (`SUBSCRIBER_JOIN_ALREADY_JOINED`,
+                        `SUBSCRIBER_JOIN_DELETION_UNDER_WAY`,
                         `SUBSCRIBER_JOIN_WITHOUT_LIVE_TENANT`,
                         `SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT`)
                 '422':
@@ -1263,10 +1265,12 @@ paths:
                     description: No subscriber under one of the ids (`SUBSCRIBER_NOT_FOUND`)
                 '409':
                     description: >-
-                        Either was joined already, the subscriber has no live
-                        tenant, the earlier one still has one, or what the join
-                        would do changed since the preview — with the preview as
-                        it now stands (`SUBSCRIBER_JOIN_ALREADY_JOINED`,
+                        Either was joined already, a deletion of either's tenant
+                        is under way, the subscriber has no live tenant, the
+                        earlier one still has one, or what the join would do
+                        changed since the preview — with the preview as it now
+                        stands (`SUBSCRIBER_JOIN_ALREADY_JOINED`,
+                        `SUBSCRIBER_JOIN_DELETION_UNDER_WAY`,
                         `SUBSCRIBER_JOIN_WITHOUT_LIVE_TENANT`,
                         `SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT`,
                         `SUBSCRIBER_JOIN_PREVIEW_CHANGED`)

@@ -17156,6 +17156,50 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        // @requirement SC-PRIV-018
+        test('a join reads the deletions of either subscriber begun and not closed', async (t) => {
+            const customer = await aReturningCustomer(t, 'tenant-join-deleting');
+            if (!customer) return;
+            const deletions = harness.adapter.tenantDeletions;
+            if (!deletions || !CONTRACT_GAPS.tenantDeletions.present(harness)) {
+                missing(t, 'tenantDeletions');
+                return;
+            }
+            const { joins, earlier, returning } = customer;
+            const underWay = () =>
+                harness.adapter.transactionRunner.run(async (tx) => {
+                    const state = await joins.hold(returning.id, earlier.id, tx);
+                    assert.ok(state, 'a join did not find both subscribers');
+                    return [state.from.deletionsUnderWay, state.into.deletionsUnderWay];
+                });
+            assert.deepEqual(await underWay(), [0, 0]);
+
+            const begun = await deletions.begin({
+                tenantId: 'tenant-join-deleting-old',
+                subscriberId: earlier.id,
+                subscriptionId: 'sub-join-deleting-old',
+                subscriptionEndId: 'end-join-deleting-old',
+                deletesOn: '2026-04-30',
+                exportOfferedFrom: new Date('2026-03-31T00:00:00.000Z'),
+                exportBlockedBySuspension: false,
+                keep: [],
+                startedAt: new Date('2026-04-29T22:00:00.000Z'),
+                stores: [{ store: 'data', position: 0 }],
+            });
+            assert.ok(begun, 'the deletion did not begin');
+            assert.deepEqual(await underWay(), [0, 1]);
+
+            assert.equal(
+                await deletions.close(begun.id, new Date('2026-04-30T09:00:00.000Z')),
+                true,
+            );
+            assert.deepEqual(
+                await underWay(),
+                [0, 0],
+                'a deletion closed still reads as under way',
+            );
+        });
+
         // @requirement SC-ADM-027
         // @requirement SC-ADM-050
         test('a join moves every row, writes what was decided, and records itself', async (t) => {

@@ -172,8 +172,8 @@ tenant — into the subscriber it had, `--into`, both named by their customer nu
 moves and what the earlier record takes, and joins them only with `--apply`, which declares both
 one legal entity, asks for the second factor and, against production, `--yes`; the audit log
 records the operator and the reason. A join is not undone. Exit code 6 is a pair a join cannot be
-made on — the earlier subscriber still has a live tenant, either was joined already —, 1 every
-other refusal. See
+made on — the earlier subscriber still has a live tenant, either was joined already, a deletion of
+either's tenant is under way —, 1 every other refusal. See
 [Joining a returning customer's subscriber](wire-the-backend.md#joining-a-returning-customers-subscriber).
 
 **Exit codes** are standardized (see `@saasicat/spec/cli-conventions.md`):

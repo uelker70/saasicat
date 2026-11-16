@@ -13,6 +13,11 @@
 // store, so a mark changed while a deletion is under way stops it before the
 // next store.
 //
+// Nor does a deletion begin while a contract of the tenant runs after the end
+// that made it due: one concluded since, as a checkout offer may be for a
+// tenant whose contract has ended (`SC-MKT-028`), keeps the tenant
+// (`SC-PRIV-026`). The run holds it and writes nothing.
+//
 // A deletion begins in one transaction: its record and the `deleting` reason,
 // which stops everybody of the tenant, the operator acting as it included, from
 // then on. Every store counts what it holds before the first one erases, and
@@ -53,6 +58,8 @@ import {
     type PlanCatalogSettings,
     type RlsBypassPort,
     type SubscriberRepository,
+    type SubscriptionContractRecord,
+    type SubscriptionContractRepository,
     type SubscriptionEnd,
     type SubscriptionEndPort,
     type SubscriptionNoticeRepository,
@@ -72,6 +79,8 @@ import { AdminAuditService, platformJobActor } from '../../admin/admin-audit.ser
 import { readAcrossTenants } from '../../admin/read-across-tenants.js';
 import { TimeoutError, withTimeout } from '../../core/with-timeout.js';
 import { actorTagOf } from '../../core/web-audit.js';
+import { contractRunsFrom } from '../../subscription-contract/contract-runs-from.js';
+import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../../subscription-contract/subscription-contract.tokens.js';
 import { TENANT_ACCESS_HOLDS_TOKEN } from '../../tenant-access/tenant-access.tokens.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
 import {
@@ -122,8 +131,8 @@ export interface TenantDeletionRun {
     deleted: number;
     /**
      * Due, but held: the installation's mark does not let them go on, nothing
-     * names one tenant or its subscriber, or a store took the subscriber's
-     * commercial record along.
+     * names one tenant or its subscriber, a contract of the tenant runs after
+     * its end, or a store took the subscriber's commercial record along.
      */
     halted: number;
     /** Begun or continued and stopped by a failure; the next run goes on. */
@@ -223,6 +232,11 @@ export class TenantDeletionService implements OnModuleInit {
         @Optional()
         @Inject(AdminAuditService)
         private readonly audit: AdminAuditService | null = null,
+        // Absent where the installation keeps no contracts: `SaaSiCatModule`
+        // passes tenant billing the store of whichever module writes them.
+        @Optional()
+        @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
+        private readonly contracts: Pick<SubscriptionContractRepository, 'list'> | null = null,
     ) {}
 
     /**
@@ -329,7 +343,7 @@ export class TenantDeletionService implements OnModuleInit {
         }
         let record = due.record;
         if (!record) {
-            let begun: TenantDeletionRecord | 'no-subscriber' | null;
+            let begun: TenantDeletionRecord | 'held' | null;
             try {
                 begun = await this.begin(holds, due, now);
             } catch (error) {
@@ -340,7 +354,7 @@ export class TenantDeletionService implements OnModuleInit {
                 );
                 return 'failed';
             }
-            if (begun === 'no-subscriber') return 'halted';
+            if (begun === 'held') return 'halted';
             if (!begun) return null;
             record = begun;
             await this.record(record, 'TENANT_DELETION_BEGUN');
@@ -351,20 +365,22 @@ export class TenantDeletionService implements OnModuleInit {
     /**
      * Records the deletion and holds the tenant back, in one transaction,
      * where the reason holding it to reading still stands; null where it does
-     * not, or another run began the deletion first.
+     * not, or another run began the deletion first. Held, with nothing
+     * written, where the tenant has no subscriber or a contract of it runs
+     * after its end.
      */
     private async begin(
         holds: TenantAccessHoldPort,
         { end, ended }: DueDeletion,
         now: Date,
-    ): Promise<TenantDeletionRecord | 'no-subscriber' | null> {
+    ): Promise<TenantDeletionRecord | 'held' | null> {
         const subscriber = await this.subscribers.findByTenantId(end.tenantId);
         if (!subscriber) {
             this.logger.error(
                 `Tenant ${end.tenantId} is due for deletion and has no subscriber to keep the ` +
                     'record of it with; it is not deleted until it has one (SC-PRIV-023).',
             );
-            return 'no-subscriber';
+            return 'held';
         }
         const keep = await withTimeout(
             () => this.keep.keep(end.tenantId),
@@ -381,6 +397,15 @@ export class TenantDeletionService implements OnModuleInit {
             end.endsAt,
             now,
         );
+        const running = await this.contractRunningAfter(end);
+        if (running) {
+            this.logger.warn(
+                `Tenant ${end.tenantId} is due for deletion, but its contract ${running.id} runs ` +
+                    `after the end of ${end.endsAt.toISOString()}; it is not deleted while that ` +
+                    'contract runs (SC-PRIV-026).',
+            );
+            return 'held';
+        }
         return this.transactions.run(async (tx) => {
             if (!(await holds.lockOpen(ended.id, tx))) return null;
             const record = await this.records.begin(
@@ -415,6 +440,21 @@ export class TenantDeletionService implements OnModuleInit {
             );
             return record;
         });
+    }
+
+    /**
+     * A contract of the tenant in force at its end or beginning after it, or
+     * null where none is: the contract the end closed stops at it. Read last
+     * before the transaction that begins the deletion, as close to it as the
+     * store allows, since the contracts are read through no transaction of
+     * the deletion's.
+     */
+    private async contractRunningAfter(
+        end: SubscriptionEnd,
+    ): Promise<SubscriptionContractRecord | null> {
+        if (!this.contracts) return null;
+        const contracts = await this.contracts.list({ tenantId: end.tenantId });
+        return contracts.find((contract) => contractRunsFrom(contract, end.endsAt)) ?? null;
     }
 
     /**
@@ -575,7 +615,8 @@ export class TenantDeletionService implements OnModuleInit {
      * notes its reasons lose, and the lifting of every reason still open but
      * the `deleting` one, which stays, since a deleted tenant never acts
      * again. The reasons are read once, before it: from the beginning of the
-     * deletion nothing but the deletion records or lifts one.
+     * deletion only the deletion records or lifts one, but for the operator
+     * lifting a suspension that stands (`SC-PRIV-025`).
      */
     private async close(
         holds: TenantAccessHoldPort,

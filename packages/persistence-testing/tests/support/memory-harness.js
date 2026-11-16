@@ -1286,6 +1286,9 @@ export function createMemoryHarness() {
             joinedIntoId: joined?.intoSubscriberId ?? null,
             countingVatIdCheck: vatIdCheckById(row.currentVatIdCheckId),
             paymentMethodsInUse: paymentMethodsInUseOf(subscriberId).length,
+            deletionsUnderWay: state.tenantDeletions.filter(
+                (deletion) => deletion.subscriberId === subscriberId && deletion.closedAt === null,
+            ).length,
         };
     };
     // A join as the adapters write it, the tables in the same order and the

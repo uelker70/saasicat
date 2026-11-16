@@ -57,6 +57,7 @@ const stateOf = (from, into, overrides = {}) => ({
         joinedIntoId: null,
         countingVatIdCheck: null,
         paymentMethodsInUse: 1,
+        deletionsUnderWay: 0,
         ...overrides.from,
     },
     into: {
@@ -65,6 +66,7 @@ const stateOf = (from, into, overrides = {}) => ({
         joinedIntoId: null,
         countingVatIdCheck: null,
         paymentMethodsInUse: 1,
+        deletionsUnderWay: 0,
         ...overrides.into,
     },
     moving: { subscriber_tenants: 1 },
@@ -253,6 +255,18 @@ describe('a join is refused, the first that holds in this order', () => {
             stateOf({}, {}, { into: { joinedIntoId: 'other' } }),
             SAME,
             'SUBSCRIBER_JOIN_ALREADY_JOINED',
+        ],
+        [
+            'an earlier subscriber with a tenant whose deletion is under way',
+            stateOf({}, {}, { into: { deletionsUnderWay: 1 } }),
+            SAME,
+            'SUBSCRIBER_JOIN_DELETION_UNDER_WAY',
+        ],
+        [
+            'a subscriber to join with a tenant whose deletion is under way, before its live tenant is asked about',
+            stateOf({}, {}, { from: { deletionsUnderWay: 1, links: CLOSED } }),
+            SAME,
+            'SUBSCRIBER_JOIN_DELETION_UNDER_WAY',
         ],
         [
             'a subscriber to join without a live tenant',

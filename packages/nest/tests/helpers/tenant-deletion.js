@@ -6,6 +6,7 @@
 import { InstallationMarkService, TenantDeletionService } from '../../dist/billing/index.js';
 import {
     FakeInstallationMarkRepository,
+    FakeSubscriptionContractRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
     FakeTenantDeletionRepository,
@@ -185,6 +186,7 @@ export function aDatabase() {
         records: new TransactionalDeletions(),
         notices: transactionalNotices(),
         marks: new FakeInstallationMarkRepository(),
+        contracts: new FakeSubscriptionContractRepository(),
         transactions: aTransactionRunner(),
     };
 }
@@ -228,6 +230,7 @@ export async function setUp({
         ports.holds,
         null,
         audit,
+        ports.contracts,
     );
     const logger = aQuietLogger();
     service.logger = logger;

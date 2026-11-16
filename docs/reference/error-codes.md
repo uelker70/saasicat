@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 318 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 319 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -330,6 +330,7 @@ The party a contract is concluded with.
 | `SUBSCRIBER_IDENTITY_NOT_A_CONTACT`          | {field} is part of the subscriber's legal identity and changes only as a correction, with a reason.                                                                      |
 | `SUBSCRIBER_JOINED`                          | Subscriber {customerNumber} was joined into another subscriber; its record stays as it was and takes no change.                                                          |
 | `SUBSCRIBER_JOIN_ALREADY_JOINED`             | Subscriber {customerNumber} was joined into another subscriber already; its record names which.                                                                          |
+| `SUBSCRIBER_JOIN_DELETION_UNDER_WAY`         | A tenant of subscriber {customerNumber} is being deleted. The subscriber can be joined once that deletion has closed.                                                    |
 | `SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT`       | Subscriber {customerNumber} still has a live tenant ({tenantId}), and a subscriber has at most one. Where the application deleted that tenant, it closes the link first. |
 | `SUBSCRIBER_JOIN_PREVIEW_CHANGED`            | What the join would do changed since it was shown. Look at it again before joining.                                                                                      |
 | `SUBSCRIBER_JOIN_REASON_REQUIRED`            | Joining a subscriber into the one it had needs a reason.                                                                                                                 |

@@ -126,13 +126,13 @@ properties it has while doing it.
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
-| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 25      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 26      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 21      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 710 entries: 🟢 615 stand today, 🟡 27 decided but not yet delivered, ⚪ 0 drafts,
+Of 711 entries: 🟢 616 stand today, 🟡 27 decided but not yet delivered, ⚪ 0 drafts,
 🔵 61 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -233,7 +233,7 @@ Of 710 entries: 🟢 615 stand today, 🟡 27 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 710 requirements. Do not edit by hand:
+Generated from `requirements/` — 711 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -17946,6 +17946,11 @@ _Tested by:_
         - for a subscriber joined already, either way
         - for a subscriber nobody keeps
         - where what it would do changed since the preview, with the preview as it stands
+    - a join while a deletion of either subscriber's tenants is under way
+        - is refused into a subscriber whose tenant is being deleted, naming it, and nothing moves
+        - is refused from a subscriber whose tenant is being deleted, naming it
+        - is made once that deletion has closed
+        - is made where only an unrelated subscriber's tenant is being deleted
     - a subscriber joined
         - takes no correction of its identity or its business status
     - a payment method confirmed on a form opened before the join
@@ -25236,6 +25241,12 @@ _Tested by:_
     - two instances at once
         - begin a deletion once, and each store is asked once
         - going on with a deletion begun before, one claims it and the other leaves it
+- `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
+    - a join while a deletion of either subscriber's tenants is under way
+        - is refused into a subscriber whose tenant is being deleted, naming it, and nothing moves
+        - is refused from a subscriber whose tenant is being deleted, naming it
+        - is made once that deletion has closed
+        - is made where only an unrelated subscriber's tenant is being deleted
 - `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
     - the notes app's eraser on PostgreSQL
         - erasing the tenant again is done, and changes nothing
@@ -25731,6 +25742,35 @@ _Tested by:_
         - gets no reason from an invoice unpaid on its due date; another tenant does
         - keeps the reason it had when its invoice is paid: the run lifts none, the close does
         - keeps the reason it had when the payment that settles its invoice comes in
+
+<!-- END proof -->
+
+### SC-PRIV-026 — A tenant is not deleted while a contract of it runs past the end that made it due
+
+🟢 🔒 A tenant whose subscription ended is due for deletion on the day its end names, and its
+deletion does not begin while a contract of the tenant is in force at that end or begins after it —
+one concluded since, as a checkout offer may be for a tenant whose earlier contract has ended
+(`SC-MKT-028`). The run holds it, writes nothing and says so in the server log, and asks again on
+its next run; a contract that ended before that end, or with it, does not hold it. It holds beside
+the new subscription that lifts the deletion day (`SC-CANC-028`), so that no tenant under contract
+is erased for an end its contracts have moved past. Where it stops: the contracts are read just
+before the deletion begins rather than in the transaction that begins it, so one concluded in that
+moment is not seen, and a deletion already begun is not stopped by one concluded afterwards.
+
+_Source:_ #338 (decided 2026-11-16)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
+    - a tenant whose contract runs past the end that made it due
+        - a contract concluded after the end, in force on the deletion day, holds the deletion:
+          nothing written, nothing erased, the log says so
+        - a contract beginning only after the deletion day holds it too
+        - the contract the end closed, ending with it, does not hold it
+        - a contract that ended before the end does not hold it
+        - another tenant's contract holds only that tenant
 
 <!-- END proof -->
 

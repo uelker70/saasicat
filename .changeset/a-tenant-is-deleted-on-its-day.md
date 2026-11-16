@@ -61,22 +61,30 @@ keeps them. They do not stop the deletion.
   `lockOpen`, `replaceActors` and `forgetNotes`; `SubscriptionEndPort` adds
   `listEndsOfTenant`, `listAnnouncedOfTenant`, `listExportDownloadsOfTenant`
   and `replaceActors`; `SubscriptionNoticeRepository.confirm` records
-  `recipientCount`, and the repository adds `forgetRecipients`. A contract
-  harness of your own wires `tenantDeletions` or names it among its `gaps`.
+  `recipientCount`, and the repository adds `forgetRecipients`;
+  `SubscriberJoinRepository.hold` answers each side's `deletionsUnderWay`. A
+  contract harness of your own wires `tenantDeletions` or names it among its
+  `gaps`.
 - `TenantBillingModule` wired by hand takes `erasers`, `keep`, `records` and
   `subscribers` in `deletion`, and `transactionRunner`.
 - `@saasicat/nest/billing` adds `TenantDeletionService`; the quarter-hourly run
   sets it off after the ends and the reminders without waiting for it. With
   `includeCron: false`, call `TenantDeletionService.deleteDue(new Date())`
-  third. `@saasicat/nest/testing` adds `FakeTenantDeletionRepository`.
+  third. `@saasicat/nest/testing` adds `FakeTenantDeletionRepository`, which
+  `FakeSubscriberJoinRepository` takes second to read deletions under way from.
 - Once a tenant's deletion has begun, nobody is let in, the operator acting as
   it included; the operator cannot suspend it (`409 TENANT_DELETION_BEGUN`); no
   download of its export is recorded, not even one started before, with the
   same code, from the platform's route and from `recordDelivered` alike; no
   invoice records or lifts a reason on it, and no reminder goes to it
-  (`SC-PRIV-025`). When it closes, the rows the platform keeps of the tenant
-  name roles instead of persons, its reasons lose their notes, its notices their
-  recipients, and every reason still open but the deletion's own is lifted.
+  (`SC-PRIV-025`); its subscriber is joined to no other until it closes
+  (`409 SUBSCRIBER_JOIN_DELETION_UNDER_WAY`). When it closes, the rows the
+  platform keeps of the tenant name roles instead of persons, its reasons lose
+  their notes, its notices their recipients, and every reason still open but
+  the deletion's own is lifted.
+- A deletion does not begin while a contract of the tenant is in force at the
+  end that made it due, or begins after it, such as one a checkout offer
+  concluded since (`SC-PRIV-026`); the run holds it and writes nothing.
 - The audit log gains `TENANT_DELETION_BEGUN`, `TENANT_DELETION_CLOSED` and
   `TENANT_DELETION_HALTED`.
 

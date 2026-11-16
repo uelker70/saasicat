@@ -1186,9 +1186,10 @@ what the earlier record takes, and `POST admin/subscribers/:id/join` with `kind:
 `SUBSCRIBER_JOIN_PREVIEW_CHANGED` and the new preview where anything changed since. The audit log
 records `SUBSCRIBER_JOINED`. Each other refusal has its code in the
 [error codes](../reference/error-codes.md): no reason, another legal entity declared, the same
-subscriber, either joined already, a subscriber without a live tenant to join, an earlier one that
-still has one. A deletion of a tenant in your application closes its subscriber's link, as above —
-an earlier subscriber whose link is still open cannot be joined into. From the command line,
+subscriber, either joined already, either with a tenant whose deletion has begun and not closed, a
+subscriber without a live tenant to join, an earlier one that still has one. A deletion of a tenant
+in your application closes its subscriber's link, as above — an earlier subscriber whose link is
+still open cannot be joined into. From the command line,
 `<app> subscribers join --from <customer number> --into <customer number> --reason "…"` does the
 same ([Extend your CLI](extend-your-cli.md)); it runs where your persistence keeps joins, also
 without `adminResources`.
@@ -2534,7 +2535,10 @@ run asks again.
 
 - **Due.** A tenant is due from the first moment of its deletion day in the installation's zone,
   while the `ended` reason its end recorded is still open. Where that reason was lifted the tenant is
-  not deleted, whatever the end says, and is not reminded either.
+  not deleted, whatever the end says, and is not reminded either. Nor does its deletion begin while
+  a contract of the tenant is in force at that end or begins after it — one a checkout offer
+  concluded since, say (`SC-PRIV-026`): the run holds it, writes nothing, says so in the server log
+  and asks again on its next run. A contract that ended before the end, or with it, holds nothing.
 - **The brake first.** The run asks the installation's mark once
   ([Mark the installation before the first deletion](#mark-the-installation-before-the-first-deletion)).
   Where the database is not marked, or is marked as another installation, nothing begins — no
@@ -2547,8 +2551,10 @@ run asks again.
   (`409 TENANT_DELETION_BEGUN`), though lifting a suspension that stands is still the operator's; no
   download of its export is recorded or handed out, not even one produced or streamed before the
   deletion began (`409 TENANT_DELETION_BEGUN`); no invoice records or lifts a reason on it, the
-  quarter-hourly run's nor a settling payment's (`SC-PRIV-025`, `SC-PRIC-104`); and no reminder goes
-  to it. `TENANT_DELETION_BEGUN` is audited.
+  quarter-hourly run's nor a settling payment's (`SC-PRIV-025`, `SC-PRIC-104`); no reminder goes to
+  it; and its subscriber is joined to no other until the deletion closes
+  (`409 SUBSCRIBER_JOIN_DELETION_UNDER_WAY`), since the deletion keeps its record with that
+  subscriber and counts its commercial record after every store. `TENANT_DELETION_BEGUN` is audited.
 - **Every store counts, then each erases in turn**, the guard after each. A step that fails is
   recorded with the step, the store and a code — the error's own `code`, or its name, and never its
   message, which may name anybody; the stack goes to the server log alone. The next run goes on

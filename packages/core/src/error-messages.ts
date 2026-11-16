@@ -477,6 +477,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         "Subscriber {customerNumber} has no live tenant, and a join brings a returning customer's new tenant to the subscriber it had.",
     SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT:
         'Subscriber {customerNumber} still has a live tenant ({tenantId}), and a subscriber has at most one. Where the application deleted that tenant, it closes the link first.',
+    SUBSCRIBER_JOIN_DELETION_UNDER_WAY:
+        'A tenant of subscriber {customerNumber} is being deleted. The subscriber can be joined once that deletion has closed.',
     SUBSCRIBER_JOIN_PREVIEW_CHANGED:
         'What the join would do changed since it was shown. Look at it again before joining.',
     SUBSCRIBER_JOINED:

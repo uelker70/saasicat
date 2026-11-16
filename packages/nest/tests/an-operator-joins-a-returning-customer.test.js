@@ -365,6 +365,76 @@ describe('a join is refused', () => {
     });
 });
 
+/** Begins the deletion of a tenant of the subscriber `slug` names, as the deletion run does. */
+function deletionBegun(admin, slug, tenantId = `t-${slug}-old`) {
+    return admin.tenantDeletions.begin({
+        tenantId,
+        subscriberId: admin.idOf(slug),
+        subscriptionId: `sub-${tenantId}`,
+        subscriptionEndId: `end-${tenantId}`,
+        deletesOn: '2026-11-30',
+        exportOfferedFrom: new Date('2026-10-31T00:00:00.000Z'),
+        exportBlockedBySuspension: false,
+        keep: [],
+        startedAt: new Date('2026-11-29T23:00:00.000Z'),
+        stores: [{ store: 'data', position: 0 }],
+    });
+}
+
+// @requirement SC-PRIV-018 — A tenant's deletion can safely run again, and is done only once every store confirms
+describe("a join while a deletion of either subscriber's tenants is under way", () => {
+    test('is refused into a subscriber whose tenant is being deleted, naming it, and nothing moves', async () => {
+        const admin = await anAdministration();
+        await deletionBegun(admin, 'fabrikam');
+        const fabrikam = await admin.record('fabrikam');
+
+        await assert.rejects(
+            admin.join('wien', 'fabrikam'),
+            refusedWith('SUBSCRIBER_JOIN_DELETION_UNDER_WAY', {
+                customerNumber: fabrikam.subscriber.customerNumber,
+            }),
+        );
+        await assert.rejects(
+            admin.preview('wien', 'fabrikam'),
+            refusedWith('SUBSCRIBER_JOIN_DELETION_UNDER_WAY'),
+        );
+        assert.equal((await admin.record('wien')).joins.into, null, 'the join was written');
+        assert.deepEqual(admin.auditedActions(), []);
+    });
+
+    test('is refused from a subscriber whose tenant is being deleted, naming it', async () => {
+        const admin = await anAdministration();
+        await deletionBegun(admin, 'wien', 't-wien');
+        const wien = await admin.record('wien');
+
+        await assert.rejects(
+            admin.join('wien', 'fabrikam'),
+            refusedWith('SUBSCRIBER_JOIN_DELETION_UNDER_WAY', {
+                customerNumber: wien.subscriber.customerNumber,
+            }),
+        );
+    });
+
+    test('is made once that deletion has closed', async () => {
+        const admin = await anAdministration();
+        const begun = await deletionBegun(admin, 'fabrikam');
+        await admin.tenantDeletions.close(begun.id, new Date('2026-11-30T09:00:00.000Z'));
+
+        await admin.join('wien', 'fabrikam');
+
+        assert.deepEqual(admin.auditedActions(), ['SUBSCRIBER_JOINED']);
+    });
+
+    test("is made where only an unrelated subscriber's tenant is being deleted", async () => {
+        const admin = await anAdministration();
+        await deletionBegun(admin, 'northwind');
+
+        await admin.join('wien', 'fabrikam');
+
+        assert.deepEqual(admin.auditedActions(), ['SUBSCRIBER_JOINED']);
+    });
+});
+
 // @requirement SC-ADM-049 — A join is shown before it is made, and held to what was shown
 describe('a subscriber joined', () => {
     test('takes no correction of its identity or its business status', async () => {

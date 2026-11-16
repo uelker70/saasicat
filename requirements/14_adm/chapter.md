@@ -1554,6 +1554,11 @@ _Tested by:_
         - for a subscriber joined already, either way
         - for a subscriber nobody keeps
         - where what it would do changed since the preview, with the preview as it stands
+    - a join while a deletion of either subscriber's tenants is under way
+        - is refused into a subscriber whose tenant is being deleted, naming it, and nothing moves
+        - is refused from a subscriber whose tenant is being deleted, naming it
+        - is made once that deletion has closed
+        - is made where only an unrelated subscriber's tenant is being deleted
     - a subscriber joined
         - takes no correction of its identity or its business status
     - a payment method confirmed on a form opened before the join

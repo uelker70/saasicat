@@ -5156,9 +5156,18 @@ day, is in [Erase a tenant's stores](wire-the-backend.md#erase-a-tenants-stores)
   download of its export is recorded, not even one your port produced or your application streamed
   before the deletion began: both answer `409 TENANT_DELETION_BEGUN`, a new code a client of your
   own, or your call of `recordDelivered`, may meet; lifting a suspension that stands still works. No
-  invoice records or lifts a reason on it, and no reminder goes to it (`SC-PRIV-025`). When it
+  invoice records or lifts a reason on it, and no reminder goes to it (`SC-PRIV-025`). Its
+  subscriber is joined to no other until the deletion closes, either way: the join answers
+  `409 SUBSCRIBER_JOIN_DELETION_UNDER_WAY`, and `<app> subscribers join` exits with 6. When it
   closes, the rows the platform keeps of it name roles instead of persons, its reasons lose their
   notes, its notices their recipients, and every reason still open but the deletion's own is lifted.
+- **A tenant under contract again is not deleted.** Where a contract of the tenant is in force at
+  the end that made it due, or begins after it — one a checkout offer concluded since, say — the
+  run does not begin its deletion, writes nothing and says so in the server log (`SC-PRIV-026`).
+  `TenantDeletionService` reads the contracts through `SubscriptionContractRepository`, which
+  `SaaSiCatModule` hands it; `TenantBillingModule` wired by hand takes it from its
+  `subscriptionContractRepository` or `contractFreeze`, and without either reads no contract. Code
+  that builds the service itself passes the repository last.
 - **The audit log** gains `TENANT_DELETION_BEGUN`, `TENANT_DELETION_CLOSED` and
   `TENANT_DELETION_HALTED`, written as the run `job:platform:tenant-deletions`, with the tenant.
   Your data eraser erases the first with the tenant's other entries

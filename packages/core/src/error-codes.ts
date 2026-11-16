@@ -959,6 +959,13 @@ export const SUBSCRIBER_ERROR_CODES = {
      */
     SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT: 'SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT',
     /**
+     * A deletion of one of the subscriber's tenants has begun and not closed:
+     * the deletion keeps its record with that subscriber and counts the
+     * subscriber's commercial record after every store, which a join would
+     * move away from under it. Carries `customerNumber`.
+     */
+    SUBSCRIBER_JOIN_DELETION_UNDER_WAY: 'SUBSCRIBER_JOIN_DELETION_UNDER_WAY',
+    /**
      * What the join would do changed since the preview the operator confirmed.
      * Carries the new `preview`.
      */
@@ -1125,10 +1132,12 @@ export const TENANT_ACCESS_ERROR_CODES = {
     /** The tenant is not suspended, so there is nothing to reactivate. */
     TENANT_NOT_SUSPENDED: 'TENANT_NOT_SUSPENDED',
     /**
-     * The tenant's deletion has begun, so it is not suspended (`409`): the
-     * deletion holds it back more strictly than a suspension would, and
-     * nothing but the deletion's close changes its reasons from then on
-     * (`SC-PRIV-025`).
+     * The tenant's deletion has begun (`409`), so it is not suspended — the
+     * deletion holds it back more strictly than a suspension would, and from
+     * then on only the deletion changes its reasons, but for the operator
+     * lifting a suspension that stands (`SC-PRIV-025`) — and no download of
+     * its export is recorded, since its close names no person in the rows
+     * that outlive the tenant (`SC-PRIV-023`).
      */
     TENANT_DELETION_BEGUN: 'TENANT_DELETION_BEGUN',
     /**

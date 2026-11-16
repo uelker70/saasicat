@@ -290,9 +290,10 @@ export class TenantAccessService {
      * row is written whichever frame the caller is in.
      *
      * Refused with `TENANT_DELETION_BEGUN` once the tenant's deletion has
-     * begun: the deletion already holds it back more strictly, and nothing
-     * but the deletion's close changes its reasons from then on, so none is
-     * left open, or naming a person, after the tenant is gone (`SC-PRIV-025`).
+     * begun: the deletion already holds it back more strictly, and from then
+     * on only the deletion changes its reasons, but for the operator lifting
+     * a suspension that stands, so none is left open, or naming a person,
+     * after the tenant is gone (`SC-PRIV-025`).
      */
     async suspend(
         tenantId: string,
