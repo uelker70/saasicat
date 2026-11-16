@@ -165,6 +165,8 @@ export class CliContextService {
         entityId: string;
         action: string;
         changes?: Record<string, unknown>;
+        /** The tenant the command acts in, as `AuditPort.write` takes it. */
+        tenantId?: string;
     }): Promise<void> {
         const actor: AdminActor = this.audit.fromCli({
             id: input.userId,
@@ -176,6 +178,7 @@ export class CliContextService {
             entityId: input.entityId,
             action: input.action,
             changes: input.changes,
+            tenantId: input.tenantId,
         });
     }
 

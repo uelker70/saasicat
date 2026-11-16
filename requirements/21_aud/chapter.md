@@ -80,6 +80,11 @@ _Source:_ #519 · #338 (decided 2026-11-15)
 
 _Tested by:_
 
+- `packages/cli/tests/the-user-command-names-the-tenant-it-acts-in.test.js`
+    - the user command names a tenant only where it acts in one
+        - a new administrator given to a tenant names the tenant the application answered with
+        - a password reset of a person found by e-mail address names no tenant
+        - a deactivation of a person found by e-mail address names no tenant
 - `packages/nest/tests/a-cancellation-announces-the-day-its-data-is-deleted.test.js`
     - confirming a cancellation
         - records exactly the days the account stated, and the answer, the audit entry and the

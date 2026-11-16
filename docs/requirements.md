@@ -25642,13 +25642,16 @@ _Tested by:_
 ### SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
 
 🟢 🔒 An entry names the tenant where somebody acts in it — on the tenant's own routes, its users
-changing the plan, ending an add-on, taking the export or paying what is open — and where what the
-tenant runs on changes, whoever changed it: its subscription, its add-ons, its contract, its
-suspension. It names none where it records an act on no tenant, and none where the operator or a run
-acts on the subscriber's commercial record, which outlives the tenant: a payment recorded, an
-invoice held, a credit paid out, an archived file checked or held, a collection run. The
-application's data eraser finds a tenant's entries by that name and deletes them before the tenant
-(`SC-PRIV-022`). An entry written before SaaSiCat named the tenant on entries keeps naming none.
+changing the plan, ending an add-on, taking the export or paying what is open, the operator giving
+it a new administrator with `user reassign-admin` — and where what the tenant runs on changes,
+whoever changed it: its subscription, its add-ons, its contract, its suspension. It names none where
+it records an act on no tenant; none where the operator acts on a person found by e-mail address — a
+password reset, a deactivation — because one person may belong to several tenants; and none where
+the operator or a run acts on the subscriber's commercial record, which outlives the tenant: a
+payment recorded, an invoice held, a credit paid out, an archived file checked or held, a collection
+run. The application's data eraser finds a tenant's entries by that name and deletes them before the
+tenant (`SC-PRIV-022`). An entry written before SaaSiCat named the tenant on entries keeps naming
+none.
 
 _Source:_ #519 · #338 (decided 2026-11-15)
 
@@ -25656,6 +25659,11 @@ _Source:_ #519 · #338 (decided 2026-11-15)
 
 _Tested by:_
 
+- `packages/cli/tests/the-user-command-names-the-tenant-it-acts-in.test.js`
+    - the user command names a tenant only where it acts in one
+        - a new administrator given to a tenant names the tenant the application answered with
+        - a password reset of a person found by e-mail address names no tenant
+        - a deactivation of a person found by e-mail address names no tenant
 - `packages/nest/tests/a-cancellation-announces-the-day-its-data-is-deleted.test.js`
     - confirming a cancellation
         - records exactly the days the account stated, and the answer, the audit entry and the

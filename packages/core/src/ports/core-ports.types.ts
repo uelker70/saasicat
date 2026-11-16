@@ -84,6 +84,12 @@ export interface CreateSuperAdminCliInput {
 
 export interface ReassignTenantAdminCliResult {
     user: PlatformUserDto;
+    /**
+     * The tenant whose administrator this is. The command's audit entry names
+     * it, so the tenant's deletion takes that entry, and the e-mail address it
+     * records, along (`SC-AUD-021`, `SC-PRIV-022`).
+     */
+    tenantId: string;
     /** true if a new emergency admin was created (instead of a promotion). */
     created: boolean;
     /** Previous role on promotion; null on new creation. */

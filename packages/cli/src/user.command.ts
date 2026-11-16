@@ -149,6 +149,7 @@ export class UserCommands extends CommandRunner {
                 reason: flags.reason,
                 emergency: true,
             },
+            tenantId: result.tenantId,
         });
 
         if (result.created) {
