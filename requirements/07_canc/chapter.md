@@ -762,6 +762,8 @@ _Tested by:_
           day
         - a reason held for another of the tenant's subscriptions does not hold this end
         - of two ends holding one tenant, only the one that ended last is reminded of, with its day
+        - a tenant whose contract runs past the end that decides it is reminded of nothing; one
+          without such a contract is
         - without the reasons kept, no end holds its tenant, none is deleted, and none is reminded
     - a reminder another run still holds
         - holds back the smaller lead time, so no second e-mail goes out alongside it

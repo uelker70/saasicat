@@ -11,6 +11,7 @@ import {
     FakeTenantAccessHoldRepository,
     FakeTenantDeletionRepository,
 } from '../../dist/testing/index.js';
+import { partiesNamed } from './contract-parties.js';
 import { THIS_INSTALLATION, aKeepReport } from './installation-mark.js';
 import { noticeRecord } from './version-notices.js';
 
@@ -300,3 +301,28 @@ export async function endedAt(
 /** The deletion record of `tenantId`, as the store keeps it. */
 export const recordOf = (run, tenantId) =>
     run.records.deletions.find((deletion) => deletion.tenantId === tenantId);
+
+/**
+ * Concludes a contract for `tenantId` in `run.contracts`, in force from
+ * `effectiveFrom`, until `effectiveUntil` where given, with `status`.
+ */
+export function contracted(run, tenantId, effectiveFrom, effectiveUntil = null, status = 'active') {
+    return run.contracts.create({
+        tenantId,
+        status,
+        effectiveFrom,
+        effectiveUntil,
+        priceSnapshot: {
+            currency: 'EUR',
+            billingCycle: 'monthly',
+            subtotalNet: 49,
+            discountNet: 0,
+            totalNet: 49,
+            vatRate: 19,
+            totalGross: 58.31,
+        },
+        entitlementSnapshot: { plan: 'STANDARD', quotas: {}, features: [] },
+        lineItems: [],
+        parties: partiesNamed('Tenant One GmbH'),
+    });
+}

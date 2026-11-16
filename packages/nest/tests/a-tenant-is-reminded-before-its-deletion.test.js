@@ -20,10 +20,12 @@ import {
     DeletionReminderService,
     SubscriptionEndCron,
     SubscriptionEndService,
+    TenantDeletionService,
     VersionNoticeCron,
 } from '../dist/billing/index.js';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import {
+    FakeSubscriptionContractRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
@@ -35,6 +37,7 @@ import {
     quietLog,
 } from './helpers/invoice-collection.js';
 import { bootable, everythingOnOptions } from './helpers/operator-routes.js';
+import { contracted } from './helpers/tenant-deletion.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
 const BERLIN = { timeZone: 'Europe/Berlin' };
@@ -129,8 +132,18 @@ function runOver({
     settings = BERLIN,
     keep = keepReport(),
     holds = holdsBeside(ends),
+    contracts = null,
 } = {}) {
-    const run = { ends, notices, port, keep, holds, bypassed: 0, acrossTenants: false };
+    const run = {
+        ends,
+        notices,
+        port,
+        keep,
+        holds,
+        contracts,
+        bypassed: 0,
+        acrossTenants: false,
+    };
     const bypass = {
         runWithBypass: async (work) => {
             run.bypassed += 1;
@@ -143,7 +156,17 @@ function runOver({
         },
     };
     run.service = quietly(
-        new DeletionReminderService(ends, notices, port, period, settings, keep, bypass, holds),
+        new DeletionReminderService(
+            ends,
+            notices,
+            port,
+            period,
+            settings,
+            keep,
+            bypass,
+            holds,
+            contracts,
+        ),
     );
     return run;
 }
@@ -481,6 +504,22 @@ describe('an end the deletion no longer waits for', () => {
             })),
             [{ subscriptionEndId: later.id, deletesOn: '2027-02-09' }],
         );
+    });
+
+    test('a tenant whose contract runs past the end that decides it is reminded of nothing; one without such a contract is', async () => {
+        const run = runOver({ contracts: new FakeSubscriptionContractRepository() });
+        await anEnd(run.ends, { tenantId: 't-contracted' });
+        await anEnd(run.ends, { tenantId: 't-waiting' });
+        await contracted(run, 't-contracted', inBerlin('2027-01-01', '12:00'));
+        // The contract the end closed, ending with it, holds nothing.
+        await contracted(run, 't-waiting', inBerlin('2026-01-01'), inBerlin('2026-12-31', '23:59'));
+
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-02', '00:15')), {
+            told: 1,
+            failed: 0,
+        });
+        assert.deepEqual(tenantsSent(run.port), ['t-waiting']);
+        assert.deepEqual(run.keep.asked, ['t-waiting']);
     });
 
     test('without the reasons kept, no end holds its tenant, none is deleted, and none is reminded', async () => {
@@ -991,8 +1030,15 @@ async function platformOver({
 }) {
     const options = everythingOnOptions();
     const subscriptionEnds = options.tenantBilling.subscriptionEnds;
+    // A store the reminders can ask whether a contract runs past an end, as
+    // the deletion run asks it; the stub of the options answers nothing.
+    const contracts = new FakeSubscriptionContractRepository();
     const tenantBilling = {
         ...options.tenantBilling,
+        contractFreeze: {
+            ...options.tenantBilling.contractFreeze,
+            subscriptionContractRepository: contracts,
+        },
         notices: { port, record },
         subscriptionEnds: {
             ...subscriptionEnds,
@@ -1013,6 +1059,7 @@ async function platformOver({
         tenantBilling,
     });
     composed.persistence.core.rlsBypass = { runWithBypass: (work) => work() };
+    composed.persistence.entitlement.subscriptionContractRepository = contracts;
     composed.persistence.core.subscriptionEnds = new FakeSubscriptionEndRepository();
     composed.persistence.core.tenantAccessHolds = holds ?? new FakeTenantAccessHoldRepository();
     composed.persistence.tenantBilling.subscriptionUsagePort = {
@@ -1087,6 +1134,10 @@ describe('the reminders, as the platform wires them', () => {
         const scheduled = await platformOver({ port: sendingPort(), record: noticeRecord() });
         const reminders = find(scheduled, DeletionReminderService);
         assert.ok(reminders instanceof DeletionReminderService);
+        // Asks the contracts the deletion run asks, so a contract that holds
+        // the deletion holds its reminders too.
+        assert.ok(reminders.contracts);
+        assert.equal(reminders.contracts, find(scheduled, TenantDeletionService)?.contracts);
         assert.equal(find(scheduled, SubscriptionEndCron)?.reminders, reminders);
         await scheduled.close();
 

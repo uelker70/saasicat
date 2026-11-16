@@ -61,9 +61,7 @@ import {
     type PlanCatalogSettings,
     type RlsBypassPort,
     type SubscriberRepository,
-    type SubscriptionContractRecord,
     type SubscriptionContractRepository,
-    type SubscriptionEnd,
     type SubscriptionEndPort,
     type SubscriptionNoticeRepository,
     type TenantAccessHold,
@@ -82,7 +80,7 @@ import { AdminAuditService, platformJobActor } from '../../admin/admin-audit.ser
 import { readAcrossTenants } from '../../admin/read-across-tenants.js';
 import { TimeoutError, withTimeout } from '../../core/with-timeout.js';
 import { actorTagOf } from '../../core/web-audit.js';
-import { contractRunsFrom } from '../../subscription-contract/contract-runs-from.js';
+import { contractRunningPast } from '../../subscription-contract/contract-runs-from.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../../subscription-contract/subscription-contract.tokens.js';
 import { referencesOf } from '../../tenant-access/hold-references.js';
 import { TENANT_ACCESS_HOLDS_TOKEN } from '../../tenant-access/tenant-access.tokens.js';
@@ -393,7 +391,10 @@ export class TenantDeletionService implements OnModuleInit {
             end.endsAt,
             now,
         );
-        const running = await this.contractRunningAfter(end);
+        // Read last before the transaction that begins the deletion, as close
+        // to it as the store allows: the contracts are read through no
+        // transaction of the deletion's.
+        const running = await contractRunningPast(this.contracts, end);
         if (running) {
             this.logger.warn(
                 `Tenant ${end.tenantId} is due for deletion, but its contract ${running.id} runs ` +
@@ -436,21 +437,6 @@ export class TenantDeletionService implements OnModuleInit {
             );
             return record;
         });
-    }
-
-    /**
-     * A contract of the tenant in force at its end or beginning after it, or
-     * null where none is: the contract the end closed stops at it. Read last
-     * before the transaction that begins the deletion, as close to it as the
-     * store allows, since the contracts are read through no transaction of
-     * the deletion's.
-     */
-    private async contractRunningAfter(
-        end: SubscriptionEnd,
-    ): Promise<SubscriptionContractRecord | null> {
-        if (!this.contracts) return null;
-        const contracts = await this.contracts.list({ tenantId: end.tenantId });
-        return contracts.find((contract) => contractRunsFrom(contract, end.endsAt)) ?? null;
     }
 
     /**

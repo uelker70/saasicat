@@ -23,7 +23,10 @@
 // the warning. An end whose reason was lifted, or that a later one overtook,
 // is reminded of nothing, since its tenant is not deleted on its day, and
 // neither is a tenant whose deletion is under way: once `deleting` holds it
-// there is nothing left to warn of.
+// there is nothing left to warn of. Nor is a tenant with a contract running
+// past the end that decides it, which the deletion run holds
+// (`SC-PRIV-026`): its contracts are read once a lead time is due, as the
+// deletion reads them, through `contractRunningPast`.
 // Where nothing keeps the reasons — tenant billing wired by hand without
 // `SaaSiCatModule` — no end holds its tenant, none is deleted, and none is
 // reminded.
@@ -53,6 +56,7 @@ import {
     type EndOfSubscriptionSettings,
     type PlanCatalogSettings,
     type RlsBypassPort,
+    type SubscriptionContractRepository,
     type SubscriptionEnd,
     type SubscriptionEndPort,
     type SubscriptionNoticePort,
@@ -66,6 +70,8 @@ import {
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { withTimeout } from '../core/with-timeout.js';
+import { contractRunningPast } from '../subscription-contract/contract-runs-from.js';
+import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import { referencesOf } from '../tenant-access/hold-references.js';
 import { TENANT_ACCESS_HOLDS_TOKEN } from '../tenant-access/tenant-access.tokens.js';
 import { decidingEnds } from './deciding-end.js';
@@ -134,6 +140,11 @@ export class DeletionReminderService {
         @Optional()
         @Inject(TENANT_ACCESS_HOLDS_TOKEN)
         private readonly holds: TenantAccessHoldPort | null = null,
+        // Absent where the installation keeps no contracts, as for the
+        // deletion run, which no contract then holds either.
+        @Optional()
+        @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
+        private readonly contracts: Pick<SubscriptionContractRepository, 'list'> | null = null,
     ) {
         // A reminder told to nobody is not tried again: a read-only tenant
         // cannot add an administrator, so a retry would reach nobody again.
@@ -213,9 +224,9 @@ export class DeletionReminderService {
 
     /**
      * Sends `end` the reminder due today. One that cannot be put together —
-     * the application's report of what the tenant keeps included — fails for
-     * this end alone, as one the application could not send does, and the
-     * next run tries again.
+     * the read of the tenant's contracts and the application's report of what
+     * it keeps included — fails for this end alone, as one the application
+     * could not send does, and the next run tries again.
      */
     private async remind(
         end: SubscriptionEnd,
@@ -301,6 +312,9 @@ export class DeletionReminderService {
             today,
         });
         if (daysBefore === null) return null;
+        // The deletion run holds a tenant whose contract runs past its end
+        // (`SC-PRIV-026`); a reminder would tell it of a day it is not deleted on.
+        if (await contractRunningPast(this.contracts, end)) return null;
         const keep = await this.keptBy(end.tenantId);
         return {
             kind: KIND,

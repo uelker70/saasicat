@@ -19,13 +19,13 @@ import {
 } from '../dist/billing/index.js';
 import { TenantAccessService } from '../dist/index.js';
 import { FakeInstallationMarkRepository } from '../dist/testing/index.js';
-import { partiesNamed } from './helpers/contract-parties.js';
 import { THIS_INSTALLATION } from './helpers/installation-mark.js';
 import {
     DAY,
     ENDED_AT,
     aDatabase,
     aQuietLogger,
+    contracted,
     ended,
     endedAt,
     recordOf,
@@ -131,31 +131,6 @@ describe('a tenant whose subscription ended', () => {
         assert.deepEqual(await openKinds(run, 't1'), ['ended']);
     });
 });
-
-/**
- * Concludes a contract for `tenantId` in force from `effectiveFrom`, until
- * `effectiveUntil` where given, with `status`.
- */
-function contracted(run, tenantId, effectiveFrom, effectiveUntil = null, status = 'active') {
-    return run.contracts.create({
-        tenantId,
-        status,
-        effectiveFrom,
-        effectiveUntil,
-        priceSnapshot: {
-            currency: 'EUR',
-            billingCycle: 'monthly',
-            subtotalNet: 49,
-            discountNet: 0,
-            totalNet: 49,
-            vatRate: 19,
-            totalGross: 58.31,
-        },
-        entitlementSnapshot: { plan: 'STANDARD', quotas: {}, features: [] },
-        lineItems: [],
-        parties: partiesNamed('Tenant One GmbH'),
-    });
-}
 
 // @requirement SC-PRIV-026 — A tenant is not deleted while a contract of it runs past the end that made it due
 describe('a tenant whose contract runs past the end that made it due', () => {
