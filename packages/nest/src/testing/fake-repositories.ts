@@ -1280,12 +1280,15 @@ type MutableDeletion = {
  * In-memory `TenantDeletionRecordPort` for tests: one record per tenant, as
  * the unique key holds it in the database, claims that hold until they go
  * stale, and counts and confirmations recorded once. What the commercial
- * record counts is the test's to say through `commercialRecord`; a
+ * record counts is the test's to say through `commercialRecord`, which may
+ * count the test's own in-memory stores; none at all unless it says. A
  * transaction is the caller's, so nothing here rolls back.
  */
 export class FakeTenantDeletionRepository implements TenantDeletionRecordPort {
     readonly deletions: MutableDeletion[] = [];
-    commercialRecord: (subscriberId: string) => CommercialRecordCounts = () => ({
+    commercialRecord: (
+        subscriberId: string,
+    ) => CommercialRecordCounts | Promise<CommercialRecordCounts> = () => ({
         ...NO_COMMERCIAL_RECORD,
     });
     private nextId = 1;

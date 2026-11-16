@@ -325,7 +325,10 @@ export interface TenantDeletionRecord {
     readonly keep: readonly TenantKeepLine[];
     /** The subscriber's commercial record before the first store erased. */
     readonly commercialBefore: CommercialRecordCounts | null;
-    /** The subscriber's commercial record as the deletion closed. */
+    /**
+     * The subscriber's commercial record as the deletion closed, or as it was
+     * found short where a store took part of it along.
+     */
     readonly commercialAfter: CommercialRecordCounts | null;
     readonly startedAt: Date;
     /** When the run that holds it took it on; null where none holds it. */

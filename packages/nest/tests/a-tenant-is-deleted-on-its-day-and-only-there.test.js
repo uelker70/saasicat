@@ -4,10 +4,8 @@
 // order, and once — however often it is repeated, broken off or run twice at
 // once (`SC-PRIV-018`).
 //
-// The service runs over the in-memory ports the platform ships for tests. The
-// two writes a deletion begins with are kept here in a transaction that takes
-// back what was written in it where it fails, as a database does; a write made
-// outside it stays.
+// The service runs over the in-memory ports the platform ships for tests,
+// whose transactions take back what was written in them where they fail.
 
 import { afterEach, describe, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,192 +15,28 @@ import { Reflector } from '@nestjs/core';
 import {
     DELETION_CLAIM_LEASE_MS,
     DELETION_STEP_TIMEOUT_MS,
-    InstallationMarkService,
     SubscriptionEndCron,
-    TenantDeletionService,
 } from '../dist/billing/index.js';
 import { TenantAccessService } from '../dist/index.js';
+import { FakeInstallationMarkRepository } from '../dist/testing/index.js';
+import { THIS_INSTALLATION } from './helpers/installation-mark.js';
 import {
-    FakeInstallationMarkRepository,
-    FakeSubscriptionEndRepository,
-    FakeTenantAccessHoldRepository,
-    FakeTenantDeletionRepository,
-} from '../dist/testing/index.js';
-import { THIS_INSTALLATION, aKeepReport } from './helpers/installation-mark.js';
+    DAY,
+    ENDED_AT,
+    aDatabase,
+    aQuietLogger,
+    ended,
+    recordOf,
+    setUp,
+} from './helpers/tenant-deletion.js';
 
-const ZONE = { timeZone: 'Europe/Berlin' };
-const ENDED_AT = new Date('2026-10-31T12:00:00.000Z');
-const DELETES_ON = '2026-12-01';
-/** The last second of 30 November in Berlin, and the first of 1 December. */
+/** The last second of 30 November in Berlin, before the deletion day. */
 const EVE = new Date('2026-11-30T22:59:59.000Z');
-const DAY = new Date('2026-11-30T23:00:00.000Z');
-const RUN = 'job:platform:subscription-ends';
-
-/** Reasons that a failed transaction takes back where they were written in it. */
-class TransactionalHolds extends FakeTenantAccessHoldRepository {
-    async record(hold, tx) {
-        const recorded = await super.record(hold);
-        if (recorded && tx) {
-            tx.undo.push(() =>
-                this.holds.splice(
-                    this.holds.findIndex((h) => h.id === recorded.id),
-                    1,
-                ),
-            );
-        }
-        return recorded;
-    }
-}
-
-/** Deletions that a failed transaction takes back where they were begun in it. */
-class TransactionalDeletions extends FakeTenantDeletionRepository {
-    async begin(record, tx) {
-        const begun = await super.begin(record);
-        if (begun && tx) {
-            tx.undo.push(() =>
-                this.deletions.splice(
-                    this.deletions.findIndex((d) => d.id === begun.id),
-                    1,
-                ),
-            );
-        }
-        return begun;
-    }
-}
-
-/** A runner whose transaction takes back what was written in it where it fails; `failNext` fails one. */
-function aTransactionRunner() {
-    const runner = {
-        failNext: false,
-        async run(work) {
-            const tx = { undo: [] };
-            try {
-                const result = await work(tx);
-                if (runner.failNext) {
-                    runner.failNext = false;
-                    throw new Error('the transaction failed');
-                }
-                return result;
-            } catch (error) {
-                for (const undo of tx.undo.reverse()) undo();
-                throw error;
-            }
-        },
-    };
-    return runner;
-}
-
-/**
- * Stores named `names` that note each call in `calls`. Each counts 12 notes
- * until it erased, and nothing after; `answers` replaces a store's `count` or
- * `erase` with its own.
- */
-function storesNoting(calls, names, answers = {}) {
-    return names.map((name) => {
-        let erased = false;
-        return {
-            name,
-            async count(tenantId) {
-                calls.push(`${name}.count:${tenantId}`);
-                if (answers[name]?.count) return answers[name].count();
-                return erased ? [] : [{ category: 'notes', count: 12 }];
-            },
-            async erase(tenantId) {
-                calls.push(`${name}.erase:${tenantId}`);
-                erased = true;
-                if (answers[name]?.erase) await answers[name].erase();
-            },
-        };
-    });
-}
-
-/** A logger that keeps what it is told, by level. */
-function aQuietLogger() {
-    const said = { log: [], warn: [], error: [] };
-    return {
-        said,
-        log: (message) => said.log.push(message),
-        warn: (message) => said.warn.push(message),
-        error: (message) => said.error.push(message),
-    };
-}
-
-/**
- * The run over in-memory ports, the database marked as this installation's
- * unless `marked` says otherwise, every tenant with a subscriber unless
- * `subscribers` says otherwise. `shared` hands it another run's ports, as a
- * second instance over the same database.
- */
-async function setUp({
-    erasers,
-    names = ['files', 'data'],
-    answers,
-    marked = THIS_INSTALLATION,
-    keep = aKeepReport(),
-    subscribers = { findByTenantId: async (tenantId) => ({ id: `subscriber-${tenantId}` }) },
-    shared,
-} = {}) {
-    const calls = [];
-    const ports = shared ?? {
-        holds: new TransactionalHolds(),
-        ends: new FakeSubscriptionEndRepository(),
-        records: new TransactionalDeletions(),
-        marks: new FakeInstallationMarkRepository(),
-        transactions: aTransactionRunner(),
-    };
-    if (!shared && marked) {
-        await ports.marks.markIfUnmarked({
-            identifier: marked,
-            markedAt: ENDED_AT,
-            markedBy: 'cli:ops',
-        });
-    }
-    const service = new TenantDeletionService(
-        erasers ?? storesNoting(calls, names, answers),
-        keep,
-        ports.records,
-        subscribers,
-        ports.transactions,
-        ports.ends,
-        new InstallationMarkService(ports.marks, THIS_INSTALLATION, null),
-        ZONE,
-        ports.holds,
-        null,
-        null,
-    );
-    const logger = aQuietLogger();
-    service.logger = logger;
-    service.onModuleInit();
-    return { ...ports, ports, service, calls, said: logger.said };
-}
-
-/** Ends the subscription of `tenantId` with its deletion day, holding the tenant to reading. */
-async function ended(run, tenantId, deletesOn = DELETES_ON) {
-    const subscriptionId = `subscription-${tenantId}`;
-    await run.holds.record({
-        tenantId,
-        kind: 'ended',
-        reference: subscriptionId,
-        note: null,
-        since: ENDED_AT,
-        recordedBy: RUN,
-    });
-    return run.ends.record({
-        tenantId,
-        subscriptionId,
-        endsAt: ENDED_AT,
-        deletesOn,
-        recordedAt: ENDED_AT,
-        recordedBy: RUN,
-    });
-}
 
 /** The open reasons of `tenantId`, by kind. */
 async function openKinds(run, tenantId) {
     return (await run.holds.listOpen(tenantId)).map((hold) => hold.kind).sort();
 }
-
-const recordOf = (run, tenantId) => run.records.deletions.find((d) => d.tenantId === tenantId);
 
 afterEach(() => mock.timers.reset());
 
@@ -333,13 +167,7 @@ describe('the installation mark in front of the run', () => {
                         }),
                 },
             },
-            shared: {
-                holds: new TransactionalHolds(),
-                ends: new FakeSubscriptionEndRepository(),
-                records: new TransactionalDeletions(),
-                marks,
-                transactions: aTransactionRunner(),
-            },
+            shared: { ...aDatabase(), marks },
         });
         await marks.markIfUnmarked({
             identifier: THIS_INSTALLATION,

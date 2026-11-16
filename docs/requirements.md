@@ -25034,6 +25034,21 @@ for as long as they have to be.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/what-the-subscriber-keeps-outlives-the-deletion.test.js`
+    - the subscriber's commercial record
+        - outlives the tenant's deletion whole, and the charge not yet invoiced is invoiced after it
+        - taken by a store stops the deletion there: the record stays open and halted, naming the
+          store, and no later store erases
+        - taken by a store whose count after it failed is laid at that store on the next run, before
+          any later store erases
+        - that grew while a store erased lost nothing, and the deletion closes
+
+<!-- END proof -->
+
 ### SC-PRIV-012 — A record kept for tax purposes is not deleted automatically
 
 🟡 _(Decided, not yet delivered.)_ 💰 A retention period in configuration can be set too short,
@@ -25041,6 +25056,21 @@ and the first one runs out years from now. Removing records whose period has pas
 and deliberate addition.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/what-the-subscriber-keeps-outlives-the-deletion.test.js`
+    - the subscriber's commercial record
+        - outlives the tenant's deletion whole, and the charge not yet invoiced is invoiced after it
+        - taken by a store stops the deletion there: the record stays open and halted, naming the
+          store, and no later store erases
+        - taken by a store whose count after it failed is laid at that store on the next run, before
+          any later store erases
+        - that grew while a store erased lost nothing, and the deletion closes
+
+<!-- END proof -->
 
 ### SC-PRIV-013 — A subscriber with no live tenant and no claim left keeps only what its documents need
 
@@ -25555,6 +25585,11 @@ _Tested by:_
         - an announcement from the web is the tenant administrator
         - a download from the web is the tenant administrator
         - a tag of no known kind is read as the web, never kept
+- `packages/nest/tests/a-deleted-tenant-leaves-roles-not-persons.test.js`
+    - the rows a deleted tenant leaves
+        - name the role somebody acted in, and a notice how many it went to, never who
+        - keep who acted where the transaction that closes the deletion fails, and the next run
+          closes it
 
 <!-- END proof -->
 

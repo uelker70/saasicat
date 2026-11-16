@@ -17,7 +17,10 @@
 // which stops everybody of the tenant, the operator acting as it included, from
 // then on. Every store counts what it holds before the first one erases, and
 // those counts stand: a store counted again after it erased would count
-// nothing. A deletion outlives a run — a store may take hours, a run may stop
+// nothing. After every store that erases, the run counts the subscriber's
+// commercial record again (`SC-PRIV-011`): a store that took any of it along
+// stops the deletion there, halted until the operator acts, rather than
+// closing it. A deletion outlives a run — a store may take hours, a run may stop
 // — so a run claims the record before it works on it, renews the claim before
 // each store, and lets it go when it stops; the next run goes on after the
 // last store that confirmed, and a store asked again answers what is already
@@ -27,26 +30,34 @@
 //
 // What a failure leaves in the record is a code, never the application's
 // message: the record outlives the tenant, and a message may name anybody.
+// For the same reason, the transaction that closes a deletion has the rows
+// the platform keeps of the tenant name roles instead of persons
+// (`SC-PRIV-023`).
 //
 // Platform-wide: the reasons, the ends and the records are read across
 // tenants, and the erasers run, inside `RlsBypassPort`.
 
 import { Inject, Injectable, Logger, Optional, type OnModuleInit } from '@nestjs/common';
 import {
+    commercialRecordLost,
     dayInZone,
     installationZoneOf,
     keepLinesProblem,
     tenantCountsProblem,
     tenantIdProblem,
+    type CommercialRecordCounts,
+    type DeletionActorRole,
     type InstallationMarkVerdict,
     type PlanCatalogSettings,
     type RlsBypassPort,
     type SubscriberRepository,
     type SubscriptionEnd,
     type SubscriptionEndPort,
+    type SubscriptionNoticeRepository,
     type TenantAccessHold,
     type TenantAccessHoldPort,
     type TenantDeletionRecord,
+    type TenantDeletionRecordHalt,
     type TenantDeletionRecordPort,
     type TenantDeletionStep,
     type TenantEraser,
@@ -63,12 +74,14 @@ import { TENANT_ACCESS_HOLDS_TOKEN } from '../../tenant-access/tenant-access.tok
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
 import {
     SUBSCRIPTION_END_PORT_TOKEN,
+    SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     TENANT_DELETION_RECORD_PORT_TOKEN,
     TENANT_DELETION_SUBSCRIBERS_TOKEN,
     TENANT_DELETION_TRANSACTION_RUNNER_TOKEN,
     TENANT_ERASERS_TOKEN,
     TENANT_KEEP_REPORT_PORT_TOKEN,
 } from '../tenant-billing.tokens.js';
+import { rolesInsteadOfPersons } from './forget-persons.js';
 import { InstallationMarkService } from './installation-mark.service.js';
 import {
     erasersRefused,
@@ -92,6 +105,9 @@ export const DELETION_STEP_TIMEOUT_MS = 5 * 60 * 60_000;
 /** Who begins and closes deletions, as the audit log tags a run. */
 const TENANT_DELETION_RUN = actorTagOf(platformJobActor('tenant-deletions'));
 
+/** Who lifts the reason a deleted tenant was held to reading by, in a row that outlives it. */
+const RUN_ROLE: DeletionActorRole = 'run';
+
 /** What the audit log names a deletion under. */
 const AUDITED_ENTITY = 'TenantDeletion';
 
@@ -102,7 +118,11 @@ const FAILURE_CODE_MAX_LENGTH = 64;
 export interface TenantDeletionRun {
     /** Deletions closed in this run. */
     deleted: number;
-    /** Due, but held: the installation's mark does not let them go on, or nothing names one tenant or its subscriber. */
+    /**
+     * Due, but held: the installation's mark does not let them go on, nothing
+     * names one tenant or its subscriber, or a store took the subscriber's
+     * commercial record along.
+     */
     halted: number;
     /** Begun or continued and stopped by a failure; the next run goes on. */
     failed: number;
@@ -147,6 +167,20 @@ class HeldByTheMark extends Error {
     }
 }
 
+/** A store took part of the subscriber's commercial record along with the tenant. */
+class CommercialRecordTaken extends Error {
+    constructor(
+        /** The store that erased last before the record was found short. */
+        readonly store: string | null,
+        readonly lost: readonly (keyof CommercialRecordCounts)[],
+        readonly before: CommercialRecordCounts,
+        readonly after: CommercialRecordCounts,
+    ) {
+        super(`The store ${store ?? '(none)'} took the subscriber's ${lost.join(', ')} along.`);
+        this.name = 'CommercialRecordTaken';
+    }
+}
+
 /** Another run took the deletion on after this run's claim went stale. */
 class ClaimLost extends Error {
     constructor() {
@@ -169,6 +203,8 @@ export class TenantDeletionService implements OnModuleInit {
         @Inject(TENANT_DELETION_TRANSACTION_RUNNER_TOKEN)
         private readonly transactions: TransactionRunner,
         @Inject(SUBSCRIPTION_END_PORT_TOKEN) private readonly ends: SubscriptionEndPort,
+        @Inject(SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN)
+        private readonly notices: SubscriptionNoticeRepository,
         @Inject(InstallationMarkService) private readonly marks: InstallationMarkService,
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
         private readonly settings: Pick<PlanCatalogSettings, 'timeZone'>,
@@ -419,17 +455,24 @@ export class TenantDeletionService implements OnModuleInit {
                 await this.records.recordCounts(record.id, eraser.name, counts, new Date());
             }
             at.store = null;
-            if (record.commercialBefore === null) {
-                await this.records.recordCommercial(
-                    record.id,
-                    'before',
-                    await this.records.countCommercialRecord(record.subscriberId),
-                );
+            let before = record.commercialBefore;
+            if (before === null) {
+                before = await this.records.countCommercialRecord(record.subscriberId);
+                await this.records.recordCommercial(record.id, 'before', before);
             }
-            at.step = 'erase';
+            // The store that erased last in an earlier run: its own check may
+            // not have been made, so it is made before the next store erases,
+            // and a loss is laid at the store that caused it.
+            let lastErased = erasers.findLast((eraser) => partOf(record, eraser).erasedAt !== null);
+            let after: CommercialRecordCounts | null = null;
             for (const eraser of erasers) {
                 if (partOf(record, eraser).erasedAt !== null) continue;
-                at.store = eraser.name;
+                if (lastErased) {
+                    Object.assign(at, { step: 'guard', store: lastErased.name });
+                    await this.guard(record, lastErased.name, before);
+                    lastErased = undefined;
+                }
+                Object.assign(at, { step: 'erase', store: eraser.name });
                 await this.holdOn(claim);
                 if (tenantIdProblem(record.tenantId) !== null) {
                     throw new DeletionStepFailed(
@@ -442,10 +485,17 @@ export class TenantDeletionService implements OnModuleInit {
                 }
                 await this.ask('erase', eraser, () => eraser.erase(record.tenantId));
                 await this.records.recordErased(record.id, eraser.name, new Date());
+                at.step = 'guard';
+                after = await this.guard(record, eraser.name, before);
             }
-            at.step = 'close';
-            at.store = null;
-            return await this.close(holds, record, ended);
+            // Every store erased in an earlier run, and the last one's check
+            // may not have been made.
+            if (after === null) {
+                Object.assign(at, { step: 'guard', store: lastErased?.name ?? null });
+                after = await this.guard(record, lastErased?.name ?? null, before);
+            }
+            Object.assign(at, { step: 'close', store: null });
+            return await this.close(holds, record, ended, after);
         } catch (error) {
             return this.stopped(record, claim, error, at);
         }
@@ -502,24 +552,49 @@ export class TenantDeletionService implements OnModuleInit {
     }
 
     /**
-     * Closes the record once every store confirmed, and lifts the reason that
-     * held the tenant to reading in the same transaction; the `deleting`
-     * reason stays, since a deleted tenant never acts again.
+     * Counts the subscriber's commercial record after `store` erased, and
+     * answers the count where nothing of what was counted `before` is missing.
+     * A part that grew lost nothing: an invoice may be issued meanwhile.
+     */
+    private async guard(
+        record: TenantDeletionRecord,
+        store: string | null,
+        before: CommercialRecordCounts,
+    ): Promise<CommercialRecordCounts> {
+        const after = await this.records.countCommercialRecord(record.subscriberId);
+        const lost = commercialRecordLost(before, after);
+        if (lost.length > 0) throw new CommercialRecordTaken(store, lost, before, after);
+        return after;
+    }
+
+    /**
+     * Closes the record once every store confirmed, in one transaction with
+     * what the tenant's rows say of who acted — roles, not persons — and the
+     * lifting of the reason that held it to reading; the `deleting` reason
+     * stays, since a deleted tenant never acts again.
      */
     private async close(
         holds: TenantAccessHoldPort,
         record: TenantDeletionRecord,
         ended: TenantAccessHold,
+        after: CommercialRecordCounts,
     ): Promise<DeletionOutcome> {
-        await this.records.recordCommercial(
-            record.id,
-            'after',
-            await this.records.countCommercialRecord(record.subscriberId),
-        );
+        await this.records.recordCommercial(record.id, 'after', after);
+        const tenantId = record.tenantId;
+        const roles = rolesInsteadOfPersons({
+            holds: await holds.listAllOf(tenantId),
+            ends: await this.ends.listEndsOfTenant(tenantId),
+            announcements: await this.ends.listAnnouncedOfTenant(tenantId),
+            downloads: await this.ends.listExportDownloadsOfTenant(tenantId),
+        });
         const closed = await this.transactions.run(async (tx) => {
             const at = new Date();
             if (!(await this.records.close(record.id, at, tx))) return false;
-            await holds.lift(ended.id, at, TENANT_DELETION_RUN, tx);
+            await holds.replaceActors(roles.holds, tx);
+            await this.ends.replaceActors(roles.ends, tx);
+            await this.notices.forgetRecipients(tenantId, at, tx);
+            // After the roles: they were planned from the reason while open.
+            await holds.lift(ended.id, at, RUN_ROLE, tx);
             return true;
         });
         if (!closed) return null;
@@ -554,6 +629,11 @@ export class TenantDeletionService implements OnModuleInit {
             await this.letGo(claim);
             return 'halted';
         }
+        if (error instanceof CommercialRecordTaken) {
+            await this.haltForTheRecord(record, error);
+            await this.letGo(claim);
+            return 'halted';
+        }
         const failed =
             error instanceof DeletionStepFailed
                 ? error
@@ -580,6 +660,50 @@ export class TenantDeletionService implements OnModuleInit {
         return 'failed';
     }
 
+    /**
+     * Halts the deletion until the operator acts: a store took part of the
+     * subscriber's commercial record along, and erasing on would take more
+     * or hide which store it was.
+     */
+    private async haltForTheRecord(
+        record: TenantDeletionRecord,
+        taken: CommercialRecordTaken,
+    ): Promise<void> {
+        const counts = taken.lost
+            .map((part) => `${part} ${taken.before[part]} → ${taken.after[part]}`)
+            .join(', ');
+        this.logger.error(
+            `The deletion of tenant ${record.tenantId} is halted: after store ` +
+                `${taken.store ?? '(none)'} erased, the subscriber's commercial record is short ` +
+                `(${counts}; SC-PRIV-011). No further store erases until the operator acts.`,
+        );
+        try {
+            await this.records.recordCommercial(record.id, 'after', taken.after);
+            await this.records.recordFailure(
+                record.id,
+                {
+                    step: 'guard',
+                    store: taken.store,
+                    code: 'commercial-record-lost',
+                    at: new Date(),
+                },
+                'commercial-record-lost',
+            );
+        } catch (recording) {
+            this.logger.error(
+                `The halt of the deletion of tenant ${record.tenantId} could not be recorded; ` +
+                    'the next run finds the record short again.',
+                stackOf(recording),
+            );
+            return;
+        }
+        await this.record(record, 'TENANT_DELETION_HALTED', {
+            halt: 'commercial-record-lost',
+            store: taken.store,
+            lost: [...taken.lost],
+        });
+    }
+
     /** Lets the claim go; one that cannot be let go goes stale and is taken on then. */
     private async letGo(claim: HeldClaim): Promise<void> {
         try {
@@ -594,7 +718,15 @@ export class TenantDeletionService implements OnModuleInit {
     }
 
     /** Best effort, naming no person: the deletion stands whether or not its entry is written. */
-    private async record(record: TenantDeletionRecord, action: string): Promise<void> {
+    private async record(
+        record: TenantDeletionRecord,
+        action: string,
+        halted?: {
+            readonly halt: TenantDeletionRecordHalt;
+            readonly store: string | null;
+            readonly lost: readonly (keyof CommercialRecordCounts)[];
+        },
+    ): Promise<void> {
         if (!this.audit) return;
         try {
             await this.audit.log({
@@ -602,7 +734,11 @@ export class TenantDeletionService implements OnModuleInit {
                 entity: AUDITED_ENTITY,
                 entityId: record.id,
                 action,
-                changes: { subscriptionId: record.subscriptionId, deletesOn: record.deletesOn },
+                changes: {
+                    subscriptionId: record.subscriptionId,
+                    deletesOn: record.deletesOn,
+                    ...halted,
+                },
                 tenantId: record.tenantId,
             });
         } catch (error) {

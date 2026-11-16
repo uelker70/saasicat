@@ -105,7 +105,10 @@ export interface TenantDeletionRecordPort {
     ): Promise<void>;
     /** Records that `store` confirmed at `at`, where it has not confirmed yet. */
     recordErased(id: string, store: string, at: Date): Promise<void>;
-    /** Records the commercial record counted `before` the first store, or `after` the last. */
+    /**
+     * Records the commercial record counted `before` the first store, or
+     * `after` the last — or after the store that took part of it along.
+     */
     recordCommercial(
         id: string,
         which: 'before' | 'after',
