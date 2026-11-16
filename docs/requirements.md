@@ -8210,6 +8210,7 @@ _Tested by:_
         - an end whose reason was lifted is reminded of nothing: its tenant is not deleted on that
           day
         - a reason held for another of the tenant's subscriptions does not hold this end
+        - of two ends holding one tenant, only the one that ended last is reminded of, with its day
         - without the reasons kept, no end holds its tenant, none is deleted, and none is reminded
     - a reminder another run still holds
         - holds back the smaller lead time, so no second e-mail goes out alongside it
@@ -25602,6 +25603,9 @@ _Tested by:_
         - is deleted where its day passed already
         - is not deleted where the reason holding it to reading was lifted, though its end stands
         - is held back from then on, even from the operator acting as it and only reading
+        - is not deleted by an earlier end, its day past, while a later reason names an end not
+          recorded yet
+        - held by two ends of one moment, is deleted on the later of their days
         - has nothing erased and no record begun where it has no subscriber to keep the record with
     - the quarter-hourly run
         - sets the deletions off without waiting for them, and starts no second beside the first
@@ -25779,6 +25783,9 @@ _Tested by:_
         - the contract the end closed, ending with it, does not hold it
         - a contract that ended before the end does not hold it
         - another tenant's contract holds only that tenant
+    - a tenant held by two ends, with a contract concluded between them
+        - the contract ended ${how}: deleted on the later end's day, not before, and recorded
+          against it
 
 <!-- END proof -->
 

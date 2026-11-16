@@ -260,22 +260,39 @@ export async function setUp({
 }
 
 /** Ends the subscription of `tenantId` with its deletion day, holding the tenant to reading. */
-export async function ended(run, tenantId, deletesOn = DELETES_ON, recordedBy = RUN) {
-    const subscriptionId = `subscription-${tenantId}`;
+export function ended(run, tenantId, deletesOn = DELETES_ON, recordedBy = RUN) {
+    return endedAt(run, tenantId, {
+        subscriptionId: `subscription-${tenantId}`,
+        endsAt: ENDED_AT,
+        deletesOn,
+        recordedBy,
+    });
+}
+
+/**
+ * Ends `subscriptionId` of `tenantId` at `endsAt`, recorded then, with its
+ * deletion day: the reason holding the tenant to reading first, then the end,
+ * as the run that records the ends keeps both.
+ */
+export async function endedAt(
+    run,
+    tenantId,
+    { subscriptionId, endsAt, deletesOn, recordedBy = RUN },
+) {
     await run.holds.record({
         tenantId,
         kind: 'ended',
         reference: subscriptionId,
         note: null,
-        since: ENDED_AT,
+        since: endsAt,
         recordedBy: RUN,
     });
     return run.ends.record({
         tenantId,
         subscriptionId,
-        endsAt: ENDED_AT,
+        endsAt,
         deletesOn,
-        recordedAt: ENDED_AT,
+        recordedAt: endsAt,
         recordedBy,
     });
 }

@@ -67,23 +67,32 @@ function holdsBeside(ends) {
 }
 
 /**
- * Records an end of `tenantId`'s subscription, deleted on `deletesOn`, and
- * answers it as stored — after the reason that holds its tenant to reading,
- * kept beside `ends`, as the run that records the ends keeps both.
+ * Records the end of `tenantId`'s subscription `subscriptionId` at `endsAt`,
+ * deleted on `deletesOn`, and answers it as stored — after the reason that
+ * holds its tenant to reading, kept beside `ends`, as the run that records the
+ * ends keeps both.
  */
-async function anEnd(ends, { tenantId = 't-1', deletesOn = DELETES_ON, recordedAt } = {}) {
-    const endsAt = inBerlin('2026-12-31', '23:59');
+async function anEnd(
+    ends,
+    {
+        tenantId = 't-1',
+        subscriptionId = `sub-${tenantId}`,
+        endsAt = inBerlin('2026-12-31', '23:59'),
+        deletesOn = DELETES_ON,
+        recordedAt,
+    } = {},
+) {
     await holdsBeside(ends).record({
         tenantId,
         kind: 'ended',
-        reference: `sub-${tenantId}`,
+        reference: subscriptionId,
         note: null,
         since: endsAt,
         recordedBy: RUN,
     });
     return ends.record({
         tenantId,
-        subscriptionId: `sub-${tenantId}`,
+        subscriptionId,
         endsAt,
         deletesOn,
         recordedAt: recordedAt ?? inBerlin('2027-01-01', '00:15'),
@@ -449,6 +458,29 @@ describe('an end the deletion no longer waits for', () => {
             failed: 0,
         });
         assert.deepEqual(run.port.sent, []);
+    });
+
+    test('of two ends holding one tenant, only the one that ended last is reminded of, with its day', async () => {
+        const run = runOver();
+        await anEnd(run.ends);
+        const later = await anEnd(run.ends, {
+            subscriptionId: 'sub-t-1-again',
+            endsAt: inBerlin('2027-01-10'),
+            deletesOn: '2027-02-09',
+            recordedAt: inBerlin('2027-01-10', '09:15'),
+        });
+
+        assert.deepEqual(await remindAt(run, inBerlin('2027-01-11', '00:15')), {
+            told: 1,
+            failed: 0,
+        });
+        assert.deepEqual(
+            run.port.sent.map(({ subscriptionEndId, deletesOn }) => ({
+                subscriptionEndId,
+                deletesOn,
+            })),
+            [{ subscriptionEndId: later.id, deletesOn: '2027-02-09' }],
+        );
     });
 
     test('without the reasons kept, no end holds its tenant, none is deleted, and none is reminded', async () => {

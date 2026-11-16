@@ -16,12 +16,14 @@
 // is reminded of on its day, also to ends recorded before, and a reminder told
 // for one the file no longer names still covers what it covered.
 //
-// An end is reminded of while it holds its tenant to reading — the reasons
-// `TenantDeletionService` finds the deletions due by — whatever else holds
+// An end is reminded of while it holds its tenant to reading and decides its
+// deletion — the end `TenantDeletionService` finds the deletion due by, the
+// one that ended last where several hold the tenant — whatever else holds
 // the tenant back: a suspension does not stop a deletion, so it does not stop
-// the warning. An end whose reason was lifted is reminded of nothing, since
-// its tenant is not deleted on its day, and neither is a tenant whose deletion
-// is under way: once `deleting` holds it there is nothing left to warn of.
+// the warning. An end whose reason was lifted, or that a later one overtook,
+// is reminded of nothing, since its tenant is not deleted on its day, and
+// neither is a tenant whose deletion is under way: once `deleting` holds it
+// there is nothing left to warn of.
 // Where nothing keeps the reasons — tenant billing wired by hand without
 // `SaaSiCatModule` — no end holds its tenant, none is deleted, and none is
 // reminded.
@@ -64,7 +66,9 @@ import {
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { withTimeout } from '../core/with-timeout.js';
+import { referencesOf } from '../tenant-access/hold-references.js';
 import { TENANT_ACCESS_HOLDS_TOKEN } from '../tenant-access/tenant-access.tokens.js';
+import { decidingEnds } from './deciding-end.js';
 import {
     NOTICE_CLAIM_LEASE_MS,
     NOTICE_DELIVERY_TIMEOUT_MS,
@@ -172,25 +176,19 @@ export class DeletionReminderService {
     }
 
     /**
-     * Those of `ends` whose tenant is held to reading by the end and whose
-     * deletion has not begun, in one read of the reasons: the ends a deletion
-     * still waits for.
+     * Those of `ends` that decide their tenant's deletion and whose tenant's
+     * deletion has not begun, in one read of the reasons and one of the ends
+     * they name: the ends a deletion still waits for. An end that another,
+     * later one holding the same tenant overtook is reminded of nothing, since
+     * its tenant is not deleted on its day (`decidingEnds`).
      */
     private async awaitingDeletion(ends: SubscriptionEnd[]): Promise<SubscriptionEnd[]> {
         if (!this.holds || ends.length === 0) return [];
         const open = await this.holds.listOpenFor([...new Set(ends.map((end) => end.tenantId))]);
         const deleting = tenantsBeingDeleted(open);
-        const endedBy = new Map<string, Set<string>>();
-        for (const hold of open) {
-            if (hold.kind !== 'ended' || hold.reference === null) continue;
-            const references = endedBy.get(hold.tenantId) ?? new Set<string>();
-            references.add(hold.reference);
-            endedBy.set(hold.tenantId, references);
-        }
+        const deciding = decidingEnds(open, await this.ends.listFor(referencesOf(open, 'ended')));
         return ends.filter(
-            (end) =>
-                !deleting.has(end.tenantId) &&
-                (endedBy.get(end.tenantId)?.has(end.subscriptionId) ?? false),
+            (end) => !deleting.has(end.tenantId) && deciding.get(end.tenantId)?.end.id === end.id,
         );
     }
 

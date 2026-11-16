@@ -27,7 +27,9 @@ import {
     aDatabase,
     aQuietLogger,
     ended,
+    endedAt,
     recordOf,
+    RUN,
     setUp,
 } from './helpers/tenant-deletion.js';
 
@@ -85,6 +87,40 @@ describe('a tenant whose subscription ended', () => {
         );
     });
 
+    test('is not deleted by an earlier end, its day past, while a later reason names an end not recorded yet', async () => {
+        const run = await setUp();
+        await ended(run, 't1', '2026-11-20');
+        await run.holds.record({
+            tenantId: 't1',
+            kind: 'ended',
+            reference: 'subscription-t1-again',
+            note: null,
+            since: new Date('2026-11-25T12:00:00.000Z'),
+            recordedBy: RUN,
+        });
+
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 0, halted: 0, failed: 0 });
+        assert.deepEqual(run.calls, []);
+        assert.equal(recordOf(run, 't1'), undefined);
+    });
+
+    test('held by two ends of one moment, is deleted on the later of their days', async () => {
+        const run = await setUp();
+        await ended(run, 't1');
+        await endedAt(run, 't1', {
+            subscriptionId: 'subscription-t1-beside',
+            endsAt: ENDED_AT,
+            deletesOn: '2026-12-02',
+        });
+
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 0, halted: 0, failed: 0 });
+        assert.deepEqual(await run.service.deleteDue(new Date('2026-12-01T23:00:00.000Z')), {
+            deleted: 1,
+            halted: 0,
+            failed: 0,
+        });
+    });
+
     test('has nothing erased and no record begun where it has no subscriber to keep the record with', async () => {
         const run = await setUp({ subscribers: { findByTenantId: async () => null } });
         await ended(run, 't1');
@@ -96,11 +132,14 @@ describe('a tenant whose subscription ended', () => {
     });
 });
 
-/** Concludes a contract for `tenantId` in force from `effectiveFrom`, until `effectiveUntil` where given. */
-function contracted(run, tenantId, effectiveFrom, effectiveUntil = null) {
+/**
+ * Concludes a contract for `tenantId` in force from `effectiveFrom`, until
+ * `effectiveUntil` where given, with `status`.
+ */
+function contracted(run, tenantId, effectiveFrom, effectiveUntil = null, status = 'active') {
     return run.contracts.create({
         tenantId,
-        status: 'active',
+        status,
         effectiveFrom,
         effectiveUntil,
         priceSnapshot: {
@@ -179,6 +218,63 @@ describe('a tenant whose contract runs past the end that made it due', () => {
         assert.equal(recordOf(run, 't1').closedAt instanceof Date, true);
         assert.equal(recordOf(run, 't2'), undefined);
     });
+});
+
+// @requirement SC-PRIV-026 — A tenant is not deleted while a contract of it runs past the end that made it due
+describe('a tenant held by two ends, with a contract concluded between them', () => {
+    const CONCLUDED_BETWEEN = new Date('2026-11-05T09:00:00.000Z');
+    const ENDED_AGAIN_AT = new Date('2026-11-25T12:00:00.000Z');
+    const DELETES_AGAIN_ON = '2026-12-25';
+    /** The last second of 24 December in Berlin, before the later end's day. */
+    const EVE_OF_THE_LATER_DAY = new Date('2026-12-24T22:59:59.000Z');
+    /** The first second of 25 December in Berlin. */
+    const THE_LATER_DAY = new Date('2026-12-24T23:00:00.000Z');
+
+    /**
+     * Ends `t1` on `ENDED_AT` with a day already past, concludes a contract
+     * after it with `status` until the second end, and ends that one too:
+     * two `ended` reasons open, the earlier one recorded first.
+     */
+    async function heldByTwoEnds(status) {
+        const run = await setUp();
+        await ended(run, 't1', '2026-11-20');
+        await contracted(run, 't1', CONCLUDED_BETWEEN, ENDED_AGAIN_AT, status);
+        const later = await endedAt(run, 't1', {
+            subscriptionId: 'subscription-t1-again',
+            endsAt: ENDED_AGAIN_AT,
+            deletesOn: DELETES_AGAIN_ON,
+        });
+        return { run, later };
+    }
+
+    for (const [status, how] of [
+        ['terminated', 'by a terminal status'],
+        ['active', 'by its date alone'],
+    ]) {
+        test(`the contract ended ${how}: deleted on the later end's day, not before, and recorded against it`, async () => {
+            const { run, later } = await heldByTwoEnds(status);
+
+            for (const at of [DAY, EVE_OF_THE_LATER_DAY]) {
+                assert.deepEqual(await run.service.deleteDue(at), {
+                    deleted: 0,
+                    halted: 0,
+                    failed: 0,
+                });
+            }
+            assert.deepEqual(run.calls, []);
+            assert.equal(recordOf(run, 't1'), undefined);
+
+            assert.deepEqual(await run.service.deleteDue(THE_LATER_DAY), {
+                deleted: 1,
+                halted: 0,
+                failed: 0,
+            });
+            const record = recordOf(run, 't1');
+            assert.equal(record.subscriptionEndId, later.id);
+            assert.equal(record.deletesOn, DELETES_AGAIN_ON);
+            assert.deepEqual(record.exportOfferedFrom, ENDED_AGAIN_AT);
+        });
+    }
 });
 
 // @requirement SC-PRIV-024 — A tenant is deleted only after its full export was offered in the read-only period

@@ -84,7 +84,9 @@ import { TimeoutError, withTimeout } from '../../core/with-timeout.js';
 import { actorTagOf } from '../../core/web-audit.js';
 import { contractRunsFrom } from '../../subscription-contract/contract-runs-from.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../../subscription-contract/subscription-contract.tokens.js';
+import { referencesOf } from '../../tenant-access/hold-references.js';
 import { TENANT_ACCESS_HOLDS_TOKEN } from '../../tenant-access/tenant-access.tokens.js';
+import { decidingEnds, type DecidingEnd } from '../deciding-end.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
 import {
     SUBSCRIPTION_END_PORT_TOKEN,
@@ -142,10 +144,8 @@ export interface TenantDeletionRun {
     failed: number;
 }
 
-/** A deletion due: the end that fixed its day, the reason holding its tenant to reading, its record once begun. */
-interface DueDeletion {
-    readonly end: SubscriptionEnd;
-    readonly ended: TenantAccessHold;
+/** A deletion due: the end that decides its day and the reason that names it, its record once begun. */
+interface DueDeletion extends DecidingEnd {
     readonly record: TenantDeletionRecord | null;
 }
 
@@ -295,20 +295,15 @@ export class TenantDeletionService implements OnModuleInit {
      * The deletions due at `now`, each tenant once: a tenant held to reading
      * by the end of its subscription, whose record is open and not halted, or
      * which has none and whose deletion day has come. A reason lifted is no
-     * end any more, so its tenant is not due, whatever the end says.
+     * end any more, so its tenant is not due, whatever the end says. Where
+     * several ends hold a tenant, the one that ended last decides
+     * (`decidingEnds`).
      */
     private async dueAt(holds: TenantAccessHoldPort, now: Date): Promise<DueDeletion[]> {
         const tenantIds = await holds.listTenantIdsHeldBy(['ended']);
         if (tenantIds.length === 0) return [];
-        const ended = (await holds.listOpenFor(tenantIds)).filter(
-            (hold) => hold.kind === 'ended' && hold.reference !== null,
-        );
-        const ends = new Map(
-            (await this.ends.listFor(ended.flatMap((hold) => hold.reference ?? []))).map((end) => [
-                end.subscriptionId,
-                end,
-            ]),
-        );
+        const open = await holds.listOpenFor(tenantIds);
+        const deciding = decidingEnds(open, await this.ends.listFor(referencesOf(open, 'ended')));
         const records = new Map(
             (await this.records.findForTenants(tenantIds)).map((record) => [
                 record.tenantId,
@@ -316,17 +311,15 @@ export class TenantDeletionService implements OnModuleInit {
             ]),
         );
         const today = dayInZone(now, installationZoneOf(this.settings));
-        const due = new Map<string, DueDeletion>();
-        for (const hold of ended) {
-            const end = hold.reference === null ? undefined : ends.get(hold.reference);
-            if (!end || end.tenantId !== hold.tenantId || due.has(hold.tenantId)) continue;
-            const record = records.get(hold.tenantId) ?? null;
+        const due: DueDeletion[] = [];
+        for (const [tenantId, { end, ended }] of deciding) {
+            const record = records.get(tenantId) ?? null;
             if (record && (record.closedAt !== null || record.halt !== null)) continue;
             // Days are `YYYY-MM-DD`, so the later day is also the larger text.
             if (!record && end.deletesOn > today) continue;
-            due.set(hold.tenantId, { end, ended: hold, record });
+            due.push({ end, ended, record });
         }
-        return [...due.values()];
+        return due;
     }
 
     /** Begins the deletion of one tenant where it has not begun, and carries it on. */
