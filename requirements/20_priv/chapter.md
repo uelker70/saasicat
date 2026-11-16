@@ -700,6 +700,7 @@ _Tested by:_
         - has its stores in their order, each with its own counts, and the kept lines apart
         - reads a day kept as text as the same day
         - a failure written is read back as it was
+        - the one halt a record keeps is read back as it was
         - the count rows to write say what each is
         - refuses a value the platform never writes, naming its row
 - `packages/core/tests/a-person-becomes-the-role-it-acted-in.test.js`
@@ -719,6 +720,8 @@ _Tested by:_
         - keep who acted where the transaction that closes the deletion fails, and the next run
           closes it
         - lift every reason still open but the deletion’s own, as the run, once the deletion closes
+        - keep the operator’s lift of a suspension that lands while the deletion closes, as the
+          operator’s
 - `packages/nest/tests/a-tenant-takes-its-export-before-its-deletion.test.js`
     - an export whose deletion begins while it is produced is not handed out
         - a deletion ${closed ? 'closed' : 'under way'} by the time the file arrives: refused,
@@ -780,6 +783,8 @@ _Tested by:_
 - `packages/nest/tests/a-deleted-tenant-leaves-roles-not-persons.test.js`
     - the rows a deleted tenant leaves
         - lift every reason still open but the deletion’s own, as the run, once the deletion closes
+        - keep the operator’s lift of a suspension that lands while the deletion closes, as the
+          operator’s
 - `packages/nest/tests/admin-resources.test.js`
     - a suspension is the platform's record
         - suspending a tenant whose deletion has begun is refused, and nothing is recorded or
@@ -819,5 +824,29 @@ _Tested by:_
         - the contract the end closed, ending with it, does not hold it
         - a contract that ended before the end does not hold it
         - another tenant's contract holds only that tenant
+
+<!-- END proof -->
+
+### SC-PRIV-027 — The deletion of a tenant ends its subscriber's link to it
+
+🟢 🔒 The transaction that closes a tenant's deletion also ends the link between the tenant and its
+subscriber, so that the subscriber keeps the tenant as one it was linked to, with when the link
+ended, and has no live tenant from then on: the operator finds it among the subscribers without one
+(`SC-ADM-036`), and a returning customer's new subscriber can be joined into it (`SC-ADM-027`). A
+deletion that does not close leaves the link open, and another tenant's link stays as it is.
+
+_Source:_ #338 (decided 2026-11-16)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-deleted-tenant-leaves-roles-not-persons.test.js`
+    - the subscriber's link to a deleted tenant
+        - is closed by the transaction that closes the deletion, and only by it
+- `packages/nest/tests/an-operator-joins-a-returning-customer.test.js`
+    - a returning customer whose earlier tenant the platform deleted
+        - leaves the subscriber it had without a live tenant, its link ended as the deletion closed
+        - is joined into the subscriber it had
 
 <!-- END proof -->

@@ -56,6 +56,14 @@ export interface TenantAccessHoldPort {
      */
     lockOpen(id: string, tx: TransactionContext): Promise<TenantAccessHold | null>;
     /**
+     * Locks every reason of `tenantId`, lifted ones included, for the rest of
+     * `tx` (`FOR UPDATE`), and returns them as they stand once locked, oldest
+     * first. A lift that committed before is read as it left the reason; one
+     * that comes after waits for `tx`, and finds the reason as `tx` left it.
+     * What the close of a deletion reads the reasons it rewrites from.
+     */
+    lockAllOf(tenantId: string, tx: TransactionContext): Promise<TenantAccessHold[]>;
+    /**
      * Writes `recordedBy` and `liftedBy` of each reason named, as given, in the
      * caller's transaction where one is given; changes nothing else. What a
      * deletion leaves of a tenant's reasons names roles, not persons

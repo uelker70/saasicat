@@ -2638,8 +2638,8 @@ the subscriber and leads into its record.
 
 - **A deletion of a tenant closes its subscriber's link.** A subscriber has no live tenant only once
   `subscriber_tenants.unlinkedAt` is set; the record names a tenant your application no longer has
-  as such and does not read the link as ended. Where your application deletes tenants, it closes
-  the link in the same step.
+  as such and does not read the link as ended. The platform's deletion of a tenant closes it
+  ([A tenant is deleted on its day through your erasers](#a-tenant-is-deleted-on-its-day-through-your-erasers)).
 - **An `AdminResourcesPort` of your own** implements `findTenantsByIds(tenantIds)`: the tenants
   among them your application still has, soft-deleted ones included, in one read. The shipped
   `PrismaAdminResourcesAdapter` does.
@@ -5126,7 +5126,12 @@ day, is in [Erase a tenant's stores](wire-the-backend.md#erase-a-tenants-stores)
     - `TenantAccessHoldPort`: `record` and `lift` take the caller's transaction as their last
       argument and write in it; `listAllOf(tenantId)`, every reason of a tenant, lifted ones
       included, oldest first; `lockOpen(id, tx)`, which locks an open reason for the transaction
-      (`FOR UPDATE`) and answers null where it is lifted; `replaceActors` and `forgetNotes`.
+      (`FOR UPDATE`) and answers null where it is lifted; `lockAllOf(tenantId, tx)`, which locks
+      every reason of a tenant for the transaction and reads them as they stand once locked;
+      `replaceActors` and `forgetNotes`.
+    - `SubscriberRepository`: `unlinkTenant(tenantId, unlinkedAt, tx)`, which closes the tenant's
+      live link, in the caller's transaction, and answers false where it has none. One that
+      extends a shipped repository inherits it.
     - `SubscriptionEndPort`: `listEndsOfTenant`, `listAnnouncedOfTenant`,
       `listExportDownloadsOfTenant` and `replaceActors`.
     - `SubscriptionNoticeRepository`: `confirm` records `recipientCount`, and no recipients where
@@ -5160,7 +5165,9 @@ day, is in [Erase a tenant's stores](wire-the-backend.md#erase-a-tenants-stores)
   subscriber is joined to no other until the deletion closes, either way: the join answers
   `409 SUBSCRIBER_JOIN_DELETION_UNDER_WAY`, and `<app> subscribers join` exits with 6. When it
   closes, the rows the platform keeps of it name roles instead of persons, its reasons lose their
-  notes, its notices their recipients, and every reason still open but the deletion's own is lifted.
+  notes, its notices their recipients, every reason still open but the deletion's own is lifted, and
+  its subscriber's link to it is closed (`SC-PRIV-027`), so a returning customer's new subscriber
+  can be joined into it. A deletion of your own that closed the link leaves that to the run.
 - **A tenant under contract again is not deleted.** Where a contract of the tenant is in force at
   the end that made it due, or begins after it — one a checkout offer concluded since, say — the
   run does not begin its deletion, writes nothing and says so in the server log (`SC-PRIV-026`).

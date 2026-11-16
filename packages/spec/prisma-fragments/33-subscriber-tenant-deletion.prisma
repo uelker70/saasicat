@@ -62,7 +62,7 @@ model SubscriberTenantDeletion {
     attempts                  Int       @default(0)
     // The last failure: { step, store, code, at } — a code, never a message.
     lastFailure               Json?
-    // tenant-id-invalid | no-subscriber | commercial-record-lost; null while the
+    // commercial-record-lost, the one halt a record keeps; null while the
     // deletion may go on.
     halt                      String?
     // When every store had confirmed; null until then.

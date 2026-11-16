@@ -178,6 +178,27 @@ export function aQuietLogger() {
     };
 }
 
+/**
+ * A subscriber for every tenant, `subscriber-<tenant>`, its link open until a
+ * deletion closes it; a failed transaction opens it again. `unlinked` names
+ * each tenant whose link is closed, with when.
+ */
+export function aSubscriberForEveryTenant() {
+    const unlinked = new Map();
+    return {
+        unlinked,
+        async findByTenantId(tenantId) {
+            return unlinked.has(tenantId) ? null : { id: `subscriber-${tenantId}` };
+        },
+        async unlinkTenant(tenantId, unlinkedAt, tx) {
+            if (unlinked.has(tenantId)) return false;
+            unlinked.set(tenantId, unlinkedAt);
+            tx?.undo.push(() => unlinked.delete(tenantId));
+            return true;
+        },
+    };
+}
+
 /** In-memory ports for one database, marked as no installation yet. */
 export function aDatabase() {
     return {
@@ -204,7 +225,7 @@ export async function setUp({
     answers,
     marked = THIS_INSTALLATION,
     keep = aKeepReport(),
-    subscribers = { findByTenantId: async (tenantId) => ({ id: `subscriber-${tenantId}` }) },
+    subscribers = aSubscriberForEveryTenant(),
     audit = null,
     shared,
 } = {}) {
@@ -235,7 +256,7 @@ export async function setUp({
     const logger = aQuietLogger();
     service.logger = logger;
     service.onModuleInit();
-    return { ...ports, ports, service, calls, said: logger.said };
+    return { ...ports, ports, subscribers, service, calls, said: logger.said };
 }
 
 /** Ends the subscription of `tenantId` with its deletion day, holding the tenant to reading. */

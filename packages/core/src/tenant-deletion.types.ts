@@ -254,10 +254,11 @@ export function commercialRecordLost(
 }
 
 /**
- * Why a due deletion does not go on. The installation's two are decided anew
- * by every run from its mark (`SC-PRIV-021`) and never kept; the others are
- * kept with the record, which has nowhere to be kept for `tenant-id-invalid`
- * and `no-subscriber` either, so those two are only said.
+ * Why a due deletion does not go on. Every run decides the first four anew and
+ * keeps none of them: the installation's two from its mark (`SC-PRIV-021`),
+ * and `tenant-id-invalid` and `no-subscriber` before the deletion has a record
+ * to be kept with. Only `commercial-record-lost` stops a deletion under way,
+ * and its record keeps it until the operator acts.
  */
 export type TenantDeletionHalt =
     | 'installation-unmarked'
@@ -267,10 +268,7 @@ export type TenantDeletionHalt =
     | 'commercial-record-lost';
 
 /** A halt a deletion record keeps. */
-export type TenantDeletionRecordHalt = Exclude<
-    TenantDeletionHalt,
-    'installation-unmarked' | 'installation-differs'
->;
+export type TenantDeletionRecordHalt = Extract<TenantDeletionHalt, 'commercial-record-lost'>;
 
 /** The step of a deletion a failure stopped it at. */
 export type TenantDeletionStep = 'count' | 'erase' | 'guard' | 'close';

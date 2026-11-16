@@ -1137,6 +1137,16 @@ export function createMemoryHarness() {
         async listTenantLinks(subscriberId) {
             return tenantLinksOf(subscriberId);
         },
+        async unlinkTenant(tenantId, unlinkedAt) {
+            const link = state.subscriberTenants.find(
+                (candidate) => candidate.tenantId === tenantId && candidate.unlinkedAt === null,
+            );
+            if (!link) return false;
+            link.unlinkedAt = unlinkedAt;
+            const row = state.subscribers.find((candidate) => candidate.id === link.subscriberId);
+            if (row) row.tenantId = null;
+            return true;
+        },
         async findById(subscriberId) {
             const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
             return row ? subscriberRecord(row) : null;
@@ -2006,6 +2016,10 @@ export function createMemoryHarness() {
         async lockOpen(id) {
             const row = openHolds().find((candidate) => candidate.id === id);
             return row ? structuredClone(row) : null;
+        },
+        // And the lock of every reason the read alone.
+        async lockAllOf(tenantId) {
+            return tenantAccessHolds.listAllOf(tenantId);
         },
         async replaceActors(replacements) {
             for (const { id, recordedBy, liftedBy } of replacements) {

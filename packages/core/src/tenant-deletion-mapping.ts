@@ -19,11 +19,7 @@ import type {
 const TABLE = 'subscriber_tenant_deletions';
 const COUNTS_TABLE = 'subscriber_tenant_deletion_counts';
 
-const HALTS: readonly TenantDeletionRecordHalt[] = [
-    'tenant-id-invalid',
-    'no-subscriber',
-    'commercial-record-lost',
-];
+const HALTS: readonly TenantDeletionRecordHalt[] = ['commercial-record-lost'];
 const STEPS: readonly TenantDeletionStep[] = ['count', 'erase', 'guard', 'close'];
 const COMMERCIAL_PARTS: readonly (keyof CommercialRecordCounts)[] = [
     'subscriber',

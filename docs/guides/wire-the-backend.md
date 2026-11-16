@@ -1131,10 +1131,11 @@ them a page at a time, the latest customer number first — every one, those a c
 name or VAT number matches, or with `withoutLiveTenant=true` those whose every tenant link is closed
 —, and `GET admin/subscribers/:id` answers the head of a subscriber's record: its master data, its
 standing, and every tenant it was linked to, each named as your application answers for it now and
-`known: false` where it no longer has the tenant. A link ends only when it is closed, so **a deletion
-of a tenant in your application closes its subscriber's link** (`subscriber_tenants.unlinkedAt`);
-the record does not read a tenant your application no longer has as one the subscriber left. Your
-own `SubscriberRepository` implements `search` and `listTenantLinks`, reading the search terms
+`known: false` where it no longer has the tenant. A link ends only when it is closed, and **the
+platform's deletion of a tenant closes its subscriber's link** (`subscriber_tenants.unlinkedAt`,
+`SC-PRIV-027`) in the transaction that closes the deletion; the record does not read a tenant your
+application no longer has as one the subscriber left. Your own `SubscriberRepository` implements
+`search`, `listTenantLinks` and `unlinkTenant`, reading the search terms
 `subscriberSearchTermsOf` makes of what the operator typed; your own `AdminResourcesPort` implements
 `findTenantsByIds`, which names a page's tenants in one question — the shipped
 `PrismaAdminResourcesAdapter` does. A persistence harness of your own either closes a link with the
@@ -1187,9 +1188,9 @@ what the earlier record takes, and `POST admin/subscribers/:id/join` with `kind:
 records `SUBSCRIBER_JOINED`. Each other refusal has its code in the
 [error codes](../reference/error-codes.md): no reason, another legal entity declared, the same
 subscriber, either joined already, either with a tenant whose deletion has begun and not closed, a
-subscriber without a live tenant to join, an earlier one that still has one. A deletion of a tenant
-in your application closes its subscriber's link, as above — an earlier subscriber whose link is
-still open cannot be joined into. From the command line,
+subscriber without a live tenant to join, an earlier one that still has one. The deletion of a
+tenant closes its subscriber's link, as above — an earlier subscriber whose link is still open
+cannot be joined into. From the command line,
 `<app> subscribers join --from <customer number> --into <customer number> --reason "…"` does the
 same ([Extend your CLI](extend-your-cli.md)); it runs where your persistence keeps joins, also
 without `adminResources`.
@@ -2565,7 +2566,9 @@ run asks again.
   they went to rather than to whom (`SC-PRIV-023`). Every reason still open but the `deleting` one —
   an unpaid invoice, a suspension, the end of its subscription — is lifted by the run, while what
   its subscriber owes stays in the ledger (`SC-PRIV-025`). The `deleting` reason stays open: nobody
-  acts in a deleted tenant again. `TENANT_DELETION_CLOSED` is audited.
+  acts in a deleted tenant again. The subscriber's link to the tenant is closed, so the subscriber
+  has no live tenant from then on and a returning customer's new subscriber can be joined into it
+  (`SC-PRIV-027`). `TENANT_DELETION_CLOSED` is audited.
 - **Held instead of begun.** A tenant whose end names no single tenant (`tenant-id-invalid`) or
   which has no subscriber to keep the record with (`no-subscriber`) is not begun, and the server log
   says so on every run until it is put right.

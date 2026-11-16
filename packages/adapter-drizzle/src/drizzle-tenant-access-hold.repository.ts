@@ -114,6 +114,21 @@ export class DrizzleTenantAccessHoldRepository implements TenantAccessHoldPort {
         return row && row.liftedAt === null ? toTenantAccessHold(row) : null;
     }
 
+    /**
+     * Locks the tenant's rows, whatever they hold. A transaction that waited
+     * for a lift is handed each row as the lift left it, since PostgreSQL
+     * returns the version it locked.
+     */
+    async lockAllOf(tenantId: string, tx: TransactionContext): Promise<TenantAccessHold[]> {
+        const rows = await resolveDb(this.db, tx)
+            .select()
+            .from(tenantAccessHolds)
+            .where(eq(tenantAccessHolds.tenantId, tenantId))
+            .orderBy(asc(tenantAccessHolds.since), asc(tenantAccessHolds.id))
+            .for('update');
+        return rows.map(toTenantAccessHold);
+    }
+
     async replaceActors(
         replacements: readonly {
             readonly id: string;

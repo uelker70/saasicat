@@ -5302,6 +5302,56 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        // @requirement SC-PRIV-027
+        test("a tenant's link is closed once, at its subscriber only, in the transaction it is closed in", async (t) => {
+            const four = await fourToSearch(t);
+            if (!four) return;
+            const { adapter } = harness;
+            const { subscribers, andere, muster, ids } = four;
+            const unlinkedAt = new Date('2026-12-01T09:00:00.000Z');
+            if (adapter.capabilities.transactions) {
+                await assert.rejects(
+                    adapter.transactionRunner.run(async (tx) => {
+                        assert.equal(
+                            await subscribers.unlinkTenant('tenant-search-other', unlinkedAt, tx),
+                            true,
+                        );
+                        throw new Error('the transaction fails after the write');
+                    }),
+                    /the transaction fails after the write/,
+                );
+                assert.equal(
+                    (await subscribers.findByTenantId('tenant-search-other'))?.id,
+                    andere.id,
+                    'a link closed in a transaction that failed stays open',
+                );
+            }
+
+            assert.equal(await subscribers.unlinkTenant('tenant-search-other', unlinkedAt), true);
+            assert.equal(
+                await subscribers.unlinkTenant('tenant-search-other', new Date()),
+                false,
+                'a link closed already is closed again',
+            );
+            assert.equal(await subscribers.unlinkTenant('tenant-nobody-linked', unlinkedAt), false);
+
+            assert.equal(await subscribers.findByTenantId('tenant-search-other'), null);
+            assert.equal((await subscribers.findById(andere.id))?.tenantId, null);
+            assert.deepEqual(
+                (await subscribers.listTenantLinks(andere.id)).map((link) => [
+                    link.tenantId,
+                    link.unlinkedAt?.toISOString() ?? null,
+                ]),
+                [['tenant-search-other', unlinkedAt.toISOString()]],
+            );
+            assert.deepEqual(await ids('', { withoutLiveTenant: true }), [andere.id]);
+            assert.equal(
+                (await subscribers.findByTenantId('tenant-search-muster'))?.id,
+                muster.id,
+                "another tenant's link stays open",
+            );
+        });
+
         test('a tenant has one live subscriber: a second is refused, and the transaction survives it', async (t) => {
             const { adapter } = harness;
             const subscribers = adapter.subscriberRepository;
@@ -14133,6 +14183,84 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.ok(lift, 'the lift did not land');
             assert.equal(begun, null, 'a deletion began on a reason that was lifted');
             assert.deepEqual(await port.listOpen('tenant-held'), []);
+        });
+
+        // @requirement SC-PRIV-025
+        test('every reason of a tenant is locked for a transaction and read as it stands, the lifted ones too', async (t) => {
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            const suspension = await port.record(holdOf());
+            assert.ok(suspension);
+            await port.lift(suspension.id, LIFTED_AT, HOLDING_OPERATOR);
+            const ended = await port.record(
+                holdOf({
+                    kind: 'ended',
+                    reference: 'sub-1',
+                    note: null,
+                    since: new Date(HELD_SINCE.getTime() - 60_000),
+                }),
+            );
+            await port.record(holdOf({ tenantId: 'tenant-other' }));
+            assert.ok(ended);
+
+            const locked = await harness.adapter.transactionRunner.run(async (tx) => ({
+                held: await port.lockAllOf('tenant-held', tx),
+                nobody: await port.lockAllOf('tenant-nobody', tx),
+            }));
+
+            assert.deepEqual(locked, {
+                held: await port.listAllOf('tenant-held'),
+                nobody: [],
+            });
+            assert.deepEqual(
+                locked.held.map((hold) => [hold.id, hold.liftedBy]),
+                [
+                    [ended.id, null],
+                    [suspension.id, HOLDING_OPERATOR],
+                ],
+            );
+        });
+
+        // The race the close of a deletion runs against the operator: the
+        // close locks every reason of the tenant and rewrites who acted from
+        // what it read, while the operator lifts the suspension. Without the
+        // lock the lift would land between the read and the write, and the
+        // close would write over it.
+        // @requirement SC-PRIV-025
+        test('a lift of a reason locked with every reason of its tenant waits, and finds it lifted', async (t) => {
+            if (!harness.adapter.capabilities.pessimisticLocking) {
+                t.skip('adapter declares no pessimistic-locking capability');
+                return;
+            }
+            const port = harness.adapter.tenantAccessHolds;
+            if (!port) {
+                missing(t, 'tenantAccessHolds');
+                return;
+            }
+            const closingRun = 'run';
+            const suspension = await port.record(holdOf());
+            assert.ok(suspension);
+            await Promise.all([1, 2].map(() => port.listOpen('tenant-held')));
+
+            const closing = harness.adapter.transactionRunner.run(async (tx) => {
+                const [read] = await port.lockAllOf('tenant-held', tx);
+                assert.equal(read?.liftedAt, null, 'the close found the suspension lifted');
+                await sleep(LOCK_HOLD_MS);
+                return port.lift(suspension.id, LIFTED_AT, closingRun, tx);
+            });
+            await sleep(LOCK_HOLD_MS / 3);
+            const operator = port.lift(suspension.id, LIFTED_AT, HOLDING_OPERATOR);
+
+            const [closed, lifted] = await Promise.all([closing, operator]);
+            assert.ok(closed, "the close's lift did not land");
+            assert.equal(lifted, null, 'the operator lifted a reason the close had read open');
+            assert.deepEqual(
+                (await port.listAllOf('tenant-held')).map((hold) => hold.liftedBy),
+                [closingRun],
+            );
         });
 
         // -------------------------------------------------------------

@@ -489,7 +489,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIBER_JOIN_WITHOUT_LIVE_TENANT:
         'Vertragspartner {customerNumber} hat keinen aktiven Mandanten; zusammengeführt wird der neue Mandant eines zurückkehrenden Kunden mit dem Vertragspartner, den er hatte.',
     SUBSCRIBER_JOIN_INTO_HAS_LIVE_TENANT:
-        'Vertragspartner {customerNumber} hat noch einen aktiven Mandanten ({tenantId}), und ein Vertragspartner hat höchstens einen. Hat die Anwendung diesen Mandanten gelöscht, schließt sie zuerst seine Verknüpfung.',
+        'Vertragspartner {customerNumber} hat noch einen aktiven Mandanten ({tenantId}), und ein Vertragspartner hat höchstens einen. Die Verknüpfung endet, sobald die Löschung dieses Mandanten abgeschlossen ist.',
     SUBSCRIBER_JOIN_DELETION_UNDER_WAY:
         'Ein Mandant von Vertragspartner {customerNumber} wird gerade gelöscht. Der Vertragspartner lässt sich zusammenführen, sobald diese Löschung abgeschlossen ist.',
     SUBSCRIBER_JOIN_PREVIEW_CHANGED:

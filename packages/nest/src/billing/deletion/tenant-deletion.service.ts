@@ -39,7 +39,10 @@
 // the platform keeps of the tenant name roles instead of persons, and its
 // reasons keep no note (`SC-PRIV-023`). The same transaction lifts every
 // reason still open but the deletion's own (`SC-PRIV-025`): nothing holds back
-// a tenant that is gone, and what its subscriber owes stays in the ledger.
+// a tenant that is gone, and what its subscriber owes stays in the ledger. It
+// also ends the subscriber's link to the tenant (`SC-PRIV-027`), so the
+// subscriber has no live tenant from then on, and a returning customer's new
+// one can be joined into it (`SC-ADM-027`).
 //
 // Platform-wide: the reasons, the ends and the records are read across
 // tenants, and the erasers run, inside `RlsBypassPort`.
@@ -612,11 +615,18 @@ export class TenantDeletionService implements OnModuleInit {
     /**
      * Closes the record once every store confirmed, in one transaction with
      * what the tenant's rows say of who acted — roles, not persons —, the
-     * notes its reasons lose, and the lifting of every reason still open but
-     * the `deleting` one, which stays, since a deleted tenant never acts
-     * again. The reasons are read once, before it: from the beginning of the
-     * deletion only the deletion records or lifts one, but for the operator
-     * lifting a suspension that stands (`SC-PRIV-025`).
+     * notes its reasons lose, the lifting of every reason still open but the
+     * `deleting` one, which stays, since a deleted tenant never acts again,
+     * and the end of its subscriber's link to it (`SC-PRIV-027`).
+     *
+     * The reasons are read inside the transaction, under a lock on each: the
+     * operator may lift a suspension that stands until the deletion closes
+     * (`SC-PRIV-025`), and a role planned from a read before the transaction
+     * would write over that lift. Locked, a lift that committed first is
+     * read as it left the reason, and one that comes later waits and finds
+     * the reason lifted by the run. The ends, announcements and downloads
+     * are read before it, unlocked: from the beginning of the deletion
+     * nothing records one (`SC-PRIV-023`).
      */
     private async close(
         holds: TenantAccessHoldPort,
@@ -625,25 +635,27 @@ export class TenantDeletionService implements OnModuleInit {
     ): Promise<DeletionOutcome> {
         await this.records.recordCommercial(record.id, 'after', after);
         const tenantId = record.tenantId;
-        const reasons = await holds.listAllOf(tenantId);
-        const roles = rolesInsteadOfPersons({
-            holds: reasons,
+        const rows = {
             ends: await this.ends.listEndsOfTenant(tenantId),
             announcements: await this.ends.listAnnouncedOfTenant(tenantId),
             downloads: await this.ends.listExportDownloadsOfTenant(tenantId),
-        });
-        const stillOpen = reasons.filter(
-            (reason) => reason.liftedAt === null && reason.kind !== 'deleting',
-        );
+        };
         const closed = await this.transactions.run(async (tx) => {
             const at = new Date();
             if (!(await this.records.close(record.id, at, tx))) return false;
+            const reasons = await holds.lockAllOf(tenantId, tx);
+            const roles = rolesInsteadOfPersons({ ...rows, holds: reasons });
             await holds.replaceActors(roles.holds, tx);
             await holds.forgetNotes(tenantId, tx);
             await this.ends.replaceActors(roles.ends, tx);
             await this.notices.forgetRecipients(tenantId, at, tx);
             // After the roles: they were planned from the reasons while open.
-            for (const reason of stillOpen) await holds.lift(reason.id, at, RUN_ROLE, tx);
+            for (const reason of reasons) {
+                if (reason.liftedAt === null && reason.kind !== 'deleting') {
+                    await holds.lift(reason.id, at, RUN_ROLE, tx);
+                }
+            }
+            await this.subscribers.unlinkTenant(tenantId, at, tx);
             return true;
         });
         if (!closed) return null;

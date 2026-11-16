@@ -3956,10 +3956,27 @@ describe("a tenant's deletion is recorded with its subscriber", () => {
             ]);
         });
 
+        test(`the one halt a deletion keeps goes in ${ground}`, async () => {
+            await prepare();
+            await aDeletion();
+
+            await client.query(
+                `UPDATE "subscriber_tenant_deletions" SET "halt" = 'commercial-record-lost'`,
+            );
+
+            const { rows } = await client.query('SELECT "halt" FROM "subscriber_tenant_deletions"');
+            assert.deepEqual(rows, [{ halt: 'commercial-record-lost' }]);
+        });
+
         for (const [what, write, refusedBy] of [
             [
                 'a halt the platform does not keep',
                 `UPDATE "subscriber_tenant_deletions" SET "halt" = 'installation-unmarked'`,
+                'subscriber_tenant_deletions_known_halt',
+            ],
+            [
+                'a halt said before the deletion has a record',
+                `UPDATE "subscriber_tenant_deletions" SET "halt" = 'no-subscriber'`,
                 'subscriber_tenant_deletions_known_halt',
             ],
             [

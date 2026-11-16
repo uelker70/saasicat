@@ -567,18 +567,30 @@ export class FakeSubscriberRepository implements SubscriberRepository {
     }
 
     /**
-     * Closes the subscriber's live tenant link at `at`, as an application's
-     * deletion of the tenant does; nothing in the port does it, so a test
-     * that needs a subscriber without a live tenant calls this.
+     * Closes the subscriber's live tenant link at `at`, as the deletion of its
+     * tenant does (`unlinkTenant`), named by the subscriber: a test that needs
+     * a subscriber without a live tenant calls this rather than deleting one.
      */
     closeTenantLink(subscriberId: string, at: Date = new Date()): void {
-        const record = this.byId.get(subscriberId);
         const live = this.links.find(
             (link) => link.subscriberId === subscriberId && link.unlinkedAt === null,
         );
-        if (!record || !live) return;
+        if (live) this.unlink(live, at);
+    }
+
+    async unlinkTenant(tenantId: string, unlinkedAt: Date): Promise<boolean> {
+        const live = this.links.find(
+            (link) => link.tenantId === tenantId && link.unlinkedAt === null,
+        );
+        if (!live) return false;
+        this.unlink(live, unlinkedAt);
+        return true;
+    }
+
+    private unlink(live: SubscriberTenantLinkRecord & { subscriberId: string }, at: Date): void {
         live.unlinkedAt = at;
-        this.byId.set(subscriberId, { ...record, tenantId: null });
+        const record = this.byId.get(live.subscriberId);
+        if (record) this.byId.set(live.subscriberId, { ...record, tenantId: null });
     }
 
     async search(search: SubscriberSearch): Promise<SubscriberSearchPage> {
@@ -1080,6 +1092,11 @@ export class FakeTenantAccessHoldRepository implements TenantAccessHoldPort {
     async lockOpen(id: string): Promise<TenantAccessHold | null> {
         const hold = this.open().find((candidate) => candidate.id === id);
         return hold ? { ...hold } : null;
+    }
+
+    /** One caller at a time runs here, so the lock is the read alone. */
+    async lockAllOf(tenantId: string): Promise<TenantAccessHold[]> {
+        return this.listAllOf(tenantId);
     }
 
     async replaceActors(

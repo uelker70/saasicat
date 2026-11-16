@@ -19,6 +19,8 @@ import { Test } from '@nestjs/testing';
 import { SubscriberJoinModule, SubscriberService } from '../dist/subscriber/index.js';
 import { FakeSubscriberRepository } from '../dist/testing/index.js';
 import { RECORD_ROUTE, LIST_ROUTE, aPlatform } from './helpers/operator-subscriber-platform.js';
+import { THIS_INSTALLATION } from './helpers/installation-mark.js';
+import { DAY, ENDED_AT, aDatabase, ended, setUp } from './helpers/tenant-deletion.js';
 import { APP_ORIGIN, MAIN_ACCOUNT, confirmation, signedCallback } from './helpers/payments.js';
 
 const PREVIEW_ROUTE = 'POST admin/subscribers/:id/join/preview';
@@ -39,6 +41,11 @@ const REASON = 'Returning customer, confirmed by phone';
 async function anAdministration(options = {}) {
     const platform = await aPlatform({ joins: true, ...options });
     platform.repo.closeTenantLink(platform.idOf('fabrikam'), new Date('2026-03-31T00:00:00.000Z'));
+    return administrationOf(platform);
+}
+
+/** The operator's join routes over `platform`, each subscriber named by its tenant's slug. */
+function administrationOf(platform) {
     const { idOf, call } = platform;
     return {
         ...platform,
@@ -432,6 +439,54 @@ describe("a join while a deletion of either subscriber's tenants is under way", 
         await admin.join('wien', 'fabrikam');
 
         assert.deepEqual(admin.auditedActions(), ['SUBSCRIBER_JOINED']);
+    });
+});
+
+/**
+ * Deletes the tenant `tenantId` on its day through the platform's deletion run,
+ * over the administration's subscribers and the record its joins read.
+ */
+async function deletedByThePlatform(admin, tenantId) {
+    const ports = { ...aDatabase(), records: admin.tenantDeletions };
+    await ports.marks.markIfUnmarked({
+        identifier: THIS_INSTALLATION,
+        markedAt: ENDED_AT,
+        markedBy: 'cli:ops',
+    });
+    const run = await setUp({ subscribers: admin.repo, shared: ports });
+    await ended(run, tenantId);
+    assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 1, halted: 0, failed: 0 });
+    return admin.tenantDeletions.deletions.find((deletion) => deletion.tenantId === tenantId);
+}
+
+// @requirement SC-PRIV-027 — The deletion of a tenant ends its subscriber's link to it
+describe('a returning customer whose earlier tenant the platform deleted', () => {
+    test('leaves the subscriber it had without a live tenant, its link ended as the deletion closed', async () => {
+        const admin = administrationOf(await aPlatform({ joins: true }));
+
+        const deletion = await deletedByThePlatform(admin, 't-fabrikam');
+
+        const { tenants } = await admin.record('fabrikam');
+        assert.deepEqual(
+            tenants.map(({ tenantId, unlinkedAt }) => [tenantId, unlinkedAt]),
+            [['t-fabrikam', deletion.closedAt.toISOString()]],
+        );
+        assert.deepEqual(
+            (await admin.call(LIST_ROUTE)({ withoutLiveTenant: 'true' })).subscribers.map(
+                (subscriber) => subscriber.legalName,
+            ),
+            ['Fabrikam GmbH'],
+        );
+    });
+
+    test('is joined into the subscriber it had', async () => {
+        const admin = administrationOf(await aPlatform({ joins: true }));
+        await deletedByThePlatform(admin, 't-fabrikam');
+
+        await admin.join('wien', 'fabrikam');
+
+        assert.deepEqual(admin.auditedActions(), ['SUBSCRIBER_JOINED']);
+        assert.equal((await admin.record('wien')).joins.into?.subscriberId, admin.idOf('fabrikam'));
     });
 });
 

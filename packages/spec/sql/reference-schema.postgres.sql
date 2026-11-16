@@ -2126,13 +2126,13 @@ ALTER TABLE subscription_contracts
 ALTER TABLE subscription_contracts
     ADD CONSTRAINT subscription_contracts_notice_is_days CHECK ("cancellationNoticeDays" >= 0);
 
--- A deletion is halted for one of the reasons the platform keeps, and counts
--- its attempts from none. Same two plain statements as above, for each check.
+-- A deletion is halted only for the reason the platform keeps, and counts its
+-- attempts from none. Same two plain statements as above, for each check.
 ALTER TABLE subscriber_tenant_deletions
     DROP CONSTRAINT IF EXISTS subscriber_tenant_deletions_known_halt;
 ALTER TABLE subscriber_tenant_deletions
     ADD CONSTRAINT subscriber_tenant_deletions_known_halt
-    CHECK ("halt" IN ('tenant-id-invalid', 'no-subscriber', 'commercial-record-lost'));
+    CHECK ("halt" IN ('commercial-record-lost'));
 
 ALTER TABLE subscriber_tenant_deletions
     DROP CONSTRAINT IF EXISTS subscriber_tenant_deletions_attempts_are_counted;

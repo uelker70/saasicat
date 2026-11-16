@@ -1559,6 +1559,9 @@ _Tested by:_
         - is refused from a subscriber whose tenant is being deleted, naming it
         - is made once that deletion has closed
         - is made where only an unrelated subscriber's tenant is being deleted
+    - a returning customer whose earlier tenant the platform deleted
+        - leaves the subscriber it had without a live tenant, its link ended as the deletion closed
+        - is joined into the subscriber it had
     - a subscriber joined
         - takes no correction of its identity or its business status
     - a payment method confirmed on a form opened before the join
@@ -1806,7 +1809,7 @@ where it is once the tenant is gone (`SC-ADM-021`). The record names every tenan
 linked to, the live one first and then the earlier ones, the latest first, with when each link began
 and ended, and leads to the tenant's page where the application still has the tenant. Where a link
 is still open and the application no longer has its tenant, the record says so instead of reading
-the link as ended: a link ends when the application's deletion of the tenant closes it, and a tenant
+the link as ended: a link ends when the tenant's deletion closes it (`SC-PRIV-027`), and a tenant
 the application soft-deleted can come back. Only the platform administrator reaches the list and the
 record (`SC-ADM-001`), and both read past the tenants' row-level policy the way the administration
 does (`SC-SEC-020`).

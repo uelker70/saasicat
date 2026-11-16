@@ -115,6 +115,13 @@ describe('a deletion record read back', () => {
         );
     });
 
+    test('the one halt a record keeps is read back as it was', () => {
+        assert.equal(
+            toTenantDeletionRecord({ ...ROW, halt: 'commercial-record-lost' }).halt,
+            'commercial-record-lost',
+        );
+    });
+
     test('the count rows to write say what each is', () => {
         assert.deepEqual(erasedCountColumns('files', [{ category: 'notes', count: 4 }]), [
             { kind: 'erased', store: 'files', category: 'notes', count: 4, labels: null },
@@ -135,6 +142,7 @@ describe('a deletion record read back', () => {
 
     const refused = [
         ['a halt the platform does not keep', { halt: 'installation-unmarked' }, /halt/],
+        ['a halt said before the deletion has a record', { halt: 'no-subscriber' }, /halt/],
         ['a count of another kind', { counts: [{ ...ROW.counts[0], kind: 'deleted' }] }, /kind/],
         [
             'a commercial record missing a part',

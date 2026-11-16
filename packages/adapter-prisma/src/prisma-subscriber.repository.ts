@@ -387,6 +387,19 @@ export class PrismaSubscriberRepository implements SubscriberRepository {
         );
     }
 
+    /** One guarded `UPDATE`: a link closed a moment earlier leaves the count at zero. */
+    async unlinkTenant(
+        tenantId: string,
+        unlinkedAt: Date,
+        tx?: TransactionContext,
+    ): Promise<boolean> {
+        const { count } = await this.db(tx).subscriberTenant.updateMany({
+            where: { tenantId, unlinkedAt: null },
+            data: { unlinkedAt },
+        });
+        return count > 0;
+    }
+
     async listTaxOriginChanges(subscriberId: string): Promise<SubscriberTaxOriginChangeRecord[]> {
         const rows = await this.db().subscriberTaxOriginChange.findMany({
             where: { subscriberId },

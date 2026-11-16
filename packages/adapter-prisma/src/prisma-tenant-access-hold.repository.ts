@@ -154,6 +154,23 @@ export class PrismaTenantAccessHoldRepository implements TenantAccessHoldPort {
         return row && row.liftedAt === null ? toTenantAccessHold(row) : null;
     }
 
+    /**
+     * Locks the tenant's rows, whatever they hold, and reads them afterwards:
+     * a transaction that waited for a lift reads the reason as the lift left
+     * it.
+     */
+    async lockAllOf(tenantId: string, tx: TransactionContext): Promise<TenantAccessHold[]> {
+        const db = this.dbOf(tx);
+        await db.$queryRaw`
+            SELECT "id" FROM "tenant_access_holds" WHERE "tenantId" = ${tenantId} FOR UPDATE`;
+        const rows = await db.tenantAccessHold.findMany({
+            where: { tenantId },
+            select: COLUMNS,
+            orderBy: OLDEST_FIRST,
+        });
+        return rows.map(toTenantAccessHold);
+    }
+
     async replaceActors(
         replacements: readonly {
             readonly id: string;

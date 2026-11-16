@@ -413,6 +413,22 @@ export class DrizzleSubscriberRepository implements SubscriberRepository {
         return tenantLinksInOrder(rows);
     }
 
+    /** One guarded `UPDATE`: a link closed a moment earlier returns no row. */
+    async unlinkTenant(
+        tenantId: string,
+        unlinkedAt: Date,
+        tx?: TransactionContext,
+    ): Promise<boolean> {
+        const closed = await resolveDb(this.db, tx)
+            .update(subscriberTenants)
+            .set({ unlinkedAt })
+            .where(
+                and(eq(subscriberTenants.tenantId, tenantId), isNull(subscriberTenants.unlinkedAt)),
+            )
+            .returning({ id: subscriberTenants.id });
+        return closed.length > 0;
+    }
+
     async listTaxOriginChanges(subscriberId: string): Promise<SubscriberTaxOriginChangeRecord[]> {
         const rows = await this.db
             .select()

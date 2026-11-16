@@ -58,7 +58,8 @@ keeps them. They do not stop the deletion.
   `subscription-ends.requires-subscribers`).
 - **Breaking for an adapter of your own:** `TenantAccessHoldPort.record` and
   `lift` take the caller's transaction, and the port adds `listAllOf`,
-  `lockOpen`, `replaceActors` and `forgetNotes`; `SubscriptionEndPort` adds
+  `lockOpen`, `lockAllOf`, `replaceActors` and `forgetNotes`;
+  `SubscriberRepository` adds `unlinkTenant`; `SubscriptionEndPort` adds
   `listEndsOfTenant`, `listAnnouncedOfTenant`, `listExportDownloadsOfTenant`
   and `replaceActors`; `SubscriptionNoticeRepository.confirm` records
   `recipientCount`, and the repository adds `forgetRecipients`;
@@ -80,8 +81,9 @@ keeps them. They do not stop the deletion.
   (`SC-PRIV-025`); its subscriber is joined to no other until it closes
   (`409 SUBSCRIBER_JOIN_DELETION_UNDER_WAY`). When it closes, the rows the
   platform keeps of the tenant name roles instead of persons, its reasons lose
-  their notes, its notices their recipients, and every reason still open but
-  the deletion's own is lifted.
+  their notes, its notices their recipients, every reason still open but the
+  deletion's own is lifted, and its subscriber's link to it is closed, so a
+  returning customer's new subscriber can be joined into it (`SC-PRIV-027`).
 - A deletion does not begin while a contract of the tenant is in force at the
   end that made it due, or begins after it, such as one a checkout offer
   concluded since (`SC-PRIV-026`); the run holds it and writes nothing.

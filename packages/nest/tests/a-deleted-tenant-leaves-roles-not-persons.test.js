@@ -270,4 +270,60 @@ describe('the rows a deleted tenant leaves', () => {
             "another tenant's reason stays",
         );
     });
+
+    // @requirement SC-PRIV-025 — No invoice or suspension reaches a tenant being deleted; its close lifts the rest
+    test('keep the operator’s lift of a suspension that lands while the deletion closes, as the operator’s', async () => {
+        const run = await setUp();
+        await ended(run, 't1');
+        await aReason(run, 't1', 'suspended', OPERATOR);
+        const [suspension] = (await run.holds.listOpen('t1')).filter(
+            (hold) => hold.kind === 'suspended',
+        );
+        const liftedAt = new Date(DAY.getTime() + 60_000);
+        // The operator lifts the suspension as the close is under way: after
+        // the stores confirmed, before the transaction that closes the
+        // deletion writes who acted.
+        const listEnds = run.ends.listEndsOfTenant.bind(run.ends);
+        run.ends.listEndsOfTenant = async (...args) => {
+            run.ends.listEndsOfTenant = listEnds;
+            assert.ok(await run.holds.lift(suspension.id, liftedAt, OPERATOR));
+            return listEnds(...args);
+        };
+
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 1, halted: 0, failed: 0 });
+
+        const [lifted] = (await run.holds.listAllOf('t1')).filter(
+            (hold) => hold.kind === 'suspended',
+        );
+        assert.deepEqual(
+            [lifted.recordedBy, lifted.liftedBy, lifted.liftedAt],
+            ['operator', 'operator', liftedAt],
+        );
+    });
+});
+
+// @requirement SC-PRIV-027 — The deletion of a tenant ends its subscriber's link to it
+describe("the subscriber's link to a deleted tenant", () => {
+    test('is closed by the transaction that closes the deletion, and only by it', async () => {
+        const run = await setUp();
+        await ended(run, 't1');
+        await ended(run, 't2', '2027-01-15');
+        // The transaction that closes the deletion fails as it commits, after every write in it.
+        const close = run.records.close.bind(run.records);
+        run.records.close = async (...args) => {
+            run.records.close = close;
+            run.transactions.failNext = true;
+            return close(...args);
+        };
+
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 0, halted: 0, failed: 1 });
+        assert.deepEqual([...run.subscribers.unlinked.keys()], [], 'a link was closed');
+
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 1, halted: 0, failed: 0 });
+        assert.deepEqual(
+            [...run.subscribers.unlinked],
+            [['t1', recordOf(run, 't1').closedAt]],
+            "the deleted tenant's link closes as its deletion does, and another tenant's stays",
+        );
+    });
 });
