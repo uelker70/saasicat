@@ -556,7 +556,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     TENANT_BEING_DELETED: 'Dieses Konto wird gelöscht.',
     TENANT_ALREADY_SUSPENDED: 'Dieser Mandant ist bereits gesperrt.',
     TENANT_NOT_SUSPENDED: 'Dieser Mandant ist nicht gesperrt.',
-    TENANT_DELETION_BEGUN: 'Dieser Mandant wird gelöscht und kann daher nicht gesperrt werden.',
+    TENANT_DELETION_BEGUN:
+        'Dieser Mandant wird gelöscht: Er kann nicht mehr gesperrt und sein Export nicht mehr abgerufen werden.',
     TENANT_EXPORT_NOT_OFFERED:
         'Der Export dieses Kontos steht bereit, sobald sein Abonnement geendet hat.',
     TENANT_EXPORT_FAILED:

@@ -5152,12 +5152,13 @@ day, is in [Erase a tenant's stores](wire-the-backend.md#erase-a-tenants-stores)
   `keep` answers `[]`; a bundle without the records takes `FakeTenantDeletionRepository` as
   `deletion.records`.
 - **What changes for a tenant whose deletion has begun.** Nobody is let in, the operator acting as
-  it included, even to read (`TENANT_BEING_DELETED`). The operator cannot suspend it: the route
-  answers `409 TENANT_DELETION_BEGUN`, a new code a client of your own may meet; lifting a
-  suspension that stands still works. No invoice records or lifts a reason on it, and no reminder
-  goes to it (`SC-PRIV-025`). When it closes, the rows the platform keeps of it name roles instead
-  of persons, its reasons lose their notes, its notices their recipients, and every reason still
-  open but the deletion's own is lifted.
+  it included, even to read (`TENANT_BEING_DELETED`). The operator cannot suspend it, and no
+  download of its export is recorded, not even one your port produced or your application streamed
+  before the deletion began: both answer `409 TENANT_DELETION_BEGUN`, a new code a client of your
+  own, or your call of `recordDelivered`, may meet; lifting a suspension that stands still works. No
+  invoice records or lifts a reason on it, and no reminder goes to it (`SC-PRIV-025`). When it
+  closes, the rows the platform keeps of it name roles instead of persons, its reasons lose their
+  notes, its notices their recipients, and every reason still open but the deletion's own is lifted.
 - **The audit log** gains `TENANT_DELETION_BEGUN`, `TENANT_DELETION_CLOSED` and
   `TENANT_DELETION_HALTED`, written as the run `job:platform:tenant-deletions`, with the tenant.
   Your data eraser erases the first with the tenant's other entries

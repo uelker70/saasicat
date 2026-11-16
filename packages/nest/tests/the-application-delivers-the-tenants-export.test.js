@@ -301,6 +301,38 @@ describe('a delivery is recorded only once an end is recorded', () => {
     });
 });
 
+// @requirement SC-PRIV-023 — A tenant's deletion leaves a record with the subscriber that names no person
+describe('a delivery reported once the deletion has begun is not recorded', () => {
+    // A closed deletion lifted the `ended` reason, so its end is no longer
+    // offered and the refusal comes before this one.
+    test('a deletion under way, however long ago the download started: refused, nothing recorded or audited', async () => {
+        const { holds, delivery, ends, audited } = await delivering();
+        await holdFor(holds, 't1', 'deleting');
+
+        await assert.rejects(
+            delivery.recordDelivered(servedTo(), DELIVERED, NOW),
+            refusedWith(ConflictException, 'TENANT_DELETION_BEGUN'),
+        );
+        assert.deepEqual(ends.downloads, []);
+        assert.deepEqual(audited, []);
+    });
+
+    test("another tenant's delivery is still recorded", async () => {
+        const { holds, ends, delivery, audited } = await delivering();
+        await holdFor(holds, 't2', 'ended');
+        await endOf(ends, 't2');
+        await holdFor(holds, 't1', 'deleting');
+
+        await delivery.recordDelivered(servedTo('t2'), DELIVERED, NOW);
+
+        assert.deepEqual(
+            ends.downloads.map((download) => download.tenantId),
+            ['t2'],
+        );
+        assert.equal(audited.length, 1);
+    });
+});
+
 // @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe('only a whole file is recorded', () => {
     test('one byte is a file, and is recorded', async () => {

@@ -606,6 +606,62 @@ describe('one export of a tenant at a time, since each is held in memory as a wh
     });
 });
 
+/**
+ * Begins the deletion of `tenantId` as the deletion run does, and where
+ * `closed`, lifts its other reasons as the close does; the `deleting` reason
+ * stays open either way.
+ */
+async function deletionBegun(holds, tenantId, { closed }) {
+    const others = await holds.listOpen(tenantId);
+    await held(holds, tenantId, 'deleting');
+    if (!closed) return;
+    for (const hold of others) await holds.lift(hold.id, LATER, 'job:platform:tenant-deletions');
+}
+
+// @requirement SC-PRIV-023 — A tenant's deletion leaves a record with the subscriber that names no person
+describe('an export whose deletion begins while it is produced is not handed out', () => {
+    for (const closed of [false, true]) {
+        test(`a deletion ${closed ? 'closed' : 'under way'} by the time the file arrives: refused, nothing recorded or audited`, async () => {
+            const port = heldPort();
+            const { holds, service, ends, audited } = await installation({ port });
+
+            const taken = outcomeOf(service.take('t1', ACTOR, NOW));
+            await ticks();
+            await deletionBegun(holds, 't1', { closed });
+            port.release();
+            await ticks();
+
+            assert.ok(
+                refusedWith(ConflictException, 'TENANT_DELETION_BEGUN')(taken.error),
+                `the export came to ${taken.settled ? 'something else' : 'nothing yet'}`,
+            );
+            assert.deepEqual(ends.downloads, []);
+            assert.deepEqual(audited, []);
+        });
+    }
+
+    test("another tenant's export produced at the same time is handed out and recorded", async () => {
+        const port = heldPort();
+        const ends = new FakeSubscriptionEndRepository();
+        const { holds, service, audited } = await installation({ port, ends });
+        await held(holds, 't2', 'ended');
+        await ended(ends, 't2');
+
+        const other = outcomeOf(service.take('t2', ACTOR, NOW));
+        await ticks();
+        await deletionBegun(holds, 't1', { closed: false });
+        port.release();
+        await ticks();
+
+        assert.equal(other.value, FILE);
+        assert.deepEqual(
+            ends.downloads.map((download) => download.tenantId),
+            ['t2'],
+        );
+        assert.equal(audited.length, 1);
+    });
+});
+
 // @requirement SC-PRIV-020 — A tenant's administrator takes its full export, from the platform or the application
 describe("the export is the session's tenant's alone", () => {
     test('a request naming another tenant anywhere but its session is answered for its session', async () => {

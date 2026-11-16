@@ -2148,13 +2148,15 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     guard let through with `actingAsOperator: true` — with `403 TENANT_EXPORT_NOT_FOR_OPERATOR`, a
     `HEAD` with `405` and `Allow: GET`, and a second request for the same tenant while its export is
     produced with `409 TENANT_EXPORT_IN_PROGRESS`, since each is held in memory as a whole; a
-    suspension and a deletion under way refuse it as they refuse every request. Your port is asked
-    on every download, for the session's tenant only. Once it has handed the file over, the download
-    is recorded in `tenant_export_downloads` — the moment, who took it by the user's id and as the
-    audit log tags them, and the file's size — and only then sent, and it is audited as
-    `TENANT_EXPORT_DOWNLOAD` where the audit log is wired; the operator reads every download under
-    "Access" on the tenant's page. That record is the tenant's acknowledgement (`SC-PRIV-024`): it
-    shows that the file was produced for that request, not that it was saved.
+    suspension and a deletion under way refuse it as they refuse every request, and a deletion that
+    begins while your port produces the file refuses it with `409 TENANT_DELETION_BEGUN`, recording
+    and sending nothing. Your port is asked on every download, for the session's tenant only. Once
+    it has handed the file over, the download is recorded in `tenant_export_downloads` — the moment,
+    who took it by the user's id and as the audit log tags them, and the file's size — and only then
+    sent, and it is audited as `TENANT_EXPORT_DOWNLOAD` where the audit log is wired; the operator
+    reads every download under "Access" on the tenant's page. That record is the tenant's
+    acknowledgement (`SC-PRIV-024`): it shows that the file was produced for that request, not that
+    it was saved.
 
     Where the export cannot be held in memory as one file — a ZIP of every document, say — your
     application delivers it itself, and the platform records each download once it has gone out in
@@ -2229,17 +2231,18 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     the download beside the end and audits it as `TENANT_EXPORT_DOWNLOAD` exactly as one it served.
     It refuses where those rules do not hold, records nothing, and your own trace is all there is:
     `409 TENANT_EXPORT_NOT_OFFERED` where no end of the tenant's subscription is recorded — your
-    export may well be open to the tenant before that —, `403 TENANT_EXPORT_NOT_FOR_OPERATOR` for the
-    operator, `403 TENANT_ADMIN_REQUIRED` for a user who is not the tenant's administrator,
-    `503 TENANT_EXPORT_FAILED` for a size that is not a whole number of at least one byte, or a media
-    type outside printable ASCII, and `405` for a `HEAD`: the handler runs for one, the response
-    takes the whole stream and finishes, and no file reaches anybody — so the route above answers a
-    `HEAD` before it opens the archive, as the platform's own route does. It reads the end and
-    writes the download past the tenants' row policy, by the tenant the session names
-    (`SC-SEC-020`), since a response's last event runs after your handler returned, in no frame your
-    interceptor can be relied on to have kept open. One download of a tenant at a time, and how
-    long one may take, are yours to bound on this path. The platform mounts no
-    `GET /billing/export` then. The tenant's state says
+    export may well be open to the tenant before that —, `409 TENANT_DELETION_BEGUN` once the
+    tenant's deletion has begun, however long before your download started,
+    `403 TENANT_EXPORT_NOT_FOR_OPERATOR` for the operator, `403 TENANT_ADMIN_REQUIRED` for a user
+    who is not the tenant's administrator, `503 TENANT_EXPORT_FAILED` for a size that is not a whole
+    number of at least one byte, or a media type outside printable ASCII, and `405` for a `HEAD`:
+    the handler runs for one, the response takes the whole stream and finishes, and no file reaches
+    anybody — so the route above answers a `HEAD` before it opens the archive, as the platform's own
+    route does. It reads the end and writes the download past the tenants' row policy, by the tenant
+    the session names (`SC-SEC-020`), since a response's last event runs after your handler
+    returned, in no frame your interceptor can be relied on to have kept open. One download of a
+    tenant at a time, and how long one may take, are yours to bound on this path. The platform
+    mounts no `GET /billing/export` then. The tenant's state says
     `exportDeliveredBy: 'application'` to the administrator it offers the export to, and
     `TenantAccessBanner` starts your download instead of loading a file: bind it to `@take-export`.
     Where nothing is bound, the banner says so in the browser's console as soon as it offers the
@@ -2542,8 +2545,10 @@ run asks again.
   tenant. From then on nobody is let into the tenant, the operator acting as it included and only
   reading included (`TENANT_BEING_DELETED`); the operator cannot suspend it
   (`409 TENANT_DELETION_BEGUN`), though lifting a suspension that stands is still the operator's; no
-  invoice records or lifts a reason on it, the quarter-hourly run's nor a settling payment's
-  (`SC-PRIV-025`, `SC-PRIC-104`); and no reminder goes to it. `TENANT_DELETION_BEGUN` is audited.
+  download of its export is recorded or handed out, not even one produced or streamed before the
+  deletion began (`409 TENANT_DELETION_BEGUN`); no invoice records or lifts a reason on it, the
+  quarter-hourly run's nor a settling payment's (`SC-PRIV-025`, `SC-PRIC-104`); and no reminder goes
+  to it. `TENANT_DELETION_BEGUN` is audited.
 - **Every store counts, then each erases in turn**, the guard after each. A step that fails is
   recorded with the step, the store and a code — the error's own `code`, or its name, and never its
   message, which may name anybody; the stack goes to the server log alone. The next run goes on

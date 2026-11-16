@@ -71,6 +71,8 @@ keeps them. They do not stop the deletion.
   third. `@saasicat/nest/testing` adds `FakeTenantDeletionRepository`.
 - Once a tenant's deletion has begun, nobody is let in, the operator acting as
   it included; the operator cannot suspend it (`409 TENANT_DELETION_BEGUN`); no
+  download of its export is recorded, not even one started before, with the
+  same code, from the platform's route and from `recordDelivered` alike; no
   invoice records or lifts a reason on it, and no reminder goes to it
   (`SC-PRIV-025`). When it closes, the rows the platform keeps of the tenant
   name roles instead of persons, its reasons lose their notes, its notices their

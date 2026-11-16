@@ -713,6 +713,16 @@ _Tested by:_
         - keep who acted where the transaction that closes the deletion fails, and the next run
           closes it
         - lift every reason still open but the deletion’s own, as the run, once the deletion closes
+- `packages/nest/tests/a-tenant-takes-its-export-before-its-deletion.test.js`
+    - an export whose deletion begins while it is produced is not handed out
+        - a deletion ${closed ? 'closed' : 'under way'} by the time the file arrives: refused,
+          nothing recorded or audited
+        - another tenant's export produced at the same time is handed out and recorded
+- `packages/nest/tests/the-application-delivers-the-tenants-export.test.js`
+    - a delivery reported once the deletion has begun is not recorded
+        - a deletion under way, however long ago the download started: refused, nothing recorded or
+          audited
+        - another tenant's delivery is still recorded
 
 <!-- END proof -->
 
