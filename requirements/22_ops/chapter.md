@@ -326,6 +326,7 @@ _Tested by:_
     - a tenant's deletion is recorded with its subscriber
         - a database from before ends up with the schema the fragments declare, twice
         - a store's count and what the tenant keeps go in ${ground}
+        - the one halt a deletion keeps goes in ${ground}
         - ${what} is refused ${ground}
         - an installation without subscribers is left without them, and runs through
     - a notice keeps how many it went to
@@ -522,6 +523,7 @@ _Tested by:_
     - a tenant's deletion is recorded with its subscriber
         - a database from before ends up with the schema the fragments declare, twice
         - a store's count and what the tenant keeps go in ${ground}
+        - the one halt a deletion keeps goes in ${ground}
         - ${what} is refused ${ground}
         - an installation without subscribers is left without them, and runs through
     - a notice keeps how many it went to
