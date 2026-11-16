@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 708 entries: 🟢 610 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+Of 708 entries: 🟢 614 stand today, 🟡 27 decided but not yet delivered, ⚪ 0 drafts,
 🔵 60 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -124,11 +124,7 @@ Of 708 entries: 🟢 610 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
 [SC-ADM-055](#sc-adm-055--a-suspended-tenant-cannot-act-and-a-read-only-one-writes-only-to-pay-or-to-leave),
-[SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
-[SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
-[SC-PRIV-016](#sc-priv-016--erasing-a-tenants-data-or-files-is-refused-unless-exactly-one-tenant-is-named),
-[SC-PRIV-018](#sc-priv-018--a-tenants-deletion-can-safely-run-again-and-is-done-only-once-every-store-confirms),
 [SC-PRIV-021](#sc-priv-021--a-tenant-is-deleted-only-in-the-database-its-installation-marked-as-its-own),
 [SC-PRIV-022](#sc-priv-022--a-tenant-is-erased-by-the-applications-stores-after-it-was-told-what-to-keep),
 [SC-PRIV-023](#sc-priv-023--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),

@@ -125,7 +125,7 @@ _Source:_ #222 · `docs/guides/upgrade-to-1.0.md`
 
 ### SC-PRIV-011 — Contracts, invoices and payments outlive the tenant they were for
 
-🟡 _(Decided, not yet delivered.)_ 💰 They belong to the subscriber (`SC-SCOPE-012`) and are kept
+🟢 💰 They belong to the subscriber (`SC-SCOPE-012`) and are kept
 for as long as they have to be.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
@@ -142,12 +142,16 @@ _Tested by:_
         - taken by a store whose count after it failed is laid at that store on the next run, before
           any later store erases
         - that grew while a store erased lost nothing, and the deletion closes
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what
+          the platform keeps of the tenant
 
 <!-- END proof -->
 
 ### SC-PRIV-012 — A record kept for tax purposes is not deleted automatically
 
-🟡 _(Decided, not yet delivered.)_ 💰 A retention period in configuration can be set too short,
+🟢 💰 A retention period in configuration can be set too short,
 and the first one runs out years from now. Removing records whose period has passed is a later
 and deliberate addition.
 
@@ -165,6 +169,10 @@ _Tested by:_
         - taken by a store whose count after it failed is laid at that store on the next run, before
           any later store erases
         - that grew while a store erased lost nothing, and the deletion closes
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what
+          the platform keeps of the tenant
 
 <!-- END proof -->
 
@@ -208,7 +216,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIV-016 — Erasing a tenant's data or files is refused unless exactly one tenant is named
 
-🟡 _(Decided, not yet delivered.)_ 🔒 An empty or missing tenant identifier would reach every
+🟢 🔒 An empty or missing tenant identifier would reach every
 tenant at once, so such a request is refused before anything is erased.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
@@ -232,6 +240,9 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
     - the tenant a store is asked about
         - is never one an end names as nobody
+- `examples/notesapp/tests/the-notes-app-erases-one-tenant.test.mjs`
+    - the notes app's eraser
+        - refuses what does not name exactly one tenant before it asks the database anything
 
 <!-- END proof -->
 
@@ -245,7 +256,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIV-018 — A tenant's deletion can safely run again, and is done only once every store confirms
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Data and files live in different stores, and a call can time
+🟢 🔒 Data and files live in different stores, and a call can time
 out after it has already erased. Each eraser treats what is already gone as done, a run that stops
 partway is reported and repeated rather than left half-finished, and the deletion record
 (`SC-PRIV-023`) is written only when every store has confirmed. Once a run has begun the tenant is
@@ -278,6 +289,12 @@ _Tested by:_
     - two instances at once
         - begin a deletion once, and each store is asked once
         - going on with a deletion begun before, one claims it and the other leaves it
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - erasing the tenant again is done, and changes nothing
+- `examples/notesapp/tests/the-notes-app-erases-one-tenant.test.mjs`
+    - the notes app's eraser
+        - erasing a tenant already gone is done, and erases nothing of another
 
 <!-- END proof -->
 

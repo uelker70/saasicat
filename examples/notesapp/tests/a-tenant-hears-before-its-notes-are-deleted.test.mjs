@@ -20,6 +20,7 @@ const REMINDER = {
     daysBefore: 10,
     readOnlyUntil: '2027-01-30',
     deletesOn: '2027-01-31',
+    keep: [],
 };
 
 /** A client whose users are `users`, and a log that keeps what is written to it. */
@@ -53,6 +54,21 @@ describe("the notes app's notice port", () => {
         assert.match(logged[0], /deleted on 2027-01-31/);
         assert.match(logged[0], /Until 2027-01-30/);
         assert.match(logged[0], /GET billing\/export/);
+    });
+
+    test('names what the tenant has to keep itself, with its count, and says nothing of it where there is nothing', async () => {
+        const { port, logged } = portOver([{ tenantId: 't1', id: 'u1' }]);
+        const keep = [
+            { category: 'receipts', count: 42, labels: { en: 'Receipts', de: 'Belege' } },
+            { category: 'contracts', count: 1, labels: { en: 'Contracts' } },
+        ];
+
+        await port.deliver({ ...REMINDER, keep });
+        await port.deliver(REMINDER);
+
+        assert.match(logged[0], /Receipts: 42, Contracts: 1\./);
+        assert.match(logged[0], /does not wait for them/);
+        assert.doesNotMatch(logged[1], /keep|Receipts/);
     });
 
     test('tells nobody of a tenant without users, and says so', async () => {

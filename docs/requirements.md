@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 708 entries: 🟢 610 stand today, 🟡 31 decided but not yet delivered, ⚪ 0 drafts,
+Of 708 entries: 🟢 614 stand today, 🟡 27 decided but not yet delivered, ⚪ 0 drafts,
 🔵 60 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -156,11 +156,7 @@ Of 708 entries: 🟢 610 stand today, 🟡 31 decided but not yet delivered, ⚪
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
 [SC-ADM-055](#sc-adm-055--a-suspended-tenant-cannot-act-and-a-read-only-one-writes-only-to-pay-or-to-leave),
-[SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
-[SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
-[SC-PRIV-016](#sc-priv-016--erasing-a-tenants-data-or-files-is-refused-unless-exactly-one-tenant-is-named),
-[SC-PRIV-018](#sc-priv-018--a-tenants-deletion-can-safely-run-again-and-is-done-only-once-every-store-confirms),
 [SC-PRIV-021](#sc-priv-021--a-tenant-is-deleted-only-in-the-database-its-installation-marked-as-its-own),
 [SC-PRIV-022](#sc-priv-022--a-tenant-is-erased-by-the-applications-stores-after-it-was-told-what-to-keep),
 [SC-PRIV-023](#sc-priv-023--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),
@@ -25036,7 +25032,7 @@ _Source:_ #222 · `docs/guides/upgrade-to-1.0.md`
 
 ### SC-PRIV-011 — Contracts, invoices and payments outlive the tenant they were for
 
-🟡 _(Decided, not yet delivered.)_ 💰 They belong to the subscriber (`SC-SCOPE-012`) and are kept
+🟢 💰 They belong to the subscriber (`SC-SCOPE-012`) and are kept
 for as long as they have to be.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
@@ -25053,12 +25049,16 @@ _Tested by:_
         - taken by a store whose count after it failed is laid at that store on the next run, before
           any later store erases
         - that grew while a store erased lost nothing, and the deletion closes
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what
+          the platform keeps of the tenant
 
 <!-- END proof -->
 
 ### SC-PRIV-012 — A record kept for tax purposes is not deleted automatically
 
-🟡 _(Decided, not yet delivered.)_ 💰 A retention period in configuration can be set too short,
+🟢 💰 A retention period in configuration can be set too short,
 and the first one runs out years from now. Removing records whose period has passed is a later
 and deliberate addition.
 
@@ -25076,6 +25076,10 @@ _Tested by:_
         - taken by a store whose count after it failed is laid at that store on the next run, before
           any later store erases
         - that grew while a store erased lost nothing, and the deletion closes
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what
+          the platform keeps of the tenant
 
 <!-- END proof -->
 
@@ -25119,7 +25123,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIV-016 — Erasing a tenant's data or files is refused unless exactly one tenant is named
 
-🟡 _(Decided, not yet delivered.)_ 🔒 An empty or missing tenant identifier would reach every
+🟢 🔒 An empty or missing tenant identifier would reach every
 tenant at once, so such a request is refused before anything is erased.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
@@ -25143,6 +25147,9 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
     - the tenant a store is asked about
         - is never one an end names as nobody
+- `examples/notesapp/tests/the-notes-app-erases-one-tenant.test.mjs`
+    - the notes app's eraser
+        - refuses what does not name exactly one tenant before it asks the database anything
 
 <!-- END proof -->
 
@@ -25156,7 +25163,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIV-018 — A tenant's deletion can safely run again, and is done only once every store confirms
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Data and files live in different stores, and a call can time
+🟢 🔒 Data and files live in different stores, and a call can time
 out after it has already erased. Each eraser treats what is already gone as done, a run that stops
 partway is reported and repeated rather than left half-finished, and the deletion record
 (`SC-PRIV-023`) is written only when every store has confirmed. Once a run has begun the tenant is
@@ -25189,6 +25196,12 @@ _Tested by:_
     - two instances at once
         - begin a deletion once, and each store is asked once
         - going on with a deletion begun before, one claims it and the other leaves it
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - erasing the tenant again is done, and changes nothing
+- `examples/notesapp/tests/the-notes-app-erases-one-tenant.test.mjs`
+    - the notes app's eraser
+        - erasing a tenant already gone is done, and erases nothing of another
 
 <!-- END proof -->
 
@@ -28545,12 +28558,19 @@ _Tested by:_
 - `examples/notesapp/tests/a-tenant-hears-before-its-notes-are-deleted.test.mjs`
     - the notes app's notice port
         - tells the tenant's own users the deletion day and where the export is, and says so
+        - names what the tenant has to keep itself, with its count, and says nothing of it where
+          there is nothing
         - tells nobody of a tenant without users, and says so
 - `examples/notesapp/tests/dev-proxy-targets-own-backend.test.mjs`
     - docker-compose declares a default for every port the dev server needs
     - the vite config reads the ports from the file, not from the shell
     - ${variable}: the config fallback equals the compose default
     - .env.example documents the same defaults it tells people to override
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what
+          the platform keeps of the tenant
+        - erasing the tenant again is done, and changes nothing
 - `examples/notesapp/tests/notesapp-smoke.test.mjs`
     - notesapp platform wiring (smoke)
         - static entitlement resolves the STARTER plan for every tenant
@@ -28574,6 +28594,15 @@ _Tested by:_
         - stores the second factor sealed with the installation key, as the platform opens it
         - keeps a second factor the key opens, so an authenticator set up once keeps working
         - replaces a second factor the key cannot open, which checks no code
+- `examples/notesapp/tests/the-notes-app-erases-one-tenant.test.mjs`
+    - the notes app's eraser
+        - is named with a stable key
+        - refuses what does not name exactly one tenant before it asks the database anything
+        - counts the tenant's notes, users and audit entries, and no other tenant's
+        - erases the tenant's audit entries, then its row, in one transaction and for it alone
+        - erasing a tenant already gone is done, and erases nothing of another
+    - the notes app's report of what a tenant keeps
+        - is nothing: the notes app holds nothing a tenant has to keep for obligations of its own
 - `examples/notesapp/tests/the-notes-app-issues-invoices.test.mjs`
     - the notes app's contract freeze source
         - names the version the subscription is bound to, by its plan

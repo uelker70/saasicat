@@ -17,7 +17,9 @@ import { PrismaService } from './prisma/prisma.service';
 import { NOTES_FEATURE_UI_REGISTRY } from './saas/feature-ui-registry';
 import { NotesQuotaProvider } from './saas/notes-quota.provider';
 import { NotesContractFreezeSource } from './saas/notes-contract-freeze-source';
+import { NotesDataEraser } from './saas/notes-data-eraser';
 import { NotesDataExport } from './saas/notes-data-export';
+import { NotesKeepReport } from './saas/notes-keep-report';
 import { NotesInvoiceMailLog } from './saas/notes-invoice-mail-log';
 import { NotesNoticeLog } from './saas/notes-notice-log';
 
@@ -98,7 +100,21 @@ export const NOTES_SAASICAT_CONFIG = defineSaaSiCat({
             // it is, with no fallback: a default here would name
             // every environment the same, and the brake would hold
             // nothing. The platform refuses to start without it.
-            deletion: { installation: process.env.SAASICAT_INSTALLATION },
+            //
+            // On the deletion day the platform erases the tenant through
+            // the app's erasers, in the order listed — a store of files
+            // before the database whose rows find them — and keeps the
+            // record with the subscriber. What the tenant has to keep for
+            // obligations of its own, the app reports; it is told in every
+            // reminder and does not stop the deletion.
+            deletion: {
+                installation: process.env.SAASICAT_INSTALLATION,
+                erasers: {
+                    useFactory: (prisma: PrismaService) => [new NotesDataEraser(prisma)],
+                    inject: [PrismaService],
+                },
+                keep: new NotesKeepReport(),
+            },
         },
         // Before the data is deleted, the tenant hears of it at the
         // lead times `config/saas.yaml` names — its users no longer

@@ -1388,12 +1388,19 @@ _Tested by:_
 - `examples/notesapp/tests/a-tenant-hears-before-its-notes-are-deleted.test.mjs`
     - the notes app's notice port
         - tells the tenant's own users the deletion day and where the export is, and says so
+        - names what the tenant has to keep itself, with its count, and says nothing of it where
+          there is nothing
         - tells nobody of a tenant without users, and says so
 - `examples/notesapp/tests/dev-proxy-targets-own-backend.test.mjs`
     - docker-compose declares a default for every port the dev server needs
     - the vite config reads the ports from the file, not from the shell
     - ${variable}: the config fallback equals the compose default
     - .env.example documents the same defaults it tells people to override
+- `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
+    - the notes app's eraser on PostgreSQL
+        - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what
+          the platform keeps of the tenant
+        - erasing the tenant again is done, and changes nothing
 - `examples/notesapp/tests/notesapp-smoke.test.mjs`
     - notesapp platform wiring (smoke)
         - static entitlement resolves the STARTER plan for every tenant
@@ -1417,6 +1424,15 @@ _Tested by:_
         - stores the second factor sealed with the installation key, as the platform opens it
         - keeps a second factor the key opens, so an authenticator set up once keeps working
         - replaces a second factor the key cannot open, which checks no code
+- `examples/notesapp/tests/the-notes-app-erases-one-tenant.test.mjs`
+    - the notes app's eraser
+        - is named with a stable key
+        - refuses what does not name exactly one tenant before it asks the database anything
+        - counts the tenant's notes, users and audit entries, and no other tenant's
+        - erases the tenant's audit entries, then its row, in one transaction and for it alone
+        - erasing a tenant already gone is done, and erases nothing of another
+    - the notes app's report of what a tenant keeps
+        - is nothing: the notes app holds nothing a tenant has to keep for obligations of its own
 - `examples/notesapp/tests/the-notes-app-issues-invoices.test.mjs`
     - the notes app's contract freeze source
         - names the version the subscription is bound to, by its plan
