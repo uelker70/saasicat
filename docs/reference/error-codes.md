@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 317 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 318 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -416,6 +416,7 @@ What a held-back tenant's users meet, with the open reasons in `params.reasons`,
 | -------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `TENANT_ALREADY_SUSPENDED`       | This tenant is suspended already.                                                                  |
 | `TENANT_BEING_DELETED`           | This account is being deleted.                                                                     |
+| `TENANT_DELETION_BEGUN`          | This tenant is being deleted, so it cannot be suspended.                                           |
 | `TENANT_EXPORT_FAILED`           | The export of this account could not be produced just now. Please try again later.                 |
 | `TENANT_EXPORT_IN_PROGRESS`      | The export of this account is being produced already. Please try again once it has arrived.        |
 | `TENANT_EXPORT_NOT_FOR_OPERATOR` | Only an administrator of this account can take its export, not the provider acting as the account. |

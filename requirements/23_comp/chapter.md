@@ -949,6 +949,7 @@ _Tested by:_
         - a record and a lift given a transaction write on it, not on the client
         - a lock is taken on the row in the transaction, and the reason read open only after it
         - the actors are replaced row by row, by id, and nothing else is written
+        - a tenant's notes are emptied in one write, on the rows that have one, and nothing else
         - a row with a kind the platform does not know is refused
 - `packages/adapter-prisma/tests/prisma-tenant-deletion.repository.test.js`
     - PrismaTenantDeletionRepository

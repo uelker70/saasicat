@@ -31,21 +31,52 @@ function keepForUndo(tx, rows) {
     tx.undo.push(() => rows.splice(0, rows.length, ...before));
 }
 
-/** Reasons that a failed transaction takes back where they were written in it. */
+/**
+ * Keeps `fields` of the rows among `rows` that `touches` picks, to be put back
+ * where `tx` fails. Only what the write changes is put back, so a write made
+ * beside the transaction stays, as it does in a database.
+ */
+function keepFieldsForUndo(tx, rows, touches, fields) {
+    if (!tx) return;
+    const before = rows
+        .filter(touches)
+        .map((row) => [row, Object.fromEntries(fields.map((field) => [field, row[field]]))]);
+    tx.undo.push(() => {
+        for (const [row, values] of before) Object.assign(row, values);
+    });
+}
+
+/**
+ * Reasons that a failed transaction takes back where they were written in it,
+ * each write its own rows and columns: a reason written beside the
+ * transaction stays written.
+ */
 class TransactionalHolds extends FakeTenantAccessHoldRepository {
     async record(hold, tx) {
-        keepForUndo(tx, this.holds);
-        return super.record(hold);
+        const recorded = await super.record(hold);
+        if (tx && recorded) {
+            tx.undo.push(() => {
+                const at = this.holds.findIndex((row) => row.id === recorded.id);
+                if (at >= 0) this.holds.splice(at, 1);
+            });
+        }
+        return recorded;
     }
 
     async lift(id, liftedAt, liftedBy, tx) {
-        keepForUndo(tx, this.holds);
+        keepFieldsForUndo(tx, this.holds, (row) => row.id === id, ['liftedAt', 'liftedBy']);
         return super.lift(id, liftedAt, liftedBy);
     }
 
     async replaceActors(replacements, tx) {
-        keepForUndo(tx, this.holds);
+        const ids = new Set(replacements.map(({ id }) => id));
+        keepFieldsForUndo(tx, this.holds, (row) => ids.has(row.id), ['recordedBy', 'liftedBy']);
         return super.replaceActors(replacements);
+    }
+
+    async forgetNotes(tenantId, tx) {
+        keepFieldsForUndo(tx, this.holds, (row) => row.tenantId === tenantId, ['note']);
+        return super.forgetNotes(tenantId);
     }
 }
 

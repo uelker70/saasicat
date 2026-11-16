@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import {
     type NewTenantAccessHold,
     type TenantAccessHold,
@@ -129,5 +129,14 @@ export class DrizzleTenantAccessHoldRepository implements TenantAccessHoldPort {
                 .set({ recordedBy, liftedBy })
                 .where(eq(tenantAccessHolds.id, id));
         }
+    }
+
+    async forgetNotes(tenantId: string, tx?: TransactionContext): Promise<void> {
+        await resolveDb(this.db, tx)
+            .update(tenantAccessHolds)
+            .set({ note: null })
+            .where(
+                and(eq(tenantAccessHolds.tenantId, tenantId), isNotNull(tenantAccessHolds.note)),
+            );
     }
 }

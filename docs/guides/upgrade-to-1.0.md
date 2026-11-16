@@ -4357,7 +4357,7 @@ cancelled one included. To adopt it:
 ### An invoice unpaid on its due date makes the tenant read-only
 
 Wherever `config/saas.yaml` names `invoicing`, an invoice still open on its due date makes its
-subscriber's tenant read-only from that day until it is paid (`SC-PRIC-098`): the quarter-hourly
+subscriber's tenant read-only from that day until it is paid (`SC-PRIC-104`): the quarter-hourly
 invoice run records an `overdue` reason for it, the payment that settles it lifts the reason at
 once, and the next run lifts any whose invoice no longer owes. There is no grace period and nothing
 to configure; a direct debit sent on the due date holds nobody back until the bank refuses it. To

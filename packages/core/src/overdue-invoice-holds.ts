@@ -1,5 +1,5 @@
 // When an unpaid invoice holds its tenant back, and when it stops holding it
-// (`SC-PRIC-098`, `SC-ADM-055`).
+// (`SC-PRIC-104`, `SC-ADM-055`).
 //
 // An invoice still open on its due date (`SC-PRIC-046`) makes the tenant its
 // subscriber is live for read-only on that day: a subscription is paid on its
@@ -34,7 +34,7 @@ import type { InvoiceSettlementRecord } from './invoice-export.types.js';
 import { toCents } from './money.js';
 import { REOPENING_SETTLEMENT_KINDS } from './subscriber-payment-mapping.js';
 import { owedOn } from './subscriber-payment-rules.js';
-import type { TenantAccessHold } from './tenant-access.types.js';
+import { tenantsBeingDeleted, type TenantAccessHold } from './tenant-access.types.js';
 import { dayInZone, type CalendarDay } from './zoned-day.js';
 
 /** An open invoice that holds its tenant back, with that tenant. */
@@ -210,18 +210,26 @@ export interface OverdueHoldChanges {
 /**
  * What to record and to lift so that the open `overdue` reasons among `open`
  * are one per invoice in `overdue`, on the tenant it names. A reason of
- * another kind is left alone: it is not this rule's to lift.
+ * another kind is left alone: it is not this rule's to lift. So is a tenant
+ * whose deletion has begun, as an open reason among `open` says: its reasons
+ * are the deletion's to lift when it closes, and a tenant that is gone has
+ * nothing left to be held back from (`SC-PRIV-025`).
  */
 export function overdueHoldChanges(
     overdue: readonly OverdueInvoice[],
     open: readonly TenantAccessHold[],
 ): OverdueHoldChanges {
-    const held = open.filter((hold) => hold.kind === 'overdue' && hold.liftedAt === null);
+    const beingDeleted = tenantsBeingDeleted(open);
+    const held = open.filter(
+        (hold) =>
+            hold.kind === 'overdue' && hold.liftedAt === null && !beingDeleted.has(hold.tenantId),
+    );
     const owed = new Set(overdue.map((invoice) => keyOf(invoice.tenantId, invoice.invoiceId)));
     // An invoice listed twice is still one reason.
     const covered = new Set(held.map((hold) => keyOf(hold.tenantId, hold.reference)));
     const record: OverdueInvoice[] = [];
     for (const invoice of overdue) {
+        if (beingDeleted.has(invoice.tenantId)) continue;
         const key = keyOf(invoice.tenantId, invoice.invoiceId);
         if (covered.has(key)) continue;
         covered.add(key);

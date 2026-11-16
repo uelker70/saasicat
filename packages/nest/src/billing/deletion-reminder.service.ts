@@ -45,6 +45,7 @@ import {
     deletionReminderSubjectOf,
     installationZoneOf,
     keepLinesProblem,
+    tenantsBeingDeleted,
     type CalendarDay,
     type DeletionReminderNotice,
     type EndOfSubscriptionSettings,
@@ -178,10 +179,9 @@ export class DeletionReminderService {
     private async awaitingDeletion(ends: SubscriptionEnd[]): Promise<SubscriptionEnd[]> {
         if (!this.holds || ends.length === 0) return [];
         const open = await this.holds.listOpenFor([...new Set(ends.map((end) => end.tenantId))]);
-        const deleting = new Set<string>();
+        const deleting = tenantsBeingDeleted(open);
         const endedBy = new Map<string, Set<string>>();
         for (const hold of open) {
-            if (hold.kind === 'deleting') deleting.add(hold.tenantId);
             if (hold.kind !== 'ended' || hold.reference === null) continue;
             const references = endedBy.get(hold.tenantId) ?? new Set<string>();
             references.add(hold.reference);

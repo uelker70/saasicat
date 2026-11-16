@@ -2010,6 +2010,11 @@ export function createMemoryHarness() {
                 if (row) Object.assign(row, { recordedBy, liftedBy });
             }
         },
+        async forgetNotes(tenantId) {
+            for (const row of state.tenantAccessHolds) {
+                if (row.tenantId === tenantId) row.note = null;
+            }
+        },
         async record(hold) {
             const taken = openHolds().some(
                 (row) =>

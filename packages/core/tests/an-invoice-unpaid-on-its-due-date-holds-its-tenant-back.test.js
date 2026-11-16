@@ -1,8 +1,8 @@
 // When an invoice left unpaid holds its tenant back, and which reasons a run
 // records and lifts so that the open ones are one per such invoice
-// (`SC-PRIC-098`).
+// (`SC-PRIC-104`).
 
-// @requirement SC-PRIC-098 — An invoice unpaid on its due date makes the tenant read-only until it is paid
+// @requirement SC-PRIC-104 — An invoice unpaid on its due date makes the tenant read-only until it is paid
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -266,6 +266,36 @@ describe('the reasons a run records and lifts', () => {
         );
         assert.deepEqual(changes.lift, [first]);
         assert.deepEqual(changes.record, []);
+    });
+
+    // @requirement SC-PRIV-025 — No invoice or suspension reaches a tenant being deleted; its close lifts the rest
+    test('a tenant whose deletion has begun gets no reason and loses none; another tenant does', () => {
+        const paid = hold('h1', 't1', 'inv-1');
+        const elsewhere = hold('h3', 't2', 'inv-3');
+        const changes = overdueHoldChanges(
+            [
+                { invoiceId: 'inv-2', tenantId: 't1' },
+                { invoiceId: 'inv-4', tenantId: 't2' },
+            ],
+            [paid, hold('h2', 't1', 'sub-1', { kind: 'deleting' }), elsewhere],
+        );
+        assert.deepEqual(changes, {
+            record: [{ invoiceId: 'inv-4', tenantId: 't2' }],
+            lift: [elsewhere],
+        });
+    });
+
+    // @requirement SC-PRIV-025 — No invoice or suspension reaches a tenant being deleted; its close lifts the rest
+    test('a deletion reason lifted holds the rule back no more', () => {
+        const paid = hold('h1', 't1', 'inv-1');
+        const changes = overdueHoldChanges(
+            [{ invoiceId: 'inv-2', tenantId: 't1' }],
+            [paid, hold('h2', 't1', 'sub-1', { kind: 'deleting', liftedAt: SINCE })],
+        );
+        assert.deepEqual(changes, {
+            record: [{ invoiceId: 'inv-2', tenantId: 't1' }],
+            lift: [paid],
+        });
     });
 });
 

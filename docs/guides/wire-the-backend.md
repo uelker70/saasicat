@@ -1910,7 +1910,7 @@ application issuing for the same issuer is not supported.
 ### An invoice unpaid on its due date
 
 An invoice still open on its due date makes the tenant its subscriber is live for read-only from
-that day until it is paid (`SC-PRIC-098`, `SC-ADM-055`); there is no grace period, and before its due
+that day until it is paid (`SC-PRIC-104`, `SC-ADM-055`); there is no grace period, and before its due
 date an invoice holds nobody back. A subscription paid on its date sets `invoicing.paymentTermDays`
 to `0`: the invoice is then due the day it is issued, and a card declined in the run that issues it
 makes the tenant read-only in that run.

@@ -207,6 +207,19 @@ describe('PrismaTenantAccessHoldRepository', () => {
         );
     });
 
+    test("a tenant's notes are emptied in one write, on the rows that have one, and nothing else", async () => {
+        const client = fakeClient();
+        const tx = fakeClient();
+        await new PrismaTenantAccessHoldRepository(client).forgetNotes('t-1', tx);
+        assert.deepEqual(client.calls, []);
+        assert.deepEqual(tx.calls, [
+            [
+                'updateMany',
+                { where: { tenantId: 't-1', note: { not: null } }, data: { note: null } },
+            ],
+        ]);
+    });
+
     test('a row with a kind the platform does not know is refused', async () => {
         const client = fakeClient();
         client.tenantAccessHold.findMany = async () => [{ ...ROW, kind: 'paused' }];

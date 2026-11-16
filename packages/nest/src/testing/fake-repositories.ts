@@ -1079,6 +1079,12 @@ export class FakeTenantAccessHoldRepository implements TenantAccessHoldPort {
         }
     }
 
+    async forgetNotes(tenantId: string): Promise<void> {
+        for (const hold of this.holds) {
+            if (hold.tenantId === tenantId) hold.note = null;
+        }
+    }
+
     private open(): TenantAccessHold[] {
         return this.holds
             .filter((hold) => hold.liftedAt === null)

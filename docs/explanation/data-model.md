@@ -194,7 +194,7 @@ value, not a relation: the tenant model is the application's.
 one for every invoice unpaid on or after its due date, on the tenant the
 invoice's subscriber is live for, and lifts each whose invoice that no longer
 describes; the payment that settles an invoice lifts its reason at once
-(`SC-PRIC-098`).
+(`SC-PRIC-104`).
 
 ### Subscription ends
 

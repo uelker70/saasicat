@@ -1125,6 +1125,13 @@ export const TENANT_ACCESS_ERROR_CODES = {
     /** The tenant is not suspended, so there is nothing to reactivate. */
     TENANT_NOT_SUSPENDED: 'TENANT_NOT_SUSPENDED',
     /**
+     * The tenant's deletion has begun, so it is not suspended (`409`): the
+     * deletion holds it back more strictly than a suspension would, and
+     * nothing but the deletion's close changes its reasons from then on
+     * (`SC-PRIV-025`).
+     */
+    TENANT_DELETION_BEGUN: 'TENANT_DELETION_BEGUN',
+    /**
      * The tenant's full export is offered only once an end of its subscription
      * is recorded (`SC-PRIV-020`): before that the tenant still works in the
      * application and has no deadline (`409`). Where the application delivers

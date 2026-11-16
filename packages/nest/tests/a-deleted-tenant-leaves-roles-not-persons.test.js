@@ -1,9 +1,10 @@
 // The rows the platform keeps of a tenant beyond its deletion — its reasons,
 // its end and the day it was told, the downloads of its export, the notices it
-// was sent — name the role somebody acted in, never who it was, and a notice
-// keeps how many it went to rather than to whom (`SC-PRIV-023`). The run
-// writes the roles in the transaction that closes the deletion, so a deletion
-// that does not close leaves the rows as they were.
+// was sent — name the role somebody acted in, never who it was; a reason keeps
+// no note, and a notice keeps how many it went to rather than to whom
+// (`SC-PRIV-023`). No reason but the deletion's own stays open
+// (`SC-PRIV-025`). The run writes all of it in the transaction that closes the
+// deletion, so a deletion that does not close leaves the rows as they were.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,17 +15,23 @@ const ADMIN = 'web:ada@example.com:t1';
 const OPERATOR = 'web:ops@example.com:operator';
 const AT = (day) => new Date(`${day}T10:00:00.000Z`);
 
-/** Records a reason of `tenantId`, lifted at `lifted` by `liftedBy` where given. */
-async function aReason(run, tenantId, kind, recordedBy, lifted) {
+/** Records a reason of `tenantId`, with `note` and `reference` where given, lifted by `liftedBy` where given. */
+async function aReason(
+    run,
+    tenantId,
+    kind,
+    recordedBy,
+    { liftedBy, note = null, reference = null } = {},
+) {
     const hold = await run.holds.record({
         tenantId,
         kind,
-        reference: null,
-        note: null,
+        reference,
+        note,
         since: AT('2026-08-01'),
         recordedBy,
     });
-    if (lifted) await run.holds.lift(hold.id, AT('2026-08-05'), lifted);
+    if (liftedBy) await run.holds.lift(hold.id, AT('2026-08-05'), liftedBy);
 }
 
 /** A notice of `tenantId`, delivered to `recipients` unless they are null. */
@@ -52,8 +59,13 @@ async function aNotice(run, tenantId, subject, recipients) {
 async function twoTenantsWithTheirRows() {
     const run = await setUp();
     await ended(run, 't1', DELETES_ON, ADMIN);
-    await aReason(run, 't1', 'suspended', OPERATOR, OPERATOR);
-    await aReason(run, 't1', 'overdue', 'job:platform:overdue-invoices', 'cli:ops@example.com');
+    await aReason(run, 't1', 'suspended', OPERATOR, {
+        liftedBy: OPERATOR,
+        note: 'Suspended until Mr Müller calls back',
+    });
+    await aReason(run, 't1', 'overdue', 'job:platform:overdue-invoices', {
+        liftedBy: 'cli:ops@example.com',
+    });
     await run.ends.announce({
         tenantId: 't1',
         subscriptionId: 'subscription-t1',
@@ -74,7 +86,9 @@ async function twoTenantsWithTheirRows() {
     await aNotice(run, 't1', 'delivered', ['ada@example.com', 'bob@example.com']);
     await aNotice(run, 't1', 'undelivered', null);
 
-    await aReason(run, 't2', 'suspended', OPERATOR, null);
+    await aReason(run, 't2', 'suspended', OPERATOR, {
+        note: 'Suspended until Ms Novak calls back',
+    });
     await aNotice(run, 't2', 'delivered', ['eve@example.com']);
     return run;
 }
@@ -88,6 +102,11 @@ async function rowsOf(run, tenantId) {
         downloads: await run.ends.listExportDownloadsOfTenant(tenantId),
         notices: [...run.notices.rows.values()].filter((row) => row.tenantId === tenantId),
     };
+}
+
+/** The kinds of the reasons of `tenantId` still open, in alphabetical order. */
+async function openKindsOf(run, tenantId) {
+    return (await run.holds.listOpen(tenantId)).map((hold) => hold.kind).sort();
 }
 
 /** Who each reason of `tenantId` was recorded and lifted by, by kind. */
@@ -112,6 +131,13 @@ describe('the rows a deleted tenant leaves', () => {
         const kept = JSON.stringify(rows);
         assert.ok(!kept.includes('@'), kept);
         assert.ok(!kept.includes('user-ada'), kept);
+        assert.ok(!kept.includes('Müller'), kept);
+        assert.deepEqual(Object.fromEntries(rows.holds.map((hold) => [hold.kind, hold.note])), {
+            overdue: null,
+            suspended: null,
+            ended: null,
+            deleting: null,
+        });
         assert.deepEqual(await actorsOfReasons(run, 't1'), {
             overdue: ['run', 'operator'],
             suspended: ['operator', 'operator'],
@@ -177,6 +203,11 @@ describe('the rows a deleted tenant leaves', () => {
         assert.deepEqual(after.announcements, before.announcements);
         assert.deepEqual(after.downloads, before.downloads);
         assert.deepEqual(
+            after.holds.filter((hold) => hold.kind !== 'deleting'),
+            before.holds,
+            'no reason is lifted, and none forgets its note',
+        );
+        assert.deepEqual(
             await actorsOfReasons(run, 't1'),
             {
                 overdue: ['job:platform:overdue-invoices', 'cli:ops@example.com'],
@@ -189,5 +220,54 @@ describe('the rows a deleted tenant leaves', () => {
 
         assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 1, halted: 0, failed: 0 });
         assert.ok(!JSON.stringify(await rowsOf(run, 't1')).includes('@'));
+    });
+
+    // @requirement SC-PRIV-025 — No invoice or suspension reaches a tenant being deleted; its close lifts the rest
+    test('lift every reason still open but the deletion’s own, as the run, once the deletion closes', async () => {
+        const run = await setUp();
+        await ended(run, 't1');
+        await aReason(run, 't1', 'overdue', 'job:platform:overdue-invoices', {
+            reference: 'invoice-1',
+        });
+        await aReason(run, 't1', 'suspended', OPERATOR, {
+            note: 'Suspended until Mr Müller calls back',
+        });
+        await aReason(run, 't2', 'overdue', 'job:platform:overdue-invoices', {
+            reference: 'invoice-2',
+        });
+        const before = await run.holds.listAllOf('t1');
+        // The transaction that closes the deletion fails as it commits, after every write in it.
+        const close = run.records.close.bind(run.records);
+        run.records.close = async (...args) => {
+            run.records.close = close;
+            run.transactions.failNext = true;
+            return close(...args);
+        };
+
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 0, halted: 0, failed: 1 });
+        assert.deepEqual(
+            (await run.holds.listAllOf('t1')).filter((hold) => hold.kind !== 'deleting'),
+            before,
+            'no reason is lifted, and none forgets its note',
+        );
+
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 1, halted: 0, failed: 0 });
+        const { closedAt } = recordOf(run, 't1');
+        assert.deepEqual(await openKindsOf(run, 't1'), ['deleting']);
+        assert.deepEqual(
+            (await run.holds.listAllOf('t1'))
+                .filter((hold) => hold.kind !== 'deleting')
+                .map((hold) => [hold.kind, hold.liftedBy, hold.liftedAt?.getTime()]),
+            [
+                ['overdue', 'run', closedAt.getTime()],
+                ['suspended', 'run', closedAt.getTime()],
+                ['ended', 'run', closedAt.getTime()],
+            ],
+        );
+        assert.deepEqual(
+            await openKindsOf(run, 't2'),
+            ['overdue'],
+            "another tenant's reason stays",
+        );
     });
 });

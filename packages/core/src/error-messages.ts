@@ -538,6 +538,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     TENANT_BEING_DELETED: 'This account is being deleted.',
     TENANT_ALREADY_SUSPENDED: 'This tenant is suspended already.',
     TENANT_NOT_SUSPENDED: 'This tenant is not suspended.',
+    TENANT_DELETION_BEGUN: 'This tenant is being deleted, so it cannot be suspended.',
     TENANT_EXPORT_NOT_OFFERED:
         'The export of this account is offered once its subscription has ended.',
     TENANT_EXPORT_FAILED:

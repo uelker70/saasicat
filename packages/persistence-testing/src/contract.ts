@@ -15550,6 +15550,45 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 assert.deepEqual(await port.listAllOf('tenant-other'), [other]);
             });
 
+            test('the reasons of a tenant forget their notes, lifted ones too, and nothing else of them changes', async (t) => {
+                const port = harness.adapter.tenantAccessHolds;
+                if (!port) {
+                    missing(t, 'tenantAccessHolds');
+                    return;
+                }
+                const suspension = await port.record(
+                    holdOf({ note: 'Suspended until Mr Müller calls back' }),
+                );
+                assert.ok(suspension);
+                await port.lift(suspension.id, LIFTED_AT, HOLDING_OPERATOR);
+                const open = await port.record(
+                    holdOf({ since: new Date(HELD_SINCE.getTime() + 60_000) }),
+                );
+                const ended = await port.record(
+                    holdOf({
+                        kind: 'ended',
+                        reference: 'sub-1',
+                        note: null,
+                        recordedBy: DELETION_RUN,
+                        since: new Date(HELD_SINCE.getTime() + 120_000),
+                    }),
+                );
+                const other = await port.record(holdOf({ tenantId: 'tenant-other' }));
+                assert.ok(open && ended && other);
+                const before = await port.listAllOf('tenant-held');
+
+                await rolledBack((tx) => port.forgetNotes('tenant-held', tx));
+                assert.deepEqual(await port.listAllOf('tenant-held'), before);
+                await port.forgetNotes('tenant-held');
+                await port.forgetNotes('tenant-held');
+
+                assert.deepEqual(
+                    await port.listAllOf('tenant-held'),
+                    before.map((hold) => ({ ...hold, note: null })),
+                );
+                assert.deepEqual(await port.listAllOf('tenant-other'), [other]);
+            });
+
             test('the ends, announcements and downloads of a tenant take the roles given, and nothing else changes', async (t) => {
                 const port = harness.adapter.subscriptionEnds;
                 if (!port) {

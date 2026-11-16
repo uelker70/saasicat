@@ -358,6 +358,9 @@ _Tested by:_
     - a suspension is the platform's record
         - suspending records the reason with its note and who, audits it, and answers the state
         - a second suspension is refused, and the first keeps its note
+        - suspending a tenant whose deletion has begun is refused, and nothing is recorded or
+          audited
+        - another tenant's deletion leaves a suspension of this one as it is
         - reactivating lifts the suspension and leaves an overdue invoice holding
         - reactivating a tenant that is not suspended is refused
         - an unknown tenant is refused by name
@@ -933,7 +936,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 🔵 _(Superseded on 2026-11-09 by `SC-ADM-052`.)_ 🔒 SaaSiCat decides the state, and records it with
 every reason that holds, such as an ended subscription (`SC-CANC-020`), an invoice unpaid on its due
-date (`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a
+date (`SC-PRIC-104`), a suspension or a deletion under way; the strictest of them applies, a
 deletion under way before a suspension and a suspension before read-only, and ending one reason
 lifts only that one. The application checks it on every request through a port, sign-in included, so
 a session that was already open when the state changed is held to it on its next request; SaaSiCat
@@ -955,7 +958,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 🔵 _(Superseded on 2026-11-12 by `SC-ADM-055`.)_ 🔒 SaaSiCat decides the state, and records it with
 every reason that holds, such as an ended subscription (`SC-CANC-027`), an invoice unpaid on its due
-date (`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a
+date (`SC-PRIC-104`), a suspension or a deletion under way; the strictest of them applies, a
 deletion under way before a suspension and a suspension before read-only, and ending one reason
 lifts only that one. The application checks it on every request through a port, sign-in included, so
 a session that was already open when the state changed is held to it on its next request; SaaSiCat
@@ -978,7 +981,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 🟡 _(Decided, not yet delivered.)_ 🔒 SaaSiCat decides the state, and records it with every reason
 that holds, such as an ended subscription (`SC-CANC-027`), an invoice unpaid on its due date
-(`SC-PRIC-098`), a suspension or a deletion under way; the strictest of them applies, a deletion
+(`SC-PRIC-104`), a suspension or a deletion under way; the strictest of them applies, a deletion
 under way before a suspension and a suspension before read-only, and ending one reason lifts only
 that one. The application checks it on every request through a port, sign-in included, so a session
 that was already open when the state changed is held to it on its next request; SaaSiCat does the
@@ -1083,6 +1086,9 @@ _Tested by:_
     - a suspension is the platform's record
         - suspending records the reason with its note and who, audits it, and answers the state
         - a second suspension is refused, and the first keeps its note
+        - suspending a tenant whose deletion has begun is refused, and nothing is recorded or
+          audited
+        - another tenant's deletion leaves a suspension of this one as it is
         - reactivating lifts the suspension and leaves an overdue invoice holding
         - reactivating a tenant that is not suspended is refused
         - an unknown tenant is refused by name
@@ -1169,7 +1175,7 @@ _Tested by:_
 🟢 🔒 The operator's page for a tenant names every reason it is held back for (`SC-ADM-055`), the
 oldest first: what it is, the day it began in the installation's days, the operator's own note on
 a suspension, and an invoice unpaid on its due date by its number, with the way into the record of
-the subscriber it belongs to (`SC-PRIC-098`). A tenant held back by nothing says so. Where the
+the subscriber it belongs to (`SC-PRIC-104`). A tenant held back by nothing says so. Where the
 installation cannot read invoices, an unpaid invoice is still listed as a reason, without a number.
 The list beside it keeps showing only the state.
 

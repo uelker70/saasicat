@@ -167,4 +167,11 @@ export class PrismaTenantAccessHoldRepository implements TenantAccessHoldPort {
             await db.tenantAccessHold.updateMany({ where: { id }, data: { recordedBy, liftedBy } });
         }
     }
+
+    async forgetNotes(tenantId: string, tx?: TransactionContext): Promise<void> {
+        await this.dbOf(tx).tenantAccessHold.updateMany({
+            where: { tenantId, note: { not: null } },
+            data: { note: null },
+        });
+    }
 }

@@ -712,6 +712,7 @@ _Tested by:_
         - name the role somebody acted in, and a notice how many it went to, never who
         - keep who acted where the transaction that closes the deletion fails, and the next run
           closes it
+        - lift every reason still open but the deletion’s own, as the run, once the deletion closes
 
 <!-- END proof -->
 
@@ -733,5 +734,45 @@ _Tested by:_
     - the record of when the export could be taken
         - says a suspension kept it from being taken where one held after the end
         - says none did where the suspension was lifted before the end
+
+<!-- END proof -->
+
+### SC-PRIV-025 — No invoice or suspension reaches a tenant being deleted; its close lifts the rest
+
+🟢 🔒 Once a tenant's deletion has begun, nothing changes its reasons but the deletion itself, with
+one exception, so that none is left standing, or naming a person, once the tenant is gone. An
+invoice records or lifts no reason on it any more, neither through the quarter-hourly run nor
+through the payment that settles it (`SC-PRIC-104`), and the operator cannot suspend it: the
+deletion already holds it back more strictly than either (`SC-ADM-055`). The exception is lifting a
+suspension that stands, which stays the operator's (`SC-ADM-005`), and whose record names a role
+once the tenant is gone (`SC-PRIV-023`). When the deletion closes, every reason of the tenant still
+open — an unpaid invoice, a suspension, the end of its subscription — is lifted by the run, and only
+the deletion's own stays open, since nobody acts in a deleted tenant again. Nothing is recorded
+against the tenant afterwards while its subscriber still owes: the claim itself stays in the
+subscriber's ledger (`SC-PRIV-013`) and is settled without a tenant (`SC-ADM-055`).
+
+_Source:_ #338 (decided 2026-11-16)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-unpaid-on-its-due-date-holds-its-tenant-back.test.js`
+    - the reasons a run records and lifts
+        - a tenant whose deletion has begun gets no reason and loses none; another tenant does
+        - a deletion reason lifted holds the rule back no more
+- `packages/nest/tests/a-deleted-tenant-leaves-roles-not-persons.test.js`
+    - the rows a deleted tenant leaves
+        - lift every reason still open but the deletion’s own, as the run, once the deletion closes
+- `packages/nest/tests/admin-resources.test.js`
+    - a suspension is the platform's record
+        - suspending a tenant whose deletion has begun is refused, and nothing is recorded or
+          audited
+        - another tenant's deletion leaves a suspension of this one as it is
+- `packages/nest/tests/an-invoice-unpaid-on-its-due-date-holds-its-tenant-back.test.js`
+    - a tenant whose deletion has begun
+        - gets no reason from an invoice unpaid on its due date; another tenant does
+        - keeps the reason it had when its invoice is paid: the run lifts none, the close does
+        - keeps the reason it had when the payment that settles its invoice comes in
 
 <!-- END proof -->

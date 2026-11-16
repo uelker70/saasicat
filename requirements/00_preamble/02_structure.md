@@ -83,7 +83,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 103     |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 104     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -94,14 +94,14 @@ properties it has while doing it.
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
-| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 24      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 25      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 21      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 708 entries: 🟢 614 stand today, 🟡 27 decided but not yet delivered, ⚪ 0 drafts,
-🔵 60 superseded, 🔴 7 withdrawn.
+Of 710 entries: 🟢 615 stand today, 🟡 27 decided but not yet delivered, ⚪ 0 drafts,
+🔵 61 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -165,6 +165,7 @@ Of 708 entries: 🟢 614 stand today, 🟡 27 decided but not yet delivered, ⚪
 [SC-PRIC-082](#sc-pric-082--an-invoice-is-collected-as-it-or-an-announcement-after-it-says),
 [SC-PRIC-035](#sc-pric-035--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-081](#sc-pric-081--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
+[SC-PRIC-098](#sc-pric-098--an-invoice-unpaid-on-its-due-date-makes-the-tenant-read-only-until-it-is-paid),
 [SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
 [SC-PRIC-047](#sc-pric-047--every-invoice-reaches-the-subscriber-by-email-with-its-file-attached),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),

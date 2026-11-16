@@ -31,8 +31,10 @@
 // What a failure leaves in the record is a code, never the application's
 // message: the record outlives the tenant, and a message may name anybody.
 // For the same reason, the transaction that closes a deletion has the rows
-// the platform keeps of the tenant name roles instead of persons
-// (`SC-PRIV-023`).
+// the platform keeps of the tenant name roles instead of persons, and its
+// reasons keep no note (`SC-PRIV-023`). The same transaction lifts every
+// reason still open but the deletion's own (`SC-PRIV-025`): nothing holds back
+// a tenant that is gone, and what its subscriber owes stays in the ledger.
 //
 // Platform-wide: the reasons, the ends and the records are read across
 // tenants, and the erasers run, inside `RlsBypassPort`.
@@ -105,7 +107,7 @@ export const DELETION_STEP_TIMEOUT_MS = 5 * 60 * 60_000;
 /** Who begins and closes deletions, as the audit log tags a run. */
 const TENANT_DELETION_RUN = actorTagOf(platformJobActor('tenant-deletions'));
 
-/** Who lifts the reason a deleted tenant was held to reading by, in a row that outlives it. */
+/** Who lifts the reasons still open when a deletion closes, in rows that outlive the tenant. */
 const RUN_ROLE: DeletionActorRole = 'run';
 
 /** What the audit log names a deletion under. */
@@ -343,7 +345,7 @@ export class TenantDeletionService implements OnModuleInit {
             record = begun;
             await this.record(record, 'TENANT_DELETION_BEGUN');
         }
-        return this.carryOn(holds, record, due.ended);
+        return this.carryOn(holds, record);
     }
 
     /**
@@ -422,7 +424,6 @@ export class TenantDeletionService implements OnModuleInit {
     private async carryOn(
         holds: TenantAccessHoldPort,
         begun: TenantDeletionRecord,
-        ended: TenantAccessHold,
     ): Promise<DeletionOutcome> {
         const takenAt = new Date();
         const record = await this.records.claim(
@@ -496,7 +497,7 @@ export class TenantDeletionService implements OnModuleInit {
                 after = await this.guard(record, lastErased?.name ?? null, before);
             }
             Object.assign(at, { step: 'close', store: null });
-            return await this.close(holds, record, ended, after);
+            return await this.close(holds, record, after);
         } catch (error) {
             return this.stopped(record, claim, error, at);
         }
@@ -570,32 +571,38 @@ export class TenantDeletionService implements OnModuleInit {
 
     /**
      * Closes the record once every store confirmed, in one transaction with
-     * what the tenant's rows say of who acted — roles, not persons — and the
-     * lifting of the reason that held it to reading; the `deleting` reason
-     * stays, since a deleted tenant never acts again.
+     * what the tenant's rows say of who acted — roles, not persons —, the
+     * notes its reasons lose, and the lifting of every reason still open but
+     * the `deleting` one, which stays, since a deleted tenant never acts
+     * again. The reasons are read once, before it: from the beginning of the
+     * deletion nothing but the deletion records or lifts one.
      */
     private async close(
         holds: TenantAccessHoldPort,
         record: TenantDeletionRecord,
-        ended: TenantAccessHold,
         after: CommercialRecordCounts,
     ): Promise<DeletionOutcome> {
         await this.records.recordCommercial(record.id, 'after', after);
         const tenantId = record.tenantId;
+        const reasons = await holds.listAllOf(tenantId);
         const roles = rolesInsteadOfPersons({
-            holds: await holds.listAllOf(tenantId),
+            holds: reasons,
             ends: await this.ends.listEndsOfTenant(tenantId),
             announcements: await this.ends.listAnnouncedOfTenant(tenantId),
             downloads: await this.ends.listExportDownloadsOfTenant(tenantId),
         });
+        const stillOpen = reasons.filter(
+            (reason) => reason.liftedAt === null && reason.kind !== 'deleting',
+        );
         const closed = await this.transactions.run(async (tx) => {
             const at = new Date();
             if (!(await this.records.close(record.id, at, tx))) return false;
             await holds.replaceActors(roles.holds, tx);
+            await holds.forgetNotes(tenantId, tx);
             await this.ends.replaceActors(roles.ends, tx);
             await this.notices.forgetRecipients(tenantId, at, tx);
-            // After the roles: they were planned from the reason while open.
-            await holds.lift(ended.id, at, RUN_ROLE, tx);
+            // After the roles: they were planned from the reasons while open.
+            for (const reason of stillOpen) await holds.lift(reason.id, at, RUN_ROLE, tx);
             return true;
         });
         if (!closed) return null;

@@ -99,6 +99,20 @@ export function tenantAccessOf(holds: readonly TenantAccessHold[]): TenantAccess
     return { state, holds: open };
 }
 
+/**
+ * The tenants among `holds` whose deletion has begun: those with an open
+ * `deleting` reason. Opened in the transaction that begins the deletion and
+ * never lifted, it is where every reader learns that the tenant is the
+ * deletion's from then on (`SC-PRIV-025`).
+ */
+export function tenantsBeingDeleted(holds: readonly TenantAccessHold[]): ReadonlySet<string> {
+    return new Set(
+        holds
+            .filter((hold) => hold.kind === 'deleting' && hold.liftedAt === null)
+            .map((hold) => hold.tenantId),
+    );
+}
+
 /** `holds` in the order they began to hold, the oldest first. */
 export function holdsOldestFirst(holds: readonly TenantAccessHold[]): TenantAccessHold[] {
     return [...holds].sort((a, b) => a.since.getTime() - b.since.getTime());

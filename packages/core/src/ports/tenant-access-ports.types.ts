@@ -69,4 +69,11 @@ export interface TenantAccessHoldPort {
         }[],
         tx?: TransactionContext,
     ): Promise<void>;
+    /**
+     * Empties the `note` of every reason of `tenantId`, lifted ones included,
+     * in the caller's transaction where one is given; changes nothing else.
+     * A note is free text and may name anybody, so what a deletion leaves of
+     * a tenant's reasons keeps none (`SC-PRIV-023`).
+     */
+    forgetNotes(tenantId: string, tx?: TransactionContext): Promise<void>;
 }
