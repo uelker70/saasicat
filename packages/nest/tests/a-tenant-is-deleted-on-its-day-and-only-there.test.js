@@ -290,7 +290,7 @@ describe('a deletion broken off', () => {
                 data: {
                     erase: async () => {
                         if (!failing) return;
-                        throw Object.assign(new Error('boom: ada@example.com'), {
+                        throw Object.assign(new Error('boom: kept by Ada Lovelace'), {
                             code: 'ECONNRESET',
                         });
                     },
@@ -307,7 +307,7 @@ describe('a deletion broken off', () => {
         );
         assert.equal(record.attempts, 1);
         assert.ok(!JSON.stringify(record).includes('boom'));
-        assert.ok(!JSON.stringify(record).includes('example.com'));
+        assert.ok(!JSON.stringify(record).includes('Lovelace'));
         assert.equal(record.claimedAt, null);
 
         failing = false;
