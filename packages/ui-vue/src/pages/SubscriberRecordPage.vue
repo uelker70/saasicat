@@ -51,6 +51,17 @@
                     @join="joinOpen = true"
                 />
                 <SubscriberJoinDialog v-if="join.available.value" v-model="joinOpen" :join="join" />
+
+                <!-- Where each tenant's deletion stands, and what is recorded of it -->
+                <SubscriberDeletions
+                    v-if="deletions.available.value"
+                    :deletions="deletions.data.value"
+                    :pending="deletions.pending.value"
+                    :error="deletions.error.value"
+                    :retry="deletions.reload"
+                    :tenants="record.data.value.tenants"
+                    :tenant-route="tenantRoute"
+                />
                 <SubscriberHistory
                     v-if="corrections.available.value"
                     :history="corrections.history"
@@ -131,6 +142,7 @@ import type { subscribersResource } from '../client/resources/subscribers.resour
 import SubscriberCharges from '../internal/subscriber-record/SubscriberCharges.vue';
 import SubscriberContracts from '../internal/subscriber-record/SubscriberContracts.vue';
 import SubscriberCredits from '../internal/subscriber-record/SubscriberCredits.vue';
+import SubscriberDeletions from '../internal/subscriber-record/SubscriberDeletions.vue';
 import SubscriberHistory from '../internal/subscriber-record/SubscriberHistory.vue';
 import SubscriberJoinDialog from '../internal/subscriber-record/SubscriberJoinDialog.vue';
 import SubscriberMasterData from '../internal/subscriber-record/SubscriberMasterData.vue';
@@ -153,6 +165,7 @@ import { useSubscriberAccount } from '../vue/use-subscriber-account.js';
 import { useSubscriberContracts } from '../vue/use-subscriber-contracts.js';
 import { useSubscriberCorrections } from '../vue/use-subscriber-corrections.js';
 import { useSubscriberCredits } from '../vue/use-subscriber-credits.js';
+import { useSubscriberDeletions } from '../vue/use-subscriber-deletions.js';
 import { useSubscriberDownloads } from '../vue/use-subscriber-downloads.js';
 import { useSubscriberJoin } from '../vue/use-subscriber-join.js';
 import { useSubscriberPayments } from '../vue/use-subscriber-payments.js';
@@ -211,6 +224,7 @@ const join = useSubscriberJoin(subscriberId, servedBy, subscribers, {
     },
 });
 const account = useSubscriberAccount(subscriberId, servedBy, subscribers);
+const deletions = useSubscriberDeletions(subscriberId, servedBy, subscribers);
 const credits = useSubscriberCredits(subscriberId, servedBy, subscribers, { notify, mfa });
 const payments = useSubscriberPayments(subscriberId, servedBy, subscribers);
 const contracts = useSubscriberContracts(subscriberId, servedBy, subscribers);

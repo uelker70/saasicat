@@ -915,6 +915,18 @@ _Tested by:_
         - warns where the application no longer has a tenant whose link is still open
         - says so where the subscriber is linked to no tenant
         - a record that fails to load says so, and shows none of its sections
+- `packages/ui-vue/tests/component/subscriber-record-shows-its-deletions.test.ts`
+    - the subscriber's record shows its tenants' deletions
+        - a tenant the application no longer has, named by its id, with all that is recorded of its
+          deletion
+        - a deletion just begun says what is not there yet
+        - a deletion halted for a lost commercial record marks the part that fell
+        - a deletion still to come shows where it stands, and no record yet
+        - two tenants, each with its own deletion, in the order the server gives them
+        - a subscriber with no deletion says so
+        - a read that fails says so, and asks again on retry
+        - a subscriber the platform does not have shows nothing to delete
+        - without the capability, nothing is asked and no section is shown
 - `packages/ui-vue/tests/subscriber-record-resource.test.js`
     - subscribersResource.record
         - asks for the subscriber's record by its id, escaped
@@ -1298,6 +1310,18 @@ _Tested by:_
         - shows its own tenants' deletions and not another subscriber's
         - shows the deletion still to come first, then the begun ones, each with its own reminders
           and downloads
+- `packages/ui-vue/tests/component/subscriber-record-shows-its-deletions.test.ts`
+    - the subscriber's record shows its tenants' deletions
+        - a tenant the application no longer has, named by its id, with all that is recorded of its
+          deletion
+        - a deletion just begun says what is not there yet
+        - a deletion halted for a lost commercial record marks the part that fell
+        - a deletion still to come shows where it stands, and no record yet
+        - two tenants, each with its own deletion, in the order the server gives them
+        - a subscriber with no deletion says so
+        - a read that fails says so, and asks again on retry
+        - a subscriber the platform does not have shows nothing to delete
+        - without the capability, nothing is asked and no section is shown
 - `packages/ui-vue/tests/component/tenant-detail-shows-where-its-deletion-stands.test.ts`
     - the tenant detail shows where the tenant's deletion stands
         - $label: its pill and what it says
@@ -1728,6 +1752,7 @@ _Tested by:_
         - finds the earlier subscriber, shows both with what moves and changes, and joins them as
           confirmed
         - says where this subscriber brings no payment method that none is in use afterwards
+        - a join refused while a tenant of either subscriber is being deleted says so in words
         - a record joined into another says where everything went, leads there, and takes no
           correction
         - the earlier record names the subscribers joined into it, leading to each
@@ -3107,6 +3132,7 @@ _Tested by:_
         - finds the earlier subscriber, shows both with what moves and changes, and joins them as
           confirmed
         - says where this subscriber brings no payment method that none is in use afterwards
+        - a join refused while a tenant of either subscriber is being deleted says so in words
         - a record joined into another says where everything went, leads there, and takes no
           correction
         - the earlier record names the subscribers joined into it, leading to each
