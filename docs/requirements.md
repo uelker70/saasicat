@@ -128,11 +128,11 @@ properties it has while doing it.
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 27      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 21      |
-| 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
+| 22  | Repeating an operation safely                | `SC-OPS-…`   | 17      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 713 entries: 🟢 622 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 714 entries: 🟢 623 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
 🔵 61 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -229,7 +229,7 @@ Of 713 entries: 🟢 622 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 713 requirements. Do not edit by hand:
+Generated from `requirements/` — 714 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -26878,6 +26878,22 @@ _Tested by:_
         - keeps everything when every table is present
         - a statement it cannot read is kept, not dropped
         - nothing applicable appends nothing at all
+    - the table is read from the statement, not from the words around it
+        - a word after "on" in a comment is not a table
+        - the block keeps its comments when it is kept
+        - "on" inside a CHECK is not a table
+        - a quoted table, written against its column list, is read
+        - an index without a name, on ONLY a schema-qualified table, is read
+        - ALTER TABLE IF EXISTS ONLY reads the table after the keywords
+        - a sequence and a setval address no table, so nothing leaves them out
+        - a separator inside a string or a quoted name does not end the statement
+        - a separator in a comment does not end the statement
+    - what is left out is named
+        - each left-out block with its constraint and the table the schema lacks
+        - only the tables that are missing, not every table the block addresses
+        - the report says one line for each, and nothing when none is left out
+        - a block without a name is still named by its tables
+        - several missing tables are named together
     - what step 3 did, and whether step 4 may follow
         - only a failure stops the command
         - "before applying" is said exactly when the command will not apply
@@ -27130,6 +27146,49 @@ _Tested by:_
         - a notice delivered before counts its recipients, and one not delivered counts none
         - a second run keeps the number of a notice whose recipients were forgotten
         - an installation without notices and ends is left without them, and runs through
+
+<!-- END proof -->
+
+### SC-OPS-017 — `schema migrate` carries every constraint whose tables exist, and names the rest
+
+🟢 The constraints the Prisma DSL cannot express are appended to the migration a block at a time,
+and a block is left out only where the schema lacks a table one of its statements addresses — read
+from the statement, not from the words around it. Each block left out is printed with its
+constraint and the missing table, so a run that prints none took them all.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/every-shipped-constraint-reaches-a-full-schema.test.js`
+    - every shipped constraint reaches a schema with every table
+        - the sources are what this test reads them as
+        - with every table of the reference schema, no block is left out
+        - every statement of the shipped file has a shape the reader knows
+        - every comment of the shipped file is a whole line
+        - every block that addresses a table names its constraint
+        - every table the file addresses is one the reference schema creates
+        - the reader finds the tables the file names, and no others
+        - without ${table}, exactly the blocks naming it are left out
+- `packages/cli/tests/migration-constraints.test.js`
+    - the table is read from the statement, not from the words around it
+        - a word after "on" in a comment is not a table
+        - the block keeps its comments when it is kept
+        - "on" inside a CHECK is not a table
+        - a quoted table, written against its column list, is read
+        - an index without a name, on ONLY a schema-qualified table, is read
+        - ALTER TABLE IF EXISTS ONLY reads the table after the keywords
+        - a sequence and a setval address no table, so nothing leaves them out
+        - a separator inside a string or a quoted name does not end the statement
+        - a separator in a comment does not end the statement
+    - what is left out is named
+        - each left-out block with its constraint and the table the schema lacks
+        - only the tables that are missing, not every table the block addresses
+        - the report says one line for each, and nothing when none is left out
+        - a block without a name is still named by its tables
+        - several missing tables are named together
 
 <!-- END proof -->
 
@@ -28834,6 +28893,22 @@ _Tested by:_
         - keeps everything when every table is present
         - a statement it cannot read is kept, not dropped
         - nothing applicable appends nothing at all
+    - the table is read from the statement, not from the words around it
+        - a word after "on" in a comment is not a table
+        - the block keeps its comments when it is kept
+        - "on" inside a CHECK is not a table
+        - a quoted table, written against its column list, is read
+        - an index without a name, on ONLY a schema-qualified table, is read
+        - ALTER TABLE IF EXISTS ONLY reads the table after the keywords
+        - a sequence and a setval address no table, so nothing leaves them out
+        - a separator inside a string or a quoted name does not end the statement
+        - a separator in a comment does not end the statement
+    - what is left out is named
+        - each left-out block with its constraint and the table the schema lacks
+        - only the tables that are missing, not every table the block addresses
+        - the report says one line for each, and nothing when none is left out
+        - a block without a name is still named by its tables
+        - several missing tables are named together
     - what step 3 did, and whether step 4 may follow
         - only a failure stops the command
         - "before applying" is said exactly when the command will not apply

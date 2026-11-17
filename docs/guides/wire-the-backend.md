@@ -61,7 +61,11 @@ appends `constraints.postgres.sql` to the migration that produced, and applies
 it — so the invariants Prisma cannot express arrive with the tables rather than
 as a step to remember. `--create-only` is what makes that work: an applied
 migration cannot take an edit, and Prisma would see its checksum change. It is
-idempotent: a migration that already carries them is left alone.
+idempotent: a migration that already carries them is left alone. A block of the
+file whose table your schema lacks — a run scoped with `--fragments` leaves out
+tables — is left out of the migration, and the command prints a line for each
+one, with its constraint and the missing table. No such line means every
+constraint went in.
 
 `schema apply` only ever adds: it brings each fragment's enums and models, and
 never touches a block you already have. So a field added to an existing model
