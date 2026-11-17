@@ -74,6 +74,7 @@ import {
 import { servesSubscriberCredits } from './compose/subscriber-credits.js';
 import { servesSubscriberAdmin } from './compose/subscriber-admin.js';
 import { servesSubscriberJoins } from './compose/subscriber-join.js';
+import { servesTenantDeletions } from './compose/tenant-deletions.js';
 import {
     servesBundleVersionRetirements,
     servesVersionRetirements,
@@ -224,6 +225,7 @@ export class SaaSiCatModule {
         const lightweightExports: NonNullable<DynamicModule['exports']> = [];
         if (options.autoManifest !== false) {
             const subscriberAccounts = servesSubscriberAccounts(options);
+            const tenantDeletions = servesTenantDeletions(options);
             const invoiceDocuments = servesInvoiceDocuments(options);
             const contractConfirmations = servesContractConfirmations(options);
             const subscriberCredits = servesSubscriberCredits(options);
@@ -256,6 +258,7 @@ export class SaaSiCatModule {
                             subscriberAttention: subscriberStanding && Boolean(taxes?.adapter),
                             subscriberJoins:
                                 subscriberStanding && servesSubscriberJoins(composition),
+                            tenantDeletions,
                             versionRetirements:
                                 versionRetirements && retirementTermsConfirmed(settings),
                             bundleVersionRetirements:

@@ -49,7 +49,6 @@ import {
     deletionReminderSubjectIn,
     deletionReminderSubjectOf,
     installationZoneOf,
-    keepLinesProblem,
     tenantsBeingDeleted,
     type CalendarDay,
     type DeletionReminderNotice,
@@ -69,12 +68,12 @@ import {
 
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
-import { withTimeout } from '../core/with-timeout.js';
 import { contractRunningPast } from '../subscription-contract/contract-runs-from.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import { referencesOf } from '../tenant-access/hold-references.js';
 import { TENANT_ACCESS_HOLDS_TOKEN } from '../tenant-access/tenant-access.tokens.js';
 import { decidingEnds } from './deciding-end.js';
+import { whatATenantKeeps } from './deletion/keep-report.js';
 import {
     NOTICE_CLAIM_LEASE_MS,
     NOTICE_DELIVERY_TIMEOUT_MS,
@@ -334,12 +333,7 @@ export class DeletionReminderService {
      * the reminders, and must not wait on a report that never answers.
      */
     private async keptBy(tenantId: string): Promise<readonly TenantKeepLine[]> {
-        const keep = await withTimeout(() => this.keep.keep(tenantId), NOTICE_DELIVERY_TIMEOUT_MS);
-        const problem = keepLinesProblem(keep);
-        if (problem !== null) {
-            throw new Error(`The TenantKeepReportPort answered lines whose ${problem} is wrong.`);
-        }
-        return keep;
+        return whatATenantKeeps(this.keep, tenantId, NOTICE_DELIVERY_TIMEOUT_MS);
     }
 }
 

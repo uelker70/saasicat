@@ -31,6 +31,7 @@ import { composeInvoiceDocuments } from './invoice-documents.js';
 import { composeSubscriberAdmin } from './subscriber-admin.js';
 import { composeSubscriberJoins } from './subscriber-join.js';
 import { composeSubscriptionBundles, composeTenantBilling } from './tenant-billing.js';
+import { composeTenantDeletions } from './tenant-deletions.js';
 import { composeVersionRetirement } from './version-retirement.js';
 
 /** One feature's contribution: the modules it adds, or none. */
@@ -56,6 +57,8 @@ export const FEATURE_COMPOSERS: readonly Composer[] = [
     composeSubscriptionContract,
     // After the admin resources and tenant billing: it imports both.
     composeSubscriberAccount,
+    // After the admin resources and tenant billing: it imports both.
+    composeTenantDeletions,
     // After the admin resources and tenant billing too: it imports tenant billing.
     composeInvoiceDocuments,
     // After the admin resources and tenant billing: it imports both.

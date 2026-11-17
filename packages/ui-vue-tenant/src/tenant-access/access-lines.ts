@@ -6,7 +6,9 @@
 // read-only before that day, in the words its end was confirmed with, which say
 // it can still read; read-only once the day has come and nothing has deleted
 // the data yet, as a deletion that is due, which it can still read until; in
-// any other state, which lets nothing be read, as the two days alone.
+// any other state, which lets nothing be read, as the two days alone. Beneath
+// the reasons, what the tenant keeps for obligations of its own, one line each
+// (`SC-PRIV-022`).
 
 import {
     ERROR_MESSAGES_EN,
@@ -15,8 +17,9 @@ import {
     type TenantAccessReasonView,
     type TenantAccessState,
     type TenantAccessView,
+    type TenantKeepLine,
 } from '@saasicat/core';
-import { formatMessage } from '@saasicat/ui-vue';
+import { formatMessage, keepLineLabel } from '@saasicat/ui-vue';
 
 import { deletionSentence, type DeletionDays } from '../announced-deletion.js';
 import { writeDay } from '../day-as-instant.js';
@@ -107,6 +110,34 @@ export function endedDaysTemplate(
 function endedDaysOf(reason: TenantAccessReasonView): DeletionDays | null {
     const { readOnlyUntil, deletesOn } = reason;
     return readOnlyUntil === null || deletesOn === null ? null : { readOnlyUntil, deletesOn };
+}
+
+/** The language a reader reads in and the tag their numbers are written by. */
+export interface KeepLineReader {
+    /** The reader's locale, whose words for a line are shown where the application gives them. */
+    locale: string;
+    /** The BCP-47 tag a count is written by. */
+    intlLocale: string;
+}
+
+/**
+ * One line for each thing the tenant keeps for obligations of its own
+ * (`SC-PRIV-022`): the application's word for it in the reader's language —
+ * else in English, which the application always gives — and how many there are,
+ * written as the reader writes numbers.
+ */
+export function keepLines(
+    lines: readonly TenantKeepLine[],
+    reader: KeepLineReader,
+    i18n: Pick<TenantPlanSectionI18n, 'accessKeepLine'>,
+): string[] {
+    const counts = new Intl.NumberFormat(reader.intlLocale);
+    return lines.map((line) =>
+        formatMessage(i18n.accessKeepLine, {
+            label: keepLineLabel(line.labels, reader.locale),
+            count: counts.format(line.count),
+        }),
+    );
 }
 
 /**

@@ -9,6 +9,7 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import type { AdminSubscriberJoinPreview, AdminSubscriberRecord } from '@saasicat/core';
 
+import { AdminError } from '../../src/client/admin-error.js';
 import type { SubscriberJoinInput } from '../../src/client/resources/subscribers.resource.js';
 import { dialog, enterTheCode, settle, typeInto } from './support/dialog-flow.js';
 import { RECORD, SUBSCRIBER, mountRecord } from './support/subscriber-record.js';
@@ -70,7 +71,7 @@ afterEach(() => {
 async function mountJoinable(
     record: AdminSubscriberRecord = RECORD,
     capabilities: Record<string, boolean> = JOINS,
-    preview: AdminSubscriberJoinPreview = PREVIEW,
+    preview: AdminSubscriberJoinPreview | AdminError = PREVIEW,
 ) {
     const calls: unknown[][] = [];
     const mounted = await mountRecord({
@@ -91,6 +92,7 @@ async function mountJoinable(
             },
             previewJoin: async (from: string, into: string) => {
                 calls.push(['preview', from, into]);
+                if (preview instanceof AdminError) throw preview;
                 return preview;
             },
             join: async (from: string, input: SubscriberJoinInput, code?: string) => {
@@ -216,6 +218,37 @@ describe("joining a returning customer's subscriber into the one it had", () => 
         expect(dialog().node?.textContent).toContain(
             "The earlier subscriber's payment method goes out of use, and this subscriber brings none: none is in use until one is given.",
         );
+    });
+
+    test('a join refused while a tenant of either subscriber is being deleted says so in words', async () => {
+        const { wrapper } = await mountJoinable(
+            RECORD,
+            JOINS,
+            new AdminError({
+                status: 409,
+                code: 'SUBSCRIBER_JOIN_DELETION_UNDER_WAY',
+                body: {
+                    code: 'SUBSCRIBER_JOIN_DELETION_UNDER_WAY',
+                    params: { customerNumber: 'K-10045' },
+                },
+                url: '/api/v1/admin/subscribers/s-1/join/preview',
+                method: 'GET',
+            }),
+        );
+
+        await actionOf(wrapper)?.trigger('click');
+        await settle();
+        await typeInto('Earlier subscriber', 'Northwind');
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        await settle();
+        buttonInDialog('K-10045 · Northwind Handel GmbH').click();
+        await settle();
+
+        const text = dialog().node?.textContent ?? '';
+        expect(text).toContain(
+            'A tenant of subscriber K-10045 is being deleted. The subscriber can be joined once that deletion has closed.',
+        );
+        expect(text).not.toContain('SUBSCRIBER_JOIN_DELETION_UNDER_WAY');
     });
 
     test('a record joined into another says where everything went, leads there, and takes no correction', async () => {

@@ -400,6 +400,32 @@ paths:
                 '404':
                     description: No subscriber under this id (`SUBSCRIBER_NOT_FOUND`)
 
+    /subscribers/{id}/deletions:
+        parameters:
+            - $ref: '#/components/parameters/SubscriberId'
+        get:
+            tags: [tenants]
+            summary: Every deletion of the subscriber's tenants, also of those the application no longer has
+            description: >-
+                Served where the platform shows tenants (`adminResources`) and
+                bills them (`tenantBilling`, which records every end of a
+                subscription and deletes the tenant on its day); the manifest
+                announces it as `deletions.read`. The record of a deletion is
+                kept with the subscriber, so it is read here once the tenant
+                page is gone. The deletion still to begin of a tenant linked to
+                the subscriber comes first, then every begun one, the most
+                recently begun first. The record names a role for whoever took
+                the export and a number for whoever a reminder reached, never a
+                person.
+            responses:
+                '200':
+                    description: The deletions, none where no tenant of the subscriber is to be deleted
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminSubscriberDeletions' }
+                '404':
+                    description: No subscriber under this id (`SUBSCRIBER_NOT_FOUND`)
+
     /subscribers/{id}/credits:
         parameters:
             - $ref: '#/components/parameters/SubscriberId'
@@ -1113,6 +1139,38 @@ paths:
                     content:
                         application/json:
                             schema: { $ref: '#/components/schemas/AdminTenantSubscriber' }
+                '404':
+                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+
+    /tenants/{slug}/deletion:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        get:
+            tags: [tenants]
+            summary: Where the tenant's deletion stands, with its record once begun
+            description: >-
+                Served beside `/subscribers/{id}/deletions`; the manifest
+                announces both as `deletions.read`. Decided as the run that
+                deletes the tenant decides it, at the moment it is read: before
+                the day, what would hold it were the day today; on the day,
+                every reason that holds it. Answers only while the application
+                has the tenant — after the deletion, the subscriber's record
+                carries it.
+            responses:
+                '200':
+                    description: >-
+                        The deletion, or `null` where none has begun and no end
+                        of the tenant's subscription decides one
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [deletion]
+                                properties:
+                                    deletion:
+                                        oneOf:
+                                            - $ref: '#/components/schemas/AdminTenantDeletion'
+                                            - type: 'null'
                 '404':
                     description: No tenant with this slug (`TENANT_NOT_FOUND`)
 
@@ -4028,6 +4086,284 @@ components:
                                     The contract line's title as it was when the
                                     contract was concluded; null where that line
                                     cannot be read.
+
+        TenantCount:
+            type: object
+            description: One category of what a store holds for a tenant, and how many.
+            required: [category, count]
+            properties:
+                category:
+                    { type: string, description: "The application's stable key for the category." }
+                count: { type: integer, minimum: 0 }
+
+        TenantKeepLine:
+            type: object
+            description: A line of what the tenant has to keep for obligations of its own.
+            required: [category, count, labels]
+            properties:
+                category:
+                    { type: string, description: "The application's stable key for the category." }
+                count: { type: integer, minimum: 0 }
+                labels:
+                    type: object
+                    description: >-
+                        The category in the application's words, by locale; `en`
+                        is what a reader in a locale the labels do not name is
+                        shown.
+                    required: [en]
+                    additionalProperties: { type: string }
+
+        CommercialRecordCounts:
+            type: object
+            description: "The subscriber's commercial record, counted: what outlives the tenant."
+            required: [subscriber, contracts, charges, invoices, payments, credits]
+            properties:
+                subscriber: { type: integer, minimum: 0 }
+                contracts: { type: integer, minimum: 0 }
+                charges: { type: integer, minimum: 0 }
+                invoices: { type: integer, minimum: 0 }
+                payments: { type: integer, minimum: 0 }
+                credits: { type: integer, minimum: 0 }
+
+        AdminTenantDeletionFailure:
+            type: object
+            description: The last failure a deletion met; the next run goes on from where it stopped.
+            required: [step, store, code, at]
+            properties:
+                step: { type: string, enum: [count, erase, guard, close] }
+                store:
+                    type: string
+                    nullable: true
+                    description: The store it failed at, where it failed at one.
+                code:
+                    type: string
+                    description: A code, never a message — the error's own code, or its name.
+                at: { type: string, format: date-time }
+
+        AdminTenantDeletionHaltReason:
+            description: A reason a deletion does not go on, with what it names.
+            oneOf:
+                - type: object
+                  required: [reason, expected]
+                  properties:
+                      reason: { type: string, enum: [installation-unmarked] }
+                      expected:
+                          type: string
+                          description: The identifier the process expects the database to be marked with.
+                - type: object
+                  required: [reason, expected, marked]
+                  properties:
+                      reason: { type: string, enum: [installation-differs] }
+                      expected: { type: string }
+                      marked:
+                          type: string
+                          description: The identifier the database is marked with.
+                - type: object
+                  required: [reason]
+                  properties:
+                      reason: { type: string, enum: [no-subscriber, contract-runs-past-end] }
+                - type: object
+                  required: [reason, store, lost]
+                  properties:
+                      reason: { type: string, enum: [commercial-record-lost] }
+                      store:
+                          type: string
+                          nullable: true
+                          description: The store after whose erasing the record was found short.
+                      lost:
+                          type: array
+                          description: The parts of the commercial record that fell.
+                          items:
+                              type: string
+                              enum: [subscriber, contracts, charges, invoices, payments, credits]
+
+        AdminTenantDeletionStatus:
+            description: >-
+                Where a tenant's deletion stands, keyed by `kind`. Every state
+                names the installation's day it is due on (`deletesOn`).
+            oneOf:
+                - type: object
+                  required: [kind, deletesOn, wouldBeHeldBy]
+                  properties:
+                      kind: { type: string, enum: [scheduled] }
+                      deletesOn: { type: string, format: date }
+                      wouldBeHeldBy:
+                          type: array
+                          description: What would hold it were its day today; empty where nothing would.
+                          items: { $ref: '#/components/schemas/AdminTenantDeletionHaltReason' }
+                - type: object
+                  required: [kind, deletesOn]
+                  properties:
+                      kind: { type: string, enum: [due] }
+                      deletesOn: { type: string, format: date }
+                - type: object
+                  required: [kind, deletesOn, heldBy]
+                  properties:
+                      kind: { type: string, enum: [halted] }
+                      deletesOn: { type: string, format: date }
+                      heldBy:
+                          type: array
+                          minItems: 1
+                          items: { $ref: '#/components/schemas/AdminTenantDeletionHaltReason' }
+                - type: object
+                  required: [kind, deletesOn, startedAt, storesErased, storesTotal, lastFailure]
+                  properties:
+                      kind: { type: string, enum: [running] }
+                      deletesOn: { type: string, format: date }
+                      startedAt: { type: string, format: date-time }
+                      storesErased: { type: integer, minimum: 0 }
+                      storesTotal: { type: integer, minimum: 0 }
+                      lastFailure:
+                          description: A failure the run holding it met, such as a call it stopped waiting for.
+                          oneOf:
+                              - $ref: '#/components/schemas/AdminTenantDeletionFailure'
+                              - type: 'null'
+                - type: object
+                  required: [kind, deletesOn, startedAt, attempts, lastFailure]
+                  properties:
+                      kind: { type: string, enum: [retrying] }
+                      deletesOn: { type: string, format: date }
+                      startedAt: { type: string, format: date-time }
+                      attempts: { type: integer, minimum: 1 }
+                      lastFailure: { $ref: '#/components/schemas/AdminTenantDeletionFailure' }
+                - type: object
+                  required: [kind, deletesOn, closedAt]
+                  properties:
+                      kind: { type: string, enum: [deleted] }
+                      deletesOn: { type: string, format: date }
+                      closedAt: { type: string, format: date-time }
+
+        AdminTenantDeletionRecord:
+            type: object
+            description: >-
+                The record of a begun deletion, as the subscriber keeps it. It
+                names roles and numbers, never a person.
+            required:
+                [
+                    exportOfferedFrom,
+                    exportBlockedBySuspension,
+                    announcedOn,
+                    keep,
+                    stores,
+                    commercialBefore,
+                    commercialAfter,
+                    startedAt,
+                    closedAt,
+                    attempts,
+                    lastFailure,
+                    reminders,
+                    downloads,
+                ]
+            properties:
+                exportOfferedFrom:
+                    type: string
+                    format: date-time
+                    description: When the export was first offered — when the end was recorded.
+                exportBlockedBySuspension:
+                    type: boolean
+                    description: Whether a suspension kept the export from being taken at some moment before the deletion began.
+                announcedOn:
+                    type: string
+                    format: date
+                    nullable: true
+                    description: >-
+                        The installation's day the tenant confirmed its
+                        cancellation and was told the deletion day; null where
+                        it was not told.
+                keep:
+                    type: array
+                    description: What the tenant was told to keep itself, as the deletion began.
+                    items: { $ref: '#/components/schemas/TenantKeepLine' }
+                stores:
+                    type: array
+                    description: The stores in the order they are erased in.
+                    items:
+                        type: object
+                        required: [store, position, countedAt, counts, erasedAt]
+                        properties:
+                            store: { type: string }
+                            position: { type: integer, minimum: 0 }
+                            countedAt: { type: string, format: date-time, nullable: true }
+                            counts:
+                                type: array
+                                items: { $ref: '#/components/schemas/TenantCount' }
+                            erasedAt: { type: string, format: date-time, nullable: true }
+                commercialBefore:
+                    description: The subscriber's commercial record before the first store erased.
+                    oneOf:
+                        - $ref: '#/components/schemas/CommercialRecordCounts'
+                        - type: 'null'
+                commercialAfter:
+                    description: The subscriber's commercial record as the deletion closed, or as it was found short.
+                    oneOf:
+                        - $ref: '#/components/schemas/CommercialRecordCounts'
+                        - type: 'null'
+                startedAt: { type: string, format: date-time }
+                closedAt:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: When every store had confirmed; null until then.
+                attempts:
+                    { type: integer, minimum: 0, description: How many times a run failed at it. }
+                lastFailure:
+                    oneOf:
+                        - $ref: '#/components/schemas/AdminTenantDeletionFailure'
+                        - type: 'null'
+                reminders:
+                    type: array
+                    description: The reminders of the deletion sent to the tenant's administrators, the first recorded first.
+                    items:
+                        type: object
+                        required: [daysBefore, createdAt, deliveredAt, recipientCount, channel]
+                        properties:
+                            daysBefore: { type: integer, minimum: 1 }
+                            createdAt: { type: string, format: date-time }
+                            deliveredAt: { type: string, format: date-time, nullable: true }
+                            recipientCount:
+                                type: integer
+                                minimum: 0
+                                nullable: true
+                                description: How many it reached — 0 where nobody could be told; null while it is not delivered.
+                            channel:
+                                type: string
+                                nullable: true
+                                description: The way it went, in the application's terms; null while it is not delivered.
+                downloads:
+                    type: array
+                    description: The downloads of the export offered for this end, the oldest first.
+                    items:
+                        type: object
+                        required: [at, size, by]
+                        properties:
+                            at: { type: string, format: date-time }
+                            size: { type: integer, minimum: 0, description: In bytes. }
+                            by:
+                                type: string
+                                enum: [tenant-admin, operator, run]
+                                description: The role of whoever took it.
+
+        AdminTenantDeletion:
+            type: object
+            description: A tenant's deletion as the operator reads it.
+            required: [tenantId, status, record]
+            properties:
+                tenantId: { type: string }
+                status: { $ref: '#/components/schemas/AdminTenantDeletionStatus' }
+                record:
+                    description: The record kept of it; null before it began.
+                    oneOf:
+                        - $ref: '#/components/schemas/AdminTenantDeletionRecord'
+                        - type: 'null'
+
+        AdminSubscriberDeletions:
+            type: object
+            required: [deletions]
+            properties:
+                deletions:
+                    type: array
+                    description: Those still to begin first, then the begun ones, the most recently begun first.
+                    items: { $ref: '#/components/schemas/AdminTenantDeletion' }
 
         AdminSubscriberCreditEntry:
             type: object

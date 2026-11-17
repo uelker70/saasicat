@@ -10,7 +10,8 @@
 // the end, the announcement and the download the tenant's administrator's, and
 // any other hold the run's. An operator acting as the tenant on its routes is
 // written as the tenant's administrator, whose role it acted in. A tag that is
-// none of the three is read as `web:` would be, and is never kept.
+// none of the three is read as `web:` would be, and is never kept. A row the
+// deletion wrote names the role itself, and is read as that role.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -62,6 +63,14 @@ describe('a person in a row that outlives its tenant becomes the role it acted i
 
     test('a download from the web is the tenant administrator', () => {
         assert.equal(actorRoleOf('web:a@b:app', 'download.downloadedBy'), 'tenant-admin');
+    });
+
+    test('a row that names a role already, as the rows of a deleted tenant do, keeps it, whichever column', () => {
+        for (const role of ['tenant-admin', 'operator', 'run']) {
+            for (const column of COLUMNS) {
+                assert.equal(actorRoleOf(role, column), role, `${role} in ${column}`);
+            }
+        }
     });
 
     test('a tag of no known kind is read as the web, never kept', () => {

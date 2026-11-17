@@ -56,6 +56,16 @@ export interface TenantKeepLine {
     readonly labels: Readonly<{ en: string } & Record<string, string>>;
 }
 
+/**
+ * What a tenant's users are told it keeps, from `GET billing/access/keep`: the
+ * lines while a subscription's end holds it to reading, none otherwise, and
+ * `null` where the application's report failed, did not answer in time or
+ * answered lines that are not lines — then there is nothing to show.
+ */
+export interface TenantKeepView {
+    readonly keep: readonly TenantKeepLine[] | null;
+}
+
 /** The longest tenant identifier an eraser is given. */
 export const TENANT_ID_MAX_LENGTH = 200;
 
@@ -177,8 +187,14 @@ export function keepLinesProblem(value: unknown): TenantCountProblem | 'labels' 
     return countedLinesProblem(value, ({ labels }) => (areLabels(labels) ? null : 'labels'));
 }
 
+const DELETION_ACTOR_ROLES = ['tenant-admin', 'operator', 'run'] as const;
+
 /** The role a person acted in, which a row keeps once its tenant is deleted (`SC-PRIV-023`). */
-export type DeletionActorRole = 'tenant-admin' | 'operator' | 'run';
+export type DeletionActorRole = (typeof DELETION_ACTOR_ROLES)[number];
+
+function isDeletionActorRole(value: string): value is DeletionActorRole {
+    return DELETION_ACTOR_ROLES.some((role) => role === value);
+}
 
 /**
  * A column that names who acted, in a row the platform keeps of a tenant
@@ -213,9 +229,11 @@ const ROLE_OF_COLUMN: Readonly<Record<ActorColumn, DeletionActorRole>> = {
  * The role the actor tagged `tag` acted in, read in `column`. A platform job
  * (`job:`) is the run and the command line (`cli:`) the operator, wherever
  * they wrote; every other tag — `web:`, or one of no known kind — is the role
- * of its column. The tag itself is never the answer: it may name a person.
+ * of its column. The tag itself is never the answer: it may name a person. A
+ * row a deletion wrote names the role already, and is read as that role.
  */
 export function actorRoleOf(tag: string, column: ActorColumn): DeletionActorRole {
+    if (isDeletionActorRole(tag)) return tag;
     if (tag.startsWith('job:')) return 'run';
     if (tag.startsWith('cli:')) return 'operator';
     return ROLE_OF_COLUMN[column];
@@ -232,7 +250,8 @@ export interface CommercialRecordCounts {
     readonly credits: number;
 }
 
-const COMMERCIAL_RECORD_FIELDS: readonly (keyof CommercialRecordCounts)[] = [
+/** The parts of the commercial record, in the order they are counted and shown in. */
+export const COMMERCIAL_RECORD_FIELDS: readonly (keyof CommercialRecordCounts)[] = [
     'subscriber',
     'contracts',
     'charges',
@@ -254,17 +273,20 @@ export function commercialRecordLost(
 }
 
 /**
- * Why a due deletion does not go on. Every run decides the first four anew and
+ * Why a due deletion does not go on. Every run decides the first five anew and
  * keeps none of them: the installation's two from its mark (`SC-PRIV-021`),
- * and `tenant-id-invalid` and `no-subscriber` before the deletion has a record
- * to be kept with. Only `commercial-record-lost` stops a deletion under way,
- * and its record keeps it until the operator acts.
+ * which stop a deletion under way as well, and before the deletion has a
+ * record to be kept with `tenant-id-invalid`, `no-subscriber`, and
+ * `contract-runs-past-end` — a contract of the tenant in force at its end or
+ * beginning after it (`SC-PRIV-026`). Only `commercial-record-lost` is kept:
+ * its record holds it until the operator acts.
  */
 export type TenantDeletionHalt =
     | 'installation-unmarked'
     | 'installation-differs'
     | 'tenant-id-invalid'
     | 'no-subscriber'
+    | 'contract-runs-past-end'
     | 'commercial-record-lost';
 
 /** A halt a deletion record keeps. */
@@ -272,6 +294,32 @@ export type TenantDeletionRecordHalt = Extract<TenantDeletionHalt, 'commercial-r
 
 /** The step of a deletion a failure stopped it at. */
 export type TenantDeletionStep = 'count' | 'erase' | 'guard' | 'close';
+
+/**
+ * The codes the platform keeps a failure under where it found the fault
+ * itself: a store that did not answer in time, counts it could not read,
+ * stores other than the deletion began with, a tenant identifier it may not
+ * hand over, and an error that carried no code. Any other code is the one a
+ * store of the application threw.
+ */
+export const TENANT_DELETION_PLATFORM_FAILURE_CODES = [
+    'timeout',
+    'invalid-counts',
+    'stores-changed',
+    'tenant-id-invalid',
+    'unknown',
+] as const;
+
+/** A code the platform keeps a failure under for a fault it found itself. */
+export type TenantDeletionPlatformFailureCode =
+    (typeof TENANT_DELETION_PLATFORM_FAILURE_CODES)[number];
+
+/** Whether `code` is one the platform keeps a failure under, rather than an application's. */
+export function isTenantDeletionPlatformFailureCode(
+    code: string,
+): code is TenantDeletionPlatformFailureCode {
+    return TENANT_DELETION_PLATFORM_FAILURE_CODES.some((known) => known === code);
+}
 
 /** The last failure a deletion met; the next run goes on from where it stopped. */
 export interface TenantDeletionFailure {

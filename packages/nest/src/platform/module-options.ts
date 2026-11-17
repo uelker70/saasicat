@@ -307,9 +307,10 @@ interface SaaSiCatAdminResourcesCommonOptions extends Pick<AdminResourcesModuleO
  * `@saasicat/core`; the manifest keeps announcing those pages. Suspending a
  * tenant is then the application's own as well. The billing pages — invoices,
  * cancellation, contracts, the subscriber's record and account, open items,
- * credits, reconciliation and `GET admin/tenants/:slug/subscriber` — are mounted
- * as before, and find a tenant through `resources`, which then needs no more
- * than the two methods of `AdminTenantLookupPort`.
+ * credits, reconciliation, `GET admin/tenants/:slug/subscriber` and where a
+ * tenant's deletion stands — are mounted as before, and find a tenant through
+ * `resources`, which then needs no more than the two methods of
+ * `AdminTenantLookupPort`.
  */
 export type SaaSiCatAdminResourcesOptions = SaaSiCatAdminResourcesCommonOptions &
     (

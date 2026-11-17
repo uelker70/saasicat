@@ -112,6 +112,15 @@ export {
     TenantDeletionService,
     type TenantDeletionRun,
 } from './deletion/tenant-deletion.service.js';
+export { TenantDeletionReadingService } from './deletion/tenant-deletion-reading.service.js';
+export {
+    KEEP_REPORT_READ_TIMEOUT_MS,
+    TenantKeepReadingService,
+} from './deletion/tenant-keep-reading.service.js';
+export {
+    TenantDeletionAdminModule,
+    type TenantDeletionAdminModuleOptions,
+} from './deletion/tenant-deletion-admin.module.js';
 export {
     SubscriptionCancellationService,
     type CancellationProjection,
@@ -153,6 +162,7 @@ export { EndAtOnceService, type EndAtOnceConfirmation } from './end-at-once.serv
 export { FeatureWithdrawalTenantController } from './feature-withdrawal-tenant.controller.js';
 export { TenantAccessStateController } from './tenant-access-state.controller.js';
 export { TenantDataExportController } from './tenant-data-export.controller.js';
+export { TenantKeepController } from './tenant-keep.controller.js';
 export { TenantDataExportService } from './tenant-data-export.service.js';
 export { TenantExportDeliveryService } from './tenant-export-delivery.service.js';
 export {

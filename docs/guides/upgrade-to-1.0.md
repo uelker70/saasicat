@@ -5120,7 +5120,9 @@ day, is in [Erase a tenant's stores](wire-the-backend.md#erase-a-tenants-stores)
 
 - **Deploy knowing** that the first run on a marked database deletes every tenant whose deletion day
   has passed, at once, one after the other. Until the database is marked those tenants stay
-  readable, and the server log says once each run how many are due.
+  readable, the server log says how many are due — when it first finds them, when the number
+  changes, and otherwise once a day — and each tenant's page names its deletion as halted by the
+  mark, with what else would hold it.
 - **A persistence adapter of your own** adds what the deletion reads and writes, and the persistence
   contract fails one without it:
     - `TenantAccessHoldPort`: `record` and `lift` take the caller's transaction as their last
@@ -5170,7 +5172,8 @@ day, is in [Erase a tenant's stores](wire-the-backend.md#erase-a-tenants-stores)
   can be joined into it. A deletion of your own that closed the link leaves that to the run.
 - **A tenant under contract again is not deleted.** Where a contract of the tenant is in force at
   the end that made it due, or begins after it — one a checkout offer concluded since, say — the
-  run does not begin its deletion, writes nothing and says so in the server log (`SC-PRIV-026`).
+  run does not begin its deletion, writes nothing, does not ask your `TenantKeepReportPort` what the
+  tenant keeps, and says so in the server log (`SC-PRIV-026`).
   `TenantDeletionService` reads the contracts through `SubscriptionContractRepository`, which
   `SaaSiCatModule` hands it; `TenantBillingModule` wired by hand takes it from its
   `subscriptionContractRepository` or `contractFreeze`, and without either reads no contract. Code
@@ -5181,6 +5184,44 @@ day, is in [Erase a tenant's stores](wire-the-backend.md#erase-a-tenants-stores)
   ([An audit entry names the tenant it concerns](#an-audit-entry-names-the-tenant-it-concerns)).
 - **No codemod step.** What an eraser erases and what a tenant keeps are your application's to
   write; the compiler names every place that lacks them.
+
+### The operator sees where a tenant's deletion stands
+
+New, and nothing to wire: wherever `adminResources` and `tenantBilling` are on, the operator sees on
+the tenant's page and in its subscriber's record whether its deletion is scheduled, due, halted —
+with every reason and the act that lets it go on —, under way, being retried or done, and in the
+record what a begun deletion recorded, also once the application no longer has the tenant
+(`SC-ADM-058`). The tenant's users read in the banner of the read-only period what the tenant keeps
+for obligations of its own (`SC-PRIV-022`). What either shows:
+[What the operator sees](wire-the-backend.md#what-the-operator-sees) and
+[What a tenant keeps itself](wire-the-backend.md#what-a-tenant-keeps-itself).
+
+1. Where you mount `TenantDetailPage`, `SubscriberRecordPage` and `TenantAccessBanner`, nothing to
+   do: the manifest announces `deletions.read`, and the pages read
+   `GET admin/tenants/:slug/deletion`, `GET admin/subscribers/:id/deletions` and
+   `GET billing/access/keep`.
+2. Where a tenant page or a record of your own replaces the platform's, read the two admin routes;
+   the tenant's detail carries no deletion. `useTenantDeletion` and `useSubscriberDeletions` from
+   `@saasicat/ui-vue` read them where the manifest announces them, and `tenantDeletionWording`
+   words where a deletion stands.
+3. Where a banner of your own replaces `TenantAccessBanner`, read `GET billing/access/keep` once
+   per page through `useTenantKeep`, not with the state you read every minute: each read asks your
+   `TenantKeepReportPort`.
+
+- **Your `TenantKeepReportPort` is asked as a page loads**, by every user of a tenant in its
+  read-only period, within ten seconds (`KEEP_REPORT_READ_TIMEOUT_MS`). One that fails, answers
+  late or answers a line it may not shows no lines, and the server log names the problem by a code.
+- **The server log says a held deletion less often.** A line about a tenant held before its deletion
+  begins names every reason at once, and it and the line of a database not marked are said when they
+  first hold, when what holds changes, and otherwise once each installation day, per instance. A
+  check of yours that counts these lines per run counts them per day.
+- **`TenantDeletionHalt`** gains `contract-runs-past-end`: an exhaustive `switch` of yours over it
+  stops compiling until it handles the reason.
+- **`TenantPlanSectionI18n`** gains `accessKeepHeading` and `accessKeepLine` (`{label}`,
+  `{count}`). A catalogue you build whole adds them; one that overrides single strings needs
+  nothing.
+- **An inventory of your own routes and their guards** gains the three routes.
+- **No codemod step**: nothing an application wrote changes.
 
 ### An audit entry names the tenant it concerns
 

@@ -18,6 +18,7 @@ import type {
     AdminSubscriberContracts,
     AdminSubscriberCorrected,
     AdminSubscriberCredits,
+    AdminSubscriberDeletions,
     AdminSubscriberHistoryEntry,
     AdminSubscriberJoined,
     AdminSubscriberJoinPreview,
@@ -211,6 +212,21 @@ export const subscribersResource = defineResource('subscribers', {
             `${subscriberUrl(ctx, id)}/charges`,
             'The account returned no body',
         ),
+
+    /**
+     * The deletions of the subscriber's tenants, those still to begin first,
+     * then the begun ones, the most recently begun first — also of a tenant
+     * the application no longer has. Served only where the manifest announces
+     * `deletions.read`.
+     */
+    deletions: async (http, ctx, id: string): Promise<AdminSubscriberDeletions['deletions']> => {
+        const answer = await requestJsonBody<AdminSubscriberDeletions>(
+            http,
+            `${subscriberUrl(ctx, id)}/deletions`,
+            'The deletions returned no body',
+        );
+        return answer.deletions;
+    },
 
     /**
      * The subscriber's credits, the oldest first. Served only where the

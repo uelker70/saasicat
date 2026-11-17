@@ -828,6 +828,26 @@ _Tested by:_
         - \
         - all three at once refuse the start with a sentence each
         - set to undefined, as a spread may leave it, names nothing and is not refused
+- `packages/nest/tests/where-a-deletion-stands-is-read-naming-no-person.test.js`
+    - a deletion done, on the record of its subscriber
+        - is read once the application has no tenant any more, with every store, the commercial
+          record, the reminders and the downloads, naming no person
+        - names no person while the deletion is under way and the rows still name them
+        - counts a reminder that reached nobody as 0, and one not delivered as not delivered
+        - says on both pages that a suspension kept the export from being taken between the end and
+          the deletion
+- `packages/ui-vue/tests/component/subscriber-record-shows-its-deletions.test.ts`
+    - the subscriber's record shows its tenants' deletions
+        - a tenant the application no longer has, named by its id, with all that is recorded of its
+          deletion
+        - a deletion just begun says what is not there yet
+        - a deletion halted for a lost commercial record marks the part that fell
+        - a deletion still to come shows where it stands, and no record yet
+        - two tenants, each with its own deletion, in the order the server gives them
+        - a subscriber with no deletion says so
+        - a read that fails says so, and asks again on retry
+        - a subscriber the platform does not have shows nothing to delete
+        - without the capability, nothing is asked and no section is shown
 
 <!-- END proof -->
 

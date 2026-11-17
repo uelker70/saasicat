@@ -1,12 +1,11 @@
-// The tenant's subscriber and the tenants a list holds back — two requests of
-// the tenants descriptor that have no twin in the admin client.
+// The tenant's subscriber, the tenants a list holds back and where the
+// tenant's deletion stands — requests of the tenants descriptor that have no
+// twin in the admin client.
 //
 // Pinned the way `subscriber-charges-resource.test.js` pins its request: the path
 // is the one `@saasicat/nest` serves, and
 // `tests/openapi-covers-the-implementation.test.js` holds it to the contract
 // from the other side.
-
-// @requirement SC-PRIC-070 — The operator and the tenant see what holds a subscriber's next contract back
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -38,6 +37,7 @@ const STANDING = {
 /** The tenant ids a request named, in order. */
 const namedIn = (url) => new URL(url, 'http://admin.example').searchParams.getAll('tenantId');
 
+// @requirement SC-PRIC-070 — The operator and the tenant see what holds a subscriber's next contract back
 describe('tenantsResource.subscriber', () => {
     test("asks for the tenant's subscriber, with its slug escaped", async () => {
         const { http, calls } = answering(() => ({ status: 200, body: STANDING }));
@@ -58,6 +58,7 @@ describe('tenantsResource.subscriber', () => {
     });
 });
 
+// @requirement SC-PRIC-070 — The operator and the tenant see what holds a subscriber's next contract back
 describe('tenantsResource.subscriberAttention', () => {
     const heldBack = (tenantId) => ({
         tenantId,
@@ -117,5 +118,50 @@ describe('tenantsResource.subscriberAttention', () => {
             [],
         );
         assert.deepEqual(calls, []);
+    });
+});
+
+// @requirement SC-ADM-058 — The operator sees where a tenant's deletion stands
+describe('tenantsResource.deletion', () => {
+    const DELETION = {
+        tenantId: 't-1',
+        status: { kind: 'due', deletesOn: '2026-12-01' },
+        record: null,
+    };
+
+    test("asks where the tenant's deletion stands, with its slug escaped", async () => {
+        const { http, calls } = answering(() => ({ status: 200, body: { deletion: DELETION } }));
+
+        const deletion = await bindResource(tenantsResource, http, CTX).deletion('a b');
+
+        assert.deepEqual(calls, [{ url: '/api/v1/admin/tenants/a%20b/deletion', method: 'GET' }]);
+        assert.deepEqual(deletion, DELETION);
+    });
+
+    test('a tenant with no deletion to come answers none', async () => {
+        const { http } = answering(() => ({ status: 200, body: { deletion: null } }));
+
+        assert.equal(await bindResource(tenantsResource, http, CTX).deletion('northwind'), null);
+    });
+
+    test('an unknown tenant is refused with its code, not answered as one with no deletion', async () => {
+        const { http } = answering(() => ({
+            status: 404,
+            body: { code: 'TENANT_NOT_FOUND', message: 'Tenant gone not found' },
+        }));
+
+        await assert.rejects(
+            () => bindResource(tenantsResource, http, CTX).deletion('gone'),
+            (error) => error.status === 404 && error.code === 'TENANT_NOT_FOUND',
+        );
+    });
+
+    test('an answer with no body is an error', async () => {
+        const { http } = answering(() => ({ status: 204, body: undefined }));
+
+        await assert.rejects(
+            () => bindResource(tenantsResource, http, CTX).deletion('northwind'),
+            /no body/,
+        );
     });
 });

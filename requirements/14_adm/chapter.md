@@ -677,6 +677,18 @@ _Tested by:_
         - where subscribers are served, the record is read for the subscriber on screen
         - with ${label}, nothing is asked
         - without a subscriber, nothing is asked
+- `packages/ui-vue/tests/use-tenant-deletion.test.js`
+    - useTenantDeletion — on the tenant's page
+        - where the manifest announces it, it is read for the tenant
+        - with ${label}, nothing is asked and nothing is shown
+        - another tenant is another deletion, and no tenant asks nothing
+        - a tenant the server does not know shows nothing, and no error
+        - ${why} is an error, with nothing shown
+    - useSubscriberDeletions — in the subscriber's record
+        - where the manifest announces it, the deletions of the subscriber's tenants are read
+        - with ${label}, nothing is asked and none is shown
+        - a subscriber the server does not know shows none, and no error
+        - a read that fails otherwise is an error, with none shown
 - `packages/ui-vue/tests/use-tenant-subscriber.test.js`
     - useTenantSubscriber
         - where the manifest announces the subscriber, it is read for the tenant
@@ -879,7 +891,7 @@ _Tested by:_
 
 ### SC-ADM-021 — An operator finds everything about a subscriber in one record
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Master data, its live tenant and the ones it had before,
+🟢 🔒 Master data, its live tenant and the ones it had before,
 contracts with their history, invoices, payments, open items and the deletion record. The
 contract dossier planned in #43 is part of this record rather than a second place to look.
 
@@ -903,6 +915,18 @@ _Tested by:_
         - warns where the application no longer has a tenant whose link is still open
         - says so where the subscriber is linked to no tenant
         - a record that fails to load says so, and shows none of its sections
+- `packages/ui-vue/tests/component/subscriber-record-shows-its-deletions.test.ts`
+    - the subscriber's record shows its tenants' deletions
+        - a tenant the application no longer has, named by its id, with all that is recorded of its
+          deletion
+        - a deletion just begun says what is not there yet
+        - a deletion halted for a lost commercial record marks the part that fell
+        - a deletion still to come shows where it stands, and no record yet
+        - two tenants, each with its own deletion, in the order the server gives them
+        - a subscriber with no deletion says so
+        - a read that fails says so, and asks again on retry
+        - a subscriber the platform does not have shows nothing to delete
+        - without the capability, nothing is asked and no section is shown
 - `packages/ui-vue/tests/subscriber-record-resource.test.js`
     - subscribersResource.record
         - asks for the subscriber's record by its id, escaped
@@ -1215,6 +1239,148 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-ADM-058 — The operator sees where a tenant's deletion stands
+
+🟢 🔒 The operator's page for a tenant and the record of its
+subscriber say whether its deletion is scheduled, due, halted — with every reason that holds it and
+what each one names — under way, retried after a failure, or done; the record also once the
+application no longer has the tenant (`SC-ADM-021`). A deletion halted by the installation's mark is
+the operator's preview (`SC-PRIV-021`). The pages only show: what lets a halted deletion go on is the
+operator's act elsewhere.
+
+_Source:_ #338 (decided 2026-11-17)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/where-a-tenants-deletion-stands.test.js`
+    - a deletion not begun waits for its day in the installation
+        - at ${now.toISOString()} it is ${kind}
+        - nothing to show for a tenant with neither an end nor a record
+        - its day has ${hasCome ? '' : 'not '}come on ${today}
+    - a begun deletion stands where its record says
+        - a run holding a fresh claim is erasing, counting the stores done
+        - a claim ${name}: ${kind}
+        - a deletion retried names its attempts and the failure it met last
+        - begun, held by no run and failed nowhere, it waits for the next run as under way
+        - a call that timed out keeps its claim, and the deletion is under way with that failure
+        - a store that took the commercial record along halts it, naming the store and the parts
+        - a kept halt on a database whose mark does not match names the mark first, then the halt
+        - a mark that does not match holds an open deletion before its next store
+        - a subscriber or a contract asked before the beginning holds nothing once it began
+        - a closed deletion is done, also once no end holds its tenant any more
+        - a run ${goesOn ? 'goes on with' : 'leaves'} ${name}
+- `packages/nest/tests/an-operator-reads-where-a-deletion-stands.test.js`
+    - a tenant's deletion is served on its page and in its subscriber's record
+        - with the tenants and their billing, both routes answer and the manifest announces them
+        - a tenant whose subscription never ended has no deletion
+        - a tenant the application does not have is answered as not found, by code, and no deletion
+          is read
+        - a subscriber there is not is answered as not found, by code, and no deletion is read
+        - the tenant, the subscriber and the deletions are read outside the tenants' row-level
+          policy
+        - without ${without}, neither route nor the capability exists
+    - who reads a tenant's deletion
+        - both routes are mounted where everything is on
+        - a signed-in tenant user is refused by name, the platform's administrator passes
+    - mounted by hand
+        - without the bypass port, it refuses to start rather than read in a tenant scope
+- `packages/nest/tests/where-a-deletion-stands-is-read-naming-no-person.test.js`
+    - a deletion not begun, on the tenant page
+        - over an unmarked database on its day is halted, naming the identifier to mark it with;
+          marked, it is due
+        - before its day is scheduled, with what would hold it were the day today
+        - is halted while a contract concluded since runs past the end, and due where the contract
+          ended with it
+        - is halted where the tenant has no subscriber to keep the record with
+        - names every reason that holds it, in the order the run asks them
+        - is nothing to come where the reason holding the tenant was lifted, though its end stands
+        - is nothing to come for a tenant whose subscription never ended
+    - a deletion done, on the record of its subscriber
+        - is read once the application has no tenant any more, with every store, the commercial
+          record, the reminders and the downloads, naming no person
+        - names no person while the deletion is under way and the rows still name them
+        - counts a reminder that reached nobody as 0, and one not delivered as not delivered
+        - says on both pages that a suspension kept the export from being taken between the end and
+          the deletion
+    - a deletion begun and stopped
+        - by a store that took the commercial record along is halted, naming the store and what fell
+        - by stores listed otherwise than when it began is retried, with the code
+    - the record of a subscriber
+        - shows its own tenants' deletions and not another subscriber's
+        - shows the deletion still to come first, then the begun ones, each with its own reminders
+          and downloads
+- `packages/ui-vue/tests/component/subscriber-record-shows-its-deletions.test.ts`
+    - the subscriber's record shows its tenants' deletions
+        - a tenant the application no longer has, named by its id, with all that is recorded of its
+          deletion
+        - a deletion just begun says what is not there yet
+        - a deletion halted for a lost commercial record marks the part that fell
+        - a deletion still to come shows where it stands, and no record yet
+        - two tenants, each with its own deletion, in the order the server gives them
+        - a subscriber with no deletion says so
+        - a read that fails says so, and asks again on retry
+        - a subscriber the platform does not have shows nothing to delete
+        - without the capability, nothing is asked and no section is shown
+- `packages/ui-vue/tests/component/tenant-detail-shows-where-its-deletion-stands.test.ts`
+    - the tenant detail shows where the tenant's deletion stands
+        - $label: its pill and what it says
+        - a retried deletion names its last failure, by store, step and code
+        - a halted deletion lists every reason, in the order the run asks them
+        - before its day, it says what would hold the deletion were the day today
+        - a begun deletion leads into the record kept with its subscriber
+        - a deletion not yet begun has no record to lead into
+        - a tenant with no deletion to come shows no section
+        - a tenant the application does not have shows no section
+        - a read that fails says so, and asks again on retry
+        - without the capability, nothing is asked and no section is shown
+- `packages/ui-vue/tests/subscriber-record-resource.test.js`
+    - subscribersResource.deletions
+        - asks for the deletions of the subscriber's tenants by its id, escaped
+        - an unknown subscriber is refused with its code
+        - an answer with no body is an error, not a subscriber with no deletions
+- `packages/ui-vue/tests/tenant-subscriber-resource.test.js`
+    - tenantsResource.deletion
+        - asks where the tenant's deletion stands, with its slug escaped
+        - a tenant with no deletion to come answers none
+        - an unknown tenant is refused with its code, not answered as one with no deletion
+        - an answer with no body is an error
+- `packages/ui-vue/tests/use-tenant-deletion.test.js`
+    - useTenantDeletion — on the tenant's page
+        - where the manifest announces it, it is read for the tenant
+        - with ${label}, nothing is asked and nothing is shown
+        - another tenant is another deletion, and no tenant asks nothing
+        - a tenant the server does not know shows nothing, and no error
+        - ${why} is an error, with nothing shown
+    - useSubscriberDeletions — in the subscriber's record
+        - where the manifest announces it, the deletions of the subscriber's tenants are read
+        - with ${label}, nothing is asked and none is shown
+        - a subscriber the server does not know shows none, and no error
+        - a read that fails otherwise is an error, with none shown
+- `packages/ui-vue/tests/where-a-deletion-stands-is-worded.test.js`
+    - where a deletion stands, by state
+        - scheduled, with nothing that would hold it, names its day
+        - due names the day it has been due since
+        - under way names when it began and how many stores have erased
+        - under way past a store that did not answer names the failure and explains it
+        - retried after an application's failure names the attempts and the code as it was kept
+        - retried because the stores changed says that it does not pass by itself, and what to do
+        - deleted names the moment it closed
+        - every state has a label in both languages and a tone, and none says another state
+    - every reason that holds a deletion, with what it names
+        - a deletion due on an unmarked database says how to mark it, with its identifier
+        - a database marked as another installation names both identifiers
+        - three reasons at once are three sentences, in the order the run asks them
+        - before its day, what would hold it is the forecast, said as one
+        - a store that took part of the commercial record is named, with each part before and after
+        - a commercial record found short with no store to lay it at says so without one
+        - in German, the same reason in German, with the same identifier
+    - a failure the platform found itself
+        - ${code} is explained in both languages, after the code
+
+<!-- END proof -->
+
 ### SC-ADM-054 — A tenant's users read why it is held back
 
 🟢 🔒 Every user of a tenant held back (`SC-ADM-055`) reads why above the application, in every
@@ -1335,6 +1501,15 @@ _Tested by:_
           refused
         - to a user without the billing permission: one request a minute, no number, nothing to pay,
           and nothing refused
+    - the banner of a tenant whose subscription ended, on what it keeps itself
+        - tells every user, not only its administrator, what to keep and how many, beneath the
+          reasons
+        - to a German reader, in the application's German words where it gives them, else in
+          English, and counts as German writes them
+        - shows no list where the application %s
+        - while suspended, neither asks nor shows what it keeps
+        - where it cannot be read, leaves the banner as it was and says nothing of the failure
+        - is asked once for the page, not with each read of the state every minute
 
 <!-- END proof -->
 
@@ -1587,6 +1762,7 @@ _Tested by:_
         - finds the earlier subscriber, shows both with what moves and changes, and joins them as
           confirmed
         - says where this subscriber brings no payment method that none is in use afterwards
+        - a join refused while a tenant of either subscriber is being deleted says so in words
         - a record joined into another says where everything went, leads there, and takes no
           correction
         - the earlier record names the subscribers joined into it, leading to each
@@ -2966,6 +3142,7 @@ _Tested by:_
         - finds the earlier subscriber, shows both with what moves and changes, and joins them as
           confirmed
         - says where this subscriber brings no payment method that none is in use afterwards
+        - a join refused while a tenant of either subscriber is being deleted says so in words
         - a record joined into another says where everything went, leads there, and takes no
           correction
         - the earlier record names the subscribers joined into it, leading to each

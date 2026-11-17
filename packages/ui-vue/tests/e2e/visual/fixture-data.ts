@@ -13,7 +13,9 @@ import type {
     AdminSubscriberContract,
     AdminSubscriberContractDossier,
     AdminSubscriberContracts,
+    AdminSubscriberDeletions,
     AdminSubscriberInvoice,
+    AdminTenantDeletion,
     BundleRow,
     BundleVersionRow,
     CapabilityCatalogEntryRow,
@@ -24,6 +26,7 @@ import type {
     PlanVersionRow,
     QuotaCatalogEntryRow,
     SubscriptionBundleDays,
+    TenantKeepView,
     VersionOfferView,
     VersionOfferWithDays,
 } from '@saasicat/core';
@@ -1064,6 +1067,24 @@ const TENANT_DETAIL = {
     ],
 };
 
+// The tenant's deletion, due and held on a database not yet marked as the
+// installation's — the operator's preview — and by a contract concluded since:
+// two reasons in the order the run asks them, each with what it names.
+const TENANT_DELETION_HALTED: { deletion: AdminTenantDeletion } = {
+    deletion: {
+        tenantId: 't-0001',
+        status: {
+            kind: 'halted',
+            deletesOn: '2026-12-31',
+            heldBy: [
+                { reason: 'installation-unmarked', expected: 'prod' },
+                { reason: 'contract-runs-past-end' },
+            ],
+        },
+        record: null,
+    },
+};
+
 // The banner above a tenant's application once its subscription has ended and
 // two invoices stayed unpaid, as its administrator reads it: the days the end
 // leaves, and both paying and taking the export offered.
@@ -1099,6 +1120,21 @@ const TENANT_ACCESS_ENDED = {
     mayPay: true,
     mayExport: true,
     exportDeliveredBy: 'platform',
+};
+
+// What the tenant's account owes, which the banner reads to offer paying.
+const TENANT_ACCESS_ACCOUNT = {
+    balances: [{ currency: 'EUR', owed: 138, overdue: 138, credit: 0 }],
+    directDebitCollectedOn: '2026-12-08',
+};
+
+// What the tenant keeps for obligations of its own, as the application answers
+// it: one category named in German too, one in English alone.
+const TENANT_KEEP: TenantKeepView = {
+    keep: [
+        { category: 'receipts', count: 1204, labels: { en: 'Receipts', de: 'Belege' } },
+        { category: 'sales-contracts', count: 37, labels: { en: 'Sales contracts' } },
+    ],
 };
 
 // The tenant's subscriber, as its master data stands — a business in Germany
@@ -1146,6 +1182,160 @@ const SUBSCRIBER_RECORD = {
             slug: 'northwind',
             name: 'Northwind Ltd',
             deletedAt: '2025-12-31T23:00:00.000Z',
+        },
+    ],
+};
+
+/** The subscriber's commercial record as a deletion counts it, with `invoices` as given. */
+const commercialRecord = (invoices: number) => ({
+    subscriber: 1,
+    contracts: 2,
+    charges: 26,
+    invoices,
+    payments: 13,
+    credits: 1,
+});
+
+// The deletions of the record's two tenants, in the order the server gives
+// them. The live one the application no longer has, halted after a store took
+// an invoice along — the part that fell is marked — with a reminder that
+// reached nobody, one not delivered, nothing to keep and no download: every
+// empty part of a record. Then Northwind, deleted, with everything a closed
+// deletion records.
+const SUBSCRIBER_DELETIONS: AdminSubscriberDeletions = {
+    deletions: [
+        {
+            tenantId: 't-0009',
+            status: {
+                kind: 'halted',
+                deletesOn: '2026-01-15',
+                heldBy: [
+                    { reason: 'commercial-record-lost', store: 'notes-data', lost: ['invoices'] },
+                ],
+            },
+            record: {
+                exportOfferedFrom: '2025-12-15T09:00:00.000Z',
+                exportBlockedBySuspension: true,
+                announcedOn: null,
+                keep: [],
+                stores: [
+                    {
+                        store: 'files',
+                        position: 0,
+                        countedAt: '2026-01-14T23:15:00.000Z',
+                        counts: [{ category: 'documents', count: 1204 }],
+                        erasedAt: '2026-01-14T23:38:00.000Z',
+                    },
+                    {
+                        store: 'notes-data',
+                        position: 1,
+                        countedAt: '2026-01-14T23:15:00.000Z',
+                        counts: [
+                            { category: 'notes', count: 3812 },
+                            { category: 'users', count: 7 },
+                        ],
+                        erasedAt: '2026-01-14T23:41:00.000Z',
+                    },
+                ],
+                commercialBefore: commercialRecord(14),
+                commercialAfter: commercialRecord(13),
+                startedAt: '2026-01-14T23:15:00.000Z',
+                closedAt: null,
+                attempts: 0,
+                lastFailure: null,
+                reminders: [
+                    {
+                        daysBefore: 30,
+                        createdAt: '2025-12-16T08:00:00.000Z',
+                        deliveredAt: '2025-12-16T08:01:00.000Z',
+                        recipientCount: 0,
+                        channel: 'email',
+                    },
+                    {
+                        daysBefore: 7,
+                        createdAt: '2026-01-08T08:00:00.000Z',
+                        deliveredAt: null,
+                        recipientCount: null,
+                        channel: null,
+                    },
+                ],
+                downloads: [],
+            },
+        },
+        {
+            tenantId: 't-0001',
+            status: {
+                kind: 'deleted',
+                deletesOn: '2026-01-01',
+                closedAt: '2025-12-31T23:41:00.000Z',
+            },
+            record: {
+                exportOfferedFrom: '2025-11-30T23:00:00.000Z',
+                exportBlockedBySuspension: false,
+                announcedOn: '2025-11-12',
+                keep: [
+                    {
+                        category: 'receipts',
+                        count: 412,
+                        labels: { en: 'Receipts', de: 'Belege' },
+                    },
+                    {
+                        category: 'sales-contracts',
+                        count: 37,
+                        labels: { en: 'Sales contracts', de: 'Kaufverträge' },
+                    },
+                ],
+                stores: [
+                    {
+                        store: 'files',
+                        position: 0,
+                        countedAt: '2025-12-31T23:15:00.000Z',
+                        counts: [{ category: 'documents', count: 1204 }],
+                        erasedAt: '2025-12-31T23:38:00.000Z',
+                    },
+                    {
+                        store: 'notes-data',
+                        position: 1,
+                        countedAt: '2025-12-31T23:15:00.000Z',
+                        counts: [
+                            { category: 'notes', count: 3812 },
+                            { category: 'users', count: 7 },
+                            { category: 'audit-entries', count: 210 },
+                        ],
+                        erasedAt: '2025-12-31T23:41:00.000Z',
+                    },
+                ],
+                commercialBefore: commercialRecord(14),
+                commercialAfter: commercialRecord(14),
+                startedAt: '2025-12-31T23:15:00.000Z',
+                closedAt: '2025-12-31T23:41:00.000Z',
+                attempts: 1,
+                lastFailure: {
+                    step: 'erase',
+                    store: 'files',
+                    code: 'ECONNRESET',
+                    at: '2025-12-31T23:20:00.000Z',
+                },
+                reminders: [
+                    {
+                        daysBefore: 30,
+                        createdAt: '2025-12-02T08:00:00.000Z',
+                        deliveredAt: '2025-12-02T08:01:00.000Z',
+                        recipientCount: 2,
+                        channel: 'email',
+                    },
+                    {
+                        daysBefore: 7,
+                        createdAt: '2025-12-25T08:00:00.000Z',
+                        deliveredAt: '2025-12-25T08:01:00.000Z',
+                        recipientCount: 2,
+                        channel: 'email',
+                    },
+                ],
+                downloads: [
+                    { at: '2025-12-03T09:15:00.000Z', size: 48_213_000, by: 'tenant-admin' },
+                ],
+            },
         },
     ],
 };
@@ -2020,12 +2210,14 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/promo-codes/WELCOME20', PROMO_DETAIL],
     ['/api/admin/tenants/northwind', TENANT_DETAIL],
     ['/api/admin/tenants/northwind/subscriber', TENANT_SUBSCRIBER],
+    ['/api/admin/tenants/northwind/deletion', TENANT_DELETION_HALTED],
     ['/api/admin/subscribers', SUBSCRIBER_ROWS],
     ['/api/admin/subscribers/s-0001', SUBSCRIBER_RECORD],
     ['/api/admin/subscribers/s-0001/charges', TENANT_ACCOUNT],
     ['/api/admin/subscribers/s-0001/payments', TENANT_PAYMENTS],
     ['/api/admin/subscribers/s-0001/contracts', SUBSCRIBER_CONTRACTS],
     ['/api/admin/subscribers/s-0001/contracts/c-0003', SUBSCRIBER_CONTRACT_DOSSIER],
+    ['/api/admin/subscribers/s-0001/deletions', SUBSCRIBER_DELETIONS],
     ['/api/admin/invoices/inv-124', INVOICE_TO_CANCEL],
     ['/api/admin/invoices', INVOICE_REGISTER],
     ['/api/admin/invoice-totals', INVOICE_REGISTER_TOTALS],
@@ -2054,15 +2246,17 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     // A feature withdrawn from the subscription: a subscription of its own, so
     // the cases above keep rendering the section with nothing withdrawn.
     ...tenantRoutes('/api/withdrawn-billing', TENANT_USAGE, null, TENANT_WITHDRAWN),
-    // The access banner's: the state and the account it reads to offer paying.
+    // The access banner's: the state, what the tenant keeps itself — nothing
+    // named here, so this case renders the banner without that list — and the
+    // account it reads to offer paying.
     ['/api/access-billing/access', TENANT_ACCESS_ENDED],
-    [
-        '/api/access-billing/account',
-        {
-            balances: [{ currency: 'EUR', owed: 138, overdue: 138, credit: 0 }],
-            directDebitCollectedOn: '2026-12-08',
-        },
-    ],
+    ['/api/access-billing/access/keep', { keep: [] }],
+    ['/api/access-billing/account', TENANT_ACCESS_ACCOUNT],
+    // The same banner with what the tenant keeps itself: a prefix of its own,
+    // so the case above keeps rendering it without the list.
+    ['/api/keep-billing/access', TENANT_ACCESS_ENDED],
+    ['/api/keep-billing/access/keep', TENANT_KEEP],
+    ['/api/keep-billing/account', TENANT_ACCESS_ACCOUNT],
 ];
 
 /**

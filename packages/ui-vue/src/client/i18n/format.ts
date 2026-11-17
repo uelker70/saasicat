@@ -53,3 +53,29 @@ export function formatMoment(iso: string | null, intlLocale: string): string {
         timeZoneName: 'short',
     });
 }
+
+/** The units a file's size is written in, each a thousand of the one before. */
+const FILE_SIZE_UNITS = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte'] as const;
+const FILE_SIZE_STEP = 1000;
+
+/**
+ * A file's size in the reader's language, in the largest unit that keeps the
+ * number at one or more — `48 MB`, `1,2 kB` — with at most one decimal. The
+ * unit is chosen after rounding, so a size just short of the next unit is
+ * written in it rather than as a thousand of this one.
+ */
+export function formatFileSize(bytes: number, intlLocale: string): string {
+    let value = bytes;
+    let unit: (typeof FILE_SIZE_UNITS)[number] = 'byte';
+    for (const larger of FILE_SIZE_UNITS.slice(1)) {
+        if (Math.round(value * 10) / 10 < FILE_SIZE_STEP) break;
+        value /= FILE_SIZE_STEP;
+        unit = larger;
+    }
+    return new Intl.NumberFormat(intlLocale, {
+        style: 'unit',
+        unit,
+        unitDisplay: 'short',
+        maximumFractionDigits: 1,
+    }).format(value);
+}

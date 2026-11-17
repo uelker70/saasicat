@@ -3,7 +3,11 @@
 // here in one that takes it back where it fails, as a database does; a write
 // made outside it stays.
 
-import { InstallationMarkService, TenantDeletionService } from '../../dist/billing/index.js';
+import {
+    InstallationMarkService,
+    TenantDeletionReadingService,
+    TenantDeletionService,
+} from '../../dist/billing/index.js';
 import {
     FakeInstallationMarkRepository,
     FakeSubscriptionContractRepository,
@@ -105,9 +109,20 @@ class TransactionalDeletions extends FakeTenantDeletionRepository {
     }
 }
 
-/** Notices whose recipients a failed transaction gives back where they were forgotten in it. */
+/**
+ * Notices that count their recipients as they are confirmed, as the stores do,
+ * and whose recipients a failed transaction gives back where they were
+ * forgotten in it.
+ */
 function transactionalNotices() {
     const notices = noticeRecord();
+    const confirm = notices.confirm;
+    notices.confirm = async (id, claimedAt, delivery, now) => {
+        const confirmed = await confirm(id, claimedAt, delivery, now);
+        const row = [...notices.rows.values()].find((candidate) => candidate.id === id);
+        if (confirmed) row.recipientCount = delivery.recipients.length;
+        return confirmed;
+    };
     const forget = notices.forgetRecipients;
     notices.forgetRecipients = async (tenantId, at, tx) => {
         if (tx) {
@@ -179,6 +194,9 @@ export function aQuietLogger() {
     };
 }
 
+/** When every subscriber of `aSubscriberForEveryTenant` was linked to its tenant. */
+const LINKED_AT = new Date('2026-01-01T00:00:00.000Z');
+
 /**
  * A subscriber for every tenant, `subscriber-<tenant>`, its link open until a
  * deletion closes it; a failed transaction opens it again. `unlinked` names
@@ -186,10 +204,18 @@ export function aQuietLogger() {
  */
 export function aSubscriberForEveryTenant() {
     const unlinked = new Map();
+    const prefix = 'subscriber-';
     return {
         unlinked,
+        findById: async (subscriberId) =>
+            subscriberId.startsWith(prefix) ? { id: subscriberId } : null,
         async findByTenantId(tenantId) {
-            return unlinked.has(tenantId) ? null : { id: `subscriber-${tenantId}` };
+            return unlinked.has(tenantId) ? null : { id: `${prefix}${tenantId}` };
+        },
+        async listTenantLinks(subscriberId) {
+            if (!subscriberId.startsWith(prefix)) return [];
+            const tenantId = subscriberId.slice(prefix.length);
+            return [{ tenantId, linkedAt: LINKED_AT, unlinkedAt: unlinked.get(tenantId) ?? null }];
         },
         async unlinkTenant(tenantId, unlinkedAt, tx) {
             if (unlinked.has(tenantId)) return false;
@@ -258,6 +284,23 @@ export async function setUp({
     service.logger = logger;
     service.onModuleInit();
     return { ...ports, ports, subscribers, service, calls, said: logger.said };
+}
+
+/**
+ * What the operator reads of the deletions over `run`'s ports, the database
+ * marked as the run finds it; `subscribers` replaces the run's.
+ */
+export function aReaderOf(run, subscribers = run.subscribers) {
+    return new TenantDeletionReadingService(
+        run.records,
+        subscribers,
+        run.ends,
+        run.notices,
+        new InstallationMarkService(run.marks, THIS_INSTALLATION, null),
+        ZONE,
+        run.holds,
+        run.contracts,
+    );
 }
 
 /** Ends the subscription of `tenantId` with its deletion day, holding the tenant to reading. */

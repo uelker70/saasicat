@@ -75,10 +75,16 @@ function optionalExports({ options, requiresFullEntitlement }: CompositionContex
  * subscriber and the services behind them, which exports nothing: an
  * application asks `SubscriberService` for a subscriber's standing and makes
  * its corrections there, from the module it already imports.
+ *
+ * `TenantDeletionAdminModule` is the operator's two routes about a tenant's
+ * deletion and provides nothing: the service they read through,
+ * `TenantDeletionReadingService`, is `TenantBillingModule`'s, which is
+ * exported.
  */
 export const MOUNTED_BUT_NOT_EXPORTED: readonly string[] = [
     'PublicCatalogModule',
     'SubscriberAdminModule',
+    'TenantDeletionAdminModule',
 ];
 
 /** The `exports` of the assembled module, plus whatever it provides itself. */

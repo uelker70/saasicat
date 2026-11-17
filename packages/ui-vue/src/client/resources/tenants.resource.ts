@@ -15,11 +15,13 @@
 // encoded on the way into the path there, so they are encoded here. The
 // subscriber's account, invoices, contracts and corrections are in
 // `subscribers.resource.ts`: they belong to the subscriber, whose record
-// outlives the tenant.
+// outlives the tenant — and so do the deletions of its tenants, of which the
+// tenant's page reads only its own.
 
 import {
     SUBSCRIBER_ATTENTION_PAGE_SIZE,
     type AdminSubscriberAttention,
+    type AdminTenantDeletion,
     type AdminTenantDetailEntry,
     type AdminTenantSubscriber,
     type TenantDto,
@@ -89,6 +91,21 @@ export const tenantsResource = defineResource('tenants', {
             `${tenantUrl(ctx, slug)}/subscriber`,
             'The subscriber returned no body',
         ),
+
+    /**
+     * Where the tenant's deletion stands, and the record of it once begun;
+     * `null` where no deletion is to come. Refused with `TENANT_NOT_FOUND` for
+     * a tenant the application does not have. Served only where the manifest
+     * announces `deletions.read`.
+     */
+    deletion: async (http, ctx, slug: string): Promise<AdminTenantDeletion | null> => {
+        const answer = await requestJsonBody<{ deletion: AdminTenantDeletion | null }>(
+            http,
+            `${tenantUrl(ctx, slug)}/deletion`,
+            'The deletion returned no body',
+        );
+        return answer.deletion;
+    },
 
     /**
      * Which of these tenants hold their subscriber back from its next
