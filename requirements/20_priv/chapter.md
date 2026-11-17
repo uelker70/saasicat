@@ -587,6 +587,12 @@ _Tested by:_
         - every reason that holds is named, in the order the run asks them
         - ${name} is held by that alone
         - a marked database, a subscriber and no contract past the end leave it due
+        - the mark alone holds where the database is not the installation’s, and names why
+- `packages/nest/tests/a-held-deletion-is-said-once-a-day.test.js`
+    - the installation mark that holds every due deletion
+        - is said once on the deletion day, however often the run comes, and again on the next
+        - is said again at once where another tenant falls due
+        - is said again at once where the database is marked as another installation
 - `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
     - the installation mark in front of the run
         - over a database unmarked, or marked as another installation, nothing begins and the log
@@ -828,6 +834,11 @@ _Source:_ #338 (decided 2026-11-16)
 
 _Tested by:_
 
+- `packages/nest/tests/a-held-deletion-is-said-once-a-day.test.js`
+    - a tenant held by a contract that runs past its end
+        - is held without the application being asked what the tenant keeps
+        - is held where the contract was concluded while the application answered what it keeps
+        - is said once on the deletion day and again on the next
 - `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
     - a tenant whose contract runs past the end that made it due
         - a contract concluded after the end, in force on the deletion day, holds the deletion:

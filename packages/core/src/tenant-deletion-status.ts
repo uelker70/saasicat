@@ -75,8 +75,25 @@ export type TenantDeletionHaltReason =
           readonly lost: readonly (keyof CommercialRecordCounts)[];
       };
 
-/** The reason the mark holds a deletion for, or null where the database is the installation's. */
-function heldByTheMark(verdict: InstallationMarkVerdict): TenantDeletionHaltReason | null {
+/** A reason the installation's mark holds a deletion for. */
+export type TenantDeletionMarkHalt = Extract<
+    TenantDeletionHaltReason,
+    { reason: 'installation-unmarked' | 'installation-differs' }
+>;
+
+/** A reason that holds a due deletion before it begins. */
+export type TenantDeletionHeldBeforeBeginning = Exclude<
+    TenantDeletionHaltReason,
+    { reason: 'commercial-record-lost' }
+>;
+
+/**
+ * The reason the installation's mark holds every deletion for, begun or not,
+ * or null where the database is the installation's (`SC-PRIV-021`).
+ */
+export function deletionHeldByTheMark(
+    verdict: InstallationMarkVerdict,
+): TenantDeletionMarkHalt | null {
     switch (verdict.kind) {
         case 'matches':
             return null;
@@ -97,9 +114,9 @@ function heldByTheMark(verdict: InstallationMarkVerdict): TenantDeletionHaltReas
  * single tenant holds it too, and is not among them: whoever asks here reads
  * the tenant by a valid identifier.
  */
-export function deletionHeldBy(inputs: DeletionHoldInputs): TenantDeletionHaltReason[] {
-    const reasons: TenantDeletionHaltReason[] = [];
-    const mark = heldByTheMark(inputs.verdict);
+export function deletionHeldBy(inputs: DeletionHoldInputs): TenantDeletionHeldBeforeBeginning[] {
+    const reasons: TenantDeletionHeldBeforeBeginning[] = [];
+    const mark = deletionHeldByTheMark(inputs.verdict);
     if (mark) reasons.push(mark);
     if (!inputs.hasSubscriber) reasons.push({ reason: 'no-subscriber' });
     if (inputs.contractRunsPastEnd) reasons.push({ reason: 'contract-runs-past-end' });
@@ -172,7 +189,7 @@ function statusOfBegun(
     const { deletesOn, startedAt } = record;
     if (record.closedAt !== null) return { kind: 'deleted', deletesOn, closedAt: record.closedAt };
     if (record.halt !== null) return { kind: 'halted', deletesOn, heldBy: [keptHalt(record)] };
-    const mark = heldByTheMark(verdict);
+    const mark = deletionHeldByTheMark(verdict);
     if (mark) return { kind: 'halted', deletesOn, heldBy: [mark] };
     // A claim is fresh up to and including the moment one lease after it was
     // taken, as the stores decide when a run may take it over.

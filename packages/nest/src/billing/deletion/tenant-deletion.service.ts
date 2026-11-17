@@ -44,6 +44,11 @@
 // subscriber has no live tenant from then on, and a returning customer's new
 // one can be joined into it (`SC-ADM-027`).
 //
+// What holds a deletion before it begins is decided by the functions the
+// operator's pages read it through (`deletionHeldBy`), and said in the server
+// log when it first holds, when it changes, and otherwise once a day
+// (`DeletionLogThrottle`).
+//
 // Platform-wide: the reasons, the ends and the records are read across
 // tenants, and the erasers run, inside `RlsBypassPort`.
 
@@ -51,21 +56,30 @@ import { Inject, Injectable, Logger, Optional, type OnModuleInit } from '@nestjs
 import {
     commercialRecordLost,
     dayInZone,
+    deletionDayHasCome,
+    deletionGoesOn,
+    deletionHeldBy,
+    deletionHeldByTheMark,
     installationZoneOf,
     keepLinesProblem,
     tenantCountsProblem,
     tenantIdProblem,
+    type CalendarDay,
     type CommercialRecordCounts,
     type DeletionActorRole,
     type InstallationMarkVerdict,
     type PlanCatalogSettings,
     type RlsBypassPort,
     type SubscriberRepository,
+    type SubscriptionContractRecord,
     type SubscriptionContractRepository,
+    type SubscriptionEnd,
     type SubscriptionEndPort,
     type SubscriptionNoticeRepository,
     type TenantAccessHold,
     type TenantAccessHoldPort,
+    type TenantDeletionHeldBeforeBeginning,
+    type TenantDeletionMarkHalt,
     type TenantDeletionRecord,
     type TenantDeletionRecordHalt,
     type TenantDeletionRecordPort,
@@ -95,6 +109,7 @@ import {
     TENANT_ERASERS_TOKEN,
     TENANT_KEEP_REPORT_PORT_TOKEN,
 } from '../tenant-billing.tokens.js';
+import { DeletionLogThrottle } from './deletion-log-throttle.js';
 import { rolesInsteadOfPersons } from './forget-persons.js';
 import { InstallationMarkService } from './installation-mark.service.js';
 import {
@@ -128,6 +143,9 @@ const AUDITED_ENTITY = 'TenantDeletion';
 /** The longest code a failure keeps. */
 const FAILURE_CODE_MAX_LENGTH = 64;
 
+/** What a line about a held deletion ends with, so that its reader knows why it does not repeat. */
+const SAID_AGAIN = 'This is said again when it changes, and otherwise once a day.';
+
 /** What one run came to. */
 export interface TenantDeletionRun {
     /** Deletions closed in this run. */
@@ -145,6 +163,13 @@ export interface TenantDeletionRun {
 /** A deletion due: the end that decides its day and the reason that names it, its record once begun. */
 interface DueDeletion extends DecidingEnd {
     readonly record: TenantDeletionRecord | null;
+}
+
+/** What one run decides by: its moment, the installation's day at it, and the mark it found. */
+interface DeletionRound {
+    readonly now: Date;
+    readonly today: CalendarDay;
+    readonly verdict: InstallationMarkVerdict;
 }
 
 /** What one tenant's deletion came to in a run; null where this run did nothing to it. */
@@ -173,7 +198,7 @@ class DeletionStepFailed extends Error {
 
 /** The installation's mark stopped a deletion under way before its next store. */
 class HeldByTheMark extends Error {
-    constructor(readonly verdict: Exclude<InstallationMarkVerdict, { kind: 'matches' }>) {
+    constructor(readonly halt: TenantDeletionMarkHalt) {
         super('The installation mark holds the deletion.');
         this.name = 'HeldByTheMark';
     }
@@ -204,6 +229,7 @@ class ClaimLost extends Error {
 @Injectable()
 export class TenantDeletionService implements OnModuleInit {
     private readonly logger = new Logger('SaaSiCat.TenantDeletion');
+    private readonly heldSaid = new DeletionLogThrottle();
 
     constructor(
         @Inject(TENANT_ERASERS_TOKEN) private readonly erasers: readonly TenantEraser[],
@@ -271,18 +297,24 @@ export class TenantDeletionService implements OnModuleInit {
         const run: TenantDeletionRun = { deleted: 0, halted: 0, failed: 0 };
         if (!holds) return run;
         return readAcrossTenants(this.rlsBypass, async () => {
-            const due = await this.dueAt(holds, now);
+            const today = dayInZone(now, installationZoneOf(this.settings));
+            const due = await this.dueAt(holds, today);
             if (due.length === 0) return run;
             const verdict = await this.marks.verdict();
-            if (verdict.kind !== 'matches') {
-                this.logger.warn(
-                    `${due.length} tenant(s) due for deletion, none deleted: ` +
-                        `${whyTheMarkHolds(verdict)}`,
-                );
+            const mark = deletionHeldByTheMark(verdict);
+            if (mark) {
+                const said = `${JSON.stringify(mark)} ${due.length}`;
+                if (this.heldSaid.shouldSay('installation-mark', said, today)) {
+                    this.logger.warn(
+                        `${due.length} tenant(s) due for deletion, none deleted: ` +
+                            `${whyTheMarkHolds(mark)} ${SAID_AGAIN}`,
+                    );
+                }
                 return { ...run, halted: due.length };
             }
+            const round: DeletionRound = { now, today, verdict };
             for (const deletion of due) {
-                const outcome = await this.deleteOne(holds, deletion, now);
+                const outcome = await this.deleteOne(holds, deletion, round);
                 if (outcome) run[outcome] += 1;
             }
             return run;
@@ -297,7 +329,7 @@ export class TenantDeletionService implements OnModuleInit {
      * several ends hold a tenant, the one that ended last decides
      * (`decidingEnds`).
      */
-    private async dueAt(holds: TenantAccessHoldPort, now: Date): Promise<DueDeletion[]> {
+    private async dueAt(holds: TenantAccessHoldPort, today: CalendarDay): Promise<DueDeletion[]> {
         const tenantIds = await holds.listTenantIdsHeldBy(['ended']);
         if (tenantIds.length === 0) return [];
         const open = await holds.listOpenFor(tenantIds);
@@ -308,13 +340,11 @@ export class TenantDeletionService implements OnModuleInit {
                 record,
             ]),
         );
-        const today = dayInZone(now, installationZoneOf(this.settings));
         const due: DueDeletion[] = [];
         for (const [tenantId, { end, ended }] of deciding) {
             const record = records.get(tenantId) ?? null;
-            if (record && (record.closedAt !== null || record.halt !== null)) continue;
-            // Days are `YYYY-MM-DD`, so the later day is also the larger text.
-            if (!record && end.deletesOn > today) continue;
+            if (record && !deletionGoesOn(record)) continue;
+            if (!record && !deletionDayHasCome(end, today)) continue;
             due.push({ end, ended, record });
         }
         return due;
@@ -324,22 +354,24 @@ export class TenantDeletionService implements OnModuleInit {
     private async deleteOne(
         holds: TenantAccessHoldPort,
         due: DueDeletion,
-        now: Date,
+        round: DeletionRound,
     ): Promise<DeletionOutcome> {
         const tenantId = due.end.tenantId;
         const problem = tenantIdProblem(tenantId);
         if (problem !== null) {
-            this.logger.error(
-                `The end ${due.end.id} names no single tenant (${problem}); nothing is erased ` +
-                    'for it until it does (SC-PRIV-016).',
-            );
+            if (this.heldSaid.shouldSay(`end:${due.end.id}`, problem, round.today)) {
+                this.logger.error(
+                    `The end ${due.end.id} names no single tenant (${problem}); nothing is erased ` +
+                        `for it until it does (SC-PRIV-016). ${SAID_AGAIN}`,
+                );
+            }
             return 'halted';
         }
         let record = due.record;
         if (!record) {
             let begun: TenantDeletionRecord | 'held' | null;
             try {
-                begun = await this.begin(holds, due, now);
+                begun = await this.begin(holds, due, round);
             } catch (error) {
                 this.logger.error(
                     `The deletion of tenant ${tenantId} could not begin (${failureCodeOf(error)}); ` +
@@ -360,20 +392,20 @@ export class TenantDeletionService implements OnModuleInit {
      * Records the deletion and holds the tenant back, in one transaction,
      * where the reason holding it to reading still stands; null where it does
      * not, or another run began the deletion first. Held, with nothing
-     * written, where the tenant has no subscriber or a contract of it runs
-     * after its end.
+     * written and the application not asked what the tenant keeps, where the
+     * tenant has no subscriber or a contract of it runs after its end.
      */
     private async begin(
         holds: TenantAccessHoldPort,
         { end, ended }: DueDeletion,
-        now: Date,
+        round: DeletionRound,
     ): Promise<TenantDeletionRecord | 'held' | null> {
+        const { now } = round;
         const subscriber = await this.subscribers.findByTenantId(end.tenantId);
-        if (!subscriber) {
-            this.logger.error(
-                `Tenant ${end.tenantId} is due for deletion and has no subscriber to keep the ` +
-                    'record of it with; it is not deleted until it has one (SC-PRIV-023).',
-            );
+        const running = await contractRunningPast(this.contracts, end);
+        // A missing subscriber is among the reasons that hold; named again
+        // so that the subscriber is known from here on.
+        if (this.heldBeforeBeginning(end, round, subscriber !== null, running) || !subscriber) {
             return 'held';
         }
         const keep = await withTimeout(
@@ -391,16 +423,18 @@ export class TenantDeletionService implements OnModuleInit {
             end.endsAt,
             now,
         );
-        // Read last before the transaction that begins the deletion, as close
-        // to it as the store allows: the contracts are read through no
-        // transaction of the deletion's.
-        const running = await contractRunningPast(this.contracts, end);
-        if (running) {
-            this.logger.warn(
-                `Tenant ${end.tenantId} is due for deletion, but its contract ${running.id} runs ` +
-                    `after the end of ${end.endsAt.toISOString()}; it is not deleted while that ` +
-                    'contract runs (SC-PRIV-026).',
-            );
+        // Read again last before the transaction that begins the deletion, as
+        // close to it as the store allows: the contracts are read through no
+        // transaction of the deletion's, and one may have been concluded while
+        // the application answered what the tenant keeps.
+        if (
+            this.heldBeforeBeginning(
+                end,
+                round,
+                true,
+                await contractRunningPast(this.contracts, end),
+            )
+        ) {
             return 'held';
         }
         return this.transactions.run(async (tx) => {
@@ -437,6 +471,36 @@ export class TenantDeletionService implements OnModuleInit {
             );
             return record;
         });
+    }
+
+    /**
+     * Whether anything holds the deletion of `end`'s tenant before it begins
+     * (`deletionHeldBy`), saying every reason where something does: an error
+     * where the tenant has no subscriber to keep the record with, a warning
+     * otherwise.
+     */
+    private heldBeforeBeginning(
+        end: SubscriptionEnd,
+        round: DeletionRound,
+        hasSubscriber: boolean,
+        running: SubscriptionContractRecord | null,
+    ): boolean {
+        const heldBy = deletionHeldBy({
+            verdict: round.verdict,
+            hasSubscriber,
+            contractRunsPastEnd: running !== null,
+        });
+        if (heldBy.length === 0) return false;
+        const reasons = heldBy.map((held) => held.reason).join(' ');
+        if (this.heldSaid.shouldSay(`tenant:${end.tenantId}`, reasons, round.today)) {
+            const message =
+                `Tenant ${end.tenantId} is due for deletion and is not deleted while ` +
+                `${heldBy.map((held) => whyItHolds(held, end, running)).join(', and while ')}. ` +
+                SAID_AGAIN;
+            if (hasSubscriber) this.logger.warn(message);
+            else this.logger.error(message);
+        }
+        return true;
     }
 
     /**
@@ -551,8 +615,8 @@ export class TenantDeletionService implements OnModuleInit {
         const now = new Date();
         if (!(await this.records.renew(claim.id, claim.claimedAt, now))) throw new ClaimLost();
         claim.claimedAt = now;
-        const verdict = await this.marks.verdict();
-        if (verdict.kind !== 'matches') throw new HeldByTheMark(verdict);
+        const mark = deletionHeldByTheMark(await this.marks.verdict());
+        if (mark) throw new HeldByTheMark(mark);
     }
 
     /** Asks a store, within the time a step may take; what it throws is a failure of this step. */
@@ -664,7 +728,7 @@ export class TenantDeletionService implements OnModuleInit {
         if (error instanceof HeldByTheMark) {
             this.logger.warn(
                 `The deletion of tenant ${record.tenantId} stops before its next store: ` +
-                    whyTheMarkHolds(error.verdict),
+                    whyTheMarkHolds(error.halt),
             );
             await this.letGo(claim);
             return 'halted';
@@ -825,18 +889,38 @@ function suspendedBetween(holds: readonly TenantAccessHold[], endsAt: Date, now:
 }
 
 /** Why the installation's mark holds every deletion, and the line that lets them go on. */
-function whyTheMarkHolds(verdict: Exclude<InstallationMarkVerdict, { kind: 'matches' }>): string {
-    if (verdict.kind === 'unmarked') {
+function whyTheMarkHolds(halt: TenantDeletionMarkHalt): string {
+    if (halt.reason === 'installation-unmarked') {
         return (
             "the database is not marked as this installation's own (SC-PRIV-021). Once it is " +
-            `the one to delete in, mark it with \`<app> installation mark ${verdict.expected}\`.`
+            `the one to delete in, mark it with \`<app> installation mark ${halt.expected}\`.`
         );
     }
     return (
-        `the database is marked as installation ${verdict.marked}, and this process runs as ` +
-        `${verdict.expected} (SC-PRIV-021). Where it is ${verdict.expected}'s database, as after ` +
-        `restoring a backup, mark it with \`<app> installation mark ${verdict.expected} --replace\`.`
+        `the database is marked as installation ${halt.marked}, and this process runs as ` +
+        `${halt.expected} (SC-PRIV-021). Where it is ${halt.expected}'s database, as after ` +
+        `restoring a backup, mark it with \`<app> installation mark ${halt.expected} --replace\`.`
     );
+}
+
+/** Why `reason` holds the deletion of `end`'s tenant before it begins; `contract` is the one that runs past it. */
+function whyItHolds(
+    reason: TenantDeletionHeldBeforeBeginning,
+    end: Pick<SubscriptionEnd, 'endsAt'>,
+    contract: Pick<SubscriptionContractRecord, 'id'> | null,
+): string {
+    switch (reason.reason) {
+        case 'installation-unmarked':
+        case 'installation-differs':
+            return whyTheMarkHolds(reason);
+        case 'no-subscriber':
+            return 'it has no subscriber to keep the record of it with (SC-PRIV-023)';
+        case 'contract-runs-past-end':
+            return (
+                `its contract ${contract?.id ?? '(unknown)'} runs after the end of ` +
+                `${end.endsAt.toISOString()} (SC-PRIV-026)`
+            );
+    }
 }
 
 /** Whether `character` may stand in a failure's code. */

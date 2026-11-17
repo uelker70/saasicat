@@ -14,6 +14,7 @@ import {
     deletionDayHasCome,
     deletionGoesOn,
     deletionHeldBy,
+    deletionHeldByTheMark,
     tenantDeletionStatusOf,
 } from '../dist/index.js';
 
@@ -186,6 +187,19 @@ describe('what holds a due deletion before it begins', () => {
     test('a marked database, a subscriber and no contract past the end leave it due', () => {
         assert.deepEqual(statusOf(), { kind: 'due', deletesOn: DELETES_ON });
         assert.deepEqual(deletionHeldBy(NOTHING_HOLDS), []);
+    });
+
+    test('the mark alone holds where the database is not the installation’s, and names why', () => {
+        assert.equal(deletionHeldByTheMark(MATCHES), null);
+        assert.deepEqual(deletionHeldByTheMark(UNMARKED), {
+            reason: 'installation-unmarked',
+            expected: 'ahp-prod',
+        });
+        assert.deepEqual(deletionHeldByTheMark(DIFFERS), {
+            reason: 'installation-differs',
+            expected: 'ahp-prod',
+            marked: 'ahp-staging',
+        });
     });
 });
 
