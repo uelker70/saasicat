@@ -279,6 +279,28 @@ describe('a begun deletion stands where its record says', () => {
         });
     });
 
+    test('a kept halt on a database whose mark does not match names the mark first, then the halt', () => {
+        const deletion = record({
+            claimedAt: shifted(NOW, -60_000),
+            commercialAfter: { ...COMMERCIAL, invoices: 2 },
+            lastFailure: {
+                step: 'guard',
+                store: 'notes-data',
+                code: 'commercial-record-lost',
+                at: STARTED,
+            },
+            halt: 'commercial-record-lost',
+        });
+        assert.deepEqual(statusOf({ deletion, holds: { ...NOTHING_HOLDS, verdict: UNMARKED } }), {
+            kind: 'halted',
+            deletesOn: DELETES_ON,
+            heldBy: [
+                { reason: 'installation-unmarked', expected: 'ahp-prod' },
+                { reason: 'commercial-record-lost', store: 'notes-data', lost: ['invoices'] },
+            ],
+        });
+    });
+
     test('a mark that does not match holds an open deletion before its next store', () => {
         const deletion = record({ claimedAt: shifted(NOW, -60_000) });
         assert.deepEqual(statusOf({ deletion, holds: { ...NOTHING_HOLDS, verdict: DIFFERS } }), {

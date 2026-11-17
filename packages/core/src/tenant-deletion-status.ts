@@ -188,8 +188,14 @@ function statusOfBegun(
 ): TenantDeletionStatus {
     const { deletesOn, startedAt } = record;
     if (record.closedAt !== null) return { kind: 'deleted', deletesOn, closedAt: record.closedAt };
-    if (record.halt !== null) return { kind: 'halted', deletesOn, heldBy: [keptHalt(record)] };
+    // The run asks the mark before it reads any record, so a mark that holds
+    // the installation also holds a deletion its record keeps halted: both
+    // are named, the mark first, as the run would meet them.
     const mark = deletionHeldByTheMark(verdict);
+    if (record.halt !== null) {
+        const kept = keptHalt(record);
+        return { kind: 'halted', deletesOn, heldBy: mark ? [mark, kept] : [kept] };
+    }
     if (mark) return { kind: 'halted', deletesOn, heldBy: [mark] };
     // A claim is fresh up to and including the moment one lease after it was
     // taken, as the stores decide when a run may take it over.

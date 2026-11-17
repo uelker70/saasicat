@@ -1266,6 +1266,7 @@ _Tested by:_
         - begun, held by no run and failed nowhere, it waits for the next run as under way
         - a call that timed out keeps its claim, and the deletion is under way with that failure
         - a store that took the commercial record along halts it, naming the store and the parts
+        - a kept halt on a database whose mark does not match names the mark first, then the halt
         - a mark that does not match holds an open deletion before its next store
         - a subscriber or a contract asked before the beginning holds nothing once it began
         - a closed deletion is done, also once no end holds its tenant any more
