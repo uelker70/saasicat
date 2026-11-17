@@ -47,6 +47,7 @@ export * from './use-tenant-invoices.js';
 export * from './use-tenant-account.js';
 export * from './use-tenant-access-state.js';
 export * from './use-tenant-export.js';
+export * from './use-tenant-keep.js';
 export * from './use-subscription-draft.js';
 export * from './use-bulk-publish.js';
 export * from './use-plan-editor.js';

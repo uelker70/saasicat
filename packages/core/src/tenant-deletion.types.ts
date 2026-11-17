@@ -56,6 +56,16 @@ export interface TenantKeepLine {
     readonly labels: Readonly<{ en: string } & Record<string, string>>;
 }
 
+/**
+ * What a tenant's users are told it keeps, from `GET billing/access/keep`: the
+ * lines while a subscription's end holds it to reading, none otherwise, and
+ * `null` where the application's report failed, did not answer in time or
+ * answered lines that are not lines — then there is nothing to show.
+ */
+export interface TenantKeepView {
+    readonly keep: readonly TenantKeepLine[] | null;
+}
+
 /** The longest tenant identifier an eraser is given. */
 export const TENANT_ID_MAX_LENGTH = 200;
 

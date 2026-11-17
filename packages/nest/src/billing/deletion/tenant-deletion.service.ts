@@ -61,7 +61,6 @@ import {
     deletionHeldBy,
     deletionHeldByTheMark,
     installationZoneOf,
-    keepLinesProblem,
     tenantCountsProblem,
     tenantIdProblem,
     type CalendarDay,
@@ -112,6 +111,7 @@ import {
 import { DeletionLogThrottle } from './deletion-log-throttle.js';
 import { rolesInsteadOfPersons } from './forget-persons.js';
 import { InstallationMarkService } from './installation-mark.service.js';
+import { whatATenantKeeps } from './keep-report.js';
 import {
     erasersRefused,
     keepReportNotWired,
@@ -408,16 +408,7 @@ export class TenantDeletionService implements OnModuleInit {
         if (this.heldBeforeBeginning(end, round, subscriber !== null, running) || !subscriber) {
             return 'held';
         }
-        const keep = await withTimeout(
-            () => this.keep.keep(end.tenantId),
-            DELETION_STEP_TIMEOUT_MS,
-        );
-        const keepProblem = keepLinesProblem(keep);
-        if (keepProblem !== null) {
-            throw new Error(
-                `The TenantKeepReportPort answered lines whose ${keepProblem} is wrong.`,
-            );
-        }
+        const keep = await whatATenantKeeps(this.keep, end.tenantId, DELETION_STEP_TIMEOUT_MS);
         const exportBlockedBySuspension = suspendedBetween(
             await holds.listAllOf(end.tenantId),
             end.endsAt,

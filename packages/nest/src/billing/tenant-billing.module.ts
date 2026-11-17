@@ -66,11 +66,13 @@ import {
 } from './deletion/tenant-deletion-option.js';
 import { TenantDeletionReadingService } from './deletion/tenant-deletion-reading.service.js';
 import { TenantDeletionService } from './deletion/tenant-deletion.service.js';
+import { TenantKeepReadingService } from './deletion/tenant-keep-reading.service.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { TenantAccessStateController } from './tenant-access-state.controller.js';
 import { TenantBillingController } from './tenant-billing.controller.js';
 import { TenantDataExportController } from './tenant-data-export.controller.js';
+import { TenantKeepController } from './tenant-keep.controller.js';
 import { TenantDataExportService } from './tenant-data-export.service.js';
 import { TenantExportDeliveryService } from './tenant-export-delivery.service.js';
 import {
@@ -1065,6 +1067,7 @@ export class TenantBillingModule {
                 asProvider(TENANT_DELETION_TRANSACTION_RUNNER_TOKEN, deletion.transactionRunner),
                 TenantDeletionService,
                 TenantDeletionReadingService,
+                TenantKeepReadingService,
             );
         }
         const versionNotices = options.versionNotices;
@@ -1198,6 +1201,7 @@ export class TenantBillingModule {
                 TenantAccessStateController,
                 ...(featureWithdrawals ? [FeatureWithdrawalTenantController] : []),
                 ...(exportServed ? [TenantDataExportController] : []),
+                ...(subscriptionEnds ? [TenantKeepController] : []),
                 // The tenant reads its invoices where their documents are archived.
                 ...(invoices?.renderer && invoices.archive && invoices.mail
                     ? [TenantInvoicesController]

@@ -687,6 +687,28 @@ _Tested by:_
         - lines the report gets wrong fail the reminder as a report that fails does
         - a report that does not answer fails the reminder in time, so the run that records the ends
           is not held up
+- `packages/nest/tests/a-tenant-reads-what-it-keeps.test.js`
+    - a tenant in its read-only period reads what it keeps
+        - every user of the tenant is answered the lines as the application reported them
+        - the tenant is the session’s: one named by the request is neither asked for nor answered
+        - an open tenant keeps nothing to be told of, and the application is not asked
+        - a tenant read-only for an unpaid invoice alone is not being deleted: nothing, unasked
+        - an ended subscription beside an unpaid invoice is asked for
+    - what the application fails to answer is shown as no lines, and said in the log
+        - a report that throws: no lines, a sentence with its code, nothing of what it threw
+        - lines without their English label: no lines, a sentence with the problem, no label
+        - an answer that is no list at all: no lines
+        - a report that never answers is given up on after the time allowed
+        - the time allowed is short enough for a page to wait on
+    - where the route is checked
+        - it carries no access mark: the tenant’s state decides, as for every read
+        - it stays behind the tenant’s guard, and asks no role of the tenant’s user
+        - a read-only tenant’s user without any role is let through
+        - a suspended tenant is refused, as on every route but its state
+        - a tenant being deleted is refused
+    - where the route is mounted
+        - beside the deletion of tenants
+        - nowhere a subscription’s end is kept
 - `packages/nest/tests/subscription-ends-are-wired-where-tenants-are-served.test.js`
     - the application's stores a tenant is erased from, which the ends cannot start without
         - wired, nothing is refused, and the run is there to be called
@@ -702,6 +724,20 @@ _Tested by:_
     - the options of an application that serves tenants
         - do not compile with the deletion named and the erasers or the report of what is kept left
           out
+- `packages/ui-vue/tests/what-a-tenant-keeps-is-read-once-in-its-language.test.js`
+    - what the tenant keeps, as a page reads it
+        - read once an end holds the tenant to reading, under the prefix the app gives
+        - read as soon as the state, read later, says so
+        - not read again when the page reads the state again
+        - not read again when the state leaves the read-only period and comes back to it
+        - a tenant ${why} is not asked, and shows no lines
+        - lines read show no more once the tenant is suspended
+        - where the route is not there, nothing to show and no error
+        - where the application gave nothing to show, nothing to show and no error
+        - an answer that is not lines is an error, and nothing is shown
+        - a failure of the server is an error, and nothing is shown
+    - a line's label, in the reader's language
+        - ${locale}: ${why}
 
 <!-- END proof -->
 
