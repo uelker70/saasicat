@@ -3,11 +3,17 @@
 import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import type { TenantAccessView } from '@saasicat/core';
-import { TENANT_ACCESS_POLL_MS, type HttpClient } from '@saasicat/ui-vue';
-import { computed } from 'vue';
+import {
+    SUPER_ADMIN_I18N_KEY,
+    TENANT_ACCESS_POLL_MS,
+    createSuperAdminI18n,
+    type HttpClient,
+    type SuperAdminI18n,
+} from '@saasicat/ui-vue';
+import { computed, type ComputedRef } from 'vue';
 
 import TenantAccessBanner from '../../src/TenantAccessBanner.vue';
-import { DEFAULT_I18N_DE } from '../../src/default-i18n.js';
+import { DEFAULT_I18N_DE, type TenantPlanSectionI18n } from '../../src/default-i18n.js';
 import { TENANT_I18N_KEY } from '../../src/tenant-i18n.js';
 
 // Above the application, every user of a tenant held back reads why: the state,
@@ -72,8 +78,21 @@ afterEach(() => {
 
 async function mountBanner(
     http: HttpClient,
-    options: { german?: boolean; onTakeExport?: () => Promise<void> | void } = {},
+    options: {
+        german?: boolean;
+        /** The language the application runs in, where it says one. */
+        reader?: 'de' | 'en';
+        onTakeExport?: () => Promise<void> | void;
+    } = {},
 ) {
+    const provide: Record<symbol, ComputedRef<TenantPlanSectionI18n> | SuperAdminI18n> = {};
+    if (options.german) {
+        Object.assign(provide, { [TENANT_I18N_KEY]: computed(() => DEFAULT_I18N_DE) });
+    }
+    if (options.reader) {
+        const i18n = createSuperAdminI18n({ locale: options.reader, persist: false });
+        Object.assign(provide, { [SUPER_ADMIN_I18N_KEY]: i18n });
+    }
     const wrapper = mount(TenantAccessBanner, {
         props: {
             http,
@@ -82,9 +101,7 @@ async function mountBanner(
             onTakeExport: options.onTakeExport,
         },
         attachTo: document.body,
-        global: options.german
-            ? { provide: { [TENANT_I18N_KEY]: computed(() => DEFAULT_I18N_DE) } }
-            : {},
+        global: { provide },
     });
     mounted.push(wrapper);
     await flushPromises();
@@ -953,5 +970,107 @@ describe('the banner asks its state from one route', () => {
             'GET /billing/access',
         ]);
         expect(statuses).toEqual([200, 200, 200]);
+    });
+});
+
+/** What the application says a tenant keeps: one category in German and English, one in English only. */
+const KEEP = {
+    keep: [
+        { category: 'receipts', count: 1204, labels: { en: 'Receipts', de: 'Belege' } },
+        { category: 'sales-contracts', count: 37, labels: { en: 'Sales contracts' } },
+    ],
+};
+const keepHeading = (wrapper: VueWrapper) => wrapper.find('.sp-access-banner__keep-heading');
+const keepLines = (wrapper: VueWrapper) =>
+    wrapper.findAll('.sp-access-banner__keep-line').map((line) => line.text());
+
+// @requirement SC-PRIV-022 — A tenant is erased by the application's stores, after it was told what to keep
+describe('the banner of a tenant whose subscription ended, on what it keeps itself', () => {
+    test('tells every user, not only its administrator, what to keep and how many, beneath the reasons', async () => {
+        const { http } = httpRouting({
+            'GET /billing/access': [[200, endedToAnyone()]],
+            'GET /billing/access/keep': [[200, KEEP]],
+        });
+        const wrapper = await mountBanner(http, { reader: 'en' });
+
+        expect(lines(wrapper)).toEqual([ENDED_LINE]);
+        expect(keepHeading(wrapper).text()).toBe('Keep for your own records');
+        expect(keepLines(wrapper)).toEqual(['Receipts: 1,204', 'Sales contracts: 37']);
+        const list = wrapper.find('.sp-access-banner__keep');
+        expect(list.attributes('aria-labelledby')).toBe(keepHeading(wrapper).attributes('id'));
+        expect(exportButton(wrapper)).toBeUndefined();
+    });
+
+    test("to a German reader, in the application's German words where it gives them, else in English, and counts as German writes them", async () => {
+        const { http } = httpRouting({
+            'GET /billing/access': [[200, endedToAnyone()]],
+            'GET /billing/access/keep': [[200, KEEP]],
+        });
+        const wrapper = await mountBanner(http, { reader: 'de' });
+
+        expect(keepHeading(wrapper).text()).toBe('Für Ihre eigenen Unterlagen aufbewahren');
+        expect(keepLines(wrapper)).toEqual(['Belege: 1.204', 'Sales contracts: 37']);
+    });
+
+    test.each([
+        ['names nothing', { keep: [] }],
+        ['gave nothing to show', { keep: null }],
+    ])('shows no list where the application %s', async (_case, answer) => {
+        const { http } = httpRouting({
+            'GET /billing/access': [[200, endedToAnyone()]],
+            'GET /billing/access/keep': [[200, answer]],
+        });
+        const wrapper = await mountBanner(http);
+
+        expect(lines(wrapper)).toEqual([ENDED_LINE]);
+        expect(wrapper.find('.sp-access-banner__keep').exists()).toBe(false);
+        expect(keepHeading(wrapper).exists()).toBe(false);
+    });
+
+    test('while suspended, neither asks nor shows what it keeps', async () => {
+        const { http, calls } = httpRouting({
+            'GET /billing/access': [[200, endedToAnyone({ state: 'suspended' })]],
+            'GET /billing/access/keep': [[200, KEEP]],
+        });
+        const wrapper = await mountBanner(http);
+
+        expect(lines(wrapper)).toEqual([ENDED_DAYS_LINE]);
+        expect(wrapper.find('.sp-access-banner__keep').exists()).toBe(false);
+        expect(calls).not.toContain('GET /billing/access/keep');
+    });
+
+    test('where it cannot be read, leaves the banner as it was and says nothing of the failure', async () => {
+        const { http, calls } = httpRouting({
+            'GET /billing/access': [[200, endedToAdministrator()]],
+            'GET /billing/access/keep': [[500, { code: 'INTERNAL' }]],
+        });
+        const wrapper = await mountBanner(http);
+
+        expect(calls).toContain('GET /billing/access/keep');
+        expect(wrapper.find('.sp-access-banner__state').text()).toBe(
+            'This account can be read but not changed at the moment. You can still view and export its data.',
+        );
+        expect(lines(wrapper)).toEqual([ENDED_LINE]);
+        expect(exportButton(wrapper)).toBeDefined();
+        expect(wrapper.find('.sp-access-banner__keep').exists()).toBe(false);
+        expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+    });
+
+    test('is asked once for the page, not with each read of the state every minute', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        // A fresh answer each minute, as the server sends one.
+        const { http, calls } = httpRouting({
+            'GET /billing/access': Array.from({ length: 3 }, (): Answer => [200, endedToAnyone()]),
+            'GET /billing/access/keep': [[200, KEEP]],
+        });
+        const wrapper = await mountBanner(http, { reader: 'en' });
+        for (let minute = 0; minute < 2; minute += 1) {
+            await vi.advanceTimersByTimeAsync(TENANT_ACCESS_POLL_MS);
+            await flushPromises();
+        }
+
+        expect(calls.filter((call) => call === 'GET /billing/access')).toHaveLength(3);
+        expect(calls.filter((call) => call === 'GET /billing/access/keep')).toHaveLength(1);
+        expect(keepLines(wrapper)).toEqual(['Receipts: 1,204', 'Sales contracts: 37']);
     });
 });

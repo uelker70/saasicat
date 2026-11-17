@@ -12,6 +12,20 @@
                 {{ line }}
             </li>
         </ul>
+        <template v-if="keptLines.length > 0">
+            <p :id="keepId" class="sp-access-banner__keep-heading">
+                {{ i18n.accessKeepHeading }}
+            </p>
+            <ul class="sp-access-banner__keep" :aria-labelledby="keepId">
+                <li
+                    v-for="(line, index) in keptLines"
+                    :key="index"
+                    class="sp-access-banner__keep-line"
+                >
+                    {{ line }}
+                </li>
+            </ul>
+        </template>
         <div v-if="payable || exportable" class="sp-access-banner__actions">
             <TenantButton v-if="payable" :loading="account.paying.value" @click="pay">
                 {{ i18n.accountPayNow }}
@@ -38,9 +52,11 @@
 
 <script setup lang="ts">
 import {
+    useSuperAdminI18n,
     useTenantAccessState,
     useTenantAccount,
     useTenantExport,
+    useTenantKeep,
     type HttpClient,
 } from '@saasicat/ui-vue';
 import { computed, ref, useId, watch } from 'vue';
@@ -51,6 +67,7 @@ import {
     accessStateSentence,
     exportFailureSentence,
     heldBackView,
+    keepLines,
 } from './tenant-access/access-lines.js';
 import { useTenantI18n } from './tenant-i18n.js';
 import TenantButton from './ui/TenantButton.vue';
@@ -78,6 +95,12 @@ import './ui/tenant-ui.css';
 // server says the application delivers it, started through the application's
 // `take-export` listener. A download that fails says why beneath and leaves
 // the banner as it was.
+//
+// While an end holds the tenant to reading, every user also reads what the
+// tenant keeps for obligations of its own (`SC-PRIV-022`), in the reader's
+// language. The application is asked for it once per page, not with each read
+// of the state; where it cannot be read, the banner stays as it was.
+//
 // While the state is being read, where the tenant is open, and where it cannot
 // be read, the banner shows nothing — a refused request still says why on its
 // own, and a banner announcing that it failed would sit above every page.
@@ -115,12 +138,22 @@ const account = useTenantAccount({
     autoLoad: false,
 });
 const tenantExport = useTenantExport({ http: props.http, apiPrefix: props.apiPrefix });
+const keep = useTenantKeep({ view: access.view, http: props.http, apiPrefix: props.apiPrefix });
+const { locale, intlLocale } = useSuperAdminI18n();
+const keepId = useId();
 const exportFailure = ref<string | null>(null);
 const startingApplicationExport = ref(false);
 
 const held = computed(() => heldBackView(access.view.value));
 const stateSentence = computed(() =>
     held.value ? accessStateSentence(held.value.state, i18n.value) : '',
+);
+const keptLines = computed(() =>
+    keepLines(
+        keep.lines.value ?? [],
+        { locale: locale.value, intlLocale: intlLocale.value },
+        i18n.value,
+    ),
 );
 const reasonLines = computed(() => {
     const view = held.value;
@@ -229,14 +262,20 @@ async function startApplicationExport(): Promise<void> {
     background: var(--sa-color-negative-surface);
     color: var(--sa-color-negative-fg);
 }
-.sp-access-banner__state {
+.sp-access-banner__state,
+.sp-access-banner__keep-heading {
     margin: 0;
     font-weight: var(--sa-weight-semibold);
 }
-.sp-access-banner__reasons {
-    margin: var(--sa-space-1) 0 0;
+.sp-access-banner__reasons,
+.sp-access-banner__keep {
+    margin: 0;
     padding: 0;
     list-style: none;
+}
+.sp-access-banner__reasons,
+.sp-access-banner__keep-heading {
+    margin-top: var(--sa-space-1);
 }
 .sp-access-banner__reason,
 .sp-access-banner__hint,

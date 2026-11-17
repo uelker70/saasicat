@@ -17916,6 +17916,15 @@ _Tested by:_
           refused
         - to a user without the billing permission: one request a minute, no number, nothing to pay,
           and nothing refused
+    - the banner of a tenant whose subscription ended, on what it keeps itself
+        - tells every user, not only its administrator, what to keep and how many, beneath the
+          reasons
+        - to a German reader, in the application's German words where it gives them, else in
+          English, and counts as German writes them
+        - shows no list where the application %s
+        - while suspended, neither asks nor shows what it keeps
+        - where it cannot be read, leaves the banner as it was and says nothing of the failure
+        - is asked once for the page, not with each read of the state every minute
 
 <!-- END proof -->
 
@@ -25905,6 +25914,16 @@ _Tested by:_
         - a failure of the server is an error, and nothing is shown
     - a line's label, in the reader's language
         - ${locale}: ${why}
+- `packages/ui-vue-tenant/tests/component/a-held-back-tenant-reads-why.test.ts`
+    - the banner of a tenant whose subscription ended, on what it keeps itself
+        - tells every user, not only its administrator, what to keep and how many, beneath the
+          reasons
+        - to a German reader, in the application's German words where it gives them, else in
+          English, and counts as German writes them
+        - shows no list where the application %s
+        - while suspended, neither asks nor shows what it keeps
+        - where it cannot be read, leaves the banner as it was and says nothing of the failure
+        - is asked once for the page, not with each read of the state every minute
 
 <!-- END proof -->
 

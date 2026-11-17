@@ -560,6 +560,18 @@ export interface TenantPlanSectionI18n {
     /** The export did not arrive, for a reason the platform names no sentence for. */
     accessExportFailed: string;
     /**
+     * Above the lines of what the tenant keeps for obligations of its own while
+     * its subscription's end holds it to reading (`SC-PRIV-022`), shown to every
+     * user of the tenant.
+     */
+    accessKeepHeading: string;
+    /**
+     * One line of what the tenant keeps: the application's word for it,
+     * `{label}`, and how many there are, `{count}`, written as the reader
+     * writes numbers.
+     */
+    accessKeepLine: string;
+    /**
      * Texts for the coded blockers and warnings a plan-change preview returns,
      * keyed by `BILLING_ERROR_CODES`. Sits here rather than in a prop of its
      * own so that an app translating this map translates its blockers in the
@@ -1007,6 +1019,8 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     accessAskBilling: 'Bezahlen kann sie, wer bei Ihnen die Abrechnung betreut.',
     accessExport: 'Daten des Kontos exportieren',
     accessExportFailed: 'Der Export konnte nicht heruntergeladen werden.',
+    accessKeepHeading: 'Für Ihre eigenen Unterlagen aufbewahren',
+    accessKeepLine: '{label}: {count}',
     issueMessages: ERROR_MESSAGES_DE,
 };
 
@@ -1439,6 +1453,8 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     accessAskBilling: 'Whoever looks after billing in your organisation can pay it.',
     accessExport: "Export the account's data",
     accessExportFailed: 'The export could not be downloaded.',
+    accessKeepHeading: 'Keep for your own records',
+    accessKeepLine: '{label}: {count}',
     issueMessages: ERROR_MESSAGES_EN,
 };
 

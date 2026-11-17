@@ -2054,8 +2054,11 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     // A feature withdrawn from the subscription: a subscription of its own, so
     // the cases above keep rendering the section with nothing withdrawn.
     ...tenantRoutes('/api/withdrawn-billing', TENANT_USAGE, null, TENANT_WITHDRAWN),
-    // The access banner's: the state and the account it reads to offer paying.
+    // The access banner's: the state, what the tenant keeps itself — nothing
+    // named here, so this case renders the banner without that list — and the
+    // account it reads to offer paying.
     ['/api/access-billing/access', TENANT_ACCESS_ENDED],
+    ['/api/access-billing/access/keep', { keep: [] }],
     [
         '/api/access-billing/account',
         {
