@@ -79,6 +79,7 @@ import {
     type TenantAccessHoldPort,
     type TenantDeletionHeldBeforeBeginning,
     type TenantDeletionMarkHalt,
+    type TenantDeletionPlatformFailureCode,
     type TenantDeletionRecord,
     type TenantDeletionRecordHalt,
     type TenantDeletionRecordPort,
@@ -526,7 +527,7 @@ export class TenantDeletionService implements OnModuleInit {
                     throw new DeletionStepFailed(
                         'count',
                         eraser.name,
-                        'invalid-counts',
+                        'invalid-counts' satisfies TenantDeletionPlatformFailureCode,
                         false,
                         null,
                     );
@@ -557,7 +558,7 @@ export class TenantDeletionService implements OnModuleInit {
                     throw new DeletionStepFailed(
                         'erase',
                         eraser.name,
-                        'tenant-id-invalid',
+                        'tenant-id-invalid' satisfies TenantDeletionPlatformFailureCode,
                         false,
                         null,
                     );
@@ -592,7 +593,13 @@ export class TenantDeletionService implements OnModuleInit {
             .sort((a, b) => a.position - b.position)
             .flatMap((part) => byName.get(part.store) ?? []);
         if (ordered.length !== record.stores.length || ordered.length !== this.erasers.length) {
-            throw new DeletionStepFailed('count', null, 'stores-changed', false, null);
+            throw new DeletionStepFailed(
+                'count',
+                null,
+                'stores-changed' satisfies TenantDeletionPlatformFailureCode,
+                false,
+                null,
+            );
         }
         return ordered;
     }
@@ -623,7 +630,9 @@ export class TenantDeletionService implements OnModuleInit {
             throw new DeletionStepFailed(
                 step,
                 eraser.name,
-                unanswered ? 'timeout' : failureCodeOf(error),
+                unanswered
+                    ? ('timeout' satisfies TenantDeletionPlatformFailureCode)
+                    : failureCodeOf(error),
                 unanswered,
                 error,
             );
@@ -937,7 +946,7 @@ function failureCodeOf(error: unknown): string {
             .slice(0, FAILURE_CODE_MAX_LENGTH);
         if (code !== '') return code;
     }
-    return 'unknown';
+    return 'unknown' satisfies TenantDeletionPlatformFailureCode;
 }
 
 function stackOf(error: unknown): string {

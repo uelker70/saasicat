@@ -84,6 +84,8 @@ export * from './use-open-items.js';
 export * from './use-contract-register.js';
 export * from './use-cancellation-party.js';
 export * from './use-tenant-subscriber.js';
+export * from './use-tenant-deletion.js';
+export * from './use-subscriber-deletions.js';
 export * from './use-subscriber-attention.js';
 export * from './use-subscriber-corrections.js';
 export * from './use-subscriber-join.js';

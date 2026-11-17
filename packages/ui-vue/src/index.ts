@@ -108,6 +108,8 @@ export * from './vue/use-open-items.js';
 export * from './vue/use-contract-register.js';
 export * from './vue/use-cancellation-party.js';
 export * from './vue/use-tenant-subscriber.js';
+export * from './vue/use-tenant-deletion.js';
+export * from './vue/use-subscriber-deletions.js';
 export * from './vue/use-subscriber-attention.js';
 export * from './vue/use-subscriber-corrections.js';
 export * from './vue/use-subscriber-join.js';

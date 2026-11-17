@@ -1,5 +1,6 @@
 // The subscriber's record, as the subscribers descriptor asks for it: the list
-// searched, the head of one record, its history and its corrections.
+// searched, the head of one record, its history, its corrections and the
+// deletions of its tenants.
 //
 // Pinned the way `subscriber-charges-resource.test.js` pins its request: the
 // path is the one `@saasicat/nest` serves, and
@@ -182,5 +183,41 @@ describe('subscribersResource.contract', () => {
         const { ops } = answeringWith(undefined);
 
         await assert.rejects(() => ops.contract('s-1', 'c-1'), /no body/);
+    });
+});
+
+// @requirement SC-ADM-058 — The operator sees where a tenant's deletion stands
+describe('subscribersResource.deletions', () => {
+    test("asks for the deletions of the subscriber's tenants by its id, escaped", async () => {
+        const deletions = [
+            { tenantId: 't-1', status: { kind: 'due', deletesOn: '2026-12-01' }, record: null },
+        ];
+        const { calls, ops } = answeringWith({ deletions });
+
+        assert.deepEqual(await ops.deletions('a b'), deletions);
+        assert.deepEqual(calls, [
+            { url: '/api/v1/admin/subscribers/a%20b/deletions', method: 'GET' },
+        ]);
+    });
+
+    test('an unknown subscriber is refused with its code', async () => {
+        const http = () =>
+            Promise.resolve({
+                status: 404,
+                headers: { get: () => 'application/json' },
+                json: async () => ({ code: 'SUBSCRIBER_NOT_FOUND' }),
+                text: async () => '{"code":"SUBSCRIBER_NOT_FOUND"}',
+            });
+
+        await assert.rejects(
+            () => bindResource(subscribersResource, http, CTX).deletions('gone'),
+            (error) => error.status === 404 && error.code === 'SUBSCRIBER_NOT_FOUND',
+        );
+    });
+
+    test('an answer with no body is an error, not a subscriber with no deletions', async () => {
+        const { ops } = answeringWith(undefined);
+
+        await assert.rejects(() => ops.deletions('s-1'), /no body/);
     });
 });

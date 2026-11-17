@@ -17081,6 +17081,18 @@ _Tested by:_
         - where subscribers are served, the record is read for the subscriber on screen
         - with ${label}, nothing is asked
         - without a subscriber, nothing is asked
+- `packages/ui-vue/tests/use-tenant-deletion.test.js`
+    - useTenantDeletion — on the tenant's page
+        - where the manifest announces it, it is read for the tenant
+        - with ${label}, nothing is asked and nothing is shown
+        - another tenant is another deletion, and no tenant asks nothing
+        - a tenant the server does not know shows nothing, and no error
+        - ${why} is an error, with nothing shown
+    - useSubscriberDeletions — in the subscriber's record
+        - where the manifest announces it, the deletions of the subscriber's tenants are read
+        - with ${label}, nothing is asked and none is shown
+        - a subscriber the server does not know shows none, and no error
+        - a read that fails otherwise is an error, with none shown
 - `packages/ui-vue/tests/use-tenant-subscriber.test.js`
     - useTenantSubscriber
         - where the manifest announces the subscriber, it is read for the tenant
@@ -17690,6 +17702,49 @@ _Tested by:_
         - shows its own tenants' deletions and not another subscriber's
         - shows the deletion still to come first, then the begun ones, each with its own reminders
           and downloads
+- `packages/ui-vue/tests/subscriber-record-resource.test.js`
+    - subscribersResource.deletions
+        - asks for the deletions of the subscriber's tenants by its id, escaped
+        - an unknown subscriber is refused with its code
+        - an answer with no body is an error, not a subscriber with no deletions
+- `packages/ui-vue/tests/tenant-subscriber-resource.test.js`
+    - tenantsResource.deletion
+        - asks where the tenant's deletion stands, with its slug escaped
+        - a tenant with no deletion to come answers none
+        - an unknown tenant is refused with its code, not answered as one with no deletion
+        - an answer with no body is an error
+- `packages/ui-vue/tests/use-tenant-deletion.test.js`
+    - useTenantDeletion — on the tenant's page
+        - where the manifest announces it, it is read for the tenant
+        - with ${label}, nothing is asked and nothing is shown
+        - another tenant is another deletion, and no tenant asks nothing
+        - a tenant the server does not know shows nothing, and no error
+        - ${why} is an error, with nothing shown
+    - useSubscriberDeletions — in the subscriber's record
+        - where the manifest announces it, the deletions of the subscriber's tenants are read
+        - with ${label}, nothing is asked and none is shown
+        - a subscriber the server does not know shows none, and no error
+        - a read that fails otherwise is an error, with none shown
+- `packages/ui-vue/tests/where-a-deletion-stands-is-worded.test.js`
+    - where a deletion stands, by state
+        - scheduled, with nothing that would hold it, names its day
+        - due names the day it has been due since
+        - under way names when it began and how many stores have erased
+        - under way past a store that did not answer names the failure and explains it
+        - retried after an application's failure names the attempts and the code as it was kept
+        - retried because the stores changed says that it does not pass by itself, and what to do
+        - deleted names the moment it closed
+        - every state has a label in both languages and a tone, and none says another state
+    - every reason that holds a deletion, with what it names
+        - a deletion due on an unmarked database says how to mark it, with its identifier
+        - a database marked as another installation names both identifiers
+        - three reasons at once are three sentences, in the order the run asks them
+        - before its day, what would hold it is the forecast, said as one
+        - a store that took part of the commercial record is named, with each part before and after
+        - a commercial record found short with no store to lay it at says so without one
+        - in German, the same reason in German, with the same identifier
+    - a failure the platform found itself
+        - ${code} is explained in both languages, after the code
 
 <!-- END proof -->
 
@@ -25685,6 +25740,15 @@ _Tested by:_
         - names every reason that holds it, in the order the run asks them
         - is nothing to come where the reason holding the tenant was lifted, though its end stands
         - is nothing to come for a tenant whose subscription never ended
+- `packages/ui-vue/tests/where-a-deletion-stands-is-worded.test.js`
+    - every reason that holds a deletion, with what it names
+        - a deletion due on an unmarked database says how to mark it, with its identifier
+        - a database marked as another installation names both identifiers
+        - three reasons at once are three sentences, in the order the run asks them
+        - before its day, what would hold it is the forecast, said as one
+        - a store that took part of the commercial record is named, with each part before and after
+        - a commercial record found short with no store to lay it at says so without one
+        - in German, the same reason in German, with the same identifier
 
 <!-- END proof -->
 
@@ -25877,6 +25941,15 @@ _Tested by:_
         - counts a reminder that reached nobody as 0, and one not delivered as not delivered
         - says on both pages that a suspension kept the export from being taken between the end and
           the deletion
+- `packages/ui-vue/tests/where-a-deletion-stands-is-worded.test.js`
+    - what the subscriber's record keeps of a deletion
+        - the export: offered since when, whether a suspension kept it, and whether the day was told
+        - each store in the order it erases in, with its counts as kept and what it has done
+        - the commercial record, every part before and after, the ones that fell marked
+        - a commercial record not counted yet has every part, and no number
+        - each reminder with its lead time, how many it reached, or that it reached nobody or was
+          not delivered
+        - each download with its moment, its size and the role that took it, in words
 
 <!-- END proof -->
 

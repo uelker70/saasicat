@@ -53,6 +53,7 @@ export * from './version-sale.js';
 export * from './version-retirement.js';
 export * from './invoice-cancellation.js';
 export * from './invoice-standing.js';
+export * from './tenant-deletion-lines.js';
 export * from './available-bundle.js';
 export * from './identity-accents.js';
 export * from './version-change-fields.js';

@@ -250,7 +250,8 @@ export interface CommercialRecordCounts {
     readonly credits: number;
 }
 
-const COMMERCIAL_RECORD_FIELDS: readonly (keyof CommercialRecordCounts)[] = [
+/** The parts of the commercial record, in the order they are counted and shown in. */
+export const COMMERCIAL_RECORD_FIELDS: readonly (keyof CommercialRecordCounts)[] = [
     'subscriber',
     'contracts',
     'charges',
@@ -293,6 +294,32 @@ export type TenantDeletionRecordHalt = Extract<TenantDeletionHalt, 'commercial-r
 
 /** The step of a deletion a failure stopped it at. */
 export type TenantDeletionStep = 'count' | 'erase' | 'guard' | 'close';
+
+/**
+ * The codes the platform keeps a failure under where it found the fault
+ * itself: a store that did not answer in time, counts it could not read,
+ * stores other than the deletion began with, a tenant identifier it may not
+ * hand over, and an error that carried no code. Any other code is the one a
+ * store of the application threw.
+ */
+export const TENANT_DELETION_PLATFORM_FAILURE_CODES = [
+    'timeout',
+    'invalid-counts',
+    'stores-changed',
+    'tenant-id-invalid',
+    'unknown',
+] as const;
+
+/** A code the platform keeps a failure under for a fault it found itself. */
+export type TenantDeletionPlatformFailureCode =
+    (typeof TENANT_DELETION_PLATFORM_FAILURE_CODES)[number];
+
+/** Whether `code` is one the platform keeps a failure under, rather than an application's. */
+export function isTenantDeletionPlatformFailureCode(
+    code: string,
+): code is TenantDeletionPlatformFailureCode {
+    return TENANT_DELETION_PLATFORM_FAILURE_CODES.some((known) => known === code);
+}
 
 /** The last failure a deletion met; the next run goes on from where it stopped. */
 export interface TenantDeletionFailure {

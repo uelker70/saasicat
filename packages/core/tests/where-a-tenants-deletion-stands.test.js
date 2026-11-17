@@ -15,6 +15,7 @@ import {
     deletionGoesOn,
     deletionHeldBy,
     deletionHeldByTheMark,
+    isTenantDeletionPlatformFailureCode,
     tenantDeletionStatusOf,
 } from '../dist/index.js';
 
@@ -311,6 +312,26 @@ describe('a begun deletion stands where its record says', () => {
     ]) {
         test(`a run ${goesOn ? 'goes on with' : 'leaves'} ${name}`, () => {
             assert.equal(deletionGoesOn(record(overrides)), goesOn);
+        });
+    }
+});
+
+describe("a failure's code says whether the platform found the fault itself", () => {
+    for (const code of [
+        'timeout',
+        'invalid-counts',
+        'stores-changed',
+        'tenant-id-invalid',
+        'unknown',
+    ]) {
+        test(`${code} is the platform's`, () => {
+            assert.equal(isTenantDeletionPlatformFailureCode(code), true);
+        });
+    }
+
+    for (const code of ['ECONNRESET', 'Timeout', 'stores-changed ', '']) {
+        test(`${JSON.stringify(code)} is the application's`, () => {
+            assert.equal(isTenantDeletionPlatformFailureCode(code), false);
         });
     }
 });

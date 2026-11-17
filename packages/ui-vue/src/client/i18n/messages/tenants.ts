@@ -43,6 +43,70 @@ export const tenantsMessages = defineMessages(
             accessDeletesOn: 'Daten werden am {day} gelöscht',
             accessExportDownload: 'Export heruntergeladen am {day} von {by}',
             accessExportNone: 'Der Export wurde noch nicht heruntergeladen.',
+            // Where the tenant's deletion stands, on its page and in its
+            // subscriber's record alike (`SC-ADM-058`).
+            deletion: {
+                title: 'Löschung',
+                states: {
+                    scheduled: 'Vorgesehen',
+                    due: 'Fällig',
+                    halted: 'Angehalten',
+                    running: 'Läuft',
+                    retrying: 'Wird wiederholt',
+                    deleted: 'Gelöscht',
+                },
+                scheduled: 'Die Daten des Mandanten werden am {day} gelöscht.',
+                wouldBeHeld: 'Wäre heute der Löschtag, würde die Löschung angehalten:',
+                due: 'Fällig seit {day}. Der nächste Lauf beginnt die Löschung.',
+                haltedDue: 'Fällig seit {day}, angehalten:',
+                haltedBegun: 'Begonnen am {moment}, angehalten:',
+                running: 'Läuft seit {moment}; {erased} von {total} Speichern gelöscht.',
+                retrying:
+                    'Begonnen am {moment}; gescheiterte Versuche bisher: {attempts}. Der nächste Lauf versucht es erneut.',
+                deleted: 'Gelöscht am {moment}.',
+                lastFailure:
+                    'Zuletzt am {moment}: Speicher „{store}“, Schritt „{step}“, Code „{code}“.',
+                lastFailureNoStore: 'Zuletzt am {moment}: Schritt „{step}“, Code „{code}“.',
+                reasons: {
+                    'installation-unmarked':
+                        'Die Datenbank ist nicht als Installation „{expected}“ markiert. Soll in ihr gelöscht werden: „installation mark {expected}“ in der Kommandozeile der Anwendung.',
+                    'installation-differs':
+                        'Die Datenbank ist als Installation „{marked}“ markiert, dieser Prozess läuft als „{expected}“. Ist es die Datenbank von „{expected}“, etwa nach dem Zurückspielen einer Sicherung: „installation mark {expected} --replace“ in der Kommandozeile der Anwendung.',
+                    'no-subscriber':
+                        'Der Mandant hat keinen Vertragspartner, bei dem das Protokoll der Löschung bleibt.',
+                    'contract-runs-past-end':
+                        'Ein Vertrag des Mandanten läuft über das Ende seines Abonnements hinaus.',
+                    'commercial-record-lost':
+                        'Speicher „{store}“ hat Teile des kaufmännischen Datensatzes mitgenommen ({lost}). Kein weiterer Speicher löscht, bis ein Mensch entscheidet.',
+                },
+                commercialRecordLostNoStore:
+                    'Teile des kaufmännischen Datensatzes fehlen ({lost}). Kein weiterer Speicher löscht, bis ein Mensch entscheidet.',
+                lostPart: '{part} {before} → {after}',
+                steps: {
+                    count: 'Zählen',
+                    erase: 'Löschen',
+                    guard: 'Prüfen des kaufmännischen Datensatzes',
+                    close: 'Abschließen',
+                },
+                failures: {
+                    timeout: 'Der Speicher hat nicht rechtzeitig geantwortet.',
+                    'invalid-counts':
+                        'Der Speicher hat keine gültige Zählung gemeldet. Das löst sich nicht von selbst: Der Löscher der Anwendung muss korrigiert werden.',
+                    'stores-changed':
+                        'Die Anwendung meldet andere Speicher als beim Beginn der Löschung. Das löst sich nicht von selbst: Die Löscherliste der Anwendung muss wieder dieselben Speicher nennen.',
+                    'tenant-id-invalid':
+                        'Die Mandanten-ID darf keinem Speicher übergeben werden; das Server-Log nennt den Grund.',
+                    unknown: 'Der Fehler nannte keinen Code; das Server-Log nennt ihn.',
+                },
+                parts: {
+                    subscriber: 'Vertragspartner',
+                    contracts: 'Verträge',
+                    charges: 'Buchungen',
+                    invoices: 'Rechnungen',
+                    payments: 'Zahlungen',
+                    credits: 'Gutschriften',
+                },
+            },
         },
         actions: {
             confirmTitle: 'Aktion bestätigen',
@@ -108,6 +172,67 @@ export const tenantsMessages = defineMessages(
             accessDeletesOn: 'Data is deleted on {day}',
             accessExportDownload: 'Export downloaded on {day} by {by}',
             accessExportNone: 'The export has not been downloaded yet.',
+            deletion: {
+                title: 'Deletion',
+                states: {
+                    scheduled: 'Scheduled',
+                    due: 'Due',
+                    halted: 'Halted',
+                    running: 'Under way',
+                    retrying: 'Being retried',
+                    deleted: 'Deleted',
+                },
+                scheduled: "The tenant's data is deleted on {day}.",
+                wouldBeHeld: 'Were the deletion day today, the deletion would be halted:',
+                due: 'Due since {day}. The next run begins the deletion.',
+                haltedDue: 'Due since {day}, halted:',
+                haltedBegun: 'Begun on {moment}, halted:',
+                running: 'Under way since {moment}; {erased} of {total} stores erased.',
+                retrying:
+                    'Begun on {moment}; failed attempts so far: {attempts}. The next run tries again.',
+                deleted: 'Deleted on {moment}.',
+                lastFailure: 'Last, on {moment}: store “{store}”, step “{step}”, code “{code}”.',
+                lastFailureNoStore: 'Last, on {moment}: step “{step}”, code “{code}”.',
+                reasons: {
+                    'installation-unmarked':
+                        "The database is not marked as installation “{expected}”. Once it is the one to delete in: “installation mark {expected}” on the application's command line.",
+                    'installation-differs':
+                        "The database is marked as installation “{marked}”, and this process runs as “{expected}”. Where it is the database of “{expected}”, as after restoring a backup: “installation mark {expected} --replace” on the application's command line.",
+                    'no-subscriber':
+                        'The tenant has no subscriber to keep the record of its deletion with.',
+                    'contract-runs-past-end':
+                        'A contract of the tenant runs past the end of its subscription.',
+                    'commercial-record-lost':
+                        'Store “{store}” took parts of the commercial record with it ({lost}). No further store erases until a person decides.',
+                },
+                commercialRecordLostNoStore:
+                    'Parts of the commercial record are missing ({lost}). No further store erases until a person decides.',
+                lostPart: '{part} {before} → {after}',
+                steps: {
+                    count: 'Counting',
+                    erase: 'Erasing',
+                    guard: 'Checking the commercial record',
+                    close: 'Closing',
+                },
+                failures: {
+                    timeout: 'The store did not answer in time.',
+                    'invalid-counts':
+                        "The store reported no valid count. This does not pass by itself: the application's eraser has to be fixed.",
+                    'stores-changed':
+                        "The application lists other stores than the deletion began with. This does not pass by itself: the application's list of erasers has to name the same stores again.",
+                    'tenant-id-invalid':
+                        'The tenant identifier may not be handed to a store; the server log says why.',
+                    unknown: 'The failure carried no code; the server log names it.',
+                },
+                parts: {
+                    subscriber: 'Subscriber',
+                    contracts: 'Contracts',
+                    charges: 'Charges',
+                    invoices: 'Invoices',
+                    payments: 'Payments',
+                    credits: 'Credits',
+                },
+            },
         },
         actions: {
             confirmTitle: 'Confirm action',

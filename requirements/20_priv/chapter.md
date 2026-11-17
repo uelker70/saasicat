@@ -644,6 +644,15 @@ _Tested by:_
         - names every reason that holds it, in the order the run asks them
         - is nothing to come where the reason holding the tenant was lifted, though its end stands
         - is nothing to come for a tenant whose subscription never ended
+- `packages/ui-vue/tests/where-a-deletion-stands-is-worded.test.js`
+    - every reason that holds a deletion, with what it names
+        - a deletion due on an unmarked database says how to mark it, with its identifier
+        - a database marked as another installation names both identifiers
+        - three reasons at once are three sentences, in the order the run asks them
+        - before its day, what would hold it is the forecast, said as one
+        - a store that took part of the commercial record is named, with each part before and after
+        - a commercial record found short with no store to lay it at says so without one
+        - in German, the same reason in German, with the same identifier
 
 <!-- END proof -->
 
@@ -836,6 +845,15 @@ _Tested by:_
         - counts a reminder that reached nobody as 0, and one not delivered as not delivered
         - says on both pages that a suspension kept the export from being taken between the end and
           the deletion
+- `packages/ui-vue/tests/where-a-deletion-stands-is-worded.test.js`
+    - what the subscriber's record keeps of a deletion
+        - the export: offered since when, whether a suspension kept it, and whether the day was told
+        - each store in the order it erases in, with its counts as kept and what it has done
+        - the commercial record, every part before and after, the ones that fell marked
+        - a commercial record not counted yet has every part, and no number
+        - each reminder with its lead time, how many it reached, or that it reached nobody or was
+          not delivered
+        - each download with its moment, its size and the role that took it, in words
 
 <!-- END proof -->
 
