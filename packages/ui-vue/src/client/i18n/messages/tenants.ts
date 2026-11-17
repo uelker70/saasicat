@@ -47,6 +47,8 @@ export const tenantsMessages = defineMessages(
             // subscriber's record alike (`SC-ADM-058`).
             deletion: {
                 title: 'Löschung',
+                loadFailed: 'Die Löschung konnte nicht geladen werden.',
+                openRecord: 'Protokoll der Löschung öffnen',
                 states: {
                     scheduled: 'Vorgesehen',
                     due: 'Fällig',
@@ -174,6 +176,8 @@ export const tenantsMessages = defineMessages(
             accessExportNone: 'The export has not been downloaded yet.',
             deletion: {
                 title: 'Deletion',
+                loadFailed: 'The deletion could not be loaded.',
+                openRecord: 'Open the record of the deletion',
                 states: {
                     scheduled: 'Scheduled',
                     due: 'Due',

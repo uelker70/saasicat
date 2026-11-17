@@ -1298,6 +1298,18 @@ _Tested by:_
         - shows its own tenants' deletions and not another subscriber's
         - shows the deletion still to come first, then the begun ones, each with its own reminders
           and downloads
+- `packages/ui-vue/tests/component/tenant-detail-shows-where-its-deletion-stands.test.ts`
+    - the tenant detail shows where the tenant's deletion stands
+        - $label: its pill and what it says
+        - a retried deletion names its last failure, by store, step and code
+        - a halted deletion lists every reason, in the order the run asks them
+        - before its day, it says what would hold the deletion were the day today
+        - a begun deletion leads into the record kept with its subscriber
+        - a deletion not yet begun has no record to lead into
+        - a tenant with no deletion to come shows no section
+        - a tenant the application does not have shows no section
+        - a read that fails says so, and asks again on retry
+        - without the capability, nothing is asked and no section is shown
 - `packages/ui-vue/tests/subscriber-record-resource.test.js`
     - subscribersResource.deletions
         - asks for the deletions of the subscriber's tenants by its id, escaped

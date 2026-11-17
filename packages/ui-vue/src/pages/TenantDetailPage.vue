@@ -63,6 +63,15 @@
                     />
                 </AdminSection>
 
+                <!-- Where the tenant's deletion stands, where the platform serves it -->
+                <TenantDeletionState
+                    :deletion="deletion.data.value"
+                    :error="deletion.error.value"
+                    :retry="deletion.reload"
+                    :subscriber-id="subscriber.data.value?.subscriber?.id ?? null"
+                    :record-route="subscriberRecordRoute"
+                />
+
                 <!-- Whom the tenant's contracts are concluded with, and the way into its record -->
                 <TenantSubscriberCard
                     v-if="subscriber.available.value"
@@ -138,6 +147,7 @@ import { useSuperAdminNotify } from '../quasar/notify.js';
 import type { AdminManifest, TenantAccessState, TenantActionDef, TenantDto } from '@saasicat/core';
 import { formatMessage } from '../client/i18n/format.js';
 import TenantAccessReasons from '../internal/tenant-detail/TenantAccessReasons.vue';
+import TenantDeletionState from '../internal/tenant-detail/TenantDeletionState.vue';
 import TenantMasterData from '../internal/tenant-detail/TenantMasterData.vue';
 import TenantSubscriberCard from '../internal/tenant-detail/TenantSubscriberCard.vue';
 import TenantUsage from '../internal/tenant-detail/TenantUsage.vue';
@@ -147,6 +157,7 @@ import TenantActionConfirmDialog from '../features/tenant/TenantActionConfirmDia
 import { useInstallationDays } from '../vue/use-installation-days.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
+import { useTenantDeletion } from '../vue/use-tenant-deletion.js';
 import { useTenantSubscriber } from '../vue/use-tenant-subscriber.js';
 import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
 import { tenantActionVisible } from '../vue/use-platform-tenant-actions.js';
@@ -280,6 +291,7 @@ defineExpose({ reload: load });
 const shellManifest = useSuperAdminManifest();
 const servedBy = computed(() => props.options?.manifest ?? shellManifest);
 const subscriber = useTenantSubscriber(tenantSlug, servedBy, tenants);
+const deletion = useTenantDeletion(tenantSlug, servedBy, tenants);
 
 /** Where the subscriber's record answers — beside this page, under the same base. */
 function subscriberRecordRoute(subscriberId: string): RouteLocationRaw {
