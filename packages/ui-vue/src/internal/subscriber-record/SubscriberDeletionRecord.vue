@@ -169,8 +169,11 @@ const downloadColumns = computed<QTableColumn[]>(() => [
 </script>
 
 <style scoped>
+/* No wider than the entry it sits in, so that its tables scroll in their own
+ * frame (`SubscriberDeletions.vue`). */
 .sa-deletion-record {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--sa-space-3);
 }
 .sa-deletion-record__note {

@@ -83,15 +83,20 @@ const entries = computed(() =>
 </script>
 
 <style scoped>
+/* One column no wider than the section: an `auto` track grows to the widest
+ * content inside it, and a record's tables are wider than a phone. Held to the
+ * section, a table scrolls in its own frame instead of pushing the page. */
 .sa-subscriber-deletions__list {
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--sa-space-5);
 }
 .sa-subscriber-deletions__entry {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--sa-space-3);
 }
 .sa-subscriber-deletions__name {
