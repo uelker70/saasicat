@@ -112,6 +112,7 @@ export {
     TenantDeletionService,
     type TenantDeletionRun,
 } from './deletion/tenant-deletion.service.js';
+export { TenantDeletionReadingService } from './deletion/tenant-deletion-reading.service.js';
 export {
     SubscriptionCancellationService,
     type CancellationProjection,

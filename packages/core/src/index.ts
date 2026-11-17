@@ -73,6 +73,7 @@ export * from './installation-mark.types.js';
 export * from './tenant-deletion.types.js';
 export * from './tenant-deletion-mapping.js';
 export * from './tenant-deletion-status.js';
+export * from './tenant-deletion-view.types.js';
 export * from './tenant-data-export.types.js';
 export * from './subscription-end-mapping.js';
 export * from './maintenance-window-views.js';

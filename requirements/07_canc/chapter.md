@@ -828,6 +828,14 @@ _Tested by:_
         - \
         - all three at once refuse the start with a sentence each
         - set to undefined, as a spread may leave it, names nothing and is not refused
+- `packages/nest/tests/where-a-deletion-stands-is-read-naming-no-person.test.js`
+    - a deletion done, on the record of its subscriber
+        - is read once the application has no tenant any more, with every store, the commercial
+          record, the reminders and the downloads, naming no person
+        - names no person while the deletion is under way and the rows still name them
+        - counts a reminder that reached nobody as 0, and one not delivered as not delivered
+        - says on both pages that a suspension kept the export from being taken between the end and
+          the deletion
 
 <!-- END proof -->
 

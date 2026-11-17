@@ -1246,6 +1246,31 @@ _Tested by:_
         - a subscriber or a contract asked before the beginning holds nothing once it began
         - a closed deletion is done, also once no end holds its tenant any more
         - a run ${goesOn ? 'goes on with' : 'leaves'} ${name}
+- `packages/nest/tests/where-a-deletion-stands-is-read-naming-no-person.test.js`
+    - a deletion not begun, on the tenant page
+        - over an unmarked database on its day is halted, naming the identifier to mark it with;
+          marked, it is due
+        - before its day is scheduled, with what would hold it were the day today
+        - is halted while a contract concluded since runs past the end, and due where the contract
+          ended with it
+        - is halted where the tenant has no subscriber to keep the record with
+        - names every reason that holds it, in the order the run asks them
+        - is nothing to come where the reason holding the tenant was lifted, though its end stands
+        - is nothing to come for a tenant whose subscription never ended
+    - a deletion done, on the record of its subscriber
+        - is read once the application has no tenant any more, with every store, the commercial
+          record, the reminders and the downloads, naming no person
+        - names no person while the deletion is under way and the rows still name them
+        - counts a reminder that reached nobody as 0, and one not delivered as not delivered
+        - says on both pages that a suspension kept the export from being taken between the end and
+          the deletion
+    - a deletion begun and stopped
+        - by a store that took the commercial record along is halted, naming the store and what fell
+        - by stores listed otherwise than when it began is retried, with the code
+    - the record of a subscriber
+        - shows its own tenants' deletions and not another subscriber's
+        - shows the deletion still to come first, then the begun ones, each with its own reminders
+          and downloads
 
 <!-- END proof -->
 

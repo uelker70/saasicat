@@ -64,6 +64,7 @@ import {
     keepReportNotWired,
     tenantErasersProblem,
 } from './deletion/tenant-deletion-option.js';
+import { TenantDeletionReadingService } from './deletion/tenant-deletion-reading.service.js';
 import { TenantDeletionService } from './deletion/tenant-deletion.service.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
@@ -1063,6 +1064,7 @@ export class TenantBillingModule {
                 asProvider(TENANT_DELETION_SUBSCRIBERS_TOKEN, deletion.subscribers),
                 asProvider(TENANT_DELETION_TRANSACTION_RUNNER_TOKEN, deletion.transactionRunner),
                 TenantDeletionService,
+                TenantDeletionReadingService,
             );
         }
         const versionNotices = options.versionNotices;
@@ -1214,6 +1216,7 @@ export class TenantBillingModule {
                           DeletionReminderService,
                           InstallationMarkService,
                           TenantDeletionService,
+                          TenantDeletionReadingService,
                       ]
                     : []),
                 ...(exportDelivered ? [TenantExportDeliveryService] : []),

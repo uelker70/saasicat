@@ -177,8 +177,14 @@ export function keepLinesProblem(value: unknown): TenantCountProblem | 'labels' 
     return countedLinesProblem(value, ({ labels }) => (areLabels(labels) ? null : 'labels'));
 }
 
+const DELETION_ACTOR_ROLES = ['tenant-admin', 'operator', 'run'] as const;
+
 /** The role a person acted in, which a row keeps once its tenant is deleted (`SC-PRIV-023`). */
-export type DeletionActorRole = 'tenant-admin' | 'operator' | 'run';
+export type DeletionActorRole = (typeof DELETION_ACTOR_ROLES)[number];
+
+function isDeletionActorRole(value: string): value is DeletionActorRole {
+    return DELETION_ACTOR_ROLES.some((role) => role === value);
+}
 
 /**
  * A column that names who acted, in a row the platform keeps of a tenant
@@ -213,9 +219,11 @@ const ROLE_OF_COLUMN: Readonly<Record<ActorColumn, DeletionActorRole>> = {
  * The role the actor tagged `tag` acted in, read in `column`. A platform job
  * (`job:`) is the run and the command line (`cli:`) the operator, wherever
  * they wrote; every other tag — `web:`, or one of no known kind — is the role
- * of its column. The tag itself is never the answer: it may name a person.
+ * of its column. The tag itself is never the answer: it may name a person. A
+ * row a deletion wrote names the role already, and is read as that role.
  */
 export function actorRoleOf(tag: string, column: ActorColumn): DeletionActorRole {
+    if (isDeletionActorRole(tag)) return tag;
     if (tag.startsWith('job:')) return 'run';
     if (tag.startsWith('cli:')) return 'operator';
     return ROLE_OF_COLUMN[column];
