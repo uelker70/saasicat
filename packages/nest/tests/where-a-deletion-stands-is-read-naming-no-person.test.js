@@ -416,6 +416,7 @@ describe('the record of a subscriber', () => {
             ['t3', null],
         ]);
         const subscribers = {
+            findById: async (subscriberId) => (subscriberId === 's' ? { id: 's' } : null),
             async findByTenantId(tenantId) {
                 return links.get(tenantId) === null ? { id: 's' } : null;
             },

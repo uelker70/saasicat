@@ -329,10 +329,12 @@ describe('SaaSiCatModule persistence bundle', () => {
         );
 
         // Base 6 + Entitlement + Catalog + PublicCatalog + TenantAccess +
-        // TenantBilling + Bundles + AdminResources + PromoCodes.
-        // Thirteen platform modules plus Nest's DiscoveryModule, which every
-        // configuration imports for `EnforcementChainCheck`.
-        assert.equal(mod.imports.length, 15);
+        // TenantBilling + Bundles + AdminResources + PromoCodes +
+        // TenantDeletionAdmin, the operator's view of a deletion beside the
+        // tenants and their billing. Fourteen platform modules plus Nest's
+        // DiscoveryModule, which every configuration imports for
+        // `EnforcementChainCheck`.
+        assert.equal(mod.imports.length, 16);
         assert.ok(mod.exports.some((entry) => entry.name === 'CatalogModule'));
         assert.ok(mod.exports.some((entry) => entry.name === 'TenantAccessModule'));
         assert.ok(mod.exports.some((entry) => entry.name === 'TenantBillingModule'));

@@ -275,3 +275,18 @@ export function handlersOf(controller) {
             return { controller, name, handler, route: `${verb} ${path}` };
         });
 }
+
+/** Runs a class-level guard chain the way Nest does, in order, for one caller. */
+export async function passes(controller, user) {
+    const request = { user, headers: {} };
+    const context = {
+        switchToHttp: () => ({ getRequest: () => request, getResponse: () => ({}) }),
+        getClass: () => controller,
+        getHandler: () => () => undefined,
+        getType: () => 'http',
+    };
+    for (const Guard of guardsOf(controller)) {
+        if (!(await new Guard().canActivate(context))) return false;
+    }
+    return true;
+}

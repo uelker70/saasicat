@@ -207,6 +207,8 @@ export function aSubscriberForEveryTenant() {
     const prefix = 'subscriber-';
     return {
         unlinked,
+        findById: async (subscriberId) =>
+            subscriberId.startsWith(prefix) ? { id: subscriberId } : null,
         async findByTenantId(tenantId) {
             return unlinked.has(tenantId) ? null : { id: `${prefix}${tenantId}` };
         },

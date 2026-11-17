@@ -49,6 +49,7 @@ import {
     type TenantExportDownload,
 } from '@saasicat/core';
 
+import { subscriberNotFound } from '../../subscriber/subscriber.service.js';
 import { contractRunningPast } from '../../subscription-contract/contract-runs-from.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../../subscription-contract/subscription-contract.tokens.js';
 import { referencesOf } from '../../tenant-access/hold-references.js';
@@ -84,7 +85,7 @@ export class TenantDeletionReadingService {
         @Inject(TENANT_DELETION_SUBSCRIBERS_TOKEN)
         private readonly subscribers: Pick<
             SubscriberRepository,
-            'findByTenantId' | 'listTenantLinks'
+            'findById' | 'findByTenantId' | 'listTenantLinks'
         >,
         @Inject(SUBSCRIPTION_END_PORT_TOKEN)
         private readonly ends: Pick<
@@ -130,8 +131,12 @@ export class TenantDeletionReadingService {
      * live tenant first, then every begun one, the most recently begun first.
      * A tenant's record stays with the subscriber live for it when it began:
      * no subscriber is joined while a deletion of its tenants is open.
+     * Refused with `SUBSCRIBER_NOT_FOUND` where there is no such subscriber.
      */
     async ofSubscriber(subscriberId: string, now: Date): Promise<AdminSubscriberDeletions> {
+        if (!(await this.subscribers.findById(subscriberId))) {
+            throw subscriberNotFound(subscriberId);
+        }
         const records = await this.records.findForSubscriber(subscriberId);
         const begun = new Set(records.map((record) => record.tenantId));
         const live = (await this.subscribers.listTenantLinks(subscriberId))

@@ -22,6 +22,7 @@ import {
     SUBSCRIBER_CORRECTION_CAPABILITY,
     SUBSCRIBER_JOIN_CAPABILITY,
     SUBSCRIBER_STANDING_CAPABILITY,
+    TENANT_DELETION_CAPABILITY,
     BUNDLE_VERSION_RETIREMENT_CAPABILITY,
     FEATURE_WITHDRAWAL_CAPABILITY,
     VERSION_RETIREMENT_CAPABILITY,
@@ -65,6 +66,8 @@ export function buildStandardManifestContribution(
         subscriberAttention?: boolean;
         /** Joining a returning customer's subscriber into the one it had, beside the record. */
         subscriberJoins?: boolean;
+        /** Where a tenant's deletion stands, on its page and in its subscriber's record. */
+        tenantDeletions?: boolean;
         versionRetirements: boolean;
         bundleVersionRetirements?: boolean;
         featureWithdrawals?: boolean;
@@ -132,6 +135,7 @@ export function buildStandardManifestContribution(
     }
     if (served.subscriberAttention) capabilities[SUBSCRIBER_ATTENTION_CAPABILITY] = true;
     if (served.subscriberJoins) capabilities[SUBSCRIBER_JOIN_CAPABILITY] = true;
+    if (served.tenantDeletions) capabilities[TENANT_DELETION_CAPABILITY] = true;
     if (served.versionRetirements) capabilities[VERSION_RETIREMENT_CAPABILITY] = true;
     if (served.bundleVersionRetirements) {
         capabilities[BUNDLE_VERSION_RETIREMENT_CAPABILITY] = true;

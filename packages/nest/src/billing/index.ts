@@ -114,6 +114,10 @@ export {
 } from './deletion/tenant-deletion.service.js';
 export { TenantDeletionReadingService } from './deletion/tenant-deletion-reading.service.js';
 export {
+    TenantDeletionAdminModule,
+    type TenantDeletionAdminModuleOptions,
+} from './deletion/tenant-deletion-admin.module.js';
+export {
     SubscriptionCancellationService,
     type CancellationProjection,
     type DeclaredCancellation,

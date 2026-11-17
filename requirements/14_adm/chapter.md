@@ -1246,6 +1246,21 @@ _Tested by:_
         - a subscriber or a contract asked before the beginning holds nothing once it began
         - a closed deletion is done, also once no end holds its tenant any more
         - a run ${goesOn ? 'goes on with' : 'leaves'} ${name}
+- `packages/nest/tests/an-operator-reads-where-a-deletion-stands.test.js`
+    - a tenant's deletion is served on its page and in its subscriber's record
+        - with the tenants and their billing, both routes answer and the manifest announces them
+        - a tenant whose subscription never ended has no deletion
+        - a tenant the application does not have is answered as not found, by code, and no deletion
+          is read
+        - a subscriber there is not is answered as not found, by code, and no deletion is read
+        - the tenant, the subscriber and the deletions are read outside the tenants' row-level
+          policy
+        - without ${without}, neither route nor the capability exists
+    - who reads a tenant's deletion
+        - both routes are mounted where everything is on
+        - a signed-in tenant user is refused by name, the platform's administrator passes
+    - mounted by hand
+        - without the bypass port, it refuses to start rather than read in a tenant scope
 - `packages/nest/tests/where-a-deletion-stands-is-read-naming-no-person.test.js`
     - a deletion not begun, on the tenant page
         - over an unmarked database on its day is halted, naming the identifier to mark it with;
