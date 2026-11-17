@@ -215,7 +215,11 @@ app.provide(SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY, () => {});
 app.provide(SUPER_ADMIN_HTTP_KEY, http);
 // The days the baselines show are UTC days, as the browser here is in UTC.
 app.provide(SUPER_ADMIN_PROMO_CODES_KEY, { timeZone: 'UTC' });
-app.provide(SUPER_ADMIN_MANIFEST_KEY, () => FIXTURE_MANIFEST);
+const caseManifest = {
+    ...FIXTURE_MANIFEST,
+    capabilities: { ...FIXTURE_MANIFEST.capabilities, ...visualCase?.capabilities },
+};
+app.provide(SUPER_ADMIN_MANIFEST_KEY, () => caseManifest);
 app.provide(SUPER_ADMIN_LOGIN_ADAPTER_KEY, { login: async () => ({ ok: true as const }) });
 // The registry, on the same stubbed client as everything else. A page migrated
 // onto the resource idiom throws in `setup()` without one — the fixture is a

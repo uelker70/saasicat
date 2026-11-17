@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 713 entries: 🟢 617 stand today, 🟡 28 decided but not yet delivered, ⚪ 0 drafts,
+Of 713 entries: 🟢 622 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
 🔵 61 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -154,14 +154,9 @@ Of 713 entries: 🟢 617 stand today, 🟡 28 decided but not yet delivered, ⚪
 [SC-REG-021](#sc-reg-021--a-payment-confirmation-is-verified-before-anything-is-created-from-it),
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
-[SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
 [SC-ADM-055](#sc-adm-055--a-suspended-tenant-cannot-act-and-a-read-only-one-writes-only-to-pay-or-to-leave),
-[SC-ADM-058](#sc-adm-058--the-operator-sees-where-a-tenants-deletion-stands),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
-[SC-PRIV-021](#sc-priv-021--a-tenant-is-deleted-only-in-the-database-its-installation-marked-as-its-own),
-[SC-PRIV-022](#sc-priv-022--a-tenant-is-erased-by-the-applications-stores-after-it-was-told-what-to-keep),
 [SC-PRIV-023](#sc-priv-023--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),
-[SC-PRIV-024](#sc-priv-024--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to)
 
 🔵 **Superseded** — [SC-BUN-009](#sc-bun-009--an-add-on-can-be-cancelled-at-any-time-and-ends-with-the-period-it-is-in),
@@ -17307,7 +17302,7 @@ _Tested by:_
 
 ### SC-ADM-021 — An operator finds everything about a subscriber in one record
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Master data, its live tenant and the ones it had before,
+🟢 🔒 Master data, its live tenant and the ones it had before,
 contracts with their history, invoices, payments, open items and the deletion record. The
 contract dossier planned in #43 is part of this record rather than a second place to look.
 
@@ -17657,7 +17652,7 @@ _Tested by:_
 
 ### SC-ADM-058 — The operator sees where a tenant's deletion stands
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The operator's page for a tenant and the record of its
+🟢 🔒 The operator's page for a tenant and the record of its
 subscriber say whether its deletion is scheduled, due, halted — with every reason that holds it and
 what each one names — under way, retried after a failure, or done; the record also once the
 application no longer has the tenant (`SC-ADM-021`). A deletion halted by the installation's mark is
@@ -25685,7 +25680,7 @@ _Tested by:_
 
 ### SC-PRIV-021 — A tenant is deleted only in the database its installation marked as its own
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The database carries the identifier of its installation,
+🟢 🔒 The database carries the identifier of its installation,
 which the operator sets with a command, and every process names the identifier of the
 environment it runs in. A deletion runs only where both name the same; otherwise nothing is
 deleted, and the run says why. Until the operator has marked the database nothing is deleted at
@@ -25825,7 +25820,7 @@ _Tested by:_
 
 ### SC-PRIV-022 — A tenant is erased by the application's stores, after it was told what to keep
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The application erases all of the tenant's data and files, store
+🟢 🔒 The application erases all of the tenant's data and files, store
 by store, records it locks against deletion included, and provides a full export (`SC-PRIV-020`).
 Beforehand it reports what the tenant has to keep for obligations of its own, such as receipts under
 a retention period, as lines of a category and a count. Those lines appear in the banner of the
@@ -25853,6 +25848,8 @@ _Tested by:_
           recorded yet
         - held by two ends of one moment, is deleted on the later of their days
         - has nothing erased and no record begun where it has no subscriber to keep the record with
+    - the beginning of a deletion
+        - keeps what the tenant was told to keep, and stops at lines nobody can read
     - the quarter-hourly run
         - sets the deletions off without waiting for them, and starts no second beside the first
 - `packages/nest/tests/a-tenant-is-reminded-before-its-deletion.test.js`
@@ -25998,7 +25995,7 @@ _Tested by:_
 
 ### SC-PRIV-024 — A tenant is deleted only after its full export was offered in the read-only period
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The offer, the reminders sent and the tenant's
+🟢 🔒 The offer, the reminders sent and the tenant's
 acknowledgement, where it gave one, are part of the deletion record (`SC-PRIV-023`). An
 acknowledgement that never comes does not stop the deletion. The export counts as offered from the
 moment the end is recorded even where a suspension kept the tenant from taking it, and the record
@@ -26013,6 +26010,7 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
     - the record of when the export could be taken
         - says a suspension kept it from being taken where one held after the end
+        - deletes the tenant on its day though nobody ever took its export
         - says none did where the suspension was lifted before the end
 - `packages/nest/tests/where-a-deletion-stands-is-read-naming-no-person.test.js`
     - a deletion done, on the record of its subscriber

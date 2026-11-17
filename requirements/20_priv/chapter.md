@@ -530,7 +530,7 @@ _Tested by:_
 
 ### SC-PRIV-021 — A tenant is deleted only in the database its installation marked as its own
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The database carries the identifier of its installation,
+🟢 🔒 The database carries the identifier of its installation,
 which the operator sets with a command, and every process names the identifier of the
 environment it runs in. A deletion runs only where both name the same; otherwise nothing is
 deleted, and the run says why. Until the operator has marked the database nothing is deleted at
@@ -670,7 +670,7 @@ _Tested by:_
 
 ### SC-PRIV-022 — A tenant is erased by the application's stores, after it was told what to keep
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The application erases all of the tenant's data and files, store
+🟢 🔒 The application erases all of the tenant's data and files, store
 by store, records it locks against deletion included, and provides a full export (`SC-PRIV-020`).
 Beforehand it reports what the tenant has to keep for obligations of its own, such as receipts under
 a retention period, as lines of a category and a count. Those lines appear in the banner of the
@@ -698,6 +698,8 @@ _Tested by:_
           recorded yet
         - held by two ends of one moment, is deleted on the later of their days
         - has nothing erased and no record begun where it has no subscriber to keep the record with
+    - the beginning of a deletion
+        - keeps what the tenant was told to keep, and stops at lines nobody can read
     - the quarter-hourly run
         - sets the deletions off without waiting for them, and starts no second beside the first
 - `packages/nest/tests/a-tenant-is-reminded-before-its-deletion.test.js`
@@ -843,7 +845,7 @@ _Tested by:_
 
 ### SC-PRIV-024 — A tenant is deleted only after its full export was offered in the read-only period
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The offer, the reminders sent and the tenant's
+🟢 🔒 The offer, the reminders sent and the tenant's
 acknowledgement, where it gave one, are part of the deletion record (`SC-PRIV-023`). An
 acknowledgement that never comes does not stop the deletion. The export counts as offered from the
 moment the end is recorded even where a suspension kept the tenant from taking it, and the record
@@ -858,6 +860,7 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
     - the record of when the export could be taken
         - says a suspension kept it from being taken where one held after the end
+        - deletes the tenant on its day though nobody ever took its export
         - says none did where the suspension was lifted before the end
 - `packages/nest/tests/where-a-deletion-stands-is-read-naming-no-person.test.js`
     - a deletion done, on the record of its subscriber

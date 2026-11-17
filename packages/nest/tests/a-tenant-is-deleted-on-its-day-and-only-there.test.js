@@ -279,6 +279,15 @@ describe('the record of when the export could be taken', () => {
         assert.deepEqual(record.exportOfferedFrom, ENDED_AT);
     });
 
+    test('deletes the tenant on its day though nobody ever took its export', async () => {
+        const run = await setUp();
+        await ended(run, 't1');
+        assert.deepEqual(await run.ends.listExportDownloadsOfTenant('t1'), []);
+
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 1, halted: 0, failed: 0 });
+        assert.equal(recordOf(run, 't1').closedAt instanceof Date, true);
+    });
+
     test('says none did where the suspension was lifted before the end', async () => {
         const record = await suspendedFrom(
             new Date('2026-09-01T00:00:00Z'),
@@ -357,6 +366,7 @@ describe('the beginning of a deletion', () => {
         assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 1, halted: 0, failed: 0 });
     });
 
+    // @requirement SC-PRIV-022 — A tenant is erased by the application's stores, after it was told what to keep
     test('keeps what the tenant was told to keep, and stops at lines nobody can read', async () => {
         const line = { category: 'receipts', count: 42, labels: { en: 'Receipts' } };
         const kept = await setUp({ keep: { keep: async () => [line] } });

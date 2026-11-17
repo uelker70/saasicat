@@ -891,7 +891,7 @@ _Tested by:_
 
 ### SC-ADM-021 — An operator finds everything about a subscriber in one record
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Master data, its live tenant and the ones it had before,
+🟢 🔒 Master data, its live tenant and the ones it had before,
 contracts with their history, invoices, payments, open items and the deletion record. The
 contract dossier planned in #43 is part of this record rather than a second place to look.
 
@@ -1241,7 +1241,7 @@ _Tested by:_
 
 ### SC-ADM-058 — The operator sees where a tenant's deletion stands
 
-🟡 _(Decided, not yet delivered.)_ 🔒 The operator's page for a tenant and the record of its
+🟢 🔒 The operator's page for a tenant and the record of its
 subscriber say whether its deletion is scheduled, due, halted — with every reason that holds it and
 what each one names — under way, retried after a failure, or done; the record also once the
 application no longer has the tenant (`SC-ADM-021`). A deletion halted by the installation's mark is

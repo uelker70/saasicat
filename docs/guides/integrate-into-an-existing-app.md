@@ -236,6 +236,10 @@ answers `accessReasons` beside `access`: every reason the tenant is held back
 for, the oldest first, with an unpaid invoice named by its number where invoices
 are wired (`SC-ADM-053`), and an ended subscription with the day the tenant's data is deleted and
 every download of its export (`SC-CANC-033`); `TenantDetailPage` lists them under "Access".
+Where the tenant's deletion stands is not part of the detail: the platform serves it at a route of
+its own, `GET admin/tenants/:slug/deletion`, mounted with the billing pages, so a detail page of
+your own reads it from there
+([What the operator sees](wire-the-backend.md#what-the-operator-sees)).
 
 ---
 

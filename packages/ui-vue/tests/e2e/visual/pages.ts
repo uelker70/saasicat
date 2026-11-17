@@ -1,4 +1,5 @@
 import type { Component } from 'vue';
+import { TENANT_DELETION_CAPABILITY } from '@saasicat/core';
 
 import type { HttpClient } from '../../../src/client/types.js';
 import type { BillingCycleStr } from '../../../src/vue/use-tenant-billing.js';
@@ -96,6 +97,15 @@ export interface VisualCase {
      * close. Write `.x.on` and `.x:not(.on)` rather than `.x`.
      */
     hoverBy?: readonly string[];
+    /**
+     * Capabilities this case's manifest announces beside the fixture's own.
+     *
+     * A capability turns on a section of a page — and a request for it — on
+     * every case that renders that page. Announced here rather than in
+     * `FIXTURE_MANIFEST`, a new section is measured by the case written for it
+     * and leaves the baselines of every other case of the page as they were.
+     */
+    capabilities?: Readonly<Record<string, boolean>>;
 }
 
 /**
@@ -293,6 +303,16 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         load: () => import('../../../src/pages/TenantDetailPage.vue'),
         props: () => ({ slug: 'northwind' }),
     }),
+    // The same page where the operator reads where the tenant's deletion
+    // stands: due, and halted for two reasons, each with what it names. A case
+    // of its own, so the one above keeps rendering the page without the
+    // section.
+    visualCase({
+        id: 'tenant-detail-deletion',
+        load: () => import('../../../src/pages/TenantDetailPage.vue'),
+        props: () => ({ slug: 'northwind' }),
+        capabilities: { [TENANT_DELETION_CAPABILITY]: true },
+    }),
     visualCase({
         id: 'subscribers',
         load: () => import('../../../src/pages/SubscribersPage.vue'),
@@ -304,6 +324,15 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         id: 'subscriber-record',
         load: () => import('../../../src/pages/SubscriberRecordPage.vue'),
         props: () => ({ subscriberId: 's-0001' }),
+    }),
+    // The record with the deletions of both its tenants: one halted after a
+    // store took an invoice along, every empty part of its record said, and
+    // one deleted, with everything a closed deletion records.
+    visualCase({
+        id: 'subscriber-record-deletions',
+        load: () => import('../../../src/pages/SubscriberRecordPage.vue'),
+        props: () => ({ subscriberId: 's-0001' }),
+        capabilities: { [TENANT_DELETION_CAPABILITY]: true },
     }),
     // The cancellation's first step with an add-on owed in part and the
     // replacement's details opened: the dialog, the amount field and the
@@ -446,6 +475,17 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         props: ({ http }) => ({
             http,
             apiPrefix: '/api/access-billing',
+            formatDate: (iso: string) => String(iso).slice(0, 10),
+        }),
+    }),
+    // The same banner with what the tenant keeps for obligations of its own,
+    // which every user of the tenant reads.
+    visualCase({
+        id: 'tenant-access-banner-keep',
+        load: () => import('@saasicat/ui-vue-tenant/TenantAccessBanner.vue'),
+        props: ({ http }) => ({
+            http,
+            apiPrefix: '/api/keep-billing',
             formatDate: (iso: string) => String(iso).slice(0, 10),
         }),
     }),

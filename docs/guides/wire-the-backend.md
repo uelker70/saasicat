@@ -2532,20 +2532,47 @@ app's `NotesKeepReport` answers none for every tenant. A report that throws, ans
 not or does not answer in time fails that reminder, or the beginning of that deletion, and the next
 run asks again.
 
+The tenant's users read the lines too, in the banner of the read-only period (`SC-PRIV-022`):
+`TenantAccessBanner` lists them under "Keep for your own records", each as its words and its count,
+for every user of the tenant, since whoever needs the receipts is often not its administrator. The
+export it offers the administrator is the way to take them along. The words are the line's label in
+the locale the banner speaks; where the report names none for it, the label of its language without
+the region (`de` for `de-AT`), and otherwise `en`.
+
+- **The route** is `GET billing/access/keep`, behind the tenant's sign-in, mounted wherever
+  `subscriptionEnds` is wired. It answers the session's tenant, never one the request names:
+  `{ keep: [...] }` while an `ended` reason holds the tenant to reading, `{ keep: [] }` otherwise. It
+  carries no mark: a suspended tenant and one being deleted are refused it as every other read
+  (`TENANT_SUSPENDED`, `TENANT_BEING_DELETED`), and the banner shows no lines then.
+- **Your report is asked on each read.** The banner reads the route once as the page loads, the first
+  time the tenant's state says an end holds it to reading, and not again with the state it reads
+  every minute: thirty users with the application open ask your report thirty times, not once a
+  minute each. Answer from counts.
+- **What fails shows nothing.** A report that throws, answers a line it may not, or takes longer than
+  ten seconds (`KEEP_REPORT_READ_TIMEOUT_MS`) is answered `{ keep: null }`, with a `200`: the banner
+  shows no lines and stays as it was, and the server log says why on `warn` by a code alone —
+  `timeout`, the problem with the lines, or `failed` — never what your report threw or answered,
+  which may name the tenant's data. The lines are a service to the tenant; neither the banner nor the
+  deletion waits for them.
+- **A banner of your own** reads the same route through `useTenantKeep` from `@saasicat/ui-vue`, given
+  the state `useTenantAccessState` reads, and words a line with `keepLineLabel(labels, locale)`.
+
 #### What happens on the day
 
 - **Due.** A tenant is due from the first moment of its deletion day in the installation's zone,
   while the `ended` reason its end recorded is still open. Where that reason was lifted the tenant is
   not deleted, whatever the end says, and is not reminded either. Nor does its deletion begin while
   a contract of the tenant is in force at that end or begins after it — one a checkout offer
-  concluded since, say (`SC-PRIV-026`): the run holds it, writes nothing, says so in the server log
-  and asks again on its next run. A contract that ended before the end, or with it, holds nothing.
+  concluded since, say (`SC-PRIV-026`): the run holds it, writes nothing, does not ask your report
+  what the tenant keeps, and asks again on its next run. It reads the contracts once more just before
+  the deletion begins, so one concluded while your report answered holds it too. A contract that
+  ended before the end, or with it, holds nothing.
 - **The brake first.** The run asks the installation's mark once
   ([Mark the installation before the first deletion](#mark-the-installation-before-the-first-deletion)).
   Where the database is not marked, or is marked as another installation, nothing begins — no
-  reason, no record, no store called — and the server log says so once for the run, with how many
-  tenants are due and the command that marks it. The mark is asked again before each store, so a
-  mark changed while a deletion is under way stops it before the next store.
+  reason, no record, no store called — and the server log says so in one line for the run, with how
+  many tenants are due and the command that marks it. The mark is asked again before each store, so
+  a mark changed while a deletion is under way stops it before the next store.
 - **It begins in one transaction**: the record, with the subscriber, and a `deleting` reason on the
   tenant. From then on nobody is let into the tenant, the operator acting as it included and only
   reading included (`TENANT_BEING_DELETED`); the operator cannot suspend it
@@ -2570,19 +2597,93 @@ run asks again.
   has no live tenant from then on and a returning customer's new subscriber can be joined into it
   (`SC-PRIV-027`). `TENANT_DELETION_CLOSED` is audited.
 - **Held instead of begun.** A tenant whose end names no single tenant (`tenant-id-invalid`) or
-  which has no subscriber to keep the record with (`no-subscriber`) is not begun, and the server log
-  says so on every run until it is put right.
+  which has no subscriber to keep the record with (`no-subscriber`) is not begun either. The server
+  log names every reason that holds a tenant in one line — on `error` where it has no subscriber or
+  its end names no single tenant, on `warn` otherwise.
+- **Said once a day.** The run comes every quarter of an hour, and on a database not yet marked
+  every due tenant would be said 96 times a day while everything is as it should be. So a line about
+  a held deletion — the brake's for the run, and each tenant's — is said when it first holds, again
+  at once when what holds changes (another reason, another number of tenants due), and otherwise
+  once each installation day. Each instance keeps this in its own memory, so each says it once, and
+  a restart says it again. A failure of a deletion under way is said every time: each is a new
+  attempt.
 
 Each run that found anything logs `Tenant deletions: <n> deleted, <n> held, <n> to go on with.` The
 record of every deletion is in `subscriber_tenant_deletions` and its two tables of parts
 ([the data model](../explanation/data-model.md#tenant-deletions)); the operator sees the `deleting`
-reason among the tenant's reasons on its page.
+reason among the tenant's reasons on its page, and where the deletion stands beside them
+([What the operator sees](#what-the-operator-sees)).
 
 **Where the brake stops.** It protects against a process meant for another environment. It cannot
 tell an environment that was copied from production with its identifier included: a staging
 environment whose variables were cloned from production's names `prod`, and so does production's
 database restored into it — both agree, and the brake lets the deletion through. Give each
 environment its own identifier, and keep it out of what you copy between them.
+
+#### What the operator sees
+
+The operator sees where a tenant's deletion stands on the tenant's page and in its subscriber's
+record, and the record of a begun deletion in the subscriber's record — also once the application no
+longer has the tenant, when there is no tenant's page left (`SC-ADM-058`, `SC-ADM-021`). The
+platform serves both, wherever `adminResources` and `tenantBilling` are on, behind the guards of the
+other routes of the administration, read inside `RlsBypassPort`, and announces them in the manifest
+as `deletions.read` (`TENANT_DELETION_CAPABILITY`):
+
+- `GET admin/tenants/:slug/deletion` answers `{ deletion }` — the tenant's deletion, or `null`
+  where none has begun and no end decides one; a tenant the application does not have is refused
+  with `404 TENANT_NOT_FOUND`. `TenantDetailPage` shows it as the section "Deletion", after
+  "Access".
+- `GET admin/subscribers/:id/deletions` answers `{ deletions }`: those still to begin first, then the
+  begun ones, the most recently begun first; an unknown subscriber is refused with
+  `404 SUBSCRIBER_NOT_FOUND`. `SubscriberRecordPage` shows them as the section "Deletions", after
+  the subscriber's tenants. A tenant without a subscriber has no record and is seen on its page
+  alone.
+
+With `adminResources: { includeController: false }` both are mounted all the same, and find the
+tenant through your `getTenantDetail(slug)`: a tenant page of your own reads the first route, and a
+record of your own the second.
+
+Where a deletion stands is one of six states, decided by the functions the run decides by
+(`tenantDeletionStatusOf` in `@saasicat/core`), so the page cannot say otherwise than the run does:
+
+| State         | When                                                                                                                        | What the page says                                                                                             |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Scheduled     | An `ended` reason holds the tenant, its day has not come                                                                    | The day, and what would hold the deletion were the day today                                                   |
+| Due           | The day has come, nothing holds it, it has not begun                                                                        | That the next run begins it                                                                                    |
+| Halted        | A reason holds it before it begins; once begun, the installation's mark, or a store that took part of the commercial record | Every reason, in the order the run asks them, each with what it names and the act that lets the deletion go on |
+| Under way     | It has begun, and a run holds it or none has failed at it                                                                   | Since when, and how many of the stores have erased; a call the run stopped waiting for, where one did          |
+| Being retried | A run failed at it and holds it no longer                                                                                   | Since when, how many runs failed, and the last failure by its store, its step and its code                     |
+| Deleted       | Every store confirmed                                                                                                       | When                                                                                                           |
+
+A claim counts as held while it is no older than `DELETION_CLAIM_LEASE_MS`. The reasons, and what the
+operator does about each — the page shows them and acts on none:
+
+- **Not marked, or marked as another installation** (`installation-unmarked`,
+  `installation-differs`): both identifiers and the command — `installation mark prod`, or with
+  `--replace` — on the application's command line
+  ([Mark the installation before the first deletion](#mark-the-installation-before-the-first-deletion)).
+  Before a database is marked, this is the preview: each due tenant's page says that it would be
+  deleted and what else would hold it, and before its day what would hold it were the day today,
+  so the operator learns before marking which tenants stay all the same.
+- **No subscriber** (`no-subscriber`): the tenant has none to keep the record with.
+- **A contract runs past the end** (`contract-runs-past-end`, `SC-PRIV-026`): marking the database
+  does not delete this tenant.
+- **A store took part of the commercial record** (`commercial-record-lost`): the store and each part
+  that fell, before → after. No further store erases; restore what it took and repair the eraser.
+
+A failure is shown by its code. The platform's own are explained — `timeout`, `invalid-counts`,
+`stores-changed`, `tenant-id-invalid`, `unknown` (`TENANT_DELETION_PLATFORM_FAILURE_CODES`) — and
+the two that do not pass by themselves say so: `invalid-counts` asks for the eraser to be fixed,
+`stores-changed` for the list of erasers to name the stores the deletion began with again. A code
+your store threw is shown as the record keeps it.
+
+The record shows when the export was first offered and whether a suspension kept it from being taken
+(`SC-PRIV-024`), the day the tenant was told its deletion day, what the tenant was told to keep, each
+store with what it counted per category, when it counted and when it confirmed, the commercial record
+before and after with a part that fell marked, the reminders with their lead time, when each was
+recorded and delivered, its channel and how many it reached (`SC-CANC-022`), and each download of the
+export with its day, its size and the role of whoever took it. It names no person, also while the
+deletion is under way and the rows it is read from still do (`SC-PRIV-023`).
 
 ## Telling Subscribers of a Newer Version
 
