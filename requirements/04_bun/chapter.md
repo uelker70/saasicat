@@ -786,6 +786,33 @@ _Tested by:_
         - …and an override that nulls a cycle takes that plan’s price away
         - without a plan repository the catalogue cannot be derived, so nothing is claimed
         - an override that removes the price for one plan still publishes
+- `packages/ui-vue/tests/an-add-on-costs-what-its-plan-says.test.js`
+    - an add-on beside a chosen plan
+        - costs the plan's price, not its own
+        - with no price in the rhythm is not sold in it, rather than free
+        - without an entry for the plan cannot be had with it
+        - priced only through one plan is priced beside that plan
+    - an add-on while no plan is chosen
+        - shows its own price, marked as depending on the plan
+        - priced only through a plan depends on the plan, with no figure of its own
+        - that no plan sells in the rhythm is not sold in it, whatever its own price says
+        - that no plan can have is not offered
+- `packages/ui-vue/tests/use-subscription-draft.test.js`
+    - useSubscriptionDraft — an add-on costs the chosen plan's price
+        - beside a plan with an override it is charged that plan's price
+        - follows the plan when the draft changes it
+        - with no price beside the plan in the rhythm is neither charged nor sent, rather than 0
+        - priced through one plan only is charged beside it, and dropped for a plan without it
+        - is not charged while no plan is chosen, since its price depends on the plan
+- `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
+    - an add-on beside the plan a prospect has chosen
+        - shows and sums the plan's price, not its own
+        - follows the plan when the prospect changes it
+        - with no price beside the plan in the rhythm is not available, rather than free
+        - priced through one plan only is offered beside that plan, and not beside another
+    - an add-on before a plan is chosen
+        - shows its own price, marked as depending on the plan
+        - loses the mark once a plan is chosen
 
 <!-- END proof -->
 

@@ -201,6 +201,12 @@ _Tested by:_
         - a discount above the price takes it to nothing, not below
         - resuming the step shows the same yearly figure
 - `packages/ui-vue/tests/use-subscription-draft.test.js`
+    - useSubscriptionDraft — an add-on costs the chosen plan's price
+        - beside a plan with an override it is charged that plan's price
+        - follows the plan when the draft changes it
+        - with no price beside the plan in the rhythm is neither charged nor sent, rather than 0
+        - priced through one plan only is charged beside it, and dropped for a plan without it
+        - is not charged while no plan is chosen, since its price depends on the plan
     - useSubscriptionDraft — Promo-Discount
         - the discount is the net amount the server previewed, off the plan and not the bundles
         - a discount above the plan price stops at the plan price
@@ -220,6 +226,11 @@ _Tested by:_
         - the answer to the earlier question landing first does not stand
         - a code refused outright is not asked about again, a restricted one is
         - a code removed while its preview is out gives no discount when the answer lands
+    - an add-on beside the plan a prospect has chosen
+        - shows and sums the plan's price, not its own
+        - follows the plan when the prospect changes it
+        - with no price beside the plan in the rhythm is not available, rather than free
+        - priced through one plan only is offered beside that plan, and not beside another
 
 <!-- END proof -->
 

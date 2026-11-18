@@ -97,10 +97,10 @@ const I18N = {
         perYear: 'year',
         empty: 'None',
         allPlans: 'All plans',
-        priceOnRequest: 'On request',
         notSoldInCycle: 'Not available in this rhythm',
         alreadyBooked: 'Included',
         missingRequires: 'Needs',
+        dependsOnPlan: 'Depends on the plan',
     },
     promo: { openLabel: 'Code', placeholder: 'Code', apply: 'Apply', remove: 'Remove' },
     summary: {
@@ -224,7 +224,11 @@ describe('a plan without a price for the chosen rhythm', () => {
     });
 
     test('an add-on priced in the other rhythm only says so and cannot be chosen', () => {
-        const monthlyAddOn = { ...BUNDLE, yearlyNet: null };
+        const monthlyAddOn = {
+            ...BUNDLE,
+            yearlyNet: null,
+            planPrices: BUNDLE.planPrices.map((entry) => ({ ...entry, yearlyNet: null })),
+        };
         const wrapper = mountConfigurator({
             initialPlan: 'PRO',
             initialCycle: 'YEARLY',
@@ -340,6 +344,151 @@ describe('a promo code applied before the plan or rhythm changes', () => {
         await flushPromises();
 
         expect(discountRow(wrapper).exists()).toBe(false);
+    });
+});
+
+/** One plan's entry in the catalogue; a rhythm left out is not sold beside it. */
+function besidePlan(planKey: string, monthlyNet: number, yearlyNet: number | null = null) {
+    return {
+        planKey,
+        monthlyNet,
+        yearlyNet,
+        discountedMonthlyNet: null,
+        discountedYearlyNet: null,
+    };
+}
+
+// "More storage" from #525: 10.00 on its own, 15.00 beside BASIC.
+const STORAGE = {
+    ...BUNDLE,
+    bundleKey: 'STORAGE',
+    label: 'More storage',
+    bundleVersionId: 'bv-storage',
+    monthlyNet: 10,
+    yearlyNet: 100,
+    planPrices: [besidePlan('BASIC', 15), besidePlan('PRO', 10, 100)],
+    features: ['STORAGE'],
+} satisfies PublicMarketingBundle;
+
+// Priced only through PRO's override, which the catalogue allows.
+const VIDEO = {
+    ...BUNDLE,
+    bundleKey: 'VIDEO',
+    label: 'Video',
+    bundleVersionId: 'bv-video',
+    monthlyNet: null,
+    yearlyNet: null,
+    planPrices: [besidePlan('PRO', 8, 80)],
+    features: ['VIDEO'],
+} satisfies PublicMarketingBundle;
+
+const addOnCard = (wrapper: VueWrapper, label: string) =>
+    wrapper
+        .findAll('.sp-public-bundle')
+        .find((c) => c.find('.sp-public-bundle__name').text() === label);
+const summaryLine = (wrapper: VueWrapper, label: string) =>
+    wrapper.findAll('.sp-summary__line').find((line) => line.text().includes(label));
+
+async function choosePlan(wrapper: VueWrapper, planKey: string) {
+    wrapper.findComponent({ name: 'PlanGrid' }).vm.$emit('update:modelValue', planKey);
+    await flushPromises();
+}
+
+async function toggleAddOn(wrapper: VueWrapper, bundleVersionId: string) {
+    wrapper.findComponent({ name: 'PublicBundleGrid' }).vm.$emit('toggle', bundleVersionId);
+    await flushPromises();
+}
+
+// @requirement SC-BUN-019 — What an add-on costs depends on the plan beside it and the rhythm it is billed in
+// @requirement SC-PRIC-007 — An amount a tenant sees is the amount that is charged
+describe('an add-on beside the plan a prospect has chosen', () => {
+    test("shows and sums the plan's price, not its own", async () => {
+        const wrapper = mountConfigurator({
+            initialPlan: 'BASIC',
+            initialCycle: 'MONTHLY',
+            availableBundles: [STORAGE],
+        });
+        await toggleAddOn(wrapper, 'bv-storage');
+
+        expect(
+            addOnCard(wrapper, 'More storage')!.find('.sp-public-bundle__foot').text(),
+        ).toContain('15.00 EUR');
+        expect(summaryLine(wrapper, 'More storage')!.text()).toContain('15.00 EUR');
+        expect(wrapper.find('.sp-summary__total-r').text()).toBe('25.00 EUR');
+    });
+
+    test('follows the plan when the prospect changes it', async () => {
+        const wrapper = mountConfigurator({
+            initialPlan: 'BASIC',
+            initialCycle: 'MONTHLY',
+            availableBundles: [STORAGE],
+        });
+        await toggleAddOn(wrapper, 'bv-storage');
+        await choosePlan(wrapper, 'PRO');
+
+        expect(
+            addOnCard(wrapper, 'More storage')!.find('.sp-public-bundle__foot').text(),
+        ).toContain('10.00 EUR');
+        expect(summaryLine(wrapper, 'More storage')!.text()).toContain('10.00 EUR');
+    });
+
+    test('with no price beside the plan in the rhythm is not available, rather than free', () => {
+        const monthlyBesidePro = { ...STORAGE, planPrices: [besidePlan('PRO', 10)] };
+        const wrapper = mountConfigurator({
+            initialPlan: 'PRO',
+            initialCycle: 'YEARLY',
+            availableBundles: [monthlyBesidePro],
+        });
+        const addOn = addOnCard(wrapper, 'More storage')!;
+
+        expect(addOn.text()).toContain('Not available in this rhythm');
+        expect(addOn.find('.sp-public-bundle__foot').exists()).toBe(false);
+        expect(addOn.attributes('disabled')).toBeDefined();
+    });
+
+    test('priced through one plan only is offered beside that plan, and not beside another', async () => {
+        const wrapper = mountConfigurator({
+            initialPlan: 'PRO',
+            initialCycle: 'MONTHLY',
+            availableBundles: [STORAGE, VIDEO],
+        });
+        const video = addOnCard(wrapper, 'Video')!;
+        expect(video.find('.sp-public-bundle__foot').text()).toContain('8.00 EUR');
+        expect(video.text()).not.toContain('All plans');
+        expect(addOnCard(wrapper, 'More storage')!.text()).toContain('All plans');
+
+        await choosePlan(wrapper, 'BASIC');
+        expect(addOnCard(wrapper, 'Video')).toBeUndefined();
+    });
+});
+
+// @requirement SC-BUN-019 — What an add-on costs depends on the plan beside it and the rhythm it is billed in
+describe('an add-on before a plan is chosen', () => {
+    test('shows its own price, marked as depending on the plan', () => {
+        const wrapper = mountConfigurator({
+            initialPlan: null,
+            initialCycle: 'MONTHLY',
+            availableBundles: [STORAGE, VIDEO],
+        });
+        const storage = addOnCard(wrapper, 'More storage')!;
+        expect(storage.find('.sp-public-bundle__foot').text()).toContain('10.00 EUR');
+        expect(storage.text()).toContain('Depends on the plan');
+
+        // Priced only beside one plan: offered, with no figure of its own.
+        const video = addOnCard(wrapper, 'Video')!;
+        expect(video.text()).toContain('Depends on the plan');
+        expect(video.find('.sp-public-bundle__foot').exists()).toBe(false);
+    });
+
+    test('loses the mark once a plan is chosen', async () => {
+        const wrapper = mountConfigurator({
+            initialPlan: null,
+            initialCycle: 'MONTHLY',
+            availableBundles: [STORAGE],
+        });
+        await choosePlan(wrapper, 'BASIC');
+
+        expect(addOnCard(wrapper, 'More storage')!.text()).not.toContain('Depends on the plan');
     });
 });
 

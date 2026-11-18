@@ -439,6 +439,12 @@ _Tested by:_
         - Bundle toggle marks bundle + activates its features
         - Bundle deselect removes activated features again
         - Bundle price flows into subtotalNet
+    - useSubscriptionDraft — an add-on costs the chosen plan's price
+        - beside a plan with an override it is charged that plan's price
+        - follows the plan when the draft changes it
+        - with no price beside the plan in the rhythm is neither charged nor sent, rather than 0
+        - priced through one plan only is charged beside it, and dropped for a plan without it
+        - is not charged while no plan is chosen, since its price depends on the plan
     - useSubscriptionDraft — Promo-Discount
         - the discount is the net amount the server previewed, off the plan and not the bundles
         - a discount above the plan price stops at the plan price
