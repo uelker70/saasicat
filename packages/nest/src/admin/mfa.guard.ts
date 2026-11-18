@@ -18,11 +18,14 @@ import {
     Inject,
     Injectable,
     Logger,
+    Optional,
     SetMetadata,
     UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AUTH_ERROR_CODES } from '@saasicat/core';
+import { USER_ID_RESOLVER_TOKEN, type UserIdResolver } from '../billing/tenant-billing.tokens.js';
+import { requestUserIdOf } from '../core/request-user.js';
 import { codedError } from '../errors/coded-error.js';
 import { MfaService } from './mfa.service.js';
 
@@ -36,8 +39,6 @@ export const RequireMfa = (): MethodDecorator & ClassDecorator =>
     SetMetadata(REQUIRE_MFA_KEY, true);
 
 interface RequestWithMfa {
-    /** `id`, or `userId` — the pair the platform's admin controllers read the actor from. */
-    user?: { id?: string; userId?: string };
     headers?: Record<string, string | string[] | undefined>;
 }
 
@@ -48,6 +49,11 @@ export class MfaGuard implements CanActivate {
     constructor(
         @Inject(Reflector) private readonly reflector: Reflector,
         private readonly mfaService: MfaService,
+        // The user whose second factor is checked is the one every other route
+        // names for the same request (`core/request-user.ts`).
+        @Optional()
+        @Inject(USER_ID_RESOLVER_TOKEN)
+        private readonly userIdResolver: UserIdResolver | null = null,
     ) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -64,7 +70,7 @@ export class MfaGuard implements CanActivate {
         }
 
         const request = context.switchToHttp().getRequest<RequestWithMfa>();
-        const userId = request.user?.id ?? request.user?.userId;
+        const userId = requestUserIdOf(request, this.userIdResolver);
         if (!userId) {
             throw new UnauthorizedException({
                 ...codedError(AUTH_ERROR_CODES.NOT_AUTHENTICATED),

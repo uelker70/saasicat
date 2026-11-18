@@ -38,41 +38,259 @@ export function hasConstraints(migrationSql: string): boolean {
     return migrationSql.includes(CONSTRAINTS_MARKER);
 }
 
-/**
- * The tables a constraints statement addresses.
- *
- * `CREATE ... INDEX ... ON <table>` and `ALTER TABLE <table>` are the two
- * shapes the canonical file uses; anything else is returned as addressing
- * nothing, which keeps it.
- */
-export function tablesAddressedBy(statement: string): string[] {
-    return [...statement.matchAll(/\bON\s+"?(\w+)"?|\bALTER\s+TABLE\s+"?(\w+)"?/gi)].map(
-        (m) => (m[1] ?? m[2])!,
-    );
+/** What a statement of the constraints file does, read from its first words. */
+export type StatementShape =
+    /** `CREATE [UNIQUE] INDEX [CONCURRENTLY] [IF NOT EXISTS] [<name>] ON [ONLY] <table>` */
+    | 'create-index'
+    /** `ALTER TABLE [IF EXISTS] [ONLY] <table> …` */
+    | 'alter-table'
+    /** `ALTER SEQUENCE …` and `SELECT setval(…)`: no table has to exist for them. */
+    | 'addresses-no-table'
+    /** Any other statement. It names no table this reader could check, so it is kept. */
+    | 'unreadable';
+
+export interface ConstraintStatement {
+    readonly shape: StatementShape;
+    /** The table a `create-index` or `alter-table` statement addresses. */
+    readonly table?: string;
+    /** The index, or the constraint an `ALTER TABLE` adds or drops. */
+    readonly constraint?: string;
+    /** The statement as read: comments removed, without its separator. */
+    readonly text: string;
 }
 
 /**
- * The constraints that apply to tables this schema actually has.
+ * The statements of some SQL, comments removed, cut at each `;` that is code.
+ *
+ * A hand-written scanner rather than a pattern: a `;` or a `--` inside a
+ * string or a quoted name is part of it, and a word in a comment is not code.
+ * It knows single-quoted strings, double-quoted names, `--` and non-nested
+ * block comments — enough for the shapes below. What it misreads, such as a
+ * dollar-quoted body, comes out as a statement of no shape it knows, which is
+ * kept.
+ */
+function statementTexts(sql: string): string[] {
+    const statements: string[] = [];
+    let current = '';
+    let i = 0;
+    while (i < sql.length) {
+        const char = sql[i]!;
+        if (char === "'" || char === '"') {
+            const close = sql.indexOf(char, i + 1);
+            const end = close === -1 ? sql.length : close + 1;
+            current += sql.slice(i, end);
+            i = end;
+        } else if (sql.startsWith('--', i)) {
+            const newline = sql.indexOf('\n', i);
+            i = newline === -1 ? sql.length : newline;
+        } else if (sql.startsWith('/*', i)) {
+            const close = sql.indexOf('*/', i + 2);
+            current += ' ';
+            i = close === -1 ? sql.length : close + 2;
+        } else if (char === ';') {
+            statements.push(current);
+            current = '';
+            i += 1;
+        } else {
+            current += char;
+            i += 1;
+        }
+    }
+    statements.push(current);
+    return statements.map((text) => text.trim()).filter((text) => text !== '');
+}
+
+/** A word, a quoted name with its quotes, a string with its quotes, or one other character. */
+function tokensOf(text: string): string[] {
+    const tokens: string[] = [];
+    let i = 0;
+    while (i < text.length) {
+        const char = text[i]!;
+        if (/\s/.test(char)) {
+            i += 1;
+        } else if (char === "'" || char === '"') {
+            // A doubled quote inside comes out as two adjacent tokens of the
+            // same kind, which no shape below mistakes for a keyword.
+            const close = text.indexOf(char, i + 1);
+            const end = close === -1 ? text.length : close + 1;
+            tokens.push(text.slice(i, end));
+            i = end;
+        } else if (/\w/.test(char)) {
+            let end = i + 1;
+            while (end < text.length && /[\w$]/.test(text[end]!)) end += 1;
+            tokens.push(text.slice(i, end));
+            i = end;
+        } else {
+            tokens.push(char);
+            i += 1;
+        }
+    }
+    return tokens;
+}
+
+/** A name as the schema spells it: quotes taken off, a schema qualifier dropped. */
+function nameAt(tokens: readonly string[], at: number): { name: string; next: number } | null {
+    let i = at;
+    for (;;) {
+        const token = tokens[i];
+        if (token === undefined || !/^["\w]/.test(token)) return null;
+        const name = token.startsWith('"') ? token.slice(1, -1) : token;
+        if (tokens[i + 1] !== '.') return { name, next: i + 1 };
+        i += 2;
+    }
+}
+
+/** Whether the tokens at `at` are these keywords, case aside. */
+function keywordsAt(tokens: readonly string[], at: number, ...words: string[]): boolean {
+    return words.every((word, k) => tokens[at + k]?.toUpperCase() === word);
+}
+
+function readCreateIndex(tokens: readonly string[], text: string): ConstraintStatement | null {
+    let i = 1;
+    if (keywordsAt(tokens, i, 'UNIQUE')) i += 1;
+    if (!keywordsAt(tokens, i, 'INDEX')) return null;
+    i += 1;
+    if (keywordsAt(tokens, i, 'CONCURRENTLY')) i += 1;
+    if (keywordsAt(tokens, i, 'IF', 'NOT', 'EXISTS')) i += 3;
+    let constraint: string | undefined;
+    if (!keywordsAt(tokens, i, 'ON')) {
+        const index = nameAt(tokens, i);
+        if (!index) return null;
+        constraint = index.name;
+        i = index.next;
+    }
+    if (!keywordsAt(tokens, i, 'ON')) return null;
+    i += 1;
+    if (keywordsAt(tokens, i, 'ONLY')) i += 1;
+    const table = nameAt(tokens, i);
+    if (!table) return null;
+    return { shape: 'create-index', table: table.name, constraint, text };
+}
+
+function readAlterTable(tokens: readonly string[], text: string): ConstraintStatement | null {
+    let i = 2;
+    if (keywordsAt(tokens, i, 'IF', 'EXISTS')) i += 2;
+    if (keywordsAt(tokens, i, 'ONLY')) i += 1;
+    const table = nameAt(tokens, i);
+    if (!table) return null;
+    let constraint: string | undefined;
+    for (let k = table.next; k < tokens.length && constraint === undefined; k += 1) {
+        if (!keywordsAt(tokens, k, 'CONSTRAINT')) continue;
+        const preceding = tokens[k - 1]?.toUpperCase();
+        if (preceding !== 'ADD' && preceding !== 'DROP') continue;
+        const at = keywordsAt(tokens, k + 1, 'IF', 'EXISTS') ? k + 3 : k + 1;
+        constraint = nameAt(tokens, at)?.name;
+    }
+    return { shape: 'alter-table', table: table.name, constraint, text };
+}
+
+function readStatement(text: string): ConstraintStatement {
+    const tokens = tokensOf(text);
+    const read = keywordsAt(tokens, 0, 'CREATE')
+        ? readCreateIndex(tokens, text)
+        : keywordsAt(tokens, 0, 'ALTER', 'TABLE')
+          ? readAlterTable(tokens, text)
+          : null;
+    if (read) return read;
+    if (keywordsAt(tokens, 0, 'ALTER', 'SEQUENCE') || keywordsAt(tokens, 0, 'SELECT', 'SETVAL')) {
+        return { shape: 'addresses-no-table', text };
+    }
+    return { shape: 'unreadable', text };
+}
+
+/** Every statement of some SQL, each with what it addresses. */
+export function readStatements(sql: string): ConstraintStatement[] {
+    return statementTexts(sql).map(readStatement);
+}
+
+/**
+ * The tables the statements of some SQL address, in order, comments aside.
+ *
+ * Read from the shape of each statement — the table after `ON` of a
+ * `CREATE INDEX`, after `ALTER TABLE` — and never from a word elsewhere, which
+ * may be a comment's "on purpose" or a `CHECK`'s `IN ('on')`.
+ */
+export function tablesAddressedBy(sql: string): string[] {
+    return readStatements(sql).flatMap((statement) => statement.table ?? []);
+}
+
+/** A block of the constraints file that this schema cannot take. */
+export interface LeftOutConstraint {
+    /** The indexes and constraints the block declares, so the operator can find it. */
+    readonly constraints: readonly string[];
+    /** The tables it addresses that the schema does not have. */
+    readonly missingTables: readonly string[];
+}
+
+export interface ConstraintsSelection {
+    /** The blocks to append, as the file writes them, comments included. */
+    readonly applicable: string;
+    /** Each block left out, in the order of the file. */
+    readonly leftOut: readonly LeftOutConstraint[];
+}
+
+/**
+ * The constraints that apply to tables this schema actually has, and the ones
+ * that do not.
  *
  * `schema migrate --fragments=03` produces a migration with the plan-version
  * tables and nothing else, and appending the whole file would add an index on
  * `bundle_versions` — which Prisma then fails to apply, against the shadow
- * database, with P1014 naming a table the consumer never asked for. Found by
- * running the command rather than by reasoning about it.
+ * database, with P1014 naming a table the consumer never asked for.
  *
- * Statements addressing no table at all are kept: an unrecognised shape is a
- * reason to be conservative, not to drop a constraint.
+ * The file is cut into blocks at blank lines, because a block is what belongs
+ * together: the `DROP` that makes an `ADD CONSTRAINT` repeatable goes with it.
+ * A block is kept when every table its statements address is in the schema.
+ * Statements addressing no table are kept: an unrecognised shape is a reason to
+ * be conservative, not to drop a constraint.
  */
-export function constraintsFor(constraintsSql: string, tables: readonly string[]): string {
+export function selectConstraints(
+    constraintsSql: string,
+    tables: readonly string[],
+): ConstraintsSelection {
     const known = new Set(tables);
-    return constraintsSql
-        .split(/\n\s*\n/)
-        .filter((block) => {
-            const addressed = tablesAddressedBy(block);
-            return addressed.every((table) => known.has(table));
-        })
-        .join('\n\n')
-        .trimEnd();
+    const kept: string[] = [];
+    const leftOut: LeftOutConstraint[] = [];
+    for (const block of blocksOf(constraintsSql)) {
+        const statements = readStatements(block);
+        const missingTables = unique(
+            statements.flatMap((statement) => statement.table ?? []).filter((t) => !known.has(t)),
+        );
+        if (missingTables.length === 0) {
+            kept.push(block);
+            continue;
+        }
+        const constraints = unique(statements.flatMap((statement) => statement.constraint ?? []));
+        leftOut.push({ constraints, missingTables });
+    }
+    return { applicable: kept.join('\n\n').trimEnd(), leftOut };
+}
+
+/** The blank-line separated blocks of some SQL, each without its surrounding blank lines. */
+function blocksOf(sql: string): string[] {
+    const blocks: string[] = [];
+    let lines: string[] = [];
+    for (const line of sql.split('\n')) {
+        if (line.trim() !== '') {
+            lines.push(line);
+            continue;
+        }
+        if (lines.length > 0) blocks.push(lines.join('\n'));
+        lines = [];
+    }
+    if (lines.length > 0) blocks.push(lines.join('\n'));
+    return blocks;
+}
+
+function unique(values: readonly string[]): string[] {
+    return [...new Set(values)];
+}
+
+/** One line per left-out block, as `schema migrate` prints it. */
+function describeLeftOut(entry: LeftOutConstraint): string {
+    const what = entry.constraints.length > 0 ? entry.constraints.join(', ') : 'a statement';
+    const tables = entry.missingTables.length === 1 ? 'table' : 'tables';
+    return `  - left out ${what}: this schema has no ${tables} ${entry.missingTables.join(', ')}`;
 }
 
 /**
@@ -131,6 +349,11 @@ export interface ConstraintsReport {
     readonly mayApply: boolean;
     /** What to tell the operator, in one line. */
     readonly message: string;
+    /**
+     * One line for each block of the file the schema could not take, so that
+     * saying nothing more means every constraint went in.
+     */
+    readonly leftOut: readonly string[];
 }
 
 /**
@@ -142,8 +365,22 @@ export interface ConstraintsReport {
  */
 export function reportConstraints(
     outcome: ConstraintsOutcome,
-    context: { readonly sqlPath: string; readonly migration?: string | null },
+    context: {
+        readonly sqlPath: string;
+        readonly migration?: string | null;
+        readonly leftOut?: readonly LeftOutConstraint[];
+    },
 ): ConstraintsReport {
+    return {
+        ...decideConstraints(outcome, context),
+        leftOut: (context.leftOut ?? []).map(describeLeftOut),
+    };
+}
+
+function decideConstraints(
+    outcome: ConstraintsOutcome,
+    context: { readonly sqlPath: string; readonly migration?: string | null },
+): Omit<ConstraintsReport, 'leftOut'> {
     switch (outcome) {
         case 'appended':
             return {

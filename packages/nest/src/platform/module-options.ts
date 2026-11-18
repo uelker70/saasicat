@@ -62,6 +62,11 @@ import {
     type SubscriptionEndsOptions,
     type SubscriptionNoticesOptions,
 } from '../billing/tenant-billing.module.js';
+import type {
+    AuditContextResolver,
+    UserEmailResolver,
+    UserIdResolver,
+} from '../billing/tenant-billing.tokens.js';
 import {
     type CatalogModuleOptions,
     type PublicMarketingCatalogOptions,
@@ -253,7 +258,7 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
  * Payment methods through a payment gateway. The event log and the payment
  * methods come from `persistence.payments`, the subscribers from
  * `persistence.entitlement`, and the tenant's routes share `tenantBilling`'s
- * authentication, resolvers and billing permission.
+ * authentication, tenant resolver and billing permission.
  */
 export type SaaSiCatPaymentsOptions = Pick<
     PaymentsModuleOptions,
@@ -543,6 +548,30 @@ export interface SaaSiCatModuleOptions {
      * caller, and `SuperAdminGuard` refuses every operator request.
      */
     controller: { guards: Array<Type<CanActivate>> };
+    /**
+     * Names the user behind a request, for every route that records or checks
+     * who acted — the second factor, the audit log, a tenant's own writes, the
+     * promotion preview's rate limit (`SC-AUD-022`). Default: `req.user.sub`,
+     * then `req.user.id`. An application whose authentication leaves the user
+     * as `userId`, or whose identity provider's subject is not the id its
+     * users table keys the second factor by, names it here: the platform reads
+     * `userId` from nobody by default. A request it names nobody for is
+     * refused wherever a route checks who acted, and recorded as `unknown`
+     * where a route only records it.
+     */
+    userIdResolver?: UserIdResolver;
+    /**
+     * Names the e-mail of the user behind a request, for the audit log and as
+     * the address a payment gateway falls back to. Default: `req.user.email`;
+     * where there is none the audit log says `unknown`.
+     */
+    userEmailResolver?: UserEmailResolver;
+    /**
+     * Names where a request came from (a session or trace id), for the audit
+     * log. Default: the `x-session-id` header; without one an operator's record
+     * says `admin` and a tenant's `tenant-self-service`.
+     */
+    auditContextResolver?: AuditContextResolver;
     /**
      * Additional guards only for `POST /admin/manifest/reload` (typically:
      * `MfaGuard`). Optional.

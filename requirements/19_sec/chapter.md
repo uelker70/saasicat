@@ -422,7 +422,8 @@ _Tested by:_
         - the platform administrator without a code is refused by name
         - a wrong code is refused, and the right one passes
         - an operator who has not set up a second factor is refused rather than let through
-        - a caller named by `userId` rather than `id` is checked under that name
+        - a caller named by `sub` rather than `id` is checked under that name
+        - a caller named only by `userId` is refused, since no resolver says to read it
         - a platform administrator the request does not name is refused as unauthenticated
         - a tenant user meets the role check, even holding a valid code
         - every other operator route lets the platform administrator through without a code

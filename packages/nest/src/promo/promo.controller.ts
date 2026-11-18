@@ -4,12 +4,15 @@ import {
     HttpCode,
     HttpStatus,
     Inject,
+    Optional,
     Post,
     Req,
     UseGuards,
 } from '@nestjs/common';
 import type { BillingCycle } from '@saasicat/core';
+import { USER_ID_RESOLVER_TOKEN, type UserIdResolver } from '../billing/tenant-billing.tokens.js';
 import { SaaSiCatPublicRoute } from '../core/public-route.js';
+import { requestUserIdOf } from '../core/request-user.js';
 import { PromoCodesService, type PreviewResult } from './promo.service.js';
 import { PromoCodeRateLimitGuard, hashIp } from './rate-limit.guard.js';
 import { PreviewPromoCodeDto } from './dto/promo-public.dto.js';
@@ -33,13 +36,17 @@ import { PreviewPromoCodeDto } from './dto/promo-public.dto.js';
 interface RequestLike {
     headers: Record<string, string | string[] | undefined>;
     ip?: string;
-    user?: { id?: string; sub?: string };
 }
 
 @Controller('billing/promo')
 @SaaSiCatPublicRoute()
 export class PromoCodePublicController {
-    constructor(@Inject(PromoCodesService) private readonly promo: PromoCodesService) {}
+    constructor(
+        @Inject(PromoCodesService) private readonly promo: PromoCodesService,
+        @Optional()
+        @Inject(USER_ID_RESOLVER_TOKEN)
+        private readonly userIdResolver: UserIdResolver | null = null,
+    ) {}
 
     @Post('preview')
     @HttpCode(HttpStatus.OK)
@@ -54,7 +61,7 @@ export class PromoCodePublicController {
             billingCycle: dto.billingCycle as BillingCycle,
             email: dto.email,
             ipHash: hashIp(req),
-            sessionId: req.user?.id ?? req.user?.sub,
+            sessionId: requestUserIdOf(req, this.userIdResolver) ?? undefined,
         });
     }
 }

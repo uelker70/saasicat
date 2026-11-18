@@ -47,7 +47,7 @@ import {
     extractModelNames,
     applyFragmentBlocks,
     applyTokens,
-    constraintsFor,
+    selectConstraints,
     checkSchema,
     modelsServingTenantsNeeds,
     extractFragmentBlocks,
@@ -630,6 +630,7 @@ async function cmdSchemaMigrate(args) {
     console.log('→ Step 3/4: appending the constraints Prisma cannot express');
     const report = await writeConstraintsIntoMigration(args, migrationsBefore);
     console.log(report.message);
+    for (const line of report.leftOut) console.log(line);
 
     // Applying a migration the tool could not finish is worse than stopping.
     // The message tells the operator to add the SQL before applying it, and
@@ -712,15 +713,15 @@ async function writeConstraintsIntoMigration(args, migrationsBefore) {
         // `--fragments` produces a migration without the others, and Prisma
         // fails the whole thing against its shadow database with P1014.
         const { schema: currentSchema } = await readSchemaOrExit(args);
-        const applicable = constraintsFor(
+        const { applicable, leftOut } = selectConstraints(
             await readFile(sqlPath, 'utf8'),
             tableNamesOf(currentSchema),
         );
         if (applicable.trim() === '') {
-            return reportConstraints('not-applicable', { sqlPath, migration: newest });
+            return reportConstraints('not-applicable', { sqlPath, migration: newest, leftOut });
         }
         await writeFile(migrationFile, appendConstraints(migrationSql, applicable));
-        return reportConstraints('appended', { sqlPath, migration: newest });
+        return reportConstraints('appended', { sqlPath, migration: newest, leftOut });
     } catch (err) {
         console.error(`  ! ${err?.message ?? String(err)}`);
         return reportConstraints('failed', { sqlPath });

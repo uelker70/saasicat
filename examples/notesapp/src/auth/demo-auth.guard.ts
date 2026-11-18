@@ -56,7 +56,6 @@ export class DemoAuthGuard implements CanActivate {
                 tenantId: string;
                 platformRole?: string;
                 email: string;
-                sessionId: string;
             };
         }>();
         const tenantId = firstHeader(request.headers['x-demo-tenant']);
@@ -74,7 +73,6 @@ export class DemoAuthGuard implements CanActivate {
                 platformRole === 'SUPER_ADMIN'
                     ? 'admin@notesapp.example'
                     : `demo-user-${tenantId}@notesapp.example`,
-            sessionId: 'notesapp-demo',
         };
         await this.access.enforce(context, tenantId, {
             actingAsOperator: platformRole === 'SUPER_ADMIN',

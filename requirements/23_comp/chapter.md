@@ -1156,6 +1156,22 @@ _Tested by:_
         - keeps everything when every table is present
         - a statement it cannot read is kept, not dropped
         - nothing applicable appends nothing at all
+    - the table is read from the statement, not from the words around it
+        - a word after "on" in a comment is not a table
+        - the block keeps its comments when it is kept
+        - "on" inside a CHECK is not a table
+        - a quoted table, written against its column list, is read
+        - an index without a name, on ONLY a schema-qualified table, is read
+        - ALTER TABLE IF EXISTS ONLY reads the table after the keywords
+        - a sequence and a setval address no table, so nothing leaves them out
+        - a separator inside a string or a quoted name does not end the statement
+        - a separator in a comment does not end the statement
+    - what is left out is named
+        - each left-out block with its constraint and the table the schema lacks
+        - only the tables that are missing, not every table the block addresses
+        - the report says one line for each, and nothing when none is left out
+        - a block without a name is still named by its tables
+        - several missing tables are named together
     - what step 3 did, and whether step 4 may follow
         - only a failure stops the command
         - "before applying" is said exactly when the command will not apply

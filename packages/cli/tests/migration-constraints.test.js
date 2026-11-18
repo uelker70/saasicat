@@ -8,9 +8,10 @@ import {
     CONSTRAINTS_MARKER,
     reportConstraints,
     appendConstraints,
-    constraintsFor,
     hasConstraints,
     migrationCreatedBy,
+    readStatements,
+    selectConstraints,
     tablesAddressedBy,
 } from '../dist/index.js';
 
@@ -133,28 +134,175 @@ describe('only the constraints this schema has tables for', () => {
     });
 
     test('keeps the ones whose table is present', () => {
-        const kept = constraintsFor(BOTH, ['plan_versions']);
+        const kept = selectConstraints(BOTH, ['plan_versions']).applicable;
         assert.match(kept, /plan_versions_draft_per_plan/);
         assert.doesNotMatch(kept, /bundle_versions/);
     });
 
     test('keeps everything when every table is present', () => {
-        const kept = constraintsFor(BOTH, ['plan_versions', 'bundle_versions']);
-        assert.match(kept, /plan_versions_draft_per_plan/);
-        assert.match(kept, /bundle_versions_draft_per_bundle/);
+        const selection = selectConstraints(BOTH, ['plan_versions', 'bundle_versions']);
+        assert.match(selection.applicable, /plan_versions_draft_per_plan/);
+        assert.match(selection.applicable, /bundle_versions_draft_per_bundle/);
+        assert.deepEqual(selection.leftOut, []);
     });
 
     test('a statement it cannot read is kept, not dropped', () => {
         // An unrecognised shape is a reason to be conservative: dropping a
         // constraint silently is the one outcome worse than a failed migration.
         const odd = 'DO $$ BEGIN /* something clever */ END $$;';
-        assert.equal(constraintsFor(odd, []), odd);
+        assert.equal(selectConstraints(odd, []).applicable, odd);
+        assert.ok(readStatements(odd).every((statement) => statement.shape === 'unreadable'));
     });
 
     test('nothing applicable appends nothing at all', () => {
-        const nothing = constraintsFor(BOTH, ['unrelated']);
+        const nothing = selectConstraints(BOTH, ['unrelated']).applicable;
         assert.equal(nothing, '');
         assert.equal(appendConstraints(MIGRATION, nothing), MIGRATION);
+    });
+});
+
+// @requirement SC-OPS-017 — `schema migrate` carries every constraint whose tables exist, and names the rest
+describe('the table is read from the statement, not from the words around it', () => {
+    // The shipped file explains its blocks in comments that say "on purpose"
+    // and "ON CONFLICT", and its CHECKs list values. A word read there as a
+    // table is one no schema has, so its block would be left out of every
+    // migration — among the shipped blocks, the checks on corrections of
+    // charges and invoice lines.
+
+    const SINGLETON =
+        '-- Two plain statements on purpose, and ON CONFLICT names no table either.\n' +
+        'ALTER TABLE marketing_settings\n' +
+        '    DROP CONSTRAINT IF EXISTS marketing_settings_is_a_singleton;\n' +
+        'ALTER TABLE marketing_settings\n' +
+        '    ADD CONSTRAINT marketing_settings_is_a_singleton CHECK ("id" = \'marketing-settings\');';
+
+    test('a word after "on" in a comment is not a table', () => {
+        assert.deepEqual(tablesAddressedBy(SINGLETON), [
+            'marketing_settings',
+            'marketing_settings',
+        ]);
+        assert.equal(selectConstraints(SINGLETON, ['marketing_settings']).applicable, SINGLETON);
+    });
+
+    test('the block keeps its comments when it is kept', () => {
+        assert.match(selectConstraints(SINGLETON, ['marketing_settings']).applicable, /on purpose/);
+    });
+
+    test('"on" inside a CHECK is not a table', () => {
+        const check =
+            "ALTER TABLE notes ADD CONSTRAINT notes_kind CHECK (\"kind\" IN ('on', 'off'));";
+        assert.deepEqual(tablesAddressedBy(check), ['notes']);
+    });
+
+    test('a quoted table, written against its column list, is read', () => {
+        const index =
+            'CREATE UNIQUE INDEX IF NOT EXISTS once ON "PaymentEventLog"("sessionId") WHERE true;';
+        assert.deepEqual(readStatements(index), [
+            {
+                shape: 'create-index',
+                table: 'PaymentEventLog',
+                constraint: 'once',
+                text: index.slice(0, -1),
+            },
+        ]);
+    });
+
+    test('an index without a name, on ONLY a schema-qualified table, is read', () => {
+        assert.deepEqual(tablesAddressedBy('CREATE INDEX ON ONLY public.notes (a);'), ['notes']);
+    });
+
+    test('ALTER TABLE IF EXISTS ONLY reads the table after the keywords', () => {
+        const statement = 'alter table if exists only notes drop constraint if exists notes_kind;';
+        assert.deepEqual(
+            readStatements(statement).map((s) => [s.table, s.constraint]),
+            [['notes', 'notes_kind']],
+        );
+    });
+
+    test('a sequence and a setval address no table, so nothing leaves them out', () => {
+        const sequence =
+            'ALTER SEQUENCE IF EXISTS "s_seq" START WITH 10001;\n' +
+            "SELECT setval('s_seq', 10001, false) FROM pg_sequences WHERE true;";
+        assert.deepEqual(
+            readStatements(sequence).map((statement) => statement.shape),
+            ['addresses-no-table', 'addresses-no-table'],
+        );
+        assert.equal(selectConstraints(sequence, []).applicable, sequence);
+    });
+
+    test('a separator inside a string or a quoted name does not end the statement', () => {
+        const check =
+            'ALTER TABLE notes ADD CONSTRAINT "a;b" CHECK ("body" <> \';\' AND "x" <> \'it\'\'s;\');';
+        assert.deepEqual(
+            readStatements(check).map((s) => [s.shape, s.constraint]),
+            [['alter-table', 'a;b']],
+        );
+    });
+
+    test('a separator in a comment does not end the statement', () => {
+        const index = 'CREATE INDEX i -- one; two\n    ON notes (a);';
+        assert.deepEqual(tablesAddressedBy(index), ['notes']);
+        assert.deepEqual(
+            tablesAddressedBy('/* ON purpose; */ ALTER TABLE notes ADD COLUMN x int;'),
+            ['notes'],
+        );
+    });
+});
+
+// @requirement SC-OPS-017 — `schema migrate` carries every constraint whose tables exist, and names the rest
+describe('what is left out is named', () => {
+    // Silence has to mean "all of it went in", and a scoped run has to say
+    // which constraints its schema cannot take.
+
+    const TWO =
+        'CREATE UNIQUE INDEX IF NOT EXISTS plan_versions_draft_per_plan\n' +
+        '    ON plan_versions ("planId") WHERE "publishedAt" IS NULL;\n\n' +
+        '-- A pair on a join table.\n' +
+        'ALTER TABLE links DROP CONSTRAINT IF EXISTS links_not_into_itself;\n' +
+        'ALTER TABLE links ADD CONSTRAINT links_not_into_itself CHECK ("a" <> "b");';
+
+    test('each left-out block with its constraint and the table the schema lacks', () => {
+        assert.deepEqual(selectConstraints(TWO, ['plan_versions']).leftOut, [
+            { constraints: ['links_not_into_itself'], missingTables: ['links'] },
+        ]);
+    });
+
+    test('only the tables that are missing, not every table the block addresses', () => {
+        const across = 'CREATE INDEX i ON a (x);\nCREATE INDEX j ON b (x);';
+        assert.deepEqual(selectConstraints(across, ['a']).leftOut, [
+            { constraints: ['i', 'j'], missingTables: ['b'] },
+        ]);
+    });
+
+    test('the report says one line for each, and nothing when none is left out', () => {
+        const { leftOut } = selectConstraints(TWO, ['plan_versions']);
+        const report = reportConstraints('appended', {
+            sqlPath: '/pkg/sql/constraints.postgres.sql',
+            migration: '20260820_x',
+            leftOut,
+        });
+        assert.deepEqual(report.leftOut, [
+            '  - left out links_not_into_itself: this schema has no table links',
+        ]);
+        assert.deepEqual(
+            reportConstraints('appended', { sqlPath: '/x', migration: '20260820_x' }).leftOut,
+            [],
+        );
+    });
+
+    test('a block without a name is still named by its tables', () => {
+        const leftOut = selectConstraints('ALTER TABLE a ADD COLUMN x int;', []).leftOut;
+        const report = reportConstraints('not-applicable', { sqlPath: '/x', leftOut });
+        assert.deepEqual(report.leftOut, ['  - left out a statement: this schema has no table a']);
+    });
+
+    test('several missing tables are named together', () => {
+        const leftOut = selectConstraints(
+            'CREATE INDEX i ON a (x);\nCREATE INDEX j ON b (x);',
+            [],
+        ).leftOut;
+        const report = reportConstraints('not-applicable', { sqlPath: '/x', leftOut });
+        assert.deepEqual(report.leftOut, ['  - left out i, j: this schema has no tables a, b']);
     });
 });
 

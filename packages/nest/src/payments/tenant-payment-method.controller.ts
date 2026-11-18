@@ -27,6 +27,7 @@ import {
     type UserEmailResolver,
 } from '../billing/tenant-billing.tokens.js';
 import { tenantIdOf } from '../billing/tenant-id.js';
+import { requestUserEmailOf } from '../core/request-user.js';
 import { StartsPayment } from '../tenant-access/tenant-access-marks.js';
 import { StartPaymentMethodSetupDto } from './dto/start-payment-method-setup.dto.js';
 import { SubscriberPaymentMethodService } from './subscriber-payment-method.service.js';
@@ -105,8 +106,7 @@ export class TenantPaymentMethodController {
     }
 
     private emailOf(request: unknown): string | null {
-        if (this.userEmailResolver) return this.userEmailResolver(request) ?? null;
-        return (request as { user?: { email?: string | null } }).user?.email ?? null;
+        return requestUserEmailOf(request, this.userEmailResolver);
     }
 }
 

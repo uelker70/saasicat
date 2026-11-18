@@ -227,12 +227,28 @@ describe('what the chain Nest builds does with a request', () => {
         }
     });
 
-    test('a caller named by `userId` rather than `id` is checked under that name', async () => {
-        // The shape the platform's admin controllers already read the actor
-        // from; a check that knew only `id` would look up nobody.
+    // @requirement SC-ADM-003 — The administration requires a second factor
+    test('a caller named by `sub` rather than `id` is checked under that name', async () => {
+        const bySub = { sub: 'without-mfa', id: 'operator', role: 'SUPER_ADMIN' };
+        for (const entry of lasting()) {
+            await assert.rejects(
+                () => chainFor(moduleRef, entry).run(bySub, CODE),
+                refusedWith(UnauthorizedException, AUTH_ERROR_CODES.MFA_NOT_SET_UP, entry.route),
+            );
+        }
+    });
+
+    // @requirement SC-ADM-003 — The administration requires a second factor
+    test('a caller named only by `userId` is refused, since no resolver says to read it', async () => {
+        // The platform reads `sub`, then `id`; an application that names its
+        // users `userId` says so with `userIdResolver`, and then the second
+        // factor reads it like every other route (`one-request-names-one-user`).
         const byUserId = { userId: 'operator', platformRole: 'SUPER_ADMIN' };
         for (const entry of lasting()) {
-            assert.equal(await chainFor(moduleRef, entry).run(byUserId, CODE), true, entry.route);
+            await assert.rejects(
+                () => chainFor(moduleRef, entry).run(byUserId, CODE),
+                refusedWith(UnauthorizedException, AUTH_ERROR_CODES.NOT_AUTHENTICATED, entry.route),
+            );
         }
     });
 

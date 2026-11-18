@@ -916,8 +916,9 @@ check sits on those handlers rather than in a guard list, so neither `controller
   `usePlanVersions().terminateVersion`, `useBundleVersions().publish` or the matching resource
   operations ask for the code first and pass it as the new last argument. `mfaHeader(code)` builds
   the header, and sends nothing for an empty code.
-- **`request.user`** is read as `id` or `userId` by `MfaGuard`, the same pair the admin controllers
-  read the actor from.
+- **`MfaGuard` checks the second factor of the user every other route names for the request**:
+  `request.user.sub`, then `request.user.id`, or your `userIdResolver` — see
+  [One request names one user, on every route](#one-request-names-one-user-on-every-route).
 - **Low-level modules wired by hand** that carry one of these routes — `CatalogModule`,
   `AdminResourcesModule`, `PlanCatalogImporterModule` — need `MfaService` resolvable, which
   `AdminModule` provides; without it the application does not start.
@@ -4160,8 +4161,8 @@ installation has to do:
   `bundleLabel`. The tenant texts gain `bundleOffer*`.
 - **The early switch to a retirement's replacement is audited** as
   `SWITCH_ADD_ON_TO_RETIREMENT_REPLACEMENT`, and like the plan's switches it now needs the request
-  to name its user (`userIdResolver`, by default `req.user.sub` or `req.user.id`); one that names
-  none is refused with `TENANT_CONTEXT_MISSING`.
+  to name its user (`userIdResolver` at the root of the options, by default `req.user.sub`, then
+  `req.user.id`); one that names none is refused with `TENANT_CONTEXT_MISSING`.
 - **A version named that is no longer offered** beside a booking is refused with
   `BUNDLE_VERSION_OFFER_CHANGED` (`bundleVersionId`) and the offer as it stands. An application
   that words refusals itself adds it; the shipped texts cover English and German until it does.
@@ -5293,6 +5294,90 @@ eight methods of `AdminResourcesPort`, which now extends it. See
    the operator keeps having no billing pages.
 3. Where code of yours names either options type in an `interface … extends`, write a `type` with
    `&` instead.
+
+### `schema migrate` carries every constraint, and names one it leaves out
+
+`saasicat schema migrate` appends `constraints.postgres.sql` to the migration it creates, a block at
+a time, and leaves out a block that addresses a table your schema lacks. It took every word after
+"on" or "alter table" for a table, in comments too, and so left out six blocks on a schema that has
+every table: `marketing_settings_is_a_singleton`,
+`subscriber_ledger_entries_correction_names_its_charge`,
+`subscription_invoice_lines_correction_names_its_line`, `maintenance_windows_one_open`,
+`tenant_access_holds_known_kind` and `payment_event_log_confirmation_per_session` — two money
+checks and the one payment confirmation per gateway session among them. It now reads the table from
+each statement, and prints a line for each block it leaves out, with its constraint and the missing
+table (`SC-OPS-017`); no such line means every constraint went in.
+
+1. **Where your database was set up or upgraded through `schema migrate` alone** — no step of your
+   deployment applies `constraints.postgres.sql` — apply the file once:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/constraints.postgres.sql
+    ```
+
+    It can be applied again and again: an index is created only where it is missing, a constraint
+    dropped and added anew. Where a statement is refused, rows already in the database break its
+    rule; the error names the constraint and its table, and for a unique index the duplicated key.
+    Correct those rows, then apply the file again.
+
+2. **Where your deployment applies the file already**, nothing to do.
+3. **Where code of yours calls `constraintsFor` from `@saasicat/cli`**, call `selectConstraints` and
+   read its result:
+
+| before                                                                | after                                                                                                                                                 |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `constraintsFor(sql, tables)` returns the SQL to append               | `selectConstraints(sql, tables)` returns `{ applicable, leftOut }`: the SQL to append, and each block left out with `constraints` and `missingTables` |
+| `tablesAddressedBy(sql)` takes every word after `ON` or `ALTER TABLE` | takes the table from each statement, comments aside; `readStatements(sql)` gives each statement with its `shape`, `table` and `constraint`            |
+| `reportConstraints(outcome, { sqlPath, migration })`                  | also takes `leftOut`, and the report carries one line for each block left out                                                                         |
+
+- **No codemod step**: the result changes shape, so a renamed call would still be read wrongly. The
+  compiler names each call.
+
+### One request names one user, on every route
+
+The second factor, the audit log, the publisher of a plan or add-on version, a promo code's author,
+the promotion preview's rate limit and a tenant's own writes read the user behind a request in one
+place (`SC-AUD-022`). They read your `userIdResolver`, or without one `request.user.sub`, then
+`request.user.id`; the e-mail through `userEmailResolver` or `request.user.email`; and where the
+request came from through `auditContextResolver` or the `x-session-id` header. The three resolvers
+are options at the root of `SaaSiCatModule.forRoot`, where every module the platform composes reads
+them. How to bind them: [Who is behind a request](wire-the-backend.md#who-is-behind-a-request).
+
+| before                                                                                     | after                                                                |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| `tenantBilling.userIdResolver`, `.userEmailResolver`, `.auditContextResolver`              | the same three at the root of the options                            |
+| `PaymentsTenantRoutesOptions.userEmailResolver`                                            | gone; the payment-method routes read `userEmailResolver` at the root |
+| `MfaGuard` reads `user.id`, then `user.userId`                                             | `user.sub`, then `user.id`, or `userIdResolver`                      |
+| suspending and reactivating a tenant, a promo code's audit and author: `id`, then `userId` | the same rule as every route                                         |
+| the promotion preview: `user.id`, then `user.sub`; its rate limit: `user.id`               | the same rule as every route                                         |
+| an operator's audit e-mail where there is none: `<userId>@unknown`                         | `unknown`                                                            |
+| an operator's audit context: `user.sessionId`, else `unknown`                              | `auditContextResolver` or the `x-session-id` header, else `admin`    |
+| an empty string is a user, an e-mail or a context                                          | names nothing                                                        |
+| an integer `id` or `sub` is passed through as a number                                     | names the user as its decimal text, `42` as `"42"`                   |
+
+1. **Where `tenantBilling` names `userIdResolver`, `userEmailResolver` or `auditContextResolver`**,
+   move each to the root of the options. Left there, the application does not start, and the
+   message names each one to move.
+2. **Where your authentication leaves the user as `request.user.userId`**, with neither `sub` nor
+   `id`, bind `userIdResolver`. Without it the second factor refuses every operator action that
+   needs it with `NOT_AUTHENTICATED`, and a tenant's write is refused with
+   `TENANT_CONTEXT_MISSING`.
+3. **Where `request.user.sub` and `request.user.id` both exist and differ**, the second factor is
+   now checked for the user `sub` names. Where your users table keys the second factor by `id`,
+   bind `userIdResolver` to return it.
+4. **Where your guard copies `sub` into `id` so that `MfaGuard` finds the user**, the copy is no
+   longer needed: every route reads `sub` first.
+5. **Where you wire `TenantBillingModule` or `PaymentsModule` by hand**, their options no longer
+   take a resolver. Provide `USER_ID_RESOLVER_TOKEN`, `USER_EMAIL_RESOLVER_TOKEN` and
+   `AUDIT_CONTEXT_RESOLVER_TOKEN` from a global module of your own, so that every route reads them.
+
+- **Audit entries written before** keep the e-mail and context they were written with.
+- **`user.sessionId` is read by no route.** Where your guard sets it for the audit log, send it as
+  the `x-session-id` header or return it from `auditContextResolver`.
+- **No codemod step**: the options move from one object to another, which often lives in a file of
+  its own, and whether an application needs a resolver (points 2 and 3) is a decision about its
+  authentication. The start names each option left under `tenantBilling`, and the compiler a
+  `userEmailResolver` under `tenantRoutes`.
 
 ## What the codemod leaves to you
 

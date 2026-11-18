@@ -39,7 +39,6 @@ export function composePayments(ctx: CompositionContext): DynamicModule[] {
                       authGuards,
                       billingPermissionGuards: tenantBilling.billingPermissionGuards,
                       tenantIdResolver: tenantBilling.tenantIdResolver,
-                      userEmailResolver: tenantBilling.userEmailResolver,
                   }
                 : undefined,
             imports,

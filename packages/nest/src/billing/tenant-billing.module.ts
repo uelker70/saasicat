@@ -172,7 +172,6 @@ import {
 } from './contract-freeze.tokens.js';
 import { SELF_SERVICE_BLOCKED_PLANS_TOKEN } from './self-service-policy.js';
 import {
-    AUDIT_CONTEXT_RESOLVER_TOKEN,
     BILLING_PERMISSION_GUARDS_TOKEN,
     BUNDLE_VERSION_RETIREMENT_REPOSITORY_TOKEN,
     FEATURE_WITHDRAWAL_REPOSITORY_TOKEN,
@@ -196,16 +195,11 @@ import {
     TENANT_ID_RESOLVER_TOKEN,
     TRIAL_PROJECTION_PORT_TOKEN,
     USAGE_SNAPSHOT_PORT_TOKEN,
-    USER_EMAIL_RESOLVER_TOKEN,
-    USER_ID_RESOLVER_TOKEN,
     VERSION_RETIREMENT_REPOSITORY_TOKEN,
     VERSION_RETIREMENT_TRANSACTION_RUNNER_TOKEN,
-    type AuditContextResolver,
     type PendingPlanQueryPort,
     type TenantIdResolver,
     type TrialProjectionPort,
-    type UserEmailResolver,
-    type UserIdResolver,
     ADD_ONS_AHEAD_TOKEN,
     CANCELLATION_NOTICE_DAYS_TOKEN,
     PLANS_AHEAD_TOKEN,
@@ -748,19 +742,6 @@ export interface TenantBillingModuleOptions {
 
     /** Optional tenant ID resolver. Default: `req.user.tenantId`. */
     tenantIdResolver?: TenantIdResolver;
-    /** Optional user ID resolver. Default: `req.user.sub ?? req.user.id`. */
-    userIdResolver?: UserIdResolver;
-    /**
-     * Optional email resolver for the audit log path. Default: `req.user.email`.
-     * If the consumer JWT does not include the email, the resolver can
-     * return `null` — the audit log then uses `'unknown'`.
-     */
-    userEmailResolver?: UserEmailResolver;
-    /**
-     * Optional audit context resolver (session ID / trace ID). Default:
-     * `req.headers['x-session-id']` or `'tenant-self-service'`.
-     */
-    auditContextResolver?: AuditContextResolver;
     /**
      * Modules whose providers must be visible within this module.
      * Typical use case: the app's own `AuthModule`, so that the `JwtAuthGuard`
@@ -1172,24 +1153,6 @@ export class TenantBillingModule {
                 useValue: options.tenantIdResolver,
             });
         }
-        if (options.userIdResolver) {
-            providers.push({
-                provide: USER_ID_RESOLVER_TOKEN,
-                useValue: options.userIdResolver,
-            });
-        }
-        if (options.userEmailResolver) {
-            providers.push({
-                provide: USER_EMAIL_RESOLVER_TOKEN,
-                useValue: options.userEmailResolver,
-            });
-        }
-        if (options.auditContextResolver) {
-            providers.push({
-                provide: AUDIT_CONTEXT_RESOLVER_TOKEN,
-                useValue: options.auditContextResolver,
-            });
-        }
         if (options.extraProviders) providers.push(...options.extraProviders);
 
         return {
@@ -1259,10 +1222,6 @@ export class TenantBillingModule {
                 ...(versionNotices && hasBookings
                     ? [BundleVersionNoticeService, BundleVersionSwitchRunService]
                     : []),
-                // The add-on routes audit with the resolvers configured here.
-                ...(options.userIdResolver ? [USER_ID_RESOLVER_TOKEN] : []),
-                ...(options.userEmailResolver ? [USER_EMAIL_RESOLVER_TOKEN] : []),
-                ...(options.auditContextResolver ? [AUDIT_CONTEXT_RESOLVER_TOKEN] : []),
                 ...(retirements
                     ? [
                           VersionRetirementService,

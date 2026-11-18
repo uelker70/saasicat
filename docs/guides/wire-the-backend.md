@@ -61,7 +61,11 @@ appends `constraints.postgres.sql` to the migration that produced, and applies
 it — so the invariants Prisma cannot express arrive with the tables rather than
 as a step to remember. `--create-only` is what makes that work: an applied
 migration cannot take an edit, and Prisma would see its checksum change. It is
-idempotent: a migration that already carries them is left alone.
+idempotent: a migration that already carries them is left alone. A block of the
+file whose table your schema lacks — a run scoped with `--fragments` leaves out
+tables — is left out of the migration, and the command prints a line for each
+one, with its constraint and the missing table. No such line means every
+constraint went in.
 
 `schema apply` only ever adds: it brings each fragment's enums and models, and
 never touches a block you already have. So a field added to an existing model
@@ -571,6 +575,43 @@ small quickstart. `AppModule` then contains only
 `SaaSiCatModule.forRoot(MY_APP_SAASICAT_CONFIG)`. The library owns module
 composition; the client file contains only auth, branding and adapter choices
 that are inherently application-specific.
+
+### Who is behind a request
+
+Every platform route that checks or records who acted — the second factor, the
+audit log, the publisher of a version, a promo code's author, the promotion
+preview's rate limit, a tenant's own writes — reads the user behind a request in
+one place, so one request names one user everywhere (`SC-AUD-022`). By default
+it reads what your authentication guard left on the request:
+
+- the user: `request.user.sub`, then `request.user.id`;
+- their e-mail: `request.user.email`;
+- where the request came from: the `x-session-id` header.
+
+`request.user.userId` is not read by default. Where your guard leaves the user
+in another shape, or your identity provider's subject is not the id your users
+table keys the second factor by, name them once, at the root of the options —
+each resolver takes the request and returns a string, or `null`:
+
+```ts
+SaaSiCatModule.forRoot(
+    defineSaaSiCat({
+        // …
+        // `userOf` is your own narrowing of the request to what your guard sets.
+        userIdResolver: (req) => userOf(req)?.userId ?? null,
+        userEmailResolver: (req) => userOf(req)?.mail ?? null,
+        auditContextResolver: (req) => userOf(req)?.sessionId ?? null,
+    }),
+);
+```
+
+An empty string names nobody; an integer `id` or `sub` names the user as its
+decimal text. A request that names no user is refused wherever
+a route checks who acted — the second factor with `NOT_AUTHENTICATED`, a
+tenant's write with `TENANT_CONTEXT_MISSING` — and recorded as nobody where a
+route only records it: `unknown` in the audit log. Without an e-mail the audit
+log says `unknown`; without a context it says `admin` for an operator and
+`tenant-self-service` for a tenant.
 
 ### The SuperAdmin's second factor is sealed
 

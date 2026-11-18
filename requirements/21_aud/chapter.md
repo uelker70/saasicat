@@ -647,3 +647,53 @@ _Tested by:_
         - an e-mail is looked for between the source and the context
 
 <!-- END proof -->
+
+### SC-AUD-022 — One request names one user, on every route that records or checks who acted
+
+🟢 🔒 The second factor, the audit log, the publisher of a version, a promotional code's author, the
+promotion preview's rate limit and a tenant's own writes read the user behind a request from one
+place: the application's `userIdResolver` at the root of the platform's options, or without one
+`sub`, then `id`. The user's e-mail and the session the request came from are read the same way for
+every record. Where a request names nobody — an empty value included — a route that checks who
+acted refuses it, and a record that only notes who acted says `unknown` rather than inventing an
+address.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/one-request-names-one-user.test.js`
+    - without a resolver, every way reads `sub`, then `id`
+        - `sub` names the user
+        - `id` names the user
+        - `sub` wins over a different `id`
+        - an empty `sub` names nobody, so the `id` beside it does
+        - `userId` alone names nobody
+        - an integer `id` names the user as its decimal text
+        - an `id` that is not a finite number or a string names nobody
+        - an empty `id` names nobody
+        - a user with none of the fields names nobody
+    - with a resolver at the module's root, every way reads it
+        - a `userId` the resolver reads names the user
+        - a `sub` the resolver does not read names nobody
+        - an empty value the resolver returns names nobody
+    - the rate limit keys its window by the same rule
+        - a request naming the same user by another shape shares the window
+    - the actor beside the user
+        - an operator record and a tenant record take the e-mail and the session from the same place
+        - without an e-mail the record says it does not know one, rather than inventing an address
+        - without a session, an operator record says it came from the administration
+    - the resolvers live at the root, and nowhere else
+        - `tenantBilling.userIdResolver` refuses the start and names the root
+        - `tenantBilling.userEmailResolver` refuses the start and names the root
+        - `tenantBilling.auditContextResolver` refuses the start and names the root
+        - a key under `tenantBilling` whose value is `undefined` binds nothing, and starts
+- `tests/the-user-behind-a-request-is-read-in-one-place.test.js`
+    - the user behind a request is read in one place
+        - the scan sees each shape a read takes
+        - and leaves alone what is not one
+        - only core/request-user.ts reads it
+
+<!-- END proof -->
