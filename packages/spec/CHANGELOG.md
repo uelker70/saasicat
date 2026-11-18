@@ -1,5 +1,203 @@
 # @saasicat/spec
 
+## 1.0.0-rc.33
+
+### Minor Changes
+
+- 6b43bf2: A tenant is deleted on its day, through the application's erasers
+
+    A tenant whose subscription ended is now deleted on its deletion day, in the
+    installation's zone, wherever the database is marked as the installation's own
+    (`SC-PRIV-022`). The application erases its stores through erasers of its own,
+    one per store, in the order it lists them; the platform decides the day, has
+    every store count what it holds before the first one erases, and keeps the
+    record of the deletion with the subscriber, naming no person (`SC-PRIV-023`).
+    After every store it counts the subscriber's contracts, charges, invoices,
+    payments and credits, and halts the deletion at a store that took any of them
+    along (`SC-PRIV-011`). A deletion that stops is taken up by the next run after
+    the last store that confirmed (`SC-PRIV-018`).
+
+    **Breaking: wherever `tenantBilling` is on, the application no longer starts
+    without `tenantBilling.subscriptionEnds.deletion.erasers` and `deletion.keep`**
+    (`subscription-ends.requires-erasers`,
+    `subscription-ends.requires-keep-report`). Both are required in
+    `SaaSiCatModule`'s types:
+
+    ```ts
+    deletion: {
+        installation: process.env.SAASICAT_INSTALLATION,
+        erasers: [myTenantFilesEraser, myTenantDataEraser],
+        keep: myKeepReport,
+    },
+    ```
+
+    An eraser is a `TenantEraser`: a stable `name`, `count(tenantId)` and
+    `erase(tenantId)`. Each method begins with `assertOneTenant(tenantId)`, and
+    `erase` resolves for what is already gone. The `TenantKeepReportPort` answers
+    what a tenant has to keep for obligations of its own — receipts under a
+    retention period, say — as lines of a category, a count and its words by
+    locale, `en` required; every reminder carries them as `keep`, and the record
+    keeps them. They do not stop the deletion.
+
+    - `@saasicat/spec` ships `33-subscriber-tenant-deletion.prisma` (three models,
+      `subscriber_tenant_deletion*`),
+      `1.0-a-tenant-deletion-is-recorded.postgres.sql` and
+      `1.0-the-ends-are-read-by-day-and-the-notices-by-tenant.postgres.sql`
+      (an index on `subscription_ends."deletesOn"`, one on
+      `subscription_notices."tenantId"`, and `recipientCount` and
+      `recipientsForgottenAt` there), both safe to apply twice. Apply
+      `1.0-a-subscriber-is-joined.postgres.sql` again after them: it guards the new
+      table against a join of subscribers.
+    - Both adapters provide `persistence.core.tenantDeletions`, held to the
+      persistence contract; a start with nowhere to keep the records, or to find a
+      tenant's subscriber, is refused
+      (`subscription-ends.requires-tenant-deletions`,
+      `subscription-ends.requires-subscribers`).
+    - **Breaking for an adapter of your own:** `TenantAccessHoldPort.record` and
+      `lift` take the caller's transaction, and the port adds `listAllOf`,
+      `lockOpen`, `lockAllOf`, `replaceActors` and `forgetNotes`;
+      `SubscriberRepository` adds `unlinkTenant`; `SubscriptionEndPort` adds
+      `listEndsOfTenant`, `listAnnouncedOfTenant`, `listExportDownloadsOfTenant`
+      and `replaceActors`; `SubscriptionNoticeRepository.confirm` records
+      `recipientCount`, and the repository adds `forgetRecipients`;
+      `SubscriberJoinRepository.hold` answers each side's `deletionsUnderWay`. A
+      contract harness of your own wires `tenantDeletions` or names it among its
+      `gaps`.
+    - `TenantBillingModule` wired by hand takes `erasers`, `keep`, `records` and
+      `subscribers` in `deletion`, and `transactionRunner`.
+    - `@saasicat/nest/billing` adds `TenantDeletionService`; the quarter-hourly run
+      sets it off after the ends and the reminders without waiting for it. With
+      `includeCron: false`, call `TenantDeletionService.deleteDue(new Date())`
+      third. `@saasicat/nest/testing` adds `FakeTenantDeletionRepository`, which
+      `FakeSubscriberJoinRepository` takes second to read deletions under way from.
+    - Once a tenant's deletion has begun, nobody is let in, the operator acting as
+      it included; the operator cannot suspend it (`409 TENANT_DELETION_BEGUN`); no
+      download of its export is recorded, not even one started before, with the
+      same code, from the platform's route and from `recordDelivered` alike; no
+      invoice records or lifts a reason on it, and no reminder goes to it
+      (`SC-PRIV-025`); its subscriber is joined to no other until it closes
+      (`409 SUBSCRIBER_JOIN_DELETION_UNDER_WAY`). When it closes, the rows the
+      platform keeps of the tenant name roles instead of persons, its reasons lose
+      their notes, its notices their recipients, every reason still open but the
+      deletion's own is lifted, and its subscriber's link to it is closed, so a
+      returning customer's new subscriber can be joined into it (`SC-PRIV-027`).
+    - A deletion does not begin while a contract of the tenant is in force at the
+      end that made it due, or begins after it, such as one a checkout offer
+      concluded since (`SC-PRIV-026`); the run holds it and writes nothing.
+    - The audit log gains `TENANT_DELETION_BEGUN`, `TENANT_DELETION_CLOSED` and
+      `TENANT_DELETION_HALTED`.
+
+    The first run on a marked database deletes every tenant whose day has passed.
+    Write and test the erasers before you mark it. See
+    `docs/guides/wire-the-backend.md` and `docs/guides/upgrade-to-1.0.md`.
+
+- 3aa07f6: A tenant is deleted only from a database marked as its installation's
+
+    A tenant's deletion erases what nobody can bring back, and the process that
+    runs it finds its database through a connection string. So the database now
+    carries the identifier of its installation, every process names the identifier
+    of the environment it runs in, and a deletion runs only where both are the same
+    (`SC-PRIV-021`). Until a database is marked, nothing is deleted in it.
+
+    **Breaking:** `tenantBilling.subscriptionEnds.deletion` is required. Pass the
+    identifier from the environment, with no fallback:
+
+    ```ts
+    subscriptionEnds: {
+        export: myTenantDataExport,
+        deletion: {
+            installation: process.env.SAASICAT_INSTALLATION,
+            // Required as well: the erasers that delete a tenant on its day.
+            erasers: myTenantErasers,
+            keep: myKeepReport,
+        },
+    },
+    ```
+
+    A start without an identifier, or with a value that is none — a blank, a space
+    around it, a character outside letters, digits, `.`, `_` and `-` — is refused
+    (`subscription-ends.requires-installation`), and so is a start with nowhere to
+    read the mark from (`subscription-ends.requires-installation-marks`).
+    `TenantBillingModule` wired by hand takes `installation` and `marks` in
+    `deletion`.
+
+    - `@saasicat/spec` ships the `InstallationMark` model
+      (`32-installation-mark.prisma`, table `installation_marks`, one row) and
+      `1.0-the-installation-is-marked.postgres.sql`, safe to apply twice.
+    - `@saasicat/core` adds `InstallationMarkPort`,
+      `installationIdentifierProblem`, `installationMarkVerdict` and the codes
+      `INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS`,
+      `INSTALLATION_MARKED_OTHERWISE` and `INSTALLATION_MARK_MOVED`.
+    - Both adapters provide `persistence.core.installationMark`, held to the
+      persistence contract; a harness of your own wires it or names it among its
+      `gaps`.
+    - `@saasicat/nest` adds `InstallationMarkService`; `@saasicat/nest/testing`
+      adds `FakeInstallationMarkRepository`.
+    - `@saasicat/cli` adds `<app> installation status` and
+      `<app> installation mark <identifier>`, with `--replace` after restoring a
+      backup into another environment. Marking takes the second factor and, against
+      production, the confirmation, and is audited as `INSTALLATION_MARKED` or
+      `INSTALLATION_MARK_REPLACED`. No start writes the mark. `<app> doctor` reports
+      it as `platform.installation-mark`.
+
+    The brake stops a process meant for another environment. An environment copied
+    from production with its identifier included passes it: give each environment
+    its own. See `docs/guides/upgrade-to-1.0.md`.
+
+- a32ce34: The operator sees where a tenant's deletion stands, and the tenant what it keeps
+
+    Wherever `adminResources` and `tenantBilling` are on, the operator sees on the
+    tenant's page and in its subscriber's record whether the tenant's deletion is
+    scheduled, due, halted, under way, being retried or done (`SC-ADM-058`). A
+    halted deletion names every reason that holds it and the act that lets it go
+    on — on a database not yet marked as the installation's, the command that marks
+    it; a contract that runs past the end; the store that took part of the
+    commercial record, with each part before and after. Before the day, the page
+    says what would hold the deletion were the day today: the preview before
+    marking (`SC-PRIV-021`). The subscriber's record keeps the record of a begun
+    deletion, also once the application no longer has the tenant (`SC-ADM-021`):
+    each store's counts, the commercial record before and after, what the tenant
+    was told to keep, when the export was offered and whether a suspension kept it
+    from being taken, the reminders and the downloads — by role and number, never
+    by person (`SC-PRIV-024`, `SC-CANC-022`).
+
+    The tenant's users read in the banner of the read-only period what the tenant
+    keeps for obligations of its own, in their language with `en` as the fallback
+    (`SC-PRIV-022`).
+
+    - `@saasicat/nest` serves `GET admin/tenants/:slug/deletion` and
+      `GET admin/subscribers/:id/deletions`, announced as `deletions.read`, and
+      `GET billing/access/keep` for every user of the tenant, which asks the
+      `TenantKeepReportPort` within ten seconds and shows nothing where it fails.
+      `@saasicat/nest/billing` adds `TenantDeletionAdminModule`,
+      `TenantDeletionReadingService`, `TenantKeepReadingService`,
+      `TenantKeepController` and `KEEP_REPORT_READ_TIMEOUT_MS`.
+    - The deletion run decides through the same functions the pages read. It no
+      longer asks the `TenantKeepReportPort` for a tenant a contract holds, and it
+      says a held deletion in one line naming every reason, when it first holds,
+      when what holds changes, and otherwise once a day.
+    - `@saasicat/core` adds `TENANT_DELETION_CAPABILITY`, `tenantDeletionStatusOf`,
+      `deletionDayHasCome`, `deletionGoesOn`, `deletionHeldBy`,
+      `deletionHeldByTheMark`, `TENANT_DELETION_PLATFORM_FAILURE_CODES`,
+      `isTenantDeletionPlatformFailureCode`, `COMMERCIAL_RECORD_FIELDS`,
+      `TenantKeepView` and the view types `AdminTenantDeletion`,
+      `AdminTenantDeletionRecord` and `AdminSubscriberDeletions`.
+      `TenantDeletionHalt` gains `contract-runs-past-end`, which an exhaustive
+      `switch` over it has to handle.
+    - `@saasicat/spec` describes the two admin routes in `admin-api.openapi.yaml`.
+    - `@saasicat/ui-vue`: `TenantDetailPage` shows the section "Deletion",
+      `SubscriberRecordPage` the section "Deletions"; the resources gain
+      `tenants.deletion` and `subscribers.deletions`, and `useTenantDeletion`,
+      `useSubscriberDeletions`, `useTenantDeletionWriters`, `useTenantKeep`,
+      `tenantDeletionWording`, `tenantDeletionRecordWording` and `keepLineLabel`
+      are new.
+    - `@saasicat/ui-vue-tenant`: `TenantAccessBanner` lists the lines under "Keep
+      for your own records". `TenantPlanSectionI18n` gains `accessKeepHeading` and
+      `accessKeepLine`, which a catalogue built whole adds.
+
+    Nothing to wire. See `docs/guides/wire-the-backend.md` and
+    `docs/guides/upgrade-to-1.0.md`.
+
 ## 1.0.0-rc.32
 
 ### Patch Changes
