@@ -259,6 +259,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     FEATURE_WITHDRAWAL_ALREADY_ENDED: 'This has ended already.',
     FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED:
         'Your cancellation is recorded and cannot be brought forward here: it runs until {lastDay}, and until then the reduction applies.',
+    FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN:
+        'The contract without this add-on could not be written, so it was not ended. Please try again later.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'No retirement of your version is waiting for its date, so there is nothing to switch to.',
     RETIREMENT_SWITCH_IN_TRIAL: 'The switch opens when your trial ends.',

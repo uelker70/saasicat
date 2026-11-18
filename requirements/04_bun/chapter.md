@@ -2607,3 +2607,53 @@ _Tested by:_
         - is refused once the booking has ended
 
 <!-- END proof -->
+
+### SC-BUN-067 — An add-on ended at once and the contract without it are one
+
+🟢 💰 An add-on ended at once (`SC-BUN-062`) ends together with the contract written without it, or
+does not end. What holds without the add-on — the subscriber that contract is concluded with, and
+the tax decided for them — is asked before anything is written, by the preview as by the end, and
+the end is refused with that reason; in a trial the subscriber alone is asked. Nothing about the
+add-on being ended is asked there: one the application can no longer price is still ended. The
+contract is composed once the booking has ended, without it. Where that contract is refused or
+cannot be written, the booking is put back on the cancellation it had — none, or the one declared
+for a later date — and the end is refused, with the contract's reason or with the fact that it
+could not be written: nothing is credited, and the subscriber is told of no end. Left ended under
+the contract that still names it, the add-on would go on granting its features, since the
+entitlements read that contract first. Only where putting it back fails as well, or the
+application's booking store cannot put a booking back, does the end stand without its contract, and
+that is logged with the booking and the tenant.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - an add-on ended at once, and the contract without it
+        - asks its party first, for the contract the end writes: from now, until the subscription
+          ends
+        - asks the subscriber alone in a trial, which commits to no period
+        - whose party is refused before it is written refuses the end with that reason, and nothing
+          is written
+        - whose party is refused refuses the preview the same
+        - of an add-on the source can no longer price is still ended, and the contract written after
+          it names it no more
+        - the store fails to write puts the booking back as it was read, and refuses the end with a
+          code
+        - put back, it runs on, so the contract that still names it grants nothing it does not have
+        - one cancelled for a later date is put back on that cancellation
+        - refused after the end with a reason of its own is put back and refused with that reason
+        - where the booking cannot be put back › because it ends otherwise by now, the end stands,
+          is credited and told, and the log names the booking
+        - where the booking cannot be put back › because the store fails again, the end stands, is
+          credited and told, and the log names the booking
+        - where the booking cannot be put back › because the store cannot put a booking back, the
+          end stands, is credited and told, and the log names the booking
+- `packages/nest/tests/no-change-swallows-its-contract.test.js`
+    - a freeze whose failure is only logged
+        - is found where it is
+        - is the one inside the helper that names the journal as what heals it
+
+<!-- END proof -->

@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 320 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 321 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -169,6 +169,7 @@ Subscriptions, plan changes, entitlements.
 | `FEATURE_WITHDRAWAL_ALREADY_LIFTED`                  | This withdrawal is lifted already, from {date}.                                                                                                                                                                                 |
 | `FEATURE_WITHDRAWAL_DATE_IN_PAST`                    | A feature is withdrawn from now on or from a later date, never from a date already past.                                                                                                                                        |
 | `FEATURE_WITHDRAWAL_DOES_NOT_REACH`                  | This withdrawal does not reach your subscription, or no longer this booking.                                                                                                                                                    |
+| `FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN`        | The contract without this add-on could not be written, so it was not ended. Please try again later.                                                                                                                             |
 | `FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED`             | Your cancellation is recorded and cannot be brought forward here: it runs until {lastDay}, and until then the reduction applies.                                                                                                |
 | `FEATURE_WITHDRAWAL_FEATURE_UNKNOWN`                 | The catalogue knows no feature {featureKey}.                                                                                                                                                                                    |
 | `FEATURE_WITHDRAWAL_LIFT_IN_PAST`                    | A withdrawal is lifted from now on or from a later date, never from a date already past.                                                                                                                                        |

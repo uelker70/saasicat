@@ -1,5 +1,6 @@
 // @requirement SC-CHG-025 — A plan change made at once and its contract are one
 // @requirement SC-CHG-026 — A scheduled plan change takes effect with its contract, or stays due
+// @requirement SC-BUN-067 — An add-on ended at once and the contract without it are one
 
 // A change whose contract could not be written either goes back and is refused,
 // or is one the charge journal answers for on its own. Which one is read from

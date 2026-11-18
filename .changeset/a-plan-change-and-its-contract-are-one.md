@@ -32,6 +32,10 @@ change is refused where its contract cannot be written" in
   `ImmediatePlanChangeInput.putsBack`, which both shipped adapters write. A
   `TenantSubscriptionWritePort` of your own writes it too; the persistence
   contract checks it.
+- An add-on ended at once is put back and refused with
+  `503 FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN` where the contract without
+  it cannot be written (`SC-BUN-067`); `SubscriptionBundleRepository` gains
+  the optional `restoreCancellation`, which both shipped adapters write.
 - `@saasicat/nest`: `PendingPlanMaterializationService` takes
   `AdminAuditService` as an optional last argument, and
   `PlanChangePreviewService` gains `versionOnSaleOf`.

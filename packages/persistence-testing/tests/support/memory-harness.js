@@ -837,6 +837,18 @@ export function createMemoryHarness() {
             row.canceledEffectiveAt = at;
             return toSubscriptionBundleRecord(row);
         },
+        async restoreCancellation(id, { endedAt, canceledAt, canceledEffectiveAt }) {
+            const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
+            if (
+                row?.canceledAt?.getTime() !== endedAt.getTime() ||
+                row.canceledEffectiveAt?.getTime() !== endedAt.getTime()
+            ) {
+                return null;
+            }
+            row.canceledAt = canceledAt;
+            row.canceledEffectiveAt = canceledEffectiveAt;
+            return toSubscriptionBundleRecord(row);
+        },
         async moveToVersion(id, from, to) {
             const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
             if (!row || row.bundleVersionId !== from) return null;

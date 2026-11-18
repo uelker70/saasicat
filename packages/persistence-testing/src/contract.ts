@@ -727,6 +727,14 @@ const CONTRACT_GAPS: Record<
                 typeof seed.createBundleVersion === 'function',
             ),
     },
+    bookingsEndPutBack: {
+        reason: 'adapter provides no SubscriptionBundleRepository that puts back a booking ended at once',
+        present: ({ adapter, seed }) =>
+            Boolean(
+                adapter.subscriptionBundleRepository?.restoreCancellation &&
+                typeof seed.createBundleVersion === 'function',
+            ),
+    },
     subscriptionsEndedNow: {
         reason: 'adapter provides no TenantSubscriptionWritePort that ends a cancelled subscription at once',
         present: ({ adapter }) => typeof adapter.tenantSubscriptionWrite?.endNow === 'function',
@@ -16677,6 +16685,133 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     await repository.endNow(NO_SUCH_BOOKING, {
                         at,
                         expectedCanceledEffectiveAt: declaredFor,
+                    }),
+                    null,
+                );
+            });
+        });
+
+        describe('a booking ended at once, put back', () => {
+            test('has the cancellation it had, and only while it still ends where it was ended', async (t) => {
+                const repository = harness.adapter.subscriptionBundleRepository;
+                const { seed } = harness;
+                if (!repository?.restoreCancellation || !seed.createBundleVersion) {
+                    missing(t, 'bookingsEndPutBack');
+                    return;
+                }
+                const { planVersionId } = await seed.createPlanVersion({
+                    planKey: 'PUT_BACK_ADD_ON',
+                    version: 1,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                });
+                const { bundleVersionId } = await seed.createBundleVersion({
+                    bundleKey: 'PUT_BACK_AT_ONCE',
+                    features: ['BANK_SYNC'],
+                });
+                const { subscriptionId } = await seed.createSubscription({
+                    tenantId: 'tenant-put-back-booking',
+                    plan: 'PUT_BACK_ADD_ON',
+                    planVersionId,
+                });
+                const booking = (startedAt: string) =>
+                    repository.add({
+                        subscriptionId,
+                        bundleVersionId,
+                        startedAt: new Date(startedAt),
+                        minimumTermEndsAt: new Date('2027-02-01T00:00:00.000Z'),
+                        agreement: null,
+                        billingCycle: 'MONTHLY',
+                        currentPeriodStart: new Date('2026-05-01T00:00:00.000Z'),
+                        currentPeriodEnd: new Date('2026-06-01T00:00:00.000Z'),
+                    });
+                const at = new Date('2026-05-12T14:30:00.250Z');
+                const endedAt = (id: string) =>
+                    repository.cancel(id, { canceledAt: at, canceledEffectiveAt: at });
+
+                const running = await booking('2026-02-01T00:00:00.000Z');
+                const ended = await endedAt(running.id);
+                assert.equal(
+                    await repository.restoreCancellation(running.id, {
+                        endedAt: new Date('2026-05-12T14:30:00.251Z'),
+                        canceledAt: null,
+                        canceledEffectiveAt: null,
+                    }),
+                    null,
+                    'a booking ended at another moment is left as it is',
+                );
+                const restored = await repository.restoreCancellation(running.id, {
+                    endedAt: at,
+                    canceledAt: null,
+                    canceledEffectiveAt: null,
+                });
+                assert.ok(restored, 'the booking is put back');
+                assert.equal(restored.canceledAt, null);
+                assert.equal(restored.canceledEffectiveAt, null);
+                /** A booking without its cancellation and the moment it was last written. */
+                const unended = ({
+                    canceledAt: _canceledAt,
+                    canceledEffectiveAt: _effectiveAt,
+                    updatedAt: _written,
+                    ...rest
+                }: typeof ended) => rest;
+                assert.deepEqual(unended(restored), unended(ended), 'nothing else of it changes');
+                assert.equal(
+                    (await repository.findById(running.id))?.canceledAt,
+                    null,
+                    'and read so afterwards',
+                );
+                assert.equal(
+                    await repository.restoreCancellation(running.id, {
+                        endedAt: at,
+                        canceledAt: null,
+                        canceledEffectiveAt: null,
+                    }),
+                    null,
+                    'a second put-back finds no end to take back',
+                );
+
+                const declaredAt = new Date('2026-04-10T00:00:00.000Z');
+                const declaredFor = new Date('2027-02-01T00:00:00.000Z');
+                const cancelled = await booking('2026-03-01T00:00:00.000Z');
+                await endedAt(cancelled.id);
+                const back = await repository.restoreCancellation(cancelled.id, {
+                    endedAt: at,
+                    canceledAt: declaredAt,
+                    canceledEffectiveAt: declaredFor,
+                });
+                assert.equal(back?.canceledAt?.toISOString(), declaredAt.toISOString());
+                assert.equal(
+                    back?.canceledEffectiveAt?.toISOString(),
+                    declaredFor.toISOString(),
+                    'a cancellation declared for a later date is declared again, as it was',
+                );
+
+                const endingLater = await booking('2026-04-01T00:00:00.000Z');
+                await repository.cancel(endingLater.id, {
+                    canceledAt: at,
+                    canceledEffectiveAt: declaredFor,
+                });
+                assert.equal(
+                    await repository.restoreCancellation(endingLater.id, {
+                        endedAt: at,
+                        canceledAt: null,
+                        canceledEffectiveAt: null,
+                    }),
+                    null,
+                    'a cancellation declared at that moment for a later one is no end at once',
+                );
+                assert.equal(
+                    (await repository.findById(endingLater.id))?.canceledEffectiveAt?.toISOString(),
+                    declaredFor.toISOString(),
+                    'and stays as declared',
+                );
+                assert.equal(
+                    await repository.restoreCancellation(NO_SUCH_BOOKING, {
+                        endedAt: at,
+                        canceledAt: null,
+                        canceledEffectiveAt: null,
                     }),
                     null,
                 );

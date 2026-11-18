@@ -263,6 +263,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     FEATURE_WITHDRAWAL_ALREADY_ENDED: 'Das ist bereits beendet.',
     FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED:
         'Ihre Kündigung ist erfasst und kann hier nicht vorgezogen werden: Es läuft bis {lastDay}, und bis dahin gilt die Minderung.',
+    FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN:
+        'Der Vertrag ohne dieses Add-on konnte nicht geschrieben werden, deshalb wurde es nicht beendet. Bitte versuchen Sie es später erneut.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'Für Ihre Version steht keine Einstellung mehr bevor. Es gibt nichts, wohin Sie wechseln könnten.',
     RETIREMENT_SWITCH_IN_TRIAL: 'Der Wechsel ist möglich, sobald Ihre Testphase endet.',

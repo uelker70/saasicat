@@ -3102,7 +3102,10 @@ manifest carries no `features.withdraw` capability and the routes answer
 `FEATURE_WITHDRAWAL_UNAVAILABLE`. Ending at once a subscription or a booking already cancelled for a
 later date needs `endNow` on your `TenantSubscriptionWritePort` and `SubscriptionBundleRepository`;
 without it that end is refused with `FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED` and the cancellation
-stands, and everything else works.
+stands, and everything else works. A booking ended at once whose contract cannot be written is put
+back through `restoreCancellation` on your `SubscriptionBundleRepository` and the end is refused
+with `503 FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN` (`SC-BUN-067`); without it that end stands,
+and the log names the booking.
 
 **What the operator does.** The administration's page "Withdrawn features" lists every withdrawal
 with how many subscriptions it reached, how many were told and how many ended at once. "Withdraw a
