@@ -44,10 +44,19 @@ function userOf(request: unknown): object | null {
     return typeof user === 'object' && user !== null ? user : null;
 }
 
+/**
+ * A value that names a user: a non-empty string, or a finite number as its
+ * decimal text — an application whose rows carry an integer key leaves that
+ * number on the request, and it names the user as surely as a string would.
+ */
+function namedUser(value: unknown): string | null {
+    return typeof value === 'number' && Number.isFinite(value) ? String(value) : named(value);
+}
+
 const subOf = (user: object | null): string | null =>
-    user !== null && 'sub' in user ? named(user.sub) : null;
+    user !== null && 'sub' in user ? namedUser(user.sub) : null;
 const idOf = (user: object | null): string | null =>
-    user !== null && 'id' in user ? named(user.id) : null;
+    user !== null && 'id' in user ? namedUser(user.id) : null;
 const emailOf = (user: object | null): string | null =>
     user !== null && 'email' in user ? named(user.email) : null;
 

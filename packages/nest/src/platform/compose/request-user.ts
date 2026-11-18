@@ -35,7 +35,14 @@ export function composeRequestUser(options: SaaSiCatModuleOptions): Provider[] {
  */
 function assertNoResolverUnderTenantBilling(tenantBilling: unknown): void {
     if (typeof tenantBilling !== 'object' || tenantBilling === null) return;
-    const moved = RESOLVERS.map(([option]) => option).filter((option) => option in tenantBilling);
+    // A key whose value is `undefined` binds nothing, so nothing would be
+    // dropped: conditional or spread configuration produces it.
+    const bound = new Set(
+        Object.entries(tenantBilling)
+            .filter(([, value]) => value !== undefined)
+            .map(([key]) => key),
+    );
+    const moved = RESOLVERS.map(([option]) => option).filter((option) => bound.has(option));
     if (moved.length === 0) return;
     throw new Error(
         moved

@@ -326,6 +326,14 @@ describe('without a resolver, every way reads `sub`, then `id`', () => {
         assert.deepEqual(await waysNamingOtherThan({}, { userId: 'u-user' }, NOBODY), []);
     });
 
+    test('an integer `id` names the user as its decimal text', async () => {
+        assert.deepEqual(await waysNamingOtherThan({}, { id: 42 }, '42'), []);
+    });
+
+    test('an `id` that is not a finite number or a string names nobody', async () => {
+        assert.deepEqual(await waysNamingOtherThan({}, { id: Number.NaN }, NOBODY), []);
+    });
+
     test('an empty `id` names nobody', async () => {
         assert.deepEqual(await waysNamingOtherThan({}, { id: '' }, NOBODY), []);
     });
@@ -469,5 +477,15 @@ describe('the resolvers live at the root, and nowhere else', () => {
 
     test('`tenantBilling.auditContextResolver` refuses the start and names the root', () => {
         refusedUnderTenantBilling('auditContextResolver');
+    });
+
+    test('a key under `tenantBilling` whose value is `undefined` binds nothing, and starts', () => {
+        const options = everythingOnOptions();
+        assert.doesNotThrow(() =>
+            SaaSiCatModule.forRoot({
+                ...options,
+                tenantBilling: { ...options.tenantBilling, userIdResolver: undefined },
+            }),
+        );
     });
 });

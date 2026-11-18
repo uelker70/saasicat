@@ -26824,6 +26824,8 @@ _Tested by:_
         - `sub` wins over a different `id`
         - an empty `sub` names nobody, so the `id` beside it does
         - `userId` alone names nobody
+        - an integer `id` names the user as its decimal text
+        - an `id` that is not a finite number or a string names nobody
         - an empty `id` names nobody
         - a user with none of the fields names nobody
     - with a resolver at the module's root, every way reads it
@@ -26840,6 +26842,7 @@ _Tested by:_
         - `tenantBilling.userIdResolver` refuses the start and names the root
         - `tenantBilling.userEmailResolver` refuses the start and names the root
         - `tenantBilling.auditContextResolver` refuses the start and names the root
+        - a key under `tenantBilling` whose value is `undefined` binds nothing, and starts
 - `tests/the-user-behind-a-request-is-read-in-one-place.test.js`
     - the user behind a request is read in one place
         - the scan sees each shape a read takes

@@ -605,7 +605,8 @@ SaaSiCatModule.forRoot(
 );
 ```
 
-An empty string names nobody. A request that names no user is refused wherever
+An empty string names nobody; an integer `id` or `sub` names the user as its
+decimal text. A request that names no user is refused wherever
 a route checks who acted — the second factor with `NOT_AUTHENTICATED`, a
 tenant's write with `TENANT_CONTEXT_MISSING` — and recorded as nobody where a
 route only records it: `unknown` in the audit log. Without an e-mail the audit

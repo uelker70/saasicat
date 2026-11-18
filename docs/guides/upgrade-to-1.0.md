@@ -5353,6 +5353,7 @@ them. How to bind them: [Who is behind a request](wire-the-backend.md#who-is-beh
 | an operator's audit e-mail where there is none: `<userId>@unknown`                         | `unknown`                                                            |
 | an operator's audit context: `user.sessionId`, else `unknown`                              | `auditContextResolver` or the `x-session-id` header, else `admin`    |
 | an empty string is a user, an e-mail or a context                                          | names nothing                                                        |
+| an integer `id` or `sub` is passed through as a number                                     | names the user as its decimal text, `42` as `"42"`                   |
 
 1. **Where `tenantBilling` names `userIdResolver`, `userEmailResolver` or `auditContextResolver`**,
    move each to the root of the options. Left there, the application does not start, and the
