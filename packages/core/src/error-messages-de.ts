@@ -194,6 +194,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Dieses Abonnement endet, bevor diese Version wirksam würde. Ein Wechsel dorthin ist nicht möglich.',
     VERSION_ENDS_BEFORE_SWITCH:
         'Diese Version wird nicht mehr verkauft, bevor sie wirksam würde. Ein Wechsel dorthin ist nicht möglich.',
+    PLAN_CHANGE_CONTRACT_NOT_WRITTEN:
+        'Der Vertrag für diesen Wechsel konnte nicht geschrieben werden, deshalb wurde nichts geändert. Bitte versuchen Sie es später erneut.',
     RETIREMENT_TERMS_NOT_CONFIRMED:
         'Eine Version für laufende Abonnements stillzulegen, braucht eine Klausel in Ihren AGB. Setzen Sie tenantBilling.orderlyRetirement.termsConfirmed in config/saas.yaml, sobald sie sie enthalten.',
     RETIREMENT_VERSION_ON_SALE:

@@ -11,6 +11,7 @@ import {
     catalogDraftExists,
     catalogVersionAlreadyPublished,
     catalogVersionGone,
+    columnsPutBack,
     formatCustomerNumber,
     formatInvoiceNumber,
     identityCorrectionDelta,
@@ -371,6 +372,13 @@ export function createMemoryHarness() {
             row.plan = input.planId;
             row.billingCycle = input.cycle;
             row.planVersionId = target.id;
+            if (input.nextStatus) row.status = input.nextStatus;
+            if (input.periodStart && input.periodEnd) {
+                row.currentPeriodStart = input.periodStart;
+                row.currentPeriodEnd = input.periodEnd;
+                row.billingAnchorDay = input.periodStart.getUTCDate();
+            }
+            if (input.putsBack) Object.assign(row, columnsPutBack(input.putsBack));
             return { plan: row.plan, billingCycle: input.cycle, claimed: true };
         },
         async applyOnboardingSelection(tenantId, input, redeemPromo) {

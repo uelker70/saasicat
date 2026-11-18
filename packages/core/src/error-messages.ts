@@ -190,6 +190,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'This subscription ends before this version would take effect, so it cannot be switched to.',
     VERSION_ENDS_BEFORE_SWITCH:
         'This version stops being sold before it would take effect, so it cannot be switched to.',
+    PLAN_CHANGE_CONTRACT_NOT_WRITTEN:
+        'The contract for this change could not be written, so nothing was changed. Please try again later.',
     RETIREMENT_TERMS_NOT_CONFIRMED:
         'Retiring a version for running subscriptions needs a clause in your terms. Set tenantBilling.orderlyRetirement.termsConfirmed in config/saas.yaml once they carry it.',
     RETIREMENT_VERSION_ON_SALE:

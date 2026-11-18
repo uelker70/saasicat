@@ -274,6 +274,15 @@ export const BILLING_ERROR_CODES = {
      * rather than recorded; carries the dates.
      */
     VERSION_ENDS_BEFORE_SWITCH: 'VERSION_ENDS_BEFORE_SWITCH',
+    /**
+     * A plan change, or a switch to a newer version, was written and the
+     * contract it has to come with could not be: the store failed. The
+     * subscription was put back as it was, so nothing changed and nothing is
+     * charged; the caller may try again (`SC-CHG-025`). A contract refused for
+     * a reason of its own — the subscriber, the tax, the rhythm — is answered
+     * with that reason's code instead.
+     */
+    PLAN_CHANGE_CONTRACT_NOT_WRITTEN: 'PLAN_CHANGE_CONTRACT_NOT_WRITTEN',
 
     // ── retiring a version for running subscriptions ──
     /**

@@ -684,3 +684,44 @@ _Tested by:_
         - refuses to start with the bookings and without the add-ons they name
 
 <!-- END proof -->
+
+### SC-CHG-025 — A plan change made at once and its contract are one
+
+🟢 💰 A plan change the tenant makes at once, and a switch to a newer version of their plan made at
+once, end in the contract that records them, or nothing changes. What that contract could refuse —
+the subscriber, the tax decided for them, a plan not sold in the rhythm asked for, the catalogue's
+rate — is asked before anything is written, and the change is refused with that reason. Where the
+contract still cannot be written, the subscription is written back as it was — its plan, version,
+rhythm, status, period, billing day and the change it had scheduled — and the change is refused, so
+nothing is charged or granted that no contract records. Only where writing it back fails as well
+does the change stand without its contract, and that is logged with the tenant's name. A change in
+a trial ends in no contract and is not held to one; its contract is frozen when the trial converts.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-plan-change-and-its-contract-are-one.test.js`
+    - a plan change made at once, whose contract is written
+        - stands, is charged and recorded, and nothing is taken back
+        - is asked of its whole contract first: the plan, the rhythm, from today
+    - a plan change made at once, whose contract is refused before it is written
+        - is refused with the contract’s reason, and nothing is written
+    - a plan change made at once, whose contract cannot be written after it
+        - is taken back as it was read, and refused with a code, where the store failed
+        - one that opened a period of its own gets the old window and billing day back
+        - is refused with the contract’s own code where it refused after the write
+        - where it cannot be taken back either, the error stands and is not called a refusal
+    - a plan change made at once in a trial
+        - ends in no contract: the party alone is asked, and it is never taken back
+    - a switch to a newer version made at once
+        - is asked of its contract at the version offered, before anything is written
+        - whose contract cannot be written is put back on the version it left, and refused
+    - the contract a change made at once is checked against
+        - is composed at the version the change binds, not the one bound now
+        - and is written nowhere where it holds
+        - asks the party alone where no repository reads the version
+
+<!-- END proof -->

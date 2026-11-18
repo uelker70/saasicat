@@ -62,6 +62,7 @@ import type {
     NoticeToRecord,
     SubscriptionNoticeKey,
     SubscriptionNoticeRepository,
+    SubscriptionUsageRecord,
     TransactionContext,
     VersionRetirementRepository,
     BundleVersionRetirementRepository,
@@ -76,6 +77,7 @@ import {
     CONTRACT_ERROR_CODES,
     CONTRACT_REGISTER_STATES,
     INVOICE_ERROR_CODES,
+    NO_SCHEDULED_CHANGE,
     PROMO_ERROR_CODES,
     SETTINGS_ERROR_CODES,
     TERMS_MEDIA_TYPE,
@@ -90,6 +92,7 @@ import {
     lineCorrectionsOf,
     movedPaymentParts,
     paidByShares,
+    pendingAgreementColumns,
     planSubscriberJoin,
     subscriberSearchTermsOf,
     sumToCents,
@@ -1646,6 +1649,135 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     const after = await usage.findForTenant('tenant-put-back-elsewhere');
                     assert.equal(after?.planVersion?.id, successor, 'nothing written');
                 });
+            });
+
+            // @requirement SC-CHG-025
+            test('a plan change taken back leaves the subscription as it was read', async (t) => {
+                const tenantId = 'tenant-change-taken-back';
+                const tenant = await onASupersededVersion(t, tenantId);
+                const usage = harness.adapter.subscriptionUsage;
+                if (!tenant || !usage) {
+                    if (tenant) t.skip('the adapter reads no subscription usage');
+                    return;
+                }
+                const successor = await harness.seed.createPlanVersion({
+                    planKey: 'SUCCESSOR',
+                    version: 1,
+                    quotas: { users: 10 },
+                    features: [],
+                    published: true,
+                });
+                // Billed on the 31st, in a window a short month cut to the
+                // 28th: the day billed on is not the window's start.
+                const opened = await tenant.writer.changePlanImmediate(tenantId, {
+                    planId: 'LOYAL',
+                    cycle: 'MONTHLY',
+                    periodStart: new Date('2026-01-31T00:00:00.000Z'),
+                    periodEnd: new Date('2026-02-28T00:00:00.000Z'),
+                    nextStatus: 'PAST_DUE',
+                    expectedCanceledAt: null,
+                    keepsBoundVersion: true,
+                    quotedPlanVersionId: null,
+                });
+                await tenant.writer.changePlanImmediate(tenantId, {
+                    planId: 'LOYAL',
+                    cycle: 'MONTHLY',
+                    periodStart: null,
+                    periodEnd: null,
+                    nextStatus: null,
+                    expectedCanceledAt: null,
+                    keepsBoundVersion: true,
+                    quotedPlanVersionId: null,
+                    putsBack: {
+                        status: 'PAST_DUE',
+                        currentPeriodStart: new Date('2026-02-28T00:00:00.000Z'),
+                        currentPeriodEnd: new Date('2026-03-31T00:00:00.000Z'),
+                        billingAnchorDay: 31,
+                        scheduledChange: NO_SCHEDULED_CHANGE,
+                    },
+                });
+                await tenant.writer.schedulePlanChange(tenantId, {
+                    pendingPlan: 'LOYAL',
+                    pendingBillingCycle: 'YEARLY',
+                    pendingEffectiveAt: new Date('2026-03-31T00:00:00.000Z'),
+                    pendingChangeVersionId: tenant.live,
+                    pendingAgreement: AGREEMENT,
+                    expectedCanceledAt: null,
+                });
+                const read = await usage.findForTenant(tenantId);
+                assert.ok(read && opened.claimed);
+                assert.deepEqual(
+                    [read.currentPeriodStart?.toISOString(), read.billingAnchorDay],
+                    ['2026-02-28T00:00:00.000Z', 31],
+                    'the fixture holds the day billed on apart from the window',
+                );
+
+                // The change: another plan, a yearly window of its own, made
+                // active, and the change scheduled cleared.
+                const change = await tenant.writer.changePlanImmediate(tenantId, {
+                    planId: 'SUCCESSOR',
+                    cycle: 'YEARLY',
+                    periodStart: new Date('2026-03-10T00:00:00.000Z'),
+                    periodEnd: new Date('2027-03-10T00:00:00.000Z'),
+                    nextStatus: 'ACTIVE',
+                    expectedCanceledAt: null,
+                    expectedPlanVersionId: tenant.bound,
+                    keepsBoundVersion: false,
+                    quotedPlanVersionId: successor.planVersionId,
+                    quotedVersionOnly: true,
+                });
+                const changed = await usage.findForTenant(tenantId);
+                assert.ok(change.claimed);
+                assert.deepEqual(
+                    [changed?.status, changed?.billingAnchorDay, changed?.pendingPlan],
+                    ['ACTIVE', 10, null],
+                    'the change moved what is put back',
+                );
+
+                const takenBack = await tenant.writer.changePlanImmediate(tenantId, {
+                    planId: read.plan,
+                    cycle: read.billingCycle,
+                    periodStart: null,
+                    periodEnd: null,
+                    nextStatus: null,
+                    expectedCanceledAt: null,
+                    expectedPlanVersionId: successor.planVersionId,
+                    keepsBoundVersion: false,
+                    quotedPlanVersionId: tenant.bound,
+                    quotedVersionOnly: true,
+                    restoresQuotedVersion: true,
+                    putsBack: {
+                        status: read.status,
+                        currentPeriodStart: read.currentPeriodStart,
+                        currentPeriodEnd: read.currentPeriodEnd,
+                        billingAnchorDay: read.billingAnchorDay ?? null,
+                        scheduledChange: {
+                            pendingPlan: read.pendingPlan,
+                            pendingBillingCycle: read.pendingBillingCycle,
+                            pendingEffectiveAt: read.pendingEffectiveAt,
+                            pendingChangeVersionId: read.pendingChangeVersionId ?? null,
+                            ...pendingAgreementColumns(read.pendingAgreement ?? null),
+                        },
+                    },
+                });
+
+                assert.equal(takenBack.claimed, true);
+                const after = await usage.findForTenant(tenantId);
+                const facts = (row: SubscriptionUsageRecord | null) => ({
+                    plan: row?.plan,
+                    billingCycle: row?.billingCycle,
+                    planVersionId: row?.planVersion?.id,
+                    status: row?.status,
+                    currentPeriodStart: row?.currentPeriodStart?.toISOString(),
+                    currentPeriodEnd: row?.currentPeriodEnd?.toISOString(),
+                    billingAnchorDay: row?.billingAnchorDay,
+                    pendingPlan: row?.pendingPlan,
+                    pendingBillingCycle: row?.pendingBillingCycle,
+                    pendingEffectiveAt: row?.pendingEffectiveAt?.toISOString(),
+                    pendingChangeVersionId: row?.pendingChangeVersionId,
+                    pendingAgreement: row?.pendingAgreement,
+                });
+                assert.deepEqual(facts(after), facts(read));
             });
 
             test('a write that does not keep the change the subscription scheduled clears it', async (t) => {

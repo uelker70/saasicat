@@ -80,6 +80,7 @@ import type {
     SubscriberReconciliationCaseRecord,
 } from '../subscriber-reconciliation.types.js';
 import type { CalendarDay } from '../zoned-day.js';
+import type { SubscriptionPutBack } from '../plan-change-put-back.js';
 import type {
     InvoiceRegisterPage,
     InvoiceRegisterRange,
@@ -1736,6 +1737,16 @@ export interface ImmediatePlanChangeInput {
      * out, a version that no longer takes bookings is not bound.
      */
     restoresQuotedVersion?: boolean;
+    /**
+     * The subscription as it stood before a plan change this write takes back:
+     * its status, its period and the day it is billed on, and the change it had
+     * scheduled are written as given, nulls included, instead of what
+     * `nextStatus`, `periodStart`/`periodEnd` and `keepsPendingChange` would
+     * write. The platform passes it, with `restoresQuotedVersion`, where the
+     * contract a plan change has to come with could not be written: the plan
+     * does not change without it (`SC-CHG-025`). Left out, nothing is put back.
+     */
+    putsBack?: SubscriptionPutBack;
 }
 
 /** Input for `schedulePlanChange` (change at period end). */

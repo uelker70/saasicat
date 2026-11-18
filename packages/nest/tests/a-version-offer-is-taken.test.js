@@ -70,6 +70,10 @@ function aSwitch({
     };
     const contractFreeze = {
         assertPartyFor: async (...args) => calls.asked.push(args),
+        // A switch made today is asked of its whole contract; what it is asked
+        // of is recorded as the party is, by the contract it ends in.
+        assertContractFor: async (tenantId, target, intended) =>
+            calls.asked.push([tenantId, intended]),
         freezeOnPlanChange: async (...args) => calls.frozen.push(args),
     };
     const charges = { recordDueCharges: async (tenantId) => calls.charged.push(tenantId) };
@@ -438,7 +442,7 @@ describe('the switch goes ahead only while the version shown is still the offer'
 
     test('a tenant the contract freeze cannot name is refused before anything moves', async () => {
         const { calls, contractFreeze, take } = aSwitch();
-        contractFreeze.assertPartyFor = async () => {
+        contractFreeze.assertContractFor = async () => {
             throw new Error('no subscriber');
         };
         await assert.rejects(take(), /no subscriber/);

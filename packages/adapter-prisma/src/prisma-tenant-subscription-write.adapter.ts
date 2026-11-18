@@ -16,6 +16,7 @@ import type {
 } from '@saasicat/core';
 import {
     NO_SCHEDULED_CHANGE,
+    columnsPutBack,
     pendingAgreementColumns,
     type ScheduledChangeColumns,
     buildActivePlanVersionWhere,
@@ -246,6 +247,9 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         } else {
             Object.assign(data, NO_SCHEDULED_CHANGE);
         }
+        // A change taken back writes the row as it was read, over everything
+        // the lines above derived from the change.
+        if (input.putsBack) Object.assign(data, columnsPutBack(input.putsBack));
 
         // Claimed, not updated: the caller decided against a cancellation state,
         // and this takes the row only while that state still holds. One

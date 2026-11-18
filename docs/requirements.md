@@ -112,7 +112,7 @@ properties it has while doing it.
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 66      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 46      |
-| 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
+| 6   | Changing a plan                              | `SC-CHG-…`   | 25      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 104     |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 715 entries: 🟢 624 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 716 entries: 🟢 625 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
 🔵 61 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -229,7 +229,7 @@ Of 715 entries: 🟢 624 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 715 requirements. Do not edit by hand:
+Generated from `requirements/` — 716 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -7442,6 +7442,47 @@ _Tested by:_
         - it names the earliest day the add-on could end: the later of its period and its commitment
     - a module wired by hand
         - refuses to start with the bookings and without the add-ons they name
+
+<!-- END proof -->
+
+### SC-CHG-025 — A plan change made at once and its contract are one
+
+🟢 💰 A plan change the tenant makes at once, and a switch to a newer version of their plan made at
+once, end in the contract that records them, or nothing changes. What that contract could refuse —
+the subscriber, the tax decided for them, a plan not sold in the rhythm asked for, the catalogue's
+rate — is asked before anything is written, and the change is refused with that reason. Where the
+contract still cannot be written, the subscription is written back as it was — its plan, version,
+rhythm, status, period, billing day and the change it had scheduled — and the change is refused, so
+nothing is charged or granted that no contract records. Only where writing it back fails as well
+does the change stand without its contract, and that is logged with the tenant's name. A change in
+a trial ends in no contract and is not held to one; its contract is frozen when the trial converts.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-plan-change-and-its-contract-are-one.test.js`
+    - a plan change made at once, whose contract is written
+        - stands, is charged and recorded, and nothing is taken back
+        - is asked of its whole contract first: the plan, the rhythm, from today
+    - a plan change made at once, whose contract is refused before it is written
+        - is refused with the contract’s reason, and nothing is written
+    - a plan change made at once, whose contract cannot be written after it
+        - is taken back as it was read, and refused with a code, where the store failed
+        - one that opened a period of its own gets the old window and billing day back
+        - is refused with the contract’s own code where it refused after the write
+        - where it cannot be taken back either, the error stands and is not called a refusal
+    - a plan change made at once in a trial
+        - ends in no contract: the party alone is asked, and it is never taken back
+    - a switch to a newer version made at once
+        - is asked of its contract at the version offered, before anything is written
+        - whose contract cannot be written is put back on the version it left, and refused
+    - the contract a change made at once is checked against
+        - is composed at the version the change binds, not the one bound now
+        - and is written nowhere where it holds
+        - asks the party alone where no repository reads the version
 
 <!-- END proof -->
 
