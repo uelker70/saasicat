@@ -576,6 +576,42 @@ small quickstart. `AppModule` then contains only
 composition; the client file contains only auth, branding and adapter choices
 that are inherently application-specific.
 
+### Who is behind a request
+
+Every platform route that checks or records who acted — the second factor, the
+audit log, the publisher of a version, a promo code's author, the promotion
+preview's rate limit, a tenant's own writes — reads the user behind a request in
+one place, so one request names one user everywhere (`SC-AUD-022`). By default
+it reads what your authentication guard left on the request:
+
+- the user: `request.user.sub`, then `request.user.id`;
+- their e-mail: `request.user.email`;
+- where the request came from: the `x-session-id` header.
+
+`request.user.userId` is not read by default. Where your guard leaves the user
+in another shape, or your identity provider's subject is not the id your users
+table keys the second factor by, name them once, at the root of the options —
+each resolver takes the request and returns a string, or `null`:
+
+```ts
+SaaSiCatModule.forRoot(
+    defineSaaSiCat({
+        // …
+        // `userOf` is your own narrowing of the request to what your guard sets.
+        userIdResolver: (req) => userOf(req)?.userId ?? null,
+        userEmailResolver: (req) => userOf(req)?.mail ?? null,
+        auditContextResolver: (req) => userOf(req)?.sessionId ?? null,
+    }),
+);
+```
+
+An empty string names nobody. A request that names no user is refused wherever
+a route checks who acted — the second factor with `NOT_AUTHENTICATED`, a
+tenant's write with `TENANT_CONTEXT_MISSING` — and recorded as nobody where a
+route only records it: `unknown` in the audit log. Without an e-mail the audit
+log says `unknown`; without a context it says `admin` for an operator and
+`tenant-self-service` for a tenant.
+
 ### The SuperAdmin's second factor is sealed
 
 The TOTP secret behind a SuperAdmin's second factor guards the accounts that can
