@@ -45,9 +45,31 @@ export interface ContractFreezePort {
     assertPartyFor(tenantId: string, intended: IntendedContract | null): Promise<void>;
 
     /**
+     * Refuses a plan change made today whose contract could not be written,
+     * with the code the freeze would refuse it with, while nothing has moved:
+     * the contract `freezeOnPlanChange` would write once the subscription is
+     * bound to `target`'s version is composed, checked as it would be, and not
+     * written. `planVersionId: null` names the version bound now.
+     *
+     * A plan change and its contract are one (`SC-CHG-025`): what the contract
+     * can refuse — the subscriber, the tax, a plan not sold in the rhythm, the
+     * catalogue's rate — is asked before the change is written, so the change
+     * is refused rather than written and taken back. The add-ons booked are
+     * priced by the source as it reads them before the change. `null` where
+     * the change ends in no contract now — a change in a trial — asks for the
+     * party alone, as `assertPartyFor` does.
+     */
+    assertContractFor(
+        tenantId: string,
+        target: { readonly plan: string; readonly planVersionId: string | null },
+        intended: IntendedContract | null,
+    ): Promise<void>;
+
+    /**
      * Freezes the agreed service at `effectiveFrom` as the new active
-     * `SubscriptionContract` (supersedes the previous one). Non-fatal for the
-     * caller — the plan change is already persisted.
+     * `SubscriptionContract` (supersedes the previous one). Runs after the
+     * change it records is written; a caller that moves the plan takes the
+     * change back where this throws (`SC-CHG-025`).
      */
     freezeOnPlanChange(
         tenantId: string,

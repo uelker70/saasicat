@@ -261,6 +261,12 @@ _Tested by:_
         - a booking from before the rhythm was recorded takes the plan’s
         - a plan-specific override is what the tenant on that plan is billed
         - a booking whose version has vanished reports no price rather than a wrong one
+- `packages/nest/tests/the-catalogue-quotes-what-the-contract-takes.test.js`
+    - every price the public catalogue names for an add-on
+        - is the list price a sign-up concluding that choice puts into its contract
+        - is, after its promotion, what that sign-up is charged
+        - is what a tenant on that plan is quoted for booking it
+        - is missing exactly where a sign-up and a booking are both refused
 
 <!-- END proof -->
 
@@ -277,7 +283,7 @@ _Tested by:_
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - the prices a store is shown
         - are resolved for the plan, in both rhythms
-        - carry an override the public catalogue cannot know about
+        - carry an override that is the only price there is
         - a bundle sold in one rhythm only says so for the other
         - an id nobody knows is left out rather than answered with nulls
         - asking for nothing costs nothing
@@ -780,6 +786,33 @@ _Tested by:_
         - …and an override that nulls a cycle takes that plan’s price away
         - without a plan repository the catalogue cannot be derived, so nothing is claimed
         - an override that removes the price for one plan still publishes
+- `packages/ui-vue/tests/an-add-on-costs-what-its-plan-says.test.js`
+    - an add-on beside a chosen plan
+        - costs the plan's price, not its own
+        - with no price in the rhythm is not sold in it, rather than free
+        - without an entry for the plan cannot be had with it
+        - priced only through one plan is priced beside that plan
+    - an add-on while no plan is chosen
+        - shows its own price, marked as depending on the plan
+        - priced only through a plan depends on the plan, with no figure of its own
+        - that no plan sells in the rhythm is not sold in it, whatever its own price says
+        - that no plan can have is not offered
+- `packages/ui-vue/tests/use-subscription-draft.test.js`
+    - useSubscriptionDraft — an add-on costs the chosen plan's price
+        - beside a plan with an override it is charged that plan's price
+        - follows the plan when the draft changes it
+        - with no price beside the plan in the rhythm is neither charged nor sent, rather than 0
+        - priced through one plan only is charged beside it, and dropped for a plan without it
+        - is not charged while no plan is chosen, since its price depends on the plan
+- `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
+    - an add-on beside the plan a prospect has chosen
+        - shows and sums the plan's price, not its own
+        - follows the plan when the prospect changes it
+        - with no price beside the plan in the rhythm is not available, rather than free
+        - priced through one plan only is offered beside that plan, and not beside another
+    - an add-on before a plan is chosen
+        - shows its own price, marked as depending on the plan
+        - loses the mark once a plan is chosen
 
 <!-- END proof -->
 
@@ -2572,5 +2605,55 @@ _Tested by:_
         - brings forward a booking cancelled for a later date
         - is refused for a booking it did not reach, or whose version no longer grants it
         - is refused once the booking has ended
+
+<!-- END proof -->
+
+### SC-BUN-067 — An add-on ended at once and the contract without it are one
+
+🟢 💰 An add-on ended at once (`SC-BUN-062`) ends together with the contract written without it, or
+does not end. What holds without the add-on — the subscriber that contract is concluded with, and
+the tax decided for them — is asked before anything is written, by the preview as by the end, and
+the end is refused with that reason; in a trial the subscriber alone is asked. Nothing about the
+add-on being ended is asked there: one the application can no longer price is still ended. The
+contract is composed once the booking has ended, without it. Where that contract is refused or
+cannot be written, the booking is put back on the cancellation it had — none, or the one declared
+for a later date — and the end is refused, with the contract's reason or with the fact that it
+could not be written: nothing is credited, and the subscriber is told of no end. Left ended under
+the contract that still names it, the add-on would go on granting its features, since the
+entitlements read that contract first. Only where putting it back fails as well, or the
+application's booking store cannot put a booking back, does the end stand without its contract, and
+that is logged with the booking and the tenant.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - an add-on ended at once, and the contract without it
+        - asks its party first, for the contract the end writes: from now, until the subscription
+          ends
+        - asks the subscriber alone in a trial, which commits to no period
+        - whose party is refused before it is written refuses the end with that reason, and nothing
+          is written
+        - whose party is refused refuses the preview the same
+        - of an add-on the source can no longer price is still ended, and the contract written after
+          it names it no more
+        - the store fails to write puts the booking back as it was read, and refuses the end with a
+          code
+        - put back, it runs on, so the contract that still names it grants nothing it does not have
+        - one cancelled for a later date is put back on that cancellation
+        - refused after the end with a reason of its own is put back and refused with that reason
+        - where the booking cannot be put back › because it ends otherwise by now, the end stands,
+          is credited and told, and the log names the booking
+        - where the booking cannot be put back › because the store fails again, the end stands, is
+          credited and told, and the log names the booking
+        - where the booking cannot be put back › because the store cannot put a booking back, the
+          end stands, is credited and told, and the log names the booking
+- `packages/nest/tests/no-change-swallows-its-contract.test.js`
+    - a freeze whose failure is only logged
+        - is found where it is
+        - is the one inside the helper that names the journal as what heals it
 
 <!-- END proof -->

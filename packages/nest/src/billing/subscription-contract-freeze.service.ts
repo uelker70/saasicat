@@ -3,12 +3,15 @@ import type {
     BillingCycle,
     CheckoutOfferPromoCodeSnapshot,
     CreateSubscriptionContractData,
+    PlanRepository,
+    PlanVersionRow,
     SubscriptionContractPriceSnapshot,
     SubscriptionContractRecord,
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
 } from '@saasicat/core';
 
+import { PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import {
@@ -92,11 +95,17 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         @Optional()
         @Inject(FeatureWithdrawalContractService)
         private readonly withdrawalReductions: FeatureWithdrawalContractService | null = null,
+        // Reads the version a plan change will bind, to compose its contract
+        // before the change is written. Without it only the party is asked
+        // first, and a contract refused later takes the change back.
+        @Optional()
+        @Inject(PLAN_REPOSITORY_TOKEN)
+        private readonly plans: PlanRepository | null = null,
     ) {
         // Said once, at start. A write that does not bind is wrong for every
-        // tenant at once, and each freeze would refuse on its own — caught and
-        // logged by its caller, while the tenant who paid for an upgrade stays
-        // under the contract they left.
+        // tenant at once, and each freeze would refuse on its own — every plan
+        // change taken back, or, where a caller only logs, a tenant who paid
+        // for an upgrade left under the contract they left.
         if (writes?.bindsPlanVersion === false) {
             throw new Error(
                 'The contract freeze records the plan version a subscription is bound to, and ' +
@@ -109,6 +118,42 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
 
     assertPartyFor(tenantId: string, intended: IntendedContract | null): Promise<void> {
         return this.contracts.assertPartyFor(tenantId, intended);
+    }
+
+    async assertContractFor(
+        tenantId: string,
+        target: { readonly plan: string; readonly planVersionId: string | null },
+        intended: IntendedContract | null,
+    ): Promise<void> {
+        const version = intended ? await this.versionToBind(tenantId, target) : null;
+        if (!intended || !version) {
+            await this.contracts.assertPartyFor(tenantId, intended);
+            return;
+        }
+        await this.compose(
+            tenantId,
+            target.plan,
+            () => Promise.resolve(version),
+            intended.cycle,
+            intended.effectiveFrom,
+            intended.endsAt,
+        );
+    }
+
+    /**
+     * The version a change to `target` binds, or `null` where it cannot be
+     * read as a version of that plan — no repository reads versions by id, or
+     * one went in between, which the write refuses on its own.
+     */
+    private async versionToBind(
+        tenantId: string,
+        target: { readonly plan: string; readonly planVersionId: string | null },
+    ): Promise<PlanVersionRow | null> {
+        const version =
+            target.planVersionId === null
+                ? await this.source.findBoundPlanVersion(tenantId)
+                : ((await this.plans?.findVersionById?.(target.planVersionId)) ?? null);
+        return version?.planId === target.plan ? version : null;
     }
 
     async endOnCancellation(tenantId: string, effectiveAt: Date): Promise<void> {
@@ -178,6 +223,36 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         endsAt: Date | null = null,
         terms?: ContractChangeTerms,
     ): Promise<CreateSubscriptionContractData> {
+        // What the plan line records — id, price, features, quotas — is the
+        // version the subscription is bound to, from one row. After a plan
+        // change the write has bound the version it sold; on a re-freeze after
+        // an add-on changed it is the version the tenant has had all along,
+        // even with a successor on sale (`SC-SUB-024`). The version on sale now
+        // would charge a customer who bought v1 the price of v2.
+        const bound = async (): Promise<PlanVersionRow> => {
+            const row = await this.source.findBoundPlanVersion(tenantId);
+            if (!row || row.planId !== newPlan) {
+                throw new Error(
+                    `The contract for tenant ${tenantId} was asked to record plan '${newPlan}', but ` +
+                        `the subscription is bound to ${row ? `'${row.planId}' (version ${row.id})` : 'no plan version'}. ` +
+                        'Bind the plan version on the subscription before the contract is frozen.',
+                );
+            }
+            return row;
+        };
+        return this.compose(tenantId, newPlan, bound, billingCycle, effectiveFrom, endsAt, terms);
+    }
+
+    /** The contract on `newPlan` at the version `versionOf` reads, checked and not written. */
+    private async compose(
+        tenantId: string,
+        newPlan: string,
+        versionOf: () => Promise<PlanVersionRow>,
+        billingCycle: BillingCycle,
+        effectiveFrom: Date,
+        endsAt: Date | null,
+        terms?: ContractChangeTerms,
+    ): Promise<CreateSubscriptionContractData> {
         const cycle: 'monthly' | 'yearly' = billingCycle === 'YEARLY' ? 'yearly' : 'monthly';
         const retirement = terms && 'retirementId' in terms ? terms : undefined;
         const addOnSwitch = terms && 'addOnSwitch' in terms ? terms.addOnSwitch : undefined;
@@ -191,20 +266,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         // the contract in force had ended would leave the tenant with none.
         if (fileRate !== null) assertTaxRatePercent('catalog.vatRate', fileRate);
         assertContractWindow(effectiveFrom, endsAt);
-        // What the plan line records — id, price, features, quotas — is the
-        // version the subscription is bound to, from one row. After a plan
-        // change the write has bound the version it sold; on a re-freeze after
-        // an add-on changed it is the version the tenant has had all along,
-        // even with a successor on sale (`SC-SUB-024`). The version on sale now
-        // would charge a customer who bought v1 the price of v2.
-        const bound = await this.source.findBoundPlanVersion(tenantId);
-        if (!bound || bound.planId !== newPlan) {
-            throw new Error(
-                `The contract for tenant ${tenantId} was asked to record plan '${newPlan}', but ` +
-                    `the subscription is bound to ${bound ? `'${bound.planId}' (version ${bound.id})` : 'no plan version'}. ` +
-                    'Bind the plan version on the subscription before the contract is frozen.',
-            );
-        }
+        const bound = await versionOf();
         const planDef = planDefOfVersion(catalog, newPlan, bound);
         if (isPlanNotSoldInCycle(planDef, billingCycle)) {
             throw new UnprocessableEntityException(planNotSoldInCycle(planDef, billingCycle));

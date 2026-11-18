@@ -11,6 +11,7 @@ import {
     type ContractAgreement,
     type CreateSubscriptionBundleData,
     type EndNowInput,
+    type RestoreCancellationInput,
     type SubscriptionBundleRecord,
     type SubscriptionBundleRepository,
     type TransactionContext,
@@ -229,6 +230,32 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
                 and(
                     eq(subscriptionBundles.id, subscriptionBundleId),
                     eq(subscriptionBundles.canceledEffectiveAt, input.expectedCanceledEffectiveAt),
+                ),
+            )
+            .returning();
+        return row ? toSubscriptionBundleRecord(row) : null;
+    }
+
+    /**
+     * One guarded `UPDATE`: the moment it was ended at is in the `WHERE`, so a
+     * booking that ends otherwise by now returns no row and is left as it is.
+     */
+    async restoreCancellation(
+        subscriptionBundleId: string,
+        input: RestoreCancellationInput,
+    ): Promise<SubscriptionBundleRecord | null> {
+        const [row] = await this.db
+            .update(subscriptionBundles)
+            .set({
+                canceledAt: input.canceledAt,
+                canceledEffectiveAt: input.canceledEffectiveAt,
+                updatedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(subscriptionBundles.id, subscriptionBundleId),
+                    eq(subscriptionBundles.canceledAt, input.endedAt),
+                    eq(subscriptionBundles.canceledEffectiveAt, input.endedAt),
                 ),
             )
             .returning();

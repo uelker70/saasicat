@@ -274,6 +274,15 @@ export const BILLING_ERROR_CODES = {
      * rather than recorded; carries the dates.
      */
     VERSION_ENDS_BEFORE_SWITCH: 'VERSION_ENDS_BEFORE_SWITCH',
+    /**
+     * A plan change, or a switch to a newer version, was written and the
+     * contract it has to come with could not be: the store failed. The
+     * subscription was put back as it was, so nothing changed and nothing is
+     * charged; the caller may try again (`SC-CHG-025`). A contract refused for
+     * a reason of its own — the subscriber, the tax, the rhythm — is answered
+     * with that reason's code instead.
+     */
+    PLAN_CHANGE_CONTRACT_NOT_WRITTEN: 'PLAN_CHANGE_CONTRACT_NOT_WRITTEN',
 
     // ── retiring a version for running subscriptions ──
     /**
@@ -497,6 +506,14 @@ export const BILLING_ERROR_CODES = {
      * It ends as declared. Carries that `date`.
      */
     FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED: 'FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED',
+    /**
+     * An add-on was ended at once and the contract without it could not be
+     * written: the store failed. The booking was put back as it was, so it runs
+     * on and nothing is credited; the caller may try again (`SC-BUN-067`). A
+     * contract refused for a reason of its own — the subscriber, the tax — is
+     * answered with that reason's code instead.
+     */
+    FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN: 'FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN',
 
     // ── the preview routes' own blockers and warnings ──
     //

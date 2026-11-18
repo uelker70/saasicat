@@ -201,6 +201,12 @@ _Tested by:_
         - a discount above the price takes it to nothing, not below
         - resuming the step shows the same yearly figure
 - `packages/ui-vue/tests/use-subscription-draft.test.js`
+    - useSubscriptionDraft — an add-on costs the chosen plan's price
+        - beside a plan with an override it is charged that plan's price
+        - follows the plan when the draft changes it
+        - with no price beside the plan in the rhythm is neither charged nor sent, rather than 0
+        - priced through one plan only is charged beside it, and dropped for a plan without it
+        - is not charged while no plan is chosen, since its price depends on the plan
     - useSubscriptionDraft — Promo-Discount
         - the discount is the net amount the server previewed, off the plan and not the bundles
         - a discount above the plan price stops at the plan price
@@ -220,6 +226,11 @@ _Tested by:_
         - the answer to the earlier question landing first does not stand
         - a code refused outright is not asked about again, a restricted one is
         - a code removed while its preview is out gives no discount when the answer lands
+    - an add-on beside the plan a prospect has chosen
+        - shows and sums the plan's price, not its own
+        - follows the plan when the prospect changes it
+        - with no price beside the plan in the rhythm is not available, rather than free
+        - priced through one plan only is offered beside that plan, and not beside another
 
 <!-- END proof -->
 
@@ -3045,6 +3056,40 @@ _Tested by:_
         - gets no reason from an invoice unpaid on its due date; another tenant does
         - keeps the reason it had when its invoice is paid: the run lifts none, the close does
         - keeps the reason it had when the payment that settles its invoice comes in
+
+<!-- END proof -->
+
+### SC-PRIC-105 — No plan period is charged while the contract names a version not bound
+
+🟢 💰 Where the contract in force names a plan version other than the one the subscription is bound
+to — a plan change written without its contract: an onboarding whose contract the store failed to
+write after it, or a change that could not be put back (`SC-CHG-025`, `SC-CHG-026`) — no plan period
+is charged until a contract names the version bound, so the tenant is not charged the plan they
+left. The journal writes that contract itself the next time it brings the account up to date —
+taking effect when the window the change opened began, where that came after the contract in force,
+and at that moment otherwise — and where it is refused, the next call tries again. A plan line
+naming no version, or a subscription bound to none, gives nothing to compare and holds nothing back,
+and a trial, which is charged nothing, gets no contract written.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/the-journal-waits-for-the-contract-of-the-version-bound.test.js`
+    - a plan period under a contract naming another version than the one bound
+        - is not charged
+        - is charged once the contract in force names the version bound
+        - is charged where the contract’s plan line names no version: there is nothing to compare
+        - waits for a contract naming the version bound that takes effect a moment after now
+        - is charged where that contract takes effect at the very moment
+    - the contract the journal writes for the version bound
+        - takes effect when the window the change opened began, and its period is charged at its
+          price
+        - takes effect now where the window began before the contract in force
+        - is tried again by the next call where it is refused, and nothing is charged meanwhile
+        - is not written in a trial, which commits to no period
 
 <!-- END proof -->
 

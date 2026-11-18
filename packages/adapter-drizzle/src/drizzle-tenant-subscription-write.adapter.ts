@@ -17,6 +17,7 @@ import type {
 } from '@saasicat/core';
 import {
     NO_SCHEDULED_CHANGE,
+    columnsPutBack,
     noActivePlanVersion,
     pendingAgreementColumns,
     scheduledChangeAfterWrite,
@@ -125,6 +126,9 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 // Null and undefined both mean "leave the trial as it is" — the
                 // platform passes a carried-over end date or nothing at all.
                 ...(input.trialEndsAt ? { trialEndsAt: input.trialEndsAt } : {}),
+                // A change taken back writes the row as it was read, over
+                // everything above derived from the change.
+                ...(input.putsBack && columnsPutBack(input.putsBack)),
             });
             const after = await this.requireSubscription(db, tenantId);
             return {

@@ -1,23 +1,23 @@
-import { IsISO8601, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
-import { CALENDAR_DAY_PATTERN, type CalendarDay } from '@saasicat/core';
+import { IsIn, IsISO8601, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+import { CALENDAR_DAY_PATTERN, type BillingCycle, type CalendarDay } from '@saasicat/core';
 
-// DTOs for tenant self-service mutations. Plan and cycle IDs are validated as
-// strings (no hard enum), because the allowed values come from the consumer's
+import { BILLING_CYCLES } from './billing-cycles.js';
+
+// DTOs for tenant self-service mutations. Plan IDs are validated as strings
+// (no hard enum), because the allowed values come from the consumer's
 // PlanCatalog — the platform service checks admissibility against the catalog
-// and blocks unknown plans/kinds there, server-side.
+// and blocks unknown plans there, server-side. The rhythm is one of the two a
+// plan is sold in.
 
-const PLAN_OR_CYCLE_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+const PLAN_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 
 export class PreviewPlanChangeDto {
     @IsString()
-    @Matches(PLAN_OR_CYCLE_PATTERN, { message: 'plan must be SCREAMING_SNAKE_CASE' })
+    @Matches(PLAN_PATTERN, { message: 'plan must be SCREAMING_SNAKE_CASE' })
     plan!: string;
 
-    @IsString()
-    @Matches(PLAN_OR_CYCLE_PATTERN, {
-        message: 'billingCycle must be SCREAMING_SNAKE_CASE (e.g. MONTHLY, YEARLY)',
-    })
-    billingCycle!: string;
+    @IsIn(BILLING_CYCLES)
+    billingCycle!: BillingCycle;
 }
 
 /**

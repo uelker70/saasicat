@@ -198,6 +198,7 @@ test('the contract a scheduled change ends in records what was agreed when it wa
         },
         { invalidateTenant() {} },
         {
+            async assertContractFor() {},
             async freezeOnPlanChange(...args) {
                 frozen.push(args);
             },

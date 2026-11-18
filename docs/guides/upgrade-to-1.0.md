@@ -1080,7 +1080,7 @@ the contract recorded its plan line at 0.00.
   `DraftPricing.planPriced` says whether the selected plan carries a price for the cycle; a bundle
   without one is neither charged nor sent while that cycle is chosen.
 - **`PlanGrid`, `PublicBundleGrid` and `OnboardingConfigurator` take `notSoldInCycle`** in their
-  `i18n`, beside `priceOnRequest`; `TenantPlanSectionI18n` gains `wizardNotSoldInCycle`, which the
+  `i18n`; `TenantPlanSectionI18n` gains `wizardNotSoldInCycle`, which the
   shipped German and English maps carry. A card without a price for the cycle says so and cannot be
   chosen.
 - **The configurator's promo discount is the server's.** `PromoPreviewValidResponse.price` carries
@@ -5378,6 +5378,108 @@ them. How to bind them: [Who is behind a request](wire-the-backend.md#who-is-beh
   its own, and whether an application needs a resolver (points 2 and 3) is a decision about its
   authentication. The start names each option left under `tenantBilling`, and the compiler a
   `userEmailResolver` under `tenantRoutes`.
+
+### A plan change is refused where its contract cannot be written
+
+A plan change and the contract it ends in are one (`SC-CHG-025`). The platform composes that
+contract before it writes a change — at once through `POST billing/plan`, as the switch to a newer
+version through `POST billing/version-offer/accept`, as a scheduled change that comes due, or as an
+activation in onboarding — and refuses the change with the reason the contract would be refused
+with. Where the store fails once the change is written, a change made at once is put back as it was
+read and refused with `503 PLAN_CHANGE_CONTRACT_NOT_WRITTEN`; a scheduled change stays due, is tried
+again by every run and is audited as `SCHEDULED_PLAN_CHANGE_FAILED` (`SC-CHG-026`); an activation
+stands (`SC-CHG-027`). The change stood before, and the failed contract was only logged, so the
+tenant was charged under the contract of the plan it had left. The journal now charges no plan
+period while the contract in force names another plan version than the one bound, and writes the
+contract for that version itself (`SC-PRIC-105`). An add-on ended at once while a feature is
+withdrawn ends with the contract written without it: its subscriber is asked first, and where that
+contract is refused or the store fails, the booking is put back on the cancellation it had and the
+end is refused, with the contract's code or `503 FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN`
+(`SC-BUN-067`). See [the subscriber's account](wire-the-backend.md#the-subscribers-account).
+
+| before                                                                                                                            | after                                                                                                                                                                         |
+| --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| a change whose contract failed stands, and the failure is logged                                                                  | refused with the contract's code, or put back and refused with `503 PLAN_CHANGE_CONTRACT_NOT_WRITTEN`                                                                         |
+| a scheduled change whose contract failed is applied                                                                               | stays due, tried again by every run, audited as `SCHEDULED_PLAN_CHANGE_FAILED`                                                                                                |
+| `ContractFreezePort`                                                                                                              | also `assertContractFor(tenantId, target, intended)`: refuses a change whose contract could not be written, with the code the freeze would refuse it with, and writes nothing |
+| `ImmediatePlanChangeInput`                                                                                                        | also `putsBack`, a `SubscriptionPutBack`: the subscription as it was read, written as given, nulls included                                                                   |
+| `billingCycle` of `POST billing/plan`, `billing/plan/preview` and `billing/onboarding/initial-subscription`: any word in capitals | `MONTHLY` or `YEARLY`; anything else is refused with 400                                                                                                                      |
+| `PendingPlanMaterializationService`                                                                                               | also `AdminAuditService`, an optional last constructor argument, for the audit entry                                                                                          |
+
+1. **Where your interface words refusals itself**, add `PLAN_CHANGE_CONTRACT_NOT_WRITTEN` and
+   `FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN`. The German and English texts ship in
+   `@saasicat/core`. The other refusals a change can now meet are the codes its contract's freeze
+   already refused with.
+2. **Where you implement `ContractFreezePort` yourself** — a stand-in in your tests included —
+   implement `assertContractFor`: compose the contract `freezeOnPlanChange` would write once the
+   subscription is bound to `target.planVersionId` (`null` for the version bound now), check it, and
+   write nothing; with `intended` `null`, ask for the party alone, as `assertPartyFor` does. A
+   stand-in that refuses nothing returns. `SubscriptionContractFreezeService` implements it.
+3. **Where you implement `TenantSubscriptionWritePort` yourself**, `changePlanImmediate` writes
+   `putsBack` when it is given — status, period, billing day and the scheduled change, each as given
+   — over what the rest of the input would write. `columnsPutBack(putBack)` from `@saasicat/core`
+   gives the columns. The field is optional, so the compiler names no adapter that ignores it; the
+   persistence contract does, in "a plan change taken back leaves the subscription as it was read".
+4. **Where a client of yours sends another rhythm** to those three routes, send `MONTHLY` or
+   `YEARLY`. The preview priced any other as monthly.
+5. **Where your application binds a plan version itself** — at the end of a trial, from a renewal
+   job — freeze the contract through `ContractFreezePort.freezeOnPlanChange` as it does so.
+   Otherwise the journal charges that subscription no plan period until it has written the contract
+   itself, and a freeze your source refuses keeps it waiting.
+6. **Where you construct `PendingPlanMaterializationService` by hand**, pass `AdminAuditService`
+   as its last argument for the audit entry; without it, a change not made is logged only.
+7. **Where you implement `SubscriptionBundleRepository` yourself**, implement the optional
+   `restoreCancellation(subscriptionBundleId, { endedAt, canceledAt, canceledEffectiveAt })`: write
+   both cancellation fields as given where both are still `endedAt`, and answer the booking, or null.
+   Without it an add-on ended at once whose contract cannot be written stays ended, and the log
+   names it. The persistence contract checks it, and a harness without it declares
+   `gaps: ['bookingsEndPutBack']`.
+
+- **No codemod step**: what a port of yours checks and which columns an adapter writes are
+  behaviour, not names. The compiler names a `ContractFreezePort` without `assertContractFor`.
+
+### The catalogue names an add-on's price beside each plan
+
+The public catalogue named an add-on's own price, while the contract and the invoice take the price
+the add-on carries for the plan chosen: a prospect choosing a plan with an override was shown one
+price and charged another. `GET public/marketing-catalog` now gives each add-on `planPrices`, an
+entry for each plan of the catalogue it can be booked with: `monthlyNet` and `yearlyNet` as a
+contract for that plan takes them, `null` where it cannot be had in the rhythm, and
+`discountedMonthlyNet` and `discountedYearlyNet` after its promotion (`SC-MKT-030`). `monthlyNet`
+and `yearlyNet` on the add-on stay its own price, before any override. `OnboardingConfigurator`,
+`PublicBundleGrid` and `useSubscriptionDraft` price an add-on beside the chosen plan from
+`planPrices`; while no plan is chosen they show its own price, marked as depending on the plan, and
+charge nothing for it. `GET billing/bundles` still serves each add-on's own price. See
+[self-registration](self-registration.md).
+
+| before                                                                                                 | after                                                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PublicMarketingBundle`                                                                                | also `planPrices: PublicBundlePlanPrice[]`, required                                                                                                                           |
+| `PublicBundleGrid` props                                                                               | also `planKey` (the chosen plan, `null` before one is) and `planKeys` (every plan on offer), required                                                                          |
+| `i18n.priceOnRequest` of `PublicBundleGrid`, `i18n.bundles.priceOnRequest` of `OnboardingConfigurator` | gone: an add-on is offered beside a plan that prices it, or not at all                                                                                                         |
+| —                                                                                                      | `i18n.dependsOnPlan` of `PublicBundleGrid`, `i18n.bundles.dependsOnPlan` of `OnboardingConfigurator`, required: the note beside the add-on's own price while no plan is chosen |
+| "all plans" on an add-on card: no compatible plans named                                               | an entry in `planPrices` for every plan in `planKeys`                                                                                                                          |
+| `useSubscriptionDraft` charges an add-on its own price in the rhythm                                   | the price beside the chosen plan, from `planPrices`; nothing before a plan is chosen; a change of plan drops a selected add-on the new plan has no entry for                   |
+
+`@saasicat/ui-vue` adds `addOnPriceBeside(bundle, planKey, cycle)`, which answers `priced`,
+`depends-on-plan`, `not-in-cycle` or `not-with-plan`, and `isOfferedWithEveryPlan(bundle, planKeys)`,
+with their types `AddOnPriceBeside` and `AddOnPrices`; `@saasicat/core` adds
+`PublicBundlePlanPrice`.
+
+1. **Where a page of yours shows the catalogue's add-ons beside a chosen plan**, read the price from
+   `planPrices`, or through `addOnPriceBeside`, rather than `monthlyNet` and `yearlyNet`.
+2. **Where you mount `PublicBundleGrid`**, pass `planKey` and `planKeys`, and give its `i18n`
+   `dependsOnPlan` in place of `priceOnRequest`.
+3. **Where you mount `OnboardingConfigurator`**, give `i18n.bundles` `dependsOnPlan` in place of
+   `priceOnRequest`; `i18n.plan.priceOnRequest` stays.
+4. **Where code of yours builds a `PublicMarketingBundle`** — a fixture, a catalogue of your own —
+   give it `planPrices`. Price each entry with `resolveBundlePriceNet(version, planKey, cycle)` from
+   `@saasicat/nest/billing`, the rule the contract takes.
+5. **Where your contract freeze source prices an add-on's line**, use that rule as well, and refuse
+   where it answers `null` rather than write the line at 0.
+
+- **No codemod step**: the plan a page has chosen and the sentence beside an unchosen price are
+  yours to supply, and the compiler names each prop, key and field.
 
 ## What the codemod leaves to you
 

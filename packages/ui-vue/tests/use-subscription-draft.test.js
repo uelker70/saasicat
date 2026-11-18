@@ -32,6 +32,17 @@ const PLANS = [
     },
 ];
 
+/** The catalogue's price per plan: the same `monthlyNet`/`yearlyNet` beside each of `planKeys`. */
+function pricedBeside(planKeys, monthlyNet, yearlyNet) {
+    return planKeys.map((planKey) => ({
+        planKey,
+        monthlyNet,
+        yearlyNet,
+        discountedMonthlyNet: null,
+        discountedYearlyNet: null,
+    }));
+}
+
 const BUNDLES = [
     {
         bundleKey: 'SPORTPAKET',
@@ -39,6 +50,7 @@ const BUNDLES = [
         bundleVersionId: 'bv-sport',
         monthlyNet: 16.9,
         yearlyNet: 169,
+        planPrices: pricedBeside(['STARTER', 'SPORT'], 16.9, 169),
         description: '',
         features: ['TRAINING_PLANNER', 'TEAMS', 'TOURNAMENT'],
         quotas: {},
@@ -51,6 +63,7 @@ const BUNDLES = [
         bundleVersionId: 'bv-only-sport',
         monthlyNet: 5,
         yearlyNet: 50,
+        planPrices: pricedBeside(['SPORT'], 5, 50),
         description: '',
         features: ['FIELD_MGMT'],
         quotas: {},
@@ -130,7 +143,13 @@ describe('useSubscriptionDraft — cycle toggle', () => {
     });
 
     test('a bundle without a price for the cycle is neither charged nor sent, until its cycle is back', () => {
-        const monthlyBundle = [{ ...BUNDLES[0], yearlyNet: null }];
+        const monthlyBundle = [
+            {
+                ...BUNDLES[0],
+                yearlyNet: null,
+                planPrices: pricedBeside(['STARTER', 'SPORT'], 16.9, null),
+            },
+        ];
         const d = buildDraft({ subscriptionBundles: monthlyBundle, initialPlan: 'STARTER' });
         d.toggleSubscriptionBundle('bv-sport');
 
@@ -174,6 +193,91 @@ describe('useSubscriptionDraft — Bundles', () => {
         assert.ok(d.pricing.value.subtotalNet > beforeNet);
         assert.equal(d.pricing.value.breakdown.bundles.length, 1);
         assert.equal(d.pricing.value.breakdown.bundles[0].key, 'subscription-bundle:bv-sport');
+    });
+});
+
+// "More storage" from #525: 10.00 on its own, 15.00 beside STARTER.
+const STORAGE = {
+    bundleKey: 'STORAGE',
+    label: 'More storage',
+    bundleVersionId: 'bv-storage',
+    monthlyNet: 10,
+    yearlyNet: 100,
+    planPrices: [...pricedBeside(['STARTER'], 15, null), ...pricedBeside(['SPORT'], 10, 100)],
+    description: '',
+    features: ['STORAGE'],
+    quotas: {},
+    promo: null,
+    compatiblePlanKeys: [],
+};
+
+// An add-on priced only through SPORT's override, which the catalogue allows.
+const SPORT_ONLY_PRICE = {
+    ...STORAGE,
+    bundleKey: 'VIDEO',
+    label: 'Video',
+    bundleVersionId: 'bv-video',
+    monthlyNet: null,
+    yearlyNet: null,
+    planPrices: pricedBeside(['SPORT'], 8, 80),
+    features: ['VIDEO'],
+};
+
+// @requirement SC-BUN-019 — What an add-on costs depends on the plan beside it and the rhythm it is billed in
+// @requirement SC-PRIC-007 — An amount a tenant sees is the amount that is charged
+describe("useSubscriptionDraft — an add-on costs the chosen plan's price", () => {
+    function storageDraft(initialPlan, initialCycle = 'MONTHLY') {
+        const d = buildDraft({
+            subscriptionBundles: [STORAGE, SPORT_ONLY_PRICE],
+            initialPlan,
+            initialCycle,
+        });
+        d.toggleSubscriptionBundle('bv-storage');
+        return d;
+    }
+
+    test("beside a plan with an override it is charged that plan's price", () => {
+        const d = storageDraft('STARTER');
+        assert.equal(d.pricing.value.bundlesNet, 15);
+        assert.equal(d.pricing.value.breakdown.bundles[0].net, 15);
+        assert.equal(Math.round(d.pricing.value.subtotalNet * 100), 2490);
+    });
+
+    test('follows the plan when the draft changes it', () => {
+        const d = storageDraft('STARTER');
+        d.setPlan('SPORT');
+        assert.equal(d.pricing.value.bundlesNet, 10);
+        d.setPlan('STARTER');
+        assert.equal(d.pricing.value.bundlesNet, 15);
+    });
+
+    test('with no price beside the plan in the rhythm is neither charged nor sent, rather than 0', () => {
+        const d = storageDraft('STARTER', 'YEARLY');
+        assert.equal(d.pricing.value.bundlesNet, 0);
+        assert.deepEqual(d.pricing.value.breakdown.bundles, [], 'no 0.00 line');
+        assert.equal(d.toApiPayload().bundleVersionIds, undefined);
+
+        d.setCycle('MONTHLY');
+        assert.deepEqual(d.toApiPayload().bundleVersionIds, ['bv-storage']);
+    });
+
+    test('priced through one plan only is charged beside it, and dropped for a plan without it', () => {
+        const d = storageDraft('SPORT');
+        d.toggleSubscriptionBundle('bv-video');
+        assert.equal(d.pricing.value.bundlesNet, 18);
+
+        d.setPlan('STARTER');
+        assert.equal(d.selectedBundleVersionIds.value.has('bv-video'), false);
+        assert.equal(d.pricing.value.bundlesNet, 15);
+    });
+
+    test('is not charged while no plan is chosen, since its price depends on the plan', () => {
+        const d = storageDraft(null);
+        assert.equal(d.pricing.value.bundlesNet, 0);
+        assert.deepEqual(d.pricing.value.breakdown.bundles, []);
+
+        d.setPlan('STARTER');
+        assert.equal(d.pricing.value.bundlesNet, 15);
     });
 });
 
@@ -324,6 +428,7 @@ describe('useSubscriptionDraft — redundant (covered) bundles', () => {
         bundleVersionId: 'bv-y',
         monthlyNet: 4,
         yearlyNet: 40,
+        planPrices: pricedBeside(['STANDARD'], 4, 40),
         description: '',
         features: ['C'],
         quotas: {},
@@ -336,6 +441,7 @@ describe('useSubscriptionDraft — redundant (covered) bundles', () => {
         bundleVersionId: 'bv-z',
         monthlyNet: 7,
         yearlyNet: 70,
+        planPrices: pricedBeside(['STANDARD'], 7, 70),
         description: '',
         features: ['C', 'D'],
         quotas: {},
@@ -391,6 +497,7 @@ describe('useSubscriptionDraft — redundant (covered) bundles', () => {
             bundleVersionId: 'bv-z',
             monthlyNet: 7,
             yearlyNet: 70,
+            planPrices: pricedBeside(['STANDARD'], 7, 70),
             description: '',
             features: ['C'],
             quotas: {},

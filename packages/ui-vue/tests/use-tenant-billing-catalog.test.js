@@ -11,7 +11,6 @@
 // The rest is the wire translation: prices arrive as decimal strings and the
 // optional fields arrive as nothing at all.
 
-// @requirement SC-MKT-011 — The public catalogue shows base prices only
 // @requirement SC-BUN-007 — An add-on with no price in the chosen rhythm is shown as unavailable
 
 import { describe, test } from 'node:test';

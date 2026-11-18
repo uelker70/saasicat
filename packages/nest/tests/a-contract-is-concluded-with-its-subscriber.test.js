@@ -320,7 +320,12 @@ describe('a change that ends in a contract asks for the subscriber before it is 
             { computeLimits: async () => ({}), invalidateTenant() {} },
             {
                 async preview() {
-                    return { isImmediate: true, effectiveAt: null, blockers: [] };
+                    return {
+                        isImmediate: true,
+                        effectiveAt: null,
+                        blockers: [],
+                        target: { planVersionId: 'pv-1' },
+                    };
                 },
             },
             { findForTenant: async () => SUBSCRIPTION },

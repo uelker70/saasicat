@@ -54,6 +54,12 @@ export interface ChargedSubscription {
     startedAt: Date | null;
     /** When a declared cancellation takes effect; no period starting then or later is charged. */
     endsAt: Date | null;
+    /**
+     * The plan version the subscription is bound to, or null where the store
+     * binds none. No plan period is charged while the contract in force names
+     * another (`SC-PRIC-105`).
+     */
+    planVersionId: string | null;
 }
 
 export interface ChargeDerivationInput {
@@ -172,6 +178,29 @@ export function deriveDueCharges(input: ChargeDerivationInput): NewSubscriberCha
 }
 
 /**
+ * The contract in force at `now` where its plan line names a version other
+ * than the one the subscription is bound to, or null.
+ *
+ * A plan change written without its contract leaves exactly that: the
+ * subscription on the new version, the contract on the old one — what an
+ * onboarding leaves whose store failed after the write, and a change that
+ * could not be put back. Priced from it, the journal would charge the plan the
+ * tenant left, so no plan period is charged while it holds (`SC-PRIC-105`). A
+ * plan line naming no version, or a subscription bound to none, gives nothing
+ * to compare and holds nothing back.
+ */
+export function contractMissingTheBoundVersion(
+    contracts: readonly SubscriptionContractRecord[],
+    planVersionId: string | null,
+    now: Date,
+): SubscriptionContractRecord | null {
+    if (planVersionId === null) return null;
+    const inForce = contractInForce(contracts, now);
+    const named = inForce?.lineItems.find((item) => item.kind === 'plan')?.sourceVersionId ?? null;
+    return named !== null && named !== planVersionId ? inForce : null;
+}
+
+/**
  * The running bookings the contract in force at `now` does not name — what a
  * contract write that failed after a booking leaves behind. Empty where no
  * contract is in force: a subscription without one gets no charges, and no
@@ -212,6 +241,9 @@ interface DuePlanCharge {
 function derivePlanCharges(input: ChargeDerivationInput): DuePlanCharge[] {
     const { subscription } = input;
     if (subscription.status === 'TRIAL') return [];
+    if (contractMissingTheBoundVersion(input.contracts, subscription.planVersionId, input.now)) {
+        return [];
+    }
     const window = windowOf(subscription.currentPeriodStart, subscription.currentPeriodEnd);
     if (!window) return [];
     const rhythm = rhythmOf(subscription.billingCycle);

@@ -1,26 +1,34 @@
-import { ArrayMaxSize, IsArray, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
+import {
+    ArrayMaxSize,
+    IsArray,
+    IsIn,
+    IsOptional,
+    IsString,
+    IsUUID,
+    Matches,
+} from 'class-validator';
+import type { BillingCycle } from '@saasicat/core';
+
+import { BILLING_CYCLES } from './billing-cycles.js';
 
 // CompleteOnboardingSubscriptionDto — selection from the onboarding
 // configurator that the tenant submits when completing the step-3 configuration.
 //
-// Plan and cycle IDs are validated as strings (not a hard enum), because
-// the platform service checks against the consumer PlanCatalog. The promo code
-// is optional; when set, the service attempts an atomic redemption
-// after the plan change.
+// Plan IDs are validated as strings (not a hard enum), because the platform
+// service checks against the consumer PlanCatalog; the rhythm is one of the two
+// a plan is sold in. The promo code is optional; when set, the service attempts
+// an atomic redemption after the plan change.
 
-const PLAN_OR_CYCLE_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+const PLAN_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const PROMO_CODE_PATTERN = /^[A-Z0-9_-]{4,32}$/i;
 
 export class CompleteOnboardingSubscriptionDto {
     @IsString()
-    @Matches(PLAN_OR_CYCLE_PATTERN, { message: 'plan must be SCREAMING_SNAKE_CASE' })
+    @Matches(PLAN_PATTERN, { message: 'plan must be SCREAMING_SNAKE_CASE' })
     plan!: string;
 
-    @IsString()
-    @Matches(PLAN_OR_CYCLE_PATTERN, {
-        message: 'billingCycle must be SCREAMING_SNAKE_CASE (e.g. MONTHLY, YEARLY)',
-    })
-    billingCycle!: string;
+    @IsIn(BILLING_CYCLES)
+    billingCycle!: BillingCycle;
 
     @IsOptional()
     @IsString()

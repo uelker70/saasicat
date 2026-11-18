@@ -110,16 +110,16 @@ properties it has while doing it.
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
-| 4   | Add-on bundles                               | `SC-BUN-…`   | 66      |
+| 4   | Add-on bundles                               | `SC-BUN-…`   | 67      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 46      |
-| 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
+| 6   | Changing a plan                              | `SC-CHG-…`   | 27      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 104     |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 105     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
-| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 30      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 58      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 715 entries: 🟢 624 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
-🔵 61 superseded, 🔴 7 withdrawn.
+Of 721 entries: 🟢 629 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+🔵 62 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -200,6 +200,7 @@ Of 715 entries: 🟢 624 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-ENTL-021](#sc-entl-021--a-commercial-edit-does-not-reach-a-running-contract-a-feature-losing-its-code-does),
 [SC-PROMO-008](#sc-promo-008--an-absolute-discount-stays-below-the-lowest-price-it-can-apply-to),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
+[SC-MKT-011](#sc-mkt-011--the-public-catalogue-shows-base-prices-only),
 [SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
 [SC-ADM-022](#sc-adm-022--an-operator-lists-every-invoice-with-totals-per-period-and-tax-rate-and-exports-it),
 [SC-ADM-023](#sc-adm-023--an-operator-can-list-open-items-and-every-contract-including-former-subscribers),
@@ -229,7 +230,7 @@ Of 715 entries: 🟢 624 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 715 requirements. Do not edit by hand:
+Generated from `requirements/` — 721 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -2725,6 +2726,12 @@ _Tested by:_
         - a booking from before the rhythm was recorded takes the plan’s
         - a plan-specific override is what the tenant on that plan is billed
         - a booking whose version has vanished reports no price rather than a wrong one
+- `packages/nest/tests/the-catalogue-quotes-what-the-contract-takes.test.js`
+    - every price the public catalogue names for an add-on
+        - is the list price a sign-up concluding that choice puts into its contract
+        - is, after its promotion, what that sign-up is charged
+        - is what a tenant on that plan is quoted for booking it
+        - is missing exactly where a sign-up and a booking are both refused
 
 <!-- END proof -->
 
@@ -2741,7 +2748,7 @@ _Tested by:_
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - the prices a store is shown
         - are resolved for the plan, in both rhythms
-        - carry an override the public catalogue cannot know about
+        - carry an override that is the only price there is
         - a bundle sold in one rhythm only says so for the other
         - an id nobody knows is left out rather than answered with nulls
         - asking for nothing costs nothing
@@ -3244,6 +3251,33 @@ _Tested by:_
         - …and an override that nulls a cycle takes that plan’s price away
         - without a plan repository the catalogue cannot be derived, so nothing is claimed
         - an override that removes the price for one plan still publishes
+- `packages/ui-vue/tests/an-add-on-costs-what-its-plan-says.test.js`
+    - an add-on beside a chosen plan
+        - costs the plan's price, not its own
+        - with no price in the rhythm is not sold in it, rather than free
+        - without an entry for the plan cannot be had with it
+        - priced only through one plan is priced beside that plan
+    - an add-on while no plan is chosen
+        - shows its own price, marked as depending on the plan
+        - priced only through a plan depends on the plan, with no figure of its own
+        - that no plan sells in the rhythm is not sold in it, whatever its own price says
+        - that no plan can have is not offered
+- `packages/ui-vue/tests/use-subscription-draft.test.js`
+    - useSubscriptionDraft — an add-on costs the chosen plan's price
+        - beside a plan with an override it is charged that plan's price
+        - follows the plan when the draft changes it
+        - with no price beside the plan in the rhythm is neither charged nor sent, rather than 0
+        - priced through one plan only is charged beside it, and dropped for a plan without it
+        - is not charged while no plan is chosen, since its price depends on the plan
+- `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
+    - an add-on beside the plan a prospect has chosen
+        - shows and sums the plan's price, not its own
+        - follows the plan when the prospect changes it
+        - with no price beside the plan in the rhythm is not available, rather than free
+        - priced through one plan only is offered beside that plan, and not beside another
+    - an add-on before a plan is chosen
+        - shows its own price, marked as depending on the plan
+        - loses the mark once a plan is chosen
 
 <!-- END proof -->
 
@@ -5036,6 +5070,56 @@ _Tested by:_
         - brings forward a booking cancelled for a later date
         - is refused for a booking it did not reach, or whose version no longer grants it
         - is refused once the booking has ended
+
+<!-- END proof -->
+
+### SC-BUN-067 — An add-on ended at once and the contract without it are one
+
+🟢 💰 An add-on ended at once (`SC-BUN-062`) ends together with the contract written without it, or
+does not end. What holds without the add-on — the subscriber that contract is concluded with, and
+the tax decided for them — is asked before anything is written, by the preview as by the end, and
+the end is refused with that reason; in a trial the subscriber alone is asked. Nothing about the
+add-on being ended is asked there: one the application can no longer price is still ended. The
+contract is composed once the booking has ended, without it. Where that contract is refused or
+cannot be written, the booking is put back on the cancellation it had — none, or the one declared
+for a later date — and the end is refused, with the contract's reason or with the fact that it
+could not be written: nothing is credited, and the subscriber is told of no end. Left ended under
+the contract that still names it, the add-on would go on granting its features, since the
+entitlements read that contract first. Only where putting it back fails as well, or the
+application's booking store cannot put a booking back, does the end stand without its contract, and
+that is logged with the booking and the tenant.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - an add-on ended at once, and the contract without it
+        - asks its party first, for the contract the end writes: from now, until the subscription
+          ends
+        - asks the subscriber alone in a trial, which commits to no period
+        - whose party is refused before it is written refuses the end with that reason, and nothing
+          is written
+        - whose party is refused refuses the preview the same
+        - of an add-on the source can no longer price is still ended, and the contract written after
+          it names it no more
+        - the store fails to write puts the booking back as it was read, and refuses the end with a
+          code
+        - put back, it runs on, so the contract that still names it grants nothing it does not have
+        - one cancelled for a later date is put back on that cancellation
+        - refused after the end with a reason of its own is put back and refused with that reason
+        - where the booking cannot be put back › because it ends otherwise by now, the end stands,
+          is credited and told, and the log names the booking
+        - where the booking cannot be put back › because the store fails again, the end stands, is
+          credited and told, and the log names the booking
+        - where the booking cannot be put back › because the store cannot put a booking back, the
+          end stands, is credited and told, and the log names the booking
+- `packages/nest/tests/no-change-swallows-its-contract.test.js`
+    - a freeze whose failure is only logged
+        - is found where it is
+        - is the one inside the helper that names the journal as what heals it
 
 <!-- END proof -->
 
@@ -7445,6 +7529,124 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-CHG-025 — A plan change made at once and its contract are one
+
+🟢 💰 A plan change the tenant makes at once, and a switch to a newer version of their plan made at
+once, end in the contract that records them, or nothing changes. What that contract could refuse —
+the subscriber, the tax decided for them, a plan not sold in the rhythm asked for, the catalogue's
+rate — is asked before anything is written, and the change is refused with that reason. Where the
+contract still cannot be written, the subscription is written back as it was — its plan, version,
+rhythm, status, period, billing day and the change it had scheduled — and the change is refused, so
+nothing is charged or granted that no contract records. Only where writing it back fails as well
+does the change stand without its contract, and that is logged with the tenant's name. A change in
+a trial ends in no contract and is not held to one; its contract is frozen when the trial converts.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-plan-change-and-its-contract-are-one.test.js`
+    - a plan change made at once, whose contract is written
+        - stands, is charged and recorded, and nothing is taken back
+        - is asked of its whole contract first: the plan, the rhythm, from today
+    - a plan change made at once, whose contract is refused before it is written
+        - is refused with the contract’s reason, and nothing is written
+    - a plan change made at once, whose contract cannot be written after it
+        - is taken back as it was read, and refused with a code, where the store failed
+        - one that opened a period of its own gets the old window and billing day back
+        - is refused with the contract’s own code where it refused after the write
+        - where it cannot be taken back either, the error stands and is not called a refusal
+    - a plan change made at once in a trial
+        - ends in no contract: the party alone is asked, and it is never taken back
+    - a switch to a newer version made at once
+        - is asked of its contract at the version offered, before anything is written
+        - whose contract cannot be written is put back on the version it left, and refused
+    - the contract a change made at once is checked against
+        - is composed at the version the change binds, not the one bound now
+        - and is written nowhere where it holds
+        - asks the party alone where no repository reads the version
+- `packages/nest/tests/no-change-swallows-its-contract.test.js`
+    - a freeze whose failure is only logged
+        - is found where it is
+        - is the one inside the helper that names the journal as what heals it
+
+<!-- END proof -->
+
+### SC-CHG-026 — A scheduled plan change takes effect with its contract, or stays due
+
+🟢 💰 A plan change scheduled for a later date — to another plan, another rhythm or a newer version
+of the plan — is applied by the run that finds it due together with the contract that records it,
+or not at all. What that contract could refuse — the subscriber, the tax decided for them, a plan not
+sold in the rhythm, the catalogue's rate — is asked before anything is written; where the contract
+still cannot be written, the subscription is written back as it was read, with its change still
+scheduled. Either way the change stays due and every later run tries it again, so the tenant is not
+charged the old plan's price under the new plan, nor granted a plan its contract does not name. A
+change not made is written to the audit log as `SCHEDULED_PLAN_CHANGE_FAILED`, with the code the
+contract refused it with or the fact that it could not be written, once per change and reason until
+the server restarts rather than every quarter of an hour; the log says it in every run. Only where
+writing the subscription back fails as well does the change stand without its contract: the audit
+entry says so, and the journal charges no plan period until a contract names the version bound
+(`SC-PRIC-105`).
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-scheduled-change-comes-due-with-its-contract.test.js`
+    - a scheduled change whose contract is written
+        - is applied, and its contract records what was agreed when it was scheduled
+        - is asked of its whole contract first: the plan, the version quoted, the rhythm, from the
+          run
+    - a scheduled change whose contract is refused before it is written
+        - is not written, stays due, and is audited with the contract’s reason
+        - is tried again by every run, and audited once
+        - is audited again by the next run where the audit entry could not be written
+        - holds no other tenant back
+    - a scheduled change whose contract cannot be written after it
+        - is put back as it was read, still due, and audited as not written
+        - a change that keeps its version is claimed back on the version it kept
+        - where it cannot be put back either, the audit says so
+    - a scheduled change the run finds no subscription for
+        - writes nothing where contracts are frozen, since nothing could be put back
+    - the audit entry of a scheduled change not made
+        - is declared, so the audit page can name it
+- `packages/nest/tests/no-change-swallows-its-contract.test.js`
+    - a freeze whose failure is only logged
+        - is found where it is
+        - is the one inside the helper that names the journal as what heals it
+
+<!-- END proof -->
+
+### SC-CHG-027 — An activation asks its contract first, and stands where only writing it fails
+
+🟢 💰 An activation outside a trial — the plan chosen in onboarding — ends in a contract at the
+version on sale it binds. What that contract could refuse — the subscriber, the tax decided for
+them, a plan not sold in the rhythm, the catalogue's rate — is asked before anything is written, and
+the activation is refused with that reason, with no plan set, no add-on booked and no code redeemed.
+Where the contract still cannot be written afterwards, the activation stands and nothing is taken
+back: the plan, the add-ons booked with it and a code redeemed are riskier to take back than the
+contract is to write late, and the journal charges no plan period until it has written that contract
+(`SC-PRIC-105`). A trial is asked nothing; its contract is frozen when it converts.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/onboarding-subscription.test.js`
+    - atomic path: successful non-trial plan change freezes the subscription contract
+    - an activation whose contract is refused before it is written writes nothing, with the
+      contract’s reason
+    - an activation whose contract the store fails to write after it stands, and nothing is taken
+      back
+
+<!-- END proof -->
+
 ## 7. Cancelling
 
 Cancelling is the part of a subscription a customer is most likely to dispute, so the rules are
@@ -9170,6 +9372,12 @@ _Tested by:_
         - a discount above the price takes it to nothing, not below
         - resuming the step shows the same yearly figure
 - `packages/ui-vue/tests/use-subscription-draft.test.js`
+    - useSubscriptionDraft — an add-on costs the chosen plan's price
+        - beside a plan with an override it is charged that plan's price
+        - follows the plan when the draft changes it
+        - with no price beside the plan in the rhythm is neither charged nor sent, rather than 0
+        - priced through one plan only is charged beside it, and dropped for a plan without it
+        - is not charged while no plan is chosen, since its price depends on the plan
     - useSubscriptionDraft — Promo-Discount
         - the discount is the net amount the server previewed, off the plan and not the bundles
         - a discount above the plan price stops at the plan price
@@ -9189,6 +9397,11 @@ _Tested by:_
         - the answer to the earlier question landing first does not stand
         - a code refused outright is not asked about again, a restricted one is
         - a code removed while its preview is out gives no discount when the answer lands
+    - an add-on beside the plan a prospect has chosen
+        - shows and sums the plan's price, not its own
+        - follows the plan when the prospect changes it
+        - with no price beside the plan in the rhythm is not available, rather than free
+        - priced through one plan only is offered beside that plan, and not beside another
 
 <!-- END proof -->
 
@@ -12014,6 +12227,40 @@ _Tested by:_
         - gets no reason from an invoice unpaid on its due date; another tenant does
         - keeps the reason it had when its invoice is paid: the run lifts none, the close does
         - keeps the reason it had when the payment that settles its invoice comes in
+
+<!-- END proof -->
+
+### SC-PRIC-105 — No plan period is charged while the contract names a version not bound
+
+🟢 💰 Where the contract in force names a plan version other than the one the subscription is bound
+to — a plan change written without its contract: an onboarding whose contract the store failed to
+write after it, or a change that could not be put back (`SC-CHG-025`, `SC-CHG-026`) — no plan period
+is charged until a contract names the version bound, so the tenant is not charged the plan they
+left. The journal writes that contract itself the next time it brings the account up to date —
+taking effect when the window the change opened began, where that came after the contract in force,
+and at that moment otherwise — and where it is refused, the next call tries again. A plan line
+naming no version, or a subscription bound to none, gives nothing to compare and holds nothing back,
+and a trial, which is charged nothing, gets no contract written.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/the-journal-waits-for-the-contract-of-the-version-bound.test.js`
+    - a plan period under a contract naming another version than the one bound
+        - is not charged
+        - is charged once the contract in force names the version bound
+        - is charged where the contract’s plan line names no version: there is nothing to compare
+        - waits for a contract naming the version bound that takes effect a moment after now
+        - is charged where that contract takes effect at the very moment
+    - the contract the journal writes for the version bound
+        - takes effect when the window the change opened began, and its period is charged at its
+          price
+        - takes effect now where the window began before the contract in force
+        - is tried again by the next call where it is refused, and nothing is charged meanwhile
+        - is not written in a trial, which commits to no period
 
 <!-- END proof -->
 
@@ -15824,51 +16071,47 @@ _Tested by:_
 
 ### SC-MKT-011 — The public catalogue shows base prices only
 
-🟢 A visitor has no plan, so a price that exists only as an override for one plan cannot be shown
-there, and an add-on priced that way reads as having no public price rather than as free.
+🔵 _(Superseded on 2026-11-18 by `SC-MKT-030`.)_ A visitor has no plan, so a price that exists only
+as an override for one plan cannot be shown there, and an add-on priced that way reads as having no
+public price rather than as free.
 
 _Source:_ #234
+
+### SC-MKT-030 — The public catalogue names an add-on's price per plan, as its contract takes it
+
+🟢 💰 A prospect chooses a plan and add-ons from the public marketing catalogue
+(`GET public/marketing-catalog`), and what it is shown for an add-on is what the contract and the
+invoice of that choice say: for each plan of the catalogue the add-on can be booked with, the price
+the add-on carries for that plan, the plan's override where there is one, in the plan's rhythm,
+and the promotion on that price. An add-on priced only through one plan's override is offered for
+that plan. Where an add-on cannot be had beside a plan in a rhythm, the catalogue names no price
+there rather than one, or zero, that no booking would take. The add-on's own price stays beside
+these, for a page that reads only that.
+
+_Source:_ #525
 
 <!-- BEGIN proof -->
 
 _Tested by:_
 
-- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
-    - the prices a store is shown
-        - are resolved for the plan, in both rhythms
-        - carry an override the public catalogue cannot know about
-        - a bundle sold in one rhythm only says so for the other
-        - an id nobody knows is left out rather than answered with nulls
-        - asking for nothing costs nothing
-- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
-    - PublicMarketingCatalogService — Bundles
-        - getCatalog returns empty bundles[] without a BundleRepository
-        - getCatalog returns published live bundles with compatiblePlanKeys
-        - requiresFeatures (#35): uncovered requires of the bundle features from the
-          FeatureCatalogEntries
-        - requiresFeatures without a CatalogEntryRepository: empty (graceful)
-        - getCatalog filters out non-marketed bundles
-        - getCatalog filters out bundles with MarketingProjection visible=false
-        - getCatalog ignores drafts (only live = published+not-superseded)
-        - i18n: MarketingProjection overrides label + fills description (matching locale)
-        - i18n: falls back to DE projection when locale is missing
-        - i18n: without a projection the bundle root label applies (description stays empty)
-        - bundle promotions are resolved with targetType=BUNDLE
-        - a promotion the price it meets cannot bear › a percentage above 100 shows the add-on free,
-          never at a negative price
-        - a promotion the price it meets cannot bear › an intro price above the price shows no
-          promotion at all
-- `packages/ui-vue/tests/use-tenant-billing-catalog.test.js`
-    - useTenantBillingCatalog
-        - load() reads all three endpoints under the default prefix
-        - a trailing slash in the prefix does not become a double slash
-        - the wire form of a bundle becomes the shape the page renders
-        - the optional wire fields default rather than arriving as undefined
-        - a missing /bundles endpoint is not fatal — the plan page still renders
-        - a failing /plans clears what it could not load
-        - a client that resolves with status 0 fails the load rather than emptying it
-        - a client that rejects is reported, not swallowed
-        - it loads on its own unless the consumer says otherwise
+- `packages/nest/tests/the-catalogue-quotes-what-the-contract-takes.test.js`
+    - every price the public catalogue names for an add-on
+        - is the list price a sign-up concluding that choice puts into its contract
+        - is, after its promotion, what that sign-up is charged
+        - is what a tenant on that plan is quoted for booking it
+        - is missing exactly where a sign-up and a booking are both refused
+    - what the catalogue names, case by case
+        - an add-on priced for one plan names that price for it, and the base price beside it
+        - names the plans in the order the catalogue lists them
+        - an add-on with no base price is still offered, for the plan that prices it
+        - an override that takes a rhythm away says so with null, never with 0
+        - a plan not sold in a rhythm has no add-on price in it
+        - a restricted add-on names only the marketed plans it may be booked with
+- `examples/notesapp/tests/the-notes-app-charges-what-its-catalogue-quotes.test.mjs`
+    - the notes app's contract, beside its public catalogue
+        - writes each add-on's line at the price the catalogue names beside the plan
+        - takes a plan's override, not the add-on's own price, where the seed sets one
+        - refuses a booking the catalogue names no price for, rather than writing 0
 
 <!-- END proof -->
 
@@ -20165,6 +20408,12 @@ _Tested by:_
         - Bundle toggle marks bundle + activates its features
         - Bundle deselect removes activated features again
         - Bundle price flows into subtotalNet
+    - useSubscriptionDraft — an add-on costs the chosen plan's price
+        - beside a plan with an override it is charged that plan's price
+        - follows the plan when the draft changes it
+        - with no price beside the plan in the rhythm is neither charged nor sent, rather than 0
+        - priced through one plan only is charged beside it, and dropped for a plan without it
+        - is not charged while no plan is chosen, since its price depends on the plan
     - useSubscriptionDraft — Promo-Discount
         - the discount is the net amount the server previewed, off the plan and not the bundles
         - a discount above the plan price stops at the plan price
@@ -29217,6 +29466,11 @@ _Tested by:_
     - the demo guard
         - names a tenant's user under `id`, where the platform reads who acted
         - names the admin app’s caller as the SuperAdmin the seed gives a second factor
+- `examples/notesapp/tests/the-notes-app-charges-what-its-catalogue-quotes.test.mjs`
+    - the notes app's contract, beside its public catalogue
+        - writes each add-on's line at the price the catalogue names beside the plan
+        - takes a plan's override, not the add-on's own price, where the seed sets one
+        - refuses a booking the catalogue names no price for, rather than writing 0
 - `examples/notesapp/tests/the-notes-app-cli-marks-its-installation.test.mjs`
     - the notes app's command line
         - offers the installation status, marking it, and the doctor — and no other command

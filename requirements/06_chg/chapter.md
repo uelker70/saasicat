@@ -684,3 +684,121 @@ _Tested by:_
         - refuses to start with the bookings and without the add-ons they name
 
 <!-- END proof -->
+
+### SC-CHG-025 — A plan change made at once and its contract are one
+
+🟢 💰 A plan change the tenant makes at once, and a switch to a newer version of their plan made at
+once, end in the contract that records them, or nothing changes. What that contract could refuse —
+the subscriber, the tax decided for them, a plan not sold in the rhythm asked for, the catalogue's
+rate — is asked before anything is written, and the change is refused with that reason. Where the
+contract still cannot be written, the subscription is written back as it was — its plan, version,
+rhythm, status, period, billing day and the change it had scheduled — and the change is refused, so
+nothing is charged or granted that no contract records. Only where writing it back fails as well
+does the change stand without its contract, and that is logged with the tenant's name. A change in
+a trial ends in no contract and is not held to one; its contract is frozen when the trial converts.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-plan-change-and-its-contract-are-one.test.js`
+    - a plan change made at once, whose contract is written
+        - stands, is charged and recorded, and nothing is taken back
+        - is asked of its whole contract first: the plan, the rhythm, from today
+    - a plan change made at once, whose contract is refused before it is written
+        - is refused with the contract’s reason, and nothing is written
+    - a plan change made at once, whose contract cannot be written after it
+        - is taken back as it was read, and refused with a code, where the store failed
+        - one that opened a period of its own gets the old window and billing day back
+        - is refused with the contract’s own code where it refused after the write
+        - where it cannot be taken back either, the error stands and is not called a refusal
+    - a plan change made at once in a trial
+        - ends in no contract: the party alone is asked, and it is never taken back
+    - a switch to a newer version made at once
+        - is asked of its contract at the version offered, before anything is written
+        - whose contract cannot be written is put back on the version it left, and refused
+    - the contract a change made at once is checked against
+        - is composed at the version the change binds, not the one bound now
+        - and is written nowhere where it holds
+        - asks the party alone where no repository reads the version
+- `packages/nest/tests/no-change-swallows-its-contract.test.js`
+    - a freeze whose failure is only logged
+        - is found where it is
+        - is the one inside the helper that names the journal as what heals it
+
+<!-- END proof -->
+
+### SC-CHG-026 — A scheduled plan change takes effect with its contract, or stays due
+
+🟢 💰 A plan change scheduled for a later date — to another plan, another rhythm or a newer version
+of the plan — is applied by the run that finds it due together with the contract that records it,
+or not at all. What that contract could refuse — the subscriber, the tax decided for them, a plan not
+sold in the rhythm, the catalogue's rate — is asked before anything is written; where the contract
+still cannot be written, the subscription is written back as it was read, with its change still
+scheduled. Either way the change stays due and every later run tries it again, so the tenant is not
+charged the old plan's price under the new plan, nor granted a plan its contract does not name. A
+change not made is written to the audit log as `SCHEDULED_PLAN_CHANGE_FAILED`, with the code the
+contract refused it with or the fact that it could not be written, once per change and reason until
+the server restarts rather than every quarter of an hour; the log says it in every run. Only where
+writing the subscription back fails as well does the change stand without its contract: the audit
+entry says so, and the journal charges no plan period until a contract names the version bound
+(`SC-PRIC-105`).
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-scheduled-change-comes-due-with-its-contract.test.js`
+    - a scheduled change whose contract is written
+        - is applied, and its contract records what was agreed when it was scheduled
+        - is asked of its whole contract first: the plan, the version quoted, the rhythm, from the
+          run
+    - a scheduled change whose contract is refused before it is written
+        - is not written, stays due, and is audited with the contract’s reason
+        - is tried again by every run, and audited once
+        - is audited again by the next run where the audit entry could not be written
+        - holds no other tenant back
+    - a scheduled change whose contract cannot be written after it
+        - is put back as it was read, still due, and audited as not written
+        - a change that keeps its version is claimed back on the version it kept
+        - where it cannot be put back either, the audit says so
+    - a scheduled change the run finds no subscription for
+        - writes nothing where contracts are frozen, since nothing could be put back
+    - the audit entry of a scheduled change not made
+        - is declared, so the audit page can name it
+- `packages/nest/tests/no-change-swallows-its-contract.test.js`
+    - a freeze whose failure is only logged
+        - is found where it is
+        - is the one inside the helper that names the journal as what heals it
+
+<!-- END proof -->
+
+### SC-CHG-027 — An activation asks its contract first, and stands where only writing it fails
+
+🟢 💰 An activation outside a trial — the plan chosen in onboarding — ends in a contract at the
+version on sale it binds. What that contract could refuse — the subscriber, the tax decided for
+them, a plan not sold in the rhythm, the catalogue's rate — is asked before anything is written, and
+the activation is refused with that reason, with no plan set, no add-on booked and no code redeemed.
+Where the contract still cannot be written afterwards, the activation stands and nothing is taken
+back: the plan, the add-ons booked with it and a code redeemed are riskier to take back than the
+contract is to write late, and the journal charges no plan period until it has written that contract
+(`SC-PRIC-105`). A trial is asked nothing; its contract is frozen when it converts.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/onboarding-subscription.test.js`
+    - atomic path: successful non-trial plan change freezes the subscription contract
+    - an activation whose contract is refused before it is written writes nothing, with the
+      contract’s reason
+    - an activation whose contract the store fails to write after it stands, and nothing is taken
+      back
+
+<!-- END proof -->

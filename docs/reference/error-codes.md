@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 319 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 321 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -169,6 +169,7 @@ Subscriptions, plan changes, entitlements.
 | `FEATURE_WITHDRAWAL_ALREADY_LIFTED`                  | This withdrawal is lifted already, from {date}.                                                                                                                                                                                 |
 | `FEATURE_WITHDRAWAL_DATE_IN_PAST`                    | A feature is withdrawn from now on or from a later date, never from a date already past.                                                                                                                                        |
 | `FEATURE_WITHDRAWAL_DOES_NOT_REACH`                  | This withdrawal does not reach your subscription, or no longer this booking.                                                                                                                                                    |
+| `FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN`        | The contract without this add-on could not be written, so it was not ended. Please try again later.                                                                                                                             |
 | `FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED`             | Your cancellation is recorded and cannot be brought forward here: it runs until {lastDay}, and until then the reduction applies.                                                                                                |
 | `FEATURE_WITHDRAWAL_FEATURE_UNKNOWN`                 | The catalogue knows no feature {featureKey}.                                                                                                                                                                                    |
 | `FEATURE_WITHDRAWAL_LIFT_IN_PAST`                    | A withdrawal is lifted from now on or from a later date, never from a date already past.                                                                                                                                        |
@@ -189,6 +190,7 @@ Subscriptions, plan changes, entitlements.
 | `NO_SUBSCRIPTION`                                    | This tenant has no subscription to cancel.                                                                                                                                                                                      |
 | `ONBOARDING_CREATE_FAILED`                           | The account could not be created. Please try again.                                                                                                                                                                             |
 | `PLAN_CHANGE_BLOCKED`                                | The plan change is blocked.                                                                                                                                                                                                     |
+| `PLAN_CHANGE_CONTRACT_NOT_WRITTEN`                   | The contract for this change could not be written, so nothing was changed. Please try again later.                                                                                                                              |
 | `PLAN_CHANGE_QUOTE_CHANGED`                          | This plan changed since it was shown. Look at it again before changing to it.                                                                                                                                                   |
 | `PLAN_CHANGE_VERSION_NOT_NAMED`                      | A plan change has to name the version its preview showed.                                                                                                                                                                       |
 | `PLAN_LOCKED`                                        | Active {planName} special contract — please contact the contract manager to change plans.                                                                                                                                       |

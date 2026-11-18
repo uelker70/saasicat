@@ -359,6 +359,7 @@ describe('an immediate upgrade brings the account up to date', () => {
         return {
             contractFreeze: {
                 async assertPartyFor() {},
+                async assertContractFor() {},
                 async freezeOnPlanChange() {
                     events.push('contract');
                 },
@@ -411,6 +412,11 @@ describe('a plan change asks the party about the contract it ends in', () => {
             contractFreeze: {
                 async assertPartyFor(...args) {
                     seen.asked.push(args);
+                },
+                // A change made today is asked of its whole contract, recorded
+                // here by the contract it ends in, as the party is.
+                async assertContractFor(tenantId, target, intended) {
+                    seen.asked.push([tenantId, intended]);
                 },
                 async freezeOnPlanChange(...args) {
                     seen.frozen.push(args);
