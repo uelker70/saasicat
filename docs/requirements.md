@@ -119,7 +119,7 @@ properties it has while doing it.
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
-| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 30      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 58      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 719 entries: 🟢 628 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
-🔵 61 superseded, 🔴 7 withdrawn.
+Of 720 entries: 🟢 628 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+🔵 62 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -200,6 +200,7 @@ Of 719 entries: 🟢 628 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-ENTL-021](#sc-entl-021--a-commercial-edit-does-not-reach-a-running-contract-a-feature-losing-its-code-does),
 [SC-PROMO-008](#sc-promo-008--an-absolute-discount-stays-below-the-lowest-price-it-can-apply-to),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
+[SC-MKT-011](#sc-mkt-011--the-public-catalogue-shows-base-prices-only),
 [SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
 [SC-ADM-022](#sc-adm-022--an-operator-lists-every-invoice-with-totals-per-period-and-tax-rate-and-exports-it),
 [SC-ADM-023](#sc-adm-023--an-operator-can-list-open-items-and-every-contract-including-former-subscribers),
@@ -229,7 +230,7 @@ Of 719 entries: 🟢 628 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 719 requirements. Do not edit by hand:
+Generated from `requirements/` — 720 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -2725,6 +2726,12 @@ _Tested by:_
         - a booking from before the rhythm was recorded takes the plan’s
         - a plan-specific override is what the tenant on that plan is billed
         - a booking whose version has vanished reports no price rather than a wrong one
+- `packages/nest/tests/the-catalogue-quotes-what-the-contract-takes.test.js`
+    - every price the public catalogue names for an add-on
+        - is the list price a sign-up concluding that choice puts into its contract
+        - is, after its promotion, what that sign-up is charged
+        - is what a tenant on that plan is quoted for booking it
+        - is missing exactly where a sign-up and a booking are both refused
 
 <!-- END proof -->
 
@@ -2741,7 +2748,7 @@ _Tested by:_
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - the prices a store is shown
         - are resolved for the plan, in both rhythms
-        - carry an override the public catalogue cannot know about
+        - carry an override that is the only price there is
         - a bundle sold in one rhythm only says so for the other
         - an id nobody knows is left out rather than answered with nulls
         - asking for nothing costs nothing
@@ -15976,51 +15983,42 @@ _Tested by:_
 
 ### SC-MKT-011 — The public catalogue shows base prices only
 
-🟢 A visitor has no plan, so a price that exists only as an override for one plan cannot be shown
-there, and an add-on priced that way reads as having no public price rather than as free.
+🔵 _(Superseded on 2026-11-18 by `SC-MKT-030`.)_ A visitor has no plan, so a price that exists only
+as an override for one plan cannot be shown there, and an add-on priced that way reads as having no
+public price rather than as free.
 
 _Source:_ #234
+
+### SC-MKT-030 — The public catalogue names an add-on's price per plan, as its contract takes it
+
+🟢 💰 A prospect chooses a plan and add-ons from the public marketing catalogue
+(`GET public/marketing-catalog`), and what it is shown for an add-on is what the contract and the
+invoice of that choice say: for each plan of the catalogue the add-on can be booked with, the price
+the add-on carries for that plan, the plan's override where there is one, in the plan's rhythm,
+and the promotion on that price. An add-on priced only through one plan's override is offered for
+that plan. Where an add-on cannot be had beside a plan in a rhythm, the catalogue names no price
+there rather than one, or zero, that no booking would take. The add-on's own price stays beside
+these, for a page that reads only that.
+
+_Source:_ #525
 
 <!-- BEGIN proof -->
 
 _Tested by:_
 
-- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
-    - the prices a store is shown
-        - are resolved for the plan, in both rhythms
-        - carry an override the public catalogue cannot know about
-        - a bundle sold in one rhythm only says so for the other
-        - an id nobody knows is left out rather than answered with nulls
-        - asking for nothing costs nothing
-- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
-    - PublicMarketingCatalogService — Bundles
-        - getCatalog returns empty bundles[] without a BundleRepository
-        - getCatalog returns published live bundles with compatiblePlanKeys
-        - requiresFeatures (#35): uncovered requires of the bundle features from the
-          FeatureCatalogEntries
-        - requiresFeatures without a CatalogEntryRepository: empty (graceful)
-        - getCatalog filters out non-marketed bundles
-        - getCatalog filters out bundles with MarketingProjection visible=false
-        - getCatalog ignores drafts (only live = published+not-superseded)
-        - i18n: MarketingProjection overrides label + fills description (matching locale)
-        - i18n: falls back to DE projection when locale is missing
-        - i18n: without a projection the bundle root label applies (description stays empty)
-        - bundle promotions are resolved with targetType=BUNDLE
-        - a promotion the price it meets cannot bear › a percentage above 100 shows the add-on free,
-          never at a negative price
-        - a promotion the price it meets cannot bear › an intro price above the price shows no
-          promotion at all
-- `packages/ui-vue/tests/use-tenant-billing-catalog.test.js`
-    - useTenantBillingCatalog
-        - load() reads all three endpoints under the default prefix
-        - a trailing slash in the prefix does not become a double slash
-        - the wire form of a bundle becomes the shape the page renders
-        - the optional wire fields default rather than arriving as undefined
-        - a missing /bundles endpoint is not fatal — the plan page still renders
-        - a failing /plans clears what it could not load
-        - a client that resolves with status 0 fails the load rather than emptying it
-        - a client that rejects is reported, not swallowed
-        - it loads on its own unless the consumer says otherwise
+- `packages/nest/tests/the-catalogue-quotes-what-the-contract-takes.test.js`
+    - every price the public catalogue names for an add-on
+        - is the list price a sign-up concluding that choice puts into its contract
+        - is, after its promotion, what that sign-up is charged
+        - is what a tenant on that plan is quoted for booking it
+        - is missing exactly where a sign-up and a booking are both refused
+    - what the catalogue names, case by case
+        - an add-on priced for one plan names that price for it, and the base price beside it
+        - names the plans in the order the catalogue lists them
+        - an add-on with no base price is still offered, for the plan that prices it
+        - an override that takes a rhythm away says so with null, never with 0
+        - a plan not sold in a rhythm has no add-on price in it
+        - a restricted add-on names only the marketed plans it may be booked with
 
 <!-- END proof -->
 

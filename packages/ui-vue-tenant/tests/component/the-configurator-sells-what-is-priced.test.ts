@@ -47,6 +47,23 @@ const BUNDLE = {
     bundleVersionId: 'bv-support',
     monthlyNet: 5,
     yearlyNet: 50,
+    // As the catalogue names it: BASIC is not sold yearly, so neither is the add-on beside it.
+    planPrices: [
+        {
+            planKey: 'BASIC',
+            monthlyNet: 5,
+            yearlyNet: null,
+            discountedMonthlyNet: null,
+            discountedYearlyNet: null,
+        },
+        {
+            planKey: 'PRO',
+            monthlyNet: 5,
+            yearlyNet: 50,
+            discountedMonthlyNet: null,
+            discountedYearlyNet: null,
+        },
+    ],
     description: '',
     features: ['SUPPORT'],
     quotas: {},

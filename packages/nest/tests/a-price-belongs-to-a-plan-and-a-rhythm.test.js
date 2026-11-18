@@ -8,13 +8,8 @@ import { FakeBundleRepository, FakeSubscriptionBundleRepository } from '../dist/
 //
 // It depends on the plan — a `BundlePricingOverride` may set a different figure
 // for one plan, or supply the only figure there is — and on the rhythm, since a
-// bundle carries two. The public catalogue can answer neither: it has no tenant
-// and therefore no plan, so it serves the base prices and a bundle priced only
-// through an override reads there as having no price at all.
-//
-// Until 2026-08-27 the booked list answered with `bv.monthlyNet` whatever the
-// booking was, so a bundle at 9.90 monthly and 99.00 yearly reported 9.90 after
-// a yearly booking.
+// bundle carries two. A booked bundle at 9.90 monthly and 99.00 yearly is billed
+// 99.00 after a yearly booking, not 9.90.
 
 const STARTER = 'STARTER';
 const PRO = 'PRO';
@@ -118,7 +113,6 @@ describe('the price a booking is billed at', () => {
     });
 });
 
-// @requirement SC-MKT-011 — The public catalogue shows base prices only
 // @requirement SC-BUN-007 — An add-on with no price in the chosen rhythm is shown as unavailable
 describe('the prices a store is shown', () => {
     test('are resolved for the plan, in both rhythms', async () => {
@@ -127,10 +121,9 @@ describe('the prices a store is shown', () => {
         assert.deepEqual(prices[bv.id], { monthlyNet: 9.9, yearlyNet: 99 });
     });
 
-    test('carry an override the public catalogue cannot know about', async () => {
-        // The case that made the card wrong: base prices absent, the only price
-        // there is comes from the override. The catalogue reads that as "no
-        // price", the store hid the bundle, and the booking would have worked.
+    test('carry an override that is the only price there is', async () => {
+        // Base prices absent, the only price comes from the override: read as
+        // the base price, the store would hide a bundle the booking accepts.
         const bv = await publishBundle({
             key: 'S2',
             monthlyNet: null,

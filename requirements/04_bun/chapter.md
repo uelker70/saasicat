@@ -261,6 +261,12 @@ _Tested by:_
         - a booking from before the rhythm was recorded takes the plan’s
         - a plan-specific override is what the tenant on that plan is billed
         - a booking whose version has vanished reports no price rather than a wrong one
+- `packages/nest/tests/the-catalogue-quotes-what-the-contract-takes.test.js`
+    - every price the public catalogue names for an add-on
+        - is the list price a sign-up concluding that choice puts into its contract
+        - is, after its promotion, what that sign-up is charged
+        - is what a tenant on that plan is quoted for booking it
+        - is missing exactly where a sign-up and a booking are both refused
 
 <!-- END proof -->
 
@@ -277,7 +283,7 @@ _Tested by:_
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - the prices a store is shown
         - are resolved for the plan, in both rhythms
-        - carry an override the public catalogue cannot know about
+        - carry an override that is the only price there is
         - a bundle sold in one rhythm only says so for the other
         - an id nobody knows is left out rather than answered with nulls
         - asking for nothing costs nothing

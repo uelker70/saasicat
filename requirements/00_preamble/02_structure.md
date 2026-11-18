@@ -87,7 +87,7 @@ properties it has while doing it.
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
-| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 30      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 58      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 719 entries: 🟢 628 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
-🔵 61 superseded, 🔴 7 withdrawn.
+Of 720 entries: 🟢 628 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+🔵 62 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -168,6 +168,7 @@ Of 719 entries: 🟢 628 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-ENTL-021](#sc-entl-021--a-commercial-edit-does-not-reach-a-running-contract-a-feature-losing-its-code-does),
 [SC-PROMO-008](#sc-promo-008--an-absolute-discount-stays-below-the-lowest-price-it-can-apply-to),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
+[SC-MKT-011](#sc-mkt-011--the-public-catalogue-shows-base-prices-only),
 [SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
 [SC-ADM-022](#sc-adm-022--an-operator-lists-every-invoice-with-totals-per-period-and-tax-rate-and-exports-it),
 [SC-ADM-023](#sc-adm-023--an-operator-can-list-open-items-and-every-contract-including-former-subscribers),
