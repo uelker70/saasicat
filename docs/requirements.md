@@ -127,12 +127,12 @@ properties it has while doing it.
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 27      |
-| 21  | Answering the question afterwards            | `SC-AUD-…`   | 21      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 22      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 17      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 714 entries: 🟢 623 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 715 entries: 🟢 624 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
 🔵 61 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -229,7 +229,7 @@ Of 714 entries: 🟢 623 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 714 requirements. Do not edit by hand:
+Generated from `requirements/` — 715 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -16505,6 +16505,10 @@ _Tested by:_
     - MfaGuard — RequireMfa decorator + header check
         - MFA_NOT_SET_UP when port enabled=false
         - MFA_REQUIRED when no X-Mfa-Code header
+- `packages/nest/tests/lasting-operator-actions-require-the-second-factor.test.js`
+    - what the chain Nest builds does with a request
+        - a caller named by `sub` rather than `id` is checked under that name
+        - a caller named only by `userId` is refused, since no resolver says to read it
 
 <!-- END proof -->
 
@@ -24854,7 +24858,8 @@ _Tested by:_
         - the platform administrator without a code is refused by name
         - a wrong code is refused, and the right one passes
         - an operator who has not set up a second factor is refused rather than let through
-        - a caller named by `userId` rather than `id` is checked under that name
+        - a caller named by `sub` rather than `id` is checked under that name
+        - a caller named only by `userId` is refused, since no resolver says to read it
         - a platform administrator the request does not name is refused as unauthenticated
         - a tenant user meets the role check, even holding a valid code
         - every other operator route lets the platform administrator through without a code
@@ -26793,6 +26798,53 @@ _Tested by:_
 - `packages/cli/tests/audit-tail-flow.test.js`
     - AuditTailFlow.run — filter mapping
         - an e-mail is looked for between the source and the context
+
+<!-- END proof -->
+
+### SC-AUD-022 — One request names one user, on every route that records or checks who acted
+
+🟢 🔒 The second factor, the audit log, the publisher of a version, a promotional code's author, the
+promotion preview's rate limit and a tenant's own writes read the user behind a request from one
+place: the application's `userIdResolver` at the root of the platform's options, or without one
+`sub`, then `id`. The user's e-mail and the session the request came from are read the same way for
+every record. Where a request names nobody — an empty value included — a route that checks who
+acted refuses it, and a record that only notes who acted says `unknown` rather than inventing an
+address.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/one-request-names-one-user.test.js`
+    - without a resolver, every way reads `sub`, then `id`
+        - `sub` names the user
+        - `id` names the user
+        - `sub` wins over a different `id`
+        - an empty `sub` names nobody, so the `id` beside it does
+        - `userId` alone names nobody
+        - an empty `id` names nobody
+        - a user with none of the fields names nobody
+    - with a resolver at the module's root, every way reads it
+        - a `userId` the resolver reads names the user
+        - a `sub` the resolver does not read names nobody
+        - an empty value the resolver returns names nobody
+    - the rate limit keys its window by the same rule
+        - a request naming the same user by another shape shares the window
+    - the actor beside the user
+        - an operator record and a tenant record take the e-mail and the session from the same place
+        - without an e-mail the record says it does not know one, rather than inventing an address
+        - without a session, an operator record says it came from the administration
+    - the resolvers live at the root, and nowhere else
+        - `tenantBilling.userIdResolver` refuses the start and names the root
+        - `tenantBilling.userEmailResolver` refuses the start and names the root
+        - `tenantBilling.auditContextResolver` refuses the start and names the root
+- `tests/the-user-behind-a-request-is-read-in-one-place.test.js`
+    - the user behind a request is read in one place
+        - the scan sees each shape a read takes
+        - and leaves alone what is not one
+        - only core/request-user.ts reads it
 
 <!-- END proof -->
 

@@ -27,24 +27,23 @@ export const BILLING_PERMISSION_GUARDS_TOKEN = Symbol.for('saasicat/nest/Billing
 export const TENANT_ID_RESOLVER_TOKEN = Symbol.for('saasicat/nest/TenantIdResolver');
 
 /**
- * Resolver function `(req) => string` that extracts the `userId` from the
- * request. Default: `req.user.sub ?? req.user.id`.
+ * The application's `SaaSiCatModule.forRoot({ userIdResolver })`: names the
+ * user behind a request (`core/request-user.ts`). Default: `req.user.sub`,
+ * then `req.user.id`.
  */
 export const USER_ID_RESOLVER_TOKEN = Symbol.for('saasicat/nest/UserIdResolver');
 
 /**
- * Resolver function `(req) => string` that extracts the user email from the
- * request. Optional — used by the audit-log path to build the AdminActor
- * (`{userId, email, source: 'web', context}`). Default: `req.user.email`.
- * If the consumer's JWT does not carry an email, the resolver can return
- * `null` — the audit-log path then falls back to `'unknown'`.
+ * The application's `SaaSiCatModule.forRoot({ userEmailResolver })`: names the
+ * e-mail of the user behind a request. Default: `req.user.email`; the audit log
+ * says `'unknown'` where there is none.
  */
 export const USER_EMAIL_RESOLVER_TOKEN = Symbol.for('saasicat/nest/UserEmailResolver');
 
 /**
- * Resolver function `(req) => string` that extracts an audit context from the
- * request (e.g. session ID, trace ID). Default: `req.headers['x-session-id']`
- * or `TENANT_SELF_SERVICE_CONTEXT`.
+ * The application's `SaaSiCatModule.forRoot({ auditContextResolver })`: names
+ * where a request came from (a session or trace id) for the audit log.
+ * Default: the `x-session-id` header.
  */
 export const AUDIT_CONTEXT_RESOLVER_TOKEN = Symbol.for('saasicat/nest/AuditContextResolver');
 

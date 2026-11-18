@@ -26,18 +26,20 @@ test('standard promo Admin controller exposes list, create, edit and delete', as
         },
     };
     const Controller = buildPromoCodeAdminController([]);
-    const controller = new Controller(promos, {
-        async log(entry) {
-            audits.push(entry);
+    // Who is behind a request is the platform's one reading of it, tested in
+    // `one-request-names-one-user.test.js`; here, that the controller records
+    // the actor it reads.
+    const actor = { userId: 'admin-1', email: 'admin@example.com', source: 'web', context: 's-1' };
+    const request = { user: { id: 'admin-1' } };
+    const controller = new Controller(
+        promos,
+        {
+            async log(entry) {
+                audits.push(entry);
+            },
         },
-    });
-    const request = {
-        user: {
-            userId: 'admin-1',
-            email: 'admin@example.com',
-            sessionId: 'session-1',
-        },
-    };
+        { actorFromRequest: (req) => (req === request ? actor : assert.fail('another request')) },
+    );
 
     await controller.findAll({ status: 'ACTIVE', search: 'WELCOME' });
     await controller.create(request, {
@@ -68,4 +70,5 @@ test('standard promo Admin controller exposes list, create, edit and delete', as
         audits.map(({ action }) => action),
         ['PROMO_CODE_CREATE', 'PROMO_CODE_UPDATE', 'PROMO_CODE_DELETE'],
     );
+    assert.ok(audits.every((entry) => entry.actor === actor));
 });

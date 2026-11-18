@@ -31,6 +31,7 @@ import { PromoCodeExpirer } from './promo-code-expirer.service.js';
 import { PromoCodePublicController } from './promo.controller.js';
 import { PromoCodesService, type PromoServiceConfig } from './promo.service.js';
 import { PromoCodeRateLimitGuard } from './rate-limit.guard.js';
+import { WebAuditLogger } from '../core/web-audit.js';
 import { buildPromoCodeAdminController } from './promo-admin.controller.js';
 import {
     PROMO_CODE_HOLD_REPOSITORY_TOKEN,
@@ -101,6 +102,7 @@ export class PromoCodesModule {
                 : []),
             PromoCodesService,
             PromoCodeRateLimitGuard,
+            WebAuditLogger,
         ];
         if (includeCron) {
             providers.push(PromoCodeExpirer);

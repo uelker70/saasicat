@@ -3,9 +3,13 @@ import {
     ExecutionContext,
     HttpException,
     HttpStatus,
+    Inject,
     Injectable,
+    Optional,
 } from '@nestjs/common';
 import { REGISTRATION_ERROR_CODES } from '@saasicat/core';
+import { USER_ID_RESOLVER_TOKEN, type UserIdResolver } from '../billing/tenant-billing.tokens.js';
+import { requestUserIdOf } from '../core/request-user.js';
 import { codedError } from '../errors/coded-error.js';
 
 // Lightweight in-memory rate limiter for /onboarding/promo-code/preview.
@@ -27,7 +31,6 @@ interface Bucket {
 interface RequestLike {
     headers: Record<string, string | string[] | undefined>;
     ip?: string;
-    user?: { id?: string };
 }
 
 // `retryAfterSeconds` is part of the documented `RATE_LIMITED` contract, so it
@@ -53,10 +56,16 @@ export class PromoCodeRateLimitGuard implements CanActivate {
     private ipBuckets = new Map<string, Bucket>();
     private sessionBuckets = new Map<string, Bucket>();
 
+    constructor(
+        @Optional()
+        @Inject(USER_ID_RESOLVER_TOKEN)
+        private readonly userIdResolver: UserIdResolver | null = null,
+    ) {}
+
     canActivate(context: ExecutionContext): boolean {
         const req = context.switchToHttp().getRequest<RequestLike>();
         const ipKey = ipFingerprint(req);
-        const sessionKey = req.user?.id ?? null;
+        const sessionKey = requestUserIdOf(req, this.userIdResolver);
 
         if (this.exceeded(this.ipBuckets, ipKey, IP_WINDOW_MS, IP_LIMIT)) {
             throw rateLimited(IP_WINDOW_MS);

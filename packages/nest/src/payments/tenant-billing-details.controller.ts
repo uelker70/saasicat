@@ -15,7 +15,8 @@ import {
     type UserIdResolver,
 } from '../billing/tenant-billing.tokens.js';
 import { tenantIdOf } from '../billing/tenant-id.js';
-import { actorFromRequest, actorTagOf } from '../core/web-audit.js';
+import { actorFromRequest } from '../core/request-user.js';
+import { actorTagOf } from '../core/web-audit.js';
 import { SubscriberService } from '../subscriber/subscriber.service.js';
 import { ChangeBillingDetailsDto } from './dto/change-billing-details.dto.js';
 

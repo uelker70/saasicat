@@ -128,13 +128,15 @@ describe('an audit entry names the tenant it concerns', () => {
     test("an operator's act on a promotional code names no tenant", async () => {
         const audit = auditLog();
         const Controller = buildPromoCodeAdminController([]);
+        const operator = { userId: 'admin-1', email: 'admin@example.com', source: 'web' };
         const controller = new Controller(
             { create: async (data) => ({ id: 'promo-1', code: data.code }) },
             audit,
+            { actorFromRequest: () => ({ ...operator, context: 'session-1' }) },
         );
 
         await controller.create(
-            { user: { userId: 'admin-1', email: 'admin@example.com', sessionId: 'session-1' } },
+            { user: { id: 'admin-1', email: 'admin@example.com' } },
             {
                 code: 'WELCOME',
                 valueType: 'PERCENT',

@@ -13,26 +13,17 @@ import {
     type Type,
 } from '@nestjs/common';
 import type {
-    AdminActor,
     CreatePromoCodeData,
     PromoCodeFilter,
     PromoCodeRecord,
     UpdatePromoCodeData,
 } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
+import { WebAuditLogger } from '../core/web-audit.js';
 import { CreatePromoCodeDto, UpdatePromoCodeDto } from './dto/promo-admin.dto.js';
 import { PromoCodesService } from './promo.service.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
-
-interface AdminRequest {
-    user?: {
-        id?: string;
-        userId?: string;
-        email?: string;
-        sessionId?: string;
-    };
-}
 
 export function buildPromoCodeAdminController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/promo-codes')
@@ -44,6 +35,7 @@ export function buildPromoCodeAdminController(guards: Array<Type<CanActivate>>):
             private readonly promos: PromoCodesService,
             @Inject(AdminAuditService)
             private readonly audit: AdminAuditService,
+            @Inject(WebAuditLogger) private readonly webAudit: WebAuditLogger,
         ) {}
 
         @Get()
@@ -55,10 +47,10 @@ export function buildPromoCodeAdminController(guards: Array<Type<CanActivate>>):
 
         @Post()
         async create(
-            @Req() request: AdminRequest,
+            @Req() request: unknown,
             @Body() dto: CreatePromoCodeDto,
         ): Promise<PromoCodeRecord> {
-            const actor = actorFromRequest(request);
+            const actor = this.webAudit.actorFromRequest(request);
             const created = await this.promos.create(toCreateData(dto, actor.userId));
             await this.audit.log({
                 actor,
@@ -72,11 +64,11 @@ export function buildPromoCodeAdminController(guards: Array<Type<CanActivate>>):
 
         @Patch(':id')
         async update(
-            @Req() request: AdminRequest,
+            @Req() request: unknown,
             @Param('id') id: string,
             @Body() dto: UpdatePromoCodeDto,
         ): Promise<PromoCodeRecord> {
-            const actor = actorFromRequest(request);
+            const actor = this.webAudit.actorFromRequest(request);
             const updated = await this.promos.update(id, toUpdateData(dto));
             await this.audit.log({
                 actor,
@@ -89,8 +81,8 @@ export function buildPromoCodeAdminController(guards: Array<Type<CanActivate>>):
         }
 
         @Delete(':id')
-        async remove(@Req() request: AdminRequest, @Param('id') id: string): Promise<{ ok: true }> {
-            const actor = actorFromRequest(request);
+        async remove(@Req() request: unknown, @Param('id') id: string): Promise<{ ok: true }> {
+            const actor = this.webAudit.actorFromRequest(request);
             await this.promos.softDelete(id);
             await this.audit.log({
                 actor,
@@ -103,16 +95,6 @@ export function buildPromoCodeAdminController(guards: Array<Type<CanActivate>>):
     }
 
     return GeneratedPromoCodeAdminController;
-}
-
-function actorFromRequest(request: AdminRequest): AdminActor {
-    const userId = request.user?.id ?? request.user?.userId ?? 'unknown';
-    return {
-        userId,
-        email: request.user?.email ?? `${userId}@unknown`,
-        source: 'web',
-        context: request.user?.sessionId ?? 'unknown',
-    };
 }
 
 function toCreateData(dto: CreatePromoCodeDto, createdById: string): CreatePromoCodeData {

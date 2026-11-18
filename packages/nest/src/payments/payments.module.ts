@@ -20,9 +20,7 @@ import {
     BILLING_PERMISSION_GUARDS_TOKEN,
     TENANT_AUTH_GUARDS_TOKEN,
     TENANT_ID_RESOLVER_TOKEN,
-    USER_EMAIL_RESOLVER_TOKEN,
     type TenantIdResolver,
-    type UserEmailResolver,
 } from '../billing/tenant-billing.tokens.js';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { userTenantIdOf } from '../billing/tenant-id.js';
@@ -52,8 +50,6 @@ export interface PaymentsTenantRoutesOptions {
     billingPermissionGuards?: ProviderSpec<ReadonlyArray<CanActivate>>;
     /** Default: `req.user.tenantId`. */
     tenantIdResolver?: TenantIdResolver;
-    /** Default: `req.user.email` — handed to the gateway when the subscriber has no invoice email. */
-    userEmailResolver?: UserEmailResolver;
 }
 
 export interface PaymentsModuleOptions {
@@ -124,12 +120,6 @@ export class PaymentsModule {
                 providers.push(
                     asProvider(BILLING_PERMISSION_GUARDS_TOKEN, tenant.billingPermissionGuards),
                 );
-            }
-            if (tenant.userEmailResolver) {
-                providers.push({
-                    provide: USER_EMAIL_RESOLVER_TOKEN,
-                    useValue: tenant.userEmailResolver,
-                });
             }
             controllers.push(TenantPaymentMethodController, TenantBillingDetailsController);
         }

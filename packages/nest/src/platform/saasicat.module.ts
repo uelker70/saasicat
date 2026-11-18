@@ -66,6 +66,7 @@ import {
     resolveCatalog,
 } from './compose/base.js';
 import { composeModuleExports } from './compose/module-exports.js';
+import { composeRequestUser } from './compose/request-user.js';
 import { servesSubscriberAccounts } from './compose/subscriber-account.js';
 import {
     servesContractConfirmations,
@@ -167,6 +168,7 @@ export class SaaSiCatModule {
         // the same list as everything else that is wrong.
         const { catalog, failure: catalogFailure } = resolveCatalog(options);
         assertConfiguration({ options, adapters, catalog, catalogFailure });
+        const requestUser = composeRequestUser(options);
 
         // Non-null after the check above — AdminModule requires them.
         const mfaPort = adapters.mfa as ProviderSpec<MfaPort>;
@@ -223,6 +225,10 @@ export class SaaSiCatModule {
         // entitlements read before it is refused (`compose/maintenance.ts`).
         const lightweightProviders: Provider[] = [...maintenanceGuardProviders(composition)];
         const lightweightExports: NonNullable<DynamicModule['exports']> = [];
+        // Exported from this global module, so every module the platform
+        // composes reads the same user behind a request.
+        lightweightProviders.push(...requestUser);
+        lightweightExports.push(...requestUser);
         if (options.autoManifest !== false) {
             const subscriberAccounts = servesSubscriberAccounts(options);
             const tenantDeletions = servesTenantDeletions(options);

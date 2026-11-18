@@ -94,6 +94,10 @@ _Tested by:_
     - MfaGuard — RequireMfa decorator + header check
         - MFA_NOT_SET_UP when port enabled=false
         - MFA_REQUIRED when no X-Mfa-Code header
+- `packages/nest/tests/lasting-operator-actions-require-the-second-factor.test.js`
+    - what the chain Nest builds does with a request
+        - a caller named by `sub` rather than `id` is checked under that name
+        - a caller named only by `userId` is refused, since no resolver says to read it
 
 <!-- END proof -->
 

@@ -44,7 +44,7 @@ import {
     holdsEveryoneBack,
     holdsOldestFirst,
 } from '@saasicat/core';
-import { actorTagOf } from '../core/web-audit.js';
+import { actorTagOf, WebAuditLogger } from '../core/web-audit.js';
 import { codedError } from '../errors/coded-error.js';
 import { referencesOf } from '../tenant-access/hold-references.js';
 import {
@@ -65,15 +65,6 @@ export class SuspendTenantDto {
     @IsString()
     @MaxLength(500)
     reason?: string;
-}
-
-interface AdminRequest {
-    user?: {
-        id?: string;
-        userId?: string;
-        email?: string;
-        sessionId?: string;
-    };
 }
 
 /** The reads only the generic administration asks, which a two-method lookup does not answer. */
@@ -346,16 +337,6 @@ export type AdminResourcesModuleOptions = AdminResourcesModuleCommonOptions &
           }
     );
 
-function actorFromRequest(request: AdminRequest): AdminActor {
-    const userId = request.user?.id ?? request.user?.userId ?? 'unknown';
-    return {
-        userId,
-        email: request.user?.email ?? `${userId}@unknown`,
-        source: 'web',
-        context: request.user?.sessionId ?? 'unknown',
-    };
-}
-
 function buildAdminResourcesController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin')
     @AllowDuringMaintenance()
@@ -364,6 +345,7 @@ function buildAdminResourcesController(guards: Array<Type<CanActivate>>): Type {
         constructor(
             @Inject(AdminResourcesService)
             private readonly resources: AdminResourcesService,
+            @Inject(WebAuditLogger) private readonly audit: WebAuditLogger,
         ) {}
 
         @Get('tenants')
@@ -381,20 +363,24 @@ function buildAdminResourcesController(guards: Array<Type<CanActivate>>): Type {
         @Post('tenants/:slug/suspend')
         @EnforceMfa()
         suspendTenant(
-            @Req() request: AdminRequest,
+            @Req() request: unknown,
             @Param('slug') slug: string,
             @Body() dto: SuspendTenantDto,
         ): Promise<AdminTenantStateResult> {
-            return this.resources.suspendTenant(slug, dto.reason, actorFromRequest(request));
+            return this.resources.suspendTenant(
+                slug,
+                dto.reason,
+                this.audit.actorFromRequest(request),
+            );
         }
 
         @Post('tenants/:slug/reactivate')
         @EnforceMfa()
         reactivateTenant(
-            @Req() request: AdminRequest,
+            @Req() request: unknown,
             @Param('slug') slug: string,
         ): Promise<AdminTenantStateResult> {
-            return this.resources.reactivateTenant(slug, actorFromRequest(request));
+            return this.resources.reactivateTenant(slug, this.audit.actorFromRequest(request));
         }
 
         @Get('users')
@@ -445,6 +431,7 @@ export class AdminResourcesModule {
             providers: [
                 asProvider(ADMIN_RESOURCES_PORT_TOKEN, options.resources),
                 AdminResourcesService,
+                WebAuditLogger,
             ],
             exports: [ADMIN_RESOURCES_PORT_TOKEN, AdminResourcesService],
         };
