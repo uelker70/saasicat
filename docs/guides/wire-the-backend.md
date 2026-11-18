@@ -1312,6 +1312,35 @@ booking's bundle version as `sourceVersionId` on its line, which is how the jour
 writing the contract failed after a booking, the next call writes it again, so that the booking has
 a contract line to be charged under.
 
+Your freeze source prices each booking with `resolveBundlePriceNet(version, planKey, cycle)` from
+`@saasicat/nest/billing`: the add-on's price for the plan where it carries one, its own otherwise.
+It is the rule the public catalogue quotes each plan's price by (`planPrices`, `SC-MKT-030`), and the
+booking preview and a checkout offer price by, so the contract takes what the prospect was shown.
+Where it answers `null`, the add-on has no price beside that plan in that rhythm: refuse the freeze
+with an error rather than write a line at 0, which would record a price nobody agreed to.
+
+A plan change and the contract it ends in are one (`SC-CHG-025`). Before the platform writes a
+change — at once through `POST billing/plan`, as the switch to a newer version through
+`POST billing/version-offer/accept`, or a scheduled one that comes due — it composes the contract
+the change ends in, your freeze source's lines included, and refuses the change with the reason
+that contract would be refused with: the subscriber, the tax decided for them, a plan not sold in
+the rhythm, an add-on your source cannot price. Where the store fails once the change is written,
+the subscription is put back as it was read, and the tenant is refused with
+`503 PLAN_CHANGE_CONTRACT_NOT_WRITTEN`, to try again later. A scheduled change whose contract
+cannot be written stays due, and every later call of
+`PendingPlanMaterializationService.materializeDuePlanChanges` tries it again (`SC-CHG-026`). The
+platform audits it once per change and reason as `SCHEDULED_PLAN_CHANGE_FAILED`, by the actor
+`job:platform:scheduled-plan-changes`, with `reason` `contract-refused` and the contract's code, or
+`contract-not-written`. An activation in onboarding is asked the same before it is written, and
+stands where only writing its contract fails afterwards (`SC-CHG-027`).
+
+Where the contract in force names another plan version than the one the subscription is bound to —
+such an activation, or a flow of your own that binds a version without freezing its contract — the
+journal charges no plan period. It writes the contract for the version bound itself the next time
+it brings the account up to date, and charges from then on (`SC-PRIC-105`). A flow of yours that
+binds a version freezes its contract through `ContractFreezePort.freezeOnPlanChange` as it does so;
+otherwise its plan periods wait until the journal has written one.
+
 An immediate upgrade is charged as its preview quoted it (`SC-PRIC-059`). In the same rhythm that
 is the difference for the rest of the period, beside the period's own charge. Into a longer rhythm
 it is the new period less the unused rest of the one it replaces. A discount stays with the rhythm

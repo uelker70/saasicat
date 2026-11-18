@@ -1,9 +1,10 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaSubscriberRepository } from '@saasicat/adapter-prisma';
 import {
     SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
+    type BundlePricingOverride,
     type SubscriberInvoiceAddressField,
     type SubscriberRecord,
 } from '@saasicat/core';
@@ -16,6 +17,7 @@ import {
     seedActivationPlatformOf,
     type SeededSubscription,
 } from './seed-activation';
+import { BUNDLES, PLANS } from './seed-catalogue';
 import { SeedModule } from './seed.module';
 import { DEMO_SUPER_ADMIN, seedSuperAdmin } from './seed-super-admin';
 
@@ -90,93 +92,6 @@ const SEEDED_BY = 'seed:notesapp';
 
 /** The one `marketing_settings` row, matching the schema's constant default. */
 const MARKETING_SETTINGS_ROW_ID = 'marketing-settings';
-
-/** A plan stem plus its single published v1 (mirrors config/saas.yaml). */
-interface PlanSeed {
-    planKey: string;
-    label: string;
-    description: string;
-    sortOrder: number;
-    features: string[];
-    quotas: Record<string, number>;
-    monthlyNet: number;
-    yearlyNet: number;
-    changeNote: string;
-}
-
-const PLANS: PlanSeed[] = [
-    {
-        planKey: 'STARTER',
-        label: 'Starter',
-        description: 'For getting started — notes only.',
-        sortOrder: 10,
-        features: ['NOTES'],
-        quotas: { notesMax: 25 },
-        monthlyNet: 9,
-        yearlyNet: 90,
-        changeNote: 'Initial release (seed).',
-    },
-    {
-        planKey: 'PRO',
-        label: 'Pro',
-        description: 'Notes plus export and a generous quota.',
-        sortOrder: 20,
-        features: ['NOTES', 'NOTES_EXPORT'],
-        quotas: { notesMax: 1000 },
-        monthlyNet: 29,
-        yearlyNet: 290,
-        changeNote: 'Initial release (seed).',
-    },
-];
-
-/** A reusable add-on bundle plus its single published v1. */
-interface BundleSeed {
-    bundleKey: string;
-    label: string;
-    description: string;
-    icon: string;
-    sortOrder: number;
-    features: string[];
-    quotas: Record<string, number>;
-    monthlyNet: number;
-    /**
-     * Both plans here are sold monthly *and* yearly, and a bundle offered to a
-     * plan has to resolve a price in the rhythm that plan is bought in — the
-     * publish gate refuses a version that cannot, and the booking preview
-     * blocks one that slipped through. Seeded with only a monthly price, these
-     * two were permanently unbookable for every tenant on a yearly plan, which
-     * is what an integrator would have copied.
-     */
-    yearlyNet: number;
-    changeNote: string;
-}
-
-const BUNDLES: BundleSeed[] = [
-    {
-        bundleKey: 'EXPORT_PRO',
-        label: 'Export Pro',
-        description: 'Adds note export to any plan.',
-        icon: 'file_download',
-        sortOrder: 10,
-        features: ['NOTES_EXPORT'],
-        quotas: {},
-        monthlyNet: 5,
-        yearlyNet: 50,
-        changeNote: 'Initial release (seed).',
-    },
-    {
-        bundleKey: 'POWER_QUOTA',
-        label: 'Power Quota',
-        description: 'Raises the notes limit to 5000.',
-        icon: 'trending_up',
-        sortOrder: 20,
-        features: [],
-        quotas: { notesMax: 5000 },
-        monthlyNet: 8,
-        yearlyNet: 80,
-        changeNote: 'Initial release (seed).',
-    },
-];
 
 /**
  * Catalog-side pricing campaigns. `Promotion` has no natural unique key, so a
@@ -474,6 +389,7 @@ async function seedBundles(prisma: PrismaClient): Promise<void> {
                 quotas: spec.quotas,
                 monthlyNet: spec.monthlyNet,
                 yearlyNet: spec.yearlyNet,
+                pricingOverrides: jsonOf(spec.pricingOverrides),
                 marketed: true,
                 publishedAt: now,
                 changeNote: spec.changeNote,
@@ -484,10 +400,20 @@ async function seedBundles(prisma: PrismaClient): Promise<void> {
                 quotas: spec.quotas,
                 monthlyNet: spec.monthlyNet,
                 yearlyNet: spec.yearlyNet,
+                pricingOverrides: jsonOf(spec.pricingOverrides),
                 publishedAt: now,
             },
         });
     }
+}
+
+/**
+ * The overrides as Prisma's JSON input takes them. An interface declares no
+ * index signature, so it is not assignable to a JSON object; a copy of each
+ * entry as an object literal is.
+ */
+function jsonOf(overrides: readonly BundlePricingOverride[]): Prisma.InputJsonArray {
+    return overrides.map((override) => ({ ...override }));
 }
 
 async function seedMarketing(prisma: PrismaClient): Promise<void> {

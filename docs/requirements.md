@@ -16057,6 +16057,11 @@ _Tested by:_
         - an override that takes a rhythm away says so with null, never with 0
         - a plan not sold in a rhythm has no add-on price in it
         - a restricted add-on names only the marketed plans it may be booked with
+- `examples/notesapp/tests/the-notes-app-charges-what-its-catalogue-quotes.test.mjs`
+    - the notes app's contract, beside its public catalogue
+        - writes each add-on's line at the price the catalogue names beside the plan
+        - takes a plan's override, not the add-on's own price, where the seed sets one
+        - refuses a booking the catalogue names no price for, rather than writing 0
 
 <!-- END proof -->
 
@@ -29411,6 +29416,11 @@ _Tested by:_
     - the demo guard
         - names a tenant's user under `id`, where the platform reads who acted
         - names the admin app’s caller as the SuperAdmin the seed gives a second factor
+- `examples/notesapp/tests/the-notes-app-charges-what-its-catalogue-quotes.test.mjs`
+    - the notes app's contract, beside its public catalogue
+        - writes each add-on's line at the price the catalogue names beside the plan
+        - takes a plan's override, not the add-on's own price, where the seed sets one
+        - refuses a booking the catalogue names no price for, rather than writing 0
 - `examples/notesapp/tests/the-notes-app-cli-marks-its-installation.test.mjs`
     - the notes app's command line
         - offers the installation status, marking it, and the doctor — and no other command
