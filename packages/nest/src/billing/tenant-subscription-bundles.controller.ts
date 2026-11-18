@@ -71,7 +71,7 @@ import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { mayChangeWhatTheTenantPays } from './tenant-roles.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
-import { intendedContractOf } from './freeze-contract-after.js';
+import { freezeHealedByTheJournal, intendedContractOf } from './freeze-contract-after.js';
 import type { IntendedContract } from '../subscription-contract/subscription-contract.service.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
@@ -703,20 +703,14 @@ export function buildTenantSubscriptionBundlesController(
             // Cancelling a bundle stays open on a cancelled subscription, and it
             // re-freezes: the replacement contract ends when the subscription
             // does, like the one it succeeds.
-            const refrozen = refrozenContractOf(sub);
-            try {
-                await this.contractFreeze.freezeOnPlanChange(
-                    tenantId,
-                    sub.planVersion.planId,
-                    refrozen.cycle,
-                    refrozen.effectiveFrom,
-                    refrozen.endsAt,
-                );
-            } catch (err) {
-                this.logger.error(
-                    `Contract freeze after bundle mutation failed (tenant ${tenantId}): ${String(err)}`,
-                );
-            }
+            // A booking its contract misses is written into one by the journal.
+            await freezeHealedByTheJournal(
+                this.contractFreeze,
+                tenantId,
+                { plan: sub.planVersion.planId, ...refrozenContractOf(sub) },
+                'a bundle mutation',
+                this.logger,
+            );
         }
     }
 

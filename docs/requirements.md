@@ -112,10 +112,10 @@ properties it has while doing it.
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 66      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 46      |
-| 6   | Changing a plan                              | `SC-CHG-…`   | 25      |
+| 6   | Changing a plan                              | `SC-CHG-…`   | 27      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 104     |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 105     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 716 entries: 🟢 625 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 719 entries: 🟢 628 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
 🔵 61 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -229,7 +229,7 @@ Of 716 entries: 🟢 625 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 716 requirements. Do not edit by hand:
+Generated from `requirements/` — 719 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -7483,6 +7483,83 @@ _Tested by:_
         - is composed at the version the change binds, not the one bound now
         - and is written nowhere where it holds
         - asks the party alone where no repository reads the version
+- `packages/nest/tests/no-change-swallows-its-contract.test.js`
+    - a freeze whose failure is only logged
+        - is found where it is
+        - is the one inside the helper that names the journal as what heals it
+
+<!-- END proof -->
+
+### SC-CHG-026 — A scheduled plan change takes effect with its contract, or stays due
+
+🟢 💰 A plan change scheduled for a later date — to another plan, another rhythm or a newer version
+of the plan — is applied by the run that finds it due together with the contract that records it,
+or not at all. What that contract could refuse — the subscriber, the tax decided for them, a plan not
+sold in the rhythm, the catalogue's rate — is asked before anything is written; where the contract
+still cannot be written, the subscription is written back as it was read, with its change still
+scheduled. Either way the change stays due and every later run tries it again, so the tenant is not
+charged the old plan's price under the new plan, nor granted a plan its contract does not name. A
+change not made is written to the audit log as `SCHEDULED_PLAN_CHANGE_FAILED`, with the code the
+contract refused it with or the fact that it could not be written, once per change and reason until
+the server restarts rather than every quarter of an hour; the log says it in every run. Only where
+writing the subscription back fails as well does the change stand without its contract: the audit
+entry says so, and the journal charges no plan period until a contract names the version bound
+(`SC-PRIC-105`).
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-scheduled-change-comes-due-with-its-contract.test.js`
+    - a scheduled change whose contract is written
+        - is applied, and its contract records what was agreed when it was scheduled
+        - is asked of its whole contract first: the plan, the version quoted, the rhythm, from the
+          run
+    - a scheduled change whose contract is refused before it is written
+        - is not written, stays due, and is audited with the contract’s reason
+        - is tried again by every run, and audited once
+        - is audited again by the next run where the audit entry could not be written
+        - holds no other tenant back
+    - a scheduled change whose contract cannot be written after it
+        - is put back as it was read, still due, and audited as not written
+        - a change that keeps its version is claimed back on the version it kept
+        - where it cannot be put back either, the audit says so
+    - a scheduled change the run finds no subscription for
+        - writes nothing where contracts are frozen, since nothing could be put back
+    - the audit entry of a scheduled change not made
+        - is declared, so the audit page can name it
+- `packages/nest/tests/no-change-swallows-its-contract.test.js`
+    - a freeze whose failure is only logged
+        - is found where it is
+        - is the one inside the helper that names the journal as what heals it
+
+<!-- END proof -->
+
+### SC-CHG-027 — An activation asks its contract first, and stands where only writing it fails
+
+🟢 💰 An activation outside a trial — the plan chosen in onboarding — ends in a contract at the
+version on sale it binds. What that contract could refuse — the subscriber, the tax decided for
+them, a plan not sold in the rhythm, the catalogue's rate — is asked before anything is written, and
+the activation is refused with that reason, with no plan set, no add-on booked and no code redeemed.
+Where the contract still cannot be written afterwards, the activation stands and nothing is taken
+back: the plan, the add-ons booked with it and a code redeemed are riskier to take back than the
+contract is to write late, and the journal charges no plan period until it has written that contract
+(`SC-PRIC-105`). A trial is asked nothing; its contract is frozen when it converts.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/onboarding-subscription.test.js`
+    - atomic path: successful non-trial plan change freezes the subscription contract
+    - an activation whose contract is refused before it is written writes nothing, with the
+      contract’s reason
+    - an activation whose contract the store fails to write after it stands, and nothing is taken
+      back
 
 <!-- END proof -->
 
@@ -12055,6 +12132,40 @@ _Tested by:_
         - gets no reason from an invoice unpaid on its due date; another tenant does
         - keeps the reason it had when its invoice is paid: the run lifts none, the close does
         - keeps the reason it had when the payment that settles its invoice comes in
+
+<!-- END proof -->
+
+### SC-PRIC-105 — No plan period is charged while the contract names a version not bound
+
+🟢 💰 Where the contract in force names a plan version other than the one the subscription is bound
+to — a plan change written without its contract: an onboarding whose contract the store failed to
+write after it, or a change that could not be put back (`SC-CHG-025`, `SC-CHG-026`) — no plan period
+is charged until a contract names the version bound, so the tenant is not charged the plan they
+left. The journal writes that contract itself the next time it brings the account up to date —
+taking effect when the window the change opened began, where that came after the contract in force,
+and at that moment otherwise — and where it is refused, the next call tries again. A plan line
+naming no version, or a subscription bound to none, gives nothing to compare and holds nothing back,
+and a trial, which is charged nothing, gets no contract written.
+
+_Source:_ #338
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/the-journal-waits-for-the-contract-of-the-version-bound.test.js`
+    - a plan period under a contract naming another version than the one bound
+        - is not charged
+        - is charged once the contract in force names the version bound
+        - is charged where the contract’s plan line names no version: there is nothing to compare
+        - waits for a contract naming the version bound that takes effect a moment after now
+        - is charged where that contract takes effect at the very moment
+    - the contract the journal writes for the version bound
+        - takes effect when the window the change opened began, and its period is charged at its
+          price
+        - takes effect now where the window began before the contract in force
+        - is tried again by the next call where it is refused, and nothing is charged meanwhile
+        - is not written in a trial, which commits to no period
 
 <!-- END proof -->
 

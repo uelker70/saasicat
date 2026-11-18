@@ -1,6 +1,7 @@
 import { HttpException, ServiceUnavailableException, type Logger } from '@nestjs/common';
 import type {
     BillingCycle,
+    ContractAgreement,
     SubscriptionPutBack,
     SubscriptionUsageRecord,
     TenantSubscriptionWritePort,
@@ -26,6 +27,24 @@ export interface PlanChangeMade {
     readonly what: string;
 }
 
+/** The contract a plan change ends in: the plan and rhythm, from when, until when. */
+export interface PlanChangeTerms {
+    readonly plan: string;
+    readonly cycle: BillingCycle;
+    readonly effectiveFrom: Date;
+    readonly endsAt: Date | null;
+    /**
+     * What the subscriber agreed to when they scheduled the change, for one
+     * written when it takes effect (`AgreedChangeContractTerms`).
+     */
+    readonly agreed?: ContractAgreement;
+}
+
+/** Whether the contract was written, and where it was not, whether the change was taken back. */
+export type ContractOrPutBack =
+    | { readonly written: true }
+    | { readonly written: false; readonly error: unknown; readonly takenBack: boolean };
+
 /**
  * Freezes the contract a plan change made today ends in, or takes the change
  * back and refuses it (`SC-CHG-025`).
@@ -43,10 +62,33 @@ export interface PlanChangeMade {
 export async function freezeOrTakeBack(
     ports: ContractOrTakeBackPorts,
     tenantId: string,
-    terms: { plan: string; cycle: BillingCycle; effectiveFrom: Date; endsAt: Date | null },
+    terms: PlanChangeTerms,
     change: PlanChangeMade,
 ): Promise<void> {
-    if (!ports.contractFreeze) return;
+    const outcome = await freezeOrPutBack(ports, tenantId, terms, change);
+    if (outcome.written) return;
+    const { error } = outcome;
+    if (!outcome.takenBack) throw error;
+    if (error instanceof HttpException) throw error;
+    throw new ServiceUnavailableException({
+        code: BILLING_ERROR_CODES.PLAN_CHANGE_CONTRACT_NOT_WRITTEN,
+        message: 'The contract for this change could not be written, so nothing was changed.',
+        params: {},
+    });
+}
+
+/**
+ * Freezes the contract a plan change ends in, or writes the subscription back
+ * as `change.read` held it; which of the two happened. For a caller with no
+ * one to refuse — a run, which leaves the change due for the next.
+ */
+export async function freezeOrPutBack(
+    ports: ContractOrTakeBackPorts,
+    tenantId: string,
+    terms: PlanChangeTerms,
+    change: PlanChangeMade,
+): Promise<ContractOrPutBack> {
+    if (!ports.contractFreeze) return { written: true };
     try {
         await ports.contractFreeze.freezeOnPlanChange(
             tenantId,
@@ -54,22 +96,19 @@ export async function freezeOrTakeBack(
             terms.cycle,
             terms.effectiveFrom,
             terms.endsAt,
+            ...(terms.agreed ? [{ agreed: terms.agreed }] : []),
         );
-        return;
+        return { written: true };
     } catch (error) {
         const takenBack = await takeBack(ports, tenantId, change);
         ports.entitlements.invalidateTenant(tenantId);
-        if (!takenBack) throw error;
-        ports.logger.error(
-            `The contract for ${change.what} of tenant ${tenantId} could not be written, and the ` +
-                `change was taken back: ${String(error)}`,
-        );
-        if (error instanceof HttpException) throw error;
-        throw new ServiceUnavailableException({
-            code: BILLING_ERROR_CODES.PLAN_CHANGE_CONTRACT_NOT_WRITTEN,
-            message: 'The contract for this change could not be written, so nothing was changed.',
-            params: {},
-        });
+        if (takenBack) {
+            ports.logger.error(
+                `The contract for ${change.what} of tenant ${tenantId} could not be written, and ` +
+                    `the change was taken back: ${String(error)}`,
+            );
+        }
+        return { written: false, error, takenBack };
     }
 }
 

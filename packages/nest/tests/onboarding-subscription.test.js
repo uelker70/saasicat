@@ -5,6 +5,8 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { UnprocessableEntityException } from '@nestjs/common';
+import { SUBSCRIBER_ERROR_CODES } from '@saasicat/core';
 import { PlanChangePreviewService, givenPlanCatalogSource } from '../dist/billing/index.js';
 import { tenantBillingRoutes } from './helpers/tenant-billing-routes.js';
 
@@ -44,10 +46,16 @@ function buildSub({ plan = 'STARTER', status = 'TRIAL', id = 'sub-1' } = {}) {
     };
 }
 
+/** The version of a plan on sale, which an activation binds. */
+const ON_SALE = 'pv-sport-2';
+
 function buildPlanPreview({ blockers = [] } = {}) {
     return {
         async assertChangeAllowed() {
             return blockers;
+        },
+        async versionOnSaleOf() {
+            return ON_SALE;
         },
         async preview() {
             return null;
@@ -445,19 +453,34 @@ function atomicWriteRecording(events) {
     };
 }
 
-/** A freeze port that records what it is asked, and what it freezes. */
-function freezeRecording(events, asked, freezeCalls) {
+/**
+ * A freeze port that records what it is asked, and what it freezes; `check`
+ * is what asking does, `freeze` what writing the contract does.
+ */
+function freezeRecording(
+    events,
+    asked,
+    freezeCalls,
+    { check = async () => {}, freeze = async () => {} } = {},
+) {
     return {
-        async assertPartyFor(...args) {
+        async assertPartyFor() {
+            throw new Error('an activation is asked of its whole contract');
+        },
+        async assertContractFor(...args) {
             events.push('asked');
             asked.push(args);
+            await check(...args);
         },
         async freezeOnPlanChange(tenantId, plan, cycle, now, endsAt) {
+            events.push('freeze');
             freezeCalls.push({ tenantId, plan, cycle, now, endsAt });
+            await freeze();
         },
     };
 }
 
+// @requirement SC-CHG-027 — An activation asks its contract first, and stands where only writing it fails
 test('atomic path: successful non-trial plan change freezes the subscription contract', async () => {
     const freezeCalls = [];
     const asked = [];
@@ -485,12 +508,79 @@ test('atomic path: successful non-trial plan change freezes the subscription con
         { tenantId: 't1', plan: 'SPORT', cycle: 'YEARLY' },
     );
     assert.ok(freezeCalls[0].now instanceof Date);
-    // Asked before the write, about the contract the freeze then writes.
-    assert.deepEqual(events, ['asked', 'write']);
-    const [[tenantId, intended]] = asked;
+    // Asked before the write, of the contract the freeze then writes: the plan
+    // at the version on sale, which the activation binds.
+    assert.deepEqual(events, ['asked', 'write', 'freeze']);
+    const [[tenantId, target, intended]] = asked;
     assert.equal(tenantId, 't1');
+    assert.deepEqual(target, { plan: 'SPORT', planVersionId: ON_SALE });
     assert.deepEqual([intended.cycle, intended.endsAt], ['YEARLY', freezeCalls[0].endsAt ?? null]);
     assert.ok(freezeCalls[0].now - intended.effectiveFrom < 1000);
+});
+
+// @requirement SC-CHG-027 — An activation asks its contract first, and stands where only writing it fails
+test('an activation whose contract is refused before it is written writes nothing, with the contract’s reason', async () => {
+    const events = [];
+    const bundles = buildSubscriptionBundlesStub();
+    const ctrl = buildController({
+        subscriptionWrite: atomicWriteRecording(events),
+        subscriptionBundles: bundles,
+        subscriptionUsage: { findForTenant: async () => buildSub({ status: 'ACTIVE' }) },
+        contractFreeze: freezeRecording(events, [], [], {
+            check: () => {
+                throw new UnprocessableEntityException({
+                    code: SUBSCRIBER_ERROR_CODES.SUBSCRIBER_IDENTITY_INCOMPLETE,
+                    message: 'The subscriber’s address is incomplete.',
+                    params: { missing: ['street'] },
+                });
+            },
+        }),
+    });
+
+    await assert.rejects(
+        ctrl.completeOnboardingSubscription(
+            { user: { tenantId: 't1', sub: 'u1' } },
+            {
+                plan: 'SPORT',
+                billingCycle: 'YEARLY',
+                bundleVersionIds: ['11111111-2222-3333-4444-555555555555'],
+            },
+        ),
+        (error) =>
+            error.getResponse().code === SUBSCRIBER_ERROR_CODES.SUBSCRIBER_IDENTITY_INCOMPLETE,
+    );
+    assert.deepEqual(events, ['asked'], 'nothing written, nothing frozen');
+    assert.equal(bundles.addCalls.length, 0, 'no add-on booked');
+});
+
+// @requirement SC-CHG-027 — An activation asks its contract first, and stands where only writing it fails
+test('an activation whose contract the store fails to write after it stands, and nothing is taken back', async () => {
+    const events = [];
+    const charged = [];
+    const ctrl = buildController({
+        subscriptionWrite: atomicWriteRecording(events),
+        subscriptionUsage: { findForTenant: async () => buildSub({ status: 'ACTIVE' }) },
+        contractFreeze: freezeRecording(events, [], [], {
+            freeze: () => {
+                throw new Error('connection reset');
+            },
+        }),
+        charges: {
+            async recordDueCharges(tenantId) {
+                charged.push(tenantId);
+                return [];
+            },
+        },
+    });
+
+    const result = await ctrl.completeOnboardingSubscription(
+        { user: { tenantId: 't1', sub: 'u1' } },
+        { plan: 'SPORT', billingCycle: 'YEARLY' },
+    );
+
+    assert.equal(result.plan, 'SPORT');
+    assert.deepEqual(events, ['asked', 'write', 'freeze'], 'written once, never put back');
+    assert.deepEqual(charged, ['t1'], 'the journal is asked, and waits for the contract');
 });
 
 test('a trial is not asked: it commits to no period, and its contract is frozen when it converts', async () => {
@@ -718,7 +808,7 @@ test('onboarding: the contract is written after the add-ons it books, so it name
         subscriptionBundles: bundles,
         subscriptionUsage: { findForTenant: async () => buildSub({ status: 'ACTIVE' }) },
         contractFreeze: {
-            async assertPartyFor() {},
+            async assertContractFor() {},
             async freezeOnPlanChange() {
                 events.push('freeze');
             },

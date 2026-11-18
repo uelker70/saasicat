@@ -197,6 +197,11 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 severity: 'high',
             },
             {
+                key: 'SCHEDULED_PLAN_CHANGE_FAILED',
+                label: 'Scheduled plan change not made: its contract could not be written; tried again',
+                severity: 'high',
+            },
+            {
                 key: 'BUNDLE_VERSION_RETIREMENT_MOVE',
                 label: 'Add-on booking moved to the replacement of a retired version',
                 severity: 'medium',

@@ -56,7 +56,7 @@ import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js'
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import { FeatureWithdrawalService } from './feature-withdrawal.service.js';
-import { freezeContractAfter } from './freeze-contract-after.js';
+import { freezeHealedByTheJournal } from './freeze-contract-after.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN, PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { rhythmTheChangeLandsIn } from './scheduled-change.js';
@@ -229,7 +229,7 @@ export class EndAtOnceService {
         const at = now;
         if (booking) {
             await this.endBooking(booking, declared, at);
-            await freezeContractAfter(
+            await freezeHealedByTheJournal(
                 cancellationHasLanded(subscription, at) ? null : this.contractFreeze,
                 tenantId,
                 {
