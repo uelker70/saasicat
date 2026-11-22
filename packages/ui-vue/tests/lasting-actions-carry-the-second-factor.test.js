@@ -227,6 +227,50 @@ describe('the dialog loop the pages share', () => {
         assert.deepEqual(await outcome, { done: true, value: 'purged' });
     });
 
+    for (const code of ['MFA_NOT_SET_UP', 'NOT_AUTHENTICATED']) {
+        test(`a 401 saying ${code} closes the dialog and reaches the caller: no code helps there`, async () => {
+            const mfa = useMfaPrompt();
+            const failure = new AdminError({ message: code, status: 401, code });
+            let attempts = 0;
+            const outcome = mfa.run('Publish v2', INVALID, async () => {
+                attempts += 1;
+                throw failure;
+            });
+            // Read after a few ticks rather than awaited: a loop that asks
+            // again never settles, and that must fail here, not hang.
+            let settled = 'pending';
+            outcome.then(
+                () => (settled = 'resolved'),
+                (error) =>
+                    (settled = error === failure ? 'rejected with it' : 'rejected otherwise'),
+            );
+            mfa.onConfirm(CODE);
+            for (let i = 0; i < 20; i += 1) await Promise.resolve();
+            mfa.close();
+
+            assert.equal(settled, 'rejected with it');
+            assert.equal(attempts, 1);
+            assert.equal(mfa.error.value, '', 'the refused-code sentence was not said');
+        });
+    }
+
+    test('a 401 naming the code as wrong or missing asks again', async () => {
+        for (const code of ['MFA_FAILED', 'MFA_REQUIRED']) {
+            const mfa = useMfaPrompt();
+            let attempts = 0;
+            const outcome = mfa.run('Publish v2', INVALID, async () => {
+                attempts += 1;
+                if (attempts === 1) throw new AdminError({ message: code, status: 401, code });
+                return 'published';
+            });
+            mfa.onConfirm('000000');
+            for (let i = 0; i < 20; i += 1) await Promise.resolve();
+            assert.equal(mfa.error.value, INVALID, code);
+            mfa.onConfirm(CODE);
+            assert.deepEqual(await outcome, { done: true, value: 'published' });
+        }
+    });
+
     test('any other failure closes the dialog and reaches the caller', async () => {
         const mfa = useMfaPrompt();
         const failure = new AdminError({ message: 'regressive', status: 422 });

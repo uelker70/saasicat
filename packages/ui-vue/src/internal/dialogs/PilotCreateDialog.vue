@@ -1,10 +1,8 @@
 <template>
-    <!-- The chrome is AdminDialog's; the submit lifecycle is not AdminFormDialog's.
-     A failure here goes to one of two places depending on the response reason —
-     an invalid or missing second factor belongs in the MFA prompt, everything
-     else in this dialog — and a component that owns the error cannot make that
-     split. Rather than widen AdminFormDialog for one caller, the two dialogs
-     that re-prompt keep their own handler. -->
+    <!-- The chrome is AdminDialog's, the submit lifecycle not AdminFormDialog's:
+     the footer carries the invitation hint, and `created` hands the page what
+     the route answered. A refused second factor keeps the prompt open
+     (`useMfaPrompt().run`); any other refusal is worded in the banner. -->
     <AdminDialog
         :model-value="modelValue"
         :title="msg.createDialog.title"
@@ -251,11 +249,12 @@
 
     <MfaPromptDialog
         v-if="requireMfa"
-        v-model="showMfa"
-        :description="mfaDescription"
-        :error="mfaError"
+        :model-value="mfa.show.value"
+        :description="mfa.description.value"
+        :error="mfa.error.value"
         :setup-hint="mfaSetupHint"
-        @confirm="(code) => doSubmit(code)"
+        @update:model-value="mfa.onVisibility"
+        @confirm="mfa.onConfirm"
     />
 </template>
 
@@ -269,7 +268,8 @@ import { IDENTITY_NEUTRAL } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { looksLikeEmail, trimChar } from '../../client/text-shape.js';
 import { useInstallationDays } from '../../vue/use-installation-days.js';
-import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import { useMfaPrompt } from '../../vue/use-mfa-prompt.js';
+import { useAdminErrorText, useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { PilotCopy, PilotCreatePayload, PilotCreateResult } from './types.js';
 
 // Platform pilot-create dialog (sim layout: 3 numbered sections,
@@ -351,9 +351,8 @@ function emptyForm() {
 const form = reactive(emptyForm());
 const loading = ref(false);
 const error = ref('');
-const showMfa = ref(false);
-const mfaError = ref('');
-const mfaDescription = ref('');
+const mfa = useMfaPrompt();
+const errorText = useAdminErrorText();
 const slugTouched = ref(false);
 
 function slugify(s: string): string {
@@ -415,75 +414,63 @@ watch(
     },
 );
 
-function onSubmit(): void {
-    if (!isValid.value) return;
-    if (props.requireMfa) {
-        mfaDescription.value = formatMessage(msg.value.createDialog.mfaDescription, {
+function payloadOf(): PilotCreatePayload {
+    return {
+        tenant: {
             name: form.tenant.name,
+            slug: form.tenant.slug || undefined,
+            legalForm: form.tenant.legalForm || undefined,
+            vatId: form.tenant.vatId || undefined,
+        },
+        admin: {
+            email: form.admin.email,
+            firstName: form.admin.firstName,
+            lastName: form.admin.lastName,
+            initialPassword: form.admin.initialPassword || undefined,
+        },
+        pilot: {
             plan: form.pilot.plan,
-        });
-        mfaError.value = '';
-        showMfa.value = true;
-        return;
-    }
-    void doSubmit('');
+            note: form.pilot.note || undefined,
+            endsAt: form.pilot.endsAt || undefined,
+        },
+    };
 }
 
-async function doSubmit(code: string): Promise<void> {
+async function create(payload: PilotCreatePayload, code: string): Promise<PilotCreateResult> {
     loading.value = true;
-    error.value = '';
     try {
-        const result = await props.submit(
-            {
-                tenant: {
-                    name: form.tenant.name,
-                    slug: form.tenant.slug || undefined,
-                    legalForm: form.tenant.legalForm || undefined,
-                    vatId: form.tenant.vatId || undefined,
-                },
-                admin: {
-                    email: form.admin.email,
-                    firstName: form.admin.firstName,
-                    lastName: form.admin.lastName,
-                    initialPassword: form.admin.initialPassword || undefined,
-                },
-                pilot: {
-                    plan: form.pilot.plan,
-                    note: form.pilot.note || undefined,
-                    endsAt: form.pilot.endsAt || undefined,
-                },
-            },
-            code,
-        );
-        showMfa.value = false;
-        emit('created', result);
-        emit('update:modelValue', false);
-    } catch (err) {
-        const response = (
-            err as {
-                response?: {
-                    status?: number;
-                    data?: { reason?: string; message?: string };
-                };
-            }
-        ).response;
-        const status = response?.status;
-        const reason = response?.data?.reason;
-        if (
-            props.requireMfa &&
-            status === 401 &&
-            (reason === 'MFA_FAILED' || reason === 'MFA_REQUIRED')
-        ) {
-            mfaError.value = msg.value.mfa.invalidCode;
-        } else if (props.requireMfa && status === 401 && reason === 'MFA_NOT_SET_UP') {
-            mfaError.value = response?.data?.message ?? msg.value.mfa.notSetUp;
-        } else {
-            error.value = response?.data?.message ?? common.value.createFailed;
-            showMfa.value = false;
-        }
+        return await props.submit(payload, code);
     } finally {
         loading.value = false;
     }
+}
+
+async function onSubmit(): Promise<void> {
+    if (!isValid.value) return;
+    const payload = payloadOf();
+    error.value = '';
+    try {
+        if (!props.requireMfa) {
+            created(await create(payload, ''));
+            return;
+        }
+        const outcome = await mfa.run(
+            formatMessage(msg.value.createDialog.mfaDescription, {
+                name: payload.tenant.name,
+                plan: payload.pilot.plan,
+            }),
+            msg.value.mfa.invalidCode,
+            (code) => create(payload, code),
+        );
+        if (outcome.done) created(outcome.value);
+    } catch (err) {
+        error.value = errorText(err);
+    }
+}
+
+function created(result: PilotCreateResult): void {
+    emit('created', result);
+    emit('update:modelValue', false);
 }
 </script>
 

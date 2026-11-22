@@ -36,7 +36,6 @@ export const commonMessages = defineMessages(
         results: 'Ergebnisse',
         error: 'Fehler',
         errorLoadFailed: 'Laden fehlgeschlagen',
-        errorSaveFailed: 'Speichern fehlgeschlagen',
         yes: 'Ja',
         no: 'Nein',
         none: 'Keine',
@@ -78,7 +77,6 @@ export const commonMessages = defineMessages(
         expired: 'Abgelaufen',
         unlimited: 'unbegrenzt',
         both: 'Beide',
-        createFailed: 'Anlegen fehlgeschlagen',
         noChanges: 'Keine Änderungen',
         paginator: {
             label: 'Seitennavigation',
@@ -147,7 +145,6 @@ export const commonMessages = defineMessages(
         results: 'Results',
         error: 'Error',
         errorLoadFailed: 'Failed to load',
-        errorSaveFailed: 'Failed to save',
         yes: 'Yes',
         no: 'No',
         none: 'None',
@@ -189,7 +186,6 @@ export const commonMessages = defineMessages(
         expired: 'Expired',
         unlimited: 'unlimited',
         both: 'Both',
-        createFailed: 'Creation failed',
         noChanges: 'No changes',
         paginator: {
             label: 'Pagination',

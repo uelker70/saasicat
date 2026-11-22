@@ -1,10 +1,8 @@
 <template>
-    <!-- The chrome is AdminDialog's; the submit lifecycle is not AdminFormDialog's.
-     A failure here goes to one of two places depending on the response reason —
-     an invalid or missing second factor belongs in the MFA prompt, everything
-     else in this dialog — and a component that owns the error cannot make that
-     split. Rather than widen AdminFormDialog for one caller, the two dialogs
-     that re-prompt keep their own handler. -->
+    <!-- The chrome is AdminDialog's, the submit lifecycle not AdminFormDialog's:
+     `updated` hands the page what the route answered. A refused second factor
+     keeps the prompt open (`useMfaPrompt().run`); any other refusal is worded
+     in the banner. -->
     <AdminDialog
         :model-value="modelValue"
         :title="msg.editDialog.title"
@@ -128,11 +126,12 @@
 
     <MfaPromptDialog
         v-if="requireMfa"
-        v-model="showMfa"
-        :description="mfaDescription"
-        :error="mfaError"
+        :model-value="mfa.show.value"
+        :description="mfa.description.value"
+        :error="mfa.error.value"
         :setup-hint="mfaSetupHint"
-        @confirm="(code) => doSubmit(code)"
+        @update:model-value="mfa.onVisibility"
+        @confirm="mfa.onConfirm"
     />
 </template>
 
@@ -145,7 +144,8 @@ import AdminBanner from '../../ui/feedback/AdminBanner.vue';
 import { IDENTITY_NEUTRAL } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useInstallationDays } from '../../vue/use-installation-days.js';
-import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import { useMfaPrompt } from '../../vue/use-mfa-prompt.js';
+import { useAdminErrorText, useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { PilotRow } from '../../pages/PilotsPage.vue';
 import type { PilotCopy, PilotEditPayload, PilotEditResult } from './types.js';
 
@@ -236,9 +236,8 @@ const form = reactive<FormState>(fromRow(null));
 const initial = ref<FormState>(fromRow(null));
 const loading = ref(false);
 const error = ref('');
-const showMfa = ref(false);
-const mfaError = ref('');
-const mfaDescription = ref('');
+const mfa = useMfaPrompt();
+const errorText = useAdminErrorText();
 
 function setEndsAtDays(count: number): void {
     form.endsAt = addDaysToDay(days.today(), count);
@@ -280,54 +279,44 @@ const subtitleText = computed(() =>
 
 const isDirty = computed(() => Object.keys(diff.value).length > 0);
 
-function onSubmit(): void {
-    if (!isDirty.value || !props.row) return;
-    if (props.requireMfa) {
-        mfaDescription.value = formatMessage(msg.value.editDialog.mfaDescription, {
-            name: props.row.tenant.name,
-        });
-        mfaError.value = '';
-        showMfa.value = true;
-        return;
-    }
-    void doSubmit('');
-}
-
-async function doSubmit(code: string): Promise<void> {
-    if (!props.row) return;
+async function save(
+    slug: string,
+    payload: PilotEditPayload,
+    code: string,
+): Promise<PilotEditResult> {
     loading.value = true;
-    error.value = '';
     try {
-        const result = await props.submit(props.row.tenant.slug, diff.value, code);
-        showMfa.value = false;
-        emit('updated', result);
-        emit('update:modelValue', false);
-    } catch (err) {
-        const response = (
-            err as {
-                response?: {
-                    status?: number;
-                    data?: { reason?: string; message?: string };
-                };
-            }
-        ).response;
-        const status = response?.status;
-        const reason = response?.data?.reason;
-        if (
-            props.requireMfa &&
-            status === 401 &&
-            (reason === 'MFA_FAILED' || reason === 'MFA_REQUIRED')
-        ) {
-            mfaError.value = msg.value.mfa.invalidCode;
-        } else if (props.requireMfa && status === 401 && reason === 'MFA_NOT_SET_UP') {
-            mfaError.value = response?.data?.message ?? msg.value.mfa.notSetUp;
-        } else {
-            error.value = response?.data?.message ?? common.value.errorSaveFailed;
-            showMfa.value = false;
-        }
+        return await props.submit(slug, payload, code);
     } finally {
         loading.value = false;
     }
+}
+
+async function onSubmit(): Promise<void> {
+    const row = props.row;
+    if (!isDirty.value || !row) return;
+    const slug = row.tenant.slug;
+    const payload = diff.value;
+    error.value = '';
+    try {
+        if (!props.requireMfa) {
+            saved(await save(slug, payload, ''));
+            return;
+        }
+        const outcome = await mfa.run(
+            formatMessage(msg.value.editDialog.mfaDescription, { name: row.tenant.name }),
+            msg.value.mfa.invalidCode,
+            (code) => save(slug, payload, code),
+        );
+        if (outcome.done) saved(outcome.value);
+    } catch (err) {
+        error.value = errorText(err);
+    }
+}
+
+function saved(result: PilotEditResult): void {
+    emit('updated', result);
+    emit('update:modelValue', false);
 }
 </script>
 

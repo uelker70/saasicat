@@ -9218,6 +9218,16 @@ _Tested by:_
         - adopts plan, end date and note from the row
         - draws the same plan picker as the create dialog
         - offers preset buttons for the end date
+    - a pilot dialog shows what the route answered
+        - creating › a refused address reads as the catalogue sentence, and the prompt closes
+        - creating › an application's own refusal reads as the route worded it
+        - creating › a refused code keeps the prompt open and says so; the next code creates the
+          pilot
+        - creating › a failure of the route closes the prompt and reads as the status sentence
+        - creating › a second factor not set up is said in the banner, not asked for again
+        - creating › without a second factor, the refusal reads the same
+        - editing › a refused code keeps the prompt open and says so; the next code saves
+        - editing › a failure of the route closes the prompt and reads as the status sentence
 
 <!-- END proof -->
 
@@ -24442,6 +24452,17 @@ _Tested by:_
         - German reads German
         - the flag a status raises follows it too
         - and so does the sentence for a feature with nothing behind it
+- `packages/ui-vue/tests/component/pilot-dialogs.test.ts`
+    - a pilot dialog shows what the route answered
+        - creating › a refused address reads as the catalogue sentence, and the prompt closes
+        - creating › an application's own refusal reads as the route worded it
+        - creating › a refused code keeps the prompt open and says so; the next code creates the
+          pilot
+        - creating › a failure of the route closes the prompt and reads as the status sentence
+        - creating › a second factor not set up is said in the banner, not asked for again
+        - creating › without a second factor, the refusal reads the same
+        - editing › a refused code keeps the prompt open and says so; the next code saves
+        - editing › a failure of the route closes the prompt and reads as the status sentence
 - `packages/ui-vue/tests/i18n.test.js`
     - i18n locales
         - German is the default locale
@@ -25327,6 +25348,8 @@ _Tested by:_
         - cancelling runs nothing and says so
         - a refused code keeps the dialog open, says so, and a second code goes through
         - a package error carrying the status counts as a refusal, not only an AdminError
+        - a 401 saying ${code} closes the dialog and reaches the caller: no code helps there
+        - a 401 naming the code as wrong or missing asks again
         - any other failure closes the dialog and reaches the caller
 
 <!-- END proof -->

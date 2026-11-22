@@ -93,8 +93,6 @@ export const pilotsMessages = defineMessages(
         },
         mfa: {
             invalidCode: 'TOTP-Code ungültig.',
-            invalidOrNotSetUp: 'TOTP-Code ungültig oder MFA nicht eingerichtet.',
-            notSetUp: 'MFA ist für diesen Account nicht eingerichtet.',
         },
     },
     {
@@ -186,8 +184,6 @@ export const pilotsMessages = defineMessages(
         },
         mfa: {
             invalidCode: 'TOTP code invalid.',
-            invalidOrNotSetUp: 'TOTP code invalid or MFA not set up.',
-            notSetUp: 'MFA is not set up for this account.',
         },
     },
 );

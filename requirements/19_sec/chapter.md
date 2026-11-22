@@ -452,6 +452,8 @@ _Tested by:_
         - cancelling runs nothing and says so
         - a refused code keeps the dialog open, says so, and a second code goes through
         - a package error carrying the status counts as a refusal, not only an AdminError
+        - a 401 saying ${code} closes the dialog and reaches the caller: no code helps there
+        - a 401 naming the code as wrong or missing asks again
         - any other failure closes the dialog and reaches the caller
 
 <!-- END proof -->
