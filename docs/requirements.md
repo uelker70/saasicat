@@ -7571,12 +7571,15 @@ _Tested by:_
         - one that opened a period of its own gets the old window and billing day back
         - is taken back only over the row as the change left it
         - is refused with the contract’s own code where it refused after the write
-        - where it cannot be taken back either, the error stands and is not called a refusal
+        - where it cannot be taken back either, it is recorded as made and refused as standing
     - a plan change made at once in a trial
         - ends in no contract: the party alone is asked, and it is never taken back
     - a switch to a newer version made at once
         - is asked of its contract at the version offered, before anything is written
         - whose contract cannot be written is put back on the version it left, and refused
+        - whose take-back fails as well is recorded as made, charged and refused as standing
+        - whose take-back fails as well is audited by the route as a switch made without its
+          contract
     - the contract a change made at once is checked against
         - is composed at the version the change binds, not the one bound now
         - and is written nowhere where it holds
@@ -7625,6 +7628,8 @@ _Tested by:_
         - holds no other tenant back
     - a scheduled change whose contract cannot be written after it
         - is put back as it was read, still due, and audited as not written
+        - a change to another plan that names no version is claimed back on no binding, and stays
+          due
         - a change that keeps its version is claimed back on the version it kept
         - where it cannot be put back either, the audit says so
     - a scheduled change the run finds no subscription for

@@ -283,6 +283,15 @@ export const BILLING_ERROR_CODES = {
      * with that reason's code instead.
      */
     PLAN_CHANGE_CONTRACT_NOT_WRITTEN: 'PLAN_CHANGE_CONTRACT_NOT_WRITTEN',
+    /**
+     * A plan change, or a switch to a newer version, was written, the contract
+     * it has to come with could not be, and writing the subscription back
+     * failed as well: the change stands without its contract (`SC-CHG-025`).
+     * It is audited and charged as a change made, and the journal writes the
+     * contract for the version bound itself (`SC-PRIC-105`); the caller should
+     * not make the change again.
+     */
+    PLAN_CHANGE_STANDS_WITHOUT_CONTRACT: 'PLAN_CHANGE_STANDS_WITHOUT_CONTRACT',
 
     // ── retiring a version for running subscriptions ──
     /**

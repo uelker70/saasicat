@@ -220,7 +220,7 @@ export class PendingPlanMaterializationService {
             {
                 read,
                 wrote: write,
-                boundAfter: change.pendingChangeVersionId ?? read.planVersion?.id ?? null,
+                boundAfter: versionBoundBy(change, read),
                 what: 'a scheduled plan change',
             },
         );
@@ -242,9 +242,14 @@ export class PendingPlanMaterializationService {
         read: SubscriptionUsageRecord | null,
         failure: ChangeFailure,
     ): Promise<void> {
+        const standsWithoutContract = failure.reason === 'contract-not-written' && !failure.putBack;
         this.logger.error(
             `The scheduled change of tenant ${change.tenantId} to ${change.pendingPlan} was not ` +
-                `made: ${failure.reason}. The next run tries again while it is due.`,
+                `made: ${failure.reason}. ` +
+                (standsWithoutContract
+                    ? 'It could not be put back either, so the subscription is on it without its ' +
+                      'contract, and it is no longer due.'
+                    : 'It stays due, and the next run tries it again.'),
         );
         const subscriptionId = read?.id ?? change.tenantId;
         const key = auditKeyOf(subscriptionId, change, read, failure);
@@ -300,6 +305,22 @@ function auditKeyOf(
         failure.reason,
         failure.reason === 'contract-refused' ? failure.code : failure.putBack,
     ]);
+}
+
+/**
+ * The version the write of `change` binds, where that is known before it: the
+ * one the change names, or the one bound, which a change that stays on the
+ * plan and names none keeps. A change to another plan that names none — one
+ * scheduled where no repository read versions — binds that plan's version on
+ * sale, which is not known here: `null`, so the take-back claims no binding.
+ */
+function versionBoundBy(
+    change: DuePendingPlanChange,
+    read: SubscriptionUsageRecord,
+): string | null {
+    const named = change.pendingChangeVersionId ?? null;
+    if (named !== null) return named;
+    return change.pendingPlan === read.plan ? (read.planVersion?.id ?? null) : null;
 }
 
 /** The stable code a contract refused with, and its values, where it gave them. */

@@ -80,7 +80,8 @@ const storeDown = () => {
 /**
  * The run over the subscriptions in `byTenant`, every port it writes to
  * recorded. `check` is what asking the contract first does, `freeze` what
- * writing it does, `takeBack` whether a write that puts a row back claims it.
+ * writing it does, `takeBack` whether a write that puts a row back claims it,
+ * given that write's input.
  */
 function theRun(
     byTenant,
@@ -102,7 +103,7 @@ function theRun(
         {
             async changePlanImmediate(tenantId, input) {
                 calls.written.push({ tenantId, input });
-                const claimed = input.putsBack ? takeBack() : true;
+                const claimed = input.putsBack ? takeBack(input) : true;
                 return { plan: input.planId, billingCycle: input.cycle, claimed };
             },
         },
@@ -336,6 +337,32 @@ describe('a scheduled change whose contract cannot be written after it', () => {
             [['SCHEDULED_PLAN_CHANGE_FAILED', 'contract-not-written', true]],
         );
         assert.ok(calls.invalidated.includes('t1'));
+        assert.ok(calls.errors.some((line) => line.includes('It stays due')));
+    });
+
+    test('a change to another plan that names no version is claimed back on no binding, and stays due', async () => {
+        // Scheduled where no repository read versions: the write binds the
+        // version of STARTER on sale, which the run does not know.
+        const boundOnSale = 'pv-starter-3';
+        const read = standardDowngrading({ pendingChangeVersionId: null });
+        const { calls, run } = theRun(
+            { t1: read },
+            {
+                freeze: storeDown,
+                takeBack: ({ expectedPlanVersionId }) =>
+                    expectedPlanVersionId === undefined || expectedPlanVersionId === boundOnSale,
+            },
+        );
+
+        await run.materializeDuePlanChanges(NOW);
+
+        const { input: back } = calls.written[1];
+        assert.equal(back.expectedPlanVersionId, undefined, 'no binding claimed');
+        assert.equal(back.putsBack.scheduledChange.pendingPlan, 'STARTER', 'still scheduled');
+        assert.deepEqual(
+            calls.audited.map(({ changes }) => [changes.reason, changes.putBack]),
+            [['contract-not-written', true]],
+        );
     });
 
     test('a change that keeps its version is claimed back on the version it kept', async () => {
@@ -363,6 +390,11 @@ describe('a scheduled change whose contract cannot be written after it', () => {
             [['contract-not-written', false]],
         );
         assert.ok(calls.errors.some((line) => line.includes('could not be taken back')));
+        assert.ok(
+            calls.errors.some((line) => line.includes('it is no longer due')),
+            'the log does not promise a next run',
+        );
+        assert.ok(!calls.errors.some((line) => line.includes('stays due')));
     });
 });
 

@@ -5386,16 +5386,19 @@ contract before it writes a change — at once through `POST billing/plan`, as t
 version through `POST billing/version-offer/accept`, as a scheduled change that comes due, or as an
 activation in onboarding — and refuses the change with the reason the contract would be refused
 with. Where the store fails once the change is written, a change made at once is put back as it was
-read and refused with `503 PLAN_CHANGE_CONTRACT_NOT_WRITTEN`; a scheduled change stays due, is tried
-again by every run and is audited as `SCHEDULED_PLAN_CHANGE_FAILED` (`SC-CHG-026`); an activation
-stands (`SC-CHG-027`). The change stood before, and the failed contract was only logged, so the
-tenant was charged under the contract of the plan it had left. The journal now charges no plan
-period while the contract in force names another plan version than the one bound, and writes the
-contract for that version itself (`SC-PRIC-105`). An add-on ended at once while a feature is
-withdrawn ends with the contract written without it: its subscriber is asked first, and where that
-contract is refused or the store fails, the booking is put back on the cancellation it had and the
-end is refused, with the contract's code or `503 FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN`
-(`SC-BUN-067`). See [the subscriber's account](wire-the-backend.md#the-subscribers-account).
+read and refused with `503 PLAN_CHANGE_CONTRACT_NOT_WRITTEN`; where it cannot be put back either, it
+stands, is charged and audited as made — with `contractWritten: false` in its audit entry — and is
+refused with `500 PLAN_CHANGE_STANDS_WITHOUT_CONTRACT`, so the tenant does not make it again. A
+scheduled change stays due, is tried again by every run and is audited as
+`SCHEDULED_PLAN_CHANGE_FAILED` (`SC-CHG-026`); an activation stands (`SC-CHG-027`). The change stood
+before, and the failed contract was only logged, so the tenant was charged under the contract of the
+plan it had left. The journal now charges no plan period while the contract in force names another
+plan version than the one bound, and writes the contract for that version itself (`SC-PRIC-105`). An
+add-on ended at once while a feature is withdrawn ends with the contract written without it: its
+subscriber is asked first, and where that contract is refused or the store fails, the booking is put
+back on the cancellation it had and the end is refused, with the contract's code or
+`503 FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN` (`SC-BUN-067`). See
+[the subscriber's account](wire-the-backend.md#the-subscribers-account).
 
 | before                                                                                                                            | after                                                                                                                                                                         |
 | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -5406,10 +5409,10 @@ end is refused, with the contract's code or `503 FEATURE_WITHDRAWAL_END_CONTRACT
 | `billingCycle` of `POST billing/plan`, `billing/plan/preview` and `billing/onboarding/initial-subscription`: any word in capitals | `MONTHLY` or `YEARLY`; anything else is refused with 400                                                                                                                      |
 | `PendingPlanMaterializationService`                                                                                               | also `AdminAuditService`, an optional last constructor argument, for the audit entry                                                                                          |
 
-1. **Where your interface words refusals itself**, add `PLAN_CHANGE_CONTRACT_NOT_WRITTEN` and
-   `FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN`. The German and English texts ship in
-   `@saasicat/core`. The other refusals a change can now meet are the codes its contract's freeze
-   already refused with.
+1. **Where your interface words refusals itself**, add `PLAN_CHANGE_CONTRACT_NOT_WRITTEN`,
+   `PLAN_CHANGE_STANDS_WITHOUT_CONTRACT` and `FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN`. The
+   German and English texts ship in `@saasicat/core`. The other refusals a change can now meet are
+   the codes its contract's freeze already refused with.
 2. **Where you implement `ContractFreezePort` yourself** — a stand-in in your tests included —
    implement `assertContractFor`: compose the contract `freezeOnPlanChange` would write once the
    subscription is bound to `target.planVersionId` (`null` for the version bound now), check it, and

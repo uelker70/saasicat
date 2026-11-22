@@ -1,4 +1,9 @@
-import { HttpException, ServiceUnavailableException, type Logger } from '@nestjs/common';
+import {
+    HttpException,
+    InternalServerErrorException,
+    ServiceUnavailableException,
+    type Logger,
+} from '@nestjs/common';
 import type {
     BillingCycle,
     ContractAgreement,
@@ -70,20 +75,34 @@ export type ContractOrPutBack =
  * old one: the tenant would pay for what they left, or get what they did not
  * pay for. So the subscription is written back as it was read, and the caller
  * is refused: with the contract's own refusal where it gave one, with
- * `PLAN_CHANGE_CONTRACT_NOT_WRITTEN` where the store failed. Where even the
- * take-back is not written, the error stands as it came and the log says the
- * subscription is on the change without its contract.
+ * `PLAN_CHANGE_CONTRACT_NOT_WRITTEN` where the store failed.
+ *
+ * Where even the take-back is not written, the change stands without its
+ * contract. It is recorded as a change made — `recordsTheChange`, the charges
+ * and the audit entry a change that stands writes — and the caller is refused
+ * with `PLAN_CHANGE_STANDS_WITHOUT_CONTRACT`, which says the change is in
+ * effect: the journal writes the contract for the version bound itself
+ * (`SC-PRIC-105`), and the tenant has nothing to try again.
  */
 export async function freezeOrTakeBack(
     ports: ContractOrTakeBackPorts,
     tenantId: string,
     terms: PlanChangeTerms,
     change: PlanChangeMade,
+    recordsTheChange: () => Promise<void>,
 ): Promise<void> {
     const outcome = await freezeOrPutBack(ports, tenantId, terms, change);
     if (outcome.written) return;
     const { error } = outcome;
-    if (!outcome.takenBack) throw error;
+    if (!outcome.takenBack) {
+        await recordsTheChange();
+        throw new InternalServerErrorException({
+            code: BILLING_ERROR_CODES.PLAN_CHANGE_STANDS_WITHOUT_CONTRACT,
+            message:
+                'The change was made, but its contract could not be written yet. There is no need to make it again.',
+            params: {},
+        });
+    }
     if (error instanceof HttpException) throw error;
     throw new ServiceUnavailableException({
         code: BILLING_ERROR_CODES.PLAN_CHANGE_CONTRACT_NOT_WRITTEN,
@@ -117,12 +136,11 @@ export async function freezeOrPutBack(
     } catch (error) {
         const takenBack = await takeBack(ports, tenantId, change);
         ports.entitlements.invalidateTenant(tenantId);
-        if (takenBack) {
-            ports.logger.error(
-                `The contract for ${change.what} of tenant ${tenantId} could not be written, and ` +
-                    `the change was taken back: ${String(error)}`,
-            );
-        }
+        ports.logger.error(
+            `The contract for ${change.what} of tenant ${tenantId} could not be written` +
+                (takenBack ? ', and the change was taken back' : '') +
+                `: ${String(error)}`,
+        );
         return { written: false, error, takenBack };
     }
 }

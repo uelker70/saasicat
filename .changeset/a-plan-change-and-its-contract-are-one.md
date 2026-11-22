@@ -14,8 +14,10 @@ platform now asks the contract first, and a change whose contract would be
 refused is refused with that reason and writes nothing (`SC-CHG-025`). Where
 the store fails afterwards, a change made at once or a switch to a newer
 version is put back as it was read and refused with
-`503 PLAN_CHANGE_CONTRACT_NOT_WRITTEN`; a scheduled change stays due, is tried
-again by every run and is audited as `SCHEDULED_PLAN_CHANGE_FAILED`
+`503 PLAN_CHANGE_CONTRACT_NOT_WRITTEN`, or, where it cannot be put back
+either, stands, is charged and audited as made and is refused with
+`500 PLAN_CHANGE_STANDS_WITHOUT_CONTRACT`; a scheduled change stays due, is
+tried again by every run and is audited as `SCHEDULED_PLAN_CHANGE_FAILED`
 (`SC-CHG-026`); an activation in onboarding stands (`SC-CHG-027`). The journal
 charges no plan period while the contract in force names another version than
 the one bound, and writes that contract itself (`SC-PRIC-105`). See "A plan
@@ -27,7 +29,7 @@ change is refused where its contract cannot be written" in
 - **Breaking:** `POST billing/plan`, `billing/plan/preview` and
   `billing/onboarding/initial-subscription` take `billingCycle` as `MONTHLY`
   or `YEARLY` only, and refuse any other with 400.
-- `@saasicat/core` adds the code with its German and English texts,
+- `@saasicat/core` adds both codes with their German and English texts,
   `SubscriptionPutBack`, `columnsPutBack`, `columnsClaimedByPutBack`,
   `subscriptionAsChanged` and `columnsOfPeriodOpened`, and
   `ImmediatePlanChangeInput.putsBack`, which both shipped adapters write only

@@ -122,6 +122,7 @@ function theRoute(subscription, { freeze = async () => {}, check = async () => {
         frozen: [],
         charged: [],
         audited: [],
+        auditEntries: [],
     };
     const writes = {
         async changePlanImmediate(tenantId, input) {
@@ -152,7 +153,12 @@ function theRoute(subscription, { freeze = async () => {}, check = async () => {
         subscriptionWrite: writes,
         tenantIdResolver: () => 't1',
         userIdResolver: () => 'u1',
-        auditService: { log: async (entry) => calls.audited.push(entry.action) },
+        auditService: {
+            log: async (entry) => {
+                calls.audited.push(entry.action);
+                calls.auditEntries.push(entry);
+            },
+        },
         contractFreeze: {
             async assertPartyFor() {},
             async assertContractFor(...args) {
@@ -291,16 +297,23 @@ describe('a plan change made at once, whose contract cannot be written after it'
         assert.equal(calls.immediate.length, 2, 'taken back');
     });
 
-    test('where it cannot be taken back either, the error stands and is not called a refusal', async () => {
+    test('where it cannot be taken back either, it is recorded as made and refused as standing', async () => {
         const { calls, change } = theRoute(starter(), {
             freeze: storeDown,
             claims: (write) => write === 1,
         });
 
-        await assert.rejects(change('STANDARD', 'MONTHLY'), /connection reset/);
+        await assert.rejects(
+            change('STANDARD', 'MONTHLY'),
+            refusedWith('PLAN_CHANGE_STANDS_WITHOUT_CONTRACT'),
+        );
 
         assert.equal(calls.immediate.length, 2, 'the take-back was tried');
-        assert.deepEqual(calls.charged, []);
+        assert.deepEqual(calls.charged, ['t1'], 'the journal is brought up to date');
+        const recorded = calls.auditEntries.filter(({ action }) => action === 'CHANGE_PLAN');
+        assert.equal(recorded.length, 1, 'the change in effect is audited once');
+        assert.equal(recorded[0].changes.toPlan, 'STANDARD');
+        assert.equal(recorded[0].changes.contractWritten, false);
     });
 });
 
@@ -324,7 +337,14 @@ describe('a plan change made at once in a trial', () => {
 
 /** The switch to version 2 of STANDARD over tenant t1, its ports recorded. */
 function aSwitch({ sub = subscription(), freeze = async () => {}, claims } = {}) {
-    const calls = { immediate: [], checked: [], frozen: [], charged: [] };
+    const calls = {
+        immediate: [],
+        checked: [],
+        frozen: [],
+        charged: [],
+        recorded: [],
+        audited: [],
+    };
     const subscriptions = { findForTenant: async (id) => (id === 't1' ? sub : null) };
     const offers = new VersionOfferService(
         subscriptions,
@@ -354,7 +374,19 @@ function aSwitch({ sub = subscription(), freeze = async () => {}, claims } = {})
         contractFreeze,
         { recordDueCharges: async (tenantId) => calls.charged.push(tenantId) },
     );
-    return { calls, take: () => service.take('t1', 'pv-2', NOW) };
+    const recordsWhatStands = async (result) => calls.recorded.push(result);
+    const routes = tenantBillingRoutes({
+        versionSwitches: service,
+        tenantIdResolver: () => 't1',
+        userIdResolver: () => 'u1',
+        auditService: { log: async (entry) => calls.audited.push(entry) },
+    });
+    const accept = () =>
+        routes.acceptVersionOffer(
+            { user: { tenantId: 't1', sub: 'u1' }, headers: {} },
+            { planVersionId: 'pv-2' },
+        );
+    return { calls, take: () => service.take('t1', 'pv-2', NOW, recordsWhatStands), accept };
 }
 
 describe('a switch to a newer version made at once', () => {
@@ -396,6 +428,33 @@ describe('a switch to a newer version made at once', () => {
             'the switch moved the version alone, and cleared what it had scheduled',
         );
         assert.deepEqual(calls.charged, []);
+        assert.deepEqual(calls.recorded, [], 'nothing recorded that did not happen');
+    });
+
+    test('whose take-back fails as well is recorded as made, charged and refused as standing', async () => {
+        const { calls, take } = aSwitch({ freeze: storeDown, claims: (write) => write === 1 });
+
+        await assert.rejects(take(), refusedWith('PLAN_CHANGE_STANDS_WITHOUT_CONTRACT'));
+
+        assert.deepEqual(calls.charged, ['t1']);
+        assert.equal(calls.recorded.length, 1, 'recorded once');
+        assert.equal(calls.recorded[0].planVersionId, 'pv-2');
+        assert.equal(calls.recorded[0].immediate, true);
+    });
+
+    test('whose take-back fails as well is audited by the route as a switch made without its contract', async () => {
+        const { calls, accept } = aSwitch({ freeze: storeDown, claims: (write) => write === 1 });
+
+        await assert.rejects(accept(), refusedWith('PLAN_CHANGE_STANDS_WITHOUT_CONTRACT'));
+
+        assert.deepEqual(
+            calls.audited.map(({ action, changes }) => [
+                action,
+                changes.toPlanVersionId,
+                changes.contractWritten,
+            ]),
+            [['SWITCH_PLAN_VERSION', 'pv-2', false]],
+        );
     });
 });
 

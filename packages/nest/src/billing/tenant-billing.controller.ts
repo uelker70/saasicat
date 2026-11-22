@@ -25,6 +25,7 @@ import type {
     TenantSubscriptionWritePort,
     UsageSnapshotPort,
     VersionOfferWithDays,
+    VersionSwitchResult,
     VersionSwitchWithDays,
 } from '@saasicat/core';
 import {
@@ -439,20 +440,31 @@ export class TenantBillingController {
     ): Promise<VersionSwitchWithDays> {
         const tenantId = this.requireTenantId(req);
         const userId = this.requireUserId(req);
-        const result = await this.versionSwitches.take(tenantId, dto.planVersionId);
-        await this.auditLog(
-            req,
-            userId,
-            'Subscription',
+        const recordSwitch = (
+            result: VersionSwitchResult,
+            noted: { contractWritten?: false } = {},
+        ): Promise<void> =>
+            this.auditLog(
+                req,
+                userId,
+                'Subscription',
+                tenantId,
+                result.immediate ? 'SWITCH_PLAN_VERSION' : 'SCHEDULE_PLAN_VERSION_SWITCH',
+                {
+                    offerClass: result.class,
+                    fromPlanVersionId: result.fromPlanVersionId,
+                    toPlanVersionId: result.planVersionId,
+                    takesEffectAt: result.takesEffectAt,
+                    ...noted,
+                },
+            );
+        const result = await this.versionSwitches.take(
             tenantId,
-            result.immediate ? 'SWITCH_PLAN_VERSION' : 'SCHEDULE_PLAN_VERSION_SWITCH',
-            {
-                offerClass: result.class,
-                fromPlanVersionId: result.fromPlanVersionId,
-                toPlanVersionId: result.planVersionId,
-                takesEffectAt: result.takesEffectAt,
-            },
+            dto.planVersionId,
+            new Date(),
+            (standing) => recordSwitch(standing, { contractWritten: false }),
         );
+        await recordSwitch(result);
         return withDays(result, ['takesEffectAt'], this.zone());
     }
 
@@ -753,6 +765,18 @@ export class TenantBillingController {
                 throw new ConflictException(changedUnderneath);
             }
             this.entitlements.invalidateTenant(tenantId);
+            // What a change that stands records, with its contract or without it.
+            const recordChange = async (noted: { contractWritten?: false } = {}): Promise<void> => {
+                await recordChargesAfter(this.charges, tenantId, 'a plan change', this.logger);
+                await this.auditLog(req, userId, 'Subscription', tenantId, 'CHANGE_PLAN', {
+                    fromPlan: sub.plan,
+                    fromCycle: sub.billingCycle,
+                    toPlan: result.plan,
+                    toCycle: result.billingCycle,
+                    immediate: true,
+                    ...noted,
+                });
+            };
             // A trial commits to no period; its contract is frozen when it
             // converts.
             if (!wasTrial) {
@@ -779,16 +803,10 @@ export class TenantBillingController {
                         boundAfter: decision.target.planVersionId,
                         what: 'a plan change',
                     },
+                    () => recordChange({ contractWritten: false }),
                 );
             }
-            await recordChargesAfter(this.charges, tenantId, 'a plan change', this.logger);
-            await this.auditLog(req, userId, 'Subscription', tenantId, 'CHANGE_PLAN', {
-                fromPlan: sub.plan,
-                fromCycle: sub.billingCycle,
-                toPlan: result.plan,
-                toCycle: result.billingCycle,
-                immediate: true,
-            });
+            await recordChange();
             return { plan: result.plan, billingCycle: result.billingCycle, immediate: true };
         }
 

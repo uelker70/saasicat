@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 321 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 322 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -192,6 +192,7 @@ Subscriptions, plan changes, entitlements.
 | `PLAN_CHANGE_BLOCKED`                                | The plan change is blocked.                                                                                                                                                                                                     |
 | `PLAN_CHANGE_CONTRACT_NOT_WRITTEN`                   | The contract for this change could not be written, so nothing was changed. Please try again later.                                                                                                                              |
 | `PLAN_CHANGE_QUOTE_CHANGED`                          | This plan changed since it was shown. Look at it again before changing to it.                                                                                                                                                   |
+| `PLAN_CHANGE_STANDS_WITHOUT_CONTRACT`                | The change was made, but its contract could not be written yet. There is no need to make it again.                                                                                                                              |
 | `PLAN_CHANGE_VERSION_NOT_NAMED`                      | A plan change has to name the version its preview showed.                                                                                                                                                                       |
 | `PLAN_LOCKED`                                        | Active {planName} special contract — please contact the contract manager to change plans.                                                                                                                                       |
 | `PLAN_NOT_IN_CATALOG`                                | Plan "{planKey}" is not in the catalog                                                                                                                                                                                          |

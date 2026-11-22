@@ -196,6 +196,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Diese Version wird nicht mehr verkauft, bevor sie wirksam würde. Ein Wechsel dorthin ist nicht möglich.',
     PLAN_CHANGE_CONTRACT_NOT_WRITTEN:
         'Der Vertrag für diesen Wechsel konnte nicht geschrieben werden, deshalb wurde nichts geändert. Bitte versuchen Sie es später erneut.',
+    PLAN_CHANGE_STANDS_WITHOUT_CONTRACT:
+        'Der Wechsel wurde vorgenommen, sein Vertrag konnte aber noch nicht geschrieben werden. Sie müssen ihn nicht erneut vornehmen.',
     RETIREMENT_TERMS_NOT_CONFIRMED:
         'Eine Version für laufende Abonnements stillzulegen, braucht eine Klausel in Ihren AGB. Setzen Sie tenantBilling.orderlyRetirement.termsConfirmed in config/saas.yaml, sobald sie sie enthalten.',
     RETIREMENT_VERSION_ON_SALE:

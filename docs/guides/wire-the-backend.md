@@ -1326,8 +1326,11 @@ the change ends in, your freeze source's lines included, and refuses the change 
 that contract would be refused with: the subscriber, the tax decided for them, a plan not sold in
 the rhythm, an add-on your source cannot price. Where the store fails once the change is written,
 the subscription is put back as it was read, and the tenant is refused with
-`503 PLAN_CHANGE_CONTRACT_NOT_WRITTEN`, to try again later. A scheduled change whose contract
-cannot be written stays due, and every later call of
+`503 PLAN_CHANGE_CONTRACT_NOT_WRITTEN`, to try again later. Where writing it back fails as well, the
+change stands: it is charged and audited as made, its audit entry says `contractWritten: false`, the
+journal writes its contract (below), and the tenant is refused with
+`500 PLAN_CHANGE_STANDS_WITHOUT_CONTRACT`, which tells them not to make it again. A scheduled change
+whose contract cannot be written stays due, and every later call of
 `PendingPlanMaterializationService.materializeDuePlanChanges` tries it again (`SC-CHG-026`). The
 platform audits it once per change and reason as `SCHEDULED_PLAN_CHANGE_FAILED`, by the actor
 `job:platform:scheduled-plan-changes`, with `reason` `contract-refused` and the contract's code, or
