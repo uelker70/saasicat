@@ -2,11 +2,17 @@ import { HttpException, ServiceUnavailableException, type Logger } from '@nestjs
 import type {
     BillingCycle,
     ContractAgreement,
+    PlanChangeColumns,
+    PlanChangeWrite,
     SubscriptionPutBack,
     SubscriptionUsageRecord,
     TenantSubscriptionWritePort,
 } from '@saasicat/core';
-import { BILLING_ERROR_CODES, pendingAgreementColumns } from '@saasicat/core';
+import {
+    BILLING_ERROR_CODES,
+    pendingAgreementColumns,
+    subscriptionAsChanged,
+} from '@saasicat/core';
 
 import type { ContractFreezePort } from './contract-freeze.tokens.js';
 
@@ -18,9 +24,18 @@ export interface ContractOrTakeBackPorts {
     readonly logger: Pick<Logger, 'error'>;
 }
 
-/** A plan change made today: the subscription as read before it, and the version it bound. */
+/**
+ * A plan change made today: the subscription as read before it, what the
+ * change wrote, and the version it bound.
+ */
 export interface PlanChangeMade {
     readonly read: SubscriptionUsageRecord;
+    /**
+     * The input the change was written with. The take-back claims the row only
+     * while it is still as this left it, so a change another request made in
+     * between is not written over.
+     */
+    readonly wrote: PlanChangeWrite;
     /** `null` where the version bound is not known; the take-back then claims no binding. */
     readonly boundAfter: string | null;
     /** Named in the log, as `a plan change` or `a version switch`. */
@@ -134,7 +149,7 @@ async function takeBack(
             quotedPlanVersionId: versionRead,
             quotedVersionOnly: versionRead !== null,
             restoresQuotedVersion: true,
-            putsBack: putBackOf(read),
+            putsBack: putBackOf(read, change.wrote),
         });
         if (claimed) return true;
         why = 'it changed in between';
@@ -148,12 +163,14 @@ async function takeBack(
     return false;
 }
 
-function putBackOf(read: SubscriptionUsageRecord): SubscriptionPutBack {
-    return {
+function putBackOf(read: SubscriptionUsageRecord, wrote: PlanChangeWrite): SubscriptionPutBack {
+    const before: PlanChangeColumns = {
+        plan: read.plan,
+        billingCycle: read.billingCycle,
         status: read.status,
         currentPeriodStart: read.currentPeriodStart,
         currentPeriodEnd: read.currentPeriodEnd,
-        billingAnchorDay: read.billingAnchorDay ?? null,
+        billingAnchorDay: read.billingAnchorDay,
         scheduledChange: {
             pendingPlan: read.pendingPlan,
             pendingBillingCycle: read.pendingBillingCycle,
@@ -161,5 +178,13 @@ function putBackOf(read: SubscriptionUsageRecord): SubscriptionPutBack {
             pendingChangeVersionId: read.pendingChangeVersionId ?? null,
             ...pendingAgreementColumns(read.pendingAgreement ?? null),
         },
+    };
+    return {
+        status: before.status,
+        currentPeriodStart: before.currentPeriodStart,
+        currentPeriodEnd: before.currentPeriodEnd,
+        billingAnchorDay: before.billingAnchorDay ?? null,
+        scheduledChange: before.scheduledChange,
+        asChanged: subscriptionAsChanged(before, wrote),
     };
 }

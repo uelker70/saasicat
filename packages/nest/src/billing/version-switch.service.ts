@@ -33,6 +33,7 @@ import {
 } from '@nestjs/common';
 import type {
     BillingCycle,
+    ImmediatePlanChangeInput,
     PlanCatalogSettings,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
@@ -142,21 +143,21 @@ export class VersionSwitchService {
         const cycle = sub.billingCycle as BillingCycle;
         // A version gone since the offer was read is refused by the store with
         // the code the offer would have given.
+        const change: ImmediatePlanChangeInput = {
+            planId: sub.plan,
+            cycle,
+            // The term and the period stay as they are: nothing restarts.
+            periodStart: null,
+            periodEnd: null,
+            nextStatus: null,
+            expectedCanceledAt: sub.canceledAt ?? null,
+            expectedPlanVersionId: offer.bound.planVersionId,
+            keepsBoundVersion: false,
+            quotedPlanVersionId: offer.offered.planVersionId,
+            quotedVersionOnly: true,
+        };
         const result = await answeringRefusals(
-            () =>
-                this.subscriptionWrite.changePlanImmediate(tenantId, {
-                    planId: sub.plan,
-                    cycle,
-                    // The term and the period stay as they are: nothing restarts.
-                    periodStart: null,
-                    periodEnd: null,
-                    nextStatus: null,
-                    expectedCanceledAt: sub.canceledAt ?? null,
-                    expectedPlanVersionId: offer.bound.planVersionId,
-                    keepsBoundVersion: false,
-                    quotedPlanVersionId: offer.offered.planVersionId,
-                    quotedVersionOnly: true,
-                }),
+            () => this.subscriptionWrite.changePlanImmediate(tenantId, change),
             {},
             installationZoneOf(this.settings),
         );
@@ -180,7 +181,12 @@ export class VersionSwitchService {
                     effectiveFrom: now,
                     endsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                 },
-                { read: sub, boundAfter: offer.offered.planVersionId, what: 'a version switch' },
+                {
+                    read: sub,
+                    wrote: change,
+                    boundAfter: offer.offered.planVersionId,
+                    what: 'a version switch',
+                },
             );
             await recordChargesAfter(this.charges, tenantId, 'a version switch', this.logger);
         }

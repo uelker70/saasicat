@@ -5402,7 +5402,7 @@ end is refused, with the contract's code or `503 FEATURE_WITHDRAWAL_END_CONTRACT
 | a change whose contract failed stands, and the failure is logged                                                                  | refused with the contract's code, or put back and refused with `503 PLAN_CHANGE_CONTRACT_NOT_WRITTEN`                                                                         |
 | a scheduled change whose contract failed is applied                                                                               | stays due, tried again by every run, audited as `SCHEDULED_PLAN_CHANGE_FAILED`                                                                                                |
 | `ContractFreezePort`                                                                                                              | also `assertContractFor(tenantId, target, intended)`: refuses a change whose contract could not be written, with the code the freeze would refuse it with, and writes nothing |
-| `ImmediatePlanChangeInput`                                                                                                        | also `putsBack`, a `SubscriptionPutBack`: the subscription as it was read, written as given, nulls included                                                                   |
+| `ImmediatePlanChangeInput`                                                                                                        | also `putsBack`, a `SubscriptionPutBack`: the subscription as it was read, written as given, nulls included, while the row is still as the change left it (`asChanged`)       |
 | `billingCycle` of `POST billing/plan`, `billing/plan/preview` and `billing/onboarding/initial-subscription`: any word in capitals | `MONTHLY` or `YEARLY`; anything else is refused with 400                                                                                                                      |
 | `PendingPlanMaterializationService`                                                                                               | also `AdminAuditService`, an optional last constructor argument, for the audit entry                                                                                          |
 
@@ -5417,9 +5417,11 @@ end is refused, with the contract's code or `503 FEATURE_WITHDRAWAL_END_CONTRACT
    stand-in that refuses nothing returns. `SubscriptionContractFreezeService` implements it.
 3. **Where you implement `TenantSubscriptionWritePort` yourself**, `changePlanImmediate` writes
    `putsBack` when it is given — status, period, billing day and the scheduled change, each as given
-   — over what the rest of the input would write. `columnsPutBack(putBack)` from `@saasicat/core`
-   gives the columns. The field is optional, so the compiler names no adapter that ignores it; the
-   persistence contract does, in "a plan change taken back leaves the subscription as it was read".
+   — over what the rest of the input would write, and claims the row only while every column of
+   `columnsClaimedByPutBack(putBack)` still holds the value given there: the row as the change being
+   put back left it, so a change another request made since is not written over. `columnsPutBack`
+   from `@saasicat/core` gives the columns written. The field is optional, so the compiler names no
+   adapter that ignores it; the persistence contract does, in "a plan change taken back".
 4. **Where a client of yours sends another rhythm** to those three routes, send `MONTHLY` or
    `YEARLY`. The preview priced any other as monthly.
 5. **Where your application binds a plan version itself** — at the end of a trial, from a renewal

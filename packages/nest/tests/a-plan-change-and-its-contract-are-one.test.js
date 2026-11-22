@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import 'reflect-metadata';
 
 import { ConflictException } from '@nestjs/common';
-import { CONTRACT_ERROR_CODES } from '@saasicat/core';
+import { CONTRACT_ERROR_CODES, NO_SCHEDULED_CHANGE } from '@saasicat/core';
 
 import {
     PlanChangePreviewService,
@@ -255,6 +255,24 @@ describe('a plan change made at once, whose contract cannot be written after it'
         assert.deepEqual(asWritten(takenBack), takenBackFrom(read));
     });
 
+    // @requirement SC-CHG-011 — A decision taken against one state is not written into another
+    test('is taken back only over the row as the change left it', async () => {
+        const { calls, change } = theRoute(starter(), { freeze: storeDown });
+
+        await assert.rejects(change('STANDARD', 'YEARLY'));
+
+        const [made, takenBack] = calls.immediate;
+        assert.deepEqual(takenBack.putsBack.asChanged, {
+            plan: 'STANDARD',
+            billingCycle: 'YEARLY',
+            status: 'ACTIVE',
+            currentPeriodStart: made.periodStart,
+            currentPeriodEnd: made.periodEnd,
+            billingAnchorDay: made.periodStart.getUTCDate(),
+            scheduledChange: NO_SCHEDULED_CHANGE,
+        });
+    });
+
     test('is refused with the contract’s own code where it refused after the write', async () => {
         const { calls, change } = theRoute(starter(), {
             // Another contract written between the read and each attempt.
@@ -351,7 +369,7 @@ describe('a switch to a newer version made at once', () => {
     });
 
     test('whose contract cannot be written is put back on the version it left, and refused', async () => {
-        const read = subscription();
+        const read = subscription({ billingAnchorDay: 1 });
         const { calls, take } = aSwitch({ sub: read, freeze: storeDown });
 
         await assert.rejects(take(), refusedWith('PLAN_CHANGE_CONTRACT_NOT_WRITTEN'));
@@ -363,6 +381,19 @@ describe('a switch to a newer version made at once', () => {
             takenBack.expectedPlanVersionId,
             'pv-2',
             'only while the switch is what stands',
+        );
+        assert.deepEqual(
+            takenBack.putsBack.asChanged,
+            {
+                plan: read.plan,
+                billingCycle: read.billingCycle,
+                status: read.status,
+                currentPeriodStart: read.currentPeriodStart,
+                currentPeriodEnd: read.currentPeriodEnd,
+                billingAnchorDay: 1,
+                scheduledChange: NO_SCHEDULED_CHANGE,
+            },
+            'the switch moved the version alone, and cleared what it had scheduled',
         );
         assert.deepEqual(calls.charged, []);
     });

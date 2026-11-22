@@ -18,6 +18,7 @@ import {
 } from '@nestjs/common';
 import type {
     BillingCycle,
+    ImmediatePlanChangeInput,
     PlanCatalogSettings,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
@@ -720,32 +721,31 @@ export class TenantBillingController {
                           now: new Date(),
                       })
                     : undefined;
+            const change: ImmediatePlanChangeInput = {
+                planId: dto.plan,
+                cycle: dto.billingCycle,
+                periodStart: period?.start ?? null,
+                periodEnd: period?.end ?? null,
+                nextStatus: wasTrial ? null : 'ACTIVE',
+                trialEndsAt,
+                expectedCanceledAt: sub.canceledAt ?? null,
+                ...claimsBinding,
+                // A change that keeps the plan keeps the version bound
+                // (`SC-SUB-024`): the preview priced it at that version, and
+                // moving the rhythm is no occasion to move it on to the one on
+                // sale.
+                keepsBoundVersion: dto.plan === sub.plan,
+                // The version checked above, and no other: one that stops
+                // taking bookings between the check and the write leaves the
+                // row unclaimed rather than binding its successor.
+                quotedPlanVersionId: quotedVersionId,
+                quotedVersionOnly:
+                    quotedVersionId !== null && this.subscriptionWrite.bindsPlanVersion !== false,
+            };
             // A subscription gone or a plan version retired since the checks
             // above is refused by the store with the code those checks give.
             const result = await answeringRefusals(
-                () =>
-                    this.subscriptionWrite.changePlanImmediate(tenantId, {
-                        planId: dto.plan,
-                        cycle: dto.billingCycle,
-                        periodStart: period?.start ?? null,
-                        periodEnd: period?.end ?? null,
-                        nextStatus: wasTrial ? null : 'ACTIVE',
-                        trialEndsAt,
-                        expectedCanceledAt: sub.canceledAt ?? null,
-                        ...claimsBinding,
-                        // A change that keeps the plan keeps the version bound
-                        // (`SC-SUB-024`): the preview priced it at that version,
-                        // and moving the rhythm is no occasion to move it on to
-                        // the one on sale.
-                        keepsBoundVersion: dto.plan === sub.plan,
-                        // The version checked above, and no other: one that stops
-                        // taking bookings between the check and the write leaves
-                        // the row unclaimed rather than binding its successor.
-                        quotedPlanVersionId: quotedVersionId,
-                        quotedVersionOnly:
-                            quotedVersionId !== null &&
-                            this.subscriptionWrite.bindsPlanVersion !== false,
-                    }),
+                () => this.subscriptionWrite.changePlanImmediate(tenantId, change),
                 {},
                 this.zone(),
             );
@@ -773,7 +773,12 @@ export class TenantBillingController {
                         // subscription does.
                         endsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                     },
-                    { read: sub, boundAfter: decision.target.planVersionId, what: 'a plan change' },
+                    {
+                        read: sub,
+                        wrote: change,
+                        boundAfter: decision.target.planVersionId,
+                        what: 'a plan change',
+                    },
                 );
             }
             await recordChargesAfter(this.charges, tenantId, 'a plan change', this.logger);

@@ -28,10 +28,12 @@ change is refused where its contract cannot be written" in
   `billing/onboarding/initial-subscription` take `billingCycle` as `MONTHLY`
   or `YEARLY` only, and refuse any other with 400.
 - `@saasicat/core` adds the code with its German and English texts,
-  `SubscriptionPutBack` and `columnsPutBack`, and
-  `ImmediatePlanChangeInput.putsBack`, which both shipped adapters write. A
-  `TenantSubscriptionWritePort` of your own writes it too; the persistence
-  contract checks it.
+  `SubscriptionPutBack`, `columnsPutBack`, `columnsClaimedByPutBack`,
+  `subscriptionAsChanged` and `columnsOfPeriodOpened`, and
+  `ImmediatePlanChangeInput.putsBack`, which both shipped adapters write only
+  while the row is still as the change left it, so a change another request
+  made since is not written over. A `TenantSubscriptionWritePort` of your own
+  writes and claims it too; the persistence contract checks it.
 - An add-on ended at once is put back and refused with
   `503 FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN` where the contract without
   it cannot be written (`SC-BUN-067`); `SubscriptionBundleRepository` gains

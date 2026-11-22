@@ -11,6 +11,8 @@ import {
     catalogDraftExists,
     catalogVersionAlreadyPublished,
     catalogVersionGone,
+    columnsClaimedByPutBack,
+    columnsOfPeriodOpened,
     columnsPutBack,
     formatCustomerNumber,
     formatInvoiceNumber,
@@ -353,6 +355,10 @@ export function createMemoryHarness() {
             if ((row.canceledAt ?? null) !== (input.expectedCanceledAt ?? null)) {
                 return { plan: row.plan, billingCycle: row.billingCycle, claimed: false };
             }
+            // A put-back claims the row only while it is as the change left it.
+            if (input.putsBack && !holdsEvery(row, columnsClaimedByPutBack(input.putsBack))) {
+                return unclaimed;
+            }
             Object.assign(
                 row,
                 scheduledChangeAfterWrite(
@@ -373,11 +379,7 @@ export function createMemoryHarness() {
             row.billingCycle = input.cycle;
             row.planVersionId = target.id;
             if (input.nextStatus) row.status = input.nextStatus;
-            if (input.periodStart && input.periodEnd) {
-                row.currentPeriodStart = input.periodStart;
-                row.currentPeriodEnd = input.periodEnd;
-                row.billingAnchorDay = input.periodStart.getUTCDate();
-            }
+            Object.assign(row, columnsOfPeriodOpened(input.periodStart, input.periodEnd));
             if (input.putsBack) Object.assign(row, columnsPutBack(input.putsBack));
             return { plan: row.plan, billingCycle: input.cycle, claimed: true };
         },
@@ -4264,4 +4266,18 @@ function actorTagMatches(tag, pattern) {
     const value = tag.toLowerCase();
     if (leading && trailing) return value.includes(literal);
     return leading ? value.endsWith(literal) : value.startsWith(literal);
+}
+
+/**
+ * Whether `row` holds every column of `expected`, as a `WHERE` with `=` and
+ * `IS NULL` would; a column expected as `undefined` is not compared.
+ */
+function holdsEvery(row, expected) {
+    return Object.entries(expected).every(([column, value]) => {
+        if (value === undefined) return true;
+        const held = row[column] ?? null;
+        if (value instanceof Date)
+            return held instanceof Date && held.getTime() === value.getTime();
+        return held === value;
+    });
 }

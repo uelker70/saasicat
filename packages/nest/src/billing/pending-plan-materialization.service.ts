@@ -1,5 +1,6 @@
 import { HttpException, Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type {
+    ImmediatePlanChangeInput,
     RlsBypassPort,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
@@ -184,7 +185,7 @@ export class PendingPlanMaterializationService {
             await this.failed(change, read, refusalOf(error));
             return 'left-due';
         }
-        const result = await this.subscriptionWrite.changePlanImmediate(change.tenantId, {
+        const write: ImmediatePlanChangeInput = {
             planId: change.pendingPlan,
             cycle,
             periodStart: period.start,
@@ -198,7 +199,8 @@ export class PendingPlanMaterializationService {
             // moves the rhythm, not the version the subscriber agreed to.
             keepsBoundVersion: (change.pendingChangeVersionId ?? null) === null,
             quotedPlanVersionId: change.pendingChangeVersionId,
-        });
+        };
+        const result = await this.subscriptionWrite.changePlanImmediate(change.tenantId, write);
         if (!result.claimed) {
             // A cancellation arrived between the query and this write. Same
             // answer as the check in the run, reached the other way.
@@ -217,6 +219,7 @@ export class PendingPlanMaterializationService {
             terms,
             {
                 read,
+                wrote: write,
                 boundAfter: change.pendingChangeVersionId ?? read.planVersion?.id ?? null,
                 what: 'a scheduled plan change',
             },
@@ -244,7 +247,7 @@ export class PendingPlanMaterializationService {
                 `made: ${failure.reason}. The next run tries again while it is due.`,
         );
         const subscriptionId = read?.id ?? change.tenantId;
-        const key = `${subscriptionId}:${change.pendingPlan}:${change.pendingChangeVersionId ?? ''}:${failure.reason}`;
+        const key = auditKeyOf(subscriptionId, change, read, failure);
         // Reserved before the write, so a run overlapping this one writes no
         // second entry, and released where the write fails, so the next run
         // tries it again.
@@ -274,6 +277,29 @@ export class PendingPlanMaterializationService {
             );
         }
     }
+}
+
+/**
+ * One change failing for one reason: the change by everything that tells two
+ * scheduled changes apart — plan, version, rhythm and the day it takes effect
+ * — and the reason by the code a contract refused with, so a change refused
+ * anew for another reason is recorded anew.
+ */
+function auditKeyOf(
+    subscriptionId: string,
+    change: DuePendingPlanChange,
+    read: SubscriptionUsageRecord | null,
+    failure: ChangeFailure,
+): string {
+    return JSON.stringify([
+        subscriptionId,
+        change.pendingPlan,
+        change.pendingChangeVersionId ?? null,
+        change.pendingBillingCycle ?? null,
+        read?.pendingEffectiveAt?.toISOString() ?? null,
+        failure.reason,
+        failure.reason === 'contract-refused' ? failure.code : failure.putBack,
+    ]);
 }
 
 /** The stable code a contract refused with, and its values, where it gave them. */

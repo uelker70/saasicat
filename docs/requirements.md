@@ -7212,6 +7212,16 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/core/tests/a-put-back-claims-the-row-as-the-change-left-it.test.js`
+    - the subscription as a plan change leaves it
+        - names the plan and rhythm the change wrote
+        - holds the status the change set, or the one it found
+        - holds the window the change opened, billed on the day it opened
+        - holds the window and the billing day it found where it opened none
+        - has no change scheduled, unless it kept the one it found
+    - the columns a put-back claims the row by
+        - are every column it writes, each as the change left it
+        - leave out a billing day nothing says, where the read did not carry it
 - `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
     - a cancellation arriving while a plan change is being decided
         - the immediate change is refused rather than written over it
@@ -7219,6 +7229,9 @@ _Tested by:_
         - while an unchanged subscription is written as decided
     - a boundary that passes while the request is being decided
         - is refused rather than written a moment late
+- `packages/nest/tests/a-plan-change-and-its-contract-are-one.test.js`
+    - a plan change made at once, whose contract cannot be written after it
+        - is taken back only over the row as the change left it
 
 <!-- END proof -->
 
@@ -7556,6 +7569,7 @@ _Tested by:_
     - a plan change made at once, whose contract cannot be written after it
         - is taken back as it was read, and refused with a code, where the store failed
         - one that opened a period of its own gets the old window and billing day back
+        - is taken back only over the row as the change left it
         - is refused with the contract’s own code where it refused after the write
         - where it cannot be taken back either, the error stands and is not called a refusal
     - a plan change made at once in a trial
@@ -7604,6 +7618,9 @@ _Tested by:_
     - a scheduled change whose contract is refused before it is written
         - is not written, stays due, and is audited with the contract’s reason
         - is tried again by every run, and audited once
+        - is audited anew where the next run refuses it for another reason
+        - is audited on its own where the plan and version are scheduled again for another day
+        - is audited on its own where the plan and version are scheduled again in another rhythm
         - is audited again by the next run where the audit entry could not be written
         - holds no other tenant back
     - a scheduled change whose contract cannot be written after it

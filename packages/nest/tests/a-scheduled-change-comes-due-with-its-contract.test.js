@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import 'reflect-metadata';
 
 import { UnprocessableEntityException } from '@nestjs/common';
-import { SUBSCRIBER_ERROR_CODES } from '@saasicat/core';
+import { NO_SCHEDULED_CHANGE, SUBSCRIBER_ERROR_CODES } from '@saasicat/core';
 
 import { PLATFORM_CORE_MANIFEST_CONTRIBUTION } from '../dist/admin/index.js';
 import { PendingPlanMaterializationService } from '../dist/billing/index.js';
@@ -61,6 +61,14 @@ const identityIncomplete = () => {
         code: SUBSCRIBER_ERROR_CODES.SUBSCRIBER_IDENTITY_INCOMPLETE,
         message: 'The subscriber’s address is incomplete.',
         params: { missing: ['street'] },
+    });
+};
+
+const noSubscriber = () => {
+    throw new UnprocessableEntityException({
+        code: SUBSCRIBER_ERROR_CODES.SUBSCRIBER_REQUIRED,
+        message: 'The tenant has no subscriber.',
+        params: {},
     });
 };
 
@@ -196,6 +204,50 @@ describe('a scheduled change whose contract is refused before it is written', ()
         assert.equal(calls.errors.length, 2, 'each run says it once');
     });
 
+    test('is audited anew where the next run refuses it for another reason', async () => {
+        // No subscriber yet; then one is created, and its address is incomplete.
+        const { calls, run } = theRun(
+            { t1: standardDowngrading() },
+            { check: () => (calls.checked.length === 1 ? noSubscriber() : identityIncomplete()) },
+        );
+
+        await run.materializeDuePlanChanges(NOW);
+        await run.materializeDuePlanChanges(new Date(NOW.getTime() + 15 * 60_000));
+
+        assert.deepEqual(
+            calls.audited.map(({ changes }) => changes.code),
+            [
+                SUBSCRIBER_ERROR_CODES.SUBSCRIBER_REQUIRED,
+                SUBSCRIBER_ERROR_CODES.SUBSCRIBER_IDENTITY_INCOMPLETE,
+            ],
+        );
+    });
+
+    /** Audit entries of a change refused, then cancelled and scheduled again as `rescheduled`. */
+    async function auditedWhenScheduledAgain(rescheduled) {
+        const byTenant = { t1: standardDowngrading() };
+        const { calls, run } = theRun(byTenant, { check: identityIncomplete });
+
+        await run.materializeDuePlanChanges(NOW);
+        byTenant.t1 = standardDowngrading(rescheduled);
+        await run.materializeDuePlanChanges(new Date('2026-06-10T00:00:00.000Z'));
+        return calls.audited;
+    }
+
+    test('is audited on its own where the plan and version are scheduled again for another day', async () => {
+        const audited = await auditedWhenScheduledAgain({
+            pendingEffectiveAt: new Date('2026-06-10T00:00:00.000Z'),
+        });
+
+        assert.equal(audited.length, 2);
+    });
+
+    test('is audited on its own where the plan and version are scheduled again in another rhythm', async () => {
+        const audited = await auditedWhenScheduledAgain({ pendingBillingCycle: 'YEARLY' });
+
+        assert.equal(audited.length, 2);
+    });
+
     test('is audited again by the next run where the audit entry could not be written', async () => {
         let attempts = 0;
         const { calls, run } = theRun(
@@ -252,6 +304,7 @@ describe('a scheduled change whose contract cannot be written after it', () => {
             'pv-starter-2',
             'claimed on what the change bound',
         );
+        const [{ input: made }] = calls.written;
         assert.deepEqual(back.putsBack, {
             status: 'ACTIVE',
             currentPeriodStart: read.currentPeriodStart,
@@ -266,7 +319,18 @@ describe('a scheduled change whose contract cannot be written after it', () => {
                 pendingCancellationNoticeDays: AGREED.cancellationNoticeDays,
                 pendingAgreedAt: AGREED.agreedAt,
             },
+            // Claimed over the row only as the change left it.
+            asChanged: {
+                plan: 'STARTER',
+                billingCycle: 'MONTHLY',
+                status: 'ACTIVE',
+                currentPeriodStart: made.periodStart,
+                currentPeriodEnd: made.periodEnd,
+                billingAnchorDay: 9,
+                scheduledChange: NO_SCHEDULED_CHANGE,
+            },
         });
+        assert.notEqual(made.periodStart, read.currentPeriodStart, 'the change opened a window');
         assert.deepEqual(
             calls.audited.map(({ action, changes }) => [action, changes.reason, changes.putBack]),
             [['SCHEDULED_PLAN_CHANGE_FAILED', 'contract-not-written', true]],
