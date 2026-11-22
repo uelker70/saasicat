@@ -46,6 +46,21 @@ export const SUBSCRIBER_INVOICE_ADDRESS_FIELDS = [
 export type SubscriberInvoiceAddressField = (typeof SUBSCRIBER_INVOICE_ADDRESS_FIELDS)[number];
 
 /**
+ * How a subscriber is reached, field by field, in the order every screen and
+ * answer names them: the fields of `SubscriberContact`, which a contact change
+ * may name and the legal identity is not part of.
+ */
+export const SUBSCRIBER_CONTACT_FIELDS = [
+    'addressLine1',
+    'addressLine2',
+    'postalCode',
+    'city',
+    'country',
+    'invoiceEmail',
+] as const satisfies readonly (keyof SubscriberContact)[];
+export type SubscriberContactField = (typeof SUBSCRIBER_CONTACT_FIELDS)[number];
+
+/**
  * Whether a subscriber can be given its next contract where a tax adapter
  * decides (`SC-PRIC-032`, `SC-PRIC-039`): which fields of the address an
  * invoice names are empty, and the adapter's sentence where it supports no

@@ -79,7 +79,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 67      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 46      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 47      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 27      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 721 entries: 🟢 629 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
-🔵 62 superseded, 🔴 7 withdrawn.
+Of 722 entries: 🟢 629 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+🔵 63 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -134,6 +134,7 @@ Of 721 entries: 🟢 629 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-BUN-040](#sc-bun-040--an-add-on-retirements-date-is-an-end-of-the-bookings-own-period-three-months-on),
 [SC-BUN-047](#sc-bun-047--the-operator-sees-how-far-each-add-on-retirement-has-come),
 [SC-SUB-012](#sc-sub-012--a-new-version-of-a-plan-does-not-move-a-customer-who-already-bought-one),
+[SC-SUB-018](#sc-sub-018--a-tenant-can-change-the-address-and-email-it-is-billed-at-but-not-clear-them),
 [SC-SUB-020](#sc-sub-020--a-newer-version-is-offered-classified-against-the-version-bound),
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-035](#sc-sub-035--a-retirements-date-is-a-term-end-at-least-three-months-after-its-notice-arrived),

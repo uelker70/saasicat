@@ -378,14 +378,30 @@ _Tested by:_
 
 ### SC-SUB-018 — A tenant can change the address and email it is billed at, but not clear them
 
-🟢 💰 A user holding the billing permission (`SC-UI-023`) changes the subscriber's address and
-invoice email in the tenant's billing area; later invoices carry the new ones (`SC-SUB-017`). The
-street, postal code, city, country and invoice email are what sign-up asked for and what an invoice
-cannot be sent without (`SC-PRIC-032`), so a change can replace them and is refused where it would
-leave one empty. The legal name and the tax identifiers are refused there by name, not dropped: the
-operator corrects them.
+🔵 _(Superseded on 2026-11-22 by `SC-SUB-047`.)_ 💰 A user holding the billing permission
+(`SC-UI-023`) changes the subscriber's address and invoice email in the tenant's billing area; later
+invoices carry the new ones (`SC-SUB-017`). The street, postal code, city, country and invoice email
+are what sign-up asked for and what an invoice cannot be sent without (`SC-PRIC-032`), so a change
+can replace them and is refused where it would leave one empty. The legal name and the tax
+identifiers are refused there by name, not dropped: the operator corrects them.
 
 _Source:_ #303
+
+### SC-SUB-047 — A tenant changes the contact details left to it, and never clears them
+
+🟢 💰 A user holding the billing permission (`SC-UI-023`) changes the subscriber's contact details
+in the tenant's billing area, and later invoices carry the new ones (`SC-SUB-017`). An application
+that keeps some of them in a page of its own names the ones the tenant changes there; where it names
+none, the tenant changes every one. A change of any other is refused by name with
+`SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE` and nothing of it is written, and the billing area shows those
+details as text, with the application's sentence saying where they are changed; what holds the next
+contract back is still named, those details included (`SC-PRIC-070`). What the application writes
+from its own page is not limited by this. The street, postal code, city, country and invoice email
+are what sign-up asked for and what an invoice cannot be sent without (`SC-PRIC-032`), so a change
+can replace them and is refused where it would leave one empty. The legal name and the tax
+identifiers are refused there by name, not dropped: the operator corrects them.
+
+_Source:_ #303 · #524
 
 <!-- BEGIN proof -->
 
@@ -395,6 +411,28 @@ _Tested by:_
     - the tenant changes how it is reached
         - the ${field} can be changed but not cleared, and a refused change writes nothing
         - the ${field} reaches the service through the pipe and is refused there, not dropped
+    - the tenant sees what holds its next contract back
+        - an empty field of the address is named though the application keeps the address elsewhere
+    - an application decides which details its tenant changes in the billing area
+        - the tenant is told which details it changes here: every one where the application names
+          none
+        - the details it names are answered once each, in the order every screen names them
+        - a detail it names is changed, and the others are kept
+        - a detail kept elsewhere, ${label}, is refused by name and nothing of the change is written
+        - a detail kept elsewhere is refused by its name, not its value: ${label}
+        - a refused country records no change of the tax origin
+        - a legal name sent beside a detail kept elsewhere is refused as the legal identity
+        - the invoice email it may change is still not cleared
+        - where it names none, the tenant changes none
+        - the application's own page changes what the billing area refuses
+    - the details an application names are held to at the start
+        - ${named} stops the start, saying why
+        - a single name instead of a list stops the start
+        - named under tenantBilling, it reaches the routes that serve the billing details
+    - the billing details where no payment gateway is wired
+        - are mounted once, with a gateway and without one
+        - the tenant reads them and changes what the application lets it change
+        - a name that is not a contact detail stops the start there too
 
 <!-- END proof -->
 

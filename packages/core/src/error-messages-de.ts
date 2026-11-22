@@ -480,6 +480,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Der Vertragspartner hat keine Umsatzsteuer-Identifikationsnummer, die sich prüfen ließe.',
     SUBSCRIBER_IDENTITY_NOT_A_CONTACT:
         '{field} gehört zur rechtlichen Identität des Vertragspartners und ändert sich nur als Korrektur mit Begründung.',
+    SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE:
+        '{field} wird hier nicht geändert; die Anwendung führt diese Angabe an anderer Stelle.',
     SUBSCRIBER_CORRECTION_REASON_REQUIRED:
         'Eine Korrektur der rechtlichen Identität braucht eine Begründung.',
     SUBSCRIBER_CORRECTION_ACTOR_REQUIRED:

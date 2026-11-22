@@ -111,7 +111,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 67      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 46      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 47      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 27      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 721 entries: 🟢 629 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
-🔵 62 superseded, 🔴 7 withdrawn.
+Of 722 entries: 🟢 629 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+🔵 63 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -166,6 +166,7 @@ Of 721 entries: 🟢 629 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-BUN-040](#sc-bun-040--an-add-on-retirements-date-is-an-end-of-the-bookings-own-period-three-months-on),
 [SC-BUN-047](#sc-bun-047--the-operator-sees-how-far-each-add-on-retirement-has-come),
 [SC-SUB-012](#sc-sub-012--a-new-version-of-a-plan-does-not-move-a-customer-who-already-bought-one),
+[SC-SUB-018](#sc-sub-018--a-tenant-can-change-the-address-and-email-it-is-billed-at-but-not-clear-them),
 [SC-SUB-020](#sc-sub-020--a-newer-version-is-offered-classified-against-the-version-bound),
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-035](#sc-sub-035--a-retirements-date-is-a-term-end-at-least-three-months-after-its-notice-arrived),
@@ -230,7 +231,7 @@ Of 721 entries: 🟢 629 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 721 requirements. Do not edit by hand:
+Generated from `requirements/` — 722 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5501,14 +5502,30 @@ _Tested by:_
 
 ### SC-SUB-018 — A tenant can change the address and email it is billed at, but not clear them
 
-🟢 💰 A user holding the billing permission (`SC-UI-023`) changes the subscriber's address and
-invoice email in the tenant's billing area; later invoices carry the new ones (`SC-SUB-017`). The
-street, postal code, city, country and invoice email are what sign-up asked for and what an invoice
-cannot be sent without (`SC-PRIC-032`), so a change can replace them and is refused where it would
-leave one empty. The legal name and the tax identifiers are refused there by name, not dropped: the
-operator corrects them.
+🔵 _(Superseded on 2026-11-22 by `SC-SUB-047`.)_ 💰 A user holding the billing permission
+(`SC-UI-023`) changes the subscriber's address and invoice email in the tenant's billing area; later
+invoices carry the new ones (`SC-SUB-017`). The street, postal code, city, country and invoice email
+are what sign-up asked for and what an invoice cannot be sent without (`SC-PRIC-032`), so a change
+can replace them and is refused where it would leave one empty. The legal name and the tax
+identifiers are refused there by name, not dropped: the operator corrects them.
 
 _Source:_ #303
+
+### SC-SUB-047 — A tenant changes the contact details left to it, and never clears them
+
+🟢 💰 A user holding the billing permission (`SC-UI-023`) changes the subscriber's contact details
+in the tenant's billing area, and later invoices carry the new ones (`SC-SUB-017`). An application
+that keeps some of them in a page of its own names the ones the tenant changes there; where it names
+none, the tenant changes every one. A change of any other is refused by name with
+`SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE` and nothing of it is written, and the billing area shows those
+details as text, with the application's sentence saying where they are changed; what holds the next
+contract back is still named, those details included (`SC-PRIC-070`). What the application writes
+from its own page is not limited by this. The street, postal code, city, country and invoice email
+are what sign-up asked for and what an invoice cannot be sent without (`SC-PRIC-032`), so a change
+can replace them and is refused where it would leave one empty. The legal name and the tax
+identifiers are refused there by name, not dropped: the operator corrects them.
+
+_Source:_ #303 · #524
 
 <!-- BEGIN proof -->
 
@@ -5518,6 +5535,28 @@ _Tested by:_
     - the tenant changes how it is reached
         - the ${field} can be changed but not cleared, and a refused change writes nothing
         - the ${field} reaches the service through the pipe and is refused there, not dropped
+    - the tenant sees what holds its next contract back
+        - an empty field of the address is named though the application keeps the address elsewhere
+    - an application decides which details its tenant changes in the billing area
+        - the tenant is told which details it changes here: every one where the application names
+          none
+        - the details it names are answered once each, in the order every screen names them
+        - a detail it names is changed, and the others are kept
+        - a detail kept elsewhere, ${label}, is refused by name and nothing of the change is written
+        - a detail kept elsewhere is refused by its name, not its value: ${label}
+        - a refused country records no change of the tax origin
+        - a legal name sent beside a detail kept elsewhere is refused as the legal identity
+        - the invoice email it may change is still not cleared
+        - where it names none, the tenant changes none
+        - the application's own page changes what the billing area refuses
+    - the details an application names are held to at the start
+        - ${named} stops the start, saying why
+        - a single name instead of a list stops the start
+        - named under tenantBilling, it reaches the routes that serve the billing details
+    - the billing details where no payment gateway is wired
+        - are mounted once, with a gateway and without one
+        - the tenant reads them and changes what the application lets it change
+        - a name that is not a contact detail stops the start there too
 
 <!-- END proof -->
 
@@ -13487,6 +13526,7 @@ _Tested by:_
         - the fields of its address that are empty — and none once it fills them in
         - the adapter sentence where it treats no such case — and none once the country it can treat
           is named
+        - an empty field of the address is named though the application keeps the address elsewhere
 - `packages/nest/tests/an-operator-sees-a-tenants-subscriber.test.js`
     - the operator sees a tenant's subscriber beside the tenant
         - its address and tax details, and that nothing holds its next contract back
@@ -18425,7 +18465,7 @@ _Tested by:_
         - follows the earlier subscriber where it was joined in turn into one before it
         - is refused where the session is another subscriber's, joined or not
     - a change of a subscriber that waited for its join
-        - made by the tenant's user, lands at the subscriber it was joined into
+        - made by the tenant's user${where}, lands at the subscriber it was joined into
         - made by the operator, is answered as a change of a joined subscriber is
         - that failed for another reason, is passed on as it failed
     - the subscriber a reference kept outside the installation belongs to
@@ -19872,7 +19912,7 @@ _Tested by:_
         - follows the earlier subscriber where it was joined in turn into one before it
         - is refused where the session is another subscriber's, joined or not
     - a change of a subscriber that waited for its join
-        - made by the tenant's user, lands at the subscriber it was joined into
+        - made by the tenant's user${where}, lands at the subscriber it was joined into
         - made by the operator, is answered as a change of a joined subscriber is
         - that failed for another reason, is passed on as it failed
     - joining subscribers
@@ -21963,6 +22003,11 @@ _Source:_ #303
 
 _Tested by:_
 
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the billing details where no payment gateway is wired
+        - are mounted once, with a gateway and without one
+        - the tenant reads them and changes what the application lets it change
+        - a name that is not a contact detail stops the start there too
 - `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
     - the billing section
         - a user holding the billing permission finds the payment method and the billing details

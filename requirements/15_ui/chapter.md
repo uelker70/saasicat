@@ -1972,6 +1972,11 @@ _Source:_ #303
 
 _Tested by:_
 
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the billing details where no payment gateway is wired
+        - are mounted once, with a gateway and without one
+        - the tenant reads them and changes what the application lets it change
+        - a name that is not a contact detail stops the start there too
 - `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
     - the billing section
         - a user holding the billing permission finds the payment method and the billing details

@@ -23,7 +23,7 @@ import {
     composeSetup,
     composeSubscriptionContract,
 } from './optional-modules.js';
-import { composePayments } from './payments.js';
+import { composePayments, composeTenantBillingDetails } from './payments.js';
 import { composePromoCodes } from './promo-codes.js';
 import { composeSubscriberAccount } from './subscriber-account.js';
 import { composeSubscriberCredits } from './subscriber-credits.js';
@@ -51,6 +51,8 @@ export const FEATURE_COMPOSERS: readonly Composer[] = [
     composeSubscriberJoins,
     // After tenant billing too: its tenant routes share the guards.
     composePayments,
+    // After payments, which mounts the billing details where a gateway is wired.
+    composeTenantBillingDetails,
     composeSetup,
     composeAdminStats,
     composeCheckoutOffer,

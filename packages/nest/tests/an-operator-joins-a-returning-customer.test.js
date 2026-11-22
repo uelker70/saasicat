@@ -643,26 +643,32 @@ const joinedWhileWaiting = (admin, method) => {
 
 // @requirement SC-ADM-050 — A join moves everything in one step, and a subscriber joined is given nothing afterwards
 describe('a change of a subscriber that waited for its join', () => {
-    test("made by the tenant's user, lands at the subscriber it was joined into", async () => {
-        const admin = await anAdministration();
-        joinedWhileWaiting(admin, 'updateContact');
-        const subscribers = new SubscriberService(admin.repo, {}, null, admin.joinRepo);
+    for (const [where, options] of [
+        ['', undefined],
+        [' from a billing area that changes only the city', { changeable: ['city'] }],
+    ]) {
+        test(`made by the tenant's user${where}, lands at the subscriber it was joined into`, async () => {
+            const admin = await anAdministration();
+            joinedWhileWaiting(admin, 'updateContact');
+            const subscribers = new SubscriberService(admin.repo, {}, null, admin.joinRepo);
 
-        const changed = await subscribers.changeContactOfTenant(
-            't-wien',
-            { city: 'Graz' },
-            TENANT_USER,
-        );
+            const changed = await subscribers.changeContactOfTenant(
+                't-wien',
+                { city: 'Graz' },
+                TENANT_USER,
+                options,
+            );
 
-        assert.equal(changed.id, admin.idOf('fabrikam'));
-        assert.deepEqual(
-            [
-                (await admin.repo.findById(admin.idOf('fabrikam'))).city,
-                (await admin.repo.findById(admin.idOf('wien'))).city,
-            ],
-            ['Graz', 'Hamburg'],
-        );
-    });
+            assert.equal(changed.id, admin.idOf('fabrikam'));
+            assert.deepEqual(
+                [
+                    (await admin.repo.findById(admin.idOf('fabrikam'))).city,
+                    (await admin.repo.findById(admin.idOf('wien'))).city,
+                ],
+                ['Graz', 'Hamburg'],
+            );
+        });
+    }
 
     test('made by the operator, is answered as a change of a joined subscriber is', async () => {
         const admin = await anAdministration();

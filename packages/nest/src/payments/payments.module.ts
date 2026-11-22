@@ -14,17 +14,11 @@ import type {
     TransactionRunner,
 } from '@saasicat/core';
 
-import { BillingPermissionGuard } from '../billing/billing-permission.guard.js';
-import { ComposedTenantAuthGuard } from '../billing/composed-tenant-auth.guard.js';
-import {
-    BILLING_PERMISSION_GUARDS_TOKEN,
-    TENANT_AUTH_GUARDS_TOKEN,
-    TENANT_ID_RESOLVER_TOKEN,
-    type TenantIdResolver,
-} from '../billing/tenant-billing.tokens.js';
+import type { TenantBillingDetailsOptions } from '../billing/tenant-billing.module.js';
+import type { TenantIdResolver } from '../billing/tenant-billing.tokens.js';
 import { asProvider, type ProviderSpec } from '../core/di.js';
-import { userTenantIdOf } from '../billing/tenant-id.js';
 import { subscriberProviders } from '../subscriber/subscriber.module.js';
+import { billingAreaRouteProviders } from './billing-area-routes.js';
 import { PaymentCallbackService } from './payment-callback.service.js';
 import { PaymentGatewayRegistry } from './payment-gateway-registry.js';
 import { PaymentWebhookController } from './payment-webhook.controller.js';
@@ -37,9 +31,10 @@ import {
 import { StoredPaymentReferencesCheck } from './stored-references.check.js';
 import { SubscriberPaymentMethodService } from './subscriber-payment-method.service.js';
 import { TenantBillingDetailsController } from './tenant-billing-details.controller.js';
+import { tenantEditableDetailsProvider } from './tenant-billing-details.module.js';
 import { TenantPaymentMethodController } from './tenant-payment-method.controller.js';
 
-/** The tenant's routes for its payment method. */
+/** The tenant's routes of its billing area: its payment method, and whom it is billed to. */
 export interface PaymentsTenantRoutesOptions {
     /** The application's authentication guards, as `TenantBillingModule.forRoot.authGuards`. */
     authGuards: ProviderSpec<ReadonlyArray<CanActivate>>;
@@ -50,6 +45,11 @@ export interface PaymentsTenantRoutesOptions {
     billingPermissionGuards?: ProviderSpec<ReadonlyArray<CanActivate>>;
     /** Default: `req.user.tenantId`. */
     tenantIdResolver?: TenantIdResolver;
+    /**
+     * Which contact details the tenant changes at `PATCH /billing/details`, as
+     * `TenantBillingModuleOptions.billingDetails`; every one where it is left out.
+     */
+    billingDetails?: TenantBillingDetailsOptions;
 }
 
 export interface PaymentsModuleOptions {
@@ -107,20 +107,14 @@ export class PaymentsModule {
         const controllers: Type[] = [PaymentWebhookController];
         const tenant = options.tenantRoutes;
         if (tenant) {
+            // The billing details are mounted here, in this module's scope,
+            // rather than through `TenantBillingDetailsModule`: the guards
+            // resolve from what the application gave the payments module, as
+            // its payment method routes do.
             providers.push(
-                asProvider(TENANT_AUTH_GUARDS_TOKEN, tenant.authGuards),
-                ComposedTenantAuthGuard,
-                BillingPermissionGuard,
-                {
-                    provide: TENANT_ID_RESOLVER_TOKEN,
-                    useValue: tenant.tenantIdResolver ?? userTenantIdOf,
-                },
+                ...billingAreaRouteProviders(tenant),
+                tenantEditableDetailsProvider(tenant),
             );
-            if (tenant.billingPermissionGuards) {
-                providers.push(
-                    asProvider(BILLING_PERMISSION_GUARDS_TOKEN, tenant.billingPermissionGuards),
-                );
-            }
             controllers.push(TenantPaymentMethodController, TenantBillingDetailsController);
         }
         return {

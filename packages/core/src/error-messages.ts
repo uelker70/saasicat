@@ -467,6 +467,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         "The subscriber's billing address is not complete yet: a contract names it only with street and number, postal code, city and country.",
     SUBSCRIBER_IDENTITY_NOT_A_CONTACT:
         "{field} is part of the subscriber's legal identity and changes only as a correction, with a reason.",
+    SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE:
+        '{field} is not changed here: this application keeps it elsewhere.',
     SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED:
         'A change of whether the subscriber is a business needs a reason.',
     SUBSCRIBER_VAT_ID_MISSING: 'The subscriber has no VAT identification number to check.',

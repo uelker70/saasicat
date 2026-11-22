@@ -25,8 +25,10 @@ import {
     INVOICE_CORRECTION_MAX_LENGTH,
     INVOICE_SUBSCRIBER_DETAILS,
     LEGAL_IDENTITY_FIELDS,
+    SUBSCRIBER_CONTACT_FIELDS,
     SUBSCRIBER_ERROR_CODES,
     SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
+    type SubscriberContactField,
     type SubscriberInvoiceAddressField,
 } from '@saasicat/core';
 
@@ -38,22 +40,13 @@ const COUNTRY_CODE = /^[A-Z]{2}$/;
 /** RFC 5321 caps an address at 254 characters. */
 const MAX_EMAIL_LENGTH = 254;
 
-const CONTACT_FIELDS: readonly (keyof SubscriberContact)[] = [
-    'addressLine1',
-    'addressLine2',
-    'postalCode',
-    'city',
-    'country',
-    'invoiceEmail',
-];
-
 /** A new subscriber's details, every one settled. */
 export function settleNewSubscriberDetails(details: NewSubscriberDetails): SubscriberDetails {
     return {
         legalName: settleLegalName(details.legalName),
         vatId: settleVatId(details.vatId),
         taxNumber: settleText('taxNumber', details.taxNumber),
-        ...settleContact(details, CONTACT_FIELDS),
+        ...settleContact(details, SUBSCRIBER_CONTACT_FIELDS),
         business: settleBusinessStatus(details.business),
     };
 }
@@ -74,8 +67,17 @@ export function settleBusinessStatus(value: unknown): boolean | null {
  * leaves it out. A field of the legal identity, and the business status, are
  * refused rather than dropped — a caller that sent a new legal name through
  * here would otherwise be told it succeeded.
+ *
+ * `changeable` names the contact details this caller may change, every one
+ * where it is left out. Any other the change names is refused by its name,
+ * whatever its value — the unchanged value and `null` included — before a
+ * value is judged: the caller cannot change it here, so whether the value
+ * would have held is not the caller's question.
  */
-export function settleContactChange(change: SubscriberContactChange): SubscriberContactChange {
+export function settleContactChange(
+    change: SubscriberContactChange,
+    changeable: readonly SubscriberContactField[] = SUBSCRIBER_CONTACT_FIELDS,
+): SubscriberContactChange {
     const identity = LEGAL_IDENTITY_FIELDS.find(
         (field) => (change as Record<string, unknown>)[field] !== undefined,
     );
@@ -91,8 +93,53 @@ export function settleContactChange(change: SubscriberContactChange): Subscriber
             codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT),
         );
     }
-    const named = CONTACT_FIELDS.filter((field) => change[field] !== undefined);
+    const named = SUBSCRIBER_CONTACT_FIELDS.filter((field) => change[field] !== undefined);
+    const elsewhere = named.find((field) => !changeable.includes(field));
+    if (elsewhere) {
+        throw new UnprocessableEntityException(
+            codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE, {
+                field: elsewhere,
+            }),
+        );
+    }
     return settleContact(change, named);
+}
+
+/**
+ * The contact details `tenantEditable` names, once each, in the order of
+ * `SUBSCRIBER_CONTACT_FIELDS`; every one where it is left out. A name that is
+ * not a contact detail stops the start rather than being dropped: a field the
+ * application meant to keep elsewhere would otherwise stay changeable, or one
+ * it meant to leave to the tenant would be refused.
+ */
+export function tenantEditableDetailsOf(
+    tenantEditable: readonly SubscriberContactField[] | undefined,
+): SubscriberContactField[] {
+    const named: unknown = tenantEditable;
+    if (named === undefined) return [...SUBSCRIBER_CONTACT_FIELDS];
+    const option = '`tenantBilling.billingDetails.tenantEditable`';
+    if (!Array.isArray(named)) {
+        throw new Error(`${option} is a list of contact details, such as ['invoiceEmail'].`);
+    }
+    const listed = new Set<unknown>(named);
+    const identity = new Set<unknown>(LEGAL_IDENTITY_FIELDS);
+    const contact = new Set<unknown>(SUBSCRIBER_CONTACT_FIELDS);
+    for (const name of listed) {
+        if (identity.has(name)) {
+            throw new Error(
+                `${option} names \`${String(name)}\`: the legal name and the tax identifiers ` +
+                    'are shown to the tenant and corrected by the operator (SC-SUB-017), never ' +
+                    'changed by the tenant.',
+            );
+        }
+        if (!contact.has(name)) {
+            throw new Error(
+                `${option} names \`${String(name)}\`, which is not a contact detail. It names ` +
+                    `only ${SUBSCRIBER_CONTACT_FIELDS.join(', ')}.`,
+            );
+        }
+    }
+    return SUBSCRIBER_CONTACT_FIELDS.filter((field) => listed.has(field));
 }
 
 /**

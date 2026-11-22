@@ -15,6 +15,7 @@ import type {
     BundleVersionRetirementRepository,
     FeatureWithdrawalRepository,
     PlanCatalogSettings,
+    SubscriberContactField,
     SubscriberLedgerRepository,
     SubscriberRepository,
     SubscriptionBundleRepository,
@@ -512,6 +513,22 @@ export interface VersionRetirementsOptions {
     bundleVersionRetirements?: ProviderSpec<BundleVersionRetirementRepository>;
 }
 
+/**
+ * Which contact details a tenant changes in its billing area
+ * (`tenantBilling.billingDetails`). An application that keeps some of them on
+ * a page of its own names the ones the tenant changes there; the rest are
+ * shown to the tenant and changed by the application.
+ */
+export interface TenantBillingDetailsOptions {
+    /**
+     * The contact details a tenant changes in its billing area, every one
+     * where this is left out; `[]` leaves them all to the application. What
+     * the application writes through `SubscriberService.changeContactOfTenant`
+     * is not limited by it.
+     */
+    tenantEditable?: readonly SubscriberContactField[];
+}
+
 export interface TenantBillingModuleOptions {
     /**
      * App guards in the order in which they should be executed
@@ -534,6 +551,19 @@ export interface TenantBillingModuleOptions {
      * the tenant's administrator (`TENANT_ADMIN`, `SUPER_ADMIN`) holds it.
      */
     billingPermissionGuards?: ProviderSpec<ReadonlyArray<CanActivate>>;
+
+    /**
+     * Which contact details of the subscriber a tenant changes in its billing
+     * area, at `GET` and `PATCH /billing/details`: every one where this is left
+     * out. An application that keeps the address on a page of its own names
+     * the ones the tenant changes here — `{ tenantEditable: ['invoiceEmail'] }`
+     * — and the route refuses a change of any other
+     * (`SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`); what the application writes
+     * through `SubscriberService.changeContactOfTenant` is not limited by it.
+     * A name that is not a contact detail, or one of the legal identity,
+     * stops the start.
+     */
+    billingDetails?: TenantBillingDetailsOptions;
 
     /** Adapter to the subscription display form (`GET /billing/usage`). */
     subscriptionUsagePort: ProviderSpec<SubscriptionUsagePort>;

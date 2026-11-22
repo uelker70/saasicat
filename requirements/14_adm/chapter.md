@@ -1749,7 +1749,7 @@ _Tested by:_
         - follows the earlier subscriber where it was joined in turn into one before it
         - is refused where the session is another subscriber's, joined or not
     - a change of a subscriber that waited for its join
-        - made by the tenant's user, lands at the subscriber it was joined into
+        - made by the tenant's user${where}, lands at the subscriber it was joined into
         - made by the operator, is answered as a change of a joined subscriber is
         - that failed for another reason, is passed on as it failed
     - the subscriber a reference kept outside the installation belongs to
@@ -3196,7 +3196,7 @@ _Tested by:_
         - follows the earlier subscriber where it was joined in turn into one before it
         - is refused where the session is another subscriber's, joined or not
     - a change of a subscriber that waited for its join
-        - made by the tenant's user, lands at the subscriber it was joined into
+        - made by the tenant's user${where}, lands at the subscriber it was joined into
         - made by the operator, is answered as a change of a joined subscriber is
         - that failed for another reason, is passed on as it failed
     - joining subscribers

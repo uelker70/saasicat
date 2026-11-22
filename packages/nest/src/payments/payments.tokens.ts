@@ -11,3 +11,8 @@ export const SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN = Symbol.for(
 export const PAYMENT_TRANSACTION_RUNNER_TOKEN = Symbol.for(
     'saasicat/nest/PaymentTransactionRunner',
 );
+/**
+ * The contact details a tenant changes in its billing area, in the order of
+ * `SUBSCRIBER_CONTACT_FIELDS` (`tenantBilling.billingDetails.tenantEditable`).
+ */
+export const TENANT_EDITABLE_DETAILS_TOKEN = Symbol.for('saasicat/nest/TenantEditableDetails');

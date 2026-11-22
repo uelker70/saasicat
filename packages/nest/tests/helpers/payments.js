@@ -15,6 +15,7 @@ import {
 } from '@saasicat/core';
 
 import { PlanCatalogModule, TAX_TREATMENTS_TOKEN } from '../../dist/billing/index.js';
+import { storeSecretsInPlainText } from '../../dist/index.js';
 import {
     PaymentCallbackService,
     PaymentWebhookController,
@@ -22,9 +23,19 @@ import {
     TenantBillingDetailsController,
     TenantPaymentMethodController,
 } from '../../dist/payments/index.js';
+import { SaaSiCatModule } from '../../dist/platform/index.js';
 import { SubscriberService } from '../../dist/subscriber/index.js';
-import { FakeSubscriberRepository } from '../../dist/testing/index.js';
+import {
+    FakeInstallationMarkRepository,
+    FakeSubscriberRepository,
+    FakeSubscriptionEndRepository,
+    FakeTenantAccessHoldRepository,
+    FakeTenantDeletionRepository,
+} from '../../dist/testing/index.js';
+import { aDeletion } from './installation-mark.js';
 import { ISSUER } from './invoice-run.js';
+import { anExport } from './tenant-data-export.js';
+import { noticeRecord, sendingPort } from './version-notices.js';
 
 /** The account every test takes payment methods at, unless it names another. */
 export const MAIN_ACCOUNT = 'stripe-main';
@@ -366,6 +377,7 @@ export async function paymentsApp({
     subscribers = new FakeSubscriberRepository(),
     extraProviders,
     taxAdapter,
+    billingDetails,
 } = {}) {
     const gateway = new ScriptedGateway();
     const log = new MemoryPaymentEventLog();
@@ -387,7 +399,11 @@ export async function paymentsApp({
                 subscriberPaymentMethodRepository: methods,
                 subscriberRepository: subscribers,
                 transactionRunner: new RollbackRunner([log, methods]),
-                tenantRoutes: { authGuards: [new AllowAll()], billingPermissionGuards },
+                tenantRoutes: {
+                    authGuards: [new AllowAll()],
+                    billingPermissionGuards,
+                    billingDetails,
+                },
                 extraProviders,
             }),
         ],
@@ -403,6 +419,117 @@ export async function paymentsApp({
         routes: app.get(TenantPaymentMethodController),
         details: app.get(TenantBillingDetailsController),
         webhook: app.get(PaymentWebhookController),
+        subscribers: new SubscriberService(subscribers, catalog, app.get(TAX_TREATMENTS_TOKEN)),
+    };
+}
+
+/** The persistence bundle `composedPlatform` hands the platform: only what its composition reads. */
+export function composablePersistence() {
+    return {
+        capabilities: {
+            transactions: true,
+            pessimisticLocking: true,
+            rowLevelSecurity: false,
+            advisoryLocks: false,
+        },
+        core: {
+            tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+            subscriptionEnds: new FakeSubscriptionEndRepository(),
+            installationMark: new FakeInstallationMarkRepository(),
+            tenantDeletions: new FakeTenantDeletionRepository(),
+            mfa: {},
+            audit: {},
+            rlsBypass: {},
+            transactionRunner: {},
+        },
+        entitlement: {
+            subscriptionRepository: {},
+            planVersionRepository: {},
+            subscriberRepository: {},
+        },
+        tenantBilling: { subscriptionUsagePort: {}, subscriptionWritePort: {} },
+        payments: { paymentEventLog: {}, subscriberPaymentMethodRepository: {} },
+    };
+}
+
+/**
+ * `SaaSiCatModule.forRoot` as an application with tenant billing calls it —
+ * the dynamic module it composes, not booted. `tenantBilling` is merged into
+ * the options every such application needs, and `null` leaves tenant billing
+ * out; `payments` is passed as given.
+ */
+export function composedPlatform({
+    tenantBilling = {},
+    payments,
+    persistence = composablePersistence(),
+} = {}) {
+    return SaaSiCatModule.forRoot({
+        adapters: { secretSealer: storeSecretsInPlainText() },
+        planCatalog: paymentsCatalog(),
+        controller: { guards: [AllowAll] },
+        persistence,
+        tenantBilling:
+            tenantBilling === null
+                ? undefined
+                : {
+                      authGuards: [AllowAll],
+                      notices: { port: sendingPort(), record: noticeRecord() },
+                      subscriptionEnds: { export: anExport(), deletion: aDeletion() },
+                      ...tenantBilling,
+                  },
+        payments,
+    });
+}
+
+/** The payments module `composedPlatform` composed, or `undefined`. */
+export const paymentsModuleOf = (dyn) =>
+    dyn.imports.find((imported) => imported?.module?.name === 'PaymentsModule');
+
+/** The modules of the tree `dyn` composed that mount `controller`. */
+export function modulesMounting(dyn, controller, seen = new Set()) {
+    const mounting = [];
+    for (const imported of dyn.imports ?? []) {
+        if (!imported?.module || seen.has(imported)) continue;
+        seen.add(imported);
+        if ((imported.controllers ?? []).includes(controller)) mounting.push(imported);
+        mounting.push(...modulesMounting(imported, controller, seen));
+    }
+    return mounting;
+}
+
+/** How many modules of the tree `dyn` composed mount `controller`. */
+export const mountsOf = (dyn, controller) => modulesMounting(dyn, controller).length;
+
+/** The application's module that provides the guard class its tenant routes name. */
+const ALLOW_ALL_MODULE = {
+    module: class AllowAllModule {},
+    providers: [AllowAll],
+    exports: [AllowAll],
+};
+
+/**
+ * The billing details as `SaaSiCatModule.forRoot` mounts them for an
+ * application with tenant billing and no payment gateway, booted over an
+ * in-memory subscriber store: `tenantBilling` as `composedPlatform` takes it.
+ */
+export async function billingDetailsWithoutPayments({ tenantBilling } = {}) {
+    const catalog = paymentsCatalog();
+    const subscribers = new FakeSubscriberRepository();
+    const persistence = composablePersistence();
+    persistence.entitlement.subscriberRepository = subscribers;
+    const composed = composedPlatform({
+        tenantBilling: { imports: [ALLOW_ALL_MODULE], ...tenantBilling },
+        persistence,
+    });
+    const [mounted] = modulesMounting(composed, TenantBillingDetailsController);
+    if (!mounted) throw new Error('the platform mounted no billing details');
+    const app = await Test.createTestingModule({
+        imports: [PlanCatalogModule.forRootWithCatalog(catalog, { global: true }), mounted],
+    }).compile();
+    await app.init();
+    openApps.push(app);
+    return {
+        details: app.get(TenantBillingDetailsController),
         subscribers: new SubscriberService(subscribers, catalog, app.get(TAX_TREATMENTS_TOKEN)),
     };
 }

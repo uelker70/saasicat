@@ -936,6 +936,12 @@ export const SUBSCRIBER_ERROR_CODES = {
     SUBSCRIBER_DETAIL_INVALID: 'SUBSCRIBER_DETAIL_INVALID',
     /** A contact change named a field of the legal identity. Carries `field`. */
     SUBSCRIBER_IDENTITY_NOT_A_CONTACT: 'SUBSCRIBER_IDENTITY_NOT_A_CONTACT',
+    /**
+     * A tenant's change named a contact detail the application keeps on a page
+     * of its own, which the tenant does not change in its billing area. Carries
+     * `field`.
+     */
+    SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE: 'SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE',
     SUBSCRIBER_CORRECTION_REASON_REQUIRED: 'SUBSCRIBER_CORRECTION_REASON_REQUIRED',
     SUBSCRIBER_CORRECTION_ACTOR_REQUIRED: 'SUBSCRIBER_CORRECTION_ACTOR_REQUIRED',
     SUBSCRIBER_CORRECTION_CHANGES_NOTHING: 'SUBSCRIBER_CORRECTION_CHANGES_NOTHING',

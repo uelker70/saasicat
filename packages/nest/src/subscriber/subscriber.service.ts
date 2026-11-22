@@ -11,6 +11,7 @@ import type {
     PlanCatalogSettings,
     SubscriberBusinessStatusResult,
     SubscriberContactChange,
+    SubscriberContactField,
     SubscriberCorrectionRecord,
     SubscriberIdentityCorrection,
     SubscriberReadiness,
@@ -375,15 +376,23 @@ export class SubscriberService {
      * can be invoiced. The legal name and the tax identifiers are refused as
      * with `changeContact`: they are the party, and only the operator corrects
      * them. `changedBy` names the tenant's user, as with `changeContact`.
+     *
+     * `options.changeable` names the contact details the change may name — the
+     * ones the application lets its tenant change in the billing area
+     * (`tenantBilling.billingDetails`) — and any other is refused by name with
+     * `SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`, nothing of the change written.
+     * Left out, every one may be named: an application writing from a page of
+     * its own calls this without it.
      */
     async changeContactOfTenant(
         tenantId: string,
         change: SubscriberContactChange,
         changedBy: string,
+        options: { changeable?: readonly SubscriberContactField[] } = {},
     ): Promise<SubscriberRecord> {
         const actor = settleActor(changedBy);
         const subscriber = await this.requireForTenant(tenantId);
-        const settled = settleContactChange(change);
+        const settled = settleContactChange(change, options.changeable);
         const cleared = KEPT_BY_A_TENANT.find((field) => settled[field] === null);
         if (cleared) {
             throw new UnprocessableEntityException(
