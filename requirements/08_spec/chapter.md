@@ -174,6 +174,8 @@ _Tested by:_
         - under ${what}, "Create" is on without an address and sends no subscriber
         - where it is optional, what was entered is sent
         - opened again, the dialog starts without the address entered before
+        - each address field stops where the route would refuse it, so "Create" is never on for too
+          long a line
         - every address field is labelled for the input it names
 
 <!-- END proof -->
@@ -216,6 +218,8 @@ _Tested by:_
         - under ${what}, "Create" is on without an address and sends no subscriber
         - where it is optional, what was entered is sent
         - opened again, the dialog starts without the address entered before
+        - each address field stops where the route would refuse it, so "Create" is never on for too
+          long a line
         - every address field is labelled for the input it names
 
 <!-- END proof -->

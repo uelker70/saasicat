@@ -1931,6 +1931,7 @@ _Tested by:_
         - show the legal identity as it stands, with no field to change it, and say who changes it
         - offer the contact details as fields, each named by its label
         - the country is named by its label alone, and described by its hint
+        - stop each field where the server would refuse it, so nothing too long is saved
         - save only once something changed, send only what changed, and say it was saved
         - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
         - a field the server refuses is named by its label and marked, and nothing claims it was
@@ -2002,6 +2003,7 @@ _Tested by:_
         - show the legal identity as it stands, with no field to change it, and say who changes it
         - offer the contact details as fields, each named by its label
         - the country is named by its label alone, and described by its hint
+        - stop each field where the server would refuse it, so nothing too long is saved
         - save only once something changed, send only what changed, and say it was saved
         - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
         - a field the server refuses is named by its label and marked, and nothing claims it was

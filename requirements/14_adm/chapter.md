@@ -865,6 +865,7 @@ _Tested by:_
     - what an operator gives a cancellation
         - passes with a reason, and with corrections and an address beside it
         - is trimmed before its lengths are checked, as the service settles it
+        - leaves the length of a correction to the cancellation, which settles it
         - with ${why} is refused
         - keeps the lines through a pipe that strips what no decorator names
     - a cancellation settles what it is given before anything else

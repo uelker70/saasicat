@@ -14,7 +14,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import 'reflect-metadata';
-import { ValidationPipe } from '@nestjs/common';
+import { Module, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -26,16 +26,19 @@ import {
     SUBSCRIBER_ERROR_CODES,
 } from '@saasicat/core';
 
+import { RLS_BYPASS_PORT_TOKEN } from '../dist/admin/index.js';
 import {
     CancelInvoiceDto,
     INVOICE_CANCELLED_AUDIT_ACTION,
     InvoiceCancellationModule,
+    InvoiceCancellationService,
     SubscriberReconciliationService,
 } from '../dist/billing/index.js';
-import { AdminManifestService, SaaSiCatModule } from '../dist/platform/index.js';
+import { AdminManifestService, MfaService, SaaSiCatModule } from '../dist/platform/index.js';
 import { FIRST_RUN, anInvoiceToCollect } from './helpers/invoice-collection.js';
 import { succeeded } from './helpers/money-events.js';
 import { invoicingPlatform } from './helpers/invoicing-platform.js';
+import { CITIES_MEASURED_ONCE, EMOJI } from './helpers/lines-measured-once.js';
 import { controllersIn, handlersOf } from './helpers/operator-routes.js';
 
 /** 10:00 in Berlin on 20 March, when the operator cancels the invoice of February. */
@@ -109,11 +112,20 @@ describe('what an operator gives a cancellation', () => {
         assert.deepEqual(
             await problemsOf({
                 reason: `  ${'x'.repeat(INVOICE_CANCELLATION_REASON_MAX_LENGTH)}  `,
-                corrections: {
-                    legalName: ` ${'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH)} `,
-                    city: ` ${'x'.repeat(SUBSCRIBER_ADDRESS_MAX_LENGTHS.city)} `,
-                },
                 deliverTo: `  ${'a'.repeat(242)}@t1.example  `,
+            }),
+            [],
+        );
+    });
+
+    test('leaves the length of a correction to the cancellation, which settles it', async () => {
+        assert.deepEqual(
+            await problemsOf({
+                ...REQUEST,
+                corrections: {
+                    legalName: 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH + 1),
+                    city: 'x'.repeat(SUBSCRIBER_ADDRESS_MAX_LENGTHS.city + 1),
+                },
             }),
             [],
         );
@@ -131,22 +143,6 @@ describe('what an operator gives a cancellation', () => {
         [
             'a correction that is no text',
             { ...REQUEST, corrections: { city: 28195 } },
-            'corrections',
-        ],
-        [
-            'a correction a character too long',
-            {
-                ...REQUEST,
-                corrections: { legalName: 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH + 1) },
-            },
-            'corrections',
-        ],
-        [
-            'a line of the address a character over its own bound',
-            {
-                ...REQUEST,
-                corrections: { city: 'x'.repeat(SUBSCRIBER_ADDRESS_MAX_LENGTHS.city + 1) },
-            },
             'corrections',
         ],
         ['an address that is no text', { ...REQUEST, deliverTo: 42 }, 'deliverTo'],
@@ -505,6 +501,101 @@ describe('the preview route', () => {
             [404, INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NOT_FOUND],
         );
     });
+});
+
+/**
+ * The preview route over HTTP over `installation`, behind the strictest global
+ * pipe an application installs: `whitelist`, `forbidNonWhitelisted` and
+ * `transform`. The route's second factor is never asked for, as the preview
+ * does not take one; its guard is only resolved.
+ */
+async function previewOverHttp(t, installation) {
+    class CancellationServices {}
+    Module({
+        providers: [
+            { provide: InvoiceCancellationService, useValue: installation.cancellation },
+            { provide: RLS_BYPASS_PORT_TOKEN, useValue: { runWithBypass: (fn) => fn() } },
+            { provide: MfaService, useValue: {} },
+        ],
+        exports: [InvoiceCancellationService, RLS_BYPASS_PORT_TOKEN, MfaService],
+    })(CancellationServices);
+    const moduleRef = await Test.createTestingModule({
+        imports: [
+            InvoiceCancellationModule.forRoot({ guards: [], imports: [CancellationServices] }),
+        ],
+    }).compile();
+    const app = moduleRef.createNestApplication(undefined, { logger: false });
+    app.useGlobalPipes(
+        new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    );
+    await app.listen(0, '127.0.0.1');
+    t.after(() => app.close());
+    const base = (await app.getUrl()).replace('[::1]', '127.0.0.1');
+    return async (body) => {
+        const response = await fetch(
+            `${base}/admin/invoices/${installation.invoice.id}/cancellation/preview`,
+            {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(body),
+            },
+        );
+        return { status: response.status, body: await response.json() };
+    };
+}
+
+/** The legal name as each case gives it, beside the city: it has a bound of its own. */
+const LEGAL_NAMES_MEASURED_ONCE = [
+    [
+        'legalName',
+        'of emoji filling its bound in code units',
+        EMOJI.repeat(INVOICE_CORRECTION_MAX_LENGTH / 2),
+        true,
+    ],
+    [
+        'legalName',
+        'of one emoji more than its bound holds in code units',
+        EMOJI.repeat(INVOICE_CORRECTION_MAX_LENGTH / 2 + 1),
+        false,
+    ],
+    [
+        'legalName',
+        'of one emoji more than its bound holds in characters',
+        EMOJI.repeat(INVOICE_CORRECTION_MAX_LENGTH + 1),
+        false,
+    ],
+];
+
+// @requirement SC-SUB-049 — A line of the address holds one bound, wherever it arrives
+describe("a correction behind the application's pipe is measured once", () => {
+    for (const [field, why, value, fits] of [
+        ...CITIES_MEASURED_ONCE,
+        ...LEGAL_NAMES_MEASURED_ONCE,
+    ]) {
+        if (fits) {
+            test(`takes a ${field} ${why}, trimmed`, async (t) => {
+                const preview = await previewOverHttp(t, await anInvoiceToCollect());
+
+                const answer = await preview({ ...REQUEST, corrections: { [field]: value } });
+
+                assert.deepEqual(
+                    [answer.status, answer.body.replacement?.subscriber[field]],
+                    [200, value.trim()],
+                );
+            });
+            continue;
+        }
+        test(`refuses a ${field} ${why} with the platform's own answer, naming it`, async (t) => {
+            const preview = await previewOverHttp(t, await anInvoiceToCollect());
+
+            const answer = await preview({ ...REQUEST, corrections: { [field]: value } });
+
+            assert.deepEqual(
+                [answer.status, answer.body.code, answer.body.params],
+                [422, SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, { field }],
+            );
+        });
+    }
 });
 
 // @requirement SC-ADM-020 — Six actions require a written reason, cancelling an invoice among them

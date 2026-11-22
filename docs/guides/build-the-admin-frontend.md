@@ -655,8 +655,9 @@ its code from the `X-Mfa-Code` header. The shapes are `PilotRow`, `PilotCreatePa
 
 `POST pilots/create` receives `tenant`, `admin` and `pilot`, and `subscriber`: the address of the
 pilot's subscriber, in the subscriber's own field names — `addressLine1`, `addressLine2`,
-`postalCode`, `city` and `country` (two letters, upper case). The dialog sends the fields entered,
-trimmed, and leaves `subscriber` out where none was. Where the manifest says
+`postalCode`, `city` and `country` (two letters, upper case). Each input stops where the platform
+would refuse the line, at `subscriberContactMaxLengthOf` from `@saasicat/core`. The dialog sends the
+fields entered, trimmed, and leaves `subscriber` out where none was. Where the manifest says
 `subscriberAddressRequired` — `config/saas.yaml` names a tax adapter, so a contract names its
 subscriber only with the full address — the dialog does not submit until the street, postal code,
 city and country are given; otherwise they are optional (`SC-SPEC-010`).

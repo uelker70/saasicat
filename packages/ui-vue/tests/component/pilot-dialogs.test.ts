@@ -7,6 +7,7 @@
 
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { ref } from 'vue';
+import { SUBSCRIBER_ADDRESS_MAX_LENGTHS } from '@saasicat/core';
 
 import { AdminError } from '../../src/client/admin-error.js';
 import type { PilotCreatePayload } from '../../src/client/resources/pilots.types.js';
@@ -467,6 +468,20 @@ describe("the pilot subscriber's address", () => {
         await wrapper.setProps({ modelValue: true });
 
         expect(inputWith(wrapper, dialog.cityPlaceholder).find('input').element.value).toBe('');
+    });
+
+    test('each address field stops where the route would refuse it, so "Create" is never on for too long a line', async () => {
+        await filledCreate(vi.fn(), false, { subscriberAddressRequired: true });
+        for (const [placeholder, bound] of [
+            [dialog.addressLine1Placeholder, SUBSCRIBER_ADDRESS_MAX_LENGTHS.addressLine1],
+            [dialog.addressLine2Placeholder, SUBSCRIBER_ADDRESS_MAX_LENGTHS.addressLine2],
+            [dialog.postalCodePlaceholder, SUBSCRIBER_ADDRESS_MAX_LENGTHS.postalCode],
+            [dialog.cityPlaceholder, SUBSCRIBER_ADDRESS_MAX_LENGTHS.city],
+            [dialog.countryPlaceholder, 2],
+        ] as const) {
+            const input = document.querySelector(`input[placeholder="${placeholder}"]`);
+            expect(input?.getAttribute('maxlength'), placeholder).toBe(String(bound));
+        }
     });
 
     test('every address field is labelled for the input it names', async () => {

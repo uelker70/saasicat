@@ -5632,8 +5632,14 @@ _Tested by:_
           own
         - a subscriber is created with the ${field} at its bound, the blanks around it not counted
         - a subscriber with the ${field} a character over it is refused, naming it
+        - a form bound by `subscriberContactMaxLengthOf` stops each contact detail exactly where the
+          platform refuses
         - a change of the contact details is held to it with no pipe at all, and nothing is written
-        - ${why} declares the same bound to the application's pipe
+        - ${why} leaves the bound to the platform: the application's pipe passes a longer line
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - step 4 behind the application's pipe measures a line of the address once
+        - takes a ${field} ${why}, trimmed
+        - refuses a ${field} ${why} with the platform's own answer, naming it
 - `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
     - the billing details through the application's ValidationPipe
         - the ${field} kept elsewhere is refused by its name, though its value is ${why}
@@ -5645,6 +5651,9 @@ _Tested by:_
     - a cancellation settles what it is given before anything else
         - takes a line of the address at its own bound, though the legal name may be longer
         - refuses a line of the address a character over its own bound, as the command line gives it
+    - a correction behind the application's pipe is measured once
+        - takes a ${field} ${why}, trimmed
+        - refuses a ${field} ${why} with the platform's own answer, naming it
 
 <!-- END proof -->
 
@@ -9282,6 +9291,8 @@ _Tested by:_
         - under ${what}, "Create" is on without an address and sends no subscriber
         - where it is optional, what was entered is sent
         - opened again, the dialog starts without the address entered before
+        - each address field stops where the route would refuse it, so "Create" is never on for too
+          long a line
         - every address field is labelled for the input it names
 
 <!-- END proof -->
@@ -9324,6 +9335,8 @@ _Tested by:_
         - under ${what}, "Create" is on without an address and sends no subscriber
         - where it is optional, what was entered is sent
         - opened again, the dialog starts without the address entered before
+        - each address field stops where the route would refuse it, so "Create" is never on for too
+          long a line
         - every address field is labelled for the input it names
 
 <!-- END proof -->
@@ -17763,6 +17776,7 @@ _Tested by:_
     - what an operator gives a cancellation
         - passes with a reason, and with corrections and an address beside it
         - is trimmed before its lengths are checked, as the service settles it
+        - leaves the length of a correction to the cancellation, which settles it
         - with ${why} is refused
         - keeps the lines through a pipe that strips what no decorator names
     - a cancellation settles what it is given before anything else
@@ -22146,6 +22160,7 @@ _Tested by:_
         - show the legal identity as it stands, with no field to change it, and say who changes it
         - offer the contact details as fields, each named by its label
         - the country is named by its label alone, and described by its hint
+        - stop each field where the server would refuse it, so nothing too long is saved
         - save only once something changed, send only what changed, and say it was saved
         - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
         - a field the server refuses is named by its label and marked, and nothing claims it was
@@ -22217,6 +22232,7 @@ _Tested by:_
         - show the legal identity as it stands, with no field to change it, and say who changes it
         - offer the contact details as fields, each named by its label
         - the country is named by its label alone, and described by its hint
+        - stop each field where the server would refuse it, so nothing too long is saved
         - save only once something changed, send only what changed, and say it was saved
         - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
         - a field the server refuses is named by its label and marked, and nothing claims it was

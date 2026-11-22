@@ -61,7 +61,7 @@
                                 :type="field === 'invoiceEmail' ? 'email' : 'text'"
                                 :autocomplete="AUTOCOMPLETE[field]"
                                 :required="field !== 'addressLine2'"
-                                :maxlength="field === 'country' ? 2 : undefined"
+                                :maxlength="subscriberContactMaxLengthOf(field)"
                                 :aria-describedby="field === 'country' ? countryHintId : undefined"
                                 :aria-invalid="refusedField === field ? 'true' : undefined"
                                 :disabled="saving"
@@ -101,6 +101,7 @@ import {
     resolveErrorMessage,
     SUBSCRIBER_CONTACT_FIELDS,
     SUBSCRIBER_ERROR_CODES,
+    subscriberContactMaxLengthOf,
 } from '@saasicat/core';
 import {
     httpStatusOf,

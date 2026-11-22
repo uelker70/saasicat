@@ -28,8 +28,6 @@ import {
 } from 'class-validator';
 import {
     INVOICE_CANCELLATION_REASON_MAX_LENGTH,
-    INVOICE_CORRECTION_MAX_LENGTH,
-    SUBSCRIBER_ADDRESS_MAX_LENGTHS,
     type AdminInvoice,
     type InvoiceCancellationRequest,
     type InvoiceLineOwed,
@@ -67,62 +65,49 @@ const Trimmed = () =>
 /**
  * The details of the subscriber the cancelled invoice named wrongly, as the
  * replacement is to name them. A detail left out stays as it was; `null`
- * clears one, except the legal name, which a party always has.
+ * clears one, except the legal name, which a party always has. Their form and
+ * length are judged where the cancellation settles them
+ * (`invoiceCorrectionMaxLengthOf`), not here: one measure, whichever way the
+ * correction arrives.
  */
 export class InvoiceSubscriberCorrectionsDto {
-    @Trimmed()
     @IsOptional()
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     legalName?: string;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     vatId?: string | null;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     taxNumber?: string | null;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(SUBSCRIBER_ADDRESS_MAX_LENGTHS.addressLine1)
     addressLine1?: string | null;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(SUBSCRIBER_ADDRESS_MAX_LENGTHS.addressLine2)
     addressLine2?: string | null;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(SUBSCRIBER_ADDRESS_MAX_LENGTHS.postalCode)
     postalCode?: string | null;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(SUBSCRIBER_ADDRESS_MAX_LENGTHS.city)
     city?: string | null;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     country?: string | null;
 }
 

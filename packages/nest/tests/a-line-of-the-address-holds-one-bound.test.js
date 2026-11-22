@@ -2,8 +2,8 @@
 // way the detail arrives — a subscriber an application creates, a change of
 // its contact details, sign-up's form, the operator's correction of an
 // invoice — and whether or not the application installs a `ValidationPipe`:
-// the platform settles it itself, and a route that declares a bound declares
-// the same one.
+// the platform settles it itself, and no route declares a bound of its own
+// for a pipe to measure differently.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,6 +15,8 @@ import {
     INVOICE_SUBSCRIBER_DETAILS,
     invoiceCorrectionMaxLengthOf,
     SUBSCRIBER_ADDRESS_MAX_LENGTHS,
+    SUBSCRIBER_CONTACT_FIELDS,
+    subscriberContactMaxLengthOf,
 } from '@saasicat/core';
 
 import { InvoiceSubscriberCorrectionsDto } from '../dist/billing/index.js';
@@ -93,6 +95,33 @@ describe('a line of the address holds one bound', () => {
         });
     }
 
+    test('a form bound by `subscriberContactMaxLengthOf` stops each contact detail exactly where the platform refuses', async () => {
+        const DOMAIN = '@t1.example';
+        const ofLength = {
+            country: (length) => 'D'.repeat(length),
+            invoiceEmail: (length) => `${'a'.repeat(length - DOMAIN.length)}${DOMAIN}`,
+        };
+        const { service } = await subscribersFor();
+
+        for (const field of SUBSCRIBER_CONTACT_FIELDS) {
+            const valueOf = ofLength[field] ?? ((length) => 'x'.repeat(length));
+            const longest = subscriberContactMaxLengthOf(field);
+
+            const created = await service.createForTenant(`${field}-at`, {
+                legalName: 'Meier GmbH',
+                [field]: valueOf(longest),
+            });
+            assert.equal(created[field], valueOf(longest), `${field} at its bound`);
+            await assert.rejects(
+                service.createForTenant(`${field}-over`, {
+                    legalName: 'Meier GmbH',
+                    [field]: valueOf(longest + 1),
+                }),
+                refusedAs(field),
+            );
+        }
+    });
+
     test('a change of the contact details is held to it with no pipe at all, and nothing is written', async () => {
         const { service } = await subscribersFor(['tenant-1']);
         const subscriber = await service.requireForTenant('tenant-1');
@@ -114,12 +143,10 @@ describe('a line of the address holds one bound', () => {
         ["sign-up's form", RegistrationBillingDetailsDto, SIGN_UP],
         ["the operator's correction of an invoice", InvoiceSubscriberCorrectionsDto, {}],
     ]) {
-        test(`${why} declares the same bound to the application's pipe`, async () => {
+        test(`${why} leaves the bound to the platform: the application's pipe passes a longer line`, async () => {
             for (const [field, bound] of Object.entries(PROMISED)) {
-                const at = { ...around, [field]: 'x'.repeat(bound) };
                 const over = { ...around, [field]: 'x'.repeat(bound + 1) };
-                assert.equal(await pipeRefusalOf(metatype, at), null, `${field} at its bound`);
-                assert.equal(await pipeRefusalOf(metatype, over), 400, `${field} over it`);
+                assert.equal(await pipeRefusalOf(metatype, over), null, `${field} over it`);
             }
         });
     }

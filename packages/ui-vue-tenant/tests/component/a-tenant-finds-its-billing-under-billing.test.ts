@@ -3,6 +3,7 @@
 
 import { afterEach, describe, expect, test } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { SUBSCRIBER_ADDRESS_MAX_LENGTHS } from '@saasicat/core';
 import type { HttpClient, TenantBillingDetailsShape } from '@saasicat/ui-vue';
 
 import TenantBillingSection from '../../src/TenantBillingSection.vue';
@@ -220,6 +221,19 @@ describe('the billing details', () => {
         );
         const hintId = country.attributes('aria-describedby');
         expect(wrapper.find(`#${hintId}`).text()).toBe(i18n.billingDetailsCountryHint);
+    });
+
+    test('stop each field where the server would refuse it, so nothing too long is saved', async () => {
+        const { wrapper } = await detailsOf();
+        const bounds = {
+            ...SUBSCRIBER_ADDRESS_MAX_LENGTHS,
+            country: 2,
+            invoiceEmail: 254,
+        };
+
+        for (const [field, bound] of Object.entries(bounds)) {
+            expect(input(wrapper, field).attributes('maxlength'), field).toBe(String(bound));
+        }
     });
 
     test('save only once something changed, send only what changed, and say it was saved', async () => {

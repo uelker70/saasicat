@@ -99,6 +99,7 @@
                             :for="field.id"
                             outlined
                             dense
+                            :maxlength="field.maxlength"
                             :placeholder="field.placeholder"
                         />
                     </div>
@@ -286,7 +287,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, useId, watch } from 'vue';
-import { addDaysToDay } from '@saasicat/core';
+import { addDaysToDay, subscriberContactMaxLengthOf } from '@saasicat/core';
 import MfaPromptDialog from '../../ui/overlay/MfaPromptDialog.vue';
 import AdminDialog from '../../ui/overlay/AdminDialog.vue';
 import AdminBanner from '../../ui/feedback/AdminBanner.vue';
@@ -394,6 +395,7 @@ const addressFields = computed(() => {
         id: `${addressIdPrefix}-${key}`,
         ...shown[key],
         hint: hintOf(key),
+        maxlength: subscriberContactMaxLengthOf(key),
     }));
 });
 

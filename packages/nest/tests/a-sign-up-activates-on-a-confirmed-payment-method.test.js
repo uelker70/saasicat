@@ -12,7 +12,7 @@
 import { afterEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
@@ -45,6 +45,7 @@ import {
     signedCallback,
 } from './helpers/payments.js';
 import { buildOfferService } from './helpers/checkout-catalogue.js';
+import { CITIES_MEASURED_ONCE } from './helpers/lines-measured-once.js';
 import { concludeFor, installation } from './helpers/held-code-installation.js';
 import { TAX_SETTINGS, TEST_TAX_ADAPTER } from './helpers/tax-adapter.js';
 import {
@@ -529,6 +530,53 @@ describe('the request for step 4 is validated where it arrives', () => {
             'successUrl',
         ]);
     });
+});
+
+// @requirement SC-SUB-049 — A line of the address holds one bound, wherever it arrives
+describe("step 4 behind the application's pipe measures a line of the address once", () => {
+    const pipe = new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+    });
+
+    /** Step 4 as an application serves it: its global pipe first, then the platform. */
+    async function startThroughThePipe(ctx, pendingId, billingDetails) {
+        const body = await pipe.transform(
+            { pendingRegistrationId: pendingId, billingDetails, ...URLS },
+            { type: 'body', metatype: StartRegistrationCheckoutDto },
+        );
+        return ctx.service.startCheckout(body);
+    }
+
+    for (const [field, why, value, fits] of CITIES_MEASURED_ONCE) {
+        if (fits) {
+            test(`takes a ${field} ${why}, trimmed`, async () => {
+                const ctx = await signUpApp();
+                const pendingId = await atStepFour(ctx);
+
+                await startThroughThePipe(ctx, pendingId, { ...BILLING, [field]: value });
+
+                assert.equal((await ctx.repo.findById(pendingId))[field], value.trim());
+            });
+            continue;
+        }
+        test(`refuses a ${field} ${why} with the platform's own answer, naming it`, async () => {
+            const ctx = await signUpApp();
+            const pendingId = await atStepFour(ctx);
+
+            const refused = await startThroughThePipe(ctx, pendingId, {
+                ...BILLING,
+                [field]: value,
+            }).then(
+                () => null,
+                (error) => [error.getStatus(), codeOf(error), error.getResponse().params],
+            );
+
+            assert.deepEqual(refused, [422, 'SUBSCRIBER_DETAIL_INVALID', { field }]);
+            assert.deepEqual(ctx.gateway.setups, []);
+        });
+    }
 });
 
 /**

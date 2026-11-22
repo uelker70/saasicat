@@ -5607,17 +5607,21 @@ no longer judges a value, so under a pipe a detail the billing area keeps elsewh
 name, as `SC-SUB-047` says, and not with a `400` for its value. See
 [which billing details a tenant changes](wire-the-backend.md#which-billing-details-a-tenant-changes).
 
-| before                                                                                                                                                     | after                                                                                                                                                         |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createForTenant`, `assessNewSubscriber`, `changeContact`, `changeContactOfTenant` and an offer's `newSubscriber` take a line of the address of any length | at most its bound, or `422 SUBSCRIBER_DETAIL_INVALID`                                                                                                         |
-| `PATCH /billing/details` behind a pipe answers `400` for a value its decorators refuse, of a detail kept elsewhere too                                     | `422 SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE` for a detail kept elsewhere, whatever its value; `422 SUBSCRIBER_DETAIL_INVALID` for the value of a detail it takes |
-| the operator's correction of an invoice takes every detail up to `INVOICE_CORRECTION_MAX_LENGTH`                                                           | a line of the address up to its bound, the legal name and the tax identifiers up to `INVOICE_CORRECTION_MAX_LENGTH` (`invoiceCorrectionMaxLengthOf`)          |
-| —                                                                                                                                                          | `SUBSCRIBER_ADDRESS_MAX_LENGTHS`, `SubscriberAddressLineField` and `invoiceCorrectionMaxLengthOf` in `@saasicat/core`                                         |
+| before                                                                                                                                                     | after                                                                                                                                                                                        |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createForTenant`, `assessNewSubscriber`, `changeContact`, `changeContactOfTenant` and an offer's `newSubscriber` take a line of the address of any length | at most its bound, or `422 SUBSCRIBER_DETAIL_INVALID`                                                                                                                                        |
+| `PATCH /billing/details` behind a pipe answers `400` for a value its decorators refuse, of a detail kept elsewhere too                                     | `422 SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE` for a detail kept elsewhere, whatever its value; `422 SUBSCRIBER_DETAIL_INVALID` for the value of a detail it takes                                |
+| the operator's correction of an invoice takes every detail up to `INVOICE_CORRECTION_MAX_LENGTH`                                                           | a line of the address up to its bound, the legal name and the tax identifiers up to `INVOICE_CORRECTION_MAX_LENGTH` (`invoiceCorrectionMaxLengthOf`)                                         |
+| step 4 of sign-up and the operator's correction of an invoice behind a pipe answer `400` for a detail over its bound                                       | `422 SUBSCRIBER_DETAIL_INVALID` naming it: only the platform measures, once trimmed, in UTF-16 code units                                                                                    |
+| —                                                                                                                                                          | `SUBSCRIBER_ADDRESS_MAX_LENGTHS`, `SubscriberAddressLineField`, `invoiceCorrectionMaxLengthOf`, `SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH` and `subscriberContactMaxLengthOf` in `@saasicat/core` |
 
-1. **Where a form or a DTO of yours takes a line of the address** — a pilot route, a page of your
-   own for the company's address, a sign-up of your own — bound it by
-   `SUBSCRIBER_ADDRESS_MAX_LENGTHS`, so the person is stopped where they type rather than refused
-   when they save.
+1. **Where a form of yours takes a line of the address** — a pilot route, a page of your own for
+   the company's address, a sign-up of your own — bind its `maxlength` to
+   `subscriberContactMaxLengthOf(field)`, the bounds of `SUBSCRIBER_ADDRESS_MAX_LENGTHS` with the
+   country's two letters, so the person is stopped where they type rather than refused when they
+   save; `maxlength` counts as the platform does. Leave the length out of a DTO of yours:
+   `@MaxLength` counts untrimmed and by code points, and would answer a `400` where the platform
+   answers its `422`.
 2. **Where your interface words the `400` of `PATCH /billing/details`**, it is now a `422` naming
    the field: show it as every `SUBSCRIBER_DETAIL_INVALID` and `SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`.
 3. **Where data of yours holds a longer line**, shorten it before your code passes it to the

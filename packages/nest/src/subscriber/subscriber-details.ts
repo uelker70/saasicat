@@ -29,6 +29,7 @@ import {
     SUBSCRIBER_CONTACT_FIELDS,
     SUBSCRIBER_ERROR_CODES,
     SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
+    SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH,
     type SubscriberContactField,
     type SubscriberInvoiceAddressField,
 } from '@saasicat/core';
@@ -37,9 +38,6 @@ import { codedError } from '../errors/coded-error.js';
 
 /** ISO 3166-1 alpha-2, as the schema of `config/saas.yaml` holds the issuer's. */
 const COUNTRY_CODE = /^[A-Z]{2}$/;
-
-/** RFC 5321 caps an address at 254 characters. */
-const MAX_EMAIL_LENGTH = 254;
 
 /** A new subscriber's details, every one settled. */
 export function settleNewSubscriberDetails(details: NewSubscriberDetails): SubscriberDetails {
@@ -281,7 +279,7 @@ function settleText(field: keyof SubscriberDetails, value: unknown): string | nu
  * like an address at all, and a scan answers that in one pass on any input.
  */
 function isEmailShaped(value: string): boolean {
-    if (value.length > MAX_EMAIL_LENGTH) return false;
+    if (value.length > SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH) return false;
     const at = value.indexOf('@');
     if (at <= 0 || at !== value.lastIndexOf('@')) return false;
     const domain = value.slice(at + 1);

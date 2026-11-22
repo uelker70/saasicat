@@ -8,7 +8,8 @@
 The pilot dialog asks for the subscriber's address
 
 The pilot dialog asks for the street, a second line, postal code, city and
-country of the pilot's subscriber and sends them as `subscriber`. Where a tax
+country of the pilot's subscriber, each stopped where the route would refuse
+it (`subscriberContactMaxLengthOf`), and sends them as `subscriber`. Where a tax
 adapter decides, the admin manifest says `subscriberAddressRequired`, and the
 dialog does not submit without the street, postal code, city and country: the
 pilot's first contract would otherwise be refused (`SC-SPEC-010`). Both pilot

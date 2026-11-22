@@ -10,28 +10,28 @@ import {
     MinLength,
     ValidateNested,
 } from 'class-validator';
-import { SUBSCRIBER_ADDRESS_MAX_LENGTHS } from '@saasicat/core';
 
-/** The billing address and tax identifiers step 4 asks for, which the subscriber is created with. */
+/**
+ * The billing address and tax identifiers step 4 asks for, which the subscriber
+ * is created with. A line of the address declares no length here: the platform
+ * measures it where it settles the details (`SUBSCRIBER_ADDRESS_MAX_LENGTHS`),
+ * the one measure every way a detail arrives is held to.
+ */
 export class RegistrationBillingDetailsDto {
     @IsString()
     @MinLength(1)
-    @MaxLength(SUBSCRIBER_ADDRESS_MAX_LENGTHS.addressLine1)
     addressLine1!: string;
 
     @IsOptional()
     @IsString()
-    @MaxLength(SUBSCRIBER_ADDRESS_MAX_LENGTHS.addressLine2)
     addressLine2?: string | null;
 
     @IsString()
     @MinLength(1)
-    @MaxLength(SUBSCRIBER_ADDRESS_MAX_LENGTHS.postalCode)
     postalCode!: string;
 
     @IsString()
     @MinLength(1)
-    @MaxLength(SUBSCRIBER_ADDRESS_MAX_LENGTHS.city)
     city!: string;
 
     /** ISO 3166-1 alpha-2, e.g. `DE`. */

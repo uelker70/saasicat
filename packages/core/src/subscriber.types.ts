@@ -67,6 +67,14 @@ export type SubscriberContactField = (typeof SUBSCRIBER_CONTACT_FIELDS)[number];
  * installs a `ValidationPipe` (`SC-SUB-049`). The country is held to its two
  * letters and the invoice email to what an address can hold, so neither is
  * listed.
+ *
+ * Measured as the trimmed value's `length`: UTF-16 code units, which is what
+ * an input's `maxlength` counts too, so a form bound by these numbers stops
+ * exactly where the platform would refuse. A character outside the Basic
+ * Multilingual Plane, such as an emoji, counts as two. Only the platform
+ * measures: no route declares a bound of its own, which a `ValidationPipe`
+ * would count otherwise — untrimmed, or by code points — and refuse first
+ * with a `400`.
  */
 export const SUBSCRIBER_ADDRESS_MAX_LENGTHS = {
     addressLine1: 200,
@@ -75,6 +83,25 @@ export const SUBSCRIBER_ADDRESS_MAX_LENGTHS = {
     city: 100,
 } as const satisfies Partial<Record<SubscriberContactField, number>>;
 export type SubscriberAddressLineField = keyof typeof SUBSCRIBER_ADDRESS_MAX_LENGTHS;
+
+/** The two letters of an ISO 3166-1 alpha-2 code, which the country is held to. */
+const COUNTRY_CODE_LENGTH = 2;
+
+/** RFC 5321 caps an address at 254 characters; the invoice email is held to it. */
+export const SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH = 254;
+
+/**
+ * The most characters an input for the contact detail `field` takes, counted
+ * as the platform counts them (`SUBSCRIBER_ADDRESS_MAX_LENGTHS`): a line of
+ * the address its bound, the country the two letters of its code, the invoice
+ * email what an address can hold. Bound to an input's `maxlength`, it stops
+ * the person where they type rather than refusing what they save.
+ */
+export function subscriberContactMaxLengthOf(field: SubscriberContactField): number {
+    if (field === 'country') return COUNTRY_CODE_LENGTH;
+    if (field === 'invoiceEmail') return SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH;
+    return SUBSCRIBER_ADDRESS_MAX_LENGTHS[field];
+}
 
 /**
  * Whether a subscriber can be given its next contract where a tax adapter

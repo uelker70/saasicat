@@ -33,13 +33,17 @@ address holds one bound, wherever it arrives" in the same guide.
 
 - `@saasicat/core`: `SUBSCRIBER_CONTACT_FIELDS`, `SubscriberContactField` and
   the code `SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE` with its German and English
-  texts; `SUBSCRIBER_ADDRESS_MAX_LENGTHS`, `SubscriberAddressLineField` and
-  `invoiceCorrectionMaxLengthOf`.
+  texts; `SUBSCRIBER_ADDRESS_MAX_LENGTHS`, `SubscriberAddressLineField`,
+  `invoiceCorrectionMaxLengthOf`, `SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH` and
+  `subscriberContactMaxLengthOf`, the `maxlength` of a contact detail's input.
 - `@saasicat/nest`: `TenantBillingDetailsOptions`; `GET` and
   `PATCH /billing/details` answer `tenantEditable`;
   `changeContactOfTenant` takes `options.changeable`. `ChangeBillingDetailsDto`
-  declares every field without judging it; the sign-up and correction DTOs
-  declare the bounds of `SUBSCRIBER_ADDRESS_MAX_LENGTHS`.
+  declares every field without judging it; the sign-up DTO no longer measures
+  a line of the address, nor the correction DTO any detail. Behind a pipe,
+  step 4 and the correction answer one over its bound with
+  `422 SUBSCRIBER_DETAIL_INVALID`, not `400`. The platform counts it once
+  trimmed, in UTF-16 code units, as an input's `maxlength` does.
 - `@saasicat/ui-vue`: `TenantBillingContactField` is an alias of
   `SubscriberContactField`. **Breaking** for code that builds the answer:
   `TenantBillingDetailsShape.tenantEditable` is required, and
@@ -47,4 +51,5 @@ address holds one bound, wherever it arrives" in the same guide.
   The invoice cancellation dialog stops each correction at its own bound.
 - `@saasicat/ui-vue-tenant`: `TenantBillingSection` shows the details the
   application keeps as text, followed by `billingDetailsChangedElsewhere` from
-  its `i18n` or the `changed-elsewhere` slot, for a link to that page.
+  its `i18n` or the `changed-elsewhere` slot, for a link to that page, and
+  stops each detail it takes where the server would refuse it.
