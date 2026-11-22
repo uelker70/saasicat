@@ -76,6 +76,32 @@
                             :placeholder="msg.createDialog.vatIdPlaceholder"
                         />
                     </div>
+
+                    <p class="pl-section__sub pl-field--full">
+                        {{
+                            addressRequired
+                                ? msg.createDialog.subscriberAddressRequired
+                                : msg.createDialog.subscriberAddressOptional
+                        }}
+                    </p>
+                    <div
+                        v-for="field in addressFields"
+                        :key="field.key"
+                        class="pl-field"
+                        :class="{ 'pl-field--full': field.key === 'addressLine1' }"
+                    >
+                        <label :for="field.id">
+                            {{ field.label }}
+                            <span v-if="field.hint" class="pl-field__hint">{{ field.hint }}</span>
+                        </label>
+                        <q-input
+                            v-model="form.subscriber[field.key]"
+                            :for="field.id"
+                            outlined
+                            dense
+                            :placeholder="field.placeholder"
+                        />
+                    </div>
                 </div>
                 <slot name="tenant-extra" :form="form" />
             </section>
@@ -259,7 +285,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, useId, watch } from 'vue';
 import { addDaysToDay } from '@saasicat/core';
 import MfaPromptDialog from '../../ui/overlay/MfaPromptDialog.vue';
 import AdminDialog from '../../ui/overlay/AdminDialog.vue';
@@ -267,9 +293,17 @@ import AdminBanner from '../../ui/feedback/AdminBanner.vue';
 import { IDENTITY_NEUTRAL } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { looksLikeEmail, trimChar } from '../../client/text-shape.js';
+import {
+    PILOT_SUBSCRIBER_ADDRESS_FIELDS,
+    pilotAddressGaps,
+    pilotSubscriberOf,
+    type PilotSubscriberAddressField,
+    type PilotSubscriberAddressForm,
+} from '../../client/pilot-subscriber-address.js';
 import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useMfaPrompt } from '../../vue/use-mfa-prompt.js';
 import { useAdminErrorText, useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import { useSuperAdminManifest } from '../../vue/use-super-admin-context.js';
 import type { PilotCopy, PilotCreatePayload, PilotCreateResult } from './types.js';
 
 // Platform pilot-create dialog (sim layout: 3 numbered sections,
@@ -323,6 +357,46 @@ const presetEnds = computed<ReadonlyArray<{ label: string; days: number }>>(() =
 
 const copy = computed<Required<PilotCopy>>(() => ({ ...msg.value.copyDefaults, ...props.copy }));
 
+// Where a tax adapter decides, a contract needs the subscriber's full address
+// (`SC-PRIC-069`); the manifest says so. Without a manifest the route still
+// refuses an incomplete one, and the banner shows its sentence.
+const addressRequired = useSuperAdminManifest()?.subscriberAddressRequired === true;
+
+function emptyAddress(): PilotSubscriberAddressForm {
+    return { addressLine1: '', addressLine2: '', postalCode: '', city: '', country: '' };
+}
+
+// One id per mounted dialog, so each label names its own input.
+const addressIdPrefix = useId();
+
+const addressFields = computed(() => {
+    const texts = msg.value.createDialog;
+    const shown: Record<PilotSubscriberAddressField, { label: string; placeholder: string }> = {
+        addressLine1: {
+            label: texts.addressLine1Label,
+            placeholder: texts.addressLine1Placeholder,
+        },
+        addressLine2: {
+            label: texts.addressLine2Label,
+            placeholder: texts.addressLine2Placeholder,
+        },
+        postalCode: { label: texts.postalCodeLabel, placeholder: texts.postalCodePlaceholder },
+        city: { label: texts.cityLabel, placeholder: texts.cityPlaceholder },
+        country: { label: texts.countryLabel, placeholder: texts.countryPlaceholder },
+    };
+    const hintOf = (key: PilotSubscriberAddressField): string => {
+        if (key === 'country') return texts.countryHint;
+        if (key === 'addressLine2' || !addressRequired) return texts.addressOptionalHint;
+        return '';
+    };
+    return PILOT_SUBSCRIBER_ADDRESS_FIELDS.map((key) => ({
+        key,
+        id: `${addressIdPrefix}-${key}`,
+        ...shown[key],
+        hint: hintOf(key),
+    }));
+});
+
 const normalizedPlanOptions = computed<Array<{ value: string; label: string; color?: string }>>(
     () =>
         props.planOptions.map((opt) => {
@@ -339,6 +413,7 @@ function defaultPlanValue(): string {
 function emptyForm() {
     return {
         tenant: { name: '', slug: '', legalForm: '', vatId: '' },
+        subscriber: emptyAddress(),
         admin: { email: '', firstName: '', lastName: '', initialPassword: '' },
         pilot: {
             plan: defaultPlanValue(),
@@ -393,7 +468,8 @@ const isValid = computed(
         emailValid.value &&
         !!form.admin.firstName.trim() &&
         !!form.admin.lastName.trim() &&
-        !!form.pilot.plan,
+        !!form.pilot.plan &&
+        pilotAddressGaps(form.subscriber, addressRequired).length === 0,
 );
 
 function setEndsAtDays(count: number): void {
@@ -406,6 +482,7 @@ watch(
         if (open) {
             const fresh = emptyForm();
             Object.assign(form.tenant, fresh.tenant);
+            Object.assign(form.subscriber, fresh.subscriber);
             Object.assign(form.admin, fresh.admin);
             Object.assign(form.pilot, fresh.pilot);
             error.value = '';
@@ -415,7 +492,7 @@ watch(
 );
 
 function payloadOf(): PilotCreatePayload {
-    return {
+    const payload: PilotCreatePayload = {
         tenant: {
             name: form.tenant.name,
             slug: form.tenant.slug || undefined,
@@ -434,6 +511,11 @@ function payloadOf(): PilotCreatePayload {
             endsAt: form.pilot.endsAt || undefined,
         },
     };
+    // Left out rather than empty: a route that refuses unknown keys would
+    // otherwise refuse every pilot created without an address.
+    const subscriber = pilotSubscriberOf(form.subscriber);
+    if (subscriber) payload.subscriber = subscriber;
+    return payload;
 }
 
 async function create(payload: PilotCreatePayload, code: string): Promise<PilotCreateResult> {

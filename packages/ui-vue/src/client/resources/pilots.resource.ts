@@ -30,6 +30,7 @@ export type {
     PilotRow,
     PilotCreatePayload,
     PilotCreateResult,
+    PilotSubscriberAddress,
     PilotEditPayload,
     PilotEditResult,
 } from './pilots.types.js';

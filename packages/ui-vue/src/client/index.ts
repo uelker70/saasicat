@@ -38,6 +38,7 @@ export * from './settings-view.js';
 export * from './maintenance-times.js';
 export * from './promo-days.js';
 export * from './installation-day.js';
+export * from './pilot-subscriber-address.js';
 export * from './keep-line-label.js';
 export * from './maintenance-refusal.js';
 export * from './feature-withdrawal.js';

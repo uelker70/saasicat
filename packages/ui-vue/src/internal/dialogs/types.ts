@@ -4,6 +4,7 @@ export type {
     PilotCreateResult,
     PilotEditPayload,
     PilotEditResult,
+    PilotSubscriberAddress,
 } from '../../client/resources/pilots.types.ts';
 
 // Shared types for platform dialogs. Extracted from the .vue files

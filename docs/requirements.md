@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 725 entries: 🟢 631 stand today, 🟡 24 decided but not yet delivered, ⚪ 0 drafts,
+Of 725 entries: 🟢 632 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
 🔵 63 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -141,7 +141,6 @@ Of 725 entries: 🟢 631 stand today, 🟡 24 decided but not yet delivered, ⚪
 [SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
 [SC-CANC-027](#sc-canc-027--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
 [SC-CANC-028](#sc-canc-028--a-new-subscription-before-the-deletion-day-keeps-the-tenant),
-[SC-SPEC-010](#sc-spec-010--the-operator-gives-a-pilots-subscriber-its-address-required-under-a-tax-adapter),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
 [SC-PRIC-095](#sc-pric-095--an-issued-invoice-is-never-edited-its-cancellation-corrects-what-was-not-owed),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
@@ -9228,18 +9227,26 @@ _Tested by:_
         - creating › without a second factor, the refusal reads the same
         - editing › a refused code keeps the prompt open and says so; the next code saves
         - editing › a failure of the route closes the prompt and reads as the status sentence
+    - the pilot subscriber's address
+        - where a contract needs it, "Create" stays off until street, postal code, city and country
+          are there
+        - where it says so, the dialog says why the address is asked for
+        - under ${what}, "Create" is on without an address and sends no subscriber
+        - where it is optional, what was entered is sent
+        - opened again, the dialog starts without the address entered before
+        - every address field is labelled for the input it names
 
 <!-- END proof -->
 
 ### SC-SPEC-010 — The operator gives a pilot's subscriber its address, required under a tax adapter
 
-🟡 _(Decided, not yet delivered.)_ 💰 The pilot dialog asks for the street, a second line, postal
-code, city and country of the pilot's subscriber and sends them as `subscriber`. Where a tax adapter
-decides, the manifest says that a contract needs the full address, and the dialog does not submit
-until the street, postal code, city and country are given, since the pilot's first contract would
-otherwise be refused (`SC-PRIC-069`); without one they are optional, and none entered sends none.
-The pilot routes are the application's: it creates the subscriber with the address, refusing an
-incomplete one as `SC-SUB-048` does, and the dialog shows the refusal in the interface's language.
+🟢 💰 The pilot dialog asks for the street, a second line, postal code, city and country of the
+pilot's subscriber and sends them as `subscriber`. Where a tax adapter decides, the manifest says
+that a contract needs the full address, and the dialog does not submit until the street, postal
+code, city and country are given, since the pilot's first contract would otherwise be refused
+(`SC-PRIC-069`); without one they are optional, and none entered sends none. The pilot routes are
+the application's: it creates the subscriber with the address, refusing an incomplete one as
+`SC-SUB-048` does, and the dialog shows the refusal in the interface's language.
 
 _Source:_ #528
 
@@ -9251,6 +9258,25 @@ _Tested by:_
     - where a tax adapter decides, a contract needs the full address
     - without a tax adapter, it does not — said, not left out
     - a manifest built without the field is still one the schema takes, and it takes no other answer
+- `packages/ui-vue/tests/a-pilot-subscriber-is-given-its-address.test.js`
+    - where a contract needs the full address
+        - an empty address lacks the four an invoice names, in their order
+        - all four given lack nothing, and are sent trimmed with the country upper-cased
+        - a city of blanks is no city
+        - the second line is never required, and sent when given
+    - where it does not
+        - an empty address lacks nothing and sends nothing
+        - blanks alone send nothing either
+        - a city alone is sent alone
+- `packages/ui-vue/tests/component/pilot-dialogs.test.ts`
+    - the pilot subscriber's address
+        - where a contract needs it, "Create" stays off until street, postal code, city and country
+          are there
+        - where it says so, the dialog says why the address is asked for
+        - under ${what}, "Create" is on without an address and sends no subscriber
+        - where it is optional, what was entered is sent
+        - opened again, the dialog starts without the address entered before
+        - every address field is labelled for the input it names
 
 <!-- END proof -->
 
