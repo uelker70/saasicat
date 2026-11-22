@@ -452,6 +452,30 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-SUB-048 — A new subscriber is assessed only with a full address where a tax adapter decides
+
+🟢 💰 Before an application creates a subscriber, `SubscriberService.assessNewSubscriber` asks the
+tax adapter whether it treats it. Where `config/saas.yaml` names an adapter, details without the
+street, postal code, city and country are refused first with `SUBSCRIBER_IDENTITY_INCOMPLETE`,
+naming the empty fields, and the adapter is not asked: a subscriber created without them could be
+given no contract (`SC-PRIC-069`). Without an adapter nothing changes.
+
+_Source:_ #528
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-new-subscriber-is-assessed-before-it-is-created.test.js`
+    - where a tax adapter decides, a new subscriber is assessed only with a complete address
+        - without the city: refused naming it, and neither the adapter nor the number service asked
+        - a city of blanks is no city
+        - no address at all: all four named, in the order an invoice names them
+        - all four without a second line: assessed as before, the number checked
+        - without an adapter, details without an address are assessed as before
+
+<!-- END proof -->
+
 ### SC-SUB-019 — A subscriber is shown the price of the version they are bound to
 
 🟢 💰 The account read (`GET billing/usage`, as `planPriceNet`) and the plan card state what the

@@ -45,6 +45,10 @@ export interface AdminManifest {
      * The installation's time zone, an IANA name, as config/saas.yaml names it: every moment the administration shows as a day is the day it falls on there, and so is today. Absent where the file names none; the administration then reads days in UTC.
      */
     timeZone?: string;
+    /**
+     * Whether a contract needs its subscriber's full address — street, postal code, city and country — which holds where config/saas.yaml names a tax adapter: a screen that creates a subscriber, such as the pilot dialog, then asks for it as required. Always set by the platform; a manifest built without it is read as false.
+     */
+    subscriberAddressRequired?: boolean;
     planCatalogSnapshot: {
         /**
          * Where the plans and features were read from: 'database' for the ones an operator publishes, 'given' for a catalogue passed in at start

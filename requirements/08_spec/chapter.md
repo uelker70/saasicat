@@ -160,6 +160,29 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-SPEC-010 — The operator gives a pilot's subscriber its address, required under a tax adapter
+
+🟡 _(Decided, not yet delivered.)_ 💰 The pilot dialog asks for the street, a second line, postal
+code, city and country of the pilot's subscriber and sends them as `subscriber`. Where a tax adapter
+decides, the manifest says that a contract needs the full address, and the dialog does not submit
+until the street, postal code, city and country are given, since the pilot's first contract would
+otherwise be refused (`SC-PRIC-069`); without one they are optional, and none entered sends none.
+The pilot routes are the application's: it creates the subscriber with the address, refusing an
+incomplete one as `SC-SUB-048` does, and the dialog shows the refusal in the interface's language.
+
+_Source:_ #528
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/the-manifest-says-whether-a-contract-needs-the-address.test.js`
+    - where a tax adapter decides, a contract needs the full address
+    - without a tax adapter, it does not — said, not left out
+    - a manifest built without the field is still one the schema takes, and it takes no other answer
+
+<!-- END proof -->
+
 ### SC-SPEC-008 — A negotiated arrangement is expressed as limits set for that tenant
 
 🟢 Limits set for the tenant replace the plan's; features set for the tenant are added to the plan's.

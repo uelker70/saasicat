@@ -111,10 +111,10 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 67      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 47      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 48      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 27      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
-| 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
+| 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 10      |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 105     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 723 entries: 🟢 630 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 725 entries: 🟢 631 stand today, 🟡 24 decided but not yet delivered, ⚪ 0 drafts,
 🔵 63 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -141,6 +141,7 @@ Of 723 entries: 🟢 630 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
 [SC-CANC-027](#sc-canc-027--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
 [SC-CANC-028](#sc-canc-028--a-new-subscription-before-the-deletion-day-keeps-the-tenant),
+[SC-SPEC-010](#sc-spec-010--the-operator-gives-a-pilots-subscriber-its-address-required-under-a-tax-adapter),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
 [SC-PRIC-095](#sc-pric-095--an-issued-invoice-is-never-edited-its-cancellation-corrects-what-was-not-owed),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
@@ -231,7 +232,7 @@ Of 723 entries: 🟢 630 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 723 requirements. Do not edit by hand:
+Generated from `requirements/` — 725 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5576,6 +5577,30 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-SUB-048 — A new subscriber is assessed only with a full address where a tax adapter decides
+
+🟢 💰 Before an application creates a subscriber, `SubscriberService.assessNewSubscriber` asks the
+tax adapter whether it treats it. Where `config/saas.yaml` names an adapter, details without the
+street, postal code, city and country are refused first with `SUBSCRIBER_IDENTITY_INCOMPLETE`,
+naming the empty fields, and the adapter is not asked: a subscriber created without them could be
+given no contract (`SC-PRIC-069`). Without an adapter nothing changes.
+
+_Source:_ #528
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-new-subscriber-is-assessed-before-it-is-created.test.js`
+    - where a tax adapter decides, a new subscriber is assessed only with a complete address
+        - without the city: refused naming it, and neither the adapter nor the number service asked
+        - a city of blanks is no city
+        - no address at all: all four named, in the order an invoice names them
+        - all four without a second line: assessed as before, the number checked
+        - without an adapter, details without an address are assessed as before
+
+<!-- END proof -->
+
 ### SC-SUB-019 — A subscriber is shown the price of the version they are bound to
 
 🟢 💰 The account read (`GET billing/usage`, as `planPriceNet`) and the plan card state what the
@@ -9193,6 +9218,29 @@ _Tested by:_
         - adopts plan, end date and note from the row
         - draws the same plan picker as the create dialog
         - offers preset buttons for the end date
+
+<!-- END proof -->
+
+### SC-SPEC-010 — The operator gives a pilot's subscriber its address, required under a tax adapter
+
+🟡 _(Decided, not yet delivered.)_ 💰 The pilot dialog asks for the street, a second line, postal
+code, city and country of the pilot's subscriber and sends them as `subscriber`. Where a tax adapter
+decides, the manifest says that a contract needs the full address, and the dialog does not submit
+until the street, postal code, city and country are given, since the pilot's first contract would
+otherwise be refused (`SC-PRIC-069`); without one they are optional, and none entered sends none.
+The pilot routes are the application's: it creates the subscriber with the address, refusing an
+incomplete one as `SC-SUB-048` does, and the dialog shows the refusal in the interface's language.
+
+_Source:_ #528
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/the-manifest-says-whether-a-contract-needs-the-address.test.js`
+    - where a tax adapter decides, a contract needs the full address
+    - without a tax adapter, it does not — said, not left out
+    - a manifest built without the field is still one the schema takes, and it takes no other answer
 
 <!-- END proof -->
 

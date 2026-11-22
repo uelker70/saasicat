@@ -97,6 +97,9 @@ export class AdminManifestService {
             dashboard: merged.dashboard,
             tenants: merged.tenants,
             audit: merged.audit,
+            // Where an adapter decides, a contract names its subscriber only
+            // with the full address (`SC-PRIC-069`).
+            subscriberAddressRequired: this.taxes?.adapter != null,
         };
         // Absent rather than empty where the file names none, which the
         // schema refuses as a zone.

@@ -79,10 +79,10 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 67      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 47      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 48      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 27      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
-| 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
+| 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 10      |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 105     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 723 entries: 🟢 630 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 725 entries: 🟢 631 stand today, 🟡 24 decided but not yet delivered, ⚪ 0 drafts,
 🔵 63 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -109,6 +109,7 @@ Of 723 entries: 🟢 630 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
 [SC-CANC-027](#sc-canc-027--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
 [SC-CANC-028](#sc-canc-028--a-new-subscription-before-the-deletion-day-keeps-the-tenant),
+[SC-SPEC-010](#sc-spec-010--the-operator-gives-a-pilots-subscriber-its-address-required-under-a-tax-adapter),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
 [SC-PRIC-095](#sc-pric-095--an-issued-invoice-is-never-edited-its-cancellation-corrects-what-was-not-owed),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),

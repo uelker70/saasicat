@@ -99,8 +99,11 @@ export class SubscriberService {
     /**
      * Whether a subscriber of these details may be created, asked before the
      * transaction that creates it: `assessNewSubscriber` from the tax module,
-     * for an application that creates subscribers itself. Answers the details
-     * with the check attached, which `createForTenant` records.
+     * for an application that creates subscribers itself. Where a tax adapter
+     * decides, details without the full address a contract names are refused
+     * with `SUBSCRIBER_IDENTITY_INCOMPLETE` before the adapter is asked.
+     * Answers the details with the check attached, which `createForTenant`
+     * records.
      */
     assessNewSubscriber(
         details: NewSubscriberDetails,

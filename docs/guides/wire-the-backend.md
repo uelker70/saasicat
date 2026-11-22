@@ -1142,10 +1142,12 @@ await subscribers.createForTenant(tenantId, assessed, tx);
 
 It answers the details with the check of the VAT number attached where the treatment depends on
 one, which `createForTenant` records with the subscriber on the transaction you pass; assessed
-details are refused without one, whether or not a check was needed. It refuses a case the adapter
-cannot treat with `422 TAX_TREATMENT_NOT_SUPPORTED`, and a number it could not check just now with
-`503 TAX_VAT_ID_CHECK_NOT_COMPLETED`. It reaches an outside service, so never call it inside a
-transaction.
+details are refused without one, whether or not a check was needed. Under an adapter it refuses
+details without the street, postal code, city or country first, with
+`422 SUBSCRIBER_IDENTITY_INCOMPLETE` naming the empty fields, since no contract could name such a
+subscriber. It refuses a case the adapter cannot treat with `422 TAX_TREATMENT_NOT_SUPPORTED`, and
+a number it could not check just now with `503 TAX_VAT_ID_CHECK_NOT_COMPLETED`. It reaches an
+outside service, so never call it inside a transaction.
 
 With an adapter, a contract names its subscriber only with the whole address an invoice names —
 street and number, postal code, city and country. Every way a contract comes about refuses a
