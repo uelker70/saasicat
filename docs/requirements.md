@@ -111,7 +111,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 67      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 48      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 49      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 27      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 10      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 725 entries: 🟢 632 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 726 entries: 🟢 633 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
 🔵 63 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -231,7 +231,7 @@ Of 725 entries: 🟢 632 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 725 requirements. Do not edit by hand:
+Generated from `requirements/` — 726 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5549,6 +5549,12 @@ _Tested by:_
         - the invoice email it may change is still not cleared
         - where it names none, the tenant changes none
         - the application's own page changes what the billing area refuses
+    - the billing details through the application's ValidationPipe
+        - the ${field} kept elsewhere is refused by its name, though its value is ${why}
+        - the ${field} the tenant changes is refused by its name for ${why}
+        - a detail the tenant changes is written through the pipe
+        - a field no change has is still refused by the pipe, and nothing is written
+        - the legal identity is refused first, before a detail kept elsewhere
     - the details an application names are held to at the start
         - ${named} stops the start, saying why
         - a single name instead of a list stops the start
@@ -5597,6 +5603,48 @@ _Tested by:_
         - no address at all: all four named, in the order an invoice names them
         - all four without a second line: assessed as before, the number checked
         - without an adapter, details without an address are assessed as before
+
+<!-- END proof -->
+
+### SC-SUB-049 — A line of the address holds one bound, wherever it arrives
+
+🟢 💰 Each line of a subscriber's address — street, second line, postal code, city — holds at most
+the number of characters `SUBSCRIBER_ADDRESS_MAX_LENGTHS` from `@saasicat/core` names for it, once
+trimmed, wherever it arrives: sign-up, a subscriber an application creates, a change of the contact
+details, and the operator's correction of the subscriber an invoice names (`SC-PRIC-095`), which
+holds the legal name and the tax identifiers to a bound of their own. The platform refuses a longer
+line itself with `SUBSCRIBER_DETAIL_INVALID`, naming the field, so the bound holds whether or not
+the application installs a `ValidationPipe`, and a route that declares a bound to that pipe declares
+the same one. A detail the billing area keeps elsewhere is refused by its name before its length is
+judged (`SC-SUB-047`). The same value is then answered the same way through every door and under
+every consumer's wiring, rather than accepted through one and refused through the next.
+
+_Source:_ #524
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-line-of-the-address-holds-one-bound.test.js`
+    - a line of the address holds one bound
+        - the bounds are the ones promised
+        - the operator's correction holds a line of the address to its bound, and the rest to its
+          own
+        - a subscriber is created with the ${field} at its bound, the blanks around it not counted
+        - a subscriber with the ${field} a character over it is refused, naming it
+        - a change of the contact details is held to it with no pipe at all, and nothing is written
+        - ${why} declares the same bound to the application's pipe
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the billing details through the application's ValidationPipe
+        - the ${field} kept elsewhere is refused by its name, though its value is ${why}
+        - the ${field} the tenant changes is refused by its name for ${why}
+        - a detail the tenant changes is written through the pipe
+        - a field no change has is still refused by the pipe, and nothing is written
+        - the legal identity is refused first, before a detail kept elsewhere
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - a cancellation settles what it is given before anything else
+        - takes a line of the address at its own bound, though the legal name may be longer
+        - refuses a line of the address a character over its own bound, as the command line gives it
 
 <!-- END proof -->
 
@@ -17725,7 +17773,9 @@ _Tested by:_
         - refuses an address ${why}
         - each correction as the subscriber’s record holds that detail
         - takes a correction of exactly the longest length
+        - takes a line of the address at its own bound, though the legal name may be longer
         - refuses ${why}
+        - refuses a line of the address a character over its own bound, as the command line gives it
     - the cancellation route
         - writes the cancellation and records it under the operator, the address not named
         - records each line it moved, from what to what, in the invoice’s currency

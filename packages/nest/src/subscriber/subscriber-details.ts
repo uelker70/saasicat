@@ -25,6 +25,7 @@ import {
     INVOICE_CORRECTION_MAX_LENGTH,
     INVOICE_SUBSCRIBER_DETAILS,
     LEGAL_IDENTITY_FIELDS,
+    SUBSCRIBER_ADDRESS_MAX_LENGTHS,
     SUBSCRIBER_CONTACT_FIELDS,
     SUBSCRIBER_ERROR_CODES,
     SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
@@ -160,9 +161,9 @@ export function settleIdentityCorrection(
 
 /**
  * The details of the subscriber the operator corrects for the replacement of
- * a cancelled invoice (`SC-PRIC-095`), each settled as the record's own are and
- * at most `INVOICE_CORRECTION_MAX_LENGTH` characters once trimmed; a detail
- * left out stays out.
+ * a cancelled invoice (`SC-PRIC-095`), each settled as the record's own are —
+ * a line of the address within its bound — and none longer once trimmed than
+ * `INVOICE_CORRECTION_MAX_LENGTH`; a detail left out stays out.
  */
 export function settleInvoiceCorrections(
     corrections: Readonly<Partial<Record<InvoiceSubscriberDetail, string | null>>>,
@@ -223,6 +224,13 @@ function settleContact(
     return contact;
 }
 
+/**
+ * A contact detail in its form, a line of the address no longer than its bound
+ * (`SUBSCRIBER_ADDRESS_MAX_LENGTHS`). Judged here rather than by a route's
+ * decorators: the platform cannot rely on a `ValidationPipe` it does not
+ * install, and a pipe would judge a detail kept elsewhere before it is refused
+ * by name.
+ */
 function settleContactValue(field: keyof SubscriberContact, value: unknown): string | null {
     const text = settleText(field, value);
     if (text === null) return null;
@@ -231,7 +239,11 @@ function settleContactValue(field: keyof SubscriberContact, value: unknown): str
         if (!COUNTRY_CODE.test(country)) throw invalid(field);
         return country;
     }
-    if (field === 'invoiceEmail' && !isEmailShaped(text)) throw invalid(field);
+    if (field === 'invoiceEmail') {
+        if (!isEmailShaped(text)) throw invalid(field);
+        return text;
+    }
+    if (text.length > SUBSCRIBER_ADDRESS_MAX_LENGTHS[field]) throw invalid(field);
     return text;
 }
 

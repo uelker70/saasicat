@@ -22,6 +22,7 @@ import {
     INVOICE_CANCELLATION_REASON_MAX_LENGTH,
     INVOICE_CORRECTION_MAX_LENGTH,
     INVOICE_ERROR_CODES,
+    SUBSCRIBER_ADDRESS_MAX_LENGTHS,
     SUBSCRIBER_ERROR_CODES,
 } from '@saasicat/core';
 
@@ -108,7 +109,10 @@ describe('what an operator gives a cancellation', () => {
         assert.deepEqual(
             await problemsOf({
                 reason: `  ${'x'.repeat(INVOICE_CANCELLATION_REASON_MAX_LENGTH)}  `,
-                corrections: { city: ` ${'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH)} ` },
+                corrections: {
+                    legalName: ` ${'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH)} `,
+                    city: ` ${'x'.repeat(SUBSCRIBER_ADDRESS_MAX_LENGTHS.city)} `,
+                },
                 deliverTo: `  ${'a'.repeat(242)}@t1.example  `,
             }),
             [],
@@ -131,7 +135,18 @@ describe('what an operator gives a cancellation', () => {
         ],
         [
             'a correction a character too long',
-            { ...REQUEST, corrections: { city: 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH + 1) } },
+            {
+                ...REQUEST,
+                corrections: { legalName: 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH + 1) },
+            },
+            'corrections',
+        ],
+        [
+            'a line of the address a character over its own bound',
+            {
+                ...REQUEST,
+                corrections: { city: 'x'.repeat(SUBSCRIBER_ADDRESS_MAX_LENGTHS.city + 1) },
+            },
             'corrections',
         ],
         ['an address that is no text', { ...REQUEST, deliverTo: 42 }, 'deliverTo'],
@@ -290,7 +305,17 @@ describe('a cancellation settles what it is given before anything else', () => {
 
     test('takes a correction of exactly the longest length', async () => {
         const installation = await anInvoiceToCollect();
-        const city = 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH);
+        const legalName = 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH);
+
+        const plan = await previewWith(installation, { ...REQUEST, corrections: { legalName } });
+
+        assert.equal(plan.replacement.subscriber.legalName, legalName);
+    });
+
+    // @requirement SC-SUB-049 — A line of the address holds one bound, wherever it arrives
+    test('takes a line of the address at its own bound, though the legal name may be longer', async () => {
+        const installation = await anInvoiceToCollect();
+        const city = 'x'.repeat(SUBSCRIBER_ADDRESS_MAX_LENGTHS.city);
 
         const plan = await previewWith(installation, { ...REQUEST, corrections: { city } });
 
@@ -300,7 +325,7 @@ describe('a cancellation settles what it is given before anything else', () => {
     for (const [why, corrections, code] of [
         [
             'a correction a character too long, as the command line gives it',
-            { city: 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH + 1) },
+            { legalName: 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH + 1) },
             SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID,
         ],
         [
@@ -328,6 +353,23 @@ describe('a cancellation settles what it is given before anything else', () => {
             );
         });
     }
+
+    // @requirement SC-SUB-049 — A line of the address holds one bound, wherever it arrives
+    test('refuses a line of the address a character over its own bound, as the command line gives it', async () => {
+        const installation = await anInvoiceToCollect();
+        const city = 'x'.repeat(SUBSCRIBER_ADDRESS_MAX_LENGTHS.city + 1);
+
+        const refused = await previewWith(installation, { ...REQUEST, corrections: { city } }).then(
+            () => null,
+            (error) => [error.getStatus(), error.getResponse().code, error.getResponse().params],
+        );
+
+        assert.deepEqual(refused, [
+            422,
+            SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID,
+            { field: 'city' },
+        ]);
+    });
 });
 
 // @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed

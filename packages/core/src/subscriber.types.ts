@@ -61,6 +61,22 @@ export const SUBSCRIBER_CONTACT_FIELDS = [
 export type SubscriberContactField = (typeof SUBSCRIBER_CONTACT_FIELDS)[number];
 
 /**
+ * The most characters each line of the address holds once trimmed, wherever
+ * it arrives — sign-up, a subscriber an application creates, a change, the
+ * operator's correction of an invoice — and whether or not the application
+ * installs a `ValidationPipe` (`SC-SUB-049`). The country is held to its two
+ * letters and the invoice email to what an address can hold, so neither is
+ * listed.
+ */
+export const SUBSCRIBER_ADDRESS_MAX_LENGTHS = {
+    addressLine1: 200,
+    addressLine2: 200,
+    postalCode: 20,
+    city: 100,
+} as const satisfies Partial<Record<SubscriberContactField, number>>;
+export type SubscriberAddressLineField = keyof typeof SUBSCRIBER_ADDRESS_MAX_LENGTHS;
+
+/**
  * Whether a subscriber can be given its next contract where a tax adapter
  * decides (`SC-PRIC-032`, `SC-PRIC-039`): which fields of the address an
  * invoice names are empty, and the adapter's sentence where it supports no

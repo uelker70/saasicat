@@ -7,6 +7,7 @@
 // the persistence contract checks against PostgreSQL.
 
 import 'reflect-metadata';
+import { ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
     PaymentCallbackRejectedError,
@@ -369,9 +370,60 @@ export async function closePaymentsApps() {
 }
 
 /** The payments module on its own, with tenant routes, over in-memory stores. */
-export async function paymentsApp({
+export async function paymentsApp(options) {
+    const { moduleRef: app, gateway, log, methods, subscribers } = await paymentsModule(options);
+    await app.init();
+    openApps.push(app);
+    return {
+        app,
+        gateway,
+        log,
+        methods,
+        callbacks: app.get(PaymentCallbackService),
+        routes: app.get(TenantPaymentMethodController),
+        details: app.get(TenantBillingDetailsController),
+        webhook: app.get(PaymentWebhookController),
+        subscribers,
+    };
+}
+
+/** The header `paymentsOverHttp` reads the requesting tenant from. */
+export const TENANT_HEADER = 'x-test-tenant';
+
+/** Signs the request in as an administrator of the tenant `TENANT_HEADER` names. */
+class TenantFromHeader {
+    canActivate(context) {
+        const request = context.switchToHttp().getRequest();
+        request.user = { tenantId: request.headers[TENANT_HEADER], role: 'TENANT_ADMIN' };
+        return true;
+    }
+}
+
+/**
+ * The payments module of `paymentsApp`, served over HTTP behind the global
+ * `ValidationPipe` an application installs, set as strictly as a consumer sets
+ * it: `whitelist`, `forbidNonWhitelisted` and `transform`. The request's tenant
+ * is the one `TENANT_HEADER` names. Closed by `closePaymentsApps`.
+ */
+export async function paymentsOverHttp(options) {
+    const { moduleRef, subscribers } = await paymentsModule({
+        ...options,
+        authGuards: [new TenantFromHeader()],
+    });
+    const app = moduleRef.createNestApplication(undefined, { logger: false });
+    app.useGlobalPipes(
+        new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    );
+    await app.listen(0, '127.0.0.1');
+    openApps.push(app);
+    const base = (await app.getUrl()).replace('[::1]', '127.0.0.1');
+    return { base, subscribers };
+}
+
+async function paymentsModule({
     catalog = paymentsCatalog(),
     gateways,
+    authGuards = [new AllowAll()],
     billingPermissionGuards,
     methods = new MemoryPaymentMethods(),
     subscribers = new FakeSubscriberRepository(),
@@ -381,7 +433,7 @@ export async function paymentsApp({
 } = {}) {
     const gateway = new ScriptedGateway();
     const log = new MemoryPaymentEventLog();
-    const app = await Test.createTestingModule({
+    const moduleRef = await Test.createTestingModule({
         imports: [
             // Global, as the platform composes it: the subscribers ask it for the
             // tax adapter from inside the payments module.
@@ -399,27 +451,21 @@ export async function paymentsApp({
                 subscriberPaymentMethodRepository: methods,
                 subscriberRepository: subscribers,
                 transactionRunner: new RollbackRunner([log, methods]),
-                tenantRoutes: {
-                    authGuards: [new AllowAll()],
-                    billingPermissionGuards,
-                    billingDetails,
-                },
+                tenantRoutes: { authGuards, billingPermissionGuards, billingDetails },
                 extraProviders,
             }),
         ],
     }).compile();
-    await app.init();
-    openApps.push(app);
     return {
-        app,
+        moduleRef,
         gateway,
         log,
         methods,
-        callbacks: app.get(PaymentCallbackService),
-        routes: app.get(TenantPaymentMethodController),
-        details: app.get(TenantBillingDetailsController),
-        webhook: app.get(PaymentWebhookController),
-        subscribers: new SubscriberService(subscribers, catalog, app.get(TAX_TREATMENTS_TOKEN)),
+        subscribers: new SubscriberService(
+            subscribers,
+            catalog,
+            moduleRef.get(TAX_TREATMENTS_TOKEN),
+        ),
     };
 }
 

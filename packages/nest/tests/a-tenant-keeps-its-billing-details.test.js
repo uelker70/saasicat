@@ -22,6 +22,8 @@ import {
     mountsOf,
     paymentsApp,
     paymentsCatalog,
+    paymentsOverHttp,
+    TENANT_HEADER,
 } from './helpers/payments.js';
 import { TAX_SETTINGS, TEST_TAX_ADAPTER } from './helpers/tax-adapter.js';
 
@@ -246,11 +248,6 @@ describe('the tenant changes how it is reached', () => {
         });
     }
 
-    test('a value that is not text never reaches the service', async () => {
-        const { errors } = await throughThePipe({ city: 42, country: 'Deutschland' });
-        assert.deepEqual(errors.map((error) => error.property).sort(), ['city', 'country']);
-    });
-
     for (const [field, value] of [
         ['legalName', 'Meier & Söhne GmbH'],
         ['vatId', 'DE999999999'],
@@ -474,6 +471,96 @@ describe('an application decides which details its tenant changes in the billing
         );
 
         assert.equal((await details.current(sessionOf('tenant-meier'))).details.city, 'Köln');
+    });
+});
+
+/** Meier's billing area over HTTP, behind the strictest global pipe an application installs. */
+async function billingAreaOverHttp(options) {
+    const { base, subscribers } = await paymentsOverHttp(options);
+    await subscribers.createForTenant('tenant-meier', MEIER);
+    const route = `${base}/billing/details`;
+    const headers = { 'content-type': 'application/json', [TENANT_HEADER]: 'tenant-meier' };
+    return {
+        change: async (body) => {
+            const response = await fetch(route, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify(body),
+            });
+            return { status: response.status, body: await response.json() };
+        },
+        current: async () => (await (await fetch(route, { headers })).json()).details,
+    };
+}
+
+/** Values out of their form, each wrong in another way. */
+const OUT_OF_FORM = [
+    ['country', 'Germany', 'a name instead of a code'],
+    ['city', 123, 'a number'],
+    ['addressLine1', 'x'.repeat(201), 'a character over its bound'],
+];
+
+const refusal = (code, field) => ({ status: 422, code, field });
+const refusalOf = ({ status, body }) => ({ status, code: body.code, field: body.params?.field });
+
+// @requirement SC-SUB-047 — A tenant changes the contact details left to it, and never clears them
+// @requirement SC-SUB-049 — A line of the address holds one bound, wherever it arrives
+describe("the billing details through the application's ValidationPipe", () => {
+    for (const [field, value, why] of OUT_OF_FORM) {
+        test(`the ${field} kept elsewhere is refused by its name, though its value is ${why}`, async () => {
+            const { change, current } = await billingAreaOverHttp(EMAIL_ONLY);
+            const before = await current();
+
+            const answer = await change({ [field]: value });
+
+            assert.deepEqual(
+                refusalOf(answer),
+                refusal('SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE', field),
+            );
+            assert.deepEqual(await current(), before);
+        });
+
+        test(`the ${field} the tenant changes is refused by its name for ${why}`, async () => {
+            const { change, current } = await billingAreaOverHttp();
+            const before = await current();
+
+            const answer = await change({ [field]: value });
+
+            assert.deepEqual(refusalOf(answer), refusal('SUBSCRIBER_DETAIL_INVALID', field));
+            assert.deepEqual(await current(), before);
+        });
+    }
+
+    test('a detail the tenant changes is written through the pipe', async () => {
+        const { change } = await billingAreaOverHttp(EMAIL_ONLY);
+
+        const answer = await change({ invoiceEmail: ' neu@meier.example ' });
+
+        assert.deepEqual(
+            [answer.status, answer.body.details.invoiceEmail],
+            [200, 'neu@meier.example'],
+        );
+    });
+
+    test('a field no change has is still refused by the pipe, and nothing is written', async () => {
+        const { change, current } = await billingAreaOverHttp(EMAIL_ONLY);
+        const before = await current();
+
+        const answer = await change({ invoiceEmail: 'neu@meier.example', nickname: 'Meier' });
+
+        assert.equal(answer.status, 400);
+        assert.deepEqual(await current(), before);
+    });
+
+    test('the legal identity is refused first, before a detail kept elsewhere', async () => {
+        const { change } = await billingAreaOverHttp(EMAIL_ONLY);
+
+        const answer = await change({ legalName: 'Meier AG', country: 'Germany' });
+
+        assert.deepEqual(
+            refusalOf(answer),
+            refusal('SUBSCRIBER_IDENTITY_NOT_A_CONTACT', 'legalName'),
+        );
     });
 });
 

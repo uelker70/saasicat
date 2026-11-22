@@ -425,6 +425,12 @@ _Tested by:_
         - the invoice email it may change is still not cleared
         - where it names none, the tenant changes none
         - the application's own page changes what the billing area refuses
+    - the billing details through the application's ValidationPipe
+        - the ${field} kept elsewhere is refused by its name, though its value is ${why}
+        - the ${field} the tenant changes is refused by its name for ${why}
+        - a detail the tenant changes is written through the pipe
+        - a field no change has is still refused by the pipe, and nothing is written
+        - the legal identity is refused first, before a detail kept elsewhere
     - the details an application names are held to at the start
         - ${named} stops the start, saying why
         - a single name instead of a list stops the start
@@ -473,6 +479,48 @@ _Tested by:_
         - no address at all: all four named, in the order an invoice names them
         - all four without a second line: assessed as before, the number checked
         - without an adapter, details without an address are assessed as before
+
+<!-- END proof -->
+
+### SC-SUB-049 — A line of the address holds one bound, wherever it arrives
+
+🟢 💰 Each line of a subscriber's address — street, second line, postal code, city — holds at most
+the number of characters `SUBSCRIBER_ADDRESS_MAX_LENGTHS` from `@saasicat/core` names for it, once
+trimmed, wherever it arrives: sign-up, a subscriber an application creates, a change of the contact
+details, and the operator's correction of the subscriber an invoice names (`SC-PRIC-095`), which
+holds the legal name and the tax identifiers to a bound of their own. The platform refuses a longer
+line itself with `SUBSCRIBER_DETAIL_INVALID`, naming the field, so the bound holds whether or not
+the application installs a `ValidationPipe`, and a route that declares a bound to that pipe declares
+the same one. A detail the billing area keeps elsewhere is refused by its name before its length is
+judged (`SC-SUB-047`). The same value is then answered the same way through every door and under
+every consumer's wiring, rather than accepted through one and refused through the next.
+
+_Source:_ #524
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-line-of-the-address-holds-one-bound.test.js`
+    - a line of the address holds one bound
+        - the bounds are the ones promised
+        - the operator's correction holds a line of the address to its bound, and the rest to its
+          own
+        - a subscriber is created with the ${field} at its bound, the blanks around it not counted
+        - a subscriber with the ${field} a character over it is refused, naming it
+        - a change of the contact details is held to it with no pipe at all, and nothing is written
+        - ${why} declares the same bound to the application's pipe
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the billing details through the application's ValidationPipe
+        - the ${field} kept elsewhere is refused by its name, though its value is ${why}
+        - the ${field} the tenant changes is refused by its name for ${why}
+        - a detail the tenant changes is written through the pipe
+        - a field no change has is still refused by the pipe, and nothing is written
+        - the legal identity is refused first, before a detail kept elsewhere
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - a cancellation settles what it is given before anything else
+        - takes a line of the address at its own bound, though the legal name may be longer
+        - refuses a line of the address a character over its own bound, as the command line gives it
 
 <!-- END proof -->
 

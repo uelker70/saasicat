@@ -57,7 +57,7 @@
                                 :model-value="draft.corrections[detail] ?? ''"
                                 outlined
                                 dense
-                                :maxlength="INVOICE_CORRECTION_MAX_LENGTH"
+                                :maxlength="invoiceCorrectionMaxLengthOf(detail)"
                                 :aria-describedby="describedBy"
                                 @update:model-value="(value) => correct(detail, value)"
                             />
@@ -166,8 +166,8 @@
 import { computed, reactive, ref, watch } from 'vue';
 import {
     INVOICE_CANCELLATION_REASON_MAX_LENGTH,
-    INVOICE_CORRECTION_MAX_LENGTH,
     INVOICE_SUBSCRIBER_DETAILS,
+    invoiceCorrectionMaxLengthOf,
     type AdminReplacementLine,
     type AdminSubscriberDetails,
     type InvoiceSubscriberDetail,

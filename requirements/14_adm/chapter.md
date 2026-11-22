@@ -875,7 +875,9 @@ _Tested by:_
         - refuses an address ${why}
         - each correction as the subscriber’s record holds that detail
         - takes a correction of exactly the longest length
+        - takes a line of the address at its own bound, though the legal name may be longer
         - refuses ${why}
+        - refuses a line of the address a character over its own bound, as the command line gives it
     - the cancellation route
         - writes the cancellation and records it under the operator, the address not named
         - records each line it moved, from what to what, in the invoice’s currency

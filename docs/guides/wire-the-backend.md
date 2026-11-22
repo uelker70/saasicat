@@ -1117,11 +1117,16 @@ SaaSiCatModule.forRoot({
 `GET` and `PATCH /billing/details` then answer `tenantEditable`, the details named, in the order of
 `SUBSCRIBER_CONTACT_FIELDS` from `@saasicat/core`. A change that names any other detail is refused
 with `422 SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`, `params.field` naming it, and nothing of that change
-is written — by the name, so an unchanged value or `null` is refused too. `[]` leaves every detail
-to your application. A name that is not a contact detail, or the legal name or a tax identifier,
-stops the start. Your own page writes through
+is written — by the name, so an unchanged value, `null` and a value out of its form are refused
+too. The details it takes are then judged: a line of the address at most the bound
+`SUBSCRIBER_ADDRESS_MAX_LENGTHS` names for it, once trimmed, the country as its code, the invoice
+email as an address, each refused otherwise with `422 SUBSCRIBER_DETAIL_INVALID` naming it
+(`SC-SUB-049`). The platform judges them itself and its DTO judges nothing, so a detail is answered
+the same behind your `ValidationPipe` and without one; a field that is no detail at all is still
+refused by a pipe that forbids unknown ones. `[]` leaves every detail to your application. A name
+that is not a contact detail, or the legal name or a tax identifier, stops the start. Your own page writes through
 `SubscriberService.changeContactOfTenant(tenantId, change, changedBy)`, which the option does not
-limit (`SC-SUB-047`).
+limit (`SC-SUB-047`); the bounds of the address hold there as on every way in.
 
 `TenantBillingSection` from `@saasicat/ui-vue-tenant` shows the other details as text, followed by a
 sentence saying where they are changed: `billingDetailsChangedElsewhere` in its `i18n`, or the

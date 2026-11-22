@@ -29,6 +29,7 @@ import {
 import {
     INVOICE_CANCELLATION_REASON_MAX_LENGTH,
     INVOICE_CORRECTION_MAX_LENGTH,
+    SUBSCRIBER_ADDRESS_MAX_LENGTHS,
     type AdminInvoice,
     type InvoiceCancellationRequest,
     type InvoiceLineOwed,
@@ -93,28 +94,28 @@ export class InvoiceSubscriberCorrectionsDto {
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
+    @MaxLength(SUBSCRIBER_ADDRESS_MAX_LENGTHS.addressLine1)
     addressLine1?: string | null;
 
     @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
+    @MaxLength(SUBSCRIBER_ADDRESS_MAX_LENGTHS.addressLine2)
     addressLine2?: string | null;
 
     @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
+    @MaxLength(SUBSCRIBER_ADDRESS_MAX_LENGTHS.postalCode)
     postalCode?: string | null;
 
     @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
+    @MaxLength(SUBSCRIBER_ADDRESS_MAX_LENGTHS.city)
     city?: string | null;
 
     @Trimmed()

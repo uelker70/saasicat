@@ -5595,6 +5595,37 @@ and `PilotSubscriberAddressForm`, for a pilot form of your own.
 - **No codemod step**: the DTO and the route are your server's, and what an override said is your
   wording. The compiler names a removed message key.
 
+### A line of the address holds one bound, wherever it arrives
+
+A line of a subscriber's address was bounded only by a route's decorators, and only where the
+application installed a `ValidationPipe`: sign-up and the billing area held it to one bound, the
+operator's correction of an invoice to `INVOICE_CORRECTION_MAX_LENGTH`, and a subscriber your code
+created or changed to none. The platform now holds each line to one bound itself,
+`SUBSCRIBER_ADDRESS_MAX_LENGTHS` from `@saasicat/core`, and refuses a longer one with
+`422 SUBSCRIBER_DETAIL_INVALID`, `params.field` naming it (`SC-SUB-049`). `ChangeBillingDetailsDto`
+no longer judges a value, so under a pipe a detail the billing area keeps elsewhere is refused by its
+name, as `SC-SUB-047` says, and not with a `400` for its value. See
+[which billing details a tenant changes](wire-the-backend.md#which-billing-details-a-tenant-changes).
+
+| before                                                                                                                                                     | after                                                                                                                                                         |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createForTenant`, `assessNewSubscriber`, `changeContact`, `changeContactOfTenant` and an offer's `newSubscriber` take a line of the address of any length | at most its bound, or `422 SUBSCRIBER_DETAIL_INVALID`                                                                                                         |
+| `PATCH /billing/details` behind a pipe answers `400` for a value its decorators refuse, of a detail kept elsewhere too                                     | `422 SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE` for a detail kept elsewhere, whatever its value; `422 SUBSCRIBER_DETAIL_INVALID` for the value of a detail it takes |
+| the operator's correction of an invoice takes every detail up to `INVOICE_CORRECTION_MAX_LENGTH`                                                           | a line of the address up to its bound, the legal name and the tax identifiers up to `INVOICE_CORRECTION_MAX_LENGTH` (`invoiceCorrectionMaxLengthOf`)          |
+| —                                                                                                                                                          | `SUBSCRIBER_ADDRESS_MAX_LENGTHS`, `SubscriberAddressLineField` and `invoiceCorrectionMaxLengthOf` in `@saasicat/core`                                         |
+
+1. **Where a form or a DTO of yours takes a line of the address** — a pilot route, a page of your
+   own for the company's address, a sign-up of your own — bound it by
+   `SUBSCRIBER_ADDRESS_MAX_LENGTHS`, so the person is stopped where they type rather than refused
+   when they save.
+2. **Where your interface words the `400` of `PATCH /billing/details`**, it is now a `422` naming
+   the field: show it as every `SUBSCRIBER_DETAIL_INVALID` and `SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`.
+3. **Where data of yours holds a longer line**, shorten it before your code passes it to the
+   platform again.
+
+- **No codemod step**: which of your forms takes an address, and how long it lets a line be, is
+  your application's.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.
