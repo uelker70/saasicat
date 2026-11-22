@@ -5486,6 +5486,115 @@ with their types `AddOnPriceBeside` and `AddOnPrices`; `@saasicat/core` adds
 - **No codemod step**: the plan a page has chosen and the sentence beside an unchosen price are
   yours to supply, and the compiler names each prop, key and field.
 
+### An application decides which billing details its tenants change
+
+A tenant changed all six contact details of its subscriber in the billing area, while an
+application that keeps the address on a page of its own had a second place for it, and whichever
+wrote last won. `tenantBilling.billingDetails.tenantEditable` now names the details the tenant
+changes there (`SC-SUB-047`). Left out, it is every one, as before. `GET` and
+`PATCH /billing/details` answer the list as `tenantEditable`, a change naming another detail is
+refused with `422 SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`, and `TenantBillingSection` shows the others
+as text with a sentence saying where they are changed. The two routes are also served where
+`payments` is not wired: an installation that invoices for a bank transfer has the billing details
+too. See [which billing details a tenant changes](wire-the-backend.md#which-billing-details-a-tenant-changes).
+
+| before                                                                 | after                                                                                                                 |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `GET`/`PATCH /billing/details` served only with `payments`             | served wherever `tenantBilling` is on and a subscriber repository is composed                                         |
+| `TenantBillingDetailsView`, `TenantBillingDetailsShape`                | also `tenantEditable`, required; `useTenantBillingDetails` reports an answer without it as a failure to load          |
+| `TenantBillingContactField` in `@saasicat/ui-vue`, a union of its own  | an alias of `SubscriberContactField`, with `SUBSCRIBER_CONTACT_FIELDS`, from `@saasicat/core`                         |
+| `SubscriberService.changeContactOfTenant(tenantId, change, changedBy)` | also `options.changeable`, which the route passes; your own page calls it without, unlimited                          |
+| —                                                                      | `billingDetailsChangedElsewhere` in the section's `i18n`, the `changed-elsewhere` slot of the section and of the card |
+
+1. **Where your application keeps the address on a page of its own**, name what the tenant changes
+   in the billing area — `billingDetails: { tenantEditable: ['invoiceEmail'] }` under
+   `tenantBilling` — and give `TenantBillingSection` the `changed-elsewhere` slot with a link to
+   that page, or `billingDetailsChangedElsewhere` in its `i18n`. Otherwise nothing to do.
+2. **Where your application serves a route of its own at `billing/details`** and wires no
+   `payments`, the platform now serves that path: remove yours, or the two collide at start.
+3. **Where code of yours builds a `TenantBillingDetailsView` or `TenantBillingDetailsShape`** — a
+   fixture, a stand-in server — give it `tenantEditable`, every detail the tenant may change.
+4. **Where your interface words refusals itself**, add `SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`. The
+   German and English texts ship in `@saasicat/core`.
+
+- **No codemod step**: which details have a page of their own is your application's decision, and
+  the compiler names each type that lacks the new field.
+
+### `CheckoutOfferPricing.price` refuses an unmet feature dependency
+
+`CheckoutOfferModule` provided `CheckoutOfferPricing` without exporting it, so a checkout of your
+own reached it through `ModuleRef.get(CheckoutOfferPricing, { strict: false })`. The module now
+exports it beside `CheckoutOfferService`, and `SaaSiCatModule` hands it on: inject it with
+`@Inject(CheckoutOfferPricing)` from `@saasicat/nest/checkout-offer`. Its `price(selection, asOf)`
+gives the amounts an offer created from the same selection carries and refuses what creating that
+offer refuses — now its feature dependencies too, which only creating it checked: a preview could
+show a price for a selection the offer then refused (`SC-MKT-031`). It stores no offer and holds or
+redeems no promo code; a code it checks is recorded in the promo code's validation log like every
+check. See
+[the price before the offer](wire-the-backend.md#offering-a-newer-add-on-version).
+
+| before                                                                                              | after                                                                                                                      |
+| --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `CheckoutOfferPricing` provided by `CheckoutOfferModule`, not exported                              | exported, and injected like any other service                                                                              |
+| `price()` prices an add-on whose feature needs one neither the plan nor an add-on brings            | refused with `422 CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED` and `missingRequires`, as `create` and `update` refuse it |
+| `CheckoutOfferService` takes `PlanRepository` and `CatalogEntryRepository` after `BundleRepository` | neither: the check moved into the pricing                                                                                  |
+| `CheckoutOfferPricing`                                                                              | also `CatalogEntryRepository`, an optional last constructor argument                                                       |
+
+1. **Where your application reaches `CheckoutOfferPricing` through `ModuleRef` with
+   `strict: false`**, inject it instead, and drop `strict: false` from a test that resolves it.
+2. **Where a screen of yours shows the preview**, show its refusal as it shows the refusal of
+   creating the offer: a selection with an unmet dependency is now refused before the tenant
+   confirms rather than after.
+3. **Where you construct `CheckoutOfferService` by hand** — a test included — drop the plan and
+   catalogue entry repositories from its arguments; where you construct `CheckoutOfferPricing`,
+   pass the `CatalogEntryRepository` last for the check. Without it no dependency is checked, as
+   before without the repository.
+
+- **No codemod step**: an injection through `ModuleRef` is written in too many shapes to rewrite,
+  and what a screen does with a refusal is yours. The compiler names each constructor call.
+
+### Your pilot route receives the subscriber's address
+
+Where `config/saas.yaml` names a tax adapter, a contract names its subscriber only with the full
+address, so a pilot created without one failed at its first plan, version or add-on change with
+`SUBSCRIBER_IDENTITY_INCOMPLETE`. The pilot dialog now asks for the address of the pilot's subscriber
+and sends it as `subscriber`; where the manifest says `subscriberAddressRequired`, which the platform
+sets from the adapter, it does not submit without the street, postal code, city and country
+(`SC-SPEC-010`). `SubscriberService.assessNewSubscriber` refuses details without them first, where
+an adapter decides (`SC-SUB-048`). Both pilot dialogs read the route's refusal as the platform's
+error: a refusal reads as its sentence in the interface's language, where every one read "Creation
+failed", and a wrong code asks again, where it closed the prompt. See
+[the pilot routes are yours](build-the-admin-frontend.md#the-pilot-routes-are-yours).
+
+| before                                                                                                                    | after                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PilotCreatePayload`: `tenant`, `admin`, `pilot`                                                                          | also `subscriber?: PilotSubscriberAddress` — `addressLine1`, `addressLine2`, `postalCode`, `city`, `country` — absent where none was entered |
+| `AdminManifest`                                                                                                           | also `subscriberAddressRequired`, set by the platform; a manifest built without it reads as `false`                                          |
+| `assessNewSubscriber` under a tax adapter asks the adapter whatever the address                                           | refuses details without street, postal code, city or country with `422 SUBSCRIBER_IDENTITY_INCOMPLETE`, before the adapter is asked          |
+| `useMfaPrompt().run` keeps the prompt open on every `401`                                                                 | closes it and rethrows a `401` saying `MFA_NOT_SET_UP` or `NOT_AUTHENTICATED`: no other code helps there                                     |
+| `common.errorSaveFailed`, `common.createFailed`, `pilots.mfa.invalidOrNotSetUp` and `pilots.mfa.notSetUp` in the messages | gone                                                                                                                                         |
+
+`@saasicat/ui-vue` adds `PilotSubscriberAddress`, and the framework-free `pilotAddressGaps`,
+`pilotSubscriberOf`, `PILOT_SUBSCRIBER_ADDRESS_FIELDS` with the types `PilotSubscriberAddressField`
+and `PilotSubscriberAddressForm`, for a pilot form of your own.
+
+1. **Where your pilot route's DTO refuses unknown keys** (`forbidNonWhitelisted`), declare
+   `subscriber` with its five optional fields. Otherwise a pilot created with an address is refused
+   with `400`.
+2. **Where your pilot route creates the subscriber**, give it the address:
+   `{ legalName: tenant.name, vatId: tenant.vatId, ...subscriber }`, asked of
+   `assessNewSubscriber` before the transaction and created with `createForTenant`. A check of the
+   address of your own, before the assessment, is no longer needed under an adapter.
+3. **Where your route words its own refusal**, send it as the body's `message`; the dialog shows it
+   where the code is not the platform's.
+4. **Where a page of yours calls `useMfaPrompt().run`**, show the error it rethrows for
+   `MFA_NOT_SET_UP` and `NOT_AUTHENTICATED`, as for any other failure of the action.
+5. **Where your `i18n.overrides` name one of the four messages that are gone**, delete the entry;
+   the compiler names it.
+
+- **No codemod step**: the DTO and the route are your server's, and what an override said is your
+  wording. The compiler names a removed message key.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

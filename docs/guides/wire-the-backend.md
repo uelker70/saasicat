@@ -1070,13 +1070,16 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
   the payment method it had, so a gateway adapter that reports a session under a name of its own
   shows up as changes that never arrive.
 - **`GET /billing/details`** and **`PATCH /billing/details`** — whom the tenant's subscription is
-  billed to, behind the same guards and permission. The tenant changes the address and the invoice
-  email; the street, postal code, city, country and invoice email can be replaced but not cleared
-  (`SUBSCRIBER_DETAIL_INVALID` names the field), and a legal name or tax identifier in the body is
-  refused with `SUBSCRIBER_IDENTITY_NOT_A_CONTACT` — the operator corrects those. The request DTO
-  declares those three fields so that a `ValidationPipe` with `whitelist` passes them through to the
-  refusal instead of stripping them into a silent success. Both answer `business` as the operator
-  keeps it and, where a tax adapter decides, `readiness`: what holds the next contract back
+  billed to, behind the same guards and permission. With `tenantBilling` they are served whether or
+  not `payments` is wired: an installation that invoices for a bank transfer bills its tenants to an
+  address too. The tenant changes the address and the invoice email, or the ones of them your
+  application leaves to it ([below](#which-billing-details-a-tenant-changes)); the street, postal
+  code, city, country and invoice email can be replaced but not cleared (`SUBSCRIBER_DETAIL_INVALID`
+  names the field), and a legal name or tax identifier in the body is refused with
+  `SUBSCRIBER_IDENTITY_NOT_A_CONTACT` — the operator corrects those. The request DTO declares those
+  three fields so that a `ValidationPipe` with `whitelist` passes them through to the refusal instead
+  of stripping them into a silent success. Both answer `business` as the operator keeps it and, where
+  a tax adapter decides, `readiness`: what holds the next contract back
   ([the tax adapter](#the-tax-adapter)). `TenantBillingSection` in `@saasicat/ui-vue-tenant` is the
   page for both routes and the payment method.
 - **Row-level security and the callback.** A callback arrives with no session and no tenant. If your
@@ -1094,6 +1097,46 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
   read platform-wide, before anything is served: the platform wraps them in `RlsBypassPort`, and an
   implementation of that port which needs a request context, or answers with the caller's tenant
   scope, turns the check that exists to refuse into one that passes.
+
+### Which billing details a tenant changes
+
+A tenant changes all six contact details in its billing area unless your application says
+otherwise. Where it keeps the address on a page of its own, name the details the tenant changes in
+the billing area, so the address has one place:
+
+```ts
+SaaSiCatModule.forRoot({
+    // …
+    tenantBilling: {
+        // …
+        billingDetails: { tenantEditable: ['invoiceEmail'] },
+    },
+});
+```
+
+`GET` and `PATCH /billing/details` then answer `tenantEditable`, the details named, in the order of
+`SUBSCRIBER_CONTACT_FIELDS` from `@saasicat/core`. A change that names any other detail is refused
+with `422 SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`, `params.field` naming it, and nothing of that change
+is written — by the name, so an unchanged value or `null` is refused too. `[]` leaves every detail
+to your application. A name that is not a contact detail, or the legal name or a tax identifier,
+stops the start. Your own page writes through
+`SubscriberService.changeContactOfTenant(tenantId, change, changedBy)`, which the option does not
+limit (`SC-SUB-047`).
+
+`TenantBillingSection` from `@saasicat/ui-vue-tenant` shows the other details as text, followed by a
+sentence saying where they are changed: `billingDetailsChangedElsewhere` in its `i18n`, or the
+`changed-elsewhere` slot in its place, for a link to your page:
+
+```vue
+<TenantBillingSection :http="http" :format-currency="formatCurrency" :format-date="formatDate">
+    <template #changed-elsewhere>
+        <RouterLink to="/settings/company">Change the address under Company.</RouterLink>
+    </template>
+</TenantBillingSection>
+```
+
+What holds the next contract back is still named above the details, those your page keeps included:
+the tenant reads what is missing there, and your sentence says where to add it.
 
 ## The Tax Adapter
 

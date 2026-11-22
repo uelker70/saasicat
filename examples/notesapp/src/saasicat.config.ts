@@ -80,6 +80,23 @@ export const NOTES_SAASICAT_CONFIG = defineSaaSiCat({
     },
     tenantBilling: {
         authGuards: [DemoAuthGuard],
+        // The contact details a tenant changes in its billing area.
+        // The notes app keeps the address nowhere else, so its tenants
+        // change all six there, which is also what leaving this out
+        // means. An application with an address page of its own names
+        // only `['invoiceEmail']`: the billing area then shows the
+        // address as text and refuses a change of it, and the page
+        // writes it through `SubscriberService.changeContactOfTenant`.
+        billingDetails: {
+            tenantEditable: [
+                'addressLine1',
+                'addressLine2',
+                'postalCode',
+                'city',
+                'country',
+                'invoiceEmail',
+            ],
+        },
         // The notice period and the blocked plans are not here:
         // they live in `config/saas.yaml` under `tenantBilling:`,
         // which is the one place they live. Passing either one
