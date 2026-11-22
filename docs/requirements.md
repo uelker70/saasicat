@@ -119,7 +119,7 @@ properties it has while doing it.
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
-| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 30      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 31      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 58      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 722 entries: 🟢 629 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 723 entries: 🟢 630 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
 🔵 63 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -231,7 +231,7 @@ Of 722 entries: 🟢 629 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 722 requirements. Do not edit by hand:
+Generated from `requirements/` — 723 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -16729,6 +16729,40 @@ _Tested by:_
         - in the version booked is concluded
         - of another add-on is concluded
         - whose booking has ended is concluded
+
+<!-- END proof -->
+
+### SC-MKT-031 — An application previews what a checkout offer costs, and the preview stores nothing
+
+🟢 💰 `CheckoutOfferPricing.price` is what an application shows before an offer is created: injected
+from the checkout offer module like any other service, it gives the amounts an offer created from
+the same selection at the same moment carries (`SC-MKT-027`), and refuses what creating that offer
+would refuse, its feature dependencies included (`SC-MKT-015`). It stores no offer, holds no slot of
+a promo code and redeems nothing; a promo code it checks is recorded as an attempt, as every check of
+a code is (`SC-PROMO-017`). Where a tax adapter decides, the preview shows the rate for a subscriber
+in the issuer's country, as the offer does, and the contract takes the rate decided for the
+subscriber who takes it.
+
+_Source:_ #527
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-application-previews-an-offer.test.js`
+    - an application injects the preview of an offer
+        - ${where}, and it prices what the offer carries
+    - the preview is what an offer created from the same selection carries
+        - ${what}: the preview equals the offer
+        - the combined case carries each part it names
+    - what the preview writes
+        - with a promo code, the check of the code and nothing else
+        - a refused promo code is recorded as an attempt, and the preview refuses
+        - without a promo code, nothing at all
+    - the preview refuses what creating the offer refuses
+        - ${what}: both refuse alike
+        - the unmet dependency is named
+        - a selection that brings the needed feature is priced
 
 <!-- END proof -->
 

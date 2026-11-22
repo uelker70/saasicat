@@ -20,33 +20,21 @@ import {
 import type {
     BundleRepository,
     BundleVersionRow,
-    CatalogEntryRepository,
     SubscriptionBundleRepository,
     SubscriptionUsagePort,
     CheckoutOfferFilter,
-    CheckoutOfferLineItem,
     CheckoutOfferRepository,
     CheckoutOfferRow,
     CheckoutOfferSelection,
     CheckoutOfferSelectionUpdate,
     NewSubscriberDetails,
-    PlanRepository,
     SubscriptionContractRecord,
     TransactionContext,
     TransactionRunner,
 } from '@saasicat/core';
-import {
-    CONTRACT_ERROR_CODES,
-    SUBSCRIBER_ERROR_CODES,
-    buildFeatureRequiresIndex,
-    collectUnsatisfiedRequires,
-} from '@saasicat/core';
+import { CONTRACT_ERROR_CODES, SUBSCRIBER_ERROR_CODES } from '@saasicat/core';
 
-import {
-    BUNDLE_REPOSITORY_TOKEN,
-    CATALOG_ENTRY_REPOSITORY_TOKEN,
-    PLAN_REPOSITORY_TOKEN,
-} from '../catalog/catalog.tokens.js';
+import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { sameAddOn } from '../billing/add-on-already-booked.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';
 import { SUBSCRIPTION_USAGE_PORT_TOKEN } from '../billing/tenant-billing.tokens.js';
@@ -60,7 +48,6 @@ import { SubscriberService } from '../subscriber/subscriber.service.js';
 import { codedError } from '../errors/coded-error.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import { CheckoutOfferPricing } from './checkout-offer-pricing.js';
-import { versionOnSale } from '../billing/version-on-sale.js';
 import {
     CHECKOUT_OFFER_REPOSITORY_TOKEN,
     CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN,
@@ -124,16 +111,6 @@ export class CheckoutOfferService {
         @Optional()
         @Inject(BUNDLE_REPOSITORY_TOKEN)
         private readonly bundles: BundleRepository | null = null,
-        // Plan features of the selected PlanVersion for the requires
-        // validation (#35 P6).
-        @Optional()
-        @Inject(PLAN_REPOSITORY_TOKEN)
-        private readonly plans: PlanRepository | null = null,
-        // Optional for the requires validation (#35 P6): without the adapter
-        // there is no requires data → validation is skipped.
-        @Optional()
-        @Inject(CATALOG_ENTRY_REPOSITORY_TOKEN)
-        private readonly catalogEntries: CatalogEntryRepository | null = null,
         // Both present, or `conclude` is not wired: the module provides them together.
         @Optional()
         @Inject(SubscriptionContractService)
@@ -176,7 +153,10 @@ export class CheckoutOfferService {
         return row;
     }
 
-    /** Prices what the caller chose and stores it as an open offer. */
+    /**
+     * Prices what the caller chose, as `CheckoutOfferPricing.price` previews
+     * it, and stores it as an open offer.
+     */
     async create(selection: CheckoutOfferSelection): Promise<CheckoutOfferRow> {
         const locale = selection.locale ?? DEFAULT_OFFER_LOCALE;
         const priced = await this.pricing.price({
@@ -185,12 +165,6 @@ export class CheckoutOfferService {
             bundleVersionIds: selection.bundleVersionIds ?? [],
             promoCode: selection.promoCode ?? null,
             locale,
-        });
-        await this.assertFeatureRequiresSatisfied({
-            planKey: selection.planKey,
-            planVersionId: priced.planVersionId,
-            bundleVersionIds: priced.bundleVersionIds,
-            lineItems: priced.lineItems,
         });
         return this.repo.create({
             planKey: selection.planKey,
@@ -219,12 +193,6 @@ export class CheckoutOfferService {
             promoCode: change.promoCode !== undefined ? change.promoCode : existing.promoCode,
             locale,
             checkoutOfferId: id,
-        });
-        await this.assertFeatureRequiresSatisfied({
-            planKey: existing.planKey,
-            planVersionId: priced.planVersionId,
-            bundleVersionIds: priced.bundleVersionIds,
-            lineItems: priced.lineItems,
         });
         const codeChanges = priced.promoCode !== existing.promoCode;
         const updated = await this.repo.update(id, {
@@ -584,88 +552,6 @@ export class CheckoutOfferService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_ALREADY_EXISTS, { tenantId }),
             );
         }
-    }
-
-    /**
-     * #35 P6 — server-side requires validation: the dependencies of all
-     * features (plan ∪ selected bundles) must be covered within the
-     * selection, otherwise an offer would be created whose features cannot
-     * work at the tenant (an app-specific validateModuleDependencies check is
-     * thereby replaced on the platform side). The requires source are the
-     * curated FeatureCatalogEntries; without CatalogEntryRepository it is
-     * skipped (graceful — no requires data available).
-     */
-    private async assertFeatureRequiresSatisfied(input: {
-        planKey: string;
-        planVersionId: string | null;
-        bundleVersionIds: string[];
-        lineItems: CheckoutOfferLineItem[];
-    }): Promise<void> {
-        if (!this.catalogEntries) return;
-        const entries = await this.catalogEntries.listFeatures({});
-        const requiresIndex = buildFeatureRequiresIndex(entries);
-        if (requiresIndex.size === 0) return;
-
-        const selected = new Set<string>([
-            ...(await this.resolvePlanFeatures(input)),
-            ...(await this.resolveBundleFeatures(input)),
-        ]);
-        const missingRequires = collectUnsatisfiedRequires([...selected], requiresIndex);
-        if (missingRequires.length > 0) {
-            throw new UnprocessableEntityException({
-                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED,
-                message:
-                    'The selected plan does not cover all feature dependencies: ' +
-                    `[${missingRequires.join(', ')}] are missing from the plan + selected bundles.`,
-                missingRequires,
-            });
-        }
-    }
-
-    /**
-     * Plan features preferably from the server SSOT (PlanRepository); fallback
-     * is the frozen featuresSnapshot of the plan LineItem (adapter without
-     * PlanRepository wiring).
-     */
-    private async resolvePlanFeatures(input: {
-        planKey: string;
-        planVersionId: string | null;
-        lineItems: CheckoutOfferLineItem[];
-    }): Promise<string[]> {
-        if (this.plans) {
-            const version = input.planVersionId
-                ? await this.plans.findVersionById?.(input.planVersionId)
-                : null;
-            const resolved =
-                version ?? (await versionOnSale(this.plans, input.planKey, new Date()));
-            if (resolved) return resolved.features ?? [];
-        }
-        return input.lineItems
-            .filter((item) => item.kind === 'plan')
-            .flatMap((item) => item.featuresSnapshot ?? []);
-    }
-
-    /** Bundle features from the BundleVersions; fallback featuresSnapshot. */
-    private async resolveBundleFeatures(input: {
-        bundleVersionIds: string[];
-        lineItems: CheckoutOfferLineItem[];
-    }): Promise<string[]> {
-        if (this.bundles) {
-            const features: string[] = [];
-            let allResolved = true;
-            for (const bundleVersionId of input.bundleVersionIds) {
-                const version = await this.bundles.findVersionById(bundleVersionId);
-                if (!version) {
-                    allResolved = false;
-                    break;
-                }
-                features.push(...(version.features ?? []));
-            }
-            if (allResolved) return features;
-        }
-        return input.lineItems
-            .filter((item) => item.kind === 'bundle')
-            .flatMap((item) => item.featuresSnapshot ?? []);
     }
 
     private async assertBundleVersionsStillBookable(offer: CheckoutOfferRow): Promise<void> {

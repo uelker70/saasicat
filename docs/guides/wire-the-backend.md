@@ -3086,6 +3086,14 @@ with a contract in force when the offer's would take effect, or one beginning af
 `CHECKOUT_OFFER_CONTRACT_IN_FORCE` (`SC-MKT-028`), and an offer naming another version of an add-on
 the tenant has booked with `CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION` (`SC-MKT-029`).
 
+**The price before the offer.** A checkout of your own shows the amounts before the tenant confirms.
+Take them from `CheckoutOfferPricing`, which the checkout offer module exports beside the service:
+inject it with `@Inject(CheckoutOfferPricing)` from `@saasicat/nest/checkout-offer`, never through
+`ModuleRef`. `price(selection)` gives the amounts an offer created from the same selection carries,
+and refuses what creating it refuses, an unmet feature dependency included. It stores no offer and
+holds or redeems no promo code; a code it checks is recorded in the promo code's validation log like
+every check (`SC-MKT-031`).
+
 ## Withdrawing a Feature
 
 A subscription keeps what it was sold — until a reason outside the platform takes a feature away: a

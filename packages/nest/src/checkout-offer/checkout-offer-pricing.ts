@@ -7,6 +7,10 @@
 // language and rhythm, and a promo code is whatever the promo module accepts.
 // Nothing a request says is an amount.
 //
+// An application previews an offer through `price` before it creates one: the
+// preview and the offer are the one computation, so a checkout shows the
+// amounts the contract will carry.
+//
 // The same computation runs again when an offer is consumed, over the plan and
 // bundle versions the offer froze and the promotions as they stood when it was
 // last priced. Published versions do not change, so an offer this code priced
@@ -17,6 +21,7 @@ import { Inject, Injectable, Optional, UnprocessableEntityException } from '@nes
 import type {
     BundleRepository,
     BundleVersionRow,
+    CatalogEntryRepository,
     CheckoutOfferLineItem,
     CheckoutOfferPriceBreakdown,
     CheckoutOfferPromoCodeSnapshot,
@@ -28,12 +33,18 @@ import type {
     PromotionRepository,
     PromotionRow,
 } from '@saasicat/core';
-import { CONTRACT_ERROR_CODES, promotionOnPrice } from '@saasicat/core';
+import {
+    CONTRACT_ERROR_CODES,
+    buildFeatureRequiresIndex,
+    collectUnsatisfiedRequires,
+    promotionOnPrice,
+} from '@saasicat/core';
 
 import { resolveBundlePriceNet } from '../billing/bundle-price.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import {
     BUNDLE_REPOSITORY_TOKEN,
+    CATALOG_ENTRY_REPOSITORY_TOKEN,
     PLAN_REPOSITORY_TOKEN,
     PROMOTION_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
@@ -111,6 +122,11 @@ export class CheckoutOfferPricing {
         @Optional()
         @Inject(TAX_TREATMENTS_TOKEN)
         private readonly taxes: TaxTreatments | null = null,
+        // The curated feature entries say which feature needs which; without
+        // them there is nothing to check a selection's dependencies against.
+        @Optional()
+        @Inject(CATALOG_ENTRY_REPOSITORY_TOKEN)
+        private readonly catalogEntries: CatalogEntryRepository | null = null,
     ) {
         // Checkout prices the version on sale and nothing else; a repository
         // that cannot name it would refuse every checkout as not offered.
@@ -123,14 +139,36 @@ export class CheckoutOfferPricing {
         }
     }
 
-    /** Prices a selection against the plan version on sale now. */
+    /**
+     * Prices a selection against the plan version on sale at `asOf`: the
+     * preview an application shows before it creates an offer, and the
+     * pricing `CheckoutOfferService.create` and `update` store.
+     *
+     * It gives the amounts an offer created from the same selection at the
+     * same moment carries, and refuses what creating that offer refuses — a
+     * plan or add-on not on sale, a promo code the promo module does not
+     * accept, a feature whose dependency neither the plan nor the selected
+     * add-ons bring (`CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED`).
+     *
+     * It stores no offer, holds no slot of a promo code and redeems nothing.
+     * A promo code is checked by the promo module, which records the check in
+     * its validation log, accepted or refused (`SC-PROMO-017`), and lets the
+     * codes, redemptions and holds whose time has passed lapse first
+     * (`SC-PROMO-016`); without a promo code nothing is written.
+     *
+     * Where a tax adapter decides, the rate is the one for a subscriber in the
+     * issuer's country, as on the offer; the contract takes the rate decided
+     * for the subscriber who concludes it (`SC-MKT-027`).
+     */
     async price(
         input: CheckoutOfferPricingInput,
         asOf: Date = new Date(),
     ): Promise<PricedCheckoutOffer> {
         const planVersion = await this.planVersionOnSale(input.planKey, input.billingCycle, asOf);
         const bundleVersions = await this.bundleVersionsFor(input, asOf, true);
-        return this.compute(input, planVersion, bundleVersions, asOf);
+        const priced = await this.compute(input, planVersion, bundleVersions, asOf);
+        await this.assertFeatureDependenciesMet(planVersion, bundleVersions);
+        return priced;
     }
 
     /**
@@ -244,6 +282,34 @@ export class CheckoutOfferPricing {
             promotionSnapshots,
             promoCodeSnapshot,
         };
+    }
+
+    /**
+     * A feature the plan or a selected add-on brings may need another one; the
+     * plan and the add-ons together have to bring it (`SC-MKT-015`), or the
+     * tenant would be sold a combination that cannot work.
+     */
+    private async assertFeatureDependenciesMet(
+        planVersion: PlanVersionRow,
+        bundleVersions: BundleVersionRow[],
+    ): Promise<void> {
+        if (!this.catalogEntries) return;
+        const requiresIndex = buildFeatureRequiresIndex(await this.catalogEntries.listFeatures({}));
+        if (requiresIndex.size === 0) return;
+        const selected = new Set([
+            ...(planVersion.features ?? []),
+            ...bundleVersions.flatMap((version) => version.features ?? []),
+        ]);
+        const missingRequires = collectUnsatisfiedRequires([...selected], requiresIndex);
+        if (missingRequires.length > 0) {
+            throw new UnprocessableEntityException({
+                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED,
+                message:
+                    'The selected plan does not cover all feature dependencies: ' +
+                    `[${missingRequires.join(', ')}] are missing from the plan + selected bundles.`,
+                missingRequires,
+            });
+        }
     }
 
     /** The plan version on sale for new bookings, as the public catalogue resolves it. */

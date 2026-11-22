@@ -13,6 +13,10 @@
 // Pricing reads the installation's currency and VAT rate from the plan
 // catalogue (`PlanCatalogModule`, global under `SaaSiCatModule.forRoot`), and a
 // promo code through `PromoCodesService` where the promo module is registered.
+//
+// Besides the service, the module exports `CheckoutOfferPricing`: an
+// application injects it to preview, in its own checkout, the amounts an offer
+// from the same selection would carry (`price`), without creating the offer.
 
 import {
     type CanActivate,
@@ -85,9 +89,9 @@ export interface CheckoutOfferModuleOptions {
      */
     promotionRepository?: ProviderSpec<PromotionRepository>;
     /**
-     * Optional for the requires validation (#35 P6): requires source =
-     * curated FeatureCatalogEntries. Without wiring, the validation is
-     * skipped (graceful).
+     * The curated feature entries, which say which feature needs which: an
+     * offer, and its preview, whose plan and add-ons do not bring a feature
+     * one of them needs is refused. Without it no dependency is checked.
      */
     catalogEntryRepository?: ProviderSpec<CatalogEntryRepository>;
     /**
@@ -165,7 +169,7 @@ export class CheckoutOfferModule {
                 CheckoutOfferService,
                 ...(options.extraProviders ?? []),
             ],
-            exports: [CheckoutOfferService, CHECKOUT_OFFER_REPOSITORY_TOKEN],
+            exports: [CheckoutOfferService, CheckoutOfferPricing, CHECKOUT_OFFER_REPOSITORY_TOKEN],
         };
     }
 }
