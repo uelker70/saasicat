@@ -15,10 +15,12 @@
 
 import {
     ConflictException,
+    HttpException,
     Inject,
     Injectable,
     Logger,
     Optional,
+    ServiceUnavailableException,
     UnprocessableEntityException,
 } from '@nestjs/common';
 import {
@@ -29,7 +31,6 @@ import {
     isFeatureWithdrawnAt,
     withWithdrawalDays,
     type AnnouncedDeletion,
-    type BillingCycle,
     type CalendarDay,
     type BundleRepository,
     type EndAtOncePreview,
@@ -56,7 +57,7 @@ import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js'
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import { FeatureWithdrawalService } from './feature-withdrawal.service.js';
-import { freezeContractAfter } from './freeze-contract-after.js';
+import { contractUnlessTrialOf, intendedContractOf } from './freeze-contract-after.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN, PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { rhythmTheChangeLandsIn } from './scheduled-change.js';
@@ -79,6 +80,13 @@ export interface EndAtOnceConfirmation {
     readonly by: string;
     /** The deletion day the page showed, where it showed one; checked, not trusted. */
     readonly expectedDeletesOn?: CalendarDay | null;
+}
+
+/** A booking's cancellation as read before it was ended at once: none, or one for a later date. */
+interface BookingCancellation {
+    readonly subscriptionBundleId: string;
+    readonly canceledAt: Date | null;
+    readonly canceledEffectiveAt: Date | null;
 }
 
 /** One withdrawal the subscription was told of, with the withdrawal as it stands. */
@@ -177,6 +185,7 @@ export class EndAtOnceService {
         const situation = await this.situationOf(tenantId);
         const { booking } = this.assertMayEnd(situation, withdrawalId, subscriptionBundleId, now);
         this.declaredEndToBringForward(situation!.subscription, booking);
+        if (booking) await this.assertPartyWithout(tenantId, situation!.subscription, now);
         const deletion = await this.deletionOf(situation!.subscription, booking, now);
         const credit = await this.creditOf(tenantId, subscriptionBundleId, now);
         return {
@@ -191,11 +200,13 @@ export class EndAtOnceService {
      * Ends the subscription — or the booking named — at once, at `now`: the
      * end is recorded as ending at once under the withdrawal before it is
      * written, so the account can credit the unused rest whatever fails after;
-     * then the contract is ended, the deletion day its tenant was shown
-     * recorded where the subscription ended, the account brought up to date,
-     * and the subscriber told. Nothing after the end makes the request fail:
-     * the end has happened and cannot be repeated, so a step that fails there
-     * is logged instead.
+     * then the contract is ended, or written without the booking, the deletion
+     * day its tenant was shown recorded where the subscription ended, the
+     * account brought up to date, and the subscriber told. Nothing after the
+     * end makes the request fail, save the contract without the booking: a
+     * booking whose contract cannot be written is put back and the end refused
+     * (`SC-BUN-067`). Otherwise the end has happened and cannot be repeated,
+     * so a step that fails there is logged instead.
      */
     async end(
         tenantId: string,
@@ -218,6 +229,7 @@ export class EndAtOnceService {
         if (deletionDayDiffersFromShown(confirmation.expectedDeletesOn, deletion?.days ?? null)) {
             throw changedMeanwhile({ deletion: deletion?.days ?? null });
         }
+        if (booking) await this.assertPartyWithout(tenantId, subscription, now);
         const credit = await this.creditOf(tenantId, subscriptionBundleId, now);
         const { content: notice, subject } = await this.recordEnd(
             told,
@@ -228,19 +240,13 @@ export class EndAtOnceService {
         );
         const at = now;
         if (booking) {
+            const read: BookingCancellation = {
+                subscriptionBundleId: booking.id,
+                canceledAt: booking.canceledAt,
+                canceledEffectiveAt: booking.canceledEffectiveAt,
+            };
             await this.endBooking(booking, declared, at);
-            await freezeContractAfter(
-                cancellationHasLanded(subscription, at) ? null : this.contractFreeze,
-                tenantId,
-                {
-                    plan: subscription.plan,
-                    cycle: subscription.billingCycle as BillingCycle,
-                    effectiveFrom: at,
-                    endsAt: cancellationLandsAt(subscription),
-                },
-                'an add-on ended at once',
-                this.logger,
-            );
+            await this.freezeWithoutOrPutBack(tenantId, subscription, read, at);
         } else {
             await this.endSubscription(tenantId, declared, at);
             await this.endContract(tenantId, at);
@@ -521,6 +527,100 @@ export class EndAtOnceService {
         await this.bookings!.cancel(booking.id, { canceledAt: at, canceledEffectiveAt: at });
     }
 
+    /**
+     * Refuses ending the booking where the party of the contract without it
+     * would be refused — no subscriber, or no tax treatment for them over that
+     * contract's first period — while nothing has moved (`SC-BUN-067`). Only
+     * what holds without the add-on is asked here: composed now, the contract
+     * would still price the booking to be ended, and an add-on the source can
+     * no longer price would refuse its own end. The contract is composed once
+     * the booking has ended (`freezeWithoutOrPutBack`). In a trial, which
+     * commits to no period, the subscriber alone.
+     */
+    private async assertPartyWithout(
+        tenantId: string,
+        subscription: Situation['subscription'],
+        now: Date,
+    ): Promise<void> {
+        await this.contractFreeze?.assertPartyFor(
+            tenantId,
+            contractUnlessTrialOf(subscription, now),
+        );
+    }
+
+    /**
+     * Writes the contract without the booking ended at `at`, or puts the
+     * booking back as it was read and refuses the end: with the contract's own
+     * refusal where it gave one, with `FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN`
+     * where the store failed (`SC-BUN-067`). Composed only now, the contract
+     * prices the add-ons still running and no longer the one ended. Left ended
+     * under the contract that names it, the booking would go on granting its
+     * features, since the entitlements read that contract first. Where it
+     * cannot be put back, the end stands — it has happened and has no repeat —
+     * and the log names the booking without its contract.
+     */
+    private async freezeWithoutOrPutBack(
+        tenantId: string,
+        subscription: Situation['subscription'],
+        read: BookingCancellation,
+        at: Date,
+    ): Promise<void> {
+        if (!this.contractFreeze) return;
+        const { cycle, endsAt } = intendedContractOf(subscription, at);
+        try {
+            await this.contractFreeze.freezeOnPlanChange(
+                tenantId,
+                subscription.plan,
+                cycle,
+                at,
+                endsAt,
+            );
+        } catch (error) {
+            if (await this.putBack(tenantId, read, at, error)) throw endRefusedFor(error);
+        }
+    }
+
+    /**
+     * Puts the booking ended at `at` back on the cancellation it was read
+     * with; whether that was written. Either way the entitlements read it
+     * again, and the log says which.
+     */
+    private async putBack(
+        tenantId: string,
+        { subscriptionBundleId, ...cancellation }: BookingCancellation,
+        at: Date,
+        error: unknown,
+    ): Promise<boolean> {
+        let why: string;
+        try {
+            const back = await this.bookings?.restoreCancellation?.(subscriptionBundleId, {
+                endedAt: at,
+                ...cancellation,
+            });
+            if (back) {
+                this.logger.error(
+                    `The contract without booking ${subscriptionBundleId} of tenant ${tenantId}, ` +
+                        'ended at once, could not be written, and the booking was put back: ' +
+                        String(error),
+                );
+                return true;
+            }
+            why =
+                back === undefined
+                    ? 'the booking store cannot put a booking back'
+                    : 'it ends otherwise by now';
+        } catch (putBackError) {
+            why = String(putBackError);
+        } finally {
+            this.entitlements.invalidateTenant(tenantId);
+        }
+        this.logger.error(
+            `Booking ${subscriptionBundleId} of tenant ${tenantId} ended at once without its ` +
+                `contract, and could not be put back (${why}): ${String(error)}`,
+        );
+        return false;
+    }
+
     /** The contract ends when the subscription does; logged, not thrown: the end is recorded. */
     private async endContract(tenantId: string, at: Date): Promise<void> {
         if (!this.contractFreeze) return;
@@ -667,6 +767,19 @@ function doesNotReach(): UnprocessableEntityException {
     return new UnprocessableEntityException({
         code: BILLING_ERROR_CODES.FEATURE_WITHDRAWAL_DOES_NOT_REACH,
         message: 'This withdrawal does not reach your subscription, or no longer this booking.',
+        params: {},
+    });
+}
+
+/**
+ * The refusal of an end whose booking was put back: the contract's own where
+ * it gave one, otherwise that the store could not write it.
+ */
+function endRefusedFor(error: unknown): HttpException {
+    if (error instanceof HttpException) return error;
+    return new ServiceUnavailableException({
+        code: BILLING_ERROR_CODES.FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN,
+        message: 'The contract without this add-on could not be written, so it was not ended.',
         params: {},
     });
 }

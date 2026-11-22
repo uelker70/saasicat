@@ -80,6 +80,16 @@ screen saying "no payment method is taken" stops saying it the day a gateway is 
 the day somebody notices. It says what the installation takes, not whether you run a sign-up at
 all: that is your own wiring, and this guide is where you decided it.
 
+An add-on in the same answer carries two prices, and a page that lets the prospect choose a plan
+reads the one beside it. `bundles[].planPrices` names, for each plan of the catalogue the add-on can
+be booked with, what a contract for that plan takes: `monthlyNet` and `yearlyNet` — the plan's
+override where the add-on has one, `null` where the plan is not sold in the rhythm or the add-on has
+no price beside it — and `discountedMonthlyNet` and `discountedYearlyNet` after the add-on's
+promotion (`SC-MKT-030`). A plan the add-on cannot be had with has no entry. `monthlyNet` and
+`yearlyNet` on the add-on itself are its own price before any override: show them, marked as
+depending on the plan, only while no plan is chosen. `addOnPriceBeside(bundle, planKey, cycle)` from
+`@saasicat/ui-vue` reads it that way, and `OnboardingConfigurator` and `PublicBundleGrid` show it.
+
 The gateway confirms the payment method through its callback to
 `POST /webhooks/payment/<account>`. The platform verifies it, claims it and activates the sign-up on
 **one transaction**: it opens it, claims the confirmation on it, and hands it to your orchestrator

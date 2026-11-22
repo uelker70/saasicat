@@ -10,6 +10,7 @@ import {
     type ContractAgreement,
     type CreateSubscriptionBundleData,
     type EndNowInput,
+    type RestoreCancellationInput,
     type SubscriptionBundleRecord,
     type SubscriptionBundleRepository,
     type TransactionContext,
@@ -133,6 +134,28 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
                 canceledEffectiveAt: input.expectedCanceledEffectiveAt,
             },
             data: { canceledAt: input.at, canceledEffectiveAt: input.at },
+        });
+        return count === 0 ? null : this.findById(subscriptionBundleId);
+    }
+
+    /**
+     * One guarded `UPDATE`: the moment it was ended at is in the `WHERE`, so a
+     * booking that ends otherwise by now is left as it is.
+     */
+    async restoreCancellation(
+        subscriptionBundleId: string,
+        input: RestoreCancellationInput,
+    ): Promise<SubscriptionBundleRecord | null> {
+        const { count } = await this.db().subscriptionBundle.updateMany({
+            where: {
+                id: subscriptionBundleId,
+                canceledAt: input.endedAt,
+                canceledEffectiveAt: input.endedAt,
+            },
+            data: {
+                canceledAt: input.canceledAt,
+                canceledEffectiveAt: input.canceledEffectiveAt,
+            },
         });
         return count === 0 ? null : this.findById(subscriptionBundleId);
     }

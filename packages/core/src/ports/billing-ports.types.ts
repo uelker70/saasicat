@@ -80,6 +80,7 @@ import type {
     SubscriberReconciliationCaseRecord,
 } from '../subscriber-reconciliation.types.js';
 import type { CalendarDay } from '../zoned-day.js';
+import type { SubscriptionPutBack } from '../plan-change-put-back.js';
 import type {
     InvoiceRegisterPage,
     InvoiceRegisterRange,
@@ -358,6 +359,33 @@ export interface SubscriptionBundleRepository {
         subscriptionBundleId: string,
         input: EndNowInput,
     ): Promise<SubscriptionBundleRecord | null>;
+    /**
+     * Writes back the cancellation the booking `subscriptionBundleId` had
+     * before it was ended at once at `input.endedAt` — none, or the one
+     * declared for a later date — provided both its cancellation fields are
+     * still `input.endedAt`, and answers it as it now stands; null where it
+     * ends otherwise meanwhile, or is gone. Nothing else of it changes.
+     *
+     * An add-on ended at once and the contract without it are one
+     * (`SC-BUN-067`): where that contract cannot be written, the booking goes
+     * back to running as it was. Optional, so a repository written before it
+     * keeps working; without it, an end whose contract cannot be written
+     * stands, and the log names the booking.
+     */
+    restoreCancellation?(
+        subscriptionBundleId: string,
+        input: RestoreCancellationInput,
+    ): Promise<SubscriptionBundleRecord | null>;
+}
+
+/** What putting back a booking ended at once is told to write. */
+export interface RestoreCancellationInput {
+    /** The moment it was ended at: the write is conditional on it. */
+    readonly endedAt: Date;
+    /** When the cancellation it had was declared, or null where it had none. */
+    readonly canceledAt: Date | null;
+    /** When that cancellation lands, or null where it had none. */
+    readonly canceledEffectiveAt: Date | null;
 }
 
 /** What ending at once something cancelled for a later date is told to write. */
@@ -1736,6 +1764,16 @@ export interface ImmediatePlanChangeInput {
      * out, a version that no longer takes bookings is not bound.
      */
     restoresQuotedVersion?: boolean;
+    /**
+     * The subscription as it stood before a plan change this write takes back:
+     * its status, its period and the day it is billed on, and the change it had
+     * scheduled are written as given, nulls included, instead of what
+     * `nextStatus`, `periodStart`/`periodEnd` and `keepsPendingChange` would
+     * write. The platform passes it, with `restoresQuotedVersion`, where the
+     * contract a plan change has to come with could not be written: the plan
+     * does not change without it (`SC-CHG-025`). Left out, nothing is put back.
+     */
+    putsBack?: SubscriptionPutBack;
 }
 
 /** Input for `schedulePlanChange` (change at period end). */

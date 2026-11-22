@@ -18,12 +18,14 @@ import {
 } from '@nestjs/common';
 import type {
     BillingCycle,
+    ImmediatePlanChangeInput,
     PlanCatalogSettings,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
     TenantSubscriptionWritePort,
     UsageSnapshotPort,
     VersionOfferWithDays,
+    VersionSwitchResult,
     VersionSwitchWithDays,
 } from '@saasicat/core';
 import {
@@ -101,9 +103,10 @@ import {
 } from './tenant-audit-actor.js';
 import {
     contractUnlessTrialOf,
-    freezeContractAfter,
+    freezeHealedByTheJournal,
     intendedContractOf,
 } from './freeze-contract-after.js';
+import { freezeOrTakeBack } from './contract-or-take-back.js';
 import {
     agreementNamed,
     type AgreementSettings,
@@ -437,20 +440,31 @@ export class TenantBillingController {
     ): Promise<VersionSwitchWithDays> {
         const tenantId = this.requireTenantId(req);
         const userId = this.requireUserId(req);
-        const result = await this.versionSwitches.take(tenantId, dto.planVersionId);
-        await this.auditLog(
-            req,
-            userId,
-            'Subscription',
+        const recordSwitch = (
+            result: VersionSwitchResult,
+            noted: { contractWritten?: false } = {},
+        ): Promise<void> =>
+            this.auditLog(
+                req,
+                userId,
+                'Subscription',
+                tenantId,
+                result.immediate ? 'SWITCH_PLAN_VERSION' : 'SCHEDULE_PLAN_VERSION_SWITCH',
+                {
+                    offerClass: result.class,
+                    fromPlanVersionId: result.fromPlanVersionId,
+                    toPlanVersionId: result.planVersionId,
+                    takesEffectAt: result.takesEffectAt,
+                    ...noted,
+                },
+            );
+        const result = await this.versionSwitches.take(
             tenantId,
-            result.immediate ? 'SWITCH_PLAN_VERSION' : 'SCHEDULE_PLAN_VERSION_SWITCH',
-            {
-                offerClass: result.class,
-                fromPlanVersionId: result.fromPlanVersionId,
-                toPlanVersionId: result.planVersionId,
-                takesEffectAt: result.takesEffectAt,
-            },
+            dto.planVersionId,
+            new Date(),
+            (standing) => recordSwitch(standing, { contractWritten: false }),
         );
+        await recordSwitch(result);
         return withDays(result, ['takesEffectAt'], this.zone());
     }
 
@@ -608,18 +622,25 @@ export class TenantBillingController {
 
         // Where contracts are frozen, a plan change ends in one naming the
         // tenant's subscriber, at the tax decided for it. Refused here, while
-        // nothing has moved: the freeze runs after the plan is written and only
-        // logs its refusal. Asked of the contract the change ends in, which
-        // only the preview can say: from today, or from the date it is
-        // scheduled for, in the rhythm asked for. A change made today in a
+        // nothing has moved, and asked of the contract the change ends in,
+        // which only the preview can say: from today, or from the date it is
+        // scheduled for, in the rhythm asked for. A change made today is one
+        // with its contract (`SC-CHG-025`), so that contract is composed at
+        // the version the preview quoted and checked whole; one made in a
         // trial ends in none, and asks for the party alone.
-        const cycle = dto.billingCycle as BillingCycle;
-        await this.contractFreeze?.assertPartyFor(
-            tenantId,
-            decision.isImmediate
-                ? contractUnlessTrialOf(sub, new Date(), cycle)
-                : intendedContractOf(sub, scheduledAt, cycle),
-        );
+        const cycle = dto.billingCycle;
+        if (decision.isImmediate) {
+            await this.contractFreeze?.assertContractFor(
+                tenantId,
+                { plan: dto.plan, planVersionId: decision.target.planVersionId },
+                contractUnlessTrialOf(sub, new Date(), cycle),
+            );
+        } else {
+            await this.contractFreeze?.assertPartyFor(
+                tenantId,
+                intendedContractOf(sub, scheduledAt, cycle),
+            );
+        }
 
         // The version a change binds is the one its preview showed
         // (`SC-CHG-023`). The preview is read again here, at the moment the
@@ -698,7 +719,7 @@ export class TenantBillingController {
             const period =
                 wasTrial || cancellationOutstanding || !opensPeriod
                     ? null
-                    : initialPeriodWindow(new Date(), dto.billingCycle as BillingCycle);
+                    : initialPeriodWindow(new Date(), dto.billingCycle);
             // #17: in trial, carry the remaining time over to the target package
             // (via the existing TrialProjectionPort — the same one that feeds the
             // wizard preview). `null` → target without trial: trial end stays unchanged.
@@ -712,32 +733,31 @@ export class TenantBillingController {
                           now: new Date(),
                       })
                     : undefined;
+            const change: ImmediatePlanChangeInput = {
+                planId: dto.plan,
+                cycle: dto.billingCycle,
+                periodStart: period?.start ?? null,
+                periodEnd: period?.end ?? null,
+                nextStatus: wasTrial ? null : 'ACTIVE',
+                trialEndsAt,
+                expectedCanceledAt: sub.canceledAt ?? null,
+                ...claimsBinding,
+                // A change that keeps the plan keeps the version bound
+                // (`SC-SUB-024`): the preview priced it at that version, and
+                // moving the rhythm is no occasion to move it on to the one on
+                // sale.
+                keepsBoundVersion: dto.plan === sub.plan,
+                // The version checked above, and no other: one that stops
+                // taking bookings between the check and the write leaves the
+                // row unclaimed rather than binding its successor.
+                quotedPlanVersionId: quotedVersionId,
+                quotedVersionOnly:
+                    quotedVersionId !== null && this.subscriptionWrite.bindsPlanVersion !== false,
+            };
             // A subscription gone or a plan version retired since the checks
             // above is refused by the store with the code those checks give.
             const result = await answeringRefusals(
-                () =>
-                    this.subscriptionWrite.changePlanImmediate(tenantId, {
-                        planId: dto.plan,
-                        cycle: dto.billingCycle,
-                        periodStart: period?.start ?? null,
-                        periodEnd: period?.end ?? null,
-                        nextStatus: wasTrial ? null : 'ACTIVE',
-                        trialEndsAt,
-                        expectedCanceledAt: sub.canceledAt ?? null,
-                        ...claimsBinding,
-                        // A change that keeps the plan keeps the version bound
-                        // (`SC-SUB-024`): the preview priced it at that version,
-                        // and moving the rhythm is no occasion to move it on to
-                        // the one on sale.
-                        keepsBoundVersion: dto.plan === sub.plan,
-                        // The version checked above, and no other: one that stops
-                        // taking bookings between the check and the write leaves
-                        // the row unclaimed rather than binding its successor.
-                        quotedPlanVersionId: quotedVersionId,
-                        quotedVersionOnly:
-                            quotedVersionId !== null &&
-                            this.subscriptionWrite.bindsPlanVersion !== false,
-                    }),
+                () => this.subscriptionWrite.changePlanImmediate(tenantId, change),
                 {},
                 this.zone(),
             );
@@ -745,23 +765,48 @@ export class TenantBillingController {
                 throw new ConflictException(changedUnderneath);
             }
             this.entitlements.invalidateTenant(tenantId);
-            await this.tryFreezeOnPlanChange(
-                tenantId,
-                dto.plan,
-                dto.billingCycle as BillingCycle,
-                wasTrial,
-                // A plan change on a cancelled subscription is allowed; the
-                // contract it freezes still ends when the subscription does.
-                sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
-            );
-            await recordChargesAfter(this.charges, tenantId, 'a plan change', this.logger);
-            await this.auditLog(req, userId, 'Subscription', tenantId, 'CHANGE_PLAN', {
-                fromPlan: sub.plan,
-                fromCycle: sub.billingCycle,
-                toPlan: result.plan,
-                toCycle: result.billingCycle,
-                immediate: true,
-            });
+            // What a change that stands records, with its contract or without it.
+            const recordChange = async (noted: { contractWritten?: false } = {}): Promise<void> => {
+                await recordChargesAfter(this.charges, tenantId, 'a plan change', this.logger);
+                await this.auditLog(req, userId, 'Subscription', tenantId, 'CHANGE_PLAN', {
+                    fromPlan: sub.plan,
+                    fromCycle: sub.billingCycle,
+                    toPlan: result.plan,
+                    toCycle: result.billingCycle,
+                    immediate: true,
+                    ...noted,
+                });
+            };
+            // A trial commits to no period; its contract is frozen when it
+            // converts.
+            if (!wasTrial) {
+                await freezeOrTakeBack(
+                    {
+                        contractFreeze: this.contractFreeze,
+                        writes: this.subscriptionWrite,
+                        entitlements: this.entitlements,
+                        logger: this.logger,
+                    },
+                    tenantId,
+                    {
+                        plan: dto.plan,
+                        cycle,
+                        effectiveFrom: new Date(),
+                        // A plan change on a cancelled subscription is allowed;
+                        // the contract it freezes still ends when the
+                        // subscription does.
+                        endsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+                    },
+                    {
+                        read: sub,
+                        wrote: change,
+                        boundAfter: decision.target.planVersionId,
+                        what: 'a plan change',
+                    },
+                    () => recordChange({ contractWritten: false }),
+                );
+            }
+            await recordChange();
             return { plan: result.plan, billingCycle: result.billingCycle, immediate: true };
         }
 
@@ -874,20 +919,21 @@ export class TenantBillingController {
         }
 
         const wasTrial = sub.status === 'TRIAL';
-        const period = wasTrial
-            ? null
-            : initialPeriodWindow(new Date(), dto.billingCycle as BillingCycle);
+        const period = wasTrial ? null : initialPeriodWindow(new Date(), dto.billingCycle);
 
-        // Outside a trial the activation ends in a contract naming the
-        // subscriber at the tax decided for it: refused here, while nothing has
-        // moved, as the plan route refuses. A trial commits to no period; its
+        // Outside a trial the activation ends in a contract: asked whole here,
+        // while nothing has moved, at the version on sale it binds, as the plan
+        // route asks it (`SC-CHG-027`). A trial commits to no period; its
         // contract is frozen when it converts.
         if (!wasTrial) {
-            await this.contractFreeze?.assertPartyFor(tenantId, {
-                effectiveFrom: appliedAt,
-                cycle: dto.billingCycle as BillingCycle,
-                endsAt: null,
-            });
+            await this.contractFreeze?.assertContractFor(
+                tenantId,
+                {
+                    plan: dto.plan,
+                    planVersionId: await this.planPreview.versionOnSaleOf(dto.plan, appliedAt),
+                },
+                { effectiveFrom: appliedAt, cycle: dto.billingCycle, endsAt: null },
+            );
         }
 
         // Promo-redeem callback: only when all preconditions are met
@@ -1066,7 +1112,7 @@ export class TenantBillingController {
                         parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                         // The bundle runs in step with the plan it is booked
                         // beside — the plan whose window onboarding just opened.
-                        planCycle: dto.billingCycle as BillingCycle,
+                        planCycle: dto.billingCycle,
                         planPeriodEnd: period?.end ?? null,
                         // The window onboarding just opened decides, not any
                         // anchor stored from the subscription's previous life —
@@ -1097,12 +1143,25 @@ export class TenantBillingController {
         // change, independent of whether the persistence adapter used the
         // atomic onboarding capability or the legacy sequential fallback. After
         // the add-ons: the contract names what is booked when it is written.
-        await this.tryFreezeOnPlanChange(
-            tenantId,
-            dto.plan,
-            dto.billingCycle as BillingCycle,
-            wasTrial,
-        );
+        // What it could refuse was asked above; a store that fails now leaves
+        // the onboarding standing — plan, add-ons and a code redeemed are
+        // riskier to take back than the contract is to write late — and the
+        // journal charges no plan period until it writes it (`SC-PRIC-105`).
+        // A trial commits to no period; its contract is frozen when it converts.
+        if (!wasTrial) {
+            await freezeHealedByTheJournal(
+                this.contractFreeze,
+                tenantId,
+                {
+                    plan: dto.plan,
+                    cycle: dto.billingCycle,
+                    effectiveFrom: new Date(),
+                    endsAt: null,
+                },
+                'onboarding',
+                this.logger,
+            );
+        }
 
         await recordChargesAfter(this.charges, tenantId, 'onboarding', this.logger);
 
@@ -1202,29 +1261,6 @@ export class TenantBillingController {
             );
         }
         return reasons;
-    }
-
-    /**
-     * #18: contract freeze after the plan change — non-fatal, only outside of
-     * the trial (during a trial the trial entitlements apply, not the booked plan;
-     * the freeze happens on the transition to ACTIVE, i.e. on materialization).
-     * Without a configured `contractFreeze` hook the call is a no-op.
-     */
-    private async tryFreezeOnPlanChange(
-        tenantId: string,
-        plan: string,
-        cycle: BillingCycle,
-        wasTrial: boolean,
-        endsAt: Date | null = null,
-    ): Promise<void> {
-        if (wasTrial) return;
-        await freezeContractAfter(
-            this.contractFreeze,
-            tenantId,
-            { plan, cycle, effectiveFrom: new Date(), endsAt },
-            'plan change',
-            this.logger,
-        );
     }
 
     /**

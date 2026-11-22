@@ -11,6 +11,9 @@ import {
     catalogDraftExists,
     catalogVersionAlreadyPublished,
     catalogVersionGone,
+    columnsClaimedByPutBack,
+    columnsOfPeriodOpened,
+    columnsPutBack,
     formatCustomerNumber,
     formatInvoiceNumber,
     identityCorrectionDelta,
@@ -352,6 +355,10 @@ export function createMemoryHarness() {
             if ((row.canceledAt ?? null) !== (input.expectedCanceledAt ?? null)) {
                 return { plan: row.plan, billingCycle: row.billingCycle, claimed: false };
             }
+            // A put-back claims the row only while it is as the change left it.
+            if (input.putsBack && !holdsEvery(row, columnsClaimedByPutBack(input.putsBack))) {
+                return unclaimed;
+            }
             Object.assign(
                 row,
                 scheduledChangeAfterWrite(
@@ -371,6 +378,9 @@ export function createMemoryHarness() {
             row.plan = input.planId;
             row.billingCycle = input.cycle;
             row.planVersionId = target.id;
+            if (input.nextStatus) row.status = input.nextStatus;
+            Object.assign(row, columnsOfPeriodOpened(input.periodStart, input.periodEnd));
+            if (input.putsBack) Object.assign(row, columnsPutBack(input.putsBack));
             return { plan: row.plan, billingCycle: input.cycle, claimed: true };
         },
         async applyOnboardingSelection(tenantId, input, redeemPromo) {
@@ -827,6 +837,18 @@ export function createMemoryHarness() {
             }
             row.canceledAt = at;
             row.canceledEffectiveAt = at;
+            return toSubscriptionBundleRecord(row);
+        },
+        async restoreCancellation(id, { endedAt, canceledAt, canceledEffectiveAt }) {
+            const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
+            if (
+                row?.canceledAt?.getTime() !== endedAt.getTime() ||
+                row.canceledEffectiveAt?.getTime() !== endedAt.getTime()
+            ) {
+                return null;
+            }
+            row.canceledAt = canceledAt;
+            row.canceledEffectiveAt = canceledEffectiveAt;
             return toSubscriptionBundleRecord(row);
         },
         async moveToVersion(id, from, to) {
@@ -4244,4 +4266,18 @@ function actorTagMatches(tag, pattern) {
     const value = tag.toLowerCase();
     if (leading && trailing) return value.includes(literal);
     return leading ? value.endsWith(literal) : value.startsWith(literal);
+}
+
+/**
+ * Whether `row` holds every column of `expected`, as a `WHERE` with `=` and
+ * `IS NULL` would; a column expected as `undefined` is not compared.
+ */
+function holdsEvery(row, expected) {
+    return Object.entries(expected).every(([column, value]) => {
+        if (value === undefined) return true;
+        const held = row[column] ?? null;
+        if (value instanceof Date)
+            return held instanceof Date && held.getTime() === value.getTime();
+        return held === value;
+    });
 }

@@ -1,10 +1,14 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import 'reflect-metadata';
+
+import { UnprocessableEntityException } from '@nestjs/common';
 import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN, resolveErrorMessage } from '@saasicat/core';
 import {
     EndAtOnceService,
     FeatureWithdrawalTenantController,
+    SubscriptionContractFreezeService,
     SubscriptionEndService,
     givenPlanCatalogSource,
 } from '../dist/billing/index.js';
@@ -12,8 +16,13 @@ import {
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
+import { EntitlementService } from '../dist/entitlement/index.js';
 import { CATALOG, refusalOf } from './helpers/feature-withdrawal-fixtures.js';
-import { usageRecord } from './helpers/subscription-fixtures.js';
+import {
+    boundPlanVersion,
+    entitlementServiceFor,
+    usageRecord,
+} from './helpers/subscription-fixtures.js';
 import { noticeRecord } from './helpers/version-notices.js';
 
 // While a feature is withdrawn, a subscription it reached may end at once,
@@ -109,6 +118,8 @@ async function ending({
     versionGrants = { 'bv-export-1': ['EXPORT'] },
     writes: writeFields = {},
     bookingStore: bookingFields = {},
+    contractFreeze: freezeFields = {},
+    freeze = null,
     settings = null,
     ends = null,
 } = {}) {
@@ -195,6 +206,21 @@ async function ending({
             Object.assign(row, { canceledAt: input.at, canceledEffectiveAt: input.at });
             return row;
         },
+        async restoreCancellation(id, input) {
+            calls.push(['putBookingBack', id, input]);
+            const row = bookings.find((one) => one.id === id);
+            if (
+                row?.canceledAt?.getTime() !== input.endedAt.getTime() ||
+                row.canceledEffectiveAt?.getTime() !== input.endedAt.getTime()
+            ) {
+                return null;
+            }
+            Object.assign(row, {
+                canceledAt: input.canceledAt,
+                canceledEffectiveAt: input.canceledEffectiveAt,
+            });
+            return row;
+        },
         ...bookingFields,
     };
     const service = new EndAtOnceService(
@@ -214,11 +240,13 @@ async function ending({
         { tell: async (content, subject) => calls.push(['tell', content.kind, subject]) },
         bookingStore,
         { findVersionById: async (id) => ({ features: versionGrants[id] ?? [] }) },
-        {
+        freeze ?? {
             endOnCancellation: async (tenantId, at) =>
                 calls.push(['endContract', at.toISOString()]),
+            assertPartyFor: async (tenantId, intended) => calls.push(['assertParty', intended]),
             freezeOnPlanChange: async (tenantId, plan, cycle, from) =>
                 calls.push(['refreeze', from.toISOString()]),
+            ...freezeFields,
         },
         {
             creditOfEndingAtOnce: async (tenantId, subscriptionBundleId, at) => {
@@ -952,12 +980,13 @@ describe('ending a booking at once', () => {
         const ended = await service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED);
         assert.equal(ended.subscriptionBundleId, 'sb-t1');
         assert.equal(ended.creditNet, 6.67);
-        assert.deepEqual(calls[1], [
+        assert.deepEqual(calls[2], [
             'cancelBooking',
             'sb-t1',
             { canceledAt: NOW, canceledEffectiveAt: NOW },
         ]);
         assert.deepEqual(kinds(calls), [
+            'assertParty',
             'credit',
             'cancelBooking',
             'refreeze',
@@ -977,7 +1006,7 @@ describe('ending a booking at once', () => {
             ],
         });
         await service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED);
-        assert.deepEqual(calls[1], [
+        assert.deepEqual(calls[2], [
             'endBookingNow',
             'sb-t1',
             { at: NOW, expectedCanceledEffectiveAt: declared },
@@ -1005,6 +1034,273 @@ describe('ending a booking at once', () => {
             (await refusalOf(service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED))).code,
             'FEATURE_WITHDRAWAL_ALREADY_ENDED',
         );
+    });
+});
+
+// @requirement SC-BUN-067 — An add-on ended at once and the contract without it are one
+describe('an add-on ended at once, and the contract without it', () => {
+    /** A refusal of the contract's own, as the freeze or its check raises it. */
+    const refusedBecause = (code) => {
+        throw new UnprocessableEntityException({ code, message: code, params: {} });
+    };
+    const storeDown = async () => {
+        throw new Error('database gone');
+    };
+    const loggedBy = (service) => {
+        const logged = [];
+        service.logger.error = (message) => logged.push(message);
+        return logged;
+    };
+    const recorded = (notices) =>
+        [...notices.rows.values()].filter((row) => row.kind === 'ended-at-once');
+
+    /**
+     * Whether the add-on's feature is granted after the attempt, read the way
+     * the entitlements read it: first from the contract in force — the one
+     * naming the add-on, since no other was written — then from the bookings
+     * running. On a plan that does not grant it.
+     */
+    async function exportGrantedAfter(bookings) {
+        const running = bookings.filter(
+            (one) => one.canceledEffectiveAt === null || one.canceledEffectiveAt > NOW,
+        );
+        const service = entitlementServiceFor(
+            EntitlementService,
+            usageRecord({ id: 'sub-t1', plan: 'STARTER', status: 'ACTIVE' }),
+            {
+                contract: {
+                    id: 'c-in-force',
+                    tenantId: 't1',
+                    status: 'active',
+                    effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+                    effectiveUntil: null,
+                    originalBundleVersionIds: ['bv-export-1'],
+                    lineItems: [
+                        {
+                            kind: 'bundle',
+                            sourceKey: 'EXPORT_PLUS',
+                            sourceVersionId: 'bv-export-1',
+                            featuresSnapshot: ['EXPORT'],
+                            quotaEffectsSnapshot: {},
+                        },
+                    ],
+                    entitlementSnapshot: {
+                        plan: 'STARTER',
+                        quotas: {},
+                        features: ['READ_ONLY', 'EXPORT'],
+                    },
+                },
+                bundles: running,
+                versions: { 'bv-export-1': { features: ['EXPORT'] } },
+            },
+        );
+        return (await service.computeLimits('t1')).features.has('EXPORT');
+    }
+
+    test('asks its party first, for the contract the end writes: from now, until the subscription ends', async () => {
+        const declared = new Date('2026-12-01T00:00:00.000Z');
+        const { service, calls } = await ending({
+            subscription: { canceledAt: new Date('2026-05-01'), canceledEffectiveAt: declared },
+        });
+
+        await service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED);
+
+        assert.deepEqual(calls[0], [
+            'assertParty',
+            { effectiveFrom: NOW, cycle: 'MONTHLY', endsAt: declared },
+        ]);
+        assert.ok(kinds(calls).indexOf('assertParty') < kinds(calls).indexOf('cancelBooking'));
+    });
+
+    test('asks the subscriber alone in a trial, which commits to no period', async () => {
+        const { service, calls } = await ending({ subscription: { status: 'TRIAL' } });
+
+        await service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED);
+
+        assert.deepEqual(calls[0], ['assertParty', null]);
+    });
+
+    test('whose party is refused before it is written refuses the end with that reason, and nothing is written', async () => {
+        const { service, bookings, notices, calls } = await ending({
+            contractFreeze: {
+                assertPartyFor: async () => refusedBecause('TAX_TREATMENT_NOT_SUPPORTED'),
+            },
+        });
+
+        const refusal = await refusalOf(service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED));
+
+        assert.equal(refusal.code, 'TAX_TREATMENT_NOT_SUPPORTED');
+        assert.equal(bookings[0].canceledEffectiveAt, null, 'the booking runs on');
+        assert.deepEqual(recorded(notices), [], 'no end recorded');
+        assert.deepEqual(kinds(calls), [], 'nothing ended, credited or told');
+    });
+
+    test('whose party is refused refuses the preview the same', async () => {
+        const { service, calls } = await ending({
+            contractFreeze: {
+                assertPartyFor: async () => refusedBecause('SUBSCRIBER_REQUIRED'),
+            },
+        });
+
+        const refusal = await refusalOf(service.preview('t1', 'fw-1', 'sb-t1', NOW));
+
+        assert.equal(refusal.code, 'SUBSCRIBER_REQUIRED');
+        assert.deepEqual(kinds(calls), []);
+    });
+
+    test('of an add-on the source can no longer price is still ended, and the contract written after it names it no more', async () => {
+        const bookings = [booking()];
+        const written = [];
+        const freeze = new SubscriptionContractFreezeService(
+            givenPlanCatalogSource(CATALOG),
+            {
+                invalidateTenant() {},
+                async computeContractLimits() {
+                    return {
+                        limits: { plan: 'PRO', quotas: {}, features: new Set() },
+                        leftOutBundleVersionIds: [],
+                    };
+                },
+            },
+            {
+                async assertPartyFor() {},
+                async writeSuccessor(previous, data) {
+                    written.push(data);
+                    return { id: 'c-without-the-add-on' };
+                },
+                async findActiveByTenantId() {
+                    return null;
+                },
+            },
+            {
+                findBoundPlanVersion: async () => boundPlanVersion(CATALOG.plans[0], 'pv-pro-1'),
+                // Prices every add-on running, and finds no price for this one's version any more.
+                loadBookedBundles: async () => {
+                    const running = bookings.filter((one) => one.canceledEffectiveAt === null);
+                    if (running.length > 0) {
+                        throw new Error(
+                            `No price for add-on version ${running[0].bundleVersionId}`,
+                        );
+                    }
+                    return { lineItems: [], bundleVersionIds: [] };
+                },
+            },
+            undefined,
+            null,
+            null,
+            null,
+            null,
+        );
+        const { service } = await ending({ bookings, freeze });
+
+        const ended = await service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED);
+
+        assert.equal(ended.endsAt, NOW.toISOString());
+        assert.equal(bookings[0].canceledEffectiveAt.toISOString(), NOW.toISOString());
+        assert.equal(written.length, 1, 'the contract without it is written');
+        assert.deepEqual(
+            written[0].lineItems.map((line) => [line.kind, line.sourceVersionId]),
+            [['plan', 'pv-pro-1']],
+        );
+    });
+
+    test('the store fails to write puts the booking back as it was read, and refuses the end with a code', async () => {
+        const { service, bookings, calls } = await ending({
+            contractFreeze: { freezeOnPlanChange: storeDown },
+        });
+        const logged = loggedBy(service);
+
+        const refusal = await refusalOf(service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED));
+
+        assert.deepEqual(
+            [refusal.status, refusal.code],
+            [503, 'FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN'],
+        );
+        assert.deepEqual(calls.at(-2), [
+            'putBookingBack',
+            'sb-t1',
+            { endedAt: NOW, canceledAt: null, canceledEffectiveAt: null },
+        ]);
+        assert.deepEqual(calls.at(-1), ['invalidate', 't1'], 'the entitlements read it again');
+        assert.equal(bookings[0].canceledAt, null);
+        assert.equal(bookings[0].canceledEffectiveAt, null, 'the booking runs on');
+        assert.ok(!kinds(calls).includes('charge'), 'nothing credited');
+        assert.ok(!kinds(calls).includes('tell'), 'nobody told of an end that did not happen');
+        assert.equal(logged.length, 1);
+        assert.match(logged[0], /sb-t1.*tenant t1.*put back.*database gone/s);
+    });
+
+    test('put back, it runs on, so the contract that still names it grants nothing it does not have', async () => {
+        const { service, bookings } = await ending({
+            contractFreeze: { freezeOnPlanChange: storeDown },
+        });
+        loggedBy(service);
+
+        await refusalOf(service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED));
+
+        const runs = bookings[0].canceledEffectiveAt === null;
+        assert.equal(await exportGrantedAfter(bookings), runs);
+        assert.ok(runs, 'and it runs');
+    });
+
+    test('one cancelled for a later date is put back on that cancellation', async () => {
+        const declaredAt = new Date('2026-06-10T00:00:00.000Z');
+        const declared = new Date('2026-07-01T00:00:00.000Z');
+        const { service, bookings } = await ending({
+            bookings: [booking({ canceledAt: declaredAt, canceledEffectiveAt: declared })],
+            contractFreeze: { freezeOnPlanChange: storeDown },
+        });
+        loggedBy(service);
+
+        const refusal = await refusalOf(service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED));
+
+        assert.equal(refusal.code, 'FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN');
+        assert.deepEqual(
+            [bookings[0].canceledAt, bookings[0].canceledEffectiveAt],
+            [declaredAt, declared],
+        );
+    });
+
+    test('refused after the end with a reason of its own is put back and refused with that reason', async () => {
+        const { service, bookings } = await ending({
+            contractFreeze: {
+                freezeOnPlanChange: async () => refusedBecause('SUBSCRIBER_REQUIRED'),
+            },
+        });
+        loggedBy(service);
+
+        const refusal = await refusalOf(service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED));
+
+        assert.equal(refusal.code, 'SUBSCRIBER_REQUIRED');
+        assert.equal(bookings[0].canceledEffectiveAt, null, 'put back');
+    });
+
+    describe('where the booking cannot be put back', () => {
+        /** Ends with a contract the store fails to write, over the booking store given. */
+        async function endStands(bookingStore) {
+            const { service, bookings, calls } = await ending({
+                bookingStore,
+                contractFreeze: { freezeOnPlanChange: storeDown },
+            });
+            const logged = loggedBy(service);
+
+            const ended = await service.end('t1', 'fw-1', 'sb-t1', NOW, CONFIRMED);
+
+            assert.equal(ended.endsAt, NOW.toISOString());
+            assert.equal(bookings[0].canceledEffectiveAt.toISOString(), NOW.toISOString());
+            assert.deepEqual(kinds(calls).slice(-3), ['invalidate', 'charge', 'tell']);
+            assert.equal(logged.length, 1);
+            assert.match(logged[0], /sb-t1.*tenant t1.*without its contract.*database gone/s);
+        }
+
+        test('because it ends otherwise by now, the end stands, is credited and told, and the log names the booking', () =>
+            endStands({ restoreCancellation: async () => null }));
+
+        test('because the store fails again, the end stands, is credited and told, and the log names the booking', () =>
+            endStands({ restoreCancellation: storeDown }));
+
+        test('because the store cannot put a booking back, the end stands, is credited and told, and the log names the booking', () =>
+            endStands({ restoreCancellation: undefined }));
     });
 });
 

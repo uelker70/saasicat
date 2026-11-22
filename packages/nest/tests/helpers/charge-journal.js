@@ -186,13 +186,23 @@ export function anAccount({
         bookings,
         ledger,
         service,
-        /** Writes a contract for the tenant, with the lines given. */
+        /**
+         * Writes a contract for the tenant, with the lines given. A freeze
+         * writes the version the subscription is bound to, so a plan line
+         * naming a version binds the subscription to it, as the change that
+         * froze it did; `binds: false` writes one the binding has left.
+         */
         async contract({
             effectiveFrom = utc('2026-01-01'),
             lineItems,
             offer = null,
             until = null,
+            binds = true,
         }) {
+            const plan = lineItems.find((item) => item.kind === 'plan' && item.sourceVersionId);
+            if (binds && plan) {
+                subscription.planVersion = { id: plan.sourceVersionId, planId: plan.sourceKey };
+            }
             const created = await contracts.create({
                 tenantId: 't1',
                 parties: PARTIES,

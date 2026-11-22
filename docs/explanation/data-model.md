@@ -441,6 +441,9 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
     cancellation is still the one the caller read. One whose cancellation moved,
     was taken back or has already ended it at once is left as it is, and one
     not cancelled is not ended here.
+    `SubscriptionBundleRepository.restoreCancellation` puts a booking ended at
+    once back on the cancellation it had, and only while both its
+    cancellation fields are still the moment it was ended at.
 17. **An invoice's file is recorded before it is archived, and archived once.**
     `SubscriptionInvoiceRepository.recordRendering` writes the checksum
     conflict-free on the invoice: a second rendering with the same checksum is

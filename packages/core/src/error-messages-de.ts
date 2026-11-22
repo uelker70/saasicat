@@ -194,6 +194,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Dieses Abonnement endet, bevor diese Version wirksam würde. Ein Wechsel dorthin ist nicht möglich.',
     VERSION_ENDS_BEFORE_SWITCH:
         'Diese Version wird nicht mehr verkauft, bevor sie wirksam würde. Ein Wechsel dorthin ist nicht möglich.',
+    PLAN_CHANGE_CONTRACT_NOT_WRITTEN:
+        'Der Vertrag für diesen Wechsel konnte nicht geschrieben werden, deshalb wurde nichts geändert. Bitte versuchen Sie es später erneut.',
+    PLAN_CHANGE_STANDS_WITHOUT_CONTRACT:
+        'Der Wechsel wurde vorgenommen, sein Vertrag konnte aber noch nicht geschrieben werden. Sie müssen ihn nicht erneut vornehmen.',
     RETIREMENT_TERMS_NOT_CONFIRMED:
         'Eine Version für laufende Abonnements stillzulegen, braucht eine Klausel in Ihren AGB. Setzen Sie tenantBilling.orderlyRetirement.termsConfirmed in config/saas.yaml, sobald sie sie enthalten.',
     RETIREMENT_VERSION_ON_SALE:
@@ -261,6 +265,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     FEATURE_WITHDRAWAL_ALREADY_ENDED: 'Das ist bereits beendet.',
     FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED:
         'Ihre Kündigung ist erfasst und kann hier nicht vorgezogen werden: Es läuft bis {lastDay}, und bis dahin gilt die Minderung.',
+    FEATURE_WITHDRAWAL_END_CONTRACT_NOT_WRITTEN:
+        'Der Vertrag ohne dieses Add-on konnte nicht geschrieben werden, deshalb wurde es nicht beendet. Bitte versuchen Sie es später erneut.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'Für Ihre Version steht keine Einstellung mehr bevor. Es gibt nichts, wohin Sie wechseln könnten.',
     RETIREMENT_SWITCH_IN_TRIAL: 'Der Wechsel ist möglich, sobald Ihre Testphase endet.',

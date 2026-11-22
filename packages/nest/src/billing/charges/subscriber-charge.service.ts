@@ -23,6 +23,7 @@ import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../../subscription-contr
 import { cancellationHasLanded } from '../../entitlement/landed-cancellation.js';
 import { resolvePlanAnchorDay } from '../bundle-period.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from '../contract-freeze.tokens.js';
+import { freezeHealedByTheJournal } from '../freeze-contract-after.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../subscription-bundles.tokens.js';
 import { retiredBundleVersionsOf, retiredVersionsOf } from '../retirement-notices.js';
 import {
@@ -34,6 +35,7 @@ import { ENTITLEMENT_SERVICE_TOKEN } from '../../entitlement/entitlement.tokens.
 import { FeatureWithdrawalContractService } from '../feature-withdrawal-contract.service.js';
 import {
     bookingsTheContractMisses,
+    contractMissingTheBoundVersion,
     deriveDueCharges,
     type ChargeDerivationInput,
 } from './charge-derivation.js';
@@ -176,12 +178,7 @@ export class SubscriberChargeService {
         let contracts: SubscriptionContractRecord[];
         if (options.writesContracts) {
             await this.recordWithdrawalReductions(tenantId, told, now);
-            contracts = await this.contractsNamingEveryBooking(
-                tenantId,
-                subscription,
-                bookings,
-                now,
-            );
+            contracts = await this.contractsNamingWhatRuns(tenantId, subscription, bookings, now);
         } else {
             contracts = await this.contracts.list({ tenantId });
         }
@@ -202,6 +199,7 @@ export class SubscriberChargeService {
                 anchorDay: resolvePlanAnchorDay(subscription),
                 startedAt: subscription.startedAt,
                 endsAt: endedHere(null) ? end!.at : endOf(subscription),
+                planVersionId: subscription.planVersion?.id ?? null,
             },
             contracts,
             bookings: bookings.map((booking) =>
@@ -287,15 +285,18 @@ export class SubscriberChargeService {
 
     /**
      * The tenant's contracts, written once more where the one in force misses
-     * a running booking.
+     * a running booking, or names another plan version than the one bound.
      *
      * A booking writes its contract after it is saved, and a failure there does
-     * not undo the booking. The booking would then stay uncharged for good,
-     * since a charge points at a contract line — so the journal writes the
-     * contract the way the booking would have. A failure here is logged and the
-     * rest is charged: the next call tries again.
+     * not undo the booking; an onboarding whose contract the store failed to
+     * write stands as well, and so does a plan change that could not be put
+     * back. The booking would then stay uncharged for good, since a charge
+     * points at a contract line, and the plan would be charged at the version
+     * left (`SC-PRIC-105`) — so the journal writes the contract the way the
+     * change would have. A failure here is logged and the rest is charged: the
+     * next call tries again.
      */
-    private async contractsNamingEveryBooking(
+    private async contractsNamingWhatRuns(
         tenantId: string,
         subscription: SubscriptionUsageRecord,
         bookings: readonly SubscriptionBundleRecord[],
@@ -303,35 +304,53 @@ export class SubscriberChargeService {
     ): Promise<SubscriptionContractRecord[]> {
         const contracts = await this.contracts.list({ tenantId });
         const missed = bookingsTheContractMisses(contracts, bookings, now);
+        const stale = contractMissingTheBoundVersion(
+            contracts,
+            subscription.planVersion?.id ?? null,
+            now,
+        );
         if (
-            missed.length === 0 ||
+            (missed.length === 0 && !stale) ||
             !this.freeze ||
             subscription.status === 'TRIAL' ||
             cancellationHasLanded(subscription, now)
         ) {
             return contracts;
         }
-        // What the subscriber agreed to by the latest of these bookings, as the
-        // contract its own freeze would have recorded.
-        const agreed = latestAgreementOf(missed);
-        try {
-            await this.freeze.freezeOnPlanChange(
-                tenantId,
-                subscription.planVersion.planId,
-                planCycleOf(subscription),
-                now,
-                endOf(subscription),
-                agreed ? { agreed } : undefined,
-            );
-        } catch (err) {
-            this.logger.error(
-                `Writing the contract for ${missed.length} booking(s) it misses failed ` +
-                    `(tenant ${tenantId}): ${String(err)}`,
-            );
-            return contracts;
-        }
+        // The contract records what the subscriber agreed to by the latest of
+        // these bookings, as the freeze of that booking would have.
+        await freezeHealedByTheJournal(
+            this.freeze,
+            tenantId,
+            {
+                plan: subscription.planVersion.planId,
+                cycle: planCycleOf(subscription),
+                effectiveFrom: stale ? changeMissedFrom(stale, subscription, now) : now,
+                endsAt: endOf(subscription),
+                agreed: latestAgreementOf(missed),
+            },
+            `what the contract in force misses (${missed.length} booking(s)` +
+                `${stale ? ', the plan version bound' : ''})`,
+            this.logger,
+        );
         return this.contracts.list({ tenantId });
     }
+}
+
+/**
+ * When the change the contract in force misses took effect, as far as the
+ * records tell: the window it opened, where that began after the contract —
+ * onboarding and a scheduled change open one at the moment they are written —
+ * and otherwise now. The contract written for it then prices the window the
+ * change opened, at the version it bound, and not the one it left.
+ */
+function changeMissedFrom(
+    stale: SubscriptionContractRecord,
+    subscription: SubscriptionUsageRecord,
+    now: Date,
+): Date {
+    const opened = subscription.currentPeriodStart;
+    return opened !== null && opened > stale.effectiveFrom && opened <= now ? opened : now;
 }
 
 /** What the entries ending at once at `at` credit, net, as a positive amount, and in which currency. */

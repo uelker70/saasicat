@@ -11,6 +11,7 @@
 // This keeps the composable testable without network mocks.
 
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
+import { addOnPriceBeside } from '../client/add-on-price.js';
 import type { CatalogPlan } from './use-tenant-billing-catalog.js';
 import type { BillingCycleStr } from './use-tenant-billing.js';
 import {
@@ -146,14 +147,20 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
         return plansRef.value.find((p) => p.id === plan.value) ?? null;
     });
 
-    // A selected bundle without a price for the cycle is not sold in it, so it
-    // is neither charged nor sent, and covers nothing. It stays selected, so
-    // switching back to the cycle it is priced for books it again.
+    /** What the bundle costs beside the chosen plan in the cycle; `null` where it is not charged. */
+    function bundleNet(bundle: PublicMarketingBundle): number | null {
+        const price = addOnPriceBeside(bundle, plan.value, cycle.value);
+        return price.kind === 'priced' ? price.net : null;
+    }
+
+    // A selected bundle without a price beside the plan in the cycle is not
+    // sold there, so it is neither charged nor sent, and covers nothing. It
+    // stays selected, so switching back to the cycle it is priced for books it
+    // again. Before a plan is chosen no bundle has a price yet: it depends on
+    // the plan.
     const selectedBundles = computed<PublicMarketingBundle[]>(() =>
         subscriptionBundlesRef.value.filter(
-            (b) =>
-                selectedBundleVersionIds.value.has(b.bundleVersionId) &&
-                priceForCycle(b, cycle.value) !== null,
+            (b) => selectedBundleVersionIds.value.has(b.bundleVersionId) && bundleNet(b) !== null,
         ),
     );
 
@@ -198,7 +205,9 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
         const bundleItems: PriceLineItem[] = [];
         let bundlesNet = 0;
         for (const b of chargeableBundles.value) {
-            const net = priceForCycle(b, cyc) ?? 0;
+            const net = bundleNet(b);
+            // `chargeableBundles` holds priced bundles only; this narrows the type.
+            if (net === null) continue;
             bundlesNet += net;
             bundleItems.push({
                 key: `subscription-bundle:${b.bundleVersionId}`,
@@ -273,13 +282,10 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
         if (plan.value === planId) return;
         plan.value = planId;
         forgetPromoPreview();
-        // Reduce the bundle selection to those compatible with the new plan.
+        // Reduce the bundle selection to those the new plan can have.
         const compatibleBundleVersions = new Set<string>();
         for (const bundle of subscriptionBundlesRef.value) {
-            if (
-                bundle.compatiblePlanKeys.length === 0 ||
-                bundle.compatiblePlanKeys.includes(planId)
-            ) {
+            if (addOnPriceBeside(bundle, planId, cycle.value).kind !== 'not-with-plan') {
                 compatibleBundleVersions.add(bundle.bundleVersionId);
             }
         }

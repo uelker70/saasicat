@@ -493,6 +493,7 @@ export type ContractGap =
     | 'subscriptionsById'
     | 'featureWithdrawals'
     | 'bookingsEndedNow'
+    | 'bookingsEndPutBack'
     | 'subscriptionsEndedNow'
     | 'trialsEnded';
 

@@ -751,6 +751,16 @@ export class PlanChangePreviewService {
         return { kind: 'read', plan: planDefOfVersion(catalog, sub.plan, bound) };
     }
 
+    /**
+     * The id of the version of `planKey` on sale at `asOf` — the one an
+     * activation then binds — or null where nothing reads versions, or none
+     * is on sale.
+     */
+    async versionOnSaleOf(planKey: string, asOf: Date): Promise<string | null> {
+        if (!this.plans) return null;
+        return (await versionOnSale(this.plans, planKey, asOf))?.id ?? null;
+    }
+
     /** The version of a plan on sale at `asOf`, as a plan and with its id; null where nothing reads versions. */
     private async readVersionOnSale(
         catalog: PlanCatalog,

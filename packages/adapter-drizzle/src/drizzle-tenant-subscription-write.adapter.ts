@@ -12,11 +12,15 @@ import type {
     PromoCodeRedemptionRecord,
     RedeemPromoInTransactionCallback,
     ScheduledPlanChangeInput,
+    SubscriptionPutBack,
     TenantSubscriptionWritePort,
     TransactionContext,
 } from '@saasicat/core';
 import {
     NO_SCHEDULED_CHANGE,
+    columnsClaimedByPutBack,
+    columnsOfPeriodOpened,
+    columnsPutBack,
     noActivePlanVersion,
     pendingAgreementColumns,
     scheduledChangeAfterWrite,
@@ -114,18 +118,29 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                           input.periodStart ?? new Date(),
                           tx as unknown as TransactionContext,
                       )));
-            const claimed = await this.claim(db, tenantId, input.expectedCanceledAt, {
+            const written: Partial<typeof subscriptions.$inferInsert> = {
                 plan: input.planId,
                 billingCycle: input.cycle,
                 planVersionId,
                 // The row is locked, so a change kept is the one read.
                 ...scheduledChangeAfterWrite(current, input),
-                ...(input.nextStatus ? { status: input.nextStatus } : {}),
-                ...periodFields(input.periodStart, input.periodEnd),
-                // Null and undefined both mean "leave the trial as it is" — the
-                // platform passes a carried-over end date or nothing at all.
-                ...(input.trialEndsAt ? { trialEndsAt: input.trialEndsAt } : {}),
-            });
+                ...columnsOfPeriodOpened(input.periodStart, input.periodEnd),
+            };
+            if (input.nextStatus) written.status = input.nextStatus;
+            // Null and undefined both mean "leave the trial as it is" — the
+            // platform passes a carried-over end date or nothing at all.
+            if (input.trialEndsAt) written.trialEndsAt = input.trialEndsAt;
+            // A change taken back writes the row as it was read, over
+            // everything above derived from the change — and only while the
+            // row is still as the change left it.
+            if (input.putsBack) Object.assign(written, columnsPutBack(input.putsBack));
+            const claimed = await this.claim(
+                db,
+                tenantId,
+                input.expectedCanceledAt,
+                written,
+                input.putsBack ? asChangedIs(input.putsBack) : [],
+            );
             const after = await this.requireSubscription(db, tenantId);
             return {
                 plan: after.plan,
@@ -292,7 +307,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 planVersionId,
                 ...NO_SCHEDULED_CHANGE,
                 ...(input.nextStatus ? { status: input.nextStatus } : {}),
-                ...periodFields(input.periodStart, input.periodEnd),
+                ...columnsOfPeriodOpened(input.periodStart, input.periodEnd),
             });
             const updated = await this.requireSubscription(db, tenantId);
             if (claimed === 0) {
@@ -405,19 +420,32 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
 }
 
 /**
- * The billing day is derived from the window that is being opened, not passed
- * beside it: a field carrying it could only ever hold this value and would be
- * one more place for the two to disagree. Written only when a window opens — a
- * renewal reading its own previous result is exactly the drift the anchor
- * exists to stop.
+ * The row as the plan change being put back left it, column by column
+ * (`SubscriptionPutBack.asChanged`): a put-back over a row another request has
+ * changed since claims nothing.
  */
-function periodFields(periodStart: Date | null, periodEnd: Date | null): Record<string, unknown> {
-    if (!periodStart || !periodEnd) return {};
-    return {
-        currentPeriodStart: periodStart,
-        currentPeriodEnd: periodEnd,
-        billingAnchorDay: periodStart.getUTCDate(),
-    };
+function asChangedIs(putBack: SubscriptionPutBack): SQL[] {
+    const claimed = columnsClaimedByPutBack(putBack);
+    return [
+        eq(subscriptions.plan, claimed.plan),
+        eq(subscriptions.billingCycle, claimed.billingCycle),
+        eq(subscriptions.status, claimed.status),
+        columnIs(subscriptions.currentPeriodStart, claimed.currentPeriodStart),
+        columnIs(subscriptions.currentPeriodEnd, claimed.currentPeriodEnd),
+        ...(claimed.billingAnchorDay === undefined
+            ? []
+            : [columnIs(subscriptions.billingAnchorDay, claimed.billingAnchorDay)]),
+        columnIs(subscriptions.pendingPlan, claimed.pendingPlan),
+        columnIs(subscriptions.pendingBillingCycle, claimed.pendingBillingCycle),
+        columnIs(subscriptions.pendingEffectiveAt, claimed.pendingEffectiveAt),
+        columnIs(subscriptions.pendingChangeVersionId, claimed.pendingChangeVersionId),
+        columnIs(subscriptions.pendingTermsVersion, claimed.pendingTermsVersion),
+        columnIs(
+            subscriptions.pendingCancellationNoticeDays,
+            claimed.pendingCancellationNoticeDays,
+        ),
+        columnIs(subscriptions.pendingAgreedAt, claimed.pendingAgreedAt),
+    ];
 }
 
 /** `= NULL` is never true in SQL — an expected-null claim needs `IS NULL`. */
@@ -426,6 +454,6 @@ function canceledAtIs(expected: Date | null): SQL {
 }
 
 /** A column as the caller read it: `null` claims a row where it is empty. */
-function columnIs(column: Column, expected: string | Date | null): SQL {
+function columnIs(column: Column, expected: string | number | Date | null): SQL {
     return expected === null ? isNull(column) : eq(column, expected);
 }

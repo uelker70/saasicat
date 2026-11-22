@@ -16,6 +16,9 @@ import type {
 } from '@saasicat/core';
 import {
     NO_SCHEDULED_CHANGE,
+    columnsClaimedByPutBack,
+    columnsOfPeriodOpened,
+    columnsPutBack,
     pendingAgreementColumns,
     type ScheduledChangeColumns,
     buildActivePlanVersionWhere,
@@ -150,21 +153,8 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             plan: input.planId,
             billingCycle: input.cycle,
             ...(input.nextStatus ? { status: input.nextStatus } : {}),
-            // Opening a window sets the day the subscription is billed on, and
-            // that day IS the window's start — derived rather than passed,
-            // because a field carrying it could only ever hold this value and
-            // would be one more place for the two to disagree.
-            //
-            // Written only when a window is opened. A renewal must not touch
-            // it: reading its own previous result is exactly the drift the
-            // anchor exists to stop.
-            ...(input.periodStart && input.periodEnd
-                ? {
-                      currentPeriodStart: input.periodStart,
-                      currentPeriodEnd: input.periodEnd,
-                      billingAnchorDay: input.periodStart.getUTCDate(),
-                  }
-                : {}),
+            // Opening a window sets the day the subscription is billed on.
+            ...columnsOfPeriodOpened(input.periodStart, input.periodEnd),
             // #17: the platform changePlan path computes the carried-over
             // trial end and passes it through; null/undefined leaves the
             // existing trialEndsAt untouched.
@@ -246,6 +236,10 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         } else {
             Object.assign(data, NO_SCHEDULED_CHANGE);
         }
+        // A change taken back writes the row as it was read, over everything
+        // the lines above derived from the change — and only while the row is
+        // still as the change left it.
+        if (input.putsBack) Object.assign(data, columnsPutBack(input.putsBack));
 
         // Claimed, not updated: the caller decided against a cancellation state,
         // and this takes the row only while that state still holds. One
@@ -257,7 +251,10 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             input.expectedCanceledAt,
             data,
             boundVersionId,
-            scheduledAsRead,
+            {
+                ...scheduledAsRead,
+                ...(input.putsBack && columnsClaimedByPutBack(input.putsBack)),
+            },
         );
         const current = await subscription.findUnique({ where: { tenantId } });
         if (!current) {
@@ -314,15 +311,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 billingCycle: input.cycle,
                 ...NO_SCHEDULED_CHANGE,
                 ...(input.nextStatus ? { status: input.nextStatus } : {}),
-                // Same derivation as the immediate path: the billing day is
-                // the day the window opens.
-                ...(input.periodStart && input.periodEnd
-                    ? {
-                          currentPeriodStart: input.periodStart,
-                          currentPeriodEnd: input.periodEnd,
-                          billingAnchorDay: input.periodStart.getUTCDate(),
-                      }
-                    : {}),
+                ...columnsOfPeriodOpened(input.periodStart, input.periodEnd),
             };
             if (this.schema.tenantSubscription.synchronizePlanVersion) {
                 const storagePlanId = await this.planBinding.toStoragePlanId(tx, input.planId);
@@ -504,7 +493,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         expectedCanceledAt: Date | null | undefined,
         data: Record<string, unknown>,
         boundVersionId?: string | null,
-        scheduledAsRead?: ScheduledChangeColumns,
+        alsoExpected?: Partial<ReturnType<typeof columnsClaimedByPutBack>>,
     ): Promise<{ count: number }> {
         try {
             return await this.subscription(client).updateMany({
@@ -512,7 +501,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                     tenantId,
                     canceledAt: expectedCanceledAt,
                     ...(boundVersionId === undefined ? {} : { planVersionId: boundVersionId }),
-                    ...scheduledAsRead,
+                    ...alsoExpected,
                 },
                 data,
             });

@@ -65,6 +65,26 @@ export interface PublicMarketingPlan {
 }
 
 /**
+ * What an add-on costs beside one plan of the catalogue, as a contract for that
+ * plan takes it: the add-on billed in the plan's own rhythm, at the price the
+ * add-on carries for that plan (its override where there is one), and the
+ * promotion on that price.
+ *
+ * `null` means the add-on cannot be had beside the plan in that rhythm — no
+ * price for the combination, or the plan itself is not sold in it — never that
+ * it is free.
+ */
+export interface PublicBundlePlanPrice {
+    planKey: string;
+    monthlyNet: number | null;
+    yearlyNet: number | null;
+    /** The monthly price after the add-on's promotion; null where none lowers it. */
+    discountedMonthlyNet: number | null;
+    /** The yearly price after the add-on's promotion; null where none lowers it. */
+    discountedYearlyNet: number | null;
+}
+
+/**
  * A marketed bundle card for the public catalog (P11.7.3 +
  * P11.7.4). Bundles are offered as standalone add-ons to plans;
  * `compatiblePlanKeys` lists the plans in which the bundle may be
@@ -75,8 +95,20 @@ export interface PublicMarketingBundle {
     label: string;
     /** Live BundleVersion ID — for the `add` request of the tenant self-service. */
     bundleVersionId: string;
+    /**
+     * The bundle version's own price, before any plan's override. What a
+     * prospect pays beside a plan is in `planPrices`.
+     */
     monthlyNet: number | null;
+    /** The bundle version's own yearly price, before any plan's override. */
     yearlyNet: number | null;
+    /**
+     * The price beside each plan of this catalogue the add-on can be booked
+     * with, in the order of `plans`. A plan it is restricted away from, or has
+     * no price for in either rhythm, has no entry; an add-on priced only through
+     * one plan's override has that plan's entry alone.
+     */
+    planPrices: PublicBundlePlanPrice[];
     /** Description text (locale-resolved, falls back to bundle base). */
     description: string;
     /**
@@ -89,7 +121,12 @@ export interface PublicMarketingBundle {
     features: string[];
     /** Quota top-ups of the bundle (`-1` = unlimited). */
     quotas: Record<string, number>;
-    /** Currently active bundle promotion or null. */
+    /**
+     * The bundle promotion running now, where it lowers the base price or a
+     * price in `planPrices`; null otherwise. Its discounted prices are those of
+     * the base price, and null where there is none — the discounted price
+     * beside a plan is in `planPrices`.
+     */
     promo: PublicMarketingPromo | null;
     /**
      * Plan keys the bundle is compatible with. Empty array =

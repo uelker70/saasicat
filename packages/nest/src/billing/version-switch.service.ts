@@ -33,6 +33,7 @@ import {
 } from '@nestjs/common';
 import type {
     BillingCycle,
+    ImmediatePlanChangeInput,
     PlanCatalogSettings,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
@@ -49,11 +50,8 @@ import { answeringRefusals } from '../errors/answering-refusals.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
-import {
-    contractUnlessTrialOf,
-    freezeContractAfter,
-    intendedContractOf,
-} from './freeze-contract-after.js';
+import { freezeOrTakeBack } from './contract-or-take-back.js';
+import { contractUnlessTrialOf, intendedContractOf } from './freeze-contract-after.js';
 import { quotaOverTargetBlockers } from './quota-over-target.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
 import {
@@ -95,11 +93,17 @@ export class VersionSwitchService {
             (AgreementSettings & Pick<PlanCatalogSettings, 'timeZone'>) | null = null,
     ) {}
 
-    /** Takes the offer of `planVersionId`, provided it is still the one offered. */
+    /**
+     * Takes the offer of `planVersionId`, provided it is still the one offered.
+     * `recordsWhatStands` is the caller's record of a switch made — its audit
+     * entry — for a switch that stands without its contract, which is refused
+     * once that is written (`PLAN_CHANGE_STANDS_WITHOUT_CONTRACT`).
+     */
     async take(
         tenantId: string,
         planVersionId: string,
         now = new Date(),
+        recordsWhatStands: (result: VersionSwitchResult) => Promise<void> = async () => {},
     ): Promise<VersionSwitchResult> {
         const sub = await this.subscriptions.findForTenant(tenantId);
         if (!sub) {
@@ -111,22 +115,29 @@ export class VersionSwitchService {
         }
 
         // Where contracts are frozen, a switch ends in one naming the tenant's
-        // subscriber. Refused here, while nothing has moved: the freeze runs
-        // after the switch is written and only logs its refusal. Asked of the
+        // subscriber. Refused here, while nothing has moved, and asked of the
         // contract it ends in: from the end of the term where the switch waits
-        // for it, or from today — where a trial freezes none, of the party
+        // for it, or from today. A switch made today is one with its contract
+        // (`SC-CHG-025`), so that contract is composed at the version offered
+        // and checked whole; in a trial it ends in none, and asks for the party
         // alone.
         const atTermEnd = offer.class === 'takes-something-away';
-        await this.contractFreeze?.assertPartyFor(
-            tenantId,
-            atTermEnd
-                ? intendedContractOf(sub, new Date(offer.takesEffectAt))
-                : contractUnlessTrialOf(sub, now),
-        );
+        if (atTermEnd) {
+            await this.contractFreeze?.assertPartyFor(
+                tenantId,
+                intendedContractOf(sub, new Date(offer.takesEffectAt)),
+            );
+        } else {
+            await this.contractFreeze?.assertContractFor(
+                tenantId,
+                { plan: sub.plan, planVersionId: offer.offered.planVersionId },
+                contractUnlessTrialOf(sub, now),
+            );
+        }
 
         return atTermEnd
             ? this.scheduleAtTermEnd(tenantId, sub, offer, now)
-            : this.switchNow(tenantId, sub, offer, now);
+            : this.switchNow(tenantId, sub, offer, now, recordsWhatStands);
     }
 
     private async switchNow(
@@ -134,25 +145,26 @@ export class VersionSwitchService {
         sub: SubscriptionUsageRecord,
         offer: VersionOfferView,
         now: Date,
+        recordsWhatStands: (result: VersionSwitchResult) => Promise<void>,
     ): Promise<VersionSwitchResult> {
         const cycle = sub.billingCycle as BillingCycle;
         // A version gone since the offer was read is refused by the store with
         // the code the offer would have given.
+        const change: ImmediatePlanChangeInput = {
+            planId: sub.plan,
+            cycle,
+            // The term and the period stay as they are: nothing restarts.
+            periodStart: null,
+            periodEnd: null,
+            nextStatus: null,
+            expectedCanceledAt: sub.canceledAt ?? null,
+            expectedPlanVersionId: offer.bound.planVersionId,
+            keepsBoundVersion: false,
+            quotedPlanVersionId: offer.offered.planVersionId,
+            quotedVersionOnly: true,
+        };
         const result = await answeringRefusals(
-            () =>
-                this.subscriptionWrite.changePlanImmediate(tenantId, {
-                    planId: sub.plan,
-                    cycle,
-                    // The term and the period stay as they are: nothing restarts.
-                    periodStart: null,
-                    periodEnd: null,
-                    nextStatus: null,
-                    expectedCanceledAt: sub.canceledAt ?? null,
-                    expectedPlanVersionId: offer.bound.planVersionId,
-                    keepsBoundVersion: false,
-                    quotedPlanVersionId: offer.offered.planVersionId,
-                    quotedVersionOnly: true,
-                }),
+            () => this.subscriptionWrite.changePlanImmediate(tenantId, change),
             {},
             installationZoneOf(this.settings),
         );
@@ -162,8 +174,15 @@ export class VersionSwitchService {
         // A trial commits to no period and is charged nothing; its contract is
         // frozen when it converts.
         if (sub.status !== 'TRIAL') {
-            await freezeContractAfter(
-                this.contractFreeze,
+            const recordCharges = (): Promise<void> =>
+                recordChargesAfter(this.charges, tenantId, 'a version switch', this.logger);
+            await freezeOrTakeBack(
+                {
+                    contractFreeze: this.contractFreeze,
+                    writes: this.subscriptionWrite,
+                    entitlements: this.entitlements,
+                    logger: this.logger,
+                },
                 tenantId,
                 {
                     plan: sub.plan,
@@ -171,10 +190,18 @@ export class VersionSwitchService {
                     effectiveFrom: now,
                     endsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                 },
-                'a version switch',
-                this.logger,
+                {
+                    read: sub,
+                    wrote: change,
+                    boundAfter: offer.offered.planVersionId,
+                    what: 'a version switch',
+                },
+                async () => {
+                    await recordCharges();
+                    await recordsWhatStands(resultOf(offer, true, now));
+                },
             );
-            await recordChargesAfter(this.charges, tenantId, 'a version switch', this.logger);
+            await recordCharges();
         }
         return resultOf(offer, true, now);
     }

@@ -25,6 +25,7 @@ import {
     type PublicMarketingCatalogResponse,
     keepOneRecommended,
     type PaymentMethodType,
+    type PublicBundlePlanPrice,
     type PublicMarketingPlan,
     type PublicMarketingPromo,
     type PublicNewPaymentMethods,
@@ -38,6 +39,8 @@ import {
     PLAN_REPOSITORY_TOKEN,
     PROMOTION_REPOSITORY_TOKEN,
 } from './catalog.tokens.js';
+import { addOnMisfits } from '../billing/add-on-fits-plan.js';
+import { resolveBundlePriceNet } from '../billing/bundle-price.js';
 import { versionOnSale } from '../billing/version-on-sale.js';
 import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
 import type { TaxTreatments } from '../tax/tax-treatments.js';
@@ -75,6 +78,39 @@ interface LabelMeta {
     features: Map<string, FeatureMeta>;
     quotas: Map<string, QuotaMeta>;
 }
+
+/** What every bundle card of one catalogue request is built from. */
+interface BundleCardContext {
+    /** The plan cards of the same response, in their order. */
+    plans: PublicMarketingPlan[];
+    promotions: PromotionRow[];
+    locale: string;
+    asOf: Date;
+    requiresIndex: FeatureRequiresIndex;
+    labelMeta: LabelMeta;
+}
+
+/** A price as the catalogue names it, in both rhythms. */
+interface PriceInBothRhythms {
+    monthlyNet: number | null;
+    yearlyNet: number | null;
+}
+
+/** One rhythm in the spellings the price rule, a promotion and the catalogue's fields use. */
+const RHYTHMS = [
+    {
+        cycle: 'MONTHLY',
+        promotionCycle: 'monthly',
+        field: 'monthlyNet',
+        discountedField: 'discountedMonthlyNet',
+    },
+    {
+        cycle: 'YEARLY',
+        promotionCycle: 'yearly',
+        field: 'yearlyNet',
+        discountedField: 'discountedYearlyNet',
+    },
+] as const;
 
 @Injectable()
 export class PublicMarketingCatalogService {
@@ -211,11 +247,9 @@ export class PublicMarketingCatalogService {
                 priority: marketing.priority ?? 0,
                 promo: this.resolvePromo(
                     promotions,
-                    plan.planKey,
-                    'PLAN',
+                    { key: plan.planKey, type: 'PLAN' },
                     locale,
-                    monthlyNet,
-                    yearlyNet,
+                    { monthlyNet, yearlyNet },
                     asOf,
                 ),
                 features: [...(live.features ?? [])],
@@ -236,12 +270,16 @@ export class PublicMarketingCatalogService {
                 requires: meta.requires,
             })),
         );
+        const cardContext: BundleCardContext = {
+            plans: out,
+            promotions,
+            locale,
+            asOf,
+            requiresIndex,
+            labelMeta,
+        };
         const publicBundles = (
-            await Promise.all(
-                marketedBundles.map((bv) =>
-                    this.toPublicBundle(bv, promotions, locale, asOf, requiresIndex, labelMeta),
-                ),
-            )
+            await Promise.all(marketedBundles.map((bv) => this.toPublicBundle(bv, cardContext)))
         ).filter((bundle): bundle is PublicMarketingBundle => bundle !== null);
         return {
             locale,
@@ -286,12 +324,9 @@ export class PublicMarketingCatalogService {
      */
     private async toPublicBundle(
         bv: BundleVersionRow,
-        promotions: PromotionRow[],
-        locale: string,
-        asOf: Date,
-        requiresIndex: FeatureRequiresIndex,
-        labelMeta: LabelMeta,
+        context: BundleCardContext,
     ): Promise<PublicMarketingBundle | null> {
+        const { promotions, locale, asOf, requiresIndex, labelMeta } = context;
         const marketing =
             (await this.marketingRepo.findByTarget('BUNDLE', bv.id, locale)) ??
             (locale === DEFAULT_LOCALE
@@ -300,12 +335,17 @@ export class PublicMarketingCatalogService {
         if (marketing?.visible === false) return null;
         const features = [...(bv.features ?? [])];
         const requiresFeatures = collectUnsatisfiedRequires(features, requiresIndex);
+        const besidePlans = context.plans.flatMap((plan) => {
+            const priced = this.priceBesidePlan(bv, plan, context);
+            return priced ? [priced] : [];
+        });
         return {
             bundleKey: bv.bundleKey,
             label: marketing?.displayLabel || bv.label,
             bundleVersionId: bv.id,
             monthlyNet: toNumber(bv.monthlyNet),
             yearlyNet: toNumber(bv.yearlyNet),
+            planPrices: besidePlans.map((priced) => priced.price),
             description: marketing?.description ?? '',
             priceTag: marketing?.priceTag ?? null,
             features,
@@ -317,15 +357,57 @@ export class PublicMarketingCatalogService {
             quotas: { ...bv.quotas },
             promo: this.resolvePromo(
                 promotions,
-                bv.bundleKey,
-                'BUNDLE',
+                { key: bv.bundleKey, type: 'BUNDLE' },
                 locale,
-                toNumber(bv.monthlyNet),
-                toNumber(bv.yearlyNet),
+                { monthlyNet: toNumber(bv.monthlyNet), yearlyNet: toNumber(bv.yearlyNet) },
                 asOf,
+                besidePlans.find((priced) => priced.promotion !== null)?.promotion ?? null,
             ),
             compatiblePlanKeys: [...(bv.compatibility?.planIds ?? [])],
         };
+    }
+
+    /**
+     * What `bv` costs beside `plan`, as a sign-up for that plan concludes it:
+     * billed in the plan's rhythm, priced by the rule every booking, offer and
+     * contract takes (`resolveBundlePriceNet`), where the rule for an add-on
+     * beside a plan lets it run (`addOnMisfits`), with the promotion checkout
+     * applies to that price. Null where it runs beside the plan in neither
+     * rhythm the plan is sold in.
+     */
+    private priceBesidePlan(
+        bv: BundleVersionRow,
+        plan: PublicMarketingPlan,
+        context: BundleCardContext,
+    ): { price: PublicBundlePlanPrice; promotion: PromotionRow | null } | null {
+        const price: PublicBundlePlanPrice = {
+            planKey: plan.planKey,
+            monthlyNet: null,
+            yearlyNet: null,
+            discountedMonthlyNet: null,
+            discountedYearlyNet: null,
+        };
+        let promotion: PromotionRow | null = null;
+        for (const rhythm of RHYTHMS) {
+            if (plan[rhythm.field] === null) continue;
+            const beside = { planKey: plan.planKey, billingCycle: rhythm.cycle };
+            if (addOnMisfits(bv, beside, rhythm.cycle).length > 0) continue;
+            const listNet = resolveBundlePriceNet(bv, plan.planKey, rhythm.cycle);
+            const promoted = promotionOnPrice(
+                context.promotions,
+                bv.bundleKey,
+                context.locale,
+                rhythm.promotionCycle,
+                listNet,
+                context.asOf,
+                'BUNDLE',
+            );
+            price[rhythm.field] = listNet;
+            price[rhythm.discountedField] = promoted ? promoted.result.discounted : null;
+            promotion ??= promoted?.promotion ?? null;
+        }
+        if (price.monthlyNet === null && price.yearlyNet === null) return null;
+        return { price, promotion };
     }
 
     /**
@@ -446,35 +528,40 @@ export class PublicMarketingCatalogService {
         return { features: featureRows, quotas: quotaRows };
     }
 
+    /**
+     * The promotion a card carries, with the discounted prices of `base`.
+     * `lowersElsewhere` is one that lowers another price the same card names —
+     * an add-on's price beside a plan — and carries the badge where `base` has
+     * no price it lowers.
+     */
     private resolvePromo(
         promotions: PromotionRow[],
-        targetKey: string,
-        targetType: 'PLAN' | 'BUNDLE' | 'OFFER',
+        target: { key: string; type: 'PLAN' | 'BUNDLE' },
         locale: string,
-        monthlyNet: number | null,
-        yearlyNet: number | null,
+        base: PriceInBothRhythms,
         asOf: Date,
+        lowersElsewhere: PromotionRow | null = null,
     ): PublicMarketingPromo | null {
         const monthly = promotionOnPrice(
             promotions,
-            targetKey,
+            target.key,
             locale,
             'monthly',
-            monthlyNet,
+            base.monthlyNet,
             asOf,
-            targetType,
+            target.type,
         );
         const yearly = promotionOnPrice(
             promotions,
-            targetKey,
+            target.key,
             locale,
             'yearly',
-            yearlyNet,
+            base.yearlyNet,
             asOf,
-            targetType,
+            target.type,
         );
         // A badge over a price it does not lower would advertise nothing.
-        const promo = (monthly ?? yearly)?.promotion;
+        const promo = (monthly ?? yearly)?.promotion ?? lowersElsewhere;
         if (!promo) return null;
         const i18n = promo.i18n?.[locale] ?? promo.i18n?.[DEFAULT_LOCALE] ?? {};
 

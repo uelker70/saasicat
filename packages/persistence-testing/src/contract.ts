@@ -29,6 +29,7 @@ import type {
     SubscriberJoinState,
     SubscriberJoinWrite,
     ImmediatePlanChangeInput,
+    PlanChangeColumns,
     NewContractLineItemData,
     NewSubscriptionContractData,
     PaymentEventClaim,
@@ -62,6 +63,7 @@ import type {
     NoticeToRecord,
     SubscriptionNoticeKey,
     SubscriptionNoticeRepository,
+    SubscriptionUsageRecord,
     TransactionContext,
     VersionRetirementRepository,
     BundleVersionRetirementRepository,
@@ -76,6 +78,7 @@ import {
     CONTRACT_ERROR_CODES,
     CONTRACT_REGISTER_STATES,
     INVOICE_ERROR_CODES,
+    NO_SCHEDULED_CHANGE,
     PROMO_ERROR_CODES,
     SETTINGS_ERROR_CODES,
     TERMS_MEDIA_TYPE,
@@ -90,8 +93,10 @@ import {
     lineCorrectionsOf,
     movedPaymentParts,
     paidByShares,
+    pendingAgreementColumns,
     planSubscriberJoin,
     subscriberSearchTermsOf,
+    subscriptionAsChanged,
     sumToCents,
     taxPerRate,
     writtenReplacementOf,
@@ -721,6 +726,14 @@ const CONTRACT_GAPS: Record<
         present: ({ adapter, seed }) =>
             Boolean(
                 adapter.subscriptionBundleRepository?.endNow &&
+                typeof seed.createBundleVersion === 'function',
+            ),
+    },
+    bookingsEndPutBack: {
+        reason: 'adapter provides no SubscriptionBundleRepository that puts back a booking ended at once',
+        present: ({ adapter, seed }) =>
+            Boolean(
+                adapter.subscriptionBundleRepository?.restoreCancellation &&
                 typeof seed.createBundleVersion === 'function',
             ),
     },
@@ -1645,6 +1658,235 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     assert.equal(change.claimed, false);
                     const after = await usage.findForTenant('tenant-put-back-elsewhere');
                     assert.equal(after?.planVersion?.id, successor, 'nothing written');
+                });
+            });
+
+            describe('a plan change taken back', () => {
+                /**
+                 * A subscription read as it stood, then moved by a plan change
+                 * to SUCCESSOR in a yearly window of its own, made active, its
+                 * scheduled change cleared — with the take-back of that change.
+                 */
+                async function changedAfterTheRead(t: TestContext, tenantId: string) {
+                    const tenant = await onASupersededVersion(t, tenantId);
+                    const usage = harness.adapter.subscriptionUsage;
+                    if (!tenant || !usage) {
+                        if (tenant) t.skip('the adapter reads no subscription usage');
+                        return null;
+                    }
+                    const successor = await harness.seed.createPlanVersion({
+                        planKey: 'SUCCESSOR',
+                        version: 1,
+                        quotas: { users: 10 },
+                        features: [],
+                        published: true,
+                    });
+                    // Billed on the 31st, in a window a short month cut to the
+                    // 28th: the day billed on is not the window's start.
+                    const opened = await tenant.writer.changePlanImmediate(tenantId, {
+                        planId: 'LOYAL',
+                        cycle: 'MONTHLY',
+                        periodStart: new Date('2026-01-31T00:00:00.000Z'),
+                        periodEnd: new Date('2026-02-28T00:00:00.000Z'),
+                        nextStatus: 'PAST_DUE',
+                        expectedCanceledAt: null,
+                        keepsBoundVersion: true,
+                        quotedPlanVersionId: null,
+                    });
+                    await tenant.writer.changePlanImmediate(tenantId, {
+                        planId: 'LOYAL',
+                        cycle: 'MONTHLY',
+                        periodStart: null,
+                        periodEnd: null,
+                        nextStatus: null,
+                        expectedCanceledAt: null,
+                        keepsBoundVersion: true,
+                        quotedPlanVersionId: null,
+                        putsBack: {
+                            status: 'PAST_DUE',
+                            currentPeriodStart: new Date('2026-02-28T00:00:00.000Z'),
+                            currentPeriodEnd: new Date('2026-03-31T00:00:00.000Z'),
+                            billingAnchorDay: 31,
+                            scheduledChange: NO_SCHEDULED_CHANGE,
+                            asChanged: {
+                                plan: 'LOYAL',
+                                billingCycle: 'MONTHLY',
+                                status: 'PAST_DUE',
+                                currentPeriodStart: new Date('2026-01-31T00:00:00.000Z'),
+                                currentPeriodEnd: new Date('2026-02-28T00:00:00.000Z'),
+                                billingAnchorDay: 31,
+                                scheduledChange: NO_SCHEDULED_CHANGE,
+                            },
+                        },
+                    });
+                    await tenant.writer.schedulePlanChange(tenantId, {
+                        pendingPlan: 'LOYAL',
+                        pendingBillingCycle: 'YEARLY',
+                        pendingEffectiveAt: new Date('2026-03-31T00:00:00.000Z'),
+                        pendingChangeVersionId: tenant.live,
+                        pendingAgreement: AGREEMENT,
+                        expectedCanceledAt: null,
+                    });
+                    const read = await usage.findForTenant(tenantId);
+                    assert.ok(read && opened.claimed);
+                    assert.deepEqual(
+                        [read.currentPeriodStart?.toISOString(), read.billingAnchorDay],
+                        ['2026-02-28T00:00:00.000Z', 31],
+                        'the fixture holds the day billed on apart from the window',
+                    );
+
+                    const change: ImmediatePlanChangeInput = {
+                        planId: 'SUCCESSOR',
+                        cycle: 'YEARLY',
+                        periodStart: new Date('2026-03-10T00:00:00.000Z'),
+                        periodEnd: new Date('2027-03-10T00:00:00.000Z'),
+                        nextStatus: 'ACTIVE',
+                        expectedCanceledAt: null,
+                        expectedPlanVersionId: tenant.bound,
+                        keepsBoundVersion: false,
+                        quotedPlanVersionId: successor.planVersionId,
+                        quotedVersionOnly: true,
+                    };
+                    const changed = await tenant.writer.changePlanImmediate(tenantId, change);
+                    const afterChange = await usage.findForTenant(tenantId);
+                    assert.ok(changed.claimed);
+                    assert.deepEqual(
+                        [
+                            afterChange?.status,
+                            afterChange?.billingAnchorDay,
+                            afterChange?.pendingPlan,
+                        ],
+                        ['ACTIVE', 10, null],
+                        'the change moved what is put back',
+                    );
+
+                    const before: PlanChangeColumns = {
+                        plan: read.plan,
+                        billingCycle: read.billingCycle,
+                        status: read.status,
+                        currentPeriodStart: read.currentPeriodStart,
+                        currentPeriodEnd: read.currentPeriodEnd,
+                        billingAnchorDay: read.billingAnchorDay ?? null,
+                        scheduledChange: {
+                            pendingPlan: read.pendingPlan,
+                            pendingBillingCycle: read.pendingBillingCycle,
+                            pendingEffectiveAt: read.pendingEffectiveAt,
+                            pendingChangeVersionId: read.pendingChangeVersionId ?? null,
+                            ...pendingAgreementColumns(read.pendingAgreement ?? null),
+                        },
+                    };
+                    const takeBack: ImmediatePlanChangeInput = {
+                        planId: read.plan,
+                        cycle: read.billingCycle,
+                        periodStart: null,
+                        periodEnd: null,
+                        nextStatus: null,
+                        expectedCanceledAt: null,
+                        expectedPlanVersionId: successor.planVersionId,
+                        keepsBoundVersion: false,
+                        quotedPlanVersionId: tenant.bound,
+                        quotedVersionOnly: true,
+                        restoresQuotedVersion: true,
+                        putsBack: {
+                            status: before.status,
+                            currentPeriodStart: before.currentPeriodStart,
+                            currentPeriodEnd: before.currentPeriodEnd,
+                            billingAnchorDay: before.billingAnchorDay ?? null,
+                            scheduledChange: before.scheduledChange,
+                            asChanged: subscriptionAsChanged(before, change),
+                        },
+                    };
+                    return { tenant, usage, read, takeBack };
+                }
+
+                /** What a take-back writes back, as a reader sees it. */
+                const facts = (row: SubscriptionUsageRecord | null) => ({
+                    plan: row?.plan,
+                    billingCycle: row?.billingCycle,
+                    planVersionId: row?.planVersion?.id,
+                    status: row?.status,
+                    currentPeriodStart: row?.currentPeriodStart?.toISOString(),
+                    currentPeriodEnd: row?.currentPeriodEnd?.toISOString(),
+                    billingAnchorDay: row?.billingAnchorDay,
+                    pendingPlan: row?.pendingPlan,
+                    pendingBillingCycle: row?.pendingBillingCycle,
+                    pendingEffectiveAt: row?.pendingEffectiveAt?.toISOString(),
+                    pendingChangeVersionId: row?.pendingChangeVersionId,
+                    pendingAgreement: row?.pendingAgreement,
+                });
+
+                // @requirement SC-CHG-025
+                test('leaves the subscription as it was read', async (t) => {
+                    const tenantId = 'tenant-change-taken-back';
+                    const result = await changedAfterTheRead(t, tenantId);
+                    if (!result) return;
+                    const { tenant, usage, read, takeBack } = result;
+
+                    const takenBack = await tenant.writer.changePlanImmediate(tenantId, takeBack);
+
+                    assert.equal(takenBack.claimed, true);
+                    assert.deepEqual(facts(await usage.findForTenant(tenantId)), facts(read));
+                });
+
+                // @requirement SC-CHG-011
+                describe('over a write another request made since the change', () => {
+                    const since: {
+                        readonly what: string;
+                        readonly tenantId: string;
+                        readonly write: (
+                            writer: NonNullable<
+                                PersistenceContractHarness['adapter']['tenantSubscriptionWrite']
+                            >,
+                            tenantId: string,
+                        ) => Promise<{ claimed: boolean }>;
+                    }[] = [
+                        {
+                            what: 'a change scheduled',
+                            tenantId: 'tenant-taken-back-over-a-schedule',
+                            write: (writer, tenantId) =>
+                                writer.schedulePlanChange(tenantId, {
+                                    pendingPlan: 'SUCCESSOR',
+                                    pendingBillingCycle: 'MONTHLY',
+                                    pendingEffectiveAt: new Date('2027-03-10T00:00:00.000Z'),
+                                    pendingChangeVersionId: null,
+                                    pendingAgreement: SCHEDULED_AGREEMENT,
+                                    expectedCanceledAt: null,
+                                }),
+                        },
+                        {
+                            what: 'a status set',
+                            tenantId: 'tenant-taken-back-over-a-status',
+                            write: (writer, tenantId) =>
+                                writer.changePlanImmediate(tenantId, {
+                                    planId: 'SUCCESSOR',
+                                    cycle: 'YEARLY',
+                                    periodStart: null,
+                                    periodEnd: null,
+                                    nextStatus: 'PAST_DUE',
+                                    expectedCanceledAt: null,
+                                    keepsBoundVersion: true,
+                                    quotedPlanVersionId: null,
+                                }),
+                        },
+                    ];
+                    for (const { what, tenantId, write } of since) {
+                        test(`claims nothing, and ${what} stands`, async (t) => {
+                            const result = await changedAfterTheRead(t, tenantId);
+                            if (!result) return;
+                            const { tenant, usage, takeBack } = result;
+                            const made = await write(tenant.writer, tenantId);
+                            assert.ok(made.claimed, `${what} in between`);
+                            const standing = facts(await usage.findForTenant(tenantId));
+
+                            const takenBack = await tenant.writer.changePlanImmediate(
+                                tenantId,
+                                takeBack,
+                            );
+
+                            assert.equal(takenBack.claimed, false);
+                            assert.deepEqual(facts(await usage.findForTenant(tenantId)), standing);
+                        });
+                    }
                 });
             });
 
@@ -16545,6 +16787,133 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     await repository.endNow(NO_SUCH_BOOKING, {
                         at,
                         expectedCanceledEffectiveAt: declaredFor,
+                    }),
+                    null,
+                );
+            });
+        });
+
+        describe('a booking ended at once, put back', () => {
+            test('has the cancellation it had, and only while it still ends where it was ended', async (t) => {
+                const repository = harness.adapter.subscriptionBundleRepository;
+                const { seed } = harness;
+                if (!repository?.restoreCancellation || !seed.createBundleVersion) {
+                    missing(t, 'bookingsEndPutBack');
+                    return;
+                }
+                const { planVersionId } = await seed.createPlanVersion({
+                    planKey: 'PUT_BACK_ADD_ON',
+                    version: 1,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                });
+                const { bundleVersionId } = await seed.createBundleVersion({
+                    bundleKey: 'PUT_BACK_AT_ONCE',
+                    features: ['BANK_SYNC'],
+                });
+                const { subscriptionId } = await seed.createSubscription({
+                    tenantId: 'tenant-put-back-booking',
+                    plan: 'PUT_BACK_ADD_ON',
+                    planVersionId,
+                });
+                const booking = (startedAt: string) =>
+                    repository.add({
+                        subscriptionId,
+                        bundleVersionId,
+                        startedAt: new Date(startedAt),
+                        minimumTermEndsAt: new Date('2027-02-01T00:00:00.000Z'),
+                        agreement: null,
+                        billingCycle: 'MONTHLY',
+                        currentPeriodStart: new Date('2026-05-01T00:00:00.000Z'),
+                        currentPeriodEnd: new Date('2026-06-01T00:00:00.000Z'),
+                    });
+                const at = new Date('2026-05-12T14:30:00.250Z');
+                const endedAt = (id: string) =>
+                    repository.cancel(id, { canceledAt: at, canceledEffectiveAt: at });
+
+                const running = await booking('2026-02-01T00:00:00.000Z');
+                const ended = await endedAt(running.id);
+                assert.equal(
+                    await repository.restoreCancellation(running.id, {
+                        endedAt: new Date('2026-05-12T14:30:00.251Z'),
+                        canceledAt: null,
+                        canceledEffectiveAt: null,
+                    }),
+                    null,
+                    'a booking ended at another moment is left as it is',
+                );
+                const restored = await repository.restoreCancellation(running.id, {
+                    endedAt: at,
+                    canceledAt: null,
+                    canceledEffectiveAt: null,
+                });
+                assert.ok(restored, 'the booking is put back');
+                assert.equal(restored.canceledAt, null);
+                assert.equal(restored.canceledEffectiveAt, null);
+                /** A booking without its cancellation and the moment it was last written. */
+                const unended = ({
+                    canceledAt: _canceledAt,
+                    canceledEffectiveAt: _effectiveAt,
+                    updatedAt: _written,
+                    ...rest
+                }: typeof ended) => rest;
+                assert.deepEqual(unended(restored), unended(ended), 'nothing else of it changes');
+                assert.equal(
+                    (await repository.findById(running.id))?.canceledAt,
+                    null,
+                    'and read so afterwards',
+                );
+                assert.equal(
+                    await repository.restoreCancellation(running.id, {
+                        endedAt: at,
+                        canceledAt: null,
+                        canceledEffectiveAt: null,
+                    }),
+                    null,
+                    'a second put-back finds no end to take back',
+                );
+
+                const declaredAt = new Date('2026-04-10T00:00:00.000Z');
+                const declaredFor = new Date('2027-02-01T00:00:00.000Z');
+                const cancelled = await booking('2026-03-01T00:00:00.000Z');
+                await endedAt(cancelled.id);
+                const back = await repository.restoreCancellation(cancelled.id, {
+                    endedAt: at,
+                    canceledAt: declaredAt,
+                    canceledEffectiveAt: declaredFor,
+                });
+                assert.equal(back?.canceledAt?.toISOString(), declaredAt.toISOString());
+                assert.equal(
+                    back?.canceledEffectiveAt?.toISOString(),
+                    declaredFor.toISOString(),
+                    'a cancellation declared for a later date is declared again, as it was',
+                );
+
+                const endingLater = await booking('2026-04-01T00:00:00.000Z');
+                await repository.cancel(endingLater.id, {
+                    canceledAt: at,
+                    canceledEffectiveAt: declaredFor,
+                });
+                assert.equal(
+                    await repository.restoreCancellation(endingLater.id, {
+                        endedAt: at,
+                        canceledAt: null,
+                        canceledEffectiveAt: null,
+                    }),
+                    null,
+                    'a cancellation declared at that moment for a later one is no end at once',
+                );
+                assert.equal(
+                    (await repository.findById(endingLater.id))?.canceledEffectiveAt?.toISOString(),
+                    declaredFor.toISOString(),
+                    'and stays as declared',
+                );
+                assert.equal(
+                    await repository.restoreCancellation(NO_SUCH_BOOKING, {
+                        endedAt: at,
+                        canceledAt: null,
+                        canceledEffectiveAt: null,
                     }),
                     null,
                 );

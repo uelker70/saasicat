@@ -51,6 +51,8 @@
                         :bundles="bookableSubscriptionBundles"
                         :selected="draft.selectedBundleVersionIds.value"
                         :cycle="draft.cycle.value"
+                        :plan-key="draft.plan.value"
+                        :plan-keys="planKeys"
                         :plan-features="selectedPlanFeatures"
                         :format-currency="formatCurrency"
                         :feature-label="featureLabel"
@@ -101,6 +103,7 @@ import PublicBundleGrid from './plan/PublicBundleGrid.vue';
 import PromoCodeInput from './plan/PromoCodeInput.vue';
 import PriceSummary from './plan/PriceSummary.vue';
 import {
+    addOnPriceBeside,
     useSubscriptionDraft,
     useSuperAdminI18n,
     type PromoState,
@@ -157,13 +160,17 @@ interface OnboardingI18n {
         perYear: string;
         empty: string;
         allPlans: string;
-        priceOnRequest: string;
         /** A bundle with a price in the other cycle only. */
         notSoldInCycle: string;
         /** Bundle fully covered by the plan/other bundles — not bookable twice. */
         alreadyBooked: string;
         /** Prefix before the list of missing prerequisite features. */
         missingRequires: string;
+        /**
+         * Beside a bundle's own price while no plan is chosen: what the bundle
+         * costs depends on the plan, which may override it.
+         */
+        dependsOnPlan: string;
     };
     promo: { openLabel: string; placeholder: string; apply: string; remove: string };
     summary: {
@@ -240,18 +247,16 @@ const submitting = ref(false);
 const submitError = ref<string | null>(null);
 
 const selectedPlanFeatures = computed(() => draft.selectedPlan.value?.features ?? []);
+const planKeys = computed(() => (props.plans ?? []).map((plan) => plan.id));
 
-const bookableSubscriptionBundles = computed(() => {
-    const selectedPlan = draft.plan.value;
-    return subscriptionBundleOptions.value.filter((bundle) => {
-        if (bundle.monthlyNet === null && bundle.yearlyNet === null) return false;
-        if (!selectedPlan) return true;
-        return (
-            bundle.compatiblePlanKeys.length === 0 ||
-            bundle.compatiblePlanKeys.includes(selectedPlan)
-        );
-    });
-});
+// An add-on the chosen plan cannot have is not offered beside it; before a plan
+// is chosen, one that no plan can have.
+const bookableSubscriptionBundles = computed(() =>
+    subscriptionBundleOptions.value.filter(
+        (bundle) =>
+            addOnPriceBeside(bundle, draft.plan.value, draft.cycle.value).kind !== 'not-with-plan',
+    ),
+);
 
 // A preview answers for one plan and cycle, and the draft forgets it when either
 // changes. A code the answer could differ for is asked about again rather than

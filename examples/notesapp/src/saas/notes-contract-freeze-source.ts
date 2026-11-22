@@ -79,8 +79,11 @@ export class NotesContractFreezeSource implements ContractFreezeSourcePort {
      * A booking's line. A version that cannot be found, or that has no price
      * for the plan in the booking's rhythm, refuses the freeze rather than
      * leaving the booking out or charging nothing for it: either would write
-     * a contract that does not say what was agreed. The platform logs a
-     * refused freeze and keeps the contract in force.
+     * a contract that does not say what was agreed. The platform asks this
+     * before a plan change is written, so a change whose contract it refuses
+     * is refused, or stays due, and changes nothing (`SC-CHG-025`,
+     * `SC-CHG-026`); after an add-on booking it keeps the contract in force
+     * and the charge journal asks again.
      */
     private async lineOf(
         booking: SubscriptionBundleRecord,

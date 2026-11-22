@@ -104,7 +104,6 @@ async function createLiveBundle({
 }
 
 // @requirement SC-MKT-003 — A plan or add-on with no marketing entry, or one marked hidden, is not shown
-// @requirement SC-MKT-011 — The public catalogue shows base prices only
 describe('PublicMarketingCatalogService — Bundles', () => {
     test('getCatalog returns empty bundles[] without a BundleRepository', async () => {
         const svc = new PublicMarketingCatalogService(
