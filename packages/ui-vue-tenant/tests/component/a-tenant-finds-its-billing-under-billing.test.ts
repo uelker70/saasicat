@@ -3,11 +3,11 @@
 
 import { afterEach, describe, expect, test } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
-import type { HttpClient } from '@saasicat/ui-vue';
+import type { HttpClient, TenantBillingDetailsShape } from '@saasicat/ui-vue';
 
 import TenantBillingSection from '../../src/TenantBillingSection.vue';
 import TenantPlanSection from '../../src/TenantPlanSection.vue';
-import { defaultTenantPlanSectionI18n } from '../../src/default-i18n';
+import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from '../../src/default-i18n';
 
 // A tenant looks for its billing under billing, not at the foot of its plan
 // page. So the payment method and the billing details are one section an
@@ -40,6 +40,14 @@ const DETAILS = {
     invoiceEmail: 'rechnung@meier.example',
     business: true,
     readiness: null,
+    tenantEditable: [
+        'addressLine1',
+        'addressLine2',
+        'postalCode',
+        'city',
+        'country',
+        'invoiceEmail',
+    ],
 };
 
 type Answer = [number, unknown];
@@ -72,9 +80,21 @@ afterEach(() => {
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB');
 const formatCurrency = (amount: number) => `€${amount.toFixed(2)}`;
 
-async function mountSection(http: HttpClient, props: Record<string, unknown> = {}) {
+/** The props a test sets beside the HTTP client and the formatters every mount is given. */
+interface SectionProps {
+    apiPrefix?: string;
+    i18n?: Partial<TenantPlanSectionI18n>;
+    formatCurrency?: (amount: number, currency: string) => string;
+}
+
+async function mountSection(
+    http: HttpClient,
+    props: SectionProps = {},
+    slots: Record<string, string> = {},
+) {
     const wrapper = mount(TenantBillingSection, {
         props: { http, formatDate, formatCurrency, ...props },
+        slots,
         attachTo: document.body,
     });
     mounted.push(wrapper as VueWrapper);
@@ -297,6 +317,189 @@ describe('the billing details', () => {
         const { http } = httpRouting({
             'GET /billing/payment-method': [404, {}],
             'GET /billing/details': [500, {}],
+        });
+        const wrapper = await mountSection(http);
+
+        expect(wrapper.find('[role="alert"]').text()).toBe(i18n.billingDetailsLoadFailed);
+        expect(wrapper.find('input').exists()).toBe(false);
+    });
+});
+
+// @requirement SC-SUB-047 — A tenant changes the contact details left to it, and never clears them
+describe('the details the application keeps elsewhere', () => {
+    async function detailsWith(
+        tenantEditable: string[],
+        options: {
+            details?: Partial<TenantBillingDetailsShape>;
+            patch?: Answer;
+            props?: SectionProps;
+            slots?: Record<string, string>;
+        } = {},
+    ) {
+        const routes: Record<string, Answer> = {
+            'GET /billing/payment-method': [404, {}],
+            'GET /billing/details': [
+                200,
+                { details: { ...DETAILS, ...options.details, tenantEditable } },
+            ],
+        };
+        if (options.patch) routes['PATCH /billing/details'] = options.patch;
+        const routing = httpRouting(routes);
+        return {
+            ...routing,
+            wrapper: await mountSection(routing.http, options.props, options.slots),
+        };
+    }
+
+    const kept = (wrapper: VueWrapper) =>
+        wrapper
+            .findAll('.sp-billing-details__kept .sp-billing-details__row')
+            .map((row) => [row.find('dt').text(), row.find('dd').text()]);
+    const fieldsOffered = (wrapper: VueWrapper) =>
+        wrapper
+            .findAll('.sp-billing-details__fields input')
+            .map((field) => field.element.closest('.sp-billing-details__field')?.className);
+    const pointer = (wrapper: VueWrapper) => wrapper.find('.sp-billing-details__elsewhere');
+    const saveButton = (wrapper: VueWrapper) => wrapper.find('.sp-billing-details__actions button');
+
+    test('are shown as text, followed by the sentence saying where they are changed, and only the rest is a field', async () => {
+        const { wrapper } = await detailsWith(['invoiceEmail']);
+
+        expect(kept(wrapper)).toEqual([
+            [i18n.billingDetailsAddressLine1, 'Hauptstraße 1'],
+            [i18n.billingDetailsAddressLine2, 'Hinterhaus'],
+            [i18n.billingDetailsPostalCode, '10115'],
+            [i18n.billingDetailsCity, 'Berlin'],
+            [i18n.billingDetailsCountry, 'DE'],
+        ]);
+        expect(fieldsOffered(wrapper)).toEqual([
+            'sp-billing-details__field sp-billing-details__field--invoiceEmail',
+        ]);
+        expect(
+            wrapper.find('input:disabled, input[readonly]').exists(),
+            'a kept detail as an input that only looks editable',
+        ).toBe(false);
+        expect(pointer(wrapper).text()).toBe(i18n.billingDetailsChangedElsewhere);
+        const list = wrapper.find('.sp-billing-details__kept').element;
+        expect(
+            list.compareDocumentPosition(pointer(wrapper).element) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+            'the sentence after the details it speaks of',
+        ).toBeTruthy();
+        expect(saveButton(wrapper).exists()).toBe(true);
+    });
+
+    test('a save sends only what the tenant changes here', async () => {
+        const { wrapper, calls } = await detailsWith(['invoiceEmail'], {
+            patch: [200, { details: { ...DETAILS, invoiceEmail: 'buchhaltung@meier.example' } }],
+        });
+
+        await input(wrapper, 'invoiceEmail').setValue('buchhaltung@meier.example');
+        await saveButton(wrapper).trigger('click');
+        await flushPromises();
+
+        expect(calls.find((call) => call.key === 'PATCH /billing/details')?.body).toEqual({
+            invoiceEmail: 'buchhaltung@meier.example',
+        });
+    });
+
+    test("the application's own sentence replaces the default one", async () => {
+        const { wrapper } = await detailsWith(['invoiceEmail'], {
+            props: {
+                i18n: { billingDetailsChangedElsewhere: 'Change it under Company & address.' },
+            },
+        });
+
+        expect(pointer(wrapper).text()).toBe('Change it under Company & address.');
+    });
+
+    test("the application's slot replaces the sentence, so it can link to its page", async () => {
+        const { wrapper } = await detailsWith(['invoiceEmail'], {
+            slots: {
+                'changed-elsewhere':
+                    '<a href="/settings/company">Change it under Company &amp; address</a>',
+            },
+        });
+
+        expect(pointer(wrapper).find('a').attributes('href')).toBe('/settings/company');
+        expect(pointer(wrapper).text()).toBe('Change it under Company & address');
+    });
+
+    test('where the tenant changes none of them, every one is text and nothing offers to save', async () => {
+        const { wrapper } = await detailsWith([]);
+
+        expect(kept(wrapper).map(([label]) => label)).toEqual([
+            i18n.billingDetailsAddressLine1,
+            i18n.billingDetailsAddressLine2,
+            i18n.billingDetailsPostalCode,
+            i18n.billingDetailsCity,
+            i18n.billingDetailsCountry,
+            i18n.billingDetailsInvoiceEmail,
+        ]);
+        expect(wrapper.find('input').exists()).toBe(false);
+        expect(saveButton(wrapper).exists()).toBe(false);
+        expect(pointer(wrapper).text()).toBe(i18n.billingDetailsChangedElsewhere);
+    });
+
+    test('where the tenant changes every one, nothing is kept elsewhere and no sentence says so', async () => {
+        const { wrapper } = await detailsWith([...DETAILS.tenantEditable], {
+            slots: { 'changed-elsewhere': '<a href="/settings/company">Company</a>' },
+        });
+
+        expect(fieldsOffered(wrapper)).toHaveLength(6);
+        expect(wrapper.find('.sp-billing-details__kept').exists()).toBe(false);
+        expect(pointer(wrapper).exists()).toBe(false);
+        expect(wrapper.text()).not.toContain(i18n.billingDetailsChangedElsewhere);
+    });
+
+    test('an empty one is still named in what holds the next contract back, and shown as not stated', async () => {
+        const { wrapper } = await detailsWith(['invoiceEmail'], {
+            details: {
+                postalCode: null,
+                readiness: { ready: false, missing: ['postalCode'], taxRefusal: null },
+            },
+        });
+
+        expect(
+            wrapper.findAll('.sp-billing-details__held-back li').map((item) => item.text()),
+        ).toEqual([`Please add: ${i18n.billingDetailsPostalCode}.`]);
+        expect(kept(wrapper)).toContainEqual([
+            i18n.billingDetailsPostalCode,
+            i18n.billingDetailsNotStated,
+        ]);
+        expect(pointer(wrapper).text()).toBe(i18n.billingDetailsChangedElsewhere);
+    });
+
+    for (const [locale, expected] of [
+        ['en', 'City is not changed here: this application keeps it elsewhere.'],
+        ['de', 'Ort wird hier nicht geändert; die Anwendung führt diese Angabe an anderer Stelle.'],
+    ] as const) {
+        test(`a change the server says is made elsewhere is refused in the reader's language (${locale}), by the field's label`, async () => {
+            const { wrapper } = await detailsWith([...DETAILS.tenantEditable], {
+                props: { i18n: defaultTenantPlanSectionI18n(locale) },
+                patch: [
+                    422,
+                    {
+                        code: 'SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE',
+                        params: { field: 'city' },
+                        message: 'city is not changed here: this application keeps it elsewhere.',
+                    },
+                ],
+            });
+
+            await input(wrapper, 'city').setValue('Köln');
+            await saveButton(wrapper).trigger('click');
+            await flushPromises();
+
+            expect(wrapper.find('[role="alert"]').text()).toBe(expected);
+            expect(wrapper.find('[role="status"]').exists()).toBe(false);
+        });
+    }
+
+    test('an answer that does not say which details the tenant changes here is a failure to load', async () => {
+        const { http } = httpRouting({
+            'GET /billing/payment-method': [404, {}],
+            'GET /billing/details': [200, { details: { ...DETAILS, tenantEditable: undefined } }],
         });
         const wrapper = await mountSection(http);
 

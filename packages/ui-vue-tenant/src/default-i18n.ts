@@ -411,6 +411,12 @@ export interface TenantPlanSectionI18n {
     /** `{field}` is the label of the field the server refused. */
     billingDetailsFieldInvalid: string;
     /**
+     * Below the billing details the application keeps on a page of its own,
+     * saying where they are changed; the section's `changed-elsewhere` slot
+     * replaces it, for a link to that page.
+     */
+    billingDetailsChangedElsewhere: string;
+    /**
      * The heading over the invoices the operator issues the tenant, which an
      * application that invoices its own customers tells apart from those
      * (`SC-UI-022`).
@@ -938,6 +944,7 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     billingDetailsLoadFailed: 'Die Rechnungsdaten konnten nicht geladen werden.',
     billingDetailsSaveFailed: 'Die Rechnungsdaten konnten nicht gespeichert werden.',
     billingDetailsFieldInvalid: '{field} ist nicht gültig.',
+    billingDetailsChangedElsewhere: 'Diese Angaben ändern Sie an anderer Stelle in der Anwendung.',
     invoicesTitle: 'Rechnungen für Ihr Abonnement',
     invoicesIssuedBy: 'ausgestellt von {issuer}',
     invoicesEmpty: 'Noch keine Rechnung.',
@@ -1376,6 +1383,7 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     billingDetailsLoadFailed: 'The billing details could not be loaded.',
     billingDetailsSaveFailed: 'The billing details could not be saved.',
     billingDetailsFieldInvalid: '{field} is not valid.',
+    billingDetailsChangedElsewhere: 'These details are changed elsewhere in this application.',
     invoicesTitle: 'Invoices for your subscription',
     invoicesIssuedBy: 'issued by {issuer}',
     invoicesEmpty: 'No invoice yet.',

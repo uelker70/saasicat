@@ -5557,6 +5557,22 @@ _Tested by:_
         - are mounted once, with a gateway and without one
         - the tenant reads them and changes what the application lets it change
         - a name that is not a contact detail stops the start there too
+- `packages/ui-vue/tests/billing-details-are-shown-to-whoever-may-see-them.test.js`
+    - loading the billing details
+        - an answer ${label} is an error, not a card that offers every field
+- `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
+    - the details the application keeps elsewhere
+        - are shown as text, followed by the sentence saying where they are changed, and only the
+          rest is a field
+        - a save sends only what the tenant changes here
+        - the application's own sentence replaces the default one
+        - the application's slot replaces the sentence, so it can link to its page
+        - where the tenant changes none of them, every one is text and nothing offers to save
+        - where the tenant changes every one, nothing is kept elsewhere and no sentence says so
+        - an empty one is still named in what holds the next contract back, and shown as not stated
+        - a change the server says is made elsewhere is refused in the reader's language
+          (${locale}), by the field's label
+        - an answer that does not say which details the tenant changes here is a failure to load
 
 <!-- END proof -->
 
@@ -21927,6 +21943,7 @@ _Tested by:_
         - a ${status} hides them without an error: ${why}
         - any other failure keeps the part and says it failed
         - an answer in another shape is an error, not a subscriber nobody told anything
+        - an answer ${label} is an error, not a card that offers every field
         - the prefix the billing routes sit under is used as given
     - changing the contact details
         - sends the change and shows the details as the server now has them
@@ -21967,6 +21984,18 @@ _Tested by:_
           saved
         - any other failure says the details were not saved
         - a failure to load is said, with no form to fill
+    - the details the application keeps elsewhere
+        - are shown as text, followed by the sentence saying where they are changed, and only the
+          rest is a field
+        - a save sends only what the tenant changes here
+        - the application's own sentence replaces the default one
+        - the application's slot replaces the sentence, so it can link to its page
+        - where the tenant changes none of them, every one is text and nothing offers to save
+        - where the tenant changes every one, nothing is kept elsewhere and no sentence says so
+        - an empty one is still named in what holds the next contract back, and shown as not stated
+        - a change the server says is made elsewhere is refused in the reader's language
+          (${locale}), by the field's label
+        - an answer that does not say which details the tenant changes here is a failure to load
     - what holds the next contract back
         - the customer type is shown with the identity, as the operator keeps it
         - the empty address fields by their labels, then the adapter sentence
@@ -22026,6 +22055,18 @@ _Tested by:_
           saved
         - any other failure says the details were not saved
         - a failure to load is said, with no form to fill
+    - the details the application keeps elsewhere
+        - are shown as text, followed by the sentence saying where they are changed, and only the
+          rest is a field
+        - a save sends only what the tenant changes here
+        - the application's own sentence replaces the default one
+        - the application's slot replaces the sentence, so it can link to its page
+        - where the tenant changes none of them, every one is text and nothing offers to save
+        - where the tenant changes every one, nothing is kept elsewhere and no sentence says so
+        - an empty one is still named in what holds the next contract back, and shown as not stated
+        - a change the server says is made elsewhere is refused in the reader's language
+          (${locale}), by the field's label
+        - an answer that does not say which details the tenant changes here is a failure to load
     - what holds the next contract back
         - the customer type is shown with the identity, as the operator keeps it
         - the empty address fields by their labels, then the adapter sentence

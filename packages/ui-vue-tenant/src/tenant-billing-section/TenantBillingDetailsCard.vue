@@ -28,9 +28,27 @@
                 </dl>
                 <p class="sp-billing-details__sub">{{ i18n.billingDetailsIdentityNote }}</p>
 
-                <div class="sp-billing-details__fields">
+                <template v-if="keptElsewhere.length > 0">
+                    <dl class="sp-billing-details__kept">
+                        <div
+                            v-for="field in keptElsewhere"
+                            :key="field"
+                            class="sp-billing-details__row"
+                        >
+                            <dt>{{ labelOf(field) }}</dt>
+                            <dd>{{ current[field] ?? i18n.billingDetailsNotStated }}</dd>
+                        </div>
+                    </dl>
+                    <p class="sp-billing-details__sub sp-billing-details__elsewhere">
+                        <slot name="changed-elsewhere">
+                            {{ i18n.billingDetailsChangedElsewhere }}
+                        </slot>
+                    </p>
+                </template>
+
+                <div v-if="editable.length > 0" class="sp-billing-details__fields">
                     <div
-                        v-for="field in CONTACT_FIELDS"
+                        v-for="field in editable"
                         :key="field"
                         class="sp-billing-details__field"
                         :class="`sp-billing-details__field--${field}`"
@@ -68,7 +86,7 @@
                 <p v-else-if="saved" class="sp-billing-details__saved" role="status">
                     {{ i18n.billingDetailsSaved }}
                 </p>
-                <div class="sp-billing-details__actions">
+                <div v-if="editable.length > 0" class="sp-billing-details__actions">
                     <TenantButton :loading="saving" :disabled="!changed" @click="onSave">
                         {{ i18n.billingDetailsSave }}
                     </TenantButton>
@@ -79,6 +97,11 @@
 </template>
 
 <script setup lang="ts">
+import {
+    resolveErrorMessage,
+    SUBSCRIBER_CONTACT_FIELDS,
+    SUBSCRIBER_ERROR_CODES,
+} from '@saasicat/core';
 import {
     httpStatusOf,
     isAdminError,
@@ -100,21 +123,19 @@ import '../ui/tenant-ui.css';
 // it — anyone else gets a 403, and the card does not render. The tenant edits
 // how it is reached; the legal name and the tax identifiers are the party its
 // contracts are concluded with, so they are shown, and the operator corrects
-// them. Only the fields that changed are sent.
+// them. Of the contact details, the server names the ones the tenant changes
+// here; the others the application keeps on a page of its own, so they are
+// shown as text, followed by the application's sentence or its
+// `changed-elsewhere` slot saying where they are changed. Text rather than
+// disabled fields: a screen reader skips a disabled field's value, and its
+// contrast is too low to read. Only the fields that changed are sent.
 
 const props = defineProps<{
     http?: HttpClient;
     apiPrefix?: string;
 }>();
 
-const CONTACT_FIELDS: readonly TenantBillingContactField[] = [
-    'addressLine1',
-    'addressLine2',
-    'postalCode',
-    'city',
-    'country',
-    'invoiceEmail',
-];
+const CHANGED_ELSEWHERE = SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE;
 
 const AUTOCOMPLETE: Record<TenantBillingContactField, string> = {
     addressLine1: 'address-line1',
@@ -144,6 +165,15 @@ const saveFailure = ref<string | null>(null);
 const refusedField = ref<string | null>(null);
 
 watch(current, (details) => Object.assign(draft, draftOf(details)), { immediate: true });
+
+/** The contact details offered as fields, as the server names them. */
+const editable = computed<TenantBillingContactField[]>(() =>
+    SUBSCRIBER_CONTACT_FIELDS.filter((field) => current.value?.tenantEditable.includes(field)),
+);
+/** The contact details the application keeps elsewhere, shown as text. */
+const keptElsewhere = computed<TenantBillingContactField[]>(() =>
+    SUBSCRIBER_CONTACT_FIELDS.filter((field) => !editable.value.includes(field)),
+);
 
 const identity = computed(() => [
     { label: i18n.value.billingDetailsCustomerNumber, value: current.value?.customerNumber },
@@ -189,7 +219,7 @@ function sentence(template: string, params: Record<string, string>): string {
 const change = computed<TenantBillingContactChange>(() => {
     const loaded = draftOf(current.value);
     const named: TenantBillingContactChange = {};
-    for (const field of CONTACT_FIELDS) {
+    for (const field of editable.value) {
         if (draft[field] !== loaded[field]) named[field] = draft[field].trim() || null;
     }
     return named;
@@ -237,14 +267,19 @@ async function onSave(): Promise<void> {
 function refusedFieldOf(error: unknown): TenantBillingContactField | null {
     if (!isAdminError(error) || httpStatusOf(error) !== 422) return null;
     const field = (error.body as { params?: { field?: unknown } } | undefined)?.params?.field;
-    return CONTACT_FIELDS.find((known) => known === field) ?? null;
+    return SUBSCRIBER_CONTACT_FIELDS.find((known) => known === field) ?? null;
 }
 
 function failureOf(error: unknown): string {
     const field = refusedFieldOf(error);
     if (!field) return i18n.value.billingDetailsSaveFailed;
     refusedField.value = field;
-    return sentence(i18n.value.billingDetailsFieldInvalid, { field: labelOf(field) });
+    // The server names the field by its key; the reader knows it by its label.
+    const params = { field: labelOf(field) };
+    if (isAdminError(error) && error.code === CHANGED_ELSEWHERE) {
+        return resolveErrorMessage({ code: error.code, params }, i18n.value.issueMessages);
+    }
+    return sentence(i18n.value.billingDetailsFieldInvalid, params);
 }
 
 function emptyDraft(): Record<TenantBillingContactField, string> {
@@ -255,7 +290,7 @@ function draftOf(
     details: TenantBillingDetailsShape | null,
 ): Record<TenantBillingContactField, string> {
     const draft = {} as Record<TenantBillingContactField, string>;
-    for (const field of CONTACT_FIELDS) draft[field] = details?.[field] ?? '';
+    for (const field of SUBSCRIBER_CONTACT_FIELDS) draft[field] = details?.[field] ?? '';
     return draft;
 }
 </script>
@@ -267,7 +302,8 @@ function draftOf(
     line-height: var(--sa-leading-md);
     margin: 0 0 var(--sa-space-3);
 }
-.sp-billing-details__identity {
+.sp-billing-details__identity,
+.sp-billing-details__kept {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
     gap: var(--sa-space-2) var(--sa-space-4);
@@ -283,6 +319,9 @@ function draftOf(
     margin: 0;
     color: var(--sa-color-fg-body);
     overflow-wrap: anywhere;
+}
+.sp-billing-details__kept {
+    margin-top: var(--sa-space-4);
 }
 .sp-billing-details__sub,
 .sp-billing-details__hint {

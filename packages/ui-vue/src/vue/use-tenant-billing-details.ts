@@ -5,10 +5,12 @@
 // says this part is not for the user (`isHiddenFromThisUser`) turns `available`
 // false, and anything else is an error the page reports. A change names only
 // the contact details: the legal name and the tax identifiers are the party the
-// contract was concluded with, shown here and corrected by the operator.
+// contract was concluded with, shown here and corrected by the operator. Of the
+// contact details, the answer names the ones the tenant changes here; the
+// application keeps the others on a page of its own.
 
 import { ref, type Ref } from 'vue';
-import type { SubscriberReadiness } from '@saasicat/core';
+import type { SubscriberContactField, SubscriberReadiness } from '@saasicat/core';
 
 import { httpStatusOf } from '../client/admin-error.js';
 import { isHiddenFromThisUser } from '../client/billing-area.js';
@@ -35,11 +37,17 @@ export interface TenantBillingDetailsShape {
      * where none decides.
      */
     readiness: SubscriberReadiness | null;
+    /**
+     * The contact details the tenant changes here, in the order of
+     * `SUBSCRIBER_CONTACT_FIELDS`; the application changes the others on a
+     * page of its own (`tenantBilling.billingDetails`), and a change naming
+     * one is refused.
+     */
+    tenantEditable: TenantBillingContactField[];
 }
 
-/** The details a tenant changes itself: how it is reached. */
-export type TenantBillingContactField =
-    'addressLine1' | 'addressLine2' | 'postalCode' | 'city' | 'country' | 'invoiceEmail';
+/** The details a tenant may change in its billing area: how it is reached. */
+export type TenantBillingContactField = SubscriberContactField;
 
 /** A change of the contact details; a field left out keeps its value. */
 export type TenantBillingContactChange = Partial<
@@ -71,12 +79,19 @@ export interface UseTenantBillingDetailsResult {
 
 function isDetailsAnswer(value: unknown): value is { details: TenantBillingDetailsShape } {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
-    const details = (value as { details?: unknown }).details;
+    if (!('details' in value)) return false;
+    const details = value.details;
+    // Without the list, a page could only guess which details are offered as
+    // fields, and offering every one would invite changes the server refuses.
     return (
         details !== null &&
         typeof details === 'object' &&
-        typeof (details as { customerNumber?: unknown }).customerNumber === 'string' &&
-        typeof (details as { legalName?: unknown }).legalName === 'string'
+        'customerNumber' in details &&
+        typeof details.customerNumber === 'string' &&
+        'legalName' in details &&
+        typeof details.legalName === 'string' &&
+        'tenantEditable' in details &&
+        Array.isArray(details.tenantEditable)
     );
 }
 
