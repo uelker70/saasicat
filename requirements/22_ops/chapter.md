@@ -350,6 +350,10 @@ _Tested by:_
         - a notice delivered before counts its recipients, and one not delivered counts none
         - a second run keeps the number of a notice whose recipients were forgotten
         - an installation without notices and ends is left without them, and runs through
+    - an installation mark says how the installation operates, and an older one is live
+        - a mark that stood before the migration is live, after one run and after two
+        - a database from before gains the column as the fragments declare it
+        - a test operation stays one when the migration runs again
 
 <!-- END proof -->
 
@@ -590,6 +594,10 @@ _Tested by:_
         - a notice delivered before counts its recipients, and one not delivered counts none
         - a second run keeps the number of a notice whose recipients were forgotten
         - an installation without notices and ends is left without them, and runs through
+    - an installation mark says how the installation operates, and an older one is live
+        - a mark that stood before the migration is live, after one run and after two
+        - a database from before gains the column as the fragments declare it
+        - a test operation stays one when the migration runs again
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

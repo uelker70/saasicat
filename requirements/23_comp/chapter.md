@@ -865,7 +865,7 @@ _Tested by:_
         - no row is no mark
         - marking leaves the refusal to the primary key, and answers what stands after it
         - a row gone after the insert is an error, not a mark that was never written
-        - a replacement is guarded on the identifier the caller read
+        - a replacement is guarded on the identifier and the operation the caller read
         - a replacement that matched nothing answers null and reads nothing back
 - `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
     - writing an invoice’s next attempt

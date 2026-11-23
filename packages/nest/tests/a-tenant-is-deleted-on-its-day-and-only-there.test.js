@@ -326,17 +326,22 @@ describe('the installation mark in front of the run', () => {
             answers: {
                 files: {
                     erase: () =>
-                        marks.replace(THIS_INSTALLATION, {
-                            identifier: 'staging',
-                            markedAt: DAY,
-                            markedBy: 'cli:ops',
-                        }),
+                        marks.replace(
+                            { identifier: THIS_INSTALLATION, testOperation: false },
+                            {
+                                identifier: 'staging',
+                                testOperation: false,
+                                markedAt: DAY,
+                                markedBy: 'cli:ops',
+                            },
+                        ),
                 },
             },
             shared: { ...aDatabase(), marks },
         });
         await marks.markIfUnmarked({
             identifier: THIS_INSTALLATION,
+            testOperation: false,
             markedAt: ENDED_AT,
             markedBy: 'cli:ops',
         });

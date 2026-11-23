@@ -389,6 +389,11 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 severity: 'high',
             },
             {
+                key: 'INSTALLATION_OPERATION_CHANGED',
+                label: 'Installation marked as a test operation, or as a live one again',
+                severity: 'high',
+            },
+            {
                 key: 'TENANT_DELETION_BEGUN',
                 label: "Tenant's deletion begun on its day: recorded with its subscriber, and the tenant held back for good",
                 severity: 'high',

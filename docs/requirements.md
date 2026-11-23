@@ -23158,6 +23158,8 @@ _Tested by:_
         - warns, before the first mark, that nothing is deleted until the operator marks it
         - is an error where the database is another installation’s, naming both
         - is an error where the mark cannot be read, and fine where nothing is deleted at all
+    - InstallationMarkDoctorCheck on how the installation operates
+        - names a test operation, and is not alarmed by it
     - PLATFORM_DOCTOR_CHECK_PROVIDERS
         - holds every platform check, and nothing else
 - `packages/cli/tests/doctor-flow.test.js`
@@ -27869,6 +27871,10 @@ _Tested by:_
         - a notice delivered before counts its recipients, and one not delivered counts none
         - a second run keeps the number of a notice whose recipients were forgotten
         - an installation without notices and ends is left without them, and runs through
+    - an installation mark says how the installation operates, and an older one is live
+        - a mark that stood before the migration is live, after one run and after two
+        - a database from before gains the column as the fragments declare it
+        - a test operation stays one when the migration runs again
 
 <!-- END proof -->
 
@@ -28109,6 +28115,10 @@ _Tested by:_
         - a notice delivered before counts its recipients, and one not delivered counts none
         - a second run keeps the number of a notice whose recipients were forgotten
         - an installation without notices and ends is left without them, and runs through
+    - an installation mark says how the installation operates, and an older one is live
+        - a mark that stood before the migration is live, after one run and after two
+        - a database from before gains the column as the fragments declare it
+        - a test operation stays one when the migration runs again
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit
@@ -29325,7 +29335,7 @@ _Tested by:_
         - no row is no mark
         - marking leaves the refusal to the primary key, and answers what stands after it
         - a row gone after the insert is an error, not a mark that was never written
-        - a replacement is guarded on the identifier the caller read
+        - a replacement is guarded on the identifier and the operation the caller read
         - a replacement that matched nothing answers null and reads nothing back
 - `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
     - writing an invoice’s next attempt

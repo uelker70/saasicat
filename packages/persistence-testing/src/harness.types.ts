@@ -10,6 +10,7 @@ import type {
     AuditQueryPort,
     BundleRepository,
     CheckoutOfferRepository,
+    InstallationMark,
     InstallationMarkPort,
     InvoiceCollectionRepository,
     SubscriberPaymentRepository,
@@ -417,6 +418,16 @@ export interface ContractSeed {
      * `clearBookingRequestDate` is.
      */
     markNoticeDeliveredBeforeItsCount?(noticeId: string): Promise<void>;
+    /**
+     * Writes the installation mark without its operation, as a database keeps
+     * a mark written before marks said how the installation operates: the
+     * column default decides it. No repository writes that, since every mark
+     * the platform writes names its operation. Optional for the reason
+     * `clearBookingRequestDate` is.
+     */
+    markInstallationBeforeItsOperation?(
+        mark: Omit<InstallationMark, 'testOperation'>,
+    ): Promise<void>;
 }
 
 export interface PersistenceContractHarness {
@@ -478,6 +489,7 @@ export type ContractGap =
     | 'appliedSettings'
     | 'maintenanceWindows'
     | 'installationMark'
+    | 'installationMarkBeforeOperationSeed'
     | 'tenantAccessHolds'
     | 'subscriptionEnds'
     | 'cancelledSubscriptions'

@@ -8,6 +8,11 @@
 // only as the identifier of the environment the command runs in — a mark
 // naming another environment would hold every deletion here from then on.
 //
+// The mark also says how the installation operates: as a test, whose documents
+// are all marked as tests, or live. It belongs to the data, so a replacement
+// keeps it unless the operator names another, and a database nobody marked is
+// live.
+//
 // Everything that decides lives here; the port only makes each write
 // conditional on what stands.
 
@@ -25,7 +30,11 @@ import {
     type InstallationMark,
     type InstallationMarkPort,
     type InstallationMarkVerdict,
+    type InstallationOperation,
+    type InstallationStatus,
     installationMarkVerdict,
+    installationOperationOf,
+    installationStatus,
 } from '@saasicat/core';
 
 import { AdminAuditService } from '../../admin/admin-audit.service.js';
@@ -43,13 +52,32 @@ export type InstallationMarkOutcome =
     /** The database carried this environment's mark already; nothing was written. */
     | { readonly kind: 'already-marked'; readonly mark: InstallationMark }
     /** Another installation's mark was replaced with this one. */
-    | { readonly kind: 'replaced'; readonly mark: InstallationMark };
+    | { readonly kind: 'replaced'; readonly mark: InstallationMark }
+    /** This environment's mark stood, and now says another operation than `from`. */
+    | {
+          readonly kind: 'operation-changed';
+          readonly mark: InstallationMark;
+          readonly from: InstallationOperation;
+      };
+
+/** What a mark is written with beside its identifier. */
+export interface InstallationMarkWriteOptions {
+    /**
+     * How the installation operates. Left out, a new mark is live and a mark
+     * that stands keeps its operation.
+     */
+    readonly operation?: InstallationOperation;
+}
 
 /** What the audit log names a mark under. */
 const AUDITED_ENTITY = 'InstallationMark';
 
-/** What an audit entry of a mark records: the identifier marked, or the one replaced and its successor. */
-type AuditedMarkChange = { identifier: string } | { from: string; to: string };
+/**
+ * What an audit entry of a mark records: the identifier marked and its
+ * operation, or the identifier or the operation replaced and its successor.
+ */
+type AuditedMarkChange =
+    { identifier: string; operation: InstallationOperation } | { from: string; to: string };
 
 @Injectable()
 export class InstallationMarkService {
@@ -76,46 +104,94 @@ export class InstallationMarkService {
         return installationMarkVerdict(this.environment, await this.marks.find());
     }
 
+    /** The verdict, and how the installation operates: live where nobody marked it. */
+    async status(): Promise<InstallationStatus> {
+        return installationStatus(this.environment, await this.marks.find());
+    }
+
     /**
      * Marks the database as this environment's installation where nothing
-     * marks it. Refused where `identifier` is not this environment's, and where
-     * another installation's mark stands.
+     * marks it, and changes the operation of this environment's mark where
+     * `options` names another. Refused where `identifier` is not this
+     * environment's, and where another installation's mark stands.
      */
-    async mark(identifier: string, actor: AdminActor): Promise<InstallationMarkOutcome> {
+    async mark(
+        identifier: string,
+        actor: AdminActor,
+        options: InstallationMarkWriteOptions = {},
+    ): Promise<InstallationMarkOutcome> {
         this.refuseAnotherEnvironments(identifier);
         return this.oneAtATime(async () => {
             const standing = await this.marks.find();
-            if (standing === null) return this.markUnmarked(identifier, actor, markedOtherwise);
-            if (standing.identifier === identifier)
-                return { kind: 'already-marked', mark: standing };
-            throw markedOtherwise(standing);
+            if (standing === null) {
+                return this.markUnmarked(identifier, actor, options, markedOtherwise);
+            }
+            if (standing.identifier !== identifier) throw markedOtherwise(standing);
+            return this.keepOrChangeOperation(standing, actor, options);
         });
     }
 
     /**
      * Replaces another installation's mark with this environment's, as after
      * restoring a backup into another environment; marks where nothing does.
+     * The operation that stands is kept unless `options` names another.
      * Refused where `identifier` is not this environment's, and where the mark
      * changes between reading and replacing it.
      */
-    async replace(identifier: string, actor: AdminActor): Promise<InstallationMarkOutcome> {
+    async replace(
+        identifier: string,
+        actor: AdminActor,
+        options: InstallationMarkWriteOptions = {},
+    ): Promise<InstallationMarkOutcome> {
         this.refuseAnotherEnvironments(identifier);
         return this.oneAtATime(async () => {
             const standing = await this.marks.find();
-            if (standing === null) return this.markUnmarked(identifier, actor, markMoved);
-            if (standing.identifier === identifier)
-                return { kind: 'already-marked', mark: standing };
-            const replaced = await this.marks.replace(
-                standing.identifier,
-                this.markOf(identifier, actor),
-            );
+            if (standing === null) return this.markUnmarked(identifier, actor, options, markMoved);
+            if (standing.identifier === identifier) {
+                return this.keepOrChangeOperation(standing, actor, options);
+            }
+            const from = installationOperationOf(standing);
+            const to = options.operation ?? from;
+            const replaced = await this.marks.replace(standing, this.markOf(identifier, actor, to));
             if (replaced === null) throw markMoved();
             await this.record(actor, 'INSTALLATION_MARK_REPLACED', identifier, {
                 from: standing.identifier,
                 to: identifier,
             });
+            if (to !== from) {
+                await this.record(actor, 'INSTALLATION_OPERATION_CHANGED', identifier, {
+                    from,
+                    to,
+                });
+            }
             return { kind: 'replaced', mark: replaced };
         });
+    }
+
+    /**
+     * This environment's mark stands: nothing is written where `options`
+     * names no operation or the one that stands, otherwise the operation is
+     * changed — guarded on the mark as read, so a change somebody made a
+     * moment earlier is refused rather than overwritten.
+     */
+    private async keepOrChangeOperation(
+        standing: InstallationMark,
+        actor: AdminActor,
+        options: InstallationMarkWriteOptions,
+    ): Promise<InstallationMarkOutcome> {
+        const from = installationOperationOf(standing);
+        const to = options.operation ?? from;
+        if (to === from) return { kind: 'already-marked', mark: standing };
+        const changed = await this.marks.replace(
+            standing,
+            this.markOf(standing.identifier, actor, to),
+        );
+        if (changed === null) throw markMoved();
+        await this.record(actor, 'INSTALLATION_OPERATION_CHANGED', standing.identifier, {
+            from,
+            to,
+        });
+        return { kind: 'operation-changed', mark: changed, from };
     }
 
     /**
@@ -126,13 +202,15 @@ export class InstallationMarkService {
     private async markUnmarked(
         identifier: string,
         actor: AdminActor,
+        options: InstallationMarkWriteOptions,
         refusal: (standing: InstallationMark) => Error,
     ): Promise<InstallationMarkOutcome> {
-        const written = this.markOf(identifier, actor);
+        const operation = options.operation ?? 'live';
+        const written = this.markOf(identifier, actor, operation);
         const standing = await this.marks.markIfUnmarked(written);
         if (standing.identifier !== identifier) throw refusal(standing);
         if (!sameMark(standing, written)) return { kind: 'already-marked', mark: standing };
-        await this.record(actor, 'INSTALLATION_MARKED', identifier, { identifier });
+        await this.record(actor, 'INSTALLATION_MARKED', identifier, { identifier, operation });
         return { kind: 'marked', mark: standing };
     }
 
@@ -146,8 +224,17 @@ export class InstallationMarkService {
         );
     }
 
-    private markOf(identifier: string, actor: AdminActor): InstallationMark {
-        return { identifier, markedAt: new Date(), markedBy: actorTagOf(actor) };
+    private markOf(
+        identifier: string,
+        actor: AdminActor,
+        operation: InstallationOperation,
+    ): InstallationMark {
+        return {
+            identifier,
+            testOperation: operation === 'test',
+            markedAt: new Date(),
+            markedBy: actorTagOf(actor),
+        };
     }
 
     private oneAtATime<T>(write: () => Promise<T>): Promise<T> {
@@ -185,6 +272,7 @@ export class InstallationMarkService {
 function sameMark(a: InstallationMark, b: InstallationMark): boolean {
     return (
         a.identifier === b.identifier &&
+        a.testOperation === b.testOperation &&
         a.markedBy === b.markedBy &&
         a.markedAt.getTime() === b.markedAt.getTime()
     );

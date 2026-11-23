@@ -1,11 +1,19 @@
-import type { InstallationMarkVerdict } from '@saasicat/core';
+import type { InstallationMarkVerdict, InstallationStatus } from '@saasicat/core';
 
 /**
- * What the installation verdict means, and the command that changes it where
- * one does, in one sentence or two. `installation status` prints it and the
- * doctor reports it, so that both say the same thing about the same database.
+ * What the installation status means, and the command that changes it where
+ * one does, in a few sentences. `installation status` prints it and the doctor
+ * reports it, so that both say the same thing about the same database.
  */
-export function installationVerdictText(verdict: InstallationMarkVerdict): string {
+export function installationStatusText(status: InstallationStatus): string {
+    const operation =
+        status.kind === 'unmarked'
+            ? 'Without a mark it is a live operation.'
+            : `It is marked as a ${status.operation} operation.`;
+    return `${verdictText(status)} ${operation}`;
+}
+
+function verdictText(verdict: InstallationMarkVerdict): string {
     switch (verdict.kind) {
         case 'matches':
             return `This database is marked as installation ${verdict.identifier}, the one this environment names.`;

@@ -105,6 +105,7 @@ export { DeletionReminderService, type DeletionReminderRun } from './deletion-re
 export {
     InstallationMarkService,
     type InstallationMarkOutcome,
+    type InstallationMarkWriteOptions,
 } from './deletion/installation-mark.service.js';
 export {
     DELETION_CLAIM_LEASE_MS,

@@ -1225,6 +1225,7 @@ CREATE TABLE "tenant_export_downloads" (
 CREATE TABLE "installation_marks" (
     "id" TEXT NOT NULL DEFAULT 'installation',
     "identifier" TEXT NOT NULL,
+    "testOperation" BOOLEAN NOT NULL DEFAULT false,
     "markedAt" TIMESTAMP(3) NOT NULL,
     "markedBy" TEXT NOT NULL,
 

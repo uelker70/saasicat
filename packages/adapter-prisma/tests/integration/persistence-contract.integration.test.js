@@ -269,6 +269,11 @@ function createHarness() {
                     data: { recipientCount: null },
                 });
             },
+            async markInstallationBeforeItsOperation(mark) {
+                // Raw, so that the column default decides the operation, as
+                // it does for a row written before the column existed.
+                await prisma.$executeRaw`INSERT INTO "installation_marks" ("identifier", "markedAt", "markedBy") VALUES (${mark.identifier}, ${mark.markedAt}, ${mark.markedBy})`;
+            },
             async createSubscriber(input) {
                 const row = await prisma.subscriber.create({
                     data: { legalName: input.legalName },

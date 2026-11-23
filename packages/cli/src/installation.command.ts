@@ -59,6 +59,15 @@ export class InstallationMarkCommand extends OperatorCommand<InstallationMarkOpt
     parseReplace(): boolean {
         return true;
     }
+    @Option({
+        flags: '--operation <test|live>',
+        description:
+            'how the installation operates: test marks every document it issues as a test; ' +
+            'left out, a new mark is live and one that stands keeps its own',
+    })
+    parseOperation(v: string): string {
+        return v;
+    }
 }
 
 @Injectable()

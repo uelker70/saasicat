@@ -421,6 +421,7 @@ export const settingsChanges = pgTable('settings_changes', {
 export const installationMarks = pgTable('installation_marks', {
     id: text('id').primaryKey().default('installation'),
     identifier: text('identifier').notNull(),
+    testOperation: boolean('testOperation').notNull().default(false),
     markedAt: ts('markedAt').notNull(),
     markedBy: text('markedBy').notNull(),
 });

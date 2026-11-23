@@ -207,11 +207,11 @@ Adapter for MFA secret persistence.
 
 Keeps the one mark of the installation (`installation_marks`, a single row).
 
-| Member                                                                                | What it does                                                                                                                                                                     |
-| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `find(): Promise<InstallationMark \| null>`                                           | The mark, or `null` where nobody has marked the database yet.                                                                                                                    |
-| `markIfUnmarked(mark: InstallationMark): Promise<InstallationMark>`                   | Writes `mark` where none stands; returns what stands after the call — the earlier one where one stood.                                                                           |
-| `replace(current: string, mark: InstallationMark): Promise<InstallationMark \| null>` | Replaces the mark only while `current` is the identifier that stands; returns the new mark, or `null` where `current` no longer stands — or none does — and nothing was written. |
+| Member                                                                                                                                    | What it does                                                                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `find(): Promise<InstallationMark \| null>`                                                                                               | The mark, or `null` where nobody has marked the database yet.                                                                                                                                               |
+| `markIfUnmarked(mark: InstallationMark): Promise<InstallationMark>`                                                                       | Writes `mark` where none stands; returns what stands after the call — the earlier one where one stood.                                                                                                      |
+| `replace( current: Pick<InstallationMark, 'identifier' \| 'testOperation'>, mark: InstallationMark, ): Promise<InstallationMark \| null>` | Replaces the mark only while the identifier and the operation of `current` are the ones that stand; returns the new mark, or `null` where they no longer stand — or no mark does — and nothing was written. |
 
 ## Maintenance
 

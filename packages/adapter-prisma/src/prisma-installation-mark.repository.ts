@@ -12,6 +12,7 @@ const INSTALLATION_ROW_ID = 'installation';
 
 interface InstallationMarkDbRow {
     identifier: string;
+    testOperation: boolean;
     markedAt: Date;
     markedBy: string;
 }
@@ -31,7 +32,12 @@ interface InstallationMarkRepositoryClient {
 }
 
 /** The columns a read asks for, named, so a column a later release adds is not read. */
-const COLUMNS = { identifier: true, markedAt: true, markedBy: true } as const;
+const COLUMNS = {
+    identifier: true,
+    testOperation: true,
+    markedAt: true,
+    markedBy: true,
+} as const;
 
 /** `InstallationMarkPort` against the canonical `installation_marks` table. */
 @Injectable()
@@ -79,15 +85,23 @@ export class PrismaInstallationMarkRepository implements InstallationMarkPort {
     }
 
     /**
-     * One guarded `UPDATE`: the identifier the caller read is in the `WHERE`,
-     * so a mark somebody replaced a moment earlier leaves the count at zero
-     * instead of being replaced twice. The answer is the mark as written, not a
-     * read afterwards, which could already be a later replacement's.
+     * One guarded `UPDATE`: the identifier and the operation the caller read
+     * are in the `WHERE`, so a mark somebody changed a moment earlier leaves
+     * the count at zero instead of being changed twice. The answer is the mark
+     * as written, not a read afterwards, which could already be a later
+     * replacement's.
      */
-    async replace(current: string, mark: InstallationMark): Promise<InstallationMark | null> {
+    async replace(
+        current: Pick<InstallationMark, 'identifier' | 'testOperation'>,
+        mark: InstallationMark,
+    ): Promise<InstallationMark | null> {
         const written = toMark(mark);
         const { count } = await this.db.installationMark.updateMany({
-            where: { id: INSTALLATION_ROW_ID, identifier: current },
+            where: {
+                id: INSTALLATION_ROW_ID,
+                identifier: current.identifier,
+                testOperation: current.testOperation,
+            },
             data: written,
         });
         return count === 1 ? written : null;
@@ -95,5 +109,10 @@ export class PrismaInstallationMarkRepository implements InstallationMarkPort {
 }
 
 function toMark(row: InstallationMarkDbRow): InstallationMark {
-    return { identifier: row.identifier, markedAt: row.markedAt, markedBy: row.markedBy };
+    return {
+        identifier: row.identifier,
+        testOperation: row.testOperation,
+        markedAt: row.markedAt,
+        markedBy: row.markedBy,
+    };
 }

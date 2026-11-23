@@ -1789,6 +1789,10 @@ export function createMemoryHarness() {
             const row = state.subscriptionNotices.find((candidate) => candidate.id === noticeId);
             if (row) row.recipientCount = null;
         },
+        async markInstallationBeforeItsOperation(mark) {
+            // What the column default writes for a mark that does not say.
+            state.installationMark ??= { ...structuredClone(mark), testOperation: false };
+        },
         async createSubscriber(input) {
             const row = {
                 id: nextId('subscriber'),
@@ -1989,7 +1993,8 @@ export function createMemoryHarness() {
 
     /**
      * The installation mark: one row, written only where none stands, and
-     * replaced only while the identifier the caller read still stands — the
+     * replaced only while the identifier and the operation the caller read
+     * still stand — the
      * primary key and the guarded update a database keeps it with.
      */
     const installationMark = {
@@ -2001,7 +2006,13 @@ export function createMemoryHarness() {
             return structuredClone(state.installationMark);
         },
         async replace(current, mark) {
-            if (state.installationMark?.identifier !== current) return null;
+            const standing = state.installationMark;
+            if (
+                standing?.identifier !== current.identifier ||
+                standing.testOperation !== current.testOperation
+            ) {
+                return null;
+            }
             state.installationMark = structuredClone(mark);
             return structuredClone(state.installationMark);
         },

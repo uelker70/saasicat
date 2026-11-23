@@ -1831,10 +1831,11 @@ model TenantExportDownload {
 // @saasicat/spec/sql/constraints.postgres.sql.
 
 model InstallationMark {
-    id         String   @id @default("installation")
-    identifier String
-    markedAt   DateTime
-    markedBy   String
+    id            String   @id @default("installation")
+    identifier    String
+    testOperation Boolean  @default(false)
+    markedAt      DateTime
+    markedBy      String
 
     @@map("installation_marks")
 }

@@ -132,6 +132,7 @@ persistenceAdapterContract({
         'contractConfirmationArchive',
         'maintenanceWindows',
         'installationMark',
+        'installationMarkBeforeOperationSeed',
         'tenantAccessHolds',
         'subscriptionEnds',
         'cancelledSubscriptions',

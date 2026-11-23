@@ -4175,3 +4175,57 @@ describe('a notice keeps how many it went to', () => {
         assert.deepEqual(rows, [{ notices: null, ends: null }]);
     });
 });
+
+describe('an installation mark says how the installation operates, and an older one is live', () => {
+    // The migration adds the operation to a table that may already hold the
+    // mark, written before marks said whether the installation is a test. A
+    // test operation is always the operator's deliberate step, so that mark
+    // reads as live.
+    const MIGRATION = '1.0-the-installation-is-marked.postgres.sql';
+
+    /** The reference schema with the mark's table in the shape before the operation. */
+    async function beforeTheOperation() {
+        await freshGround();
+        await client.query('ALTER TABLE "installation_marks" DROP COLUMN "testOperation"');
+    }
+
+    test('a mark that stood before the migration is live, after one run and after two', async () => {
+        await beforeTheOperation();
+        await client.query(
+            'INSERT INTO "installation_marks" ("identifier", "markedAt", "markedBy") ' +
+                "VALUES ('PROD', NOW(), 'cli:ops@example.com:host')",
+        );
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            'SELECT "identifier", "testOperation" FROM "installation_marks"',
+        );
+        assert.deepEqual(rows, [{ identifier: 'PROD', testOperation: false }]);
+    });
+
+    test('a database from before gains the column as the fragments declare it', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await client.query('ALTER TABLE "installation_marks" DROP COLUMN "testOperation"');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+    });
+
+    test('a test operation stays one when the migration runs again', async () => {
+        await freshGround();
+        await client.query(
+            'INSERT INTO "installation_marks" ("identifier", "testOperation", "markedAt", "markedBy") ' +
+                "VALUES ('INT', true, NOW(), 'cli:ops@example.com:host')",
+        );
+
+        await apply(MIGRATION);
+
+        const { rows } = await client.query('SELECT "testOperation" FROM "installation_marks"');
+        assert.deepEqual(rows, [{ testOperation: true }]);
+    });
+});

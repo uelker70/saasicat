@@ -455,6 +455,8 @@ _Tested by:_
         - warns, before the first mark, that nothing is deleted until the operator marks it
         - is an error where the database is another installation’s, naming both
         - is an error where the mark cannot be read, and fine where nothing is deleted at all
+    - InstallationMarkDoctorCheck on how the installation operates
+        - names a test operation, and is not alarmed by it
     - PLATFORM_DOCTOR_CHECK_PROVIDERS
         - holds every platform check, and nothing else
 - `packages/cli/tests/doctor-flow.test.js`

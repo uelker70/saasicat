@@ -1,4 +1,5 @@
-// The port behind the mark an installation carries in its database.
+// The port behind the mark an installation carries in its database: which
+// installation it belongs to, and whether it is a test operation.
 
 import type { InstallationMark } from '../installation-mark.types.js';
 
@@ -20,9 +21,15 @@ export interface InstallationMarkPort {
      */
     markIfUnmarked(mark: InstallationMark): Promise<InstallationMark>;
     /**
-     * Replaces the mark only while `current` is the identifier that stands;
-     * returns the new mark, or `null` where `current` no longer stands — or
-     * none does — and nothing was written.
+     * Replaces the mark only while the identifier and the operation of
+     * `current` are the ones that stand; returns the new mark, or `null` where
+     * they no longer stand — or no mark does — and nothing was written. The
+     * operation is part of the guard because an operator changing it on the
+     * same identifier is told which operation the database has now, and a
+     * change somebody made a moment earlier would make that answer wrong.
      */
-    replace(current: string, mark: InstallationMark): Promise<InstallationMark | null>;
+    replace(
+        current: Pick<InstallationMark, 'identifier' | 'testOperation'>,
+        mark: InstallationMark,
+    ): Promise<InstallationMark | null>;
 }

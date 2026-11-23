@@ -13,6 +13,7 @@ const INSTALLATION_ROW_ID = 'installation';
 /** The columns a read asks for, named, so a column a later release adds is not read. */
 const COLUMNS = {
     identifier: installationMarks.identifier,
+    testOperation: installationMarks.testOperation,
     markedAt: installationMarks.markedAt,
     markedBy: installationMarks.markedBy,
 };
@@ -54,18 +55,22 @@ export class DrizzleInstallationMarkRepository implements InstallationMarkPort {
     }
 
     /**
-     * One guarded `UPDATE`: the identifier the caller read is in the `WHERE`,
-     * so a mark somebody replaced a moment earlier returns no row instead of
-     * being replaced twice.
+     * One guarded `UPDATE`: the identifier and the operation the caller read
+     * are in the `WHERE`, so a mark somebody changed a moment earlier returns
+     * no row instead of being changed twice.
      */
-    async replace(current: string, mark: InstallationMark): Promise<InstallationMark | null> {
+    async replace(
+        current: Pick<InstallationMark, 'identifier' | 'testOperation'>,
+        mark: InstallationMark,
+    ): Promise<InstallationMark | null> {
         const [row] = await this.db
             .update(installationMarks)
             .set(toMark(mark))
             .where(
                 and(
                     eq(installationMarks.id, INSTALLATION_ROW_ID),
-                    eq(installationMarks.identifier, current),
+                    eq(installationMarks.identifier, current.identifier),
+                    eq(installationMarks.testOperation, current.testOperation),
                 ),
             )
             .returning(COLUMNS);
@@ -74,5 +79,10 @@ export class DrizzleInstallationMarkRepository implements InstallationMarkPort {
 }
 
 function toMark(mark: InstallationMark): InstallationMark {
-    return { identifier: mark.identifier, markedAt: mark.markedAt, markedBy: mark.markedBy };
+    return {
+        identifier: mark.identifier,
+        testOperation: mark.testOperation,
+        markedAt: mark.markedAt,
+        markedBy: mark.markedBy,
+    };
 }

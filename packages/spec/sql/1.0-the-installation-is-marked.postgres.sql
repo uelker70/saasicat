@@ -3,7 +3,8 @@
 -- =============================================================================
 --
 -- One table, additive: `installation_marks` holds the one row that names the
--- installation this database belongs to, when it was marked and by whom. A
+-- installation this database belongs to, whether it is a test operation, when
+-- it was marked and by whom. A
 -- tenant's deletion runs only where that identifier is the one the process's
 -- environment names, so a process meant for another environment, started
 -- against a copy of this database, deletes nothing.
@@ -21,9 +22,9 @@
 -- One row per installation. The CHECK is what holds it to one row, the
 -- constant default only lands a caller that omits the id on the right one.
 --
--- Safe to run again: the table is created only where it is missing, and the
--- constraint is dropped before it is added because `ADD CONSTRAINT` has no
--- `IF NOT EXISTS`. On a database created from `reference-schema.postgres.sql`
+-- Safe to run again: the table is created only where it is missing, the
+-- column added only where it is missing, and the constraint is dropped before
+-- it is added because `ADD CONSTRAINT` has no `IF NOT EXISTS`. On a database created from `reference-schema.postgres.sql`
 -- the whole file does nothing at all.
 
 BEGIN;
@@ -31,11 +32,17 @@ BEGIN;
 CREATE TABLE IF NOT EXISTS "installation_marks" (
     "id" TEXT NOT NULL DEFAULT 'installation',
     "identifier" TEXT NOT NULL,
+    "testOperation" BOOLEAN NOT NULL DEFAULT false,
     "markedAt" TIMESTAMP(3) NOT NULL,
     "markedBy" TEXT NOT NULL,
 
     CONSTRAINT "installation_marks_pkey" PRIMARY KEY ("id")
 );
+
+-- A table created before the mark said how the installation operates gains
+-- the column; the mark it holds is live, as every mark that does not say.
+ALTER TABLE "installation_marks"
+    ADD COLUMN IF NOT EXISTS "testOperation" BOOLEAN NOT NULL DEFAULT false;
 
 ALTER TABLE "installation_marks"
     DROP CONSTRAINT IF EXISTS installation_marks_is_a_singleton;

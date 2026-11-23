@@ -236,28 +236,33 @@ describe('IssuerIdentityDoctorCheck', () => {
     });
 });
 
+/** The check over the platform's service, in environment `environment`, on a database marked `standing`. */
+async function checkIn(environment, standing = null, testOperation = false) {
+    const store = new FakeInstallationMarkRepository();
+    if (standing) {
+        await store.markIfUnmarked({
+            identifier: standing,
+            testOperation,
+            markedAt: new Date('2026-11-01T09:00:00Z'),
+            markedBy: 'cli:ops@example.com:deploy-host',
+        });
+    }
+    return new InstallationMarkDoctorCheck(
+        new InstallationMarkService(store, environment, null),
+    ).run();
+}
+
 // @requirement SC-PRIV-021 — A tenant is deleted only in the database its installation marked as its own
 describe('InstallationMarkDoctorCheck', () => {
-    /** The check over the platform's service, in environment `environment`, on a database marked `standing`. */
-    async function checkIn(environment, standing = null) {
-        const store = new FakeInstallationMarkRepository();
-        if (standing) {
-            await store.markIfUnmarked({
-                identifier: standing,
-                markedAt: new Date('2026-11-01T09:00:00Z'),
-                markedBy: 'cli:ops@example.com:deploy-host',
-            });
-        }
-        return new InstallationMarkDoctorCheck(
-            new InstallationMarkService(store, environment, null),
-        ).run();
-    }
-
     test('is silent where the database is this environment’s', async () => {
         const result = await checkIn('prod', 'prod');
         assert.deepEqual(
             [result.severity, result.message],
-            ['ok', 'This database is marked as installation prod, the one this environment names.'],
+            [
+                'ok',
+                'This database is marked as installation prod, the one this environment names. ' +
+                    'It is marked as a live operation.',
+            ],
         );
     });
 
@@ -280,7 +285,7 @@ describe('InstallationMarkDoctorCheck', () => {
 
     test('is an error where the mark cannot be read, and fine where nothing is deleted at all', async () => {
         const unreadable = await new InstallationMarkDoctorCheck({
-            verdict: async () => {
+            status: async () => {
                 throw new Error('relation "installation_marks" does not exist');
             },
         }).run();
@@ -289,6 +294,14 @@ describe('InstallationMarkDoctorCheck', () => {
         assert.equal(unreadable.severity, 'error');
         assert.match(unreadable.message, /installation_marks/);
         assert.equal(notWired.severity, 'ok');
+    });
+});
+
+describe('InstallationMarkDoctorCheck on how the installation operates', () => {
+    test('names a test operation, and is not alarmed by it', async () => {
+        const result = await checkIn('INT', 'INT', true);
+        assert.equal(result.severity, 'ok');
+        assert.match(result.message, /It is marked as a test operation\.$/);
     });
 });
 

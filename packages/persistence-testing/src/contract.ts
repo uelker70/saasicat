@@ -649,6 +649,14 @@ const CONTRACT_GAPS: Record<
         reason: 'adapter provides no InstallationMarkPort',
         present: ({ adapter }) => Boolean(adapter.installationMark),
     },
+    installationMarkBeforeOperationSeed: {
+        reason: 'harness cannot write a mark without its operation, which no repository method does',
+        present: ({ adapter, seed }) =>
+            Boolean(
+                adapter.installationMark &&
+                typeof seed.markInstallationBeforeItsOperation === 'function',
+            ),
+    },
     tenantAccessHolds: {
         reason: 'adapter provides no TenantAccessHoldPort',
         present: ({ adapter }) => Boolean(adapter.tenantAccessHolds),
@@ -13978,9 +13986,15 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 overrides: Partial<InstallationMark> = {},
             ): InstallationMark => ({
                 identifier,
+                testOperation: false,
                 markedAt: MARKED_AT,
                 markedBy: 'cli:ops@example.com:deploy-host',
                 ...overrides,
+            });
+            /** What a replacement is guarded on: the mark as the caller read it. */
+            const read = (identifier: string, testOperation = false) => ({
+                identifier,
+                testOperation,
             });
 
             test('no mark stands before an operator sets one', async (t) => {
@@ -14006,6 +14020,37 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 // is what an operator reads when the brake holds a deletion.
                 assert.equal(found?.markedAt.toISOString(), MARKED_AT.toISOString());
                 assert.equal(found?.markedBy, 'cli:ops@example.com:deploy-host');
+                assert.equal(found?.testOperation, false);
+            });
+
+            test('a mark of a test operation comes back as one', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                const landed = await port.markIfUnmarked(markOf('int', { testOperation: true }));
+                assert.equal(landed.testOperation, true);
+                assert.equal((await port.find())?.testOperation, true);
+            });
+
+            test('a mark written before marks said how they operate is live', async (t) => {
+                const port = harness.adapter.installationMark;
+                const writeOlder = harness.seed.markInstallationBeforeItsOperation?.bind(
+                    harness.seed,
+                );
+                if (!port || !writeOlder) {
+                    missing(t, port ? 'installationMarkBeforeOperationSeed' : 'installationMark');
+                    return;
+                }
+                await writeOlder({
+                    identifier: 'prod',
+                    markedAt: MARKED_AT,
+                    markedBy: 'cli:ops@example.com:deploy-host',
+                });
+                const found = await port.find();
+                assert.equal(found?.identifier, 'prod');
+                assert.equal(found?.testOperation, false);
             });
 
             test('a mark is never written over another: the one that stands is answered', async (t) => {
@@ -14074,7 +14119,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 }
                 await port.markIfUnmarked(markOf('prod'));
                 const replaced = await port.replace(
-                    'prod',
+                    read('prod'),
                     markOf('staging', { markedAt: LATER, markedBy: 'cli:ops@example.com:restore' }),
                 );
                 assert.equal(replaced?.identifier, 'staging');
@@ -14092,11 +14137,47 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 }
                 await port.markIfUnmarked(markOf('staging'));
                 assert.equal(
-                    await port.replace('prod', markOf('elsewhere', { markedAt: LATER })),
+                    await port.replace(read('prod'), markOf('elsewhere', { markedAt: LATER })),
                     null,
                 );
                 const found = await port.find();
                 assert.equal(found?.identifier, 'staging');
+                assert.equal(found?.markedAt.toISOString(), MARKED_AT.toISOString());
+            });
+
+            test('a replacement on the same identifier changes the operation', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                await port.markIfUnmarked(markOf('int'));
+                const changed = await port.replace(
+                    read('int'),
+                    markOf('int', { testOperation: true, markedAt: LATER }),
+                );
+                assert.equal(changed?.testOperation, true);
+                const found = await port.find();
+                assert.equal(found?.identifier, 'int');
+                assert.equal(found?.testOperation, true);
+                assert.equal(found?.markedAt.toISOString(), LATER.toISOString());
+            });
+
+            test('a replacement guarded on an operation that no longer stands changes nothing', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                // Somebody made the installation a test operation after the
+                // caller read it live: the caller's change lands on nothing.
+                await port.markIfUnmarked(markOf('int', { testOperation: true }));
+                assert.equal(
+                    await port.replace(read('int', false), markOf('int', { markedAt: LATER })),
+                    null,
+                );
+                const found = await port.find();
+                assert.equal(found?.testOperation, true);
                 assert.equal(found?.markedAt.toISOString(), MARKED_AT.toISOString());
             });
 
@@ -14106,7 +14187,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     missing(t, 'installationMark');
                     return;
                 }
-                assert.equal(await port.replace('prod', markOf('staging')), null);
+                assert.equal(await port.replace(read('prod'), markOf('staging')), null);
                 assert.equal(await port.find(), null);
             });
 
@@ -14119,7 +14200,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 await port.markIfUnmarked(markOf('prod'));
                 const answers = await Promise.all(
                     ['blue', 'green', 'teal'].map((identifier) =>
-                        port.replace('prod', markOf(identifier, { markedAt: LATER })),
+                        port.replace(read('prod'), markOf(identifier, { markedAt: LATER })),
                     ),
                 );
                 const landed = answers.filter((mark) => mark !== null);

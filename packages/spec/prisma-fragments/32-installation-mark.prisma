@@ -10,7 +10,8 @@
 // runs it: a process meant for staging, started against a restored copy of
 // production's database, deletes nothing.
 //
-// The operator writes the row, with `<app> installation mark <identifier>`.
+// The operator writes the row, with `<app> installation mark <identifier>`,
+// and says there with `--operation test|live` how the installation operates.
 // No start writes it: a developer's process started against a shared database
 // right after the migration would otherwise claim that database for its own
 // environment. Until somebody marks it, nothing is deleted at all.
@@ -22,12 +23,16 @@
 // Required wherever tenants are served, together with fragments 29 to 31.
 
 model InstallationMark {
-    id         String   @id @default("installation")
+    id            String   @id @default("installation")
     // As the operator typed it and the environment names it: compared exactly.
-    identifier String
+    identifier    String
+    // Whether the installation is a test operation, whose documents are all
+    // marked as tests. False on a mark that does not say: a test operation is
+    // always the operator's deliberate step (`--operation test`).
+    testOperation Boolean  @default(false)
     // When it was set, and by whom: an actor tag, as the audit log writes it.
-    markedAt   DateTime
-    markedBy   String
+    markedAt      DateTime
+    markedBy      String
 
     @@map("installation_marks")
 }
