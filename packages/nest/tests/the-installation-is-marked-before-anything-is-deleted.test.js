@@ -28,6 +28,7 @@ import {
 } from '../dist/testing/index.js';
 import { bootable, everythingOnOptions } from './helpers/operator-routes.js';
 import { THIS_INSTALLATION, aHandWiredDeletion } from './helpers/installation-mark.js';
+import { documentsIssued } from './helpers/installation-marks.js';
 import { anExport } from './helpers/tenant-data-export.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
@@ -209,7 +210,13 @@ const standing = (identifier, testOperation = false) => ({
 function setUp(environment, marks = new FakeInstallationMarkRepository()) {
     const audited = [];
     const audit = new AdminAuditService({ write: async (entry) => void audited.push(entry) });
-    return { marks, audited, service: new InstallationMarkService(marks, environment, audit) };
+    // No document was issued, so the operation may change.
+    const { invoices, confirmations } = documentsIssued();
+    return {
+        marks,
+        audited,
+        service: new InstallationMarkService(marks, environment, audit, invoices, confirmations),
+    };
 }
 
 /** The status and coded body of what `fn` threw. */

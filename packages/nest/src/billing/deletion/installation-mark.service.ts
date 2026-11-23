@@ -11,7 +11,12 @@
 // The mark also says how the installation operates: as a test, whose documents
 // are all marked as tests, or live. It belongs to the data, so a replacement
 // keeps it unless the operator names another, and a database nobody marked is
-// live.
+// live. Once the installation has issued a document, the mark says the
+// operation its documents recorded and no other (`SC-AUD-023`); where the
+// documents cannot be read, nothing shows that none exists, and the operation
+// is not changed. The documents are read before the mark is written: a first
+// document issued between the two is not seen here, and the next start that
+// issues invoices refuses the mark that disagrees with it.
 //
 // Everything that decides lives here; the port only makes each write
 // conditional on what stands.
@@ -26,24 +31,31 @@ import {
 } from '@nestjs/common';
 import {
     type AdminActor,
+    type ContractConfirmationRepository,
     INSTALLATION_ERROR_CODES,
     type InstallationMark,
     type InstallationMarkPort,
     type InstallationMarkVerdict,
     type InstallationOperation,
     type InstallationStatus,
+    type RlsBypassPort,
+    type SubscriptionInvoiceRepository,
     installationMarkVerdict,
     installationOperationOf,
     installationStatus,
 } from '@saasicat/core';
 
 import { AdminAuditService } from '../../admin/admin-audit.service.js';
+import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { actorTagOf } from '../../core/web-audit.js';
 import { codedError } from '../../errors/coded-error.js';
+import { CONTRACT_CONFIRMATION_REPOSITORY_TOKEN } from '../confirmations/contract-confirmation.tokens.js';
+import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from '../invoices/subscription-invoice.tokens.js';
 import {
     INSTALLATION_IDENTIFIER_TOKEN,
     INSTALLATION_MARK_PORT_TOKEN,
 } from '../tenant-billing.tokens.js';
+import { issuedOperationsIn, operationOtherThan } from './issued-document-operations.js';
 
 /** What marking the database came to. */
 export type InstallationMarkOutcome =
@@ -97,6 +109,25 @@ export class InstallationMarkService {
         @Optional()
         @Inject(AdminAuditService)
         private readonly audit: AdminAuditService | null = null,
+        // The documents the installation issued, which fix its operation:
+        // bound where invoices are issued, or from the stores
+        // `subscriptionEnds.deletion.documents` names.
+        @Optional()
+        @Inject(SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN)
+        private readonly invoices: Pick<
+            SubscriptionInvoiceRepository,
+            'issuedOperations'
+        > | null = null,
+        @Optional()
+        @Inject(CONTRACT_CONFIRMATION_REPOSITORY_TOKEN)
+        private readonly confirmations: Pick<
+            ContractConfirmationRepository,
+            'recordedOperations'
+        > | null = null,
+        // The documents are the installation's, not a tenant's.
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
     ) {}
 
     /** Whether the database belongs to the environment this process runs in. */
@@ -152,6 +183,7 @@ export class InstallationMarkService {
             }
             const from = installationOperationOf(standing);
             const to = options.operation ?? from;
+            await this.refuseAnotherOperationThanIssued(from, to);
             const replaced = await this.marks.replace(standing, this.markOf(identifier, actor, to));
             if (replaced === null) throw markMoved();
             await this.record(actor, 'INSTALLATION_MARK_REPLACED', identifier, {
@@ -182,6 +214,7 @@ export class InstallationMarkService {
         const from = installationOperationOf(standing);
         const to = options.operation ?? from;
         if (to === from) return { kind: 'already-marked', mark: standing };
+        await this.refuseAnotherOperationThanIssued(from, to);
         const changed = await this.marks.replace(
             standing,
             this.markOf(standing.identifier, actor, to),
@@ -206,12 +239,47 @@ export class InstallationMarkService {
         refusal: (standing: InstallationMark) => Error,
     ): Promise<InstallationMarkOutcome> {
         const operation = options.operation ?? 'live';
+        // A database nobody marked is live.
+        await this.refuseAnotherOperationThanIssued('live', operation);
         const written = this.markOf(identifier, actor, operation);
         const standing = await this.marks.markIfUnmarked(written);
         if (standing.identifier !== identifier) throw refusal(standing);
         if (!sameMark(standing, written)) return { kind: 'already-marked', mark: standing };
         await this.record(actor, 'INSTALLATION_MARKED', identifier, { identifier, operation });
         return { kind: 'marked', mark: standing };
+    }
+
+    /**
+     * Refuses a mark saying `to` where the installation has issued a document
+     * in the other operation, and a change from `standing` where the documents
+     * cannot be read. A mark that keeps the operation standing is written all
+     * the same then: a database marked as before is no more than it was.
+     */
+    private async refuseAnotherOperationThanIssued(
+        standing: InstallationOperation,
+        to: InstallationOperation,
+    ): Promise<void> {
+        if (!this.invoices || !this.confirmations) {
+            if (to === standing) return;
+            throw new ConflictException(
+                codedError(INSTALLATION_ERROR_CODES.INSTALLATION_DOCUMENTS_NOT_READABLE, {
+                    standing,
+                    requested: to,
+                }),
+            );
+        }
+        const issued = await issuedOperationsIn(
+            { invoices: this.invoices, confirmations: this.confirmations },
+            this.rlsBypass,
+        );
+        const other = operationOtherThan(to);
+        if (!issued[other]) return;
+        throw new ConflictException(
+            codedError(INSTALLATION_ERROR_CODES.INSTALLATION_OPERATION_FIXED, {
+                issued: other,
+                requested: to,
+            }),
+        );
     }
 
     private refuseAnotherEnvironments(identifier: string): void {

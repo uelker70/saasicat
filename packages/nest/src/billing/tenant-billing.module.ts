@@ -131,7 +131,11 @@ import { PendingPlanMaterializationService } from './pending-plan-materializatio
 import { SubscriberAccountService } from './charges/subscriber-account.service.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './charges/subscriber-charge.tokens.js';
-import { InvoiceNumberPrefixCheck, invoicingStartProblems } from './invoices/invoicing-start.js';
+import {
+    InvoiceNumberPrefixCheck,
+    InvoiceOperationCheck,
+    invoicingStartProblems,
+} from './invoices/invoicing-start.js';
 import { SubscriptionInvoiceCron } from './invoices/subscription-invoice.cron.js';
 import { InvoiceCancellationService } from './invoices/invoice-cancellation.service.js';
 import { SubscriptionInvoiceService } from './invoices/subscription-invoice.service.js';
@@ -252,6 +256,25 @@ function wiredConfirmations(
         repository: confirmations.repository,
         archive: confirmations.archive,
     };
+}
+
+/**
+ * The stores of the documents the installation issued, for the mark to read,
+ * where invoicing does not bind them already: invoicing reads and writes the
+ * same ones.
+ */
+function issuedDocumentStores(
+    invoices: InvoicesOptions | undefined,
+    documents: SubscriptionDeletionOptions['documents'],
+): Provider[] {
+    const providers: Provider[] = [];
+    if (!invoices && documents?.invoices) {
+        providers.push(asProvider(SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN, documents.invoices));
+    }
+    if (!(invoices && wiredConfirmations(invoices)) && documents?.confirmations) {
+        providers.push(asProvider(CONTRACT_CONFIRMATION_REPOSITORY_TOKEN, documents.confirmations));
+    }
+    return providers;
 }
 
 /** The confirmations' ports and their service, where every one of them is given. */
@@ -428,6 +451,18 @@ export interface SubscriptionDeletionOptions {
     subscribers: ProviderSpec<SubscriberRepository>;
     /** Begins a deletion — its record and the reason holding the tenant back — in one transaction. */
     transactionRunner: ProviderSpec<TransactionRunner>;
+    /**
+     * Where the documents the installation issued are read: once one exists,
+     * the mark says the operation it recorded and no other (`SC-AUD-023`).
+     * Where `chargeJournal.invoices` issues them, the stores it issues through
+     * are read instead. Where a store is in neither place,
+     * `installation mark` changes no operation, since nothing shows that no
+     * document exists.
+     */
+    documents?: {
+        invoices?: ProviderSpec<SubscriptionInvoiceRepository>;
+        confirmations?: ProviderSpec<ContractConfirmationRepository>;
+    };
 }
 
 /**
@@ -937,6 +972,7 @@ export class TenantBillingModule {
                 InvoiceRegisterService,
                 InvoiceExportService,
                 InvoiceNumberPrefixCheck,
+                InvoiceOperationCheck,
                 // Each port only where it is given: the start check below names
                 // what is missing, rather than Nest an unresolved provider.
                 ...(invoices.renderer
@@ -1072,6 +1108,7 @@ export class TenantBillingModule {
                 ...(subscriptionEnds.includeCron === false ? [] : [SubscriptionEndCron]),
                 { provide: INSTALLATION_IDENTIFIER_TOKEN, useValue: deletion.installation },
                 asProvider(INSTALLATION_MARK_PORT_TOKEN, deletion.marks),
+                ...issuedDocumentStores(invoices, deletion.documents),
                 InstallationMarkService,
                 asProvider(TENANT_ERASERS_TOKEN, deletion.erasers),
                 asProvider(TENANT_KEEP_REPORT_PORT_TOKEN, deletion.keep),

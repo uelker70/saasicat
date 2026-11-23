@@ -3,15 +3,23 @@
 // an invoice that cannot be issued, or one issued wrongly, at the first run.
 
 import { Inject, Injectable, Logger, type OnModuleInit, Optional } from '@nestjs/common';
-import type {
-    PlanCatalogSettings,
-    RlsBypassPort,
-    SubscriptionInvoiceRepository,
+import {
+    type ContractConfirmationRepository,
+    type DocumentOperations,
+    type InstallationMarkPort,
+    type InstallationOperation,
+    type PlanCatalogSettings,
+    type RlsBypassPort,
+    type SubscriptionInvoiceRepository,
+    installationOperationOf,
 } from '@saasicat/core';
 
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { readAcrossTenants } from '../../admin/read-across-tenants.js';
+import { CONTRACT_CONFIRMATION_REPOSITORY_TOKEN } from '../confirmations/contract-confirmation.tokens.js';
+import { issuedOperationsIn, operationOtherThan } from '../deletion/issued-document-operations.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
+import { INSTALLATION_MARK_PORT_TOKEN } from '../tenant-billing.tokens.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.tokens.js';
 
 /**
@@ -173,6 +181,77 @@ export class InvoiceNumberPrefixCheck implements OnModuleInit {
             this.invoices.listIssuedNumberPrefixes(),
         );
         const problem = prefixProblem(configured, issued);
+        if (problem) {
+            this.logger.error(problem);
+            throw new Error(`Invoices cannot start:\n- ${problem}`);
+        }
+    }
+}
+
+/**
+ * Why the installation cannot go on issuing as its mark says, or `null` where
+ * it can: its documents were issued in the operations `issued` says, and its
+ * mark says `marked`. The operation is fixed with the first document
+ * (`SC-AUD-023`), so a document of another operation than the mark's was
+ * issued under a mark that said otherwise.
+ */
+export function operationProblem(
+    marked: InstallationOperation,
+    issued: DocumentOperations,
+): string | null {
+    if (issued.test && issued.live) {
+        return (
+            'the documents this installation issued were issued both in a test operation and in ' +
+            `a live one, and its mark says a ${marked} operation. An installation's operation is ` +
+            'fixed with its first document (SC-AUD-023), so one of the two kinds was issued ' +
+            'under a mark that said otherwise: find out which before it issues another.'
+        );
+    }
+    const other = operationOtherThan(marked);
+    if (!issued[other]) return null;
+    return (
+        `the installation's mark says a ${marked} operation, and the documents it issued were ` +
+        `issued in a ${other} operation. An installation's operation is fixed with its first ` +
+        'document (SC-AUD-023): mark it as its documents say, with ' +
+        `\`<app> installation mark <identifier> --operation ${other}\`.`
+    );
+}
+
+/**
+ * Refuses a start whose mark says another operation than the documents the
+ * installation issued recorded, or where they recorded both.
+ */
+@Injectable()
+export class InvoiceOperationCheck implements OnModuleInit {
+    private readonly logger = new Logger(InvoiceOperationCheck.name);
+
+    constructor(
+        @Inject(SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN)
+        private readonly invoices: SubscriptionInvoiceRepository,
+        // Bound wherever the confirmations are wired, which the start requires
+        // beside invoices; where they are not, it is refused for that.
+        @Optional()
+        @Inject(CONTRACT_CONFIRMATION_REPOSITORY_TOKEN)
+        private readonly confirmations: ContractConfirmationRepository | null = null,
+        // Required beside invoices, which record the operation it says:
+        // `SubscriptionInvoiceService` refuses a start without it.
+        @Optional()
+        @Inject(INSTALLATION_MARK_PORT_TOKEN)
+        private readonly marks: InstallationMarkPort | null = null,
+        // The documents are the installation's, not a tenant's.
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
+    ) {}
+
+    async onModuleInit(): Promise<void> {
+        if (!this.marks) return;
+        const marked = installationOperationOf(await this.marks.find());
+        const issued = await issuedOperationsIn(
+            { invoices: this.invoices, confirmations: this.confirmations },
+            this.rlsBypass,
+        );
+        const problem = operationProblem(marked, issued);
         if (problem) {
             this.logger.error(problem);
             throw new Error(`Invoices cannot start:\n- ${problem}`);

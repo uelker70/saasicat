@@ -127,12 +127,12 @@ properties it has while doing it.
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 27      |
-| 21  | Answering the question afterwards            | `SC-AUD-…`   | 22      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 23      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 17      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 728 entries: 🟢 635 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 729 entries: 🟢 636 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
 🔵 63 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -231,7 +231,7 @@ Of 728 entries: 🟢 635 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 728 requirements. Do not edit by hand:
+Generated from `requirements/` — 729 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -27518,6 +27518,50 @@ _Tested by:_
         - the scan sees each shape a read takes
         - and leaves alone what is not one
         - only core/request-user.ts reads it
+
+<!-- END proof -->
+
+### SC-AUD-023 — An installation's operation is fixed with its first document
+
+🟢 💰 Once an invoice has been issued or a contract confirmation rendered, the installation's mark
+says the operation those documents recorded and no other: `installation mark` refuses to mark it
+as the other operation, with `--replace` too, and refuses to change the operation at all where the
+documents cannot be read, since then nothing shows that none exists. A start that issues invoices
+refuses where the documents recorded another operation than the mark says, or both, naming them.
+So an installation that issued live documents never turns into a test operation, and a test
+operation never turns live; leaving one is a new installation. The command reads the documents
+before it writes the mark: a first document issued between the two is not seen by it, and the next
+start refuses.
+
+_Source:_ #523
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/installation-cli-flow.test.js`
+    - installation mark --operation
+        - refuses another operation once a document exists, as a conflict, and writes nothing
+- `packages/nest/tests/an-installations-operation-is-fixed-with-its-first-document.test.js`
+    - installation mark, once the installation has issued a document
+        - changes the operation while no document exists
+        - refuses another operation once an invoice exists, naming both, and writes nothing
+        - refuses it where only a confirmation was rendered
+        - marks with the operation the documents recorded, and with it alone
+        - --replace with the operation that stands goes ahead, with another it is refused
+        - moves a mark that says another operation to the one its documents recorded
+        - refuses either operation where the documents recorded both
+        - refuses any change where a store of the documents cannot be read, and marks as it stands
+        - reads every tenant's documents, inside the bypass frame
+    - where the command reads the documents from
+        - an installation without invoices reads them from the persistence bundle's stores
+        - tenant billing wired by hand reads the stores its deletion names, and refuses without them
+    - a start that issues invoices
+        - goes on where the documents recorded the operation the mark says
+        - goes on while no document exists, whatever the mark says
+        - is refused where the invoices recorded another operation than the mark, naming both
+        - is refused where only the confirmations recorded another
+        - is refused where the documents recorded both, naming both
 
 <!-- END proof -->
 

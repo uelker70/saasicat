@@ -11,6 +11,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { documentOperationsOf } from '@saasicat/core';
 import { InstallationMarkService } from '@saasicat/nest';
 import { FakeInstallationMarkRepository } from '@saasicat/nest/testing';
 
@@ -27,7 +28,8 @@ const EARLIER = new Date('2026-11-01T09:00:00Z');
 
 /**
  * The flow over the platform's service, in an environment named `environment`,
- * on a database already marked as `standing` where one is given. Every write
+ * on a database already marked as `standing` where one is given, which has
+ * issued an invoice in each operation `issued` names: `true` a test one. Every write
  * to the store lands in `ctx.asked` beside what the command asked for, so the
  * order of the two can be read off one list.
  */
@@ -36,6 +38,7 @@ async function setUp({
     standing = null,
     testOperation = false,
     refuse = null,
+    issued = [],
 } = {}) {
     const store = new FakeInstallationMarkRepository();
     if (standing) {
@@ -59,7 +62,10 @@ async function setUp({
         },
     };
     if (refuse) ctx[refuse] = refusing(ctx, refuse);
-    const service = new InstallationMarkService(writes, environment, null);
+    // The documents the installation issued, each `true` one issued in a test operation.
+    const invoices = { issuedOperations: async () => documentOperationsOf(issued) };
+    const confirmations = { recordedOperations: async () => documentOperationsOf([]) };
+    const service = new InstallationMarkService(writes, environment, null, invoices, confirmations);
     return { ctx, store, flow: new InstallationCliFlow(ctx, service) };
 }
 
@@ -259,6 +265,22 @@ describe('installation mark --operation', () => {
             'This database, installation INT, is marked as a test operation now, in place of a live operation.\n',
         );
         assert.equal((await store.find()).testOperation, true);
+    });
+
+    // @requirement SC-AUD-023 — An installation's operation is fixed with its first document
+    test('refuses another operation once a document exists, as a conflict, and writes nothing', async () => {
+        const { flow, ctx, store } = await setUp({
+            environment: 'INT',
+            standing: 'INT',
+            issued: [false],
+        });
+
+        const error = await cliErrorOf(() => flow.mark('INT', { yes: true, operation: 'test' }));
+
+        assert.deepEqual([error.code, error.exitCode], ['INSTALLATION_OPERATION_FIXED', 6]);
+        assert.match(error.message, /live operation/);
+        assert.ok(!ctx.asked.some((asked) => /^(write|replace)/.test(asked)), 'it wrote');
+        assert.equal((await store.find()).testOperation, false);
     });
 
     test('refuses any other value before it asks for anybody, and writes nothing', async () => {

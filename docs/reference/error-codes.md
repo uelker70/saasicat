@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 323 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 325 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -434,8 +434,10 @@ What a held-back tenant's users meet, with the open reasons in `params.reasons`,
 
 The mark a database carries as its installation's own, which a tenant's deletion is compared with.
 
-| Code                                            | Shipped English text                                                                                                                                          |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS` | The identifier {given} is not the one this environment names ({environment}); a database is marked only as the installation of the environment that marks it. |
-| `INSTALLATION_MARKED_OTHERWISE`                 | This database is marked as installation {marked} already; replacing that mark is a deliberate step of its own.                                                |
-| `INSTALLATION_MARK_MOVED`                       | The mark of this database changed while it was being replaced. Nothing was written; read it again.                                                            |
+| Code                                            | Shipped English text                                                                                                                                                                                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `INSTALLATION_DOCUMENTS_NOT_READABLE`           | This installation stays a {standing} operation and is not marked as a {requested} one: the documents it issued cannot be read here, so nothing shows that none exists, and its operation is fixed with its first one. Nothing was written. |
+| `INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS` | The identifier {given} is not the one this environment names ({environment}); a database is marked only as the installation of the environment that marks it.                                                                              |
+| `INSTALLATION_MARKED_OTHERWISE`                 | This database is marked as installation {marked} already; replacing that mark is a deliberate step of its own.                                                                                                                             |
+| `INSTALLATION_MARK_MOVED`                       | The mark of this database changed while it was being replaced. Nothing was written; read it again.                                                                                                                                         |
+| `INSTALLATION_OPERATION_FIXED`                  | This installation has issued documents in a {issued} operation, so it cannot be marked as a {requested} one: an installation's operation is fixed with its first document. Nothing was written.                                            |

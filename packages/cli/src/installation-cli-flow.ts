@@ -13,7 +13,8 @@
 // it a test operation, whose documents are all marked as tests, and
 // `--operation live` a live one. Without the option a new mark is live and a
 // mark that stands keeps its operation, `--replace` included: the operation
-// belongs to the data.
+// belongs to the data. Once the installation has issued a document, the
+// operation is the one its documents recorded, and another is refused.
 //
 // Marking takes the second factor and, against production, a confirmation:
 // a mark releases deletions, and a replaced one moves them to another
@@ -62,9 +63,11 @@ export class InstallationCliFlow {
      * Marks the database as this environment's installation, with the second
      * factor and, against production, a confirmation — both before anything is
      * written. Refused with exit code 6 where another installation's mark
-     * stands and `replace` is not given, 1 for an identifier that is not this
-     * environment's and for an operation that is neither `test` nor `live` —
-     * that one before anybody is asked for.
+     * stands and `replace` is not given, where the operation asked for is not
+     * the one the installation's documents recorded, and where it changes while
+     * they cannot be read; 1 for an identifier that is not this environment's
+     * and for an operation that is neither `test` nor `live` — that one before
+     * anybody is asked for.
      */
     async mark(
         identifier: string,

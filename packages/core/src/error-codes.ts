@@ -1235,6 +1235,20 @@ export const INSTALLATION_ERROR_CODES = {
      * marked the database meanwhile (`409`). Nothing was written; read it again.
      */
     INSTALLATION_MARK_MOVED: 'INSTALLATION_MARK_MOVED',
+    /**
+     * The installation has issued a document in the operation `issued`, and
+     * its mark is asked to say `requested` (`409`): an installation's
+     * operation is fixed with its first document (`SC-AUD-023`). Nothing was
+     * written.
+     */
+    INSTALLATION_OPERATION_FIXED: 'INSTALLATION_OPERATION_FIXED',
+    /**
+     * The mark is asked to say the operation `requested` in place of
+     * `standing`, and the documents the installation issued cannot be read
+     * here, so nothing shows that none exists (`409`, `SC-AUD-023`). Nothing
+     * was written.
+     */
+    INSTALLATION_DOCUMENTS_NOT_READABLE: 'INSTALLATION_DOCUMENTS_NOT_READABLE',
 } as const;
 export type InstallationErrorCode =
     (typeof INSTALLATION_ERROR_CODES)[keyof typeof INSTALLATION_ERROR_CODES];
