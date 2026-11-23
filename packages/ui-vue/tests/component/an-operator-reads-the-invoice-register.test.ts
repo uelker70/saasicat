@@ -352,6 +352,7 @@ describe('the register of invoices', () => {
         const marked = rowNumbered('AHPT-2026-000001');
         expect(marked.find('td').find('.sa-pill').text()).toBe('Test');
         expect(marked.find('td').text().split(/\s+/)).toEqual(['AHPT-2026-000001', 'Test']);
+        expect(marked.find('td').classes()).toContain('text-left');
         expect(
             marked.find('button[aria-label="Download test invoice AHPT-2026-000001"]').exists(),
         ).toBe(true);
@@ -359,6 +360,7 @@ describe('the register of invoices', () => {
         const live = rowNumbered('AHP-2026-000002');
         expect(live.find('.sa-pill').exists()).toBe(false);
         expect(live.find('td').text()).toBe('AHP-2026-000002');
+        expect(live.find('td').classes()).toContain('text-left');
         expect(live.find('button[aria-label="Download invoice AHP-2026-000002"]').exists()).toBe(
             true,
         );

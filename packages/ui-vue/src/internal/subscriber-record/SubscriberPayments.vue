@@ -11,11 +11,12 @@
                 :empty-text="msg.payments.invoicesEmpty"
                 storage-key="subscriber-invoices"
             >
-                <template #body-cell-number="{ row }">
-                    <q-td>
-                        {{ row.number }}
+                <!-- The column's own alignment comes with `props`. -->
+                <template #body-cell-number="cell">
+                    <q-td :props="cell">
+                        {{ cell.row.number }}
                         <AdminStatusPill
-                            v-if="row.testOperation"
+                            v-if="cell.row.testOperation"
                             :label="common.testOperation"
                             :tone="TEST_OPERATION_TONE"
                             size="sm"

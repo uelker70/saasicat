@@ -244,6 +244,10 @@ describe('the open items', () => {
             ['Test'],
             [],
         ]);
+        const aligned = wrapper
+            .findAll('tbody tr')
+            .map((row) => row.find('td').classes('text-left'));
+        expect(aligned.slice(0, 2)).toEqual([true, true]);
     });
 
     test('lead into a subscriber’s record wherever the shell put the subscribers', async () => {

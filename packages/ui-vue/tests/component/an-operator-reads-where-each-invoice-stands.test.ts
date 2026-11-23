@@ -144,5 +144,9 @@ describe('an invoice in a subscriber’s record issued in a test operation', () 
         );
         const pills = wrapper.findAll('tbody tr').map((row) => row.find('td').findAll('.sa-pill'));
         expect(pills.map((each) => each.map((pill) => pill.text()))).toEqual([['Test'], []]);
+        const aligned = wrapper
+            .findAll('tbody tr')
+            .map((row) => row.find('td').classes('text-left'));
+        expect(aligned).toEqual([true, true]);
     });
 });
