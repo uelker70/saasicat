@@ -41,6 +41,16 @@ An A4 letter laid out after DIN 5008:
   issue date, on every page, with the page's number (`SC-PRIC-093`); a line
   wider than the page goes on in the next, and the foot grows to hold it.
 
+An invoice issued in a test operation (`SubscriptionInvoiceRecord.testOperation`)
+says so on every page: its title, the title in its metadata and the heading of
+every page that follows the first name it a test invoice, or a test cancellation
+invoice, and a notice that it is not an invoice for VAT purposes stands in bold
+under the title and above the footer lines of every page. Its amounts, tax and
+due date are those of any invoice. One issued live carries none of it. The
+wording, in German and in English, is `TEST_OPERATION_TITLE` and
+`TEST_OPERATION_NOTICE` from `@saasicat/core`, which an application's own
+renderer can read too.
+
 A name or an address line wider than its column goes on in the next line, and
 what follows moves down with it. A character the font has no glyph for is shown
 as `?`; the XML keeps it as it was written, unless XML cannot hold it at all, as
@@ -63,6 +73,11 @@ Where no VAT identification number of the issuer stands, the issuer is
 identified by it or by its tax number as its own identifier, which EN 16931
 asks for (BR-CO-26). A line that takes something off, such as a discount, is
 one unit taken back at a price that is not negative (BR-27).
+
+An invoice issued in a test operation states the page's notice as the first
+note of the document (BT-22), before any other, without a subject code. It is
+not marked by the context's `TestIndicator`, which the CII syntax rules of EN
+16931 advise against (CII-SR-002), and its type code stays `380` or `381`.
 
 ### A cancellation invoice and its replacement
 
@@ -109,8 +124,9 @@ that embeds a font with pdf-lib itself.
 ### How it is checked
 
 The tests read back what the page and the XML say for each treatment the
-German adapter decides, and that every glyph on a page is drawn. CI hands the
-same invoices to the format's own validators: Mustang, which runs veraPDF for
+German adapter decides, each again as its twin issued in a test operation, and
+that every glyph on a page is drawn. CI hands the same invoices, twins included,
+to the format's own validators: Mustang, which runs veraPDF for
 PDF/A-3b and the EN 16931 and Factur-X schematron. Its report judges the PDF
 and the XML apart, and its exit code follows the XML only, so every
 `<summary status="…"/>` in it has to read `valid`. To run it locally, with
@@ -133,7 +149,10 @@ subscriber keeps it, on the same letter, labelled the same way — the parties, 
 rhythm), its lines with their rhythm, minimum term and price, what it costs per billing period with
 its tax, the treatment's note, the notice period, and the version of the terms it was concluded
 under, which the mail attaches. A plain PDF: there is no XML for a program to read, and the
-format's validators have nothing to check.
+format's validators have nothing to check. One made in a test operation
+(`ContractToConfirm.testOperation`) is titled a test contract confirmation and carries a notice
+that it confirms no contract under its title and at the foot of every page, in the wording of
+`TEST_OPERATION_TITLE.confirmation` and `TEST_OPERATION_NOTICE.confirmation`.
 
 ```ts
 import { contractConfirmationRenderer } from '@saasicat/invoice-zugferd';

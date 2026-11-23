@@ -2,14 +2,23 @@
 // letter as an invoice, the parties, the facts of the contract, its lines with
 // their rhythm, minimum term and price, what the contract costs per billing
 // period with its tax, the treatment's note, the notice period and the terms
-// it was concluded under (`SC-AUD-016`). Every day on it is read in the
+// it was concluded under (`SC-AUD-016`) — under a test operation's notice, at
+// the foot of every page and under the title. Every day on it is read in the
 // installation's zone.
 
 import { dayInZone, type ContractToConfirm, type SubscriptionContractRecord } from '@saasicat/core';
 import type { PDFDocument, PDFPage } from 'pdf-lib';
 
 import { centsOf, pageAmount, pageDay, pageRate } from './format.js';
-import { CONFIRMATION_LABELS, LABELS, bilingual, termsNoteOf, type Label } from './labels.js';
+import {
+    CONFIRMATION_LABELS,
+    LABELS,
+    bilingual,
+    confirmationNoticeOf,
+    confirmationTitleOf,
+    termsNoteOf,
+    type Label,
+} from './labels.js';
 import {
     BLACK,
     LEFT,
@@ -23,6 +32,7 @@ import {
     letterhead,
     titleBaseline,
     writeFacts,
+    writeUnderTitle,
     type Fonts,
 } from './letter.js';
 
@@ -38,7 +48,7 @@ export function layOutConfirmation(
     confirmation: ContractToConfirm,
     fonts: Fonts,
 ): void {
-    const { contract, timeZone } = confirmation;
+    const { contract, timeZone, testOperation } = confirmation;
     if (!contract.issuer) {
         throw new Error(`Contract ${contract.id} names no issuer, so it is not confirmed.`);
     }
@@ -51,21 +61,27 @@ export function layOutConfirmation(
     };
     const day = (at: Date) => pageDay(dayInZone(at, timeZone));
 
-    const foot = footOf(pen, confirmation.footer);
+    const notice = confirmationNoticeOf(testOperation);
+    const heading = `${bilingual(confirmationTitleOf(testOperation))} ${contract.id}`;
+    const foot = footOf(pen, confirmation.footer, notice);
     let page = newPage();
     const head = letterhead(page, pen, contract.issuer, contract.subscriber);
     const lastFact = writeFacts(page, pen, factsOf(contract, day), head.side);
     const title = titleBaseline(head, lastFact);
-    pen.write(page, `${bilingual(CONFIRMATION_LABELS.title)} ${contract.id}`, LEFT, title, 15, {
-        bold: true,
-    });
-    let y = tableHeader(page, pen, contract, title - 12 * MM);
+    pen.write(page, heading, LEFT, title, 15, { bold: true });
+    const below = writeUnderTitle(
+        page,
+        pen,
+        title,
+        notice ? [{ text: bilingual(notice), bold: true }] : [],
+    );
+    let y = tableHeader(page, pen, contract, below);
     for (const entry of contract.lineItems) {
         const description = pen.wrap(entry.titleSnapshot, DESCRIPTION_WIDTH, 9);
         const height = description.length * ROW_LEADING + 4;
         if (y - height < foot.top + 10 * MM) {
             page = newPage();
-            y = tableHeader(page, pen, contract, followingPage(page, pen, contract));
+            y = tableHeader(page, pen, contract, followingPage(page, pen, heading));
         }
         description.forEach((text, index) =>
             pen.write(page, text, COLUMNS.description, y - index * ROW_LEADING, 9),
@@ -80,7 +96,7 @@ export function layOutConfirmation(
     const closing = closingLines(pen, contract);
     if (y - closing.height < foot.top + 5 * MM) {
         page = newPage();
-        y = followingPage(page, pen, contract);
+        y = followingPage(page, pen, heading);
     }
     closing.draw(page, y);
 
@@ -106,12 +122,10 @@ function factsOf(
     ];
 }
 
-/** A page the table runs on to: the contract named at its head. */
-function followingPage(page: PDFPage, pen: Pen, contract: SubscriptionContractRecord): number {
+/** A page the table runs on to: the confirmation named at its head, as its title names it. */
+function followingPage(page: PDFPage, pen: Pen, heading: string): number {
     const y = PAGE.height - 20 * MM;
-    pen.write(page, `${bilingual(CONFIRMATION_LABELS.title)} ${contract.id}`, LEFT, y, 10, {
-        bold: true,
-    });
+    pen.write(page, heading, LEFT, y, 10, { bold: true });
     return y - 12 * MM;
 }
 

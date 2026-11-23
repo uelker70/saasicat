@@ -13,10 +13,11 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-import { PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
+import { PDFDocument } from 'pdf-lib';
 import { GermanTaxAdapter } from '@saasicat/tax-de';
 
 import { ZugferdInvoiceRenderer, zugferdInvoiceRenderer } from '../dist/index.js';
+import { embeddedXml } from './support/embedded-xml.js';
 import { CARD, DIRECT_DEBIT, SAMPLES } from './support/invoices.js';
 import { pageRuns, pageTexts } from './support/page-text.js';
 
@@ -24,16 +25,6 @@ const renderer = zugferdInvoiceRenderer();
 const adapter = new GermanTaxAdapter();
 const sample = (name) => SAMPLES.find((each) => each.name === name).invoice;
 const render = (name) => renderer.render(sample(name));
-
-/** The embedded XML of a rendered file. */
-async function embeddedXml(content) {
-    const pdf = await PDFDocument.load(content);
-    const names = pdf.catalog.lookup(PDFName.of('Names'));
-    const tree = names.lookup(PDFName.of('EmbeddedFiles'));
-    const spec = tree.lookup(PDFName.of('Names')).lookup(1);
-    const stream = spec.lookup(PDFName.of('EF')).lookup(PDFName.of('F'), PDFRawStream);
-    return new TextDecoder().decode(decodePDFRawStream(stream).decode());
-}
 
 describe('an issued invoice rendered by the default renderer', () => {
     for (const { name, invoice } of SAMPLES) {

@@ -7,6 +7,8 @@
 // of its lines each line cancels or replaces.
 
 import {
+    TEST_OPERATION_NOTICE,
+    TEST_OPERATION_TITLE,
     sumToCents,
     type SubscriptionInvoiceLineRecord,
     type SubscriptionInvoicePayment,
@@ -49,9 +51,22 @@ export function namedPaymentOf(
     return isCancellation(invoice) ? null : invoice.payment;
 }
 
-/** What the document is called: a cancellation invoice is "Stornorechnung" (`SC-PRIC-089`). */
+/**
+ * What the document is called: a cancellation invoice is "Stornorechnung"
+ * (`SC-PRIC-089`), and either, issued in a test operation, says it is a test.
+ */
 export function titleOf(invoice: SubscriptionInvoiceRecord): Label {
+    if (invoice.testOperation) {
+        return isCancellation(invoice)
+            ? TEST_OPERATION_TITLE.cancellation
+            : TEST_OPERATION_TITLE.invoice;
+    }
     return isCancellation(invoice) ? LABELS.cancellationTitle : LABELS.title;
+}
+
+/** What an invoice issued in a test operation says it is not; `null` for one issued live. */
+export function testNoticeOf(invoice: SubscriptionInvoiceRecord): Label | null {
+    return invoice.testOperation ? TEST_OPERATION_NOTICE.invoice : null;
 }
 
 /** What the invoice says of the invoice it corrects; `null` where it corrects none. */

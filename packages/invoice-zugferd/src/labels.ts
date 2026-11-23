@@ -5,6 +5,8 @@
 // it, so that a subscriber abroad reads it too — the notes for the treatments
 // that reach one are bilingual already.
 
+import { TEST_OPERATION_NOTICE, TEST_OPERATION_TITLE } from '@saasicat/core';
+
 /** A label in German and in English. */
 export interface Label {
     de: string;
@@ -55,6 +57,16 @@ export const CONFIRMATION_LABELS = {
     monthly: { de: 'monatlich', en: 'monthly' },
     yearly: { de: 'jährlich', en: 'yearly' },
 } as const satisfies Record<string, Label>;
+
+/** What a contract's confirmation is called: one made in a test operation says it is a test. */
+export function confirmationTitleOf(testOperation: boolean): Label {
+    return testOperation ? TEST_OPERATION_TITLE.confirmation : CONFIRMATION_LABELS.title;
+}
+
+/** What a confirmation made in a test operation says it is not; `null` for one made live. */
+export function confirmationNoticeOf(testOperation: boolean): Label | null {
+    return testOperation ? TEST_OPERATION_NOTICE.confirmation : null;
+}
 
 /** Which terms the contract was concluded under, in German and in English. */
 export function termsNoteOf(version: string | null): Label {

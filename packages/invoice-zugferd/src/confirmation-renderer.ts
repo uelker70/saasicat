@@ -19,7 +19,7 @@ import type {
 
 import { layOutConfirmation } from './confirmation-layout.js';
 import { embedFonts } from './fonts.js';
-import { CONFIRMATION_LABELS } from './labels.js';
+import { confirmationTitleOf } from './labels.js';
 import type { ZugferdRendererOptions } from './renderer.js';
 
 const PRODUCER = 'SaaSiCat';
@@ -35,7 +35,7 @@ export class PdfContractConfirmationRenderer implements ContractConfirmationRend
 
         layOutConfirmation(pdf, confirmation, fonts);
 
-        pdf.setTitle(`${CONFIRMATION_LABELS.title.de} ${contract.id}`);
+        pdf.setTitle(`${confirmationTitleOf(confirmation.testOperation).de} ${contract.id}`);
         pdf.setProducer(PRODUCER);
         pdf.setCreator(CREATOR);
         pdf.setCreationDate(contract.createdAt);

@@ -1,8 +1,8 @@
 // The letter every document is printed on: an A4 page laid out after DIN
 // 5008 — the sender above the address field, the issuer and the document's
-// facts to the right, the footer lines and the page's number at the foot of
-// every page — and the pen that writes on it in the embedded fonts, which
-// PDF/A asks to show only glyphs they have.
+// facts to the right, a test operation's notice, the footer lines and the
+// page's number at the foot of every page — and the pen that writes on it in
+// the embedded fonts, which PDF/A asks to show only glyphs they have.
 
 import { PDFName, grayscale, type PDFDocument, type PDFFont, type PDFPage } from 'pdf-lib';
 import type { LegalIdentity, PartyAddress } from '@saasicat/core';
@@ -243,8 +243,43 @@ export function titleBaseline(head: { address: number }, lastFact: number): numb
     return Math.min(PAGE.height - 110 * MM, Math.min(head.address, lastFact) - 15 * MM);
 }
 
-/** The footer lines of every page, and how high the foot they need reaches. */
+/** A paragraph under a document's title. */
+export interface UnderTitle {
+    text: string;
+    bold?: boolean;
+}
+
+/**
+ * The paragraphs under the title, each broken to the width of the page, from
+ * the title's baseline down; answers where what follows them begins.
+ */
+export function writeUnderTitle(
+    page: PDFPage,
+    pen: Pen,
+    title: number,
+    paragraphs: readonly UnderTitle[],
+): number {
+    if (paragraphs.length === 0) return title - 12 * MM;
+    let next = title - 8 * MM;
+    for (const { text, bold = false } of paragraphs) {
+        next = pen.writeWrapped(
+            page,
+            text,
+            { x: LEFT, y: next, size: 9, width: RIGHT - LEFT, leading: 11 },
+            { bold },
+        );
+        next -= 13;
+    }
+    return next - 6 * MM;
+}
+
+/** The notice and the footer lines of every page, and how high the foot they need reaches. */
 export interface Foot {
+    /**
+     * What a document issued in a test operation says it is not, broken where
+     * it is wider than the page; none for a document issued live.
+     */
+    notice: string[];
     /** The document's footer lines, each broken where it is wider than the page. */
     lines: string[];
     /** The height above the page's lower edge that the table keeps clear of. */
@@ -252,20 +287,28 @@ export interface Foot {
 }
 
 /**
- * The footer lines as the page sets them. A line the configuration accepts can
- * still be wider than the page, in wide letters or a wide font of the
- * application's, and it is the issuer's legal details: it is broken onto the
- * next line rather than cut off, and the foot grows upwards to hold it.
+ * The notice and the footer lines as the page sets them. A line the
+ * configuration accepts can still be wider than the page, in wide letters or a
+ * wide font of the application's, and it is the issuer's legal details: it is
+ * broken onto the next line rather than cut off, and the foot grows upwards to
+ * hold it.
  */
-export function footOf(pen: Pen, footer: readonly string[]): Foot {
-    const lines = footer.flatMap((line) => pen.wrap(line, RIGHT - LEFT, FOOTER_SIZE));
-    const first = Math.max(FOOT - 8 * MM, BOTTOM + (lines.length - 1) * FOOTER_LEADING);
-    return { lines, top: first + 8 * MM };
+export function footOf(pen: Pen, footer: readonly string[], notice: Label | null): Foot {
+    const width = RIGHT - LEFT;
+    const marked = notice ? pen.wrap(bilingual(notice), width, FOOTER_SIZE, true) : [];
+    const lines = footer.flatMap((line) => pen.wrap(line, width, FOOTER_SIZE));
+    const count = marked.length + lines.length;
+    const first = Math.max(FOOT - 8 * MM, BOTTOM + (count - 1) * FOOTER_LEADING);
+    return { notice: marked, lines, top: first + 8 * MM };
 }
 
-/** The footer lines and the page's number at the foot of the page. */
+/** The notice, the footer lines and the page's number at the foot of the page. */
 export function drawFoot(page: PDFPage, pen: Pen, foot: Foot, number: number, count: number): void {
     let y = foot.top - 8 * MM;
+    for (const text of foot.notice) {
+        pen.write(page, text, LEFT, y, FOOTER_SIZE, { bold: true });
+        y -= FOOTER_LEADING;
+    }
     for (const text of foot.lines) {
         pen.write(page, text, LEFT, y, FOOTER_SIZE, { grey: true });
         y -= FOOTER_LEADING;

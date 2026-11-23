@@ -9,111 +9,12 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { contractConfirmationRenderer } from '../dist/index.js';
+import { FOOTER, aContract, line, toConfirm } from './support/contracts.js';
 import { pageTexts } from './support/page-text.js';
 
 const renderer = contractConfirmationRenderer();
-
-const ISSUER = {
-    legalName: 'AutohausPro Software GmbH',
-    vatId: 'DE123456789',
-    taxNumber: '143/123/45678',
-    addressLine1: 'Werkstraße 5',
-    addressLine2: null,
-    postalCode: '80331',
-    city: 'München',
-    country: 'DE',
-};
-
-/** A contract line as the freeze writes it. */
-function line(title, priceNet, overrides = {}) {
-    return {
-        id: `line-${title}`,
-        contractId: 'contract-1',
-        kind: 'plan',
-        sourceKey: title,
-        sourceVersionId: null,
-        titleSnapshot: title,
-        descriptionSnapshot: null,
-        quantity: 1,
-        unit: null,
-        priceNet,
-        priceGross: priceNet,
-        billingCycle: 'monthly',
-        currency: 'EUR',
-        taxRate: 19,
-        taxAmount: 0,
-        minimumTermUntil: null,
-        featuresSnapshot: [],
-        quotaEffectsSnapshot: {},
-        metadata: null,
-        createdAt: new Date('2026-01-31T23:30:00.000Z'),
-        ...overrides,
-    };
-}
-
-/** A contract concluded half an hour after midnight in Berlin, on 1 February. */
-function aContract(overrides = {}) {
-    return {
-        id: 'contract-1',
-        tenantId: 't1',
-        subscriberId: 's1',
-        subscriber: {
-            customerNumber: 'K-10001',
-            legalName: 'Autohaus Müller GmbH & Co. KG',
-            vatId: null,
-            taxNumber: null,
-            addressLine1: 'Ringstraße 1',
-            addressLine2: null,
-            postalCode: '20095',
-            city: 'Hamburg',
-            country: 'DE',
-        },
-        issuer: ISSUER,
-        partiesMigrated: false,
-        taxTreatment: {
-            kind: 'standard',
-            rate: 19,
-            note: null,
-            adapter: { name: '@saasicat/tax-de', version: '1.0.0' },
-        },
-        cancellationNoticeDays: 14,
-        termsVersion: '2026-10',
-        agreedAt: new Date('2026-01-31T23:30:00.000Z'),
-        status: 'active',
-        effectiveFrom: new Date('2026-01-31T23:00:00.000Z'),
-        effectiveUntil: null,
-        originalOfferId: null,
-        originalPlanVersionId: null,
-        originalBundleVersionIds: [],
-        entitlementSnapshot: null,
-        priceSnapshot: {
-            currency: 'EUR',
-            billingCycle: 'monthly',
-            subtotalNet: 64,
-            discountNet: 4.9,
-            totalNet: 59.1,
-            vatRate: 19,
-            totalGross: 70.33,
-        },
-        promotionSnapshots: [],
-        promoCodeSnapshots: [],
-        termsSnapshot: null,
-        lineItems: [
-            line('Standard, monatlich', 49, {
-                minimumTermUntil: new Date('2027-01-31T23:00:00.000Z'),
-            }),
-            line('Zusatzmodul Werkstatt', 15),
-            line('Willkommensrabatt 10 %', -4.9),
-        ],
-        createdAt: new Date('2026-01-31T23:30:00.000Z'),
-        updatedAt: new Date('2026-01-31T23:30:00.000Z'),
-        ...overrides,
-    };
-}
-
-const FOOTER = ['Amtsgericht München HRB 123456 · Geschäftsführerin: Erika Muster'];
 const confirm = (contract = aContract(), footer = FOOTER) =>
-    renderer.render({ contract, footer, timeZone: 'Europe/Berlin' });
+    renderer.render(toConfirm(contract, { footer }));
 
 describe('a contract’s confirmation', () => {
     test('names the parties, the contract’s facts, its lines and what it costs, in German and English', async () => {
