@@ -40,6 +40,7 @@ import type {
     SubscriberWithCurrentCheck,
 } from '../subscriber.types.js';
 import type { VatIdCheck } from '../tax.types.js';
+import type { DocumentOperations } from '../installation-mark.types.js';
 import type {
     SubscriberJoinRecord,
     SubscriberJoinState,
@@ -892,6 +893,14 @@ export interface SubscriptionInvoiceRepository {
      * a second one says the prefix was changed under it (`SC-PRIC-024`).
      */
     listIssuedNumberPrefixes(tx?: TransactionContext): Promise<string[]>;
+
+    /**
+     * The operations the issued invoices were issued in, as each recorded it
+     * (`SubscriptionInvoiceRecord.testOperation`): whether any was issued in a
+     * test operation, and whether any in a live one. Both `false` where none
+     * was issued.
+     */
+    issuedOperations(tx?: TransactionContext): Promise<DocumentOperations>;
 
     /**
      * Records the rendering of an invoice's document before its file is

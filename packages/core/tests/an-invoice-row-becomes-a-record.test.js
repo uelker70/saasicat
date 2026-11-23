@@ -51,6 +51,7 @@ const INVOICE = {
     issuer: { ...PARTY, legalName: 'Issuer GmbH', vatId: 'DE123456789' },
     subscriber: { ...PARTY, customerNumber: 'K-10001' },
     footer: ['Amtsgericht München HRB 123456 · Geschäftsführer: Erika Muster'],
+    testOperation: false,
     taxTreatment: {
         kind: 'standard',
         rate: 19,

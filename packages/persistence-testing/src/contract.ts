@@ -7948,6 +7948,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     issuer: parties.issuer!,
                     subscriber: parties.subscriber,
                     footer: [],
+                    testOperation: false,
                     taxTreatment: treatment,
                     taxes: tax.rates,
                     totalNet: tax.net,
@@ -8305,6 +8306,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     servicePeriodFrom: '2026-12-01',
                     servicePeriodUntil: '2026-12-31',
                     numberYear: 2027,
+                    testOperation: true,
                     footer: [
                         'Amtsgericht München HRB 123456 · Geschäftsführer: Erika „Muster“',
                         'IBAN DE02 1203 0000 0000 2020 51 · BIC BYLADEM1001',
@@ -8458,6 +8460,46 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const prefixes = await invoices.listIssuedNumberPrefixes();
             assert.equal(prefixes.length, 2);
             assert.ok(prefixes.every((prefix) => ['AB', 'EX', 'ZZ'].includes(prefix)));
+        });
+
+        test('no operation is named where no invoice was issued', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-no-operation');
+            if (!account) return;
+
+            assert.deepEqual(await account.invoices.issuedOperations(), {
+                test: false,
+                live: false,
+            });
+        });
+
+        for (const testOperation of [true, false]) {
+            const operation = testOperation ? 'test' : 'live';
+            test(`the ${operation} operation alone is named where only its invoices were issued`, async (t) => {
+                const account = await anInvoiceAccount(t, `tenant-invoice-${operation}-operation`);
+                if (!account) return;
+                const { invoices, record, invoiceOf } = account;
+                const [february, march] = await record(monthly(1), monthly(2));
+
+                await invoices.issue(invoiceOf([february!], { testOperation }));
+                await invoices.issue(invoiceOf([march!], { testOperation }));
+
+                assert.deepEqual(await invoices.issuedOperations(), {
+                    test: testOperation,
+                    live: !testOperation,
+                });
+            });
+        }
+
+        test('both operations are named where invoices of both were issued', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-both-operations');
+            if (!account) return;
+            const { invoices, record, invoiceOf } = account;
+            const [february, march] = await record(monthly(1), monthly(2));
+
+            await invoices.issue(invoiceOf([february!], { testOperation: true }));
+            await invoices.issue(invoiceOf([march!], { testOperation: false }));
+
+            assert.deepEqual(await invoices.issuedOperations(), { test: true, live: true });
         });
 
         // -------------------------------------------------------------

@@ -805,6 +805,7 @@ export const subscriptionInvoices = pgTable('subscription_invoices', {
     issuerParty: jsonb('issuerParty').notNull(),
     subscriberParty: jsonb('subscriberParty').notNull(),
     footer: jsonb('footer').notNull().default([]),
+    testOperation: boolean('testOperation').notNull().default(false),
     taxTreatment: jsonb('taxTreatment').notNull(),
     taxes: jsonb('taxes').notNull(),
     totalNet: numeric('totalNet', { precision: 12, scale: 2 }).notNull(),

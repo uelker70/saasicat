@@ -354,6 +354,11 @@ _Tested by:_
         - a mark that stood before the migration is live, after one run and after two
         - a database from before gains the column as the fragments declare it
         - a test operation stays one when the migration runs again
+    - an invoice records whether it was issued in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - an invoice issued before the migration is live, after one run and after two
+        - a second run leaves an invoice issued in between as a test as it was written
+        - an installation without invoices is left without them, and runs through
 
 <!-- END proof -->
 
@@ -598,6 +603,11 @@ _Tested by:_
         - a mark that stood before the migration is live, after one run and after two
         - a database from before gains the column as the fragments declare it
         - a test operation stays one when the migration runs again
+    - an invoice records whether it was issued in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - an invoice issued before the migration is live, after one run and after two
+        - a second run leaves an invoice issued in between as a test as it was written
+        - an installation without invoices is left without them, and runs through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

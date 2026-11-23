@@ -33,6 +33,7 @@ import {
     subscriberChargeColumns,
     assertCorrectionsFitTheirCharges,
     correctedChargeIdsOf,
+    documentOperationsOf,
     subscriptionInvoiceAlreadyCancelled,
     subscriptionInvoiceCancellationColumns,
     subscriptionInvoiceChainOf,
@@ -3037,6 +3038,9 @@ export function createMemoryHarness() {
         },
         async listIssuedNumberPrefixes() {
             return [...new Set(state.invoices.map((row) => row.numberPrefix))].sort().slice(0, 2);
+        },
+        async issuedOperations() {
+            return documentOperationsOf(state.invoices.map((row) => row.testOperation));
         },
         async recordRendering(invoiceId, rendering) {
             if (!state.invoices.some((row) => row.id === invoiceId)) {

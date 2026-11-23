@@ -860,6 +860,7 @@ CREATE TABLE "subscription_invoices" (
     "issuerParty" JSONB NOT NULL,
     "subscriberParty" JSONB NOT NULL,
     "footer" JSONB NOT NULL DEFAULT '[]',
+    "testOperation" BOOLEAN NOT NULL DEFAULT false,
     "taxTreatment" JSONB NOT NULL,
     "taxes" JSONB NOT NULL,
     "totalNet" DECIMAL(12,2) NOT NULL,

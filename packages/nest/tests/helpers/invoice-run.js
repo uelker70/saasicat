@@ -10,6 +10,7 @@
 
 import {
     contractPartiesOf,
+    documentOperationsOf,
     formatInvoiceNumber,
     subscriptionInvoiceAlreadyCancelled,
     subscriptionInvoiceChainOf,
@@ -25,6 +26,7 @@ import {
 } from '../../dist/billing/index.js';
 import { SubscriberService } from '../../dist/subscriber/index.js';
 import {
+    FakeInstallationMarkRepository,
     FakeSubscriberRepository,
     FakeSubscriptionContractRepository,
 } from '../../dist/testing/index.js';
@@ -332,6 +334,9 @@ function invoiceStore(journal) {
         async listIssuedNumberPrefixes() {
             return [...new Set(invoices.map((inv) => inv.numberPrefix))].sort().slice(0, 2);
         },
+        async issuedOperations() {
+            return documentOperationsOf(invoices.map((inv) => inv.testOperation));
+        },
         /** Where each invoice's document stands, by invoice id. */
         documents,
         async recordRendering(invoiceId, rendering) {
@@ -437,7 +442,8 @@ const pageOf = (ids, { limit, after }) =>
  * installation that keeps none; the first `failingAuditWrites` writes to the
  * audit log fail. `renderer`, `archive` and `mail` are what the application
  * wires for the invoices' documents, `paymentMethods` the subscribers' payment
- * methods where it takes them.
+ * methods where it takes them, `marks` where the mark of the installation is
+ * kept — unmarked, and so live, unless a test marks it.
  */
 export function anInvoicingInstallation({
     settings = INVOICING_SETTINGS,
@@ -448,6 +454,7 @@ export function anInvoicingInstallation({
     archive = anArchive(),
     mail = aMailbox(),
     paymentMethods = null,
+    marks = new FakeInstallationMarkRepository(),
 } = {}) {
     const subscriberRepository = new FakeSubscriberRepository();
     const taxes = new TaxTreatments(settings, adapter);
@@ -467,6 +474,7 @@ export function anInvoicingInstallation({
         null,
         audit,
         paymentMethods,
+        marks,
     );
     const documents = new InvoiceDocumentService(
         store,
@@ -497,6 +505,8 @@ export function anInvoicingInstallation({
         mail,
         documents,
         paymentMethods,
+        /** Where the mark of the installation is kept, which a test marks or changes. */
+        marks,
         /** A subscriber of `tenantId`, in Germany with a complete address unless `details` says otherwise. */
         aSubscriber(tenantId, details = {}) {
             return subscribers.createForTenant(tenantId, {

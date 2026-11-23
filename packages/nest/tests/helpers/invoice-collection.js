@@ -86,10 +86,13 @@ export function quietLog() {
 /**
  * An installation with one subscriber paying by `method`, its February invoice
  * issued and handed to the mail at `mailedAt`; with `holds`, an unpaid invoice
- * holds its tenant back there.
+ * holds its tenant back there; `marks` is where the installation's mark is kept.
  */
-export async function anInvoiceToCollect(method = 'card', { mailedAt = ISSUED, mail, holds } = {}) {
-    const installation = aCollectingInstallation({ mail, holds });
+export async function anInvoiceToCollect(
+    method = 'card',
+    { mailedAt = ISSUED, mail, holds, marks } = {},
+) {
+    const installation = aCollectingInstallation({ mail, holds, marks });
     const paying = await installation.aPayingSubscriber('t1', method);
     const invoice = await installation.anInvoiceMailed(paying.subscriber.id, ISSUED, mailedAt);
     return { ...installation, ...paying, invoice };
@@ -396,7 +399,8 @@ export function collectionStore(
  * is where the tenants' reasons are kept, where a test reads them: an invoice
  * unpaid on its due date is recorded there by `overdue`, and a payment that
  * settles it lifts it. `paymentMethodChanges` is where a confirmed payment
- * method is told to, as `SubscriberPaymentMethodService` tells it.
+ * method is told to, as `SubscriberPaymentMethodService` tells it. `marks` is
+ * where the installation's mark is kept, unmarked unless a test names one.
  */
 export function aCollectingInstallation({
     settings = COLLECTING_SETTINGS,
@@ -404,9 +408,10 @@ export function aCollectingInstallation({
     mail = aMailbox(),
     holds = null,
     paymentMethodChanges = null,
+    marks,
 } = {}) {
     const paymentMethods = new MemoryPaymentMethods();
-    const installation = anInvoicingInstallation({ settings, paymentMethods, mail });
+    const installation = anInvoicingInstallation({ settings, paymentMethods, mail, marks });
     const payments = new MemorySubscriberPayments(
         installation.store.invoices,
         installation.store.cancellations,

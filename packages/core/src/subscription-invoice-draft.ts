@@ -78,6 +78,8 @@ export interface InvoiceDraftInput {
     issuer: SubscriptionInvoiceIssuer;
     /** The footer lines `config/saas.yaml` names now (`SC-PRIC-093`). */
     footer: readonly string[];
+    /** Whether the installation's mark says it is a test operation now. */
+    testOperation: boolean;
     /** The treatment the tax adapter decides for the subscriber now (`SC-PRIC-043`). */
     treatment: TaxTreatment;
     /** The adapter's rule for the tax of an invoice (`SC-PRIC-041`). */
@@ -203,6 +205,7 @@ export function draftSubscriptionInvoice(input: InvoiceDraftInput): NewSubscript
         issuer: input.issuer,
         subscriber: input.subscriber,
         footer: [...input.footer],
+        testOperation: input.testOperation,
         taxTreatment: treatment,
         taxes: tax.rates,
         totalNet: tax.net,

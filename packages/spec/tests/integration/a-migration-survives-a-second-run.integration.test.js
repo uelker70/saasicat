@@ -4229,3 +4229,66 @@ describe('an installation mark says how the installation operates, and an older 
         assert.deepEqual(rows, [{ testOperation: true }]);
     });
 });
+
+describe('an invoice records whether it was issued in a test operation, and an older one is live', () => {
+    // The migration gives an invoice the operation it was issued in. An
+    // invoice issued before was issued by a release that marked no document as
+    // a test, so it reads as live.
+    const MIGRATION = '1.0-the-test-operation-is-recorded.postgres.sql';
+
+    /** The reference schema with the invoices' table in the shape before the operation. */
+    async function beforeTheOperation() {
+        await freshGround();
+        await client.query('ALTER TABLE "subscription_invoices" DROP COLUMN "testOperation"');
+    }
+
+    test('a database from before gains the column as the fragments declare it', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await beforeTheOperation();
+        assert.notEqual(await fingerprint(client), reference, 'nothing was taken out');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+    });
+
+    test('an invoice issued before the migration is live, after one run and after two', async () => {
+        await beforeTheOperation();
+        await anIssuedInvoice();
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            'SELECT "number", "testOperation" FROM "subscription_invoices"',
+        );
+        assert.deepEqual(rows, [{ number: 'AHP-2026-000001', testOperation: false }]);
+    });
+
+    test('a second run leaves an invoice issued in between as a test as it was written', async () => {
+        await beforeTheOperation();
+        await apply(MIGRATION);
+        await anIssuedInvoice();
+        await client.query('UPDATE "subscription_invoices" SET "testOperation" = true');
+
+        await apply(MIGRATION);
+
+        const { rows } = await client.query('SELECT "testOperation" FROM "subscription_invoices"');
+        assert.deepEqual(rows, [{ testOperation: true }]);
+    });
+
+    test('an installation without invoices is left without them, and runs through', async () => {
+        await freshGround();
+        await client.query('DROP TABLE "subscription_invoices" CASCADE');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscription_invoices') AS invoices`,
+        );
+        assert.deepEqual(rows, [{ invoices: null }]);
+    });
+});

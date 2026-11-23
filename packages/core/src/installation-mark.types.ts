@@ -99,6 +99,21 @@ export function installationOperationOf(
 }
 
 /**
+ * Which operations the documents a store keeps were issued in: `test` where
+ * any of them was issued in a test operation, `live` where any was issued in a
+ * live one. Both are `false` where it keeps none.
+ */
+export type DocumentOperations = Readonly<Record<InstallationOperation, boolean>>;
+
+/**
+ * The operations documents recorded with `testOperations` were issued in — the
+ * flag each of them recorded when it was issued, in any order and any number.
+ */
+export function documentOperationsOf(testOperations: readonly boolean[]): DocumentOperations {
+    return { test: testOperations.includes(true), live: testOperations.includes(false) };
+}
+
+/**
  * What `installation status` and the doctor say of a database: whether it
  * belongs to this environment, and how it operates.
  */

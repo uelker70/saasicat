@@ -6,6 +6,7 @@ import type {
     CanonicalSubscriptionInvoiceDocumentRow,
     CanonicalSubscriptionInvoiceLineRow,
     CanonicalSubscriptionInvoiceRow,
+    DocumentOperations,
     InvoiceRegisterPage,
     InvoiceRegisterRange,
     IssuedInvoiceAmounts,
@@ -24,6 +25,7 @@ import type {
 } from '@saasicat/core';
 import {
     CORRECTION_ORIGIN,
+    documentOperationsOf,
     formatInvoiceNumber,
     subscriptionInvoiceAlreadyCancelled,
     subscriptionInvoiceCancellationColumns,
@@ -444,6 +446,15 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
             take: 2,
         });
         return rows.map((row) => row.numberPrefix);
+    }
+
+    async issuedOperations(tx?: TransactionContext): Promise<DocumentOperations> {
+        const rows = await this.db(tx).subscriptionInvoice.findMany({
+            distinct: ['testOperation'],
+            select: { testOperation: true },
+            take: 2,
+        });
+        return documentOperationsOf(rows.map((row) => row.testOperation));
     }
 
     async recordRendering(

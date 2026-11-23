@@ -671,7 +671,9 @@ export interface TenantBillingModuleOptions {
          * every quarter of an hour, one invoice for the charges booked together
          * under a contract, numbered without gaps in the range
          * `config/saas.yaml#invoicing` names. Needs that block, a tax adapter
-         * and the issuer in the file; the start refuses one without the other.
+         * and the issuer in the file, and the installation's mark
+         * (`subscriptionEnds.deletion.marks`), which says whether each invoice
+         * is issued in a test operation; the start refuses one without the other.
          * An issued invoice is corrected by cancelling it
          * (`InvoiceCancellationService`), on the transaction
          * `contractFreeze.transactionRunner` names, which the start requires.
