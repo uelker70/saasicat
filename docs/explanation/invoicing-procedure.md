@@ -40,6 +40,12 @@ the issue date, each line's period, the due date — are days in the installatio
 (`SC-PRIC-045`, `SC-PRIC-046`). An invoice collected by SEPA direct debit announces the amount, the
 day it is collected and the mandate reference (`SC-PRIC-028`).
 
+An installation its operator marked as a test operation issues every invoice as a test: the invoice
+records it, and its every page and its XML state that it is not an invoice for VAT purposes
+(`SC-AUD-024`). Its number, amounts, tax and due date are those of any invoice. The first document
+an installation issues fixes its operation (`SC-AUD-023`), so a test installation never issues a
+real invoice, and a live one never a test.
+
 Before a number is drawn, the tax adapter checks the invoice's content against what its law
 requires (`SC-PRIC-027`). An invoice that cannot be issued yet — a subscriber whose billing address
 has gaps (`SC-PRIC-032`), content the adapter finds missing — draws no number and waits; the audit
@@ -55,6 +61,10 @@ that is put right. The runs go every quarter of an hour, by the actor
   `issuer.postalCode`, `issuer.city`, `issuer.country`, `issuer.vatId`, `issuer.taxNumber`;
 - the footer lines your business letter has to state: `invoicing.footer`;
 - the time zone the days count in: `timeZone`;
+- whether the installation is a test operation:
+  `<app> installation mark <identifier> --operation test`, before its first invoice, with an
+  invoice prefix of its own
+  ([a test installation](../guides/wire-the-backend.md#a-test-installation-marks-every-document-it-issues));
 - the payment term, `invoicing.paymentTermDays`, and for a direct debit the lead time before it is
   collected, `invoicing.directDebitLeadDays`;
 - the terms a contract is concluded under, which its confirmation names: `terms.file`,

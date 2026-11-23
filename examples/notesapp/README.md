@@ -200,6 +200,12 @@ pnpm run cli doctor --as admin@notesapp.example
   `admin@notesapp.example` and prints its `otpauth://` URI on the first run. A
   real application's operators enrol with `admin mfa-setup`, which this command
   line leaves out.
+- `installation mark <identifier> --operation test` marks it as a test
+  operation instead: every invoice and contract confirmation the notes app
+  issues from then on says on every page that it is a test, and the mail log
+  names it one. Mark an environment so before its first document, since the
+  first one fixes the operation; one marked without the option is live. See
+  [a test installation](../../docs/guides/wire-the-backend.md#a-test-installation-marks-every-document-it-issues).
 - `doctor` runs the platform's checks as a SuperAdmin, the installation's mark
   among them.
 

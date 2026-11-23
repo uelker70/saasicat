@@ -30177,6 +30177,7 @@ _Tested by:_
     - the notes app's invoice mail
         - writes the invoice, its subscriber, its file and its size — not the file, not the address
         - writes a contract's confirmation with each file it attaches
+        - names a test invoice and a test confirmation as tests, and a live one as neither
         - writes a notice about collecting an invoice by its kind and invoice
     - the notes app with invoices on
         - passes the start checks of invoicing and composes the invoice run

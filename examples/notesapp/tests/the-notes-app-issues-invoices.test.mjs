@@ -245,6 +245,31 @@ describe("the notes app's invoice mail", () => {
         assertCarriesNeitherContentNorAddress(logged[0]);
     });
 
+    test('names a test invoice and a test confirmation as tests, and a live one as neither', async () => {
+        const { port, logged } = mailLog();
+        const document = { content: PDF, mediaType: 'application/pdf', fileName: 'doc.pdf' };
+
+        for (const testOperation of [true, false]) {
+            await port.deliver({
+                invoice: { number: 'NOTES-2026-000001', subscriberId: 'sub-k1', testOperation },
+                to: ADDRESS,
+                document,
+            });
+            await port.deliverConfirmation({
+                contract: { id: 'c1', subscriberId: 'sub-k1' },
+                to: ADDRESS,
+                testOperation,
+                documents: [document],
+            });
+        }
+
+        assert.equal(logged.length, 4);
+        assert.match(logged[0], /^Test invoice NOTES-2026-000001 /);
+        assert.match(logged[1], /^Test confirmation of contract c1 /);
+        assert.match(logged[2], /^Invoice NOTES-2026-000001 /);
+        assert.match(logged[3], /^Confirmation of contract c1 /);
+    });
+
     test('writes a notice about collecting an invoice by its kind and invoice', async () => {
         const { port, logged } = mailLog();
 

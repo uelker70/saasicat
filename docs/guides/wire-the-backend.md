@@ -1458,11 +1458,14 @@ and `sql/1.0-an-invoice-is-cancelled.postgres.sql` once before `db push`, in tha
 invoices are collected, the last of them after `sql/1.0-a-payment-is-recorded.postgres.sql`
 ([below](#what-a-collection-brings-and-what-the-subscriber-is-owed)) — and
 `sql/1.0-an-invoice-document-is-archived.postgres.sql` and
-`sql/1.0-a-contract-confirmation-is-archived.postgres.sql` after it, name the range and the payment
-term, and wire the repository, the renderer, the archive, the mail and the confirmations' renderer
-beside the journal. An issued invoice is corrected by cancelling it (`InvoiceCancellationService`),
-on the transaction `contractFreeze.transactionRunner` names, which `SaaSiCatModule` passes and the
-start requires:
+`sql/1.0-a-contract-confirmation-is-archived.postgres.sql` after it. Where the tables are there
+from an earlier release, run `sql/1.0-the-test-operation-is-recorded.postgres.sql` before `db push`
+as well: it adds the column each invoice and each confirmation records its operation in
+([a test installation](#a-test-installation-marks-every-document-it-issues)), and on a database
+without them it does nothing. Name the range and the payment term, and wire the repository, the
+renderer, the archive, the mail and the confirmations' renderer beside the journal. An issued
+invoice is corrected by cancelling it (`InvoiceCancellationService`), on the transaction
+`contractFreeze.transactionRunner` names, which `SaaSiCatModule` passes and the start requires:
 
 ```yaml
 # config/saas.yaml
@@ -1499,10 +1502,12 @@ tenantBilling: {
 The start refuses the wiring without the `invoicing` block, the block without the wiring where tenant
 billing is configured, either without a tax adapter, an issuer or the record of the applied
 settings, the wiring without a renderer, an archive or a mail, without the confirmations' renderer,
-record or archive, an archive of either that would let a file it keeps be changed, and a
-`numberPrefix` other than the one the invoices already issued carry
-(`SC-PRIC-024`). The prefix is letters and digits; the number puts the year and the sequence behind
-it, each after a hyphen.
+record or archive, an archive of either that would let a file it keeps be changed, either without
+the installation's mark (`subscriptionEnds.deletion.marks`, which `SaaSiCatModule` binds from
+`persistence.core.installationMark`), a mark whose operation is not the one the documents already
+issued recorded (`SC-AUD-023`), and a `numberPrefix` other than the one the invoices already issued
+carry (`SC-PRIC-024`). The prefix is letters and digits; the number puts the year and the sequence
+behind it, each after a hyphen.
 
 `SaaSiCatModule` composes all of that. An application that wires `TenantBillingModule` itself
 registers `SettingsModule` from `@saasicat/nest` with `global: true`, so that the invoice run reaches
@@ -1601,12 +1606,22 @@ after tries it again:
    such as a PDF's creation date, it takes from `issuedAt`. `zugferdInvoiceRenderer()` from
    `@saasicat/invoice-zugferd` writes ZUGFeRD in the EN 16931 profile, labelled in German with
    English beside it, and CI checks its output with the format's own validators (`SC-PRIC-078`); it
-   takes a font of yours as `fonts: { regular, bold }`.
+   takes a font of yours as `fonts: { regular, bold }`. An invoice issued in a test operation
+   records it (`SubscriptionInvoiceRecord.testOperation`), and the shipped renderer marks it on
+   every page (`SC-AUD-024`,
+   [a test installation](#a-test-installation-marks-every-document-it-issues)). **A renderer of
+   your own** reads the same field and prints the same: the title `TEST_OPERATION_TITLE.invoice`
+   from `@saasicat/core`, or `.cancellation` for a cancellation invoice, on the first page and at
+   the head of every page after it and as the PDF's title, and `TEST_OPERATION_NOTICE.invoice`
+   under the title, at the foot of every page and as the first note of the XML (BT-22), before any
+   other and without a subject code. An invoice issued live prints none of it.
 2. **Checked** by the tax adapter against the format its law requires (`SC-PRIC-042`) — for
-   `@saasicat/tax-de`, ZUGFeRD in the EN 16931 profile, whose XML states what the invoice records. A
-   file it refuses is not archived: the invoice keeps its number and waits, and the audit log records
-   `SUBSCRIPTION_INVOICE_DOCUMENT_HELD` with `SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED` and what the
-   adapter found missing.
+   `@saasicat/tax-de`, ZUGFeRD in the EN 16931 profile, whose XML states what the invoice records,
+   the notice of a test operation as its first note included, and an invoice issued live states it
+   in no note. The adapter reads the XML, not the page: what the page of a renderer of your own
+   says is yours to check. A file it refuses is not archived: the invoice keeps its number and
+   waits, and the audit log records `SUBSCRIPTION_INVOICE_DOCUMENT_HELD` with
+   `SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED` and what the adapter found missing.
 3. **Recorded**: the file's SHA-256 is written with the invoice before the file is archived
    (`SC-AUD-019`).
 4. **Archived** by the `InvoiceArchivePort`. Until the archive confirms, the invoice is neither mailed
@@ -1619,11 +1634,10 @@ after tries it again:
 5. **Mailed** by your `InvoiceMailPort` to the invoice email on the subscriber's record — or, for a
    cancellation invoice and its replacement, to the address given with the cancellation, where one
    was —, with the archived file attached (`SC-PRIC-094`). Your application words the message — in
-   the subscriber's language, with a link to the tenant's sign-in rather than to the file — and
-   sends it. A run claims
-   an invoice before it hands it over, so of several instances one sends it. A subscriber without an
-   invoice email
-   waits, recorded as `SUBSCRIPTION_INVOICE_DELIVERY_HELD` with
+   the subscriber's language, with a link to the tenant's sign-in rather than to the file, and,
+   where `mail.invoice.testOperation` is `true`, saying that the file is a test invoice — and sends
+   it. A run claims an invoice before it hands it over, so of several instances one sends it. A
+   subscriber without an invoice email waits, recorded as `SUBSCRIPTION_INVOICE_DELIVERY_HELD` with
    `SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL`; a message your port rejects is recorded as
    `SUBSCRIPTION_INVOICE_DELIVERY_FAILED` with its reason, and the next run tries again. The invoice
    stays issued either way.
@@ -1664,7 +1678,8 @@ tenant billing module it built.
 `?after=` the last of the page before — every invoice of the subscriber its tenant belongs to, an
 earlier tenant's joined into it included (`SC-PRIC-097`), each with its number, issue date, service
 period, due date, total, issuer, the invoices it is linked to by a cancellation and where its
-payment stands (`SC-ADM-051`'s rule), and whether its document is archived; an invoice is listed
+payment stands (`SC-ADM-051`'s rule), whether it was issued in a test operation (`testOperation`),
+and whether its document is archived; an invoice is listed
 before its document is, and its download is offered once it is. It downloads one at `GET
 /billing/invoices/:id/document`, the archived file as the operator's route hands it out. Its
 contract confirmations are at `GET /billing/contracts`, and one at `GET
@@ -1725,8 +1740,15 @@ mailed once under a claim — in the same quarter-hourly run, by the actor
    `invoicing.footer` where the contract names the file's issuer, and the installation's
    `timeZone`, the same bytes every time. `contractConfirmationRenderer()` from
    `@saasicat/invoice-zugferd` writes a PDF on the letter the invoices are printed on, labelled in
-   German with English beside it. A contract whose parties a migration copied or that names no
-   issuer waits, recorded as `CONTRACT_CONFIRMATION_HELD` with
+   German with English beside it. `ContractToConfirm.testOperation` says whether the confirmation is
+   made in a test operation: as the installation's mark says when it is first rendered, which its
+   record keeps from then on, so every later rendering and its mail say the same — a contract
+   written before the installation was marked is confirmed as the mark says on the day its
+   confirmation is first made. The shipped renderer then titles it
+   `TEST_OPERATION_TITLE.confirmation` and prints `TEST_OPERATION_NOTICE.confirmation` under the
+   title and at the foot of every page. **A renderer of your own** prints the same; nothing checks
+   its page, since a confirmation is a plain PDF with no XML. A contract whose parties a migration
+   copied or that names no issuer waits, recorded as `CONTRACT_CONFIRMATION_HELD` with
    `CONTRACT_CONFIRMATION_PARTIES_UNCONFIRMED`; so does one whose terms the archive does not hold,
    with `CONTRACT_CONFIRMATION_TERMS_NOT_ARCHIVED`.
 2. **Archived**: `persistence.entitlement.contractConfirmationArchive` keeps each file in
@@ -1734,9 +1756,11 @@ mailed once under a claim — in the same quarter-hourly run, by the actor
    start refuses invoicing beside an archive whose triggers are missing or disabled. A renderer
    updated before the file was archived replaces the recorded rendering, recorded as
    `CONTRACT_CONFIRMATION_RERENDERED`.
-3. **Mailed** through `InvoiceMailPort.deliverConfirmation({ contract, to, documents })` to the
-   invoice email on the subscriber's record, with the archived confirmation and the terms of the
-   version the contract records as `documents`. A subscriber without an invoice email waits
+3. **Mailed** through
+   `InvoiceMailPort.deliverConfirmation({ contract, to, testOperation, documents })` to the invoice
+   email on the subscriber's record, with the archived confirmation and the terms of the version the
+   contract records as `documents`; `testOperation` is the one its record keeps, for the message to
+   say so. A subscriber without an invoice email waits
    (`CONTRACT_CONFIRMATION_DELIVERY_HELD`); a message your port rejects is recorded as
    `CONTRACT_CONFIRMATION_DELIVERY_FAILED`, and the next run tries again.
 
@@ -1769,7 +1793,9 @@ page `invoices` lists every invoice of
 the months the operator picks — the current month in the installation's time zone where none is, at
 most twelve at a time — by issue date and then number, whichever subscriber and tenant each was for,
 each with what it corrects, what cancelled it, the subscriber it names and whether its document is
-archived (`SC-ADM-042`). Beside the list stand the sums per month, currency, tax treatment and rate,
+archived (`SC-ADM-042`). One issued in a test operation is marked "Test", there and on
+every other list of invoices and confirmations the operator and the tenant read
+(`SC-UI-029`). Beside the list stand the sums per month, currency, tax treatment and rate,
 and over the whole span, a cancellation invoice counting with its own sign in the month it was
 issued: the figures a tax advisor asks for, without opening one record after another.
 
@@ -1811,9 +1837,11 @@ for again, is the same instant; a time the clock skips is the moment it jumps to
 The archive holds `invoices.csv`, `lines.csv` and `settlements.csv`, `export.json` with the same
 rows, and last `manifest.json`, which names the months, the moment, the time zone, the language and
 the size and SHA-256 of every file before it. `export.json` and the manifest follow
-`invoice-export.schema.json` in `@saasicat/spec`. The CSV is UTF-8 with a byte order mark and CRLF
-line endings; `de` separates by `;` with a decimal comma, `en` by `,` with a decimal point, and a
-text cell a spreadsheet would read as a formula is prefixed with `'`. The files are stored, not
+`invoice-export.schema.json` in `@saasicat/spec`; each invoice names the operation it was issued
+in, `test` or `live`, in the column after its kind, so that a tax advisor can tell a test invoice,
+which is no invoice for VAT purposes, from a real one. The CSV is UTF-8 with a byte order mark and
+CRLF line endings; `de` separates by `;` with a decimal comma, `en` by `,` with a decimal point, and
+a text cell a spreadsheet would read as a formula is prefixed with `'`. The files are stored, not
 compressed, and dated the moment the export is as of, so the same months as of the same moment in
 the same language are the same bytes: two hand-overs are compared by the archive's SHA-256. The
 audit log records each export under the operator with the months, the moment and that SHA-256
@@ -2450,7 +2478,9 @@ a deletion runs only where both name the same (`SC-PRIV-021`).
     ```
 
     `installation mark` asks for the operator's second factor and, against production, the
-    confirmation, before it writes, and records `INSTALLATION_MARKED` in the audit log. It refuses
+    confirmation, before it writes, and records `INSTALLATION_MARKED` in the audit log with the
+    identifier and the operation, `live` unless `--operation test` makes the installation a
+    [test operation](#a-test-installation-marks-every-document-it-issues). It refuses
     an identifier that is not the one this environment names
     (`INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS`, exit 1): a mark naming another environment
     would hold every deletion here from then on. Run again with the same identifier, it writes
@@ -2461,7 +2491,8 @@ a deletion runs only where both name the same (`SC-PRIV-021`).
   installation records ends and tells deletion days, and deletes nothing until the operator says
   this database is this environment's. `<app> doctor` reports it as a warning
   (`platform.installation-mark`), a mark that matches as fine, and a mark naming another
-  installation as an error, with both identifiers.
+  installation as an error, with both identifiers. Both it and `installation status` name the
+  operation the mark says, and a database nobody marked is live.
 - **After restoring a backup into another environment** the database carries the mark of the one
   it came from, and `installation status` says so. Nothing is deleted there until you mark it
   again, on purpose:
@@ -2472,9 +2503,80 @@ a deletion runs only where both name the same (`SC-PRIV-021`).
 
     Without `--replace` the command refuses where another mark stands and names it
     (`INSTALLATION_MARKED_OTHERWISE`, exit 6). With it, the same second factor and confirmation are
-    asked for, and `INSTALLATION_MARK_REPLACED` records the old and the new identifier. Where the
-    mark changed between reading and replacing it, the command writes nothing
-    (`INSTALLATION_MARK_MOVED`, exit 6); read it again.
+    asked for, and `INSTALLATION_MARK_REPLACED` records the old and the new identifier. The
+    operation the mark carried stays unless `--operation` names another. Where the mark changed
+    between reading and replacing it, the command writes nothing (`INSTALLATION_MARK_MOVED`,
+    exit 6); read it again.
+
+### A test installation marks every document it issues
+
+An installation that runs beside production to try invoicing out — an integration environment pilot
+subscribers sign up in, say — issues invoices and contract confirmations that look like real ones.
+Its recipient, their tax advisor or a tax auditor could take one for a real invoice, and the
+operator might then owe the VAT it states. So the operator marks such an installation's database as
+a test operation, and every document it issues says on every page that it is a test
+(`SC-AUD-024`):
+
+```bash
+<app> installation mark int --operation test   # second factor; marks or changes the operation
+<app> installation status                       # … It is marked as a test operation.
+```
+
+- **What a document says.** An invoice, a cancellation invoice and a replacement are titled as a
+  test on the first page, at the head of every page after it and in the PDF's metadata, and state
+  under the title and at the foot of every page that they are not invoices for VAT purposes; the
+  XML states the same as its first note (BT-22). A contract confirmation is titled as a test and
+  states that it confirms no contract. The wording, in German and in English, is
+  `TEST_OPERATION_TITLE` and `TEST_OPERATION_NOTICE` in `@saasicat/core`, which the renderers of
+  `@saasicat/invoice-zugferd` print and a renderer of your own prints too
+  ([its document](#its-document-the-archive-and-the-mail),
+  [the confirmation](#the-confirmation-of-each-contract)). Amounts, tax and due date are those of
+  any document, so a test invoice falls due, is collected and makes its tenant read-only when unpaid
+  as a live one does: run the payment gateway in its test mode there, and tell the pilots that its
+  test payment details are enough.
+- **Each document records its operation.** An invoice records the operation the mark says when it
+  is issued, and a cancellation invoice and its replacement the one of the invoice they correct; a
+  confirmation records it when it is first rendered. Every later rendering and every mail read the
+  document's record, never the mark as it stands later (`SC-AUD-019`). Every list of invoices and
+  confirmations marks a test document "Test" (`SC-UI-029`), and the
+  [export](#the-export-for-a-tax-advisor) names its operation.
+- **Live unless the operator says otherwise.** Without `--operation` a new mark is live and a mark
+  that stands keeps its operation, with `--replace` too. `--operation test` or `--operation live` on
+  the identifier that stands changes the operation, with the same second factor and confirmation,
+  and records `INSTALLATION_OPERATION_CHANGED` with `from` and `to`; any other value is refused
+  before anybody is asked (`INSTALLATION_OPERATION_INVALID`, exit 1). An installation that never
+  tests does nothing at all.
+- **The operation is fixed with the first document** (`SC-AUD-023`). Once an invoice has been issued
+  or a confirmation rendered, the command refuses the other operation, with `--replace` too
+  (`INSTALLATION_OPERATION_FIXED`, exit 6), and where the documents cannot be read it refuses any
+  change of the operation (`INSTALLATION_DOCUMENTS_NOT_READABLE`, exit 6), since then nothing shows
+  that none exists; marking with the operation that stands goes ahead. A start that issues invoices
+  refuses where the documents recorded another operation than the mark says, or both, and names
+  them. Leaving a test operation is a new installation, with a database of its own.
+- **Where the documents are read.** From the stores invoicing issues through, and where invoicing is
+  off, from `persistence.entitlement.subscriptionInvoiceRepository` and
+  `contractConfirmationRepository`. `TenantBillingModule` wired by hand names them in
+  `subscriptionEnds.deletion.documents: { invoices, confirmations }`. The reads run inside
+  `RlsBypassPort` where one is bound; under a row-level policy without it they find nothing, and a
+  change goes ahead, as the start's check of the invoice prefix does.
+- **Where it stops.** The command reads the documents before it writes the mark, so a first
+  document issued between the two is not seen by it, and the next start refuses. The German tax
+  adapter checks the XML of every invoice for the notice, not the page; nothing checks the page of a
+  renderer of your own, or a confirmation of your own.
+
+**Mark a test installation before its first document.** The operation is fixed with the first
+invoice or confirmation: an integration environment marked as a test only after it issued one stays
+live, and so do the documents it issued. So mark it first, with the identifier of its own
+environment — `<app> installation mark int --operation test`, or `--replace` where its database was
+copied from production —, and only then switch invoicing on there. Give it an invoice prefix of its
+own as well (`invoicing.numberPrefix`, `AHPT` beside production's `AHP`): each database numbers its
+invoices from 1 every year, so a test installation and production with the same prefix would each
+issue `AHP-2026-000001` for the same issuer. Before the first test document goes out, have a tax
+advisor confirm three things: whether the notice is enough to keep the VAT a test invoice states
+from being owed as VAT shown on a document that is no invoice; whether a test document should carry
+the XML at all, since accounting software reads the XML and may book it whatever its note says; and
+the exact text. The wording is two constants in `@saasicat/core`, and until an advisor confirms it,
+it is a working draft.
 
 ### Erase a tenant's stores
 
