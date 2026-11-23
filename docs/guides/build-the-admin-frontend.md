@@ -660,7 +660,9 @@ would refuse the line, at `subscriberContactMaxLengthOf` from `@saasicat/core`. 
 fields entered, trimmed, and leaves `subscriber` out where none was. Where the manifest says
 `subscriberAddressRequired` — `config/saas.yaml` names a tax adapter, so a contract names its
 subscriber only with the full address — the dialog does not submit until the street, postal code,
-city and country are given; otherwise they are optional (`SC-SPEC-010`).
+city and country are given; otherwise they are optional (`SC-SPEC-010`). Each input stops where the
+platform would refuse the value the route passes on: the name at the legal name's bound, the VAT
+number at a tax identifier's (`subscriberIdentityMaxLengthOf`, `SC-SUB-050`).
 
 The route creates the pilot's subscriber with that address. Ask
 `SubscriberService.assessNewSubscriber` before the transaction that creates it, and give

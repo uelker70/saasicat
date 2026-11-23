@@ -30,6 +30,7 @@
                             v-model="form.tenant.name"
                             outlined
                             dense
+                            :maxlength="subscriberIdentityMaxLengthOf('legalName')"
                             :placeholder="copy.tenantNamePlaceholder"
                             autofocus
                         />
@@ -73,6 +74,7 @@
                             v-model="form.tenant.vatId"
                             outlined
                             dense
+                            :maxlength="subscriberIdentityMaxLengthOf('vatId')"
                             :placeholder="msg.createDialog.vatIdPlaceholder"
                         />
                     </div>
@@ -287,7 +289,11 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, useId, watch } from 'vue';
-import { addDaysToDay, subscriberContactMaxLengthOf } from '@saasicat/core';
+import {
+    addDaysToDay,
+    subscriberContactMaxLengthOf,
+    subscriberIdentityMaxLengthOf,
+} from '@saasicat/core';
 import MfaPromptDialog from '../../ui/overlay/MfaPromptDialog.vue';
 import AdminDialog from '../../ui/overlay/AdminDialog.vue';
 import AdminBanner from '../../ui/feedback/AdminBanner.vue';

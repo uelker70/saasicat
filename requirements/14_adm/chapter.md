@@ -864,7 +864,7 @@ _Tested by:_
 - `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
     - what an operator gives a cancellation
         - passes with a reason, and with corrections and an address beside it
-        - is trimmed before its lengths are checked, as the service settles it
+        - with ${why} is left to the cancellation, which settles it
         - leaves the length of a correction to the cancellation, which settles it
         - with ${why} is refused
         - keeps the lines through a pipe that strips what no decorator names
@@ -873,9 +873,12 @@ _Tested by:_
         - an address of blanks as none given
         - refuses a reason ${why}, drawing no number
         - takes a reason of exactly the longest length
+        - takes an address of exactly the longest length
         - refuses an address ${why}
         - each correction as the subscriber’s record holds that detail
         - takes a correction of exactly the longest length
+        - takes a tax identifier at its own bound and refuses one a character over it, as the
+          command line gives it
         - takes a line of the address at its own bound, though the legal name may be longer
         - refuses ${why}
         - refuses a line of the address a character over its own bound, as the command line gives it
@@ -2159,6 +2162,7 @@ _Tested by:_
         - without the capability, nothing is offered and no history is shown
         - a correction is sent only once something changed and a reason is given, with the second
           factor
+        - each field of the identity stops where the platform would refuse it
         - stepping back from the second factor sends nothing and keeps the form
         - moving to another subscriber closes an open dialog and shows nothing of the first one
           while the next one is read
@@ -3315,5 +3319,36 @@ _Tested by:_
         - the tenant's subscriber is found through the application's lookup by slug
         - a generic read asked of the two-method lookup says what it needs
         - without a lookup and without the bundle, the start is refused naming the two methods
+
+<!-- END proof -->
+
+### SC-ADM-059 — A cancellation's reason and delivery address are judged by the platform alone
+
+🟢 The reason a cancellation is given — present, of one line, at most
+`INVOICE_CANCELLATION_REASON_MAX_LENGTH` characters once trimmed — and the address it is delivered to
+— text shaped as an email address, at most `SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH` characters once
+trimmed — are judged where the cancellation settles them, so they hold the same over the route,
+behind a `ValidationPipe` or without one, and from the command line (`SC-ADM-020`). A reason that
+does not hold is refused with `SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID`, naming the bound,
+and an address with `SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID`: the route declares both without
+judging them, so neither is answered with a `400`. The cancellation dialog stops each input at the
+same bound.
+
+_Source:_ #524 (decided 2026-11-23)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - what an operator gives a cancellation
+        - with ${why} is left to the cancellation, which settles it
+    - a cancellation behind the application's pipe is judged by the platform alone
+        - takes a reason at its bound and an address at the longest one can be, trimmed
+        - refuses a reason ${why} with the platform's own answer
+        - refuses an address ${why} with the platform's own answer
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the subscriber’s record
+        - stops the reason and the address to deliver to where the platform would refuse them
 
 <!-- END proof -->

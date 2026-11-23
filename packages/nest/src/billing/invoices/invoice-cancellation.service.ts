@@ -857,6 +857,9 @@ function asGiven(value: unknown): number | string {
  * The operator's request with each part settled, or refused with `422`: a
  * reason of one line, a correction that holds as the subscriber's detail does,
  * an address shaped like an email address (`SC-ADM-020`, `SC-PRIC-094`).
+ * Settled here alone, whatever the route's pipe passed on: the request DTO
+ * declares these parts without judging them (`SC-ADM-059`), so a reason or an
+ * address arrives as any JSON value, and anything but text is refused.
  */
 function settledRequestOf(
     request: InvoiceCancellationRequest,
@@ -879,8 +882,12 @@ function settledRequestOf(
             }),
         );
     }
-    const address = request.deliverTo?.trim() ?? '';
-    if (address !== '' && !isDeliverableAddress(address)) {
+    const given: unknown = request.deliverTo;
+    const address = typeof given === 'string' ? given.trim() : '';
+    if (
+        (given !== undefined && given !== null && typeof given !== 'string') ||
+        (address !== '' && !isDeliverableAddress(address))
+    ) {
         throw new UnprocessableEntityException(
             codedError(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID, {
                 number,

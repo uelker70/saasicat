@@ -5,7 +5,6 @@ import {
     IsOptional,
     IsString,
     IsUrl,
-    Matches,
     MaxLength,
     MinLength,
     ValidateNested,
@@ -13,9 +12,11 @@ import {
 
 /**
  * The billing address and tax identifiers step 4 asks for, which the subscriber
- * is created with. A line of the address declares no length here: the platform
- * measures it where it settles the details (`SUBSCRIBER_ADDRESS_MAX_LENGTHS`),
- * the one measure every way a detail arrives is held to.
+ * is created with. No detail declares a length or a form here: the platform
+ * measures each where it settles the details — a line of the address
+ * (`SUBSCRIBER_ADDRESS_MAX_LENGTHS`), a tax identifier
+ * (`SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH`) — and upper-cases the country to its
+ * code, the one rule every way a detail arrives is held to.
  */
 export class RegistrationBillingDetailsDto {
     @IsString()
@@ -34,18 +35,16 @@ export class RegistrationBillingDetailsDto {
     @MinLength(1)
     city!: string;
 
-    /** ISO 3166-1 alpha-2, e.g. `DE`. */
-    @Matches(/^[A-Z]{2}$/)
+    /** ISO 3166-1 alpha-2, e.g. `DE`; `de` is taken as `DE`. */
+    @IsString()
     country!: string;
 
     @IsOptional()
     @IsString()
-    @MaxLength(30)
     vatId?: string | null;
 
     @IsOptional()
     @IsString()
-    @MaxLength(30)
     taxNumber?: string | null;
 
     /** Whether the sign-up is a business, which a tax adapter decides from. */

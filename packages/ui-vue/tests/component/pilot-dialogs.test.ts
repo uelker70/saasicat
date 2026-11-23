@@ -7,7 +7,11 @@
 
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { ref } from 'vue';
-import { SUBSCRIBER_ADDRESS_MAX_LENGTHS } from '@saasicat/core';
+import {
+    SUBSCRIBER_ADDRESS_MAX_LENGTHS,
+    SUBSCRIBER_LEGAL_NAME_MAX_LENGTH,
+    SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH,
+} from '@saasicat/core';
 
 import { AdminError } from '../../src/client/admin-error.js';
 import type { PilotCreatePayload } from '../../src/client/resources/pilots.types.js';
@@ -478,6 +482,18 @@ describe("the pilot subscriber's address", () => {
             [dialog.postalCodePlaceholder, SUBSCRIBER_ADDRESS_MAX_LENGTHS.postalCode],
             [dialog.cityPlaceholder, SUBSCRIBER_ADDRESS_MAX_LENGTHS.city],
             [dialog.countryPlaceholder, 2],
+        ] as const) {
+            const input = document.querySelector(`input[placeholder="${placeholder}"]`);
+            expect(input?.getAttribute('maxlength'), placeholder).toBe(String(bound));
+        }
+    });
+
+    // @requirement SC-SUB-050 — Legal name, tax identifiers and country hold one bound and one form at every way in
+    test('the name and the VAT number stop where the platform would refuse them as the legal name and a tax identifier', async () => {
+        await filledCreate(vi.fn(), false, { subscriberAddressRequired: true });
+        for (const [placeholder, bound] of [
+            [de.pilots.copyDefaults.tenantNamePlaceholder, SUBSCRIBER_LEGAL_NAME_MAX_LENGTH],
+            [dialog.vatIdPlaceholder, SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH],
         ] as const) {
             const input = document.querySelector(`input[placeholder="${placeholder}"]`);
             expect(input?.getAttribute('maxlength'), placeholder).toBe(String(bound));

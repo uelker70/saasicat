@@ -20,10 +20,12 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
     INVOICE_CANCELLATION_REASON_MAX_LENGTH,
-    INVOICE_CORRECTION_MAX_LENGTH,
     INVOICE_ERROR_CODES,
     SUBSCRIBER_ADDRESS_MAX_LENGTHS,
     SUBSCRIBER_ERROR_CODES,
+    SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH,
+    SUBSCRIBER_LEGAL_NAME_MAX_LENGTH,
+    SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH,
 } from '@saasicat/core';
 
 import { RLS_BYPASS_PORT_TOKEN } from '../dist/admin/index.js';
@@ -45,6 +47,9 @@ import { controllersIn, handlersOf } from './helpers/operator-routes.js';
 const CANCELLED_AT = new Date('2026-03-20T09:00:00.000Z');
 
 const REQUEST = { reason: 'The billing address was wrong.' };
+
+/** An address to deliver to of `length` characters, shaped as one. */
+const addressOfLength = (length) => `${'a'.repeat(length - '@t1.example'.length)}@t1.example`;
 
 /** A digest shaped as a preview answers one: SHA-256, in hex. */
 const DIGEST = 'a'.repeat(64);
@@ -108,22 +113,33 @@ describe('what an operator gives a cancellation', () => {
         );
     });
 
-    test('is trimmed before its lengths are checked, as the service settles it', async () => {
-        assert.deepEqual(
-            await problemsOf({
-                reason: `  ${'x'.repeat(INVOICE_CANCELLATION_REASON_MAX_LENGTH)}  `,
-                deliverTo: `  ${'a'.repeat(242)}@t1.example  `,
-            }),
-            [],
-        );
-    });
+    for (const [why, body] of [
+        ['no reason', {}],
+        ['a reason of blanks', { reason: '   ' }],
+        [
+            'a reason a character too long',
+            { reason: 'x'.repeat(INVOICE_CANCELLATION_REASON_MAX_LENGTH + 1) },
+        ],
+        ['a reason that is no text', { reason: 42 }],
+        ['an address that is no text', { ...REQUEST, deliverTo: 42 }],
+        [
+            'an address longer than one can be',
+            { ...REQUEST, deliverTo: addressOfLength(SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH + 1) },
+        ],
+    ]) {
+        // @requirement SC-ADM-059 — A cancellation's reason and delivery address are judged by the platform alone
+        test(`with ${why} is left to the cancellation, which settles it`, async () => {
+            assert.deepEqual(await problemsOf(body), []);
+        });
+    }
 
     test('leaves the length of a correction to the cancellation, which settles it', async () => {
         assert.deepEqual(
             await problemsOf({
                 ...REQUEST,
                 corrections: {
-                    legalName: 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH + 1),
+                    legalName: 'x'.repeat(SUBSCRIBER_LEGAL_NAME_MAX_LENGTH + 1),
+                    vatId: 'x'.repeat(SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH + 1),
                     city: 'x'.repeat(SUBSCRIBER_ADDRESS_MAX_LENGTHS.city + 1),
                 },
             }),
@@ -132,24 +148,11 @@ describe('what an operator gives a cancellation', () => {
     });
 
     for (const [why, body, property] of [
-        ['no reason', {}, 'reason'],
-        ['a reason of blanks', { reason: '   ' }, 'reason'],
-        [
-            'a reason a character too long',
-            { reason: 'x'.repeat(INVOICE_CANCELLATION_REASON_MAX_LENGTH + 1) },
-            'reason',
-        ],
         ['corrections that are no object', { ...REQUEST, corrections: 'Bremen' }, 'corrections'],
         [
             'a correction that is no text',
             { ...REQUEST, corrections: { city: 28195 } },
             'corrections',
-        ],
-        ['an address that is no text', { ...REQUEST, deliverTo: 42 }, 'deliverTo'],
-        [
-            'an address longer than one can be',
-            { ...REQUEST, deliverTo: `${'a'.repeat(246)}@t1.example` },
-            'deliverTo',
         ],
         ['a digest that is no text', { ...REQUEST, previewDigest: 42 }, 'previewDigest'],
         [
@@ -239,6 +242,8 @@ describe('a cancellation settles what it is given before anything else', () => {
         ['blank once trimmed', '   '],
         ['over one line', 'The address was wrong.\nThe name too.'],
         ['a character too long', 'x'.repeat(INVOICE_CANCELLATION_REASON_MAX_LENGTH + 1)],
+        ['left out', undefined],
+        ['that is no text', 42],
     ]) {
         test(`refuses a reason ${why}, drawing no number`, async () => {
             const installation = await anInvoiceToCollect();
@@ -266,10 +271,25 @@ describe('a cancellation settles what it is given before anything else', () => {
         assert.equal((await previewWith(installation, { reason })).reason, reason);
     });
 
+    test('takes an address of exactly the longest length', async () => {
+        const installation = await anInvoiceToCollect();
+        const deliverTo = addressOfLength(SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH);
+
+        assert.equal(
+            (await previewWith(installation, { ...REQUEST, deliverTo })).deliverTo,
+            deliverTo,
+        );
+    });
+
     for (const [why, deliverTo] of [
         ['without an @', 'accounts.t1.example'],
         ['with a space inside', 'accounts @t1.example'],
         ['with a control character', 'accounts\u0007@t1.example'],
+        [
+            'a character longer than one can be',
+            addressOfLength(SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH + 1),
+        ],
+        ['that is no text', 42],
     ]) {
         test(`refuses an address ${why}`, async () => {
             const installation = await anInvoiceToCollect();
@@ -301,11 +321,42 @@ describe('a cancellation settles what it is given before anything else', () => {
 
     test('takes a correction of exactly the longest length', async () => {
         const installation = await anInvoiceToCollect();
-        const legalName = 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH);
+        const legalName = 'x'.repeat(SUBSCRIBER_LEGAL_NAME_MAX_LENGTH);
 
         const plan = await previewWith(installation, { ...REQUEST, corrections: { legalName } });
 
         assert.equal(plan.replacement.subscriber.legalName, legalName);
+    });
+
+    // @requirement SC-SUB-050 — Legal name, tax identifiers and country hold one bound and one form at every way in
+    test('takes a tax identifier at its own bound and refuses one a character over it, as the command line gives it', async () => {
+        for (const field of ['vatId', 'taxNumber']) {
+            const installation = await anInvoiceToCollect();
+            const atBound = 'X'.repeat(SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH);
+
+            const plan = await previewWith(installation, {
+                ...REQUEST,
+                corrections: { [field]: atBound },
+            });
+            assert.equal(plan.replacement.subscriber[field], atBound, `${field} at its bound`);
+
+            const refused = await previewWith(installation, {
+                ...REQUEST,
+                corrections: { [field]: `${atBound}X` },
+            }).then(
+                () => null,
+                (error) => [
+                    error.getStatus(),
+                    error.getResponse().code,
+                    error.getResponse().params,
+                ],
+            );
+            assert.deepEqual(refused, [
+                422,
+                SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID,
+                { field },
+            ]);
+        }
     });
 
     // @requirement SC-SUB-049 — A line of the address holds one bound, wherever it arrives
@@ -321,7 +372,7 @@ describe('a cancellation settles what it is given before anything else', () => {
     for (const [why, corrections, code] of [
         [
             'a correction a character too long, as the command line gives it',
-            { legalName: 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH + 1) },
+            { legalName: 'x'.repeat(SUBSCRIBER_LEGAL_NAME_MAX_LENGTH + 1) },
             SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID,
         ],
         [
@@ -549,19 +600,19 @@ const LEGAL_NAMES_MEASURED_ONCE = [
     [
         'legalName',
         'of emoji filling its bound in code units',
-        EMOJI.repeat(INVOICE_CORRECTION_MAX_LENGTH / 2),
+        EMOJI.repeat(SUBSCRIBER_LEGAL_NAME_MAX_LENGTH / 2),
         true,
     ],
     [
         'legalName',
         'of one emoji more than its bound holds in code units',
-        EMOJI.repeat(INVOICE_CORRECTION_MAX_LENGTH / 2 + 1),
+        EMOJI.repeat(SUBSCRIBER_LEGAL_NAME_MAX_LENGTH / 2 + 1),
         false,
     ],
     [
         'legalName',
         'of one emoji more than its bound holds in characters',
-        EMOJI.repeat(INVOICE_CORRECTION_MAX_LENGTH + 1),
+        EMOJI.repeat(SUBSCRIBER_LEGAL_NAME_MAX_LENGTH + 1),
         false,
     ],
 ];
@@ -594,6 +645,104 @@ describe("a correction behind the application's pipe is measured once", () => {
                 [answer.status, answer.body.code, answer.body.params],
                 [422, SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, { field }],
             );
+        });
+    }
+});
+
+/** A tax identifier the platform keeps as written, of `length` characters. */
+const taxIdentifierOf = (length) => 'X'.repeat(length);
+
+// @requirement SC-SUB-050 — Legal name, tax identifiers and country hold one bound and one form at every way in
+describe("a correction of a tax identifier behind the application's pipe holds the bound it has everywhere", () => {
+    for (const field of ['vatId', 'taxNumber']) {
+        test(`takes the ${field} at its bound, trimmed`, async (t) => {
+            const preview = await previewOverHttp(t, await anInvoiceToCollect());
+            const value = taxIdentifierOf(SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH);
+
+            const answer = await preview({ ...REQUEST, corrections: { [field]: ` ${value}  ` } });
+
+            assert.deepEqual(
+                [answer.status, answer.body.replacement?.subscriber[field]],
+                [200, value],
+            );
+        });
+
+        test(`refuses the ${field} a character over it with the platform's own answer, naming it`, async (t) => {
+            const preview = await previewOverHttp(t, await anInvoiceToCollect());
+
+            const answer = await preview({
+                ...REQUEST,
+                corrections: { [field]: taxIdentifierOf(SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH + 1) },
+            });
+
+            assert.deepEqual(
+                [answer.status, answer.body.code, answer.body.params],
+                [422, SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, { field }],
+            );
+        });
+    }
+
+    test('takes a country in lower case, as every way in does', async (t) => {
+        const preview = await previewOverHttp(t, await anInvoiceToCollect());
+
+        const answer = await preview({ ...REQUEST, corrections: { country: 'de' } });
+
+        assert.deepEqual([answer.status, answer.body.replacement?.subscriber.country], [200, 'DE']);
+    });
+});
+
+// @requirement SC-ADM-059 — A cancellation's reason and delivery address are judged by the platform alone
+describe("a cancellation behind the application's pipe is judged by the platform alone", () => {
+    const reasonRefused = [
+        422,
+        INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID,
+        INVOICE_CANCELLATION_REASON_MAX_LENGTH,
+    ];
+    const addressRefused = [422, INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID];
+
+    test('takes a reason at its bound and an address at the longest one can be, trimmed', async (t) => {
+        const preview = await previewOverHttp(t, await anInvoiceToCollect());
+        const reason = 'x'.repeat(INVOICE_CANCELLATION_REASON_MAX_LENGTH);
+        const deliverTo = addressOfLength(SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH);
+
+        const answer = await preview({ reason: ` ${reason} `, deliverTo: `  ${deliverTo} ` });
+
+        assert.deepEqual(
+            [answer.status, answer.body.reason, answer.body.deliverTo],
+            [200, reason, deliverTo],
+        );
+    });
+
+    for (const [why, reason] of [
+        ['a character over its bound', 'x'.repeat(INVOICE_CANCELLATION_REASON_MAX_LENGTH + 1)],
+        ['of blanks', '   '],
+        ['left out', undefined],
+    ]) {
+        test(`refuses a reason ${why} with the platform's own answer`, async (t) => {
+            const preview = await previewOverHttp(t, await anInvoiceToCollect());
+
+            const answer = await preview({ reason });
+
+            assert.deepEqual(
+                [answer.status, answer.body.code, answer.body.params?.max],
+                reasonRefused,
+            );
+        });
+    }
+
+    for (const [why, deliverTo] of [
+        [
+            'a character longer than one can be',
+            addressOfLength(SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH + 1),
+        ],
+        ['that is no text', 42],
+    ]) {
+        test(`refuses an address ${why} with the platform's own answer`, async (t) => {
+            const preview = await previewOverHttp(t, await anInvoiceToCollect());
+
+            const answer = await preview({ ...REQUEST, deliverTo });
+
+            assert.deepEqual([answer.status, answer.body.code], addressRefused);
         });
     }
 });

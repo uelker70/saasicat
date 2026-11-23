@@ -5607,13 +5607,13 @@ no longer judges a value, so under a pipe a detail the billing area keeps elsewh
 name, as `SC-SUB-047` says, and not with a `400` for its value. See
 [which billing details a tenant changes](wire-the-backend.md#which-billing-details-a-tenant-changes).
 
-| before                                                                                                                                                     | after                                                                                                                                                                                        |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createForTenant`, `assessNewSubscriber`, `changeContact`, `changeContactOfTenant` and an offer's `newSubscriber` take a line of the address of any length | at most its bound, or `422 SUBSCRIBER_DETAIL_INVALID`                                                                                                                                        |
-| `PATCH /billing/details` behind a pipe answers `400` for a value its decorators refuse, of a detail kept elsewhere too                                     | `422 SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE` for a detail kept elsewhere, whatever its value; `422 SUBSCRIBER_DETAIL_INVALID` for the value of a detail it takes                                |
-| the operator's correction of an invoice takes every detail up to `INVOICE_CORRECTION_MAX_LENGTH`                                                           | a line of the address up to its bound, the legal name and the tax identifiers up to `INVOICE_CORRECTION_MAX_LENGTH` (`invoiceCorrectionMaxLengthOf`)                                         |
-| step 4 of sign-up and the operator's correction of an invoice behind a pipe answer `400` for a detail over its bound                                       | `422 SUBSCRIBER_DETAIL_INVALID` naming it: only the platform measures, once trimmed, in UTF-16 code units                                                                                    |
-| —                                                                                                                                                          | `SUBSCRIBER_ADDRESS_MAX_LENGTHS`, `SubscriberAddressLineField`, `invoiceCorrectionMaxLengthOf`, `SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH` and `subscriberContactMaxLengthOf` in `@saasicat/core` |
+| before                                                                                                                                                     | after                                                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createForTenant`, `assessNewSubscriber`, `changeContact`, `changeContactOfTenant` and an offer's `newSubscriber` take a line of the address of any length | at most its bound, or `422 SUBSCRIBER_DETAIL_INVALID`                                                                                                                                                                                   |
+| `PATCH /billing/details` behind a pipe answers `400` for a value its decorators refuse, of a detail kept elsewhere too                                     | `422 SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE` for a detail kept elsewhere, whatever its value; `422 SUBSCRIBER_DETAIL_INVALID` for the value of a detail it takes                                                                           |
+| the operator's correction of an invoice takes every detail up to `INVOICE_CORRECTION_MAX_LENGTH`                                                           | a line of the address up to its bound (`invoiceCorrectionMaxLengthOf`); the legal name, the tax identifiers and the country [as the next section says](#the-legal-name-the-tax-identifiers-and-the-country-hold-one-bound-and-one-form) |
+| step 4 of sign-up and the operator's correction of an invoice behind a pipe answer `400` for a detail over its bound                                       | `422 SUBSCRIBER_DETAIL_INVALID` naming it: only the platform measures, once trimmed, in UTF-16 code units                                                                                                                               |
+| —                                                                                                                                                          | `SUBSCRIBER_ADDRESS_MAX_LENGTHS`, `SubscriberAddressLineField`, `invoiceCorrectionMaxLengthOf`, `SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH` and `subscriberContactMaxLengthOf` in `@saasicat/core`                                            |
 
 1. **Where a form of yours takes a line of the address** — a pilot route, a page of your own for
    the company's address, a sign-up of your own — bind its `maxlength` to
@@ -5629,6 +5629,49 @@ name, as `SC-SUB-047` says, and not with a `400` for its value. See
 
 - **No codemod step**: which of your forms takes an address, and how long it lets a line be, is
   your application's.
+
+### The legal name, the tax identifiers and the country hold one bound and one form
+
+The legal name and the tax identifiers were bounded only at sign-up, by `@MaxLength(30)` for each
+tax identifier behind a `ValidationPipe`, and by `INVOICE_CORRECTION_MAX_LENGTH` in the operator's
+correction of an invoice; a subscriber your code created or corrected held them to none. Sign-up's
+DTO refused a country in lower case with a `400`, while every other way in upper-cased it. The
+platform now judges each itself, wherever it arrives and whether or not your application installs a
+pipe (`SC-SUB-050`): the legal name at most `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH` (300) characters,
+each tax identifier at most `SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH` (30), counted once trimmed in
+UTF-16 code units, a VAT number as it was written, before its spaces, dots and hyphens are dropped;
+the country upper-cased to its two letters. It refuses a value out of its bound or form with
+`422 SUBSCRIBER_DETAIL_INVALID`, `params.field` naming it. A sign-up's tenant name, which becomes
+the legal name, holds `REGISTRATION_TENANT_NAME_MIN_LENGTH` to `REGISTRATION_TENANT_NAME_MAX_LENGTH`
+characters, judged where the sign-up starts. A cancellation's reason and the address it is
+delivered to are judged by the cancellation alone (`SC-ADM-059`).
+
+| before                                                                                                                                                          | after                                                                                                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createForTenant`, `correctIdentity` and an offer's `newSubscriber` take a legal name and a tax identifier of any length                                        | the legal name at most 300 characters, a tax identifier at most 30, or `422 SUBSCRIBER_DETAIL_INVALID`                                                                                       |
+| the operator's correction of an invoice takes a tax identifier of up to 300 characters                                                                          | up to 30                                                                                                                                                                                     |
+| step 4 of sign-up behind a pipe answers `400` for a tax identifier over 30 characters and for a country such as `de`                                            | `422 SUBSCRIBER_DETAIL_INVALID` for a tax identifier over its bound and for a country that is no code; `de` is taken as `DE`                                                                 |
+| `POST /auth/register/start` behind a pipe answers `400` for a tenant name under 2 or over 120 characters, counted untrimmed; without a pipe it takes any length | `422 SUBSCRIBER_DETAIL_INVALID` naming `tenantName`, counted once trimmed, with a pipe or without one                                                                                        |
+| a cancellation behind a pipe answers `400` for a reason that is missing, blank or over its bound, and for an address that is no text or too long                | `422 SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID` and `422 SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID`, as without a pipe                                                            |
+| `INVOICE_CORRECTION_MAX_LENGTH` in `@saasicat/core`                                                                                                             | gone: `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH`, `SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH` and `subscriberIdentityMaxLengthOf`; `invoiceCorrectionMaxLengthOf(detail)` answers each detail's own bound |
+| —                                                                                                                                                               | `REGISTRATION_TENANT_NAME_MIN_LENGTH` and `REGISTRATION_TENANT_NAME_MAX_LENGTH` in `@saasicat/core`                                                                                          |
+
+1. **Where a form or a DTO of yours takes a tax identifier or a legal name** — a pilot route, a
+   page of your own for the company's data, a sign-up of your own — bind the input's `maxlength`
+   to `subscriberIdentityMaxLengthOf(field)` and leave the length out of the DTO, or hold it to the
+   same number. A DTO that lets a longer value through to code that passes it to the platform now
+   meets the platform's `422`, and where your code saves its own record before it hands the value
+   on, the record keeps a value the platform refused.
+2. **Where your code reads `INVOICE_CORRECTION_MAX_LENGTH`**, read
+   `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH`, or `invoiceCorrectionMaxLengthOf(detail)` for the bound of
+   one detail.
+3. **Where your interface words the `400` of step 4, of `POST /auth/register/start` or of a
+   cancellation**, it is now the `422` named above: show it as every refusal with a platform code.
+4. **Where data of yours holds a longer legal name or tax identifier**, shorten it before your code
+   passes it to the platform again.
+
+- **No codemod step**: which of your forms and DTOs take these values, and how long they let them
+  be, is your application's.
 
 ## What the codemod leaves to you
 

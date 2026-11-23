@@ -837,6 +837,8 @@ _Tested by:_
     - an invoice cancelled from the subscriber’s record
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
+        - stops each correction where the platform would refuse that detail on any way in
+        - stops the reason and the address to deliver to where the platform would refuse them
         - previews and announces a cancellation that leaves no replacement, naming no party for one
         - is confirmed behind the second factor with the preview’s digest, announced, and the
           invoices read again
@@ -1523,6 +1525,8 @@ _Tested by:_
     - an invoice cancelled from the subscriber’s record
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
+        - stops each correction where the platform would refuse that detail on any way in
+        - stops the reason and the address to deliver to where the platform would refuse them
         - previews and announces a cancellation that leaves no replacement, naming no party for one
         - is confirmed behind the second factor with the preview’s digest, announced, and the
           invoices read again

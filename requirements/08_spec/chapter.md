@@ -176,6 +176,8 @@ _Tested by:_
         - opened again, the dialog starts without the address entered before
         - each address field stops where the route would refuse it, so "Create" is never on for too
           long a line
+        - the name and the VAT number stop where the platform would refuse them as the legal name
+          and a tax identifier
         - every address field is labelled for the input it names
 
 <!-- END proof -->
@@ -220,6 +222,8 @@ _Tested by:_
         - opened again, the dialog starts without the address entered before
         - each address field stops where the route would refuse it, so "Create" is never on for too
           long a line
+        - the name and the VAT number stop where the platform would refuse them as the legal name
+          and a tax identifier
         - every address field is labelled for the input it names
 
 <!-- END proof -->

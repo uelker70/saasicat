@@ -1,7 +1,8 @@
 // What a subscriber's details have to be before they are written: trimmed, a
-// blank value recorded as unknown, the legal name present, the two details
-// that have a form — the country and the invoice email — in it, and the
-// business status a yes, a no or not stated.
+// blank value recorded as unknown, the legal name present, each detail that
+// has a bound within it — the legal name, the tax identifiers, the lines of
+// the address — and each that has a form — the country and the invoice email —
+// in it, and the business status a yes, a no or not stated.
 //
 // Every way a detail arrives goes through here: a new subscriber, a contact
 // change, a correction of the legal identity, and a detail the operator
@@ -22,7 +23,6 @@ import type {
 import {
     canonicalVatId,
     holdsOnlyXmlCharacters,
-    INVOICE_CORRECTION_MAX_LENGTH,
     INVOICE_SUBSCRIBER_DETAILS,
     LEGAL_IDENTITY_FIELDS,
     SUBSCRIBER_ADDRESS_MAX_LENGTHS,
@@ -30,6 +30,8 @@ import {
     SUBSCRIBER_ERROR_CODES,
     SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
     SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH,
+    SUBSCRIBER_LEGAL_NAME_MAX_LENGTH,
+    SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH,
     type SubscriberContactField,
     type SubscriberInvoiceAddressField,
 } from '@saasicat/core';
@@ -44,7 +46,7 @@ export function settleNewSubscriberDetails(details: NewSubscriberDetails): Subsc
     return {
         legalName: settleLegalName(details.legalName),
         vatId: settleVatId(details.vatId),
-        taxNumber: settleText('taxNumber', details.taxNumber),
+        taxNumber: settleTaxIdentifier('taxNumber', details.taxNumber),
         ...settleContact(details, SUBSCRIBER_CONTACT_FIELDS),
         business: settleBusinessStatus(details.business),
     };
@@ -159,9 +161,9 @@ export function settleIdentityCorrection(
 
 /**
  * The details of the subscriber the operator corrects for the replacement of
- * a cancelled invoice (`SC-PRIC-095`), each settled as the record's own are —
- * a line of the address within its bound — and none longer once trimmed than
- * `INVOICE_CORRECTION_MAX_LENGTH`; a detail left out stays out.
+ * a cancelled invoice (`SC-PRIC-095`), each settled as the record's own are,
+ * within the bound it has wherever it arrives (`invoiceCorrectionMaxLengthOf`);
+ * a detail left out stays out.
  */
 export function settleInvoiceCorrections(
     corrections: Readonly<Partial<Record<InvoiceSubscriberDetail, string | null>>>,
@@ -170,12 +172,10 @@ export function settleInvoiceCorrections(
     for (const field of INVOICE_SUBSCRIBER_DETAILS) {
         const value = corrections[field];
         if (value === undefined) continue;
-        const detail =
+        settled[field] =
             field === 'legalName' || field === 'vatId' || field === 'taxNumber'
                 ? settleIdentityValue(field, value)
                 : settleContactValue(field, value);
-        if (detail !== null && detail.length > INVOICE_CORRECTION_MAX_LENGTH) throw invalid(field);
-        settled[field] = detail;
     }
     return settled;
 }
@@ -192,15 +192,30 @@ export function isDeliverableAddress(text: string): boolean {
 function settleIdentityValue(field: LegalIdentityField, value: unknown): string | null {
     if (field === 'legalName') return settleLegalName(value);
     if (field === 'vatId') return settleVatId(value);
-    return settleText(field, value);
+    return settleTaxIdentifier(field, value);
 }
 
-/** A VAT identification number given as text, in its canonical form (`canonicalVatId`). */
+/**
+ * A VAT identification number given as text, within its bound as written and
+ * then in its canonical form (`canonicalVatId`).
+ */
 function settleVatId(value: unknown): string | null {
-    const text = settleText('vatId', value);
+    const text = settleTaxIdentifier('vatId', value);
     return text === null ? null : canonicalVatId(text);
 }
 
+/**
+ * A tax identifier no longer than `SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH`.
+ * Measured before a VAT number drops its separators, so an input bound by the
+ * same number stops exactly where the platform refuses.
+ */
+function settleTaxIdentifier(field: 'vatId' | 'taxNumber', value: unknown): string | null {
+    const text = settleText(field, value);
+    if (text !== null && text.length > SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH) throw invalid(field);
+    return text;
+}
+
+/** The legal name, present and no longer than `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH`. */
 function settleLegalName(value: unknown): string {
     const legalName = settleText('legalName', value);
     if (legalName === null) {
@@ -208,6 +223,7 @@ function settleLegalName(value: unknown): string {
             codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_LEGAL_NAME_REQUIRED),
         );
     }
+    if (legalName.length > SUBSCRIBER_LEGAL_NAME_MAX_LENGTH) throw invalid('legalName');
     return legalName;
 }
 
@@ -223,11 +239,12 @@ function settleContact(
 }
 
 /**
- * A contact detail in its form, a line of the address no longer than its bound
- * (`SUBSCRIBER_ADDRESS_MAX_LENGTHS`). Judged here rather than by a route's
- * decorators: the platform cannot rely on a `ValidationPipe` it does not
- * install, and a pipe would judge a detail kept elsewhere before it is refused
- * by name.
+ * A contact detail in its form — the country upper-cased to its code, the
+ * invoice email shaped as an address — and a line of the address no longer
+ * than its bound (`SUBSCRIBER_ADDRESS_MAX_LENGTHS`). Judged here rather than
+ * by a route's decorators, as the legal name and the tax identifiers are: the
+ * platform cannot rely on a `ValidationPipe` it does not install, and a pipe
+ * would judge a detail kept elsewhere before it is refused by name.
  */
 function settleContactValue(field: keyof SubscriberContact, value: unknown): string | null {
     const text = settleText(field, value);

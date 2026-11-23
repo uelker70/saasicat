@@ -1123,7 +1123,7 @@ too. The details it takes are then judged: a line of the address at most the bou
 input's `maxlength` counts them (an emoji counts as two), the country as its code, the invoice email
 as an address, each refused otherwise with `422 SUBSCRIBER_DETAIL_INVALID` naming it (`SC-SUB-049`).
 The platform judges them itself: this route's DTO judges nothing, and neither it nor the DTOs of
-sign-up and of the operator's correction of an invoice measure a line of the address. So a detail
+sign-up and of the operator's correction of an invoice measure a detail or judge its form. So a detail
 is answered the same behind your `ValidationPipe` and without one; a field that is no detail at all
 is still refused by a pipe that forbids unknown ones. `[]` leaves every detail to your
 application. A name that is not a contact detail, or the legal name or a tax identifier, stops the
@@ -1199,6 +1199,19 @@ details without the street, postal code, city or country first, with
 subscriber. It refuses a case the adapter cannot treat with `422 TAX_TREATMENT_NOT_SUPPORTED`, and
 a number it could not check just now with `503 TAX_VAT_ID_CHECK_NOT_COMPLETED`. It reaches an
 outside service, so never call it inside a transaction.
+
+Every way a subscriber's details arrive — sign-up, `createForTenant`, an offer's `newSubscriber`,
+`correctIdentity`, the operator's correction of an invoice — holds them to the same bounds and
+forms, judged by the platform whether or not your application installs a `ValidationPipe`: the
+legal name at most `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH` characters, the VAT number and the tax number
+at most `SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH` each, counted once trimmed in UTF-16 code units — a
+VAT number as it was written, before its spaces, dots and hyphens are dropped —, the country
+upper-cased to its two letters, and each line of the address its bound (`SC-SUB-049`,
+`SC-SUB-050`). A value out of its bound or form is refused with `422 SUBSCRIBER_DETAIL_INVALID`,
+`params.field` naming it. A form of yours that takes them binds `maxlength` to
+`subscriberIdentityMaxLengthOf(field)` and `subscriberContactMaxLengthOf(field)` from
+`@saasicat/core`; a DTO of yours leaves the length out, or holds it to the same number, since a
+longer value it lets through meets the platform's refusal after your own record was written.
 
 With an adapter, a contract names its subscriber only with the whole address an invoice names —
 street and number, postal code, city and country. Every way a contract comes about refuses a
@@ -1873,10 +1886,14 @@ invoice.
   `SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED` and the new preview, rather than writing what
   nobody confirmed.
 - **The cancellation**, `POST admin/invoices/:invoiceId/cancellation`, asks for the
-  second factor (`x-mfa-code`). Both take `reason` — one line of at most 500 characters, which both
-  invoices name —, `lines`, each `{ position, owed }` of a line not owed in full with what is still
-  owed of it, net, `corrections` of the subscriber's details the replacement names, and
-  `deliverTo`, required where the subscriber's record holds no invoice email. Each line named is
+  second factor (`x-mfa-code`). Both take `reason` — one line of at most
+  `INVOICE_CANCELLATION_REASON_MAX_LENGTH` characters, which both invoices name —, `lines`, each
+  `{ position, owed }` of a line not owed in full with what is still owed of it, net,
+  `corrections` of the subscriber's details the replacement names, and `deliverTo`, required
+  where the subscriber's record holds no invoice email. The cancellation judges the reason and
+  the address itself, behind a pipe as without one, and refuses them with
+  `422 SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID` and
+  `422 SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID` (`SC-ADM-059`). Each line named is
   lowered by a counter-entry with the reason, each discount that reduced it follows in the share it
   fell, and the preview's `lines` say what each charge line stands at and becomes, in the
   invoice's currency. Both invoices and the

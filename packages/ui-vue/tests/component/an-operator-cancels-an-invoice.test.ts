@@ -9,7 +9,12 @@
 
 import { afterEach, describe, expect, test } from 'vitest';
 import {
+    INVOICE_CANCELLATION_REASON_MAX_LENGTH,
     INVOICE_ERROR_CODES,
+    SUBSCRIBER_ADDRESS_MAX_LENGTHS,
+    SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH,
+    SUBSCRIBER_LEGAL_NAME_MAX_LENGTH,
+    SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH,
     type AdminInvoice,
     type AdminInvoiceCancellationPlan,
     type AdminSubscriberInvoice,
@@ -361,6 +366,53 @@ describe('an invoice cancelled from the subscriber’s record', () => {
         expect(
             dialog().node?.querySelector('section[aria-label="Lines not owed in full"]'),
         ).toBeNull();
+    });
+
+    // @requirement SC-SUB-050 — Legal name, tax identifiers and country hold one bound and one form at every way in
+    test('stops each correction where the platform would refuse that detail on any way in', async () => {
+        const { wrapper } = await mountPage();
+        await cancelAt(wrapper, 'AHP-2026-000124').trigger('click');
+        await settle();
+        await openCorrections();
+
+        const bounds = Object.fromEntries(
+            [
+                'Name on the contract',
+                'VAT ID',
+                'Tax number',
+                'Street and number',
+                'Address line 2',
+                'Postal code',
+                'City',
+                'Country',
+            ].map((label) => [label, fieldOf(label).getAttribute('maxlength')]),
+        );
+
+        expect(bounds).toEqual({
+            'Name on the contract': String(SUBSCRIBER_LEGAL_NAME_MAX_LENGTH),
+            'VAT ID': String(SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH),
+            'Tax number': String(SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH),
+            'Street and number': String(SUBSCRIBER_ADDRESS_MAX_LENGTHS.addressLine1),
+            'Address line 2': String(SUBSCRIBER_ADDRESS_MAX_LENGTHS.addressLine2),
+            'Postal code': String(SUBSCRIBER_ADDRESS_MAX_LENGTHS.postalCode),
+            City: String(SUBSCRIBER_ADDRESS_MAX_LENGTHS.city),
+            Country: '2',
+        });
+    });
+
+    // @requirement SC-ADM-059 — A cancellation's reason and delivery address are judged by the platform alone
+    test('stops the reason and the address to deliver to where the platform would refuse them', async () => {
+        const { wrapper } = await mountPage();
+        await cancelAt(wrapper, 'AHP-2026-000124').trigger('click');
+        await settle();
+
+        expect([
+            fieldOf('Reason').getAttribute('maxlength'),
+            fieldOf('Deliver to').getAttribute('maxlength'),
+        ]).toEqual([
+            String(INVOICE_CANCELLATION_REASON_MAX_LENGTH),
+            String(SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH),
+        ]);
     });
 
     test('previews and announces a cancellation that leaves no replacement, naming no party for one', async () => {

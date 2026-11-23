@@ -9,17 +9,32 @@
         @update:model-value="(open: boolean) => emit('update:modelValue', open)"
     >
         <AdminField :label="msg.subscriber.legalName" required>
-            <q-input v-model="draft.legalName" outlined dense />
+            <q-input
+                v-model="draft.legalName"
+                outlined
+                dense
+                :maxlength="subscriberIdentityMaxLengthOf('legalName')"
+            />
         </AdminField>
         <AdminFieldGrid>
             <AdminField
                 :label="msg.subscriber.vatId"
                 :hint="msg.subscriber.identityDialog.vatIdHint"
             >
-                <q-input v-model="draft.vatId" outlined dense />
+                <q-input
+                    v-model="draft.vatId"
+                    outlined
+                    dense
+                    :maxlength="subscriberIdentityMaxLengthOf('vatId')"
+                />
             </AdminField>
             <AdminField :label="msg.subscriber.taxNumber">
-                <q-input v-model="draft.taxNumber" outlined dense />
+                <q-input
+                    v-model="draft.taxNumber"
+                    outlined
+                    dense
+                    :maxlength="subscriberIdentityMaxLengthOf('taxNumber')"
+                />
             </AdminField>
         </AdminFieldGrid>
         <AdminField :label="msg.subscriber.reason" :hint="msg.subscriber.reasonHint" required>
@@ -38,7 +53,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue';
-import type { AdminSubscriberDetails } from '@saasicat/core';
+import { subscriberIdentityMaxLengthOf, type AdminSubscriberDetails } from '@saasicat/core';
 
 import type { SubscriberIdentityCorrectionInput } from '../../client/resources/subscribers.resource.js';
 import AdminFormDialog from '../../ui/overlay/AdminFormDialog.vue';
@@ -49,7 +64,8 @@ import { identityCorrectionOf, REASON_MAX_LENGTH } from './subscriber-correction
 
 // Correcting the legal identity of the same legal entity. The form starts from
 // the subscriber as it stands and sends only what changed, with the reason;
-// nothing can be sent before something changed and a reason is given.
+// nothing can be sent before something changed and a reason is given. Each
+// input stops where the platform would refuse the detail.
 
 const props = defineProps<{
     modelValue: boolean;

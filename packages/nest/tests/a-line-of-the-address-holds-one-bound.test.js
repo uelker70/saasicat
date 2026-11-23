@@ -11,12 +11,12 @@ import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import {
-    INVOICE_CORRECTION_MAX_LENGTH,
     INVOICE_SUBSCRIBER_DETAILS,
     invoiceCorrectionMaxLengthOf,
     SUBSCRIBER_ADDRESS_MAX_LENGTHS,
     SUBSCRIBER_CONTACT_FIELDS,
     subscriberContactMaxLengthOf,
+    subscriberIdentityMaxLengthOf,
 } from '@saasicat/core';
 
 import { InvoiceSubscriberCorrectionsDto } from '../dist/billing/index.js';
@@ -25,6 +25,14 @@ import { subscribersFor } from './helpers/subscribers.js';
 
 /** The bounds `SC-SUB-049` promises, written out: a change of them is a change of the promise. */
 const PROMISED = { addressLine1: 200, addressLine2: 200, postalCode: 20, city: 100 };
+
+/** The bound every other detail an invoice names has wherever it arrives (`SC-SUB-050`). */
+const OWN_BOUND_OF = {
+    legalName: subscriberIdentityMaxLengthOf('legalName'),
+    vatId: subscriberIdentityMaxLengthOf('vatId'),
+    taxNumber: subscriberIdentityMaxLengthOf('taxNumber'),
+    country: subscriberContactMaxLengthOf('country'),
+};
 
 const refusedAs = (field) => (error) => {
     assert.deepEqual(
@@ -65,7 +73,7 @@ describe('a line of the address holds one bound', () => {
             ]),
             INVOICE_SUBSCRIBER_DETAILS.map((detail) => [
                 detail,
-                PROMISED[detail] ?? INVOICE_CORRECTION_MAX_LENGTH,
+                PROMISED[detail] ?? OWN_BOUND_OF[detail],
             ]),
         );
     });

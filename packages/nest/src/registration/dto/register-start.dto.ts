@@ -15,10 +15,12 @@ import {
  * only happens after successful payment (step 4).
  */
 export class RegisterStartDto {
-    /** Association/tenant name (required). */
+    /**
+     * Association/tenant name (required). Its bounds are judged by the
+     * platform once trimmed (`REGISTRATION_TENANT_NAME_MAX_LENGTH`), not here:
+     * the same answer behind a `ValidationPipe` and without one.
+     */
     @IsString()
-    @MinLength(2)
-    @MaxLength(120)
     tenantName!: string;
 
     /** Optional slug. If left empty, it is generated from `tenantName`. */

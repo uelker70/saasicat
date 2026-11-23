@@ -9,7 +9,7 @@
 // `legal-identity.ts`: the operator's issuer is named by the same fields, and
 // the rule about correcting them is the same on both sides of the contract.
 
-import type { LegalIdentity, PartyAddress } from './legal-identity.js';
+import type { LegalIdentity, LegalIdentityField, PartyAddress } from './legal-identity.js';
 import type { AdminSubscriberJoins } from './subscriber-join.types.js';
 import type { VatIdCheck } from './tax.types.js';
 
@@ -101,6 +101,37 @@ export function subscriberContactMaxLengthOf(field: SubscriberContactField): num
     if (field === 'country') return COUNTRY_CODE_LENGTH;
     if (field === 'invoiceEmail') return SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH;
     return SUBSCRIBER_ADDRESS_MAX_LENGTHS[field];
+}
+
+/**
+ * The most characters a subscriber's legal name holds once trimmed, wherever
+ * it arrives — sign-up, a subscriber an application creates, a checkout
+ * offer's new subscriber, a correction of the legal identity, the operator's
+ * correction of an invoice — and whether or not the application installs a
+ * `ValidationPipe` (`SC-SUB-050`). Counted as `SUBSCRIBER_ADDRESS_MAX_LENGTHS`
+ * counts a line of the address.
+ */
+export const SUBSCRIBER_LEGAL_NAME_MAX_LENGTH = 300;
+
+/**
+ * The most characters each tax identifier — the VAT identification number and
+ * the tax number — holds once trimmed, wherever it arrives (`SC-SUB-050`).
+ * The VAT number is measured as it was written, before its spaces, dots and
+ * hyphens are dropped (`canonicalVatId`): an input's `maxlength` counts what
+ * is typed, so it stops the person exactly where the platform would refuse.
+ */
+export const SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH = 30;
+
+/**
+ * The most characters an input for the detail of the legal identity `field`
+ * takes, counted as the platform counts them: the legal name
+ * `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH`, a tax identifier
+ * `SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH`.
+ */
+export function subscriberIdentityMaxLengthOf(field: LegalIdentityField): number {
+    return field === 'legalName'
+        ? SUBSCRIBER_LEGAL_NAME_MAX_LENGTH
+        : SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH;
 }
 
 /**

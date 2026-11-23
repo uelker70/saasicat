@@ -518,37 +518,39 @@ describe('the request for step 4 is validated where it arrives', () => {
         assert.deepEqual(fieldsOf(errorsFor(without)), ['billingDetails']);
     });
 
-    test('a missing address line, a lower-case country and a script URL are each refused', () => {
+    test('a missing address line and a script URL are each refused, and the form of the country is left to the platform', () => {
         const errors = errorsFor({
             ...valid,
             billingDetails: { postalCode: '10115', city: 'Berlin', country: 'de' },
             successUrl: 'javascript:alert(1)',
         });
-        assert.deepEqual(fieldsOf(errors).sort(), [
-            'billingDetails.addressLine1',
-            'billingDetails.country',
-            'successUrl',
-        ]);
+        assert.deepEqual(fieldsOf(errors).sort(), ['billingDetails.addressLine1', 'successUrl']);
     });
 });
 
-// @requirement SC-SUB-049 — A line of the address holds one bound, wherever it arrives
-describe("step 4 behind the application's pipe measures a line of the address once", () => {
+/** Step 4 as an application serves it: its global pipe first, then the platform. */
+async function startThroughThePipe(ctx, pendingId, billingDetails) {
     const pipe = new ValidationPipe({
         whitelist: true,
         forbidNonWhitelisted: true,
         transform: true,
     });
+    const body = await pipe.transform(
+        { pendingRegistrationId: pendingId, billingDetails, ...URLS },
+        { type: 'body', metatype: StartRegistrationCheckoutDto },
+    );
+    return ctx.service.startCheckout(body);
+}
 
-    /** Step 4 as an application serves it: its global pipe first, then the platform. */
-    async function startThroughThePipe(ctx, pendingId, billingDetails) {
-        const body = await pipe.transform(
-            { pendingRegistrationId: pendingId, billingDetails, ...URLS },
-            { type: 'body', metatype: StartRegistrationCheckoutDto },
-        );
-        return ctx.service.startCheckout(body);
-    }
+/** How step 4 answered: `null` where it opened the form, else its status, code and params. */
+const answerOf = (attempt) =>
+    attempt.then(
+        () => null,
+        (error) => [error.getStatus(), codeOf(error), error.getResponse().params],
+    );
 
+// @requirement SC-SUB-049 — A line of the address holds one bound, wherever it arrives
+describe("step 4 behind the application's pipe measures a line of the address once", () => {
     for (const [field, why, value, fits] of CITIES_MEASURED_ONCE) {
         if (fits) {
             test(`takes a ${field} ${why}, trimmed`, async () => {
@@ -565,18 +567,62 @@ describe("step 4 behind the application's pipe measures a line of the address on
             const ctx = await signUpApp();
             const pendingId = await atStepFour(ctx);
 
-            const refused = await startThroughThePipe(ctx, pendingId, {
-                ...BILLING,
-                [field]: value,
-            }).then(
-                () => null,
-                (error) => [error.getStatus(), codeOf(error), error.getResponse().params],
+            const refused = await answerOf(
+                startThroughThePipe(ctx, pendingId, { ...BILLING, [field]: value }),
             );
 
             assert.deepEqual(refused, [422, 'SUBSCRIBER_DETAIL_INVALID', { field }]);
             assert.deepEqual(ctx.gateway.setups, []);
         });
     }
+});
+
+// @requirement SC-SUB-050 — Legal name, tax identifiers and country hold one bound and one form at every way in
+describe("step 4 behind the application's pipe judges the tax identifiers and the country as elsewhere", () => {
+    const AT_BOUND = 'X'.repeat(30);
+
+    for (const field of ['vatId', 'taxNumber']) {
+        test(`takes a ${field} at its bound, trimmed`, async () => {
+            const ctx = await signUpApp();
+            const pendingId = await atStepFour(ctx);
+
+            await startThroughThePipe(ctx, pendingId, { ...BILLING, [field]: ` ${AT_BOUND} ` });
+
+            assert.equal((await ctx.repo.findById(pendingId))[field], AT_BOUND);
+        });
+
+        test(`refuses a ${field} a character over it with the platform's own answer, naming it`, async () => {
+            const ctx = await signUpApp();
+            const pendingId = await atStepFour(ctx);
+
+            const refused = await answerOf(
+                startThroughThePipe(ctx, pendingId, { ...BILLING, [field]: `${AT_BOUND}X` }),
+            );
+
+            assert.deepEqual(refused, [422, 'SUBSCRIBER_DETAIL_INVALID', { field }]);
+            assert.deepEqual(ctx.gateway.setups, []);
+        });
+    }
+
+    test('takes a country in lower case as its code', async () => {
+        const ctx = await signUpApp();
+        const pendingId = await atStepFour(ctx);
+
+        await startThroughThePipe(ctx, pendingId, { ...BILLING, country: 'de' });
+
+        assert.equal((await ctx.repo.findById(pendingId)).country, 'DE');
+    });
+
+    test("refuses a country that is no code with the platform's own answer, naming it", async () => {
+        const ctx = await signUpApp();
+        const pendingId = await atStepFour(ctx);
+
+        const refused = await answerOf(
+            startThroughThePipe(ctx, pendingId, { ...BILLING, country: 'Germany' }),
+        );
+
+        assert.deepEqual(refused, [422, 'SUBSCRIBER_DETAIL_INVALID', { field: 'country' }]);
+    });
 });
 
 /**

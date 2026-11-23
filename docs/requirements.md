@@ -111,7 +111,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 67      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 49      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 50      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 27      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 10      |
@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 31      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 58      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 59      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 726 entries: 🟢 633 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 728 entries: 🟢 635 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
 🔵 63 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -231,7 +231,7 @@ Of 726 entries: 🟢 633 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 726 requirements. Do not edit by hand:
+Generated from `requirements/` — 728 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5657,6 +5657,75 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-SUB-050 — Legal name, tax identifiers and country hold one bound and one form at every way in
+
+🟢 💰 A subscriber's legal name holds at most `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH` characters and each
+tax identifier — the VAT identification number and the tax number — at most
+`SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH`, both from `@saasicat/core`, once trimmed and counted as a
+line of the address is counted (`SC-SUB-049`); a VAT number is measured as it was written, before
+its spaces, dots and hyphens are dropped. The country is upper-cased and held to its two letters.
+Each holds wherever it arrives — sign-up, a subscriber an application creates, a correction of the
+legal identity (`SC-SUB-017`), and the operator's correction of the subscriber an invoice names
+(`SC-PRIC-095`) — whether or not the application installs a `ValidationPipe`. The platform refuses a
+value out of its bound or its form itself with `SUBSCRIBER_DETAIL_INVALID`, naming the field, and no
+route declares a bound or a form of its own for that pipe, so sign-up takes `de` as `DE` as every
+other way in does. A sign-up's tenant name, which becomes the legal name at step 4, holds between
+`REGISTRATION_TENANT_NAME_MIN_LENGTH` and `REGISTRATION_TENANT_NAME_MAX_LENGTH` characters once
+trimmed, judged where the sign-up starts and refused there with the same code naming `tenantName`.
+An input bound by `subscriberIdentityMaxLengthOf` stops the person exactly where the platform would
+refuse.
+
+_Source:_ #524 (decided 2026-11-23)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-contact-input-is-bound-where-the-platform-refuses.test.js`
+    - the input of a detail of the legal identity
+        - holds the legal name to 300 and each tax identifier to 30
+        - the operator's correction of an invoice holds each detail to the bound it has wherever it
+          arrives
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - step 4 behind the application's pipe judges the tax identifiers and the country as elsewhere
+        - takes a ${field} at its bound, trimmed
+        - refuses a ${field} a character over it with the platform's own answer, naming it
+        - takes a country in lower case as its code
+        - refuses a country that is no code with the platform's own answer, naming it
+- `packages/nest/tests/an-identity-detail-holds-one-bound.test.js`
+    - each detail of the legal identity holds one bound
+        - the bounds are the ones promised
+        - a subscriber is created with the ${field} at its bound, the blanks around it not counted
+        - a subscriber with the ${field} a character over it is refused, naming it
+        - a correction of the legal identity takes the ${field} at its bound and refuses one over
+          it, writing nothing
+        - a VAT number is measured as it was written, before its separators are dropped
+        - a country is taken in its form wherever it arrives, upper-cased first
+        - ${why}, leaves the judgement to the platform: the application's pipe passes it
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - a cancellation settles what it is given before anything else
+        - takes a tax identifier at its own bound and refuses one a character over it, as the
+          command line gives it
+    - a correction of a tax identifier behind the application's pipe holds the bound it has everywhere
+        - takes the ${field} at its bound, trimmed
+        - refuses the ${field} a character over it with the platform's own answer, naming it
+        - takes a country in lower case, as every way in does
+- `packages/nest/tests/registration-service.test.js`
+    - start() takes a tenant name at either end of its bounds, counted once trimmed
+    - start() refuses a tenant name of ${what} with no pipe at all, keeping and sending nothing
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the subscriber’s record
+        - stops each correction where the platform would refuse that detail on any way in
+- `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
+    - the operator corrects the subscriber in its record
+        - each field of the identity stops where the platform would refuse it
+- `packages/ui-vue/tests/component/pilot-dialogs.test.ts`
+    - the pilot subscriber's address
+        - the name and the VAT number stop where the platform would refuse them as the legal name
+          and a tax identifier
+
+<!-- END proof -->
+
 ### SC-SUB-019 — A subscriber is shown the price of the version they are bound to
 
 🟢 💰 The account read (`GET billing/usage`, as `planPriceNet`) and the plan card state what the
@@ -6941,6 +7010,7 @@ _Tested by:_
         - without the capability, nothing is offered and no history is shown
         - a correction is sent only once something changed and a reason is given, with the second
           factor
+        - each field of the identity stops where the platform would refuse it
         - stepping back from the second factor sends nothing and keeps the form
         - moving to another subscriber closes an open dialog and shows nothing of the first one
           while the next one is read
@@ -9293,6 +9363,8 @@ _Tested by:_
         - opened again, the dialog starts without the address entered before
         - each address field stops where the route would refuse it, so "Create" is never on for too
           long a line
+        - the name and the VAT number stop where the platform would refuse them as the legal name
+          and a tax identifier
         - every address field is labelled for the input it names
 
 <!-- END proof -->
@@ -9337,6 +9409,8 @@ _Tested by:_
         - opened again, the dialog starts without the address entered before
         - each address field stops where the route would refuse it, so "Create" is never on for too
           long a line
+        - the name and the VAT number stop where the platform would refuse them as the legal name
+          and a tax identifier
         - every address field is labelled for the input it names
 
 <!-- END proof -->
@@ -17775,7 +17849,7 @@ _Tested by:_
 - `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
     - what an operator gives a cancellation
         - passes with a reason, and with corrections and an address beside it
-        - is trimmed before its lengths are checked, as the service settles it
+        - with ${why} is left to the cancellation, which settles it
         - leaves the length of a correction to the cancellation, which settles it
         - with ${why} is refused
         - keeps the lines through a pipe that strips what no decorator names
@@ -17784,9 +17858,12 @@ _Tested by:_
         - an address of blanks as none given
         - refuses a reason ${why}, drawing no number
         - takes a reason of exactly the longest length
+        - takes an address of exactly the longest length
         - refuses an address ${why}
         - each correction as the subscriber’s record holds that detail
         - takes a correction of exactly the longest length
+        - takes a tax identifier at its own bound and refuses one a character over it, as the
+          command line gives it
         - takes a line of the address at its own bound, though the legal name may be longer
         - refuses ${why}
         - refuses a line of the address a character over its own bound, as the command line gives it
@@ -19070,6 +19147,7 @@ _Tested by:_
         - without the capability, nothing is offered and no history is shown
         - a correction is sent only once something changed and a reason is given, with the second
           factor
+        - each field of the identity stops where the platform would refuse it
         - stepping back from the second factor sends nothing and keeps the form
         - moving to another subscriber closes an open dialog and shows nothing of the first one
           while the next one is read
@@ -20229,6 +20307,37 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-ADM-059 — A cancellation's reason and delivery address are judged by the platform alone
+
+🟢 The reason a cancellation is given — present, of one line, at most
+`INVOICE_CANCELLATION_REASON_MAX_LENGTH` characters once trimmed — and the address it is delivered to
+— text shaped as an email address, at most `SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH` characters once
+trimmed — are judged where the cancellation settles them, so they hold the same over the route,
+behind a `ValidationPipe` or without one, and from the command line (`SC-ADM-020`). A reason that
+does not hold is refused with `SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID`, naming the bound,
+and an address with `SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID`: the route declares both without
+judging them, so neither is answered with a `400`. The cancellation dialog stops each input at the
+same bound.
+
+_Source:_ #524 (decided 2026-11-23)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - what an operator gives a cancellation
+        - with ${why} is left to the cancellation, which settles it
+    - a cancellation behind the application's pipe is judged by the platform alone
+        - takes a reason at its bound and an address at the longest one can be, trimmed
+        - refuses a reason ${why} with the platform's own answer
+        - refuses an address ${why} with the platform's own answer
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the subscriber’s record
+        - stops the reason and the address to deliver to where the platform would refuse them
+
+<!-- END proof -->
+
 ## 15. Working in the interface
 
 The administration is an application SaaSiCat hands over; the tenant-facing pieces are guests in
@@ -21066,6 +21175,8 @@ _Tested by:_
     - an invoice cancelled from the subscriber’s record
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
+        - stops each correction where the platform would refuse that detail on any way in
+        - stops the reason and the address to deliver to where the platform would refuse them
         - previews and announces a cancellation that leaves no replacement, naming no party for one
         - is confirmed behind the second factor with the preview’s digest, announced, and the
           invoices read again
@@ -21752,6 +21863,8 @@ _Tested by:_
     - an invoice cancelled from the subscriber’s record
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
+        - stops each correction where the platform would refuse that detail on any way in
+        - stops the reason and the address to deliver to where the platform would refuse them
         - previews and announces a cancellation that leaves no replacement, naming no party for one
         - is confirmed behind the second factor with the preview’s digest, announced, and the
           invoices read again
@@ -25141,7 +25254,8 @@ _Tested by:_
         - a complete request passes, the tax identifiers left out
         - the offer the sign-up concludes may be named, and an empty name is refused
         - a request without billing details is refused
-        - a missing address line, a lower-case country and a script URL are each refused
+        - a missing address line and a script URL are each refused, and the form of the country is
+          left to the platform
 - `packages/nest/tests/bundle-dtos-validate.test.js`
     - CreateBundleDto
         - accepts a complete bundle

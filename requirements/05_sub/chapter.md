@@ -533,6 +533,75 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-SUB-050 — Legal name, tax identifiers and country hold one bound and one form at every way in
+
+🟢 💰 A subscriber's legal name holds at most `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH` characters and each
+tax identifier — the VAT identification number and the tax number — at most
+`SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH`, both from `@saasicat/core`, once trimmed and counted as a
+line of the address is counted (`SC-SUB-049`); a VAT number is measured as it was written, before
+its spaces, dots and hyphens are dropped. The country is upper-cased and held to its two letters.
+Each holds wherever it arrives — sign-up, a subscriber an application creates, a correction of the
+legal identity (`SC-SUB-017`), and the operator's correction of the subscriber an invoice names
+(`SC-PRIC-095`) — whether or not the application installs a `ValidationPipe`. The platform refuses a
+value out of its bound or its form itself with `SUBSCRIBER_DETAIL_INVALID`, naming the field, and no
+route declares a bound or a form of its own for that pipe, so sign-up takes `de` as `DE` as every
+other way in does. A sign-up's tenant name, which becomes the legal name at step 4, holds between
+`REGISTRATION_TENANT_NAME_MIN_LENGTH` and `REGISTRATION_TENANT_NAME_MAX_LENGTH` characters once
+trimmed, judged where the sign-up starts and refused there with the same code naming `tenantName`.
+An input bound by `subscriberIdentityMaxLengthOf` stops the person exactly where the platform would
+refuse.
+
+_Source:_ #524 (decided 2026-11-23)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-contact-input-is-bound-where-the-platform-refuses.test.js`
+    - the input of a detail of the legal identity
+        - holds the legal name to 300 and each tax identifier to 30
+        - the operator's correction of an invoice holds each detail to the bound it has wherever it
+          arrives
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - step 4 behind the application's pipe judges the tax identifiers and the country as elsewhere
+        - takes a ${field} at its bound, trimmed
+        - refuses a ${field} a character over it with the platform's own answer, naming it
+        - takes a country in lower case as its code
+        - refuses a country that is no code with the platform's own answer, naming it
+- `packages/nest/tests/an-identity-detail-holds-one-bound.test.js`
+    - each detail of the legal identity holds one bound
+        - the bounds are the ones promised
+        - a subscriber is created with the ${field} at its bound, the blanks around it not counted
+        - a subscriber with the ${field} a character over it is refused, naming it
+        - a correction of the legal identity takes the ${field} at its bound and refuses one over
+          it, writing nothing
+        - a VAT number is measured as it was written, before its separators are dropped
+        - a country is taken in its form wherever it arrives, upper-cased first
+        - ${why}, leaves the judgement to the platform: the application's pipe passes it
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - a cancellation settles what it is given before anything else
+        - takes a tax identifier at its own bound and refuses one a character over it, as the
+          command line gives it
+    - a correction of a tax identifier behind the application's pipe holds the bound it has everywhere
+        - takes the ${field} at its bound, trimmed
+        - refuses the ${field} a character over it with the platform's own answer, naming it
+        - takes a country in lower case, as every way in does
+- `packages/nest/tests/registration-service.test.js`
+    - start() takes a tenant name at either end of its bounds, counted once trimmed
+    - start() refuses a tenant name of ${what} with no pipe at all, keeping and sending nothing
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the subscriber’s record
+        - stops each correction where the platform would refuse that detail on any way in
+- `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
+    - the operator corrects the subscriber in its record
+        - each field of the identity stops where the platform would refuse it
+- `packages/ui-vue/tests/component/pilot-dialogs.test.ts`
+    - the pilot subscriber's address
+        - the name and the VAT number stop where the platform would refuse them as the legal name
+          and a tax identifier
+
+<!-- END proof -->
+
 ### SC-SUB-019 — A subscriber is shown the price of the version they are bound to
 
 🟢 💰 The account read (`GET billing/usage`, as `planPriceNet`) and the plan card state what the
@@ -1817,6 +1886,7 @@ _Tested by:_
         - without the capability, nothing is offered and no history is shown
         - a correction is sent only once something changed and a reason is given, with the second
           factor
+        - each field of the identity stops where the platform would refuse it
         - stepping back from the second factor sends nothing and keeps the form
         - moving to another subscriber closes an open dialog and shows nothing of the first one
           while the next one is read

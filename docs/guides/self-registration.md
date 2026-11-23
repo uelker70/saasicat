@@ -45,7 +45,9 @@ Optional: `resumeTokenSigner`, `resumeDelivery`, `configuratorLookup`,
 sign-up is a business, `true` or `false`) optional — and opens the payment form of the gateway
 account `config/saas.yaml#payments.newPaymentMethods` names. It answers
 with `checkoutUrl`, where you send the person; a missing or malformed detail is refused with
-`SUBSCRIBER_DETAIL_INVALID`, and a success or cancel URL outside
+`SUBSCRIBER_DETAIL_INVALID`, judged by the platform behind your `ValidationPipe` as without one —
+`de` is taken as `DE`, a tax identifier holds at most `SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH`
+characters (`SC-SUB-050`) —, and a success or cancel URL outside
 `config/saas.yaml#payments.returnUrlOrigins` with `PAYMENT_RETURN_URL_NOT_ALLOWED`, before the
 gateway
 is asked. Nothing is activated when the form opens.

@@ -29,6 +29,17 @@ export const OTP_RATE_LIMIT_WINDOW_MINUTES = 15;
  */
 export const OTP_VERIFY_MAX_ATTEMPTS = 5;
 
+/**
+ * The fewest and the most characters a sign-up's tenant name holds once
+ * trimmed. It becomes the subscriber's legal name at step 4, within
+ * `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH`; the platform judges it where the sign-up
+ * starts, whether or not the application installs a `ValidationPipe`
+ * (`SC-SUB-050`), counted in UTF-16 code units as an input's `maxlength` and
+ * `minlength` count.
+ */
+export const REGISTRATION_TENANT_NAME_MIN_LENGTH = 2;
+export const REGISTRATION_TENANT_NAME_MAX_LENGTH = 120;
+
 export type RegistrationStatus =
     | 'PENDING_EMAIL_VERIFICATION'
     | 'EMAIL_VERIFIED'
