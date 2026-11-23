@@ -75,6 +75,7 @@ import { installationMarkNotWired } from '../deletion/installation-mark-option.j
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
 import { INSTALLATION_MARK_PORT_TOKEN } from '../tenant-billing.tokens.js';
 import { AuditedOnce } from './audited-once.js';
+import { InvoiceOperationCheck } from './invoicing-start.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.tokens.js';
 
 /** The name the run writes its audit entries under: `job:platform:subscription-invoices`. */
@@ -147,6 +148,11 @@ export class SubscriptionInvoiceService implements OnModuleInit {
         @Optional()
         @Inject(INSTALLATION_MARK_PORT_TOKEN)
         private readonly marks: InstallationMarkPort | null = null,
+        // Registered beside this service; refuses in an operator's command
+        // line what the application's start refused.
+        @Optional()
+        @Inject(InvoiceOperationCheck)
+        private readonly operations: InvoiceOperationCheck | null = null,
     ) {}
 
     /**
@@ -347,6 +353,7 @@ export class SubscriptionInvoiceService implements OnModuleInit {
                 'Invoices cannot be issued without the mark of the installation; the start refuses this.',
             );
         }
+        await this.operations?.checkBeforeIssuing();
         return installationOperationOf(await this.marks.find()) === 'test';
     }
 

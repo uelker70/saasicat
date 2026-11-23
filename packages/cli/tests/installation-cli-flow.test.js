@@ -204,6 +204,7 @@ describe('installation status', () => {
             expected: 'staging',
             marked: 'prod',
             operation: 'live',
+            issued: { test: false, live: false },
         });
         assert.deepEqual(matches.ctx.asked, [], 'reading the mark asks for nobody');
     });
@@ -310,6 +311,25 @@ describe('installation mark --operation', () => {
             kind: 'matches',
             identifier: 'INT',
             operation: 'test',
+            issued: { test: false, live: false },
         });
+    });
+
+    // @requirement SC-AUD-025 — An operator's command line starts where the application refuses on its documents
+    test('the status names documents that recorded another operation, and the mark that repairs it', async () => {
+        const { flow } = await setUp({ environment: 'INT', standing: 'INT', issued: [true] });
+
+        const said = await printed(new InstallationStatusCommand(flow));
+        const json = await printed(new InstallationStatusCommand(flow), { output: 'json' });
+
+        assert.equal(
+            said,
+            'This database is marked as installation INT, the one this environment names. ' +
+                "It is marked as a live operation. The installation's mark says a live operation, " +
+                'and the documents it issued were issued in a test operation. An ' +
+                "installation's operation is fixed with its first document (SC-AUD-023): mark it " +
+                'as its documents say, with `<app> installation mark <identifier> --operation test`.\n',
+        );
+        assert.deepEqual(JSON.parse(json).issued, { test: true, live: false });
     });
 });

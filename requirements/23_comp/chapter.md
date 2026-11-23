@@ -1437,6 +1437,7 @@ _Tested by:_
 - `examples/notesapp/tests/the-notes-app-cli-marks-its-installation.test.mjs`
     - the notes app's command line
         - offers the installation status, marking it, and the doctor — and no other command
+        - says it is an operator command line, which the application does not
         - runs the platform's checks in the doctor, the installation's mark among them
     - the notes app's operators
         - finds the seeded SuperAdmin by its e-mail, under the id its second factor is kept by

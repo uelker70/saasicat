@@ -16,7 +16,9 @@
 // documents cannot be read, nothing shows that none exists, and the operation
 // is not changed. The documents are read before the mark is written: a first
 // document issued between the two is not seen here, and the next start that
-// issues invoices refuses the mark that disagrees with it.
+// issues invoices refuses the mark that disagrees with it. The status names
+// the disagreement, and marking with the operation the documents recorded
+// repairs it: an operator's command line starts on it for that.
 //
 // Everything that decides lives here; the port only makes each write
 // conditional on what stands.
@@ -32,6 +34,7 @@ import {
 import {
     type AdminActor,
     type ContractConfirmationRepository,
+    type DocumentOperations,
     INSTALLATION_ERROR_CODES,
     type InstallationMark,
     type InstallationMarkPort,
@@ -135,9 +138,14 @@ export class InstallationMarkService {
         return installationMarkVerdict(this.environment, await this.marks.find());
     }
 
-    /** The verdict, and how the installation operates: live where nobody marked it. */
+    /**
+     * The verdict, how the installation operates — live where nobody marked
+     * it — and which operations its documents recorded, `null` where they
+     * cannot be read.
+     */
     async status(): Promise<InstallationStatus> {
-        return installationStatus(this.environment, await this.marks.find());
+        const mark = await this.marks.find();
+        return installationStatus(this.environment, mark, await this.issued());
     }
 
     /**
@@ -259,7 +267,8 @@ export class InstallationMarkService {
         standing: InstallationOperation,
         to: InstallationOperation,
     ): Promise<void> {
-        if (!this.invoices || !this.confirmations) {
+        const issued = await this.issued();
+        if (!issued) {
             if (to === standing) return;
             throw new ConflictException(
                 codedError(INSTALLATION_ERROR_CODES.INSTALLATION_DOCUMENTS_NOT_READABLE, {
@@ -268,10 +277,6 @@ export class InstallationMarkService {
                 }),
             );
         }
-        const issued = await issuedOperationsIn(
-            { invoices: this.invoices, confirmations: this.confirmations },
-            this.rlsBypass,
-        );
         const other = operationOtherThan(to);
         if (!issued[other]) return;
         throw new ConflictException(
@@ -279,6 +284,15 @@ export class InstallationMarkService {
                 issued: other,
                 requested: to,
             }),
+        );
+    }
+
+    /** The operations the installation's documents recorded, or `null` without a store to read them from. */
+    private async issued(): Promise<DocumentOperations | null> {
+        if (!this.invoices || !this.confirmations) return null;
+        return issuedOperationsIn(
+            { invoices: this.invoices, confirmations: this.confirmations },
+            this.rlsBypass,
         );
     }
 

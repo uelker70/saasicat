@@ -115,16 +115,26 @@ export function documentOperationsOf(testOperations: readonly boolean[]): Docume
 
 /**
  * What `installation status` and the doctor say of a database: whether it
- * belongs to this environment, and how it operates.
+ * belongs to this environment, how it operates, and which operations the
+ * documents it issued recorded — `null` where they cannot be read.
  */
 export type InstallationStatus = InstallationMarkVerdict & {
     readonly operation: InstallationOperation;
+    readonly issued: DocumentOperations | null;
 };
 
-/** The verdict on `mark` against `expected`, with the operation the mark says. */
+/**
+ * The verdict on `mark` against `expected`, with the operation the mark says
+ * and the operations the documents recorded.
+ */
 export function installationStatus(
     expected: string,
     mark: Pick<InstallationMark, 'identifier' | 'testOperation'> | null,
+    issued: DocumentOperations | null,
 ): InstallationStatus {
-    return { ...installationMarkVerdict(expected, mark), operation: installationOperationOf(mark) };
+    return {
+        ...installationMarkVerdict(expected, mark),
+        operation: installationOperationOf(mark),
+        issued,
+    };
 }

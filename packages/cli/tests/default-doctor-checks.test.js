@@ -13,6 +13,7 @@ import {
     PLATFORM_DOCTOR_CHECK_PROVIDERS,
     UserPortDoctorCheck,
 } from '../dist/index.js';
+import { documentOperationsOf } from '@saasicat/core';
 import { InstallationMarkService, givenPlanCatalogSource } from '@saasicat/nest';
 import { FakeInstallationMarkRepository } from '@saasicat/nest/testing';
 
@@ -236,8 +237,13 @@ describe('IssuerIdentityDoctorCheck', () => {
     });
 });
 
-/** The check over the platform's service, in environment `environment`, on a database marked `standing`. */
-async function checkIn(environment, standing = null, testOperation = false) {
+/**
+ * The check over the platform's service, in environment `environment`, on a
+ * database marked `standing`, which issued a document in each operation
+ * `issued` names — `true` a test one — where it is given, and whose documents
+ * cannot be read where it is not.
+ */
+async function checkIn(environment, standing = null, testOperation = false, issued = null) {
     const store = new FakeInstallationMarkRepository();
     if (standing) {
         await store.markIfUnmarked({
@@ -247,8 +253,14 @@ async function checkIn(environment, standing = null, testOperation = false) {
             markedBy: 'cli:ops@example.com:deploy-host',
         });
     }
+    const documents = issued
+        ? [
+              { issuedOperations: async () => documentOperationsOf(issued) },
+              { recordedOperations: async () => documentOperationsOf([]) },
+          ]
+        : [];
     return new InstallationMarkDoctorCheck(
-        new InstallationMarkService(store, environment, null),
+        new InstallationMarkService(store, environment, null, ...documents),
     ).run();
 }
 
@@ -300,6 +312,35 @@ describe('InstallationMarkDoctorCheck', () => {
 describe('InstallationMarkDoctorCheck on how the installation operates', () => {
     test('names a test operation, and is not alarmed by it', async () => {
         const result = await checkIn('INT', 'INT', true);
+        assert.equal(result.severity, 'ok');
+        assert.match(result.message, /It is marked as a test operation\.$/);
+    });
+
+    // @requirement SC-AUD-025 — An operator's command line starts where the application refuses on its documents
+    test('is an error where the documents recorded another operation, naming the mark that repairs it', async () => {
+        const result = await checkIn('INT', 'INT', false, [true]);
+
+        assert.equal(result.severity, 'error');
+        assert.match(
+            result.message,
+            /It is marked as a live operation\. The installation's mark says a live operation, and the documents it issued were issued in a test operation\./,
+        );
+        assert.match(result.message, /`<app> installation mark <identifier> --operation test`\.$/);
+        assert.deepEqual(result.details, { issued: { test: true, live: false } });
+    });
+
+    // @requirement SC-AUD-025 — An operator's command line starts where the application refuses on its documents
+    test('is an error where the documents recorded both, which no mark repairs', async () => {
+        const result = await checkIn('INT', 'INT', true, [true, false]);
+
+        assert.equal(result.severity, 'error');
+        assert.match(result.message, /both in a test operation and in a live one/);
+        assert.deepEqual(result.details, { issued: { test: true, live: true } });
+    });
+
+    test('is silent about documents that recorded the operation the mark says', async () => {
+        const result = await checkIn('INT', 'INT', true, [true]);
+
         assert.equal(result.severity, 'ok');
         assert.match(result.message, /It is marked as a test operation\.$/);
     });

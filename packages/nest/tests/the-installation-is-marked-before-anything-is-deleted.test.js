@@ -472,12 +472,13 @@ describe('how the installation operates, said on its mark', () => {
         ]);
     });
 
-    test('the status names whose database it is and how it operates', async () => {
+    test('the status names whose database it is, how it operates and what its documents recorded', async () => {
         const { service } = setUp('INT');
         assert.deepEqual(await service.status(), {
             kind: 'unmarked',
             expected: 'INT',
             operation: 'live',
+            issued: { test: false, live: false },
         });
 
         await service.mark('INT', OPERATOR, { operation: 'test' });
@@ -486,6 +487,7 @@ describe('how the installation operates, said on its mark', () => {
             kind: 'matches',
             identifier: 'INT',
             operation: 'test',
+            issued: { test: false, live: false },
         });
     });
 

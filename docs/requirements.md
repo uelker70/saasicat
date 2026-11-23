@@ -127,12 +127,12 @@ properties it has while doing it.
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 27      |
-| 21  | Answering the question afterwards            | `SC-AUD-…`   | 24      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 25      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 17      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 731 entries: 🟢 638 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 732 entries: 🟢 639 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
 🔵 63 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -231,7 +231,7 @@ Of 731 entries: 🟢 638 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 731 requirements. Do not edit by hand:
+Generated from `requirements/` — 732 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -23274,6 +23274,10 @@ _Tested by:_
         - is an error where the mark cannot be read, and fine where nothing is deleted at all
     - InstallationMarkDoctorCheck on how the installation operates
         - names a test operation, and is not alarmed by it
+        - is an error where the documents recorded another operation, naming the mark that repairs
+          it
+        - is an error where the documents recorded both, which no mark repairs
+        - is silent about documents that recorded the operation the mark says
     - PLATFORM_DOCTOR_CHECK_PROVIDERS
         - holds every platform check, and nothing else
 - `packages/cli/tests/doctor-flow.test.js`
@@ -27684,6 +27688,49 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-AUD-025 — An operator's command line starts where the application refuses on its documents
+
+🟢 💰 Where the documents an installation issued recorded another operation than its mark says, or
+both, the application refuses to start (`SC-AUD-023`), and an operator's command line starts all
+the same: `installation status` and the doctor name the disagreement, the doctor as an error, and
+`installation mark` with the operation the documents recorded repairs it, after which the
+application starts. In place of its start, the command line refuses each invoice it would issue
+in the mark's operation and each confirmation it would first render while the two disagree; a
+cancellation and its replacement, which take the cancelled invoice's operation, remain possible.
+A process is a command line by declaration, which `CliContextModule` makes; nothing infers it from
+the shape of the process, since a worker without an HTTP server issues invoices as the application
+does. Where the documents recorded both operations, no command repairs the installation, and it
+issues no further document in the mark's operation.
+
+_Source:_ #523
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/default-doctor-checks.test.js`
+    - InstallationMarkDoctorCheck on how the installation operates
+        - is an error where the documents recorded another operation, naming the mark that repairs
+          it
+        - is an error where the documents recorded both, which no mark repairs
+- `packages/cli/tests/installation-cli-flow.test.js`
+    - installation mark --operation
+        - the status names documents that recorded another operation, and the mark that repairs it
+- `packages/nest/tests/a-confirmation-records-the-operation-it-was-made-in.test.js`
+    - a confirmation first rendered in an operator command line
+        - is not made while the documents recorded another operation than the mark
+        - is made where they recorded the operation the mark says
+- `packages/nest/tests/an-installations-operation-is-fixed-with-its-first-document.test.js`
+    - an operator command line, where the application refuses to start
+        - starts where the documents recorded another operation than the mark, or both
+        - says what the documents recorded, and marking it as they say lets the application start
+        - refuses to issue an invoice while the mark and the documents disagree
+- `examples/notesapp/tests/the-notes-app-cli-marks-its-installation.test.mjs`
+    - the notes app's command line
+        - says it is an operator command line, which the application does not
+
+<!-- END proof -->
+
 ### SC-AUD-024 — Every document issued in a test operation says it is one
 
 🟢 💰 An invoice, a cancellation invoice, a replacement and a contract confirmation issued in a test
@@ -30145,6 +30192,7 @@ _Tested by:_
 - `examples/notesapp/tests/the-notes-app-cli-marks-its-installation.test.mjs`
     - the notes app's command line
         - offers the installation status, marking it, and the doctor — and no other command
+        - says it is an operator command line, which the application does not
         - runs the platform's checks in the doctor, the installation's mark among them
     - the notes app's operators
         - finds the seeded SuperAdmin by its e-mail, under the id its second factor is kept by

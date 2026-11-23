@@ -14,9 +14,9 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { Logger } from '@nestjs/common';
 
-import { ContractConfirmationService } from '../dist/billing/index.js';
+import { ContractConfirmationService, InvoiceOperationCheck } from '../dist/billing/index.js';
 import { AT, aConfirmingInstallation } from './helpers/contract-confirmations.js';
-import { changeTo, markAs, marked } from './helpers/installation-marks.js';
+import { changeTo, documentsIssued, markAs, marked } from './helpers/installation-marks.js';
 import {
     aConfirmationArchive,
     aConfirmationRecord,
@@ -98,6 +98,44 @@ describe('a confirmation is made in the operation the mark says when it is first
             recorded: true,
             mailed: [],
         });
+    });
+});
+
+// @requirement SC-AUD-025 — An operator's command line starts where the application refuses on its documents
+describe('a confirmation first rendered in an operator command line', () => {
+    /**
+     * An installation marked as a test operation, whose documents say `issued`,
+     * as the check of its operation finds it in a command line, whose start
+     * leaves that check to the document.
+     */
+    async function inACommandLine(issued) {
+        const marks = await marked(true);
+        const { invoices, confirmations } = documentsIssued({ invoices: issued });
+        const operations = new InvoiceOperationCheck(invoices, confirmations, marks, null, true);
+        return aConfirmingInstallation({ marks, operations });
+    }
+
+    test('is not made while the documents recorded another operation than the mark', async () => {
+        quietLog();
+        const installation = await inACommandLine([false]);
+        const contract = await installation.aConfirmableContract('t1');
+
+        assert.equal((await installation.confirmations.archiveDue(AT)).failed, 1);
+
+        assert.deepEqual(await operationsOf(installation, contract.id), {
+            rendered: [],
+            recorded: undefined,
+            mailed: [],
+        });
+    });
+
+    test('is made where they recorded the operation the mark says', async () => {
+        const installation = await inACommandLine([true]);
+        const contract = await installation.aConfirmableContract('t1');
+
+        assert.equal((await installation.confirmations.archiveDue(AT)).archived, 1);
+
+        assert.deepEqual((await operationsOf(installation, contract.id)).rendered, [true]);
     });
 });
 

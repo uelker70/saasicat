@@ -193,6 +193,7 @@ export {
 } from './invoices/subscription-invoice.service.js';
 export { SubscriptionInvoiceCron } from './invoices/subscription-invoice.cron.js';
 export { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './invoices/subscription-invoice.tokens.js';
+export { InvoiceOperationCheck, installationOperationProblem } from './invoices/invoicing-start.js';
 export {
     INVOICE_DELIVERY_LEASE_MS,
     INVOICE_DOCUMENT_TIMEOUT_MS,

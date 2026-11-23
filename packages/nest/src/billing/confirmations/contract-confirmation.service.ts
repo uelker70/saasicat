@@ -67,6 +67,7 @@ import {
     type MailingRun,
 } from '../archived-files/archived-file-run.js';
 import { INVOICE_MAIL_PORT_TOKEN } from '../invoices/invoice-document.tokens.js';
+import { InvoiceOperationCheck } from '../invoices/invoicing-start.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from '../invoices/subscription-invoice.tokens.js';
 import { installationMarkNotWired } from '../deletion/installation-mark-option.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
@@ -121,6 +122,11 @@ export class ContractConfirmationService implements OnModuleInit {
         @Optional()
         @Inject(INSTALLATION_MARK_PORT_TOKEN)
         private readonly marks: InstallationMarkPort | null = null,
+        // Registered wherever invoices are; refuses in an operator's command
+        // line what the application's start refused.
+        @Optional()
+        @Inject(InvoiceOperationCheck)
+        private readonly operations: InvoiceOperationCheck | null = null,
     ) {
         this.timeZone = settings.timeZone;
         /** The archived terms of the version `contract` records, or `null` where it records none. */
@@ -384,6 +390,7 @@ export class ContractConfirmationService implements OnModuleInit {
                 'Confirmations cannot be made without the mark of the installation; the start refuses this.',
             );
         }
+        await this.operations?.checkBeforeIssuing();
         return installationOperationOf(await this.marks.find()) === 'test';
     }
 

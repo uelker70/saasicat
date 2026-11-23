@@ -4,7 +4,9 @@
 // refuses to move it elsewhere — and, where the documents cannot be read,
 // refuses to move it at all, since then nothing shows that none exists — and a
 // start that issues invoices refuses where the documents recorded another
-// operation than the mark says, or both.
+// operation than the mark says, or both. An operator's command line starts
+// there all the same, says what the documents recorded, and refuses each
+// invoice it would issue until the mark says it too.
 //
 // The command through `InstallationMarkService` over the in-memory store of
 // the mark the platform ships for tests; the start through the whole platform
@@ -15,7 +17,14 @@ import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 
-import { AdminAuditService, InstallationMarkService, TenantBillingModule } from '../dist/index.js';
+import {
+    AdminAuditService,
+    InstallationMarkService,
+    OperatorCommandLineModule,
+    SubscriptionInvoiceService,
+    TenantBillingModule,
+    installationOperationProblem,
+} from '../dist/index.js';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import {
     FakeInstallationMarkRepository,
@@ -392,5 +401,62 @@ describe('a start that issues invoices', () => {
 
         assert.match(message, /both in a test operation and in a live one/);
         assert.match(message, /mark says a test operation/);
+    });
+});
+
+/**
+ * The platform as an operator's command line starts it: beside the declaration
+ * `CliContextModule` imports, which says that this process is one.
+ */
+async function startedAsCommandLine(options) {
+    const moduleRef = await Test.createTestingModule({
+        imports: [SaaSiCatModule.forRoot(options), OperatorCommandLineModule],
+    }).compile();
+    await moduleRef.init();
+    return moduleRef;
+}
+
+// @requirement SC-AUD-025 — An operator's command line starts where the application refuses on its documents
+describe('an operator command line, where the application refuses to start', () => {
+    test('starts where the documents recorded another operation than the mark, or both', async () => {
+        for (const options of [
+            await issuing(null, { invoices: [true] }),
+            await issuing(true, { invoices: [true], confirmations: [false] }),
+        ]) {
+            const moduleRef = await startedAsCommandLine(options);
+            await moduleRef.close();
+        }
+    });
+
+    test('says what the documents recorded, and marking it as they say lets the application start', async () => {
+        const options = await issuing(null, { invoices: [true] });
+        const commandLine = await startedAsCommandLine(options);
+        const service = commandLine.get(InstallationMarkService, { strict: false });
+
+        const status = await service.status();
+        assert.deepEqual(status.issued, { test: true, live: false });
+        assert.match(
+            installationOperationProblem(status.operation, status.issued),
+            /--operation test/,
+        );
+        await service.mark(THIS_INSTALLATION, OPERATOR, { operation: 'test' });
+        await commandLine.close();
+
+        const application = await started(options);
+        await application.close();
+    });
+
+    test('refuses to issue an invoice while the mark and the documents disagree', async () => {
+        const commandLine = await startedAsCommandLine(await issuing(null, { invoices: [true] }));
+        try {
+            const invoices = commandLine.get(SubscriptionInvoiceService, { strict: false });
+
+            await assert.rejects(
+                invoices.issueDue(NOW),
+                /^Error: Documents cannot be issued:\n- [^\n]*--operation test/,
+            );
+        } finally {
+            await commandLine.close();
+        }
     });
 });

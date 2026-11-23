@@ -85,6 +85,24 @@ describe("the notes app's command line", () => {
         }
     });
 
+    // @requirement SC-AUD-025 — An operator's command line starts where the application refuses on its documents
+    test('says it is an operator command line, which the application does not', async () => {
+        const { Test } = await import('@nestjs/testing');
+        const { AppModule } = await import('../dist/app.module.js');
+        const { OPERATOR_COMMAND_LINE_TOKEN } = require('@saasicat/nest');
+        const { moduleRef } = await compileTheCli();
+        const application = await Test.createTestingModule({ imports: [AppModule] }).compile();
+        try {
+            // So the start leaves the check of the installation's operation to
+            // the commands that name and repair a disagreement.
+            assert.equal(moduleRef.get(OPERATOR_COMMAND_LINE_TOKEN, { strict: false }), true);
+            assert.throws(() => application.get(OPERATOR_COMMAND_LINE_TOKEN, { strict: false }));
+        } finally {
+            await application.close();
+            await moduleRef.close();
+        }
+    });
+
     test("runs the platform's checks in the doctor, the installation's mark among them", async () => {
         const { moduleRef } = await compileTheCli();
         try {

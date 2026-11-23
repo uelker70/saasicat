@@ -744,6 +744,49 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-AUD-025 — An operator's command line starts where the application refuses on its documents
+
+🟢 💰 Where the documents an installation issued recorded another operation than its mark says, or
+both, the application refuses to start (`SC-AUD-023`), and an operator's command line starts all
+the same: `installation status` and the doctor name the disagreement, the doctor as an error, and
+`installation mark` with the operation the documents recorded repairs it, after which the
+application starts. In place of its start, the command line refuses each invoice it would issue
+in the mark's operation and each confirmation it would first render while the two disagree; a
+cancellation and its replacement, which take the cancelled invoice's operation, remain possible.
+A process is a command line by declaration, which `CliContextModule` makes; nothing infers it from
+the shape of the process, since a worker without an HTTP server issues invoices as the application
+does. Where the documents recorded both operations, no command repairs the installation, and it
+issues no further document in the mark's operation.
+
+_Source:_ #523
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/default-doctor-checks.test.js`
+    - InstallationMarkDoctorCheck on how the installation operates
+        - is an error where the documents recorded another operation, naming the mark that repairs
+          it
+        - is an error where the documents recorded both, which no mark repairs
+- `packages/cli/tests/installation-cli-flow.test.js`
+    - installation mark --operation
+        - the status names documents that recorded another operation, and the mark that repairs it
+- `packages/nest/tests/a-confirmation-records-the-operation-it-was-made-in.test.js`
+    - a confirmation first rendered in an operator command line
+        - is not made while the documents recorded another operation than the mark
+        - is made where they recorded the operation the mark says
+- `packages/nest/tests/an-installations-operation-is-fixed-with-its-first-document.test.js`
+    - an operator command line, where the application refuses to start
+        - starts where the documents recorded another operation than the mark, or both
+        - says what the documents recorded, and marking it as they say lets the application start
+        - refuses to issue an invoice while the mark and the documents disagree
+- `examples/notesapp/tests/the-notes-app-cli-marks-its-installation.test.mjs`
+    - the notes app's command line
+        - says it is an operator command line, which the application does not
+
+<!-- END proof -->
+
 ### SC-AUD-024 — Every document issued in a test operation says it is one
 
 🟢 💰 An invoice, a cancellation invoice, a replacement and a contract confirmation issued in a test

@@ -34,6 +34,14 @@ never tests changes nothing it configures.
   documents cannot be read (`INSTALLATION_DOCUMENTS_NOT_READABLE`), and a start
   that issues invoices refuses where the documents recorded another operation
   than the mark (`SC-AUD-023`).
+- An operator's command line starts there all the same: `installation status`
+  and the doctor name the disagreement, and marking the operation the documents
+  recorded repairs it. Instead of its start, it refuses each invoice or first
+  confirmation it would issue while the two disagree. `CliContextModule` imports
+  `OperatorCommandLineModule` from `@saasicat/nest`, which declares the process
+  one; a command line built without it imports that itself. Where the documents
+  recorded both operations, nothing repairs the installation: it issues no
+  further document.
 - `@saasicat/core` adds `TEST_OPERATION_TITLE` and `TEST_OPERATION_NOTICE`, the
   wording in German and English; it waits for a tax advisor's confirmation.
 - `@saasicat/invoice-zugferd` prints it on both renderers, and

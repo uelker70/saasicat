@@ -2560,9 +2560,10 @@ a test operation, and every document it issues says on every page that it is a t
   `RlsBypassPort` where one is bound; under a row-level policy without it they find nothing, and a
   change goes ahead, as the start's check of the invoice prefix does.
 - **Where it stops.** The command reads the documents before it writes the mark, so a first
-  document issued between the two is not seen by it, and the next start refuses. The German tax
-  adapter checks the XML of every invoice for the notice, not the page; nothing checks the page of a
-  renderer of your own, or a confirmation of your own.
+  document issued between the two is not seen by it, and the next start refuses; the command line
+  names it and repairs it ([below](#when-the-application-refuses-to-start-on-its-documents)). The
+  German tax adapter checks the XML of every invoice for the notice, not the page; nothing checks
+  the page of a renderer of your own, or a confirmation of your own.
 
 **Mark a test installation before its first document.** The operation is fixed with the first
 invoice or confirmation: an integration environment marked as a test only after it issued one stays
@@ -2577,6 +2578,32 @@ from being owed as VAT shown on a document that is no invoice; whether a test do
 the XML at all, since accounting software reads the XML and may book it whatever its note says; and
 the exact text. The wording is two constants in `@saasicat/core`, and until an advisor confirms it,
 it is a working draft.
+
+#### When the application refuses to start on its documents
+
+The application refuses to start where the documents recorded another operation than the mark says,
+or both. The command line starts all the same, so that the operator can see and repair it:
+`CliContextModule` declares the process an operator's command line by importing
+`OperatorCommandLineModule` from `@saasicat/nest` (a command line built without `CliContextModule`
+imports it itself), and there the check moves from the start to each invoice or first confirmation
+the command line would issue, which it refuses while the two disagree. `<app> installation status`
+and `<app> doctor` (`platform.installation-mark`, an error) name the disagreement in the words the
+start refused with. Where the documents recorded one operation, mark the installation as they say,
+and the application starts:
+
+```bash
+<app> installation status                       # names the operation the documents recorded
+<app> installation mark int --operation test    # that operation; second factor as before
+```
+
+Where they recorded both, no command repairs it: `installation mark` refuses either operation, and
+no mark would help, since the start refuses documents of both operations whatever the mark says. An
+issued document is not rewritten; each says on its pages which operation it was issued in. So the
+installation issues no further document, and its work goes on in a new installation with a database
+of its own. Its command line still exports what it issued
+([the export](#the-export-for-a-tax-advisor)), and a live invoice issued by mistake is corrected as
+any live one is, by a cancellation invoice (`<app> invoices cancel`), which takes the operation of
+the invoice it corrects.
 
 ### Erase a tenant's stores
 

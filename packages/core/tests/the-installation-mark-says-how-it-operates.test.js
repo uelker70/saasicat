@@ -36,26 +36,34 @@ describe('the operation a mark says', () => {
     });
 });
 
+const NONE_ISSUED = { test: false, live: false };
+
 describe('what the status of a database says', () => {
-    test('whose database it is, and how it operates', () => {
-        assert.deepEqual(installationStatus('INT', markOf('INT', true)), {
+    test('whose database it is, how it operates, and what its documents recorded', () => {
+        assert.deepEqual(installationStatus('INT', markOf('INT', true), NONE_ISSUED), {
             kind: 'matches',
             identifier: 'INT',
             operation: 'test',
+            issued: NONE_ISSUED,
         });
-        assert.deepEqual(installationStatus('INT', markOf('PROD', false)), {
-            kind: 'differs',
-            expected: 'INT',
-            marked: 'PROD',
-            operation: 'live',
-        });
+        assert.deepEqual(
+            installationStatus('INT', markOf('PROD', false), { test: true, live: false }),
+            {
+                kind: 'differs',
+                expected: 'INT',
+                marked: 'PROD',
+                operation: 'live',
+                issued: { test: true, live: false },
+            },
+        );
     });
 
-    test('an unmarked database is live', () => {
-        assert.deepEqual(installationStatus('PROD', null), {
+    test('an unmarked database is live, and documents nobody could read are unknown', () => {
+        assert.deepEqual(installationStatus('PROD', null, null), {
             kind: 'unmarked',
             expected: 'PROD',
             operation: 'live',
+            issued: null,
         });
     });
 });

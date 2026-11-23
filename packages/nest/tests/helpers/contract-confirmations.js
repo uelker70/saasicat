@@ -38,7 +38,8 @@ export function aTermsArchive(...versions) {
  * footer in its file, and the confirmations' record, archive and mail beside
  * it. `writtenBefore` names contracts written before confirmations, `marks`
  * where the mark of the installation is kept — unmarked, and so live, unless
- * a test marks it.
+ * a test marks it — and `operations` the check of the installation's operation
+ * a first rendering asks, where a test gives one.
  */
 export function aConfirmingInstallation({
     terms = aTermsArchive(TERMS),
@@ -47,6 +48,7 @@ export function aConfirmingInstallation({
     mail = aMailbox(),
     writtenBefore = [],
     marks,
+    operations = null,
 } = {}) {
     const settings = {
         ...INVOICING_SETTINGS,
@@ -69,6 +71,7 @@ export function aConfirmingInstallation({
         installation.auditLog,
         installation.store,
         installation.marks,
+        operations,
     );
     return {
         ...installation,

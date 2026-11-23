@@ -14,7 +14,10 @@
 // `--operation live` a live one. Without the option a new mark is live and a
 // mark that stands keeps its operation, `--replace` included: the operation
 // belongs to the data. Once the installation has issued a document, the
-// operation is the one its documents recorded, and another is refused.
+// operation is the one its documents recorded, and another is refused. Where
+// the mark says another operation than they recorded, the application refuses
+// to start, and the status names it and the mark that repairs it: a command
+// line starts on it, for that.
 //
 // Marking takes the second factor and, against production, a confirmation:
 // a mark releases deletions, and a replaced one moves them to another

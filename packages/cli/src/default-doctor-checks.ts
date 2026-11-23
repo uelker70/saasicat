@@ -27,7 +27,7 @@
 //   8. **`platform.installation-mark`** — whether the database is marked as
 //      the installation of the environment this process names, which is what
 //      a tenant's deletion runs only behind (`SC-PRIV-021`), and how it
-//      operates: as a test or live.
+//      operates: as a test or live, as its documents recorded (`SC-AUD-023`).
 //
 
 import { Inject, Injectable, Optional, type Type } from '@nestjs/common';
@@ -46,7 +46,7 @@ import {
 import type { PlanCatalog, UserPort } from '@saasicat/core';
 import type { DoctorCheck, DoctorCheckResult } from './doctor-flow.js';
 import { USER_PORT_TOKEN } from './cli.tokens.js';
-import { installationStatusText } from './installation-verdict.js';
+import { installationStatusText, operationProblemOf } from './installation-verdict.js';
 
 @Injectable()
 export class PlanCatalogDoctorCheck implements DoctorCheck {
@@ -388,7 +388,10 @@ export class ContractFeaturesDoctorCheck implements DoctorCheck {
  * its operator turns deletion on, and nothing is deleted while it lasts. A
  * mark naming another environment is an error — the process is pointed at
  * another installation's database, or a backup was restored without marking
- * it again.
+ * it again. So is a mark the installation's documents recorded another
+ * operation than, or documents that recorded both (`SC-AUD-023`): the
+ * application refuses to start on either, and the command line, which starts,
+ * is where the operator reads it.
  */
 @Injectable()
 export class InstallationMarkDoctorCheck implements DoctorCheck {
@@ -414,11 +417,16 @@ export class InstallationMarkDoctorCheck implements DoctorCheck {
             return {
                 severity: 'error',
                 message:
-                    'The installation mark cannot be read, so nothing will be deleted: ' +
+                    'The installation mark, or the operations its documents recorded, cannot be ' +
+                    'read, so nothing will be deleted: ' +
                     `${err instanceof Error ? err.message : String(err)}`,
             };
         }
         const message = installationStatusText(status);
+        // The application refuses to start on it, so the doctor fails on it too.
+        if (operationProblemOf(status) !== null) {
+            return { severity: 'error', message, details: { issued: status.issued } };
+        }
         if (status.kind === 'matches') return { severity: 'ok', message };
         if (status.kind === 'unmarked') return { severity: 'warning', message };
         return {

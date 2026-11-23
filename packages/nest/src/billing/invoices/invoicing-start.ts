@@ -15,6 +15,7 @@ import {
 } from '@saasicat/core';
 
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
+import { OPERATOR_COMMAND_LINE_TOKEN } from '../../core/operator-command-line.js';
 import { readAcrossTenants } from '../../admin/read-across-tenants.js';
 import { CONTRACT_CONFIRMATION_REPOSITORY_TOKEN } from '../confirmations/contract-confirmation.tokens.js';
 import { issuedOperationsIn, operationOtherThan } from '../deletion/issued-document-operations.js';
@@ -193,9 +194,10 @@ export class InvoiceNumberPrefixCheck implements OnModuleInit {
  * it can: its documents were issued in the operations `issued` says, and its
  * mark says `marked`. The operation is fixed with the first document
  * (`SC-AUD-023`), so a document of another operation than the mark's was
- * issued under a mark that said otherwise.
+ * issued under a mark that said otherwise. The start refuses with it, and
+ * `<app> installation status` and the doctor say it.
  */
-export function operationProblem(
+export function installationOperationProblem(
     marked: InstallationOperation,
     issued: DocumentOperations,
 ): string | null {
@@ -220,6 +222,13 @@ export function operationProblem(
 /**
  * Refuses a start whose mark says another operation than the documents the
  * installation issued recorded, or where they recorded both.
+ *
+ * Except in an operator's command line (`OPERATOR_COMMAND_LINE_TOKEN`): the
+ * repair is `<app> installation mark … --operation …`, and a command line
+ * refused like the application could neither run it nor `installation status`
+ * and the doctor, which name the disagreement. There the check moves to the
+ * documents instead: `checkBeforeIssuing` refuses each one the command line
+ * would issue in the mark's operation while the two disagree.
  */
 @Injectable()
 export class InvoiceOperationCheck implements OnModuleInit {
@@ -242,19 +251,39 @@ export class InvoiceOperationCheck implements OnModuleInit {
         @Optional()
         @Inject(RLS_BYPASS_PORT_TOKEN)
         private readonly rlsBypass: RlsBypassPort | null = null,
+        @Optional()
+        @Inject(OPERATOR_COMMAND_LINE_TOKEN)
+        private readonly commandLine: boolean | null = null,
     ) {}
 
     async onModuleInit(): Promise<void> {
-        if (!this.marks) return;
+        if (this.commandLine) return;
+        const problem = await this.problem();
+        if (problem) {
+            this.logger.error(problem);
+            throw new Error(`Invoices cannot start:\n- ${problem}`);
+        }
+    }
+
+    /**
+     * Refuses a document about to be issued in the mark's operation while the
+     * mark and the documents disagree, in an operator's command line, whose
+     * start left the check to here. Elsewhere the start refused already, and
+     * this reads nothing.
+     */
+    async checkBeforeIssuing(): Promise<void> {
+        if (!this.commandLine) return;
+        const problem = await this.problem();
+        if (problem) throw new Error(`Documents cannot be issued:\n- ${problem}`);
+    }
+
+    private async problem(): Promise<string | null> {
+        if (!this.marks) return null;
         const marked = installationOperationOf(await this.marks.find());
         const issued = await issuedOperationsIn(
             { invoices: this.invoices, confirmations: this.confirmations },
             this.rlsBypass,
         );
-        const problem = operationProblem(marked, issued);
-        if (problem) {
-            this.logger.error(problem);
-            throw new Error(`Invoices cannot start:\n- ${problem}`);
-        }
+        return installationOperationProblem(marked, issued);
     }
 }

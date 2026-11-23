@@ -5716,7 +5716,13 @@ refusals `INSTALLATION_OPERATION_FIXED` and `INSTALLATION_DOCUMENTS_NOT_READABLE
 `TenantPlanSectionI18n` in `@saasicat/ui-vue-tenant` gains `invoiceTestOperation`,
 `invoicesDownloadTestInvoice` and `confirmationDownloadTest`. `TenantBillingModule` takes
 `subscriptionEnds.deletion.documents: { invoices, confirmations }`, the stores the mark's command
-reads where invoicing is off.
+reads where invoicing is off. `@saasicat/nest` adds `OperatorCommandLineModule` and
+`OPERATOR_COMMAND_LINE_TOKEN`, which `CliContextModule` imports: an operator's command line starts
+where the documents disagree with the mark, so that `installation status`, the doctor and
+`installation mark` can name and repair it, and refuses each document it would issue instead. A
+command line built without `CliContextModule` imports `OperatorCommandLineModule` itself. It adds
+`installationOperationProblem` and `InvoiceOperationCheck`, too, and `InstallationStatus` carries
+`issued`, the operations the documents recorded.
 
 1. **Where invoices are issued**, adopt the changed
    `prisma-fragments/20-subscription-invoice.prisma` and `26-contract-confirmation.prisma`, and run

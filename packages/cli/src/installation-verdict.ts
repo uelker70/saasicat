@@ -1,4 +1,5 @@
 import type { InstallationMarkVerdict, InstallationStatus } from '@saasicat/core';
+import { installationOperationProblem } from '@saasicat/nest';
 
 /**
  * What the installation status means, and the command that changes it where
@@ -10,7 +11,24 @@ export function installationStatusText(status: InstallationStatus): string {
         status.kind === 'unmarked'
             ? 'Without a mark it is a live operation.'
             : `It is marked as a ${status.operation} operation.`;
-    return `${verdictText(status)} ${operation}`;
+    const problem = operationProblemOf(status);
+    const disagreement = problem === null ? '' : ` ${capitalised(problem)}`;
+    return `${verdictText(status)} ${operation}${disagreement}`;
+}
+
+/**
+ * Why the application refuses to start on this database's documents, in the
+ * words its start refuses with; `null` where they agree with the mark or
+ * cannot be read.
+ */
+export function operationProblemOf(status: InstallationStatus): string | null {
+    return status.issued === null
+        ? null
+        : installationOperationProblem(status.operation, status.issued);
+}
+
+function capitalised(sentence: string): string {
+    return sentence.charAt(0).toUpperCase() + sentence.slice(1);
 }
 
 function verdictText(verdict: InstallationMarkVerdict): string {

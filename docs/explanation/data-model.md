@@ -274,7 +274,8 @@ on `installation_marks.id` holds the table to one row, as on `applied_settings`.
 rendering after reads its own copy (`SC-AUD-019`), so changing the mark never
 changes a document. Once one exists the mark keeps the operation the documents
 recorded (`SC-AUD-023`), and a start that issues invoices refuses where they
-disagree. The column is false unless the document was made in a test operation.
+disagree; an operator's command line starts there, and refuses the documents
+instead. The column is false unless the document was made in a test operation.
 
 ### Tenant deletions
 
