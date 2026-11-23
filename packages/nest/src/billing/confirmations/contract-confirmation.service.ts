@@ -4,10 +4,16 @@
 // contract records attached.
 //
 // Every contract written since confirmations exist is due one, and none
-// written before is (`confirmationDue`). A contract that does not say who its
-// parties were when it was written is held, like its invoices; so is one whose
-// terms the archive does not hold, since the subscriber is owed both together.
-// Platform-wide, so inside `RlsBypassPort`.
+// written before is (`confirmationDue`). A confirmation is made in the
+// operation the installation's mark says when it is first rendered — a
+// contract written before the installation was marked included — and that
+// operation is recorded with the rendering: every later rendering and its mail
+// read it from the record, whatever the mark says by then.
+//
+// A contract that does not say who its parties were when it was written is
+// held, like its invoices; so is one whose terms the archive does not hold,
+// since the subscriber is owed both together. Platform-wide, so inside
+// `RlsBypassPort`.
 
 import {
     ConflictException,
@@ -25,6 +31,7 @@ import {
     adminContractLinesOf,
     adminSubscriberContractsOf,
     contractPartiesOf,
+    installationOperationOf,
     invoiceFooterOf,
     type AdminContractIntegrity,
     type AdminContractSourceState,
@@ -32,8 +39,10 @@ import {
     type AdminSubscriberContracts,
     type ContractConfirmationStanding,
     type ContractConfirmationArchivePort,
+    type ContractConfirmationRecord,
     type ContractConfirmationRenderer,
     type ContractConfirmationRepository,
+    type InstallationMarkPort,
     type InvoiceDocument,
     type InvoiceMailPort,
     type PlanCatalogSettings,
@@ -59,7 +68,9 @@ import {
 } from '../archived-files/archived-file-run.js';
 import { INVOICE_MAIL_PORT_TOKEN } from '../invoices/invoice-document.tokens.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from '../invoices/subscription-invoice.tokens.js';
+import { installationMarkNotWired } from '../deletion/installation-mark-option.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
+import { INSTALLATION_MARK_PORT_TOKEN } from '../tenant-billing.tokens.js';
 import {
     CONTRACT_CONFIRMATION_ARCHIVE_TOKEN,
     CONTRACT_CONFIRMATION_RENDERER_TOKEN,
@@ -69,7 +80,7 @@ import type { ContractSourceLookup } from './contract-source-lookup.js';
 
 @Injectable()
 export class ContractConfirmationService implements OnModuleInit {
-    private readonly run: ArchivedFileRun<SubscriptionContractRecord>;
+    private readonly run: ArchivedFileRun<SubscriptionContractRecord, ContractConfirmationRecord>;
     /** The zone the days of a contract are read in; invoicing requires one. */
     private readonly timeZone: string | undefined;
 
@@ -105,6 +116,11 @@ export class ContractConfirmationService implements OnModuleInit {
         @Optional()
         @Inject(SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN)
         private readonly invoices: SubscriptionInvoiceRepository | null = null,
+        // Required to start: see `onModuleInit`. Bound wherever invoices are,
+        // which require it too.
+        @Optional()
+        @Inject(INSTALLATION_MARK_PORT_TOKEN)
+        private readonly marks: InstallationMarkPort | null = null,
     ) {
         this.timeZone = settings.timeZone;
         /** The archived terms of the version `contract` records, or `null` where it records none. */
@@ -129,7 +145,9 @@ export class ContractConfirmationService implements OnModuleInit {
                 subscriberId: contract.subscriberId,
             }),
             load: (id) => contracts.findById(id),
-            render: async (contract) => {
+            operationOf: async (contract, recorded) =>
+                recorded ? recorded.testOperation : this.markSaysTestOperation(),
+            render: async (contract, { testOperation }) => {
                 const issuer = contract.issuer;
                 if (contract.partiesMigrated || !issuer) {
                     throw new Held({
@@ -145,6 +163,7 @@ export class ContractConfirmationService implements OnModuleInit {
                     footer: invoiceFooterOf(issuer, configured, settings.invoicing?.footer ?? []),
                     // Required with a tax adapter, which invoicing requires.
                     timeZone: settings.timeZone!,
+                    testOperation,
                 });
             },
             // The tax adapter judges invoices; a confirmation is the contract's
@@ -152,7 +171,7 @@ export class ContractConfirmationService implements OnModuleInit {
             check: async () => {},
             recipient: async (contract) =>
                 (await subscribers.getById(contract.subscriberId)).invoiceEmail,
-            send: async (contract, to, confirmation) => {
+            send: async (contract, to, confirmation, { testOperation }) => {
                 const documents: InvoiceDocument[] = [confirmation];
                 const kept = await termsOf(contract);
                 if (kept) {
@@ -162,11 +181,12 @@ export class ContractConfirmationService implements OnModuleInit {
                         fileName: kept.fileName,
                     });
                 }
-                await mail.deliverConfirmation({ contract, to, documents });
+                await mail.deliverConfirmation({ contract, to, documents, testOperation });
             },
             marks: {
                 find: (id) => confirmations.find(id),
-                recordRendering: (id, rendering) => confirmations.recordRendering(id, rendering),
+                recordRendering: (id, rendering, { testOperation }) =>
+                    confirmations.recordRendering(id, { ...rendering, testOperation }),
                 replaceRendering: (id, rendering, replaced) =>
                     confirmations.replaceRendering(id, rendering, replaced),
                 markArchived: (id, at, checksum) => confirmations.markArchived(id, at, checksum),
@@ -203,10 +223,25 @@ export class ContractConfirmationService implements OnModuleInit {
      * Refuses to start beside an archive that would let a confirmation it
      * keeps be changed: what the subscriber was sent would be kept only until
      * somebody changed it, and nothing would say so.
+     *
+     * And without the installation's mark: each confirmation records whether
+     * it is made in a test operation, as the mark says it, and without the mark
+     * a test installation's confirmations would be recorded as live.
      */
     async onModuleInit(): Promise<void> {
+        const problems: string[] = [];
         const problem = await this.archive.protectionProblem();
-        if (problem) throw new Error(`Contract confirmations cannot start:\n- ${problem}`);
+        if (problem) problems.push(problem);
+        if (!this.marks) {
+            problems.push(
+                installationMarkNotWired(
+                    'confirmations record whether they are made in a test operation',
+                ),
+            );
+        }
+        if (problems.length > 0) {
+            throw new Error(`Contract confirmations cannot start:\n- ${problems.join('\n- ')}`);
+        }
     }
 
     /** Renders and archives the confirmation of every contract due one and still waiting for it. */
@@ -337,6 +372,19 @@ export class ContractConfirmationService implements OnModuleInit {
             case 'unknown':
                 throw contractNotFound(contractId);
         }
+    }
+
+    /**
+     * Whether the installation's mark says it is a test operation, read for a
+     * confirmation's first rendering; a database nobody marked is live.
+     */
+    private async markSaysTestOperation(): Promise<boolean> {
+        if (!this.marks) {
+            throw new Error(
+                'Confirmations cannot be made without the mark of the installation; the start refuses this.',
+            );
+        }
+        return installationOperationOf(await this.marks.find()) === 'test';
     }
 
     private zone(): string {

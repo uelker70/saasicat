@@ -3137,7 +3137,18 @@ export function createMemoryHarness() {
             return confirmations.recordRendering(contractId, rendering);
         },
         ...confirmations.writes,
+        // The file's columns alone: the operation recorded with the first rendering stays.
+        async replaceRendering(contractId, rendering, replaced) {
+            const { checksum, mediaType, fileName, size, renderedAt } = rendering;
+            const file = { checksum, mediaType, fileName, size, renderedAt };
+            return confirmations.writes.replaceRendering(contractId, file, replaced);
+        },
         find: confirmations.find,
+        async recordedOperations() {
+            return documentOperationsOf(
+                state.contractConfirmations.map((row) => row.testOperation),
+            );
+        },
         async listAwaitingConfirmation(page) {
             const due = state.contracts
                 .map((row) => row.id)

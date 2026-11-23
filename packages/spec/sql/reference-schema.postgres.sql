@@ -1129,6 +1129,7 @@ CREATE TABLE "contract_confirmations" (
     "fileName" TEXT NOT NULL,
     "size" INTEGER NOT NULL,
     "renderedAt" TIMESTAMP(3) NOT NULL,
+    "testOperation" BOOLEAN NOT NULL DEFAULT false,
     "archivedAt" TIMESTAMP(3),
     "deliveryClaimedAt" TIMESTAMP(3),
     "deliveredAt" TIMESTAMP(3),

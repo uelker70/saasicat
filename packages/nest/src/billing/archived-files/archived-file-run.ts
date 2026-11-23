@@ -1,6 +1,9 @@
 // The way a file the platform owes somebody is made and sent, whatever it is
 // the file of — an invoice's document (`SC-AUD-019`) or a contract's
-// confirmation (`SC-AUD-016`).
+// confirmation (`SC-AUD-016`). Every such file is made here, so each is made
+// in the operation its kind answers for it: the run asks the kind, and hands
+// the answer to the renderer, to the record of the first rendering and to the
+// mail.
 //
 // A run renders the file, has it checked where its subject's rules ask for
 // that, records the file's checksum, archives the file and records the
@@ -56,6 +59,12 @@ export interface FileState {
     archivedAt: Date | null;
 }
 
+/** The operation a file is made in, as its kind answers it. */
+export interface FileOperation {
+    /** Whether the file is made in a test operation. */
+    testOperation: boolean;
+}
+
 /** A file as the archive keeps it. */
 export interface KeptFile extends InvoiceDocument {
     /** SHA-256 of `content`, lower-case hex. */
@@ -66,11 +75,20 @@ export interface KeptFile extends InvoiceDocument {
 /**
  * Where each subject's file stands, keyed by the subject's id: the guarded
  * writes the ports of an invoice's document and of a contract's confirmation
- * both make.
+ * both make. `R` is what the record of a file says, which may be more than a
+ * run reads of it.
  */
-export interface FileMarks {
-    find(id: string): Promise<FileState | null>;
-    recordRendering(id: string, rendering: FileRendering): Promise<unknown>;
+export interface FileMarks<R extends FileState = FileState> {
+    find(id: string): Promise<R | null>;
+    /**
+     * Records the first rendering, with the operation the file is made in; a
+     * kind whose subject records its operation itself has it there already.
+     */
+    recordRendering(
+        id: string,
+        rendering: FileRendering,
+        operation: FileOperation,
+    ): Promise<unknown>;
     /** `null` where the recorded checksum is another by now, or the file is archived. */
     replaceRendering(id: string, rendering: FileRendering, replaced: string): Promise<unknown>;
     markArchived(id: string, at: Date, checksum: string): Promise<boolean>;
@@ -134,8 +152,11 @@ export interface FileActions {
     deliveryFailed: string;
 }
 
-/** What one kind of file is: its subject, its ports, and how its runs speak of it. */
-export interface ArchivedFileKind<S> {
+/**
+ * What one kind of file is: its subject, its ports, and how its runs speak of
+ * it. `R` is what the record of its file says.
+ */
+export interface ArchivedFileKind<S, R extends FileState = FileState> {
     /** The job the audit entries are written under: `job:platform:<job>`. */
     job: string;
     /** The audit entity of a subject, `SubscriptionInvoice` or `SubscriptionContract`. */
@@ -148,13 +169,19 @@ export interface ArchivedFileKind<S> {
     idOf(subject: S): string;
     auditOf(subject: S): AuditedSubject;
     load(id: string): Promise<S | null>;
-    render(subject: S): Promise<InvoiceDocument>;
+    /**
+     * Whether the file of `subject` is made in a test operation, given what
+     * its record says, `null` before it was first rendered. Asked before every
+     * rendering and every mail, so no file is made or sent without the answer.
+     */
+    operationOf(subject: S, recorded: R | null): Promise<boolean>;
+    render(subject: S, operation: FileOperation): Promise<InvoiceDocument>;
     /** Throws a `Held` where the subject's rules refuse the file. */
     check(subject: S, file: InvoiceDocument): Promise<void>;
     /** Where its mail goes; `null` where nowhere is known. */
     recipient(subject: S): Promise<string | null>;
-    send(subject: S, to: string, file: InvoiceDocument): Promise<void>;
-    marks: FileMarks;
+    send(subject: S, to: string, file: InvoiceDocument, operation: FileOperation): Promise<void>;
+    marks: FileMarks<R>;
     archive: FileArchive;
     /** The refusal codes: a file other than the recorded one, one that does not match, no address. */
     codes: { changed: string; mismatch: string; noAddress: string };
@@ -211,11 +238,11 @@ function sentence(text: string): string {
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-export class ArchivedFileRun<S> {
+export class ArchivedFileRun<S, R extends FileState = FileState> {
     private readonly audited = new AuditedOnce();
     private readonly timeoutMs = ARCHIVED_FILE_TIMEOUT_MS;
 
-    constructor(private readonly kind: ArchivedFileKind<S>) {}
+    constructor(private readonly kind: ArchivedFileKind<S, R>) {}
 
     /** Renders, checks and archives the file of every subject still waiting for one. */
     async archiveDue(now: Date): Promise<ArchivingRun> {
@@ -293,13 +320,19 @@ export class ArchivedFileRun<S> {
         if (!subject) return this.failed(id, new Error(`${this.kind.fileOfId(id)} has no subject`));
         try {
             const recorded = await this.kind.marks.find(id);
+            const operation = await this.operationOf(subject, recorded);
             const kept = await this.kind.archive.read(id);
-            if (kept) return await this.confirmKept(subject, recorded, kept, now);
-            const file = await withTimeout(() => this.kind.render(subject), this.timeoutMs);
+            if (kept) return await this.confirmKept(subject, recorded, kept, now, operation);
+            const file = await withTimeout(
+                () => this.kind.render(subject, operation),
+                this.timeoutMs,
+            );
             await this.kind.check(subject, file);
             const rendering = renderingOf(file, now);
             if (!recorded) {
-                await this.refusalHeld(() => this.kind.marks.recordRendering(id, rendering));
+                await this.refusalHeld(() =>
+                    this.kind.marks.recordRendering(id, rendering, operation),
+                );
             } else if (recorded.checksum !== rendering.checksum) {
                 await this.replaceRendering(subject, rendering, recorded.checksum);
             }
@@ -329,9 +362,10 @@ export class ArchivedFileRun<S> {
      */
     private async confirmKept(
         subject: S,
-        recorded: FileState | null,
+        recorded: R | null,
         kept: KeptFile,
         now: Date,
+        operation: FileOperation,
     ): Promise<keyof ArchivingRun> {
         if (fileChecksum(kept.content) !== kept.checksum) {
             throw new Held({
@@ -344,7 +378,9 @@ export class ArchivedFileRun<S> {
             const rendering = renderingOf(kept, kept.archivedAt);
             const id = this.kind.idOf(subject);
             if (!recorded) {
-                await this.refusalHeld(() => this.kind.marks.recordRendering(id, rendering));
+                await this.refusalHeld(() =>
+                    this.kind.marks.recordRendering(id, rendering, operation),
+                );
             } else {
                 await this.replaceRendering(subject, rendering, recorded.checksum);
             }
@@ -429,6 +465,7 @@ export class ArchivedFileRun<S> {
             });
             return 'held';
         }
+        const operation = await this.operationOf(subject, state);
         // Stamped with the moment it is taken, not with the start of the run: a
         // run that takes longer than the lease would otherwise take claims that
         // every other instance already reads as abandoned.
@@ -438,7 +475,9 @@ export class ArchivedFileRun<S> {
 
         // A port that throws before it returns a promise fails like one that
         // rejects, rather than escaping the run with its claim still held.
-        const sending = new Promise<void>((resolve) => resolve(this.kind.send(subject, to, file)));
+        const sending = new Promise<void>((resolve) =>
+            resolve(this.kind.send(subject, to, file, operation)),
+        );
         try {
             await withTimeout(() => sending, this.timeoutMs);
         } catch (error) {
@@ -549,6 +588,10 @@ export class ArchivedFileRun<S> {
             mediaType: archived.mediaType,
             fileName: archived.fileName,
         };
+    }
+
+    private async operationOf(subject: S, recorded: R | null): Promise<FileOperation> {
+        return { testOperation: await this.kind.operationOf(subject, recorded) };
     }
 
     private async eachPage(

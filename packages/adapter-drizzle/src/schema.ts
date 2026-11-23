@@ -1046,6 +1046,7 @@ export const contractConfirmations = pgTable('contract_confirmations', {
     fileName: text('fileName').notNull(),
     size: integer('size').notNull(),
     renderedAt: ts('renderedAt').notNull(),
+    testOperation: boolean('testOperation').notNull().default(false),
     archivedAt: ts('archivedAt'),
     deliveryClaimedAt: ts('deliveryClaimedAt'),
     deliveredAt: ts('deliveredAt'),

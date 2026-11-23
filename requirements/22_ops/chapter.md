@@ -359,6 +359,13 @@ _Tested by:_
         - an invoice issued before the migration is live, after one run and after two
         - a second run leaves an invoice issued in between as a test as it was written
         - an installation without invoices is left without them, and runs through
+    - a confirmation records whether it was made in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - a confirmation rendered before the migration is live, after one run and after two
+        - a second run leaves a confirmation rendered in between as a test as it was written
+        - an installation without confirmations still gains the column on its invoices, and runs
+          through
+        - an installation without invoices still gains the column on its confirmations
 
 <!-- END proof -->
 
@@ -608,6 +615,13 @@ _Tested by:_
         - an invoice issued before the migration is live, after one run and after two
         - a second run leaves an invoice issued in between as a test as it was written
         - an installation without invoices is left without them, and runs through
+    - a confirmation records whether it was made in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - a confirmation rendered before the migration is live, after one run and after two
+        - a second run leaves a confirmation rendered in between as a test as it was written
+        - an installation without confirmations still gains the column on its invoices, and runs
+          through
+        - an installation without invoices still gains the column on its confirmations
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

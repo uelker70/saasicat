@@ -71,6 +71,7 @@ import { SubscriberService } from '../../subscriber/subscriber.service.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../../subscription-contract/subscription-contract.tokens.js';
 import { TAX_TREATMENTS_TOKEN } from '../../tax/tax.tokens.js';
 import type { TaxPeriod, TaxTreatments } from '../../tax/tax-treatments.js';
+import { installationMarkNotWired } from '../deletion/installation-mark-option.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
 import { INSTALLATION_MARK_PORT_TOKEN } from '../tenant-billing.tokens.js';
 import { AuditedOnce } from './audited-once.js';
@@ -177,11 +178,9 @@ export class SubscriptionInvoiceService implements OnModuleInit {
         }
         if (!this.marks) {
             problems.push(
-                "invoices record whether they are issued in a test operation, which the installation's " +
-                    'mark says (`<app> installation mark <identifier> --operation test|live`): wire ' +
-                    '`subscriptionEnds.deletion.marks` — `SaaSiCatModule` takes ' +
-                    '`persistence.core.installationMark` — with an InstallationMarkPort, which both ' +
-                    'shipped persistence adapters provide.',
+                installationMarkNotWired(
+                    'invoices record whether they are issued in a test operation',
+                ),
             );
         }
         if (this.settings.payments && !this.paymentMethods) {

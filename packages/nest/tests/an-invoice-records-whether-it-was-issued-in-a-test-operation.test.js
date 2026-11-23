@@ -12,35 +12,12 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SubscriptionInvoiceService } from '../dist/billing/index.js';
-import { FakeInstallationMarkRepository } from '../dist/testing/index.js';
+import { changeTo, marked } from './helpers/installation-marks.js';
 import { FIRST_RUN, anInvoiceToCollect, clockFrom } from './helpers/invoice-collection.js';
 import { INVOICING_SETTINGS, anInvoicingInstallation, berlin } from './helpers/invoice-run.js';
 
-const MARKED_AT = new Date('2026-01-15T09:00:00.000Z');
-
 /** 10:00 in Berlin on 20 March, when the operator cancels the invoice of February. */
 const CANCELLED_AT = new Date('2026-03-20T09:00:00.000Z');
-
-/** Where the mark is kept, marked as `INT` in a test operation or a live one; unmarked with `null`. */
-async function marked(testOperation) {
-    const marks = new FakeInstallationMarkRepository();
-    if (testOperation !== null) {
-        await marks.markIfUnmarked({
-            identifier: 'INT',
-            testOperation,
-            markedAt: MARKED_AT,
-            markedBy: 'cli:ops@example.com:host',
-        });
-    }
-    return marks;
-}
-
-/** Changes the operation the mark says, as `installation mark --replace` writes it. */
-async function changeTo(marks, testOperation) {
-    const current = await marks.find();
-    const changed = await marks.replace(current, { ...current, testOperation });
-    assert.ok(changed, 'the mark was not changed');
-}
 
 /** The invoice of February, issued to one subscriber of an installation marked by `marks`, with its contract. */
 async function issuedUnder(marks) {

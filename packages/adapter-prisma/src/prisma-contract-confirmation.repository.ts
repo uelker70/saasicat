@@ -2,12 +2,18 @@ import { Inject, Injectable } from '@nestjs/common';
 import type {
     CanonicalContractConfirmationRow,
     ContractConfirmationRecord,
+    ContractConfirmationReplacement,
     ContractConfirmationRepository,
     ContractConfirmationStanding,
+    DocumentOperations,
     NewContractConfirmationRendering,
     TransactionContext,
 } from '@saasicat/core';
-import { contractConfirmationChanged, toContractConfirmationRecord } from '@saasicat/core';
+import {
+    contractConfirmationChanged,
+    documentOperationsOf,
+    toContractConfirmationRecord,
+} from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
 /** Narrow view of the client: the confirmations, and the contracts they are due for. */
@@ -94,14 +100,16 @@ export class PrismaContractConfirmationRepository implements ContractConfirmatio
 
     async replaceRendering(
         contractId: string,
-        rendering: NewContractConfirmationRendering,
+        rendering: ContractConfirmationReplacement,
         replaced: string,
         tx?: TransactionContext,
     ): Promise<ContractConfirmationRecord | null> {
+        // The file's columns alone: the operation recorded with the first rendering stays.
+        const { checksum, mediaType, fileName, size, renderedAt } = rendering;
         const replacedNow = await this.guarded(
             contractId,
             { checksum: replaced, archivedAt: null },
-            { ...rendering },
+            { checksum, mediaType, fileName, size, renderedAt },
             tx,
         );
         return replacedNow ? this.find(contractId, tx) : null;
@@ -168,6 +176,15 @@ export class PrismaContractConfirmationRepository implements ContractConfirmatio
     ): Promise<ContractConfirmationRecord | null> {
         const row = await this.db(tx).contractConfirmation.findUnique({ where: { contractId } });
         return row ? toContractConfirmationRecord(row) : null;
+    }
+
+    async recordedOperations(tx?: TransactionContext): Promise<DocumentOperations> {
+        const rows = await this.db(tx).contractConfirmation.findMany({
+            distinct: ['testOperation'],
+            select: { testOperation: true },
+            take: 2,
+        });
+        return documentOperationsOf(rows.map((row) => row.testOperation));
     }
 
     async listAwaitingConfirmation(page: Page, tx?: TransactionContext): Promise<string[]> {

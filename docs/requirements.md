@@ -27880,6 +27880,13 @@ _Tested by:_
         - an invoice issued before the migration is live, after one run and after two
         - a second run leaves an invoice issued in between as a test as it was written
         - an installation without invoices is left without them, and runs through
+    - a confirmation records whether it was made in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - a confirmation rendered before the migration is live, after one run and after two
+        - a second run leaves a confirmation rendered in between as a test as it was written
+        - an installation without confirmations still gains the column on its invoices, and runs
+          through
+        - an installation without invoices still gains the column on its confirmations
 
 <!-- END proof -->
 
@@ -28129,6 +28136,13 @@ _Tested by:_
         - an invoice issued before the migration is live, after one run and after two
         - a second run leaves an invoice issued in between as a test as it was written
         - an installation without invoices is left without them, and runs through
+    - a confirmation records whether it was made in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - a confirmation rendered before the migration is live, after one run and after two
+        - a second run leaves a confirmation rendered in between as a test as it was written
+        - an installation without confirmations still gains the column on its invoices, and runs
+          through
+        - an installation without invoices still gains the column on its confirmations
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit
@@ -29188,6 +29202,8 @@ _Tested by:_
         - a rendering recorded before under another checksum is refused, and none at all is said
         - ${what} is one update on its guard, answered by whether it took the row
         - a rendering is replaced in place of the recorded checksum while nothing is archived
+        - a replacement sets the file alone, and leaves the operation recorded first
+        - the operations the confirmations recorded are read as their distinct values, at most two
         - the contracts due one are the contracts marked due, joined to their confirmation
         - a confirmation is found by its contract, and nothing where none is recorded
     - each contract’s standing, as Drizzle reads it
@@ -29329,6 +29345,8 @@ _Tested by:_
           checksum
         - a rendering neither written nor found is said
         - a rendering replaced in place of the one recorded is read back, and nothing where none was
+        - a replacement writes the file alone, and leaves the operation recorded first
+        - the operations the confirmations recorded are read as their distinct values, at most two
         - the contracts due one are read over the contracts, those for the mail over the
           confirmations, page by page
         - a confirmation is found by its contract, and nothing where none is recorded

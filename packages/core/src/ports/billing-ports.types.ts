@@ -9,6 +9,7 @@ import type {
 import type {
     ArchivedContractConfirmation,
     ContractConfirmationRecord,
+    ContractConfirmationReplacement,
     ContractConfirmationStanding,
     ContractConfirmationToArchive,
     NewContractConfirmationRendering,
@@ -2085,9 +2086,10 @@ export interface ContractConfirmationArchivePort {
 export interface ContractConfirmationRepository {
     /**
      * Records the rendering of a contract's confirmation before its file is
-     * archived, once. Recorded again with the same checksum it is the same
-     * write and answers the record as it stands; another checksum is refused
-     * with `CONTRACT_CONFIRMATION_CHANGED` (`moved`), and the first stays.
+     * archived, once, with the operation it is made in. Recorded again with the
+     * same checksum it is the same write and answers the record as it stands,
+     * its operation included; another checksum is refused with
+     * `CONTRACT_CONFIRMATION_CHANGED` (`moved`), and the first stays.
      */
     recordRendering(
         contractId: string,
@@ -2097,12 +2099,13 @@ export interface ContractConfirmationRepository {
 
     /**
      * Records a rendering in place of the one recorded with `replaced` as its
-     * checksum, while nothing is archived. `null` where the recorded checksum
-     * is another by now, or the confirmation is archived.
+     * checksum, while nothing is archived; the operation recorded with the
+     * first rendering stays. `null` where the recorded checksum is another by
+     * now, or the confirmation is archived.
      */
     replaceRendering(
         contractId: string,
-        rendering: NewContractConfirmationRendering,
+        rendering: ContractConfirmationReplacement,
         replaced: string,
         tx?: TransactionContext,
     ): Promise<ContractConfirmationRecord | null>;
@@ -2151,6 +2154,14 @@ export interface ContractConfirmationRepository {
 
     /** Where the contract's confirmation stands, or `null` before it was rendered. */
     find(contractId: string, tx?: TransactionContext): Promise<ContractConfirmationRecord | null>;
+
+    /**
+     * The operations the rendered confirmations were made in, as each recorded
+     * it (`ContractConfirmationRecord.testOperation`): whether any was made in
+     * a test operation, and whether any in a live one. Both `false` where none
+     * was rendered.
+     */
+    recordedOperations(tx?: TransactionContext): Promise<DocumentOperations>;
 
     /**
      * The contracts due a confirmation (`confirmationDue`) whose confirmation

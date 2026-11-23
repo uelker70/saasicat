@@ -3,7 +3,11 @@
 // per invoice and never another, and a mail that takes every message unless a
 // test tells it to fail.
 
-import { contractConfirmationChanged, subscriptionInvoiceDocumentChanged } from '@saasicat/core';
+import {
+    contractConfirmationChanged,
+    documentOperationsOf,
+    subscriptionInvoiceDocumentChanged,
+} from '@saasicat/core';
 
 /** The file a renderer makes of `invoice` where a test names no other. */
 export const documentOf = (invoice) => ({
@@ -128,10 +132,14 @@ export function aConfirmationRenderer({ render = confirmationOf } = {}) {
 /** The confirmations' archive, as the database keeps it: one file per contract, written once. */
 export function aConfirmationArchive({ problem = null } = {}) {
     const files = new Map();
-    return {
+    const archive = {
         files,
         protectionProblem: async () => problem,
+        /** Errors the next stores throw instead of writing, one each. */
+        failingStores: [],
         async store(confirmation) {
+            const failure = archive.failingStores.shift();
+            if (failure) throw failure;
             const kept = files.get(confirmation.contractId);
             if (kept && kept.checksum !== confirmation.checksum) {
                 throw contractConfirmationChanged(
@@ -146,6 +154,7 @@ export function aConfirmationArchive({ problem = null } = {}) {
             return structuredClone(files.get(contractId) ?? null);
         },
     };
+    return archive;
 }
 
 /**
@@ -215,6 +224,9 @@ export function aConfirmationRecord(contractIds, { writtenBefore = [] } = {}) {
         },
         async find(contractId) {
             return structuredClone(stateOf(contractId) ?? null);
+        },
+        async recordedOperations() {
+            return documentOperationsOf([...states.values()].map((kept) => kept.testOperation));
         },
         async listAwaitingConfirmation(at) {
             const due = contractIds().filter((id) => !writtenBefore.includes(id));

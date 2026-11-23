@@ -31,6 +31,12 @@ export interface ContractToConfirm {
     footer: readonly string[];
     /** The installation's time zone, which the contract's days are told in. */
     timeZone: string;
+    /**
+     * Whether the confirmation is made in a test operation: as the
+     * installation's mark said when it was first rendered, and as its record
+     * says on every rendering after (`ContractConfirmationRecord.testOperation`).
+     */
+    testOperation: boolean;
 }
 
 /**
@@ -64,6 +70,8 @@ export interface ContractConfirmationMail {
     contract: SubscriptionContractRecord;
     /** The invoice email on the subscriber's record. */
     to: string;
+    /** Whether the confirmation was made in a test operation, as its record says. */
+    testOperation: boolean;
     /**
      * The files to attach: the archived confirmation, and the terms of the
      * version the contract records, where it records one.
@@ -81,6 +89,15 @@ export interface ContractConfirmationRecord {
     /** In bytes. */
     size: number;
     renderedAt: Date;
+    /**
+     * Whether it was made in a test operation, as the installation's mark said
+     * when it was first rendered. Recorded with that rendering and never
+     * changed after, so a contract written before the installation was marked
+     * is confirmed as the mark says on the day its confirmation is first made.
+     * `false` for one rendered before confirmations recorded it, which was
+     * made live.
+     */
+    testOperation: boolean;
     /** When the archive confirmed it; `null` while the contract waits for its confirmation. */
     archivedAt: Date | null;
     /**
@@ -94,10 +111,19 @@ export interface ContractConfirmationRecord {
     deliveredTo: string | null;
 }
 
-/** What is recorded of a rendering before its file is archived. */
+/** What is recorded of the first rendering before its file is archived, with its operation. */
 export type NewContractConfirmationRendering = Pick<
     ContractConfirmationRecord,
-    'checksum' | 'mediaType' | 'fileName' | 'size' | 'renderedAt'
+    'checksum' | 'mediaType' | 'fileName' | 'size' | 'renderedAt' | 'testOperation'
+>;
+
+/**
+ * What is recorded of a rendering that takes the place of the one recorded:
+ * the file, without an operation, since the operation recorded first stays.
+ */
+export type ContractConfirmationReplacement = Omit<
+    NewContractConfirmationRendering,
+    'testOperation'
 >;
 
 /** Whether a contract is due a confirmation, and where its confirmation stands. */

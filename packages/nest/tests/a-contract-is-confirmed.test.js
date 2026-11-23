@@ -19,125 +19,20 @@ import { ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { CONTRACT_CONFIRMATIONS_CAPABILITY, CONTRACT_ERROR_CODES } from '@saasicat/core';
 
-import { ContractConfirmationService, SubscriptionInvoiceCron } from '../dist/billing/index.js';
+import { SubscriptionInvoiceCron } from '../dist/billing/index.js';
 import { AdminManifestService, SaaSiCatModule } from '../dist/platform/index.js';
 import {
-    aConfirmationArchive,
-    aConfirmationRecord,
-    aConfirmationRenderer,
-    aMailbox,
-} from './helpers/invoice-documents.js';
-import {
-    INVOICING_SETTINGS,
-    anInvoicingInstallation,
-    berlin,
-    line,
-} from './helpers/invoice-run.js';
+    AT,
+    FOOTER,
+    INVOICE_EMAIL,
+    TERMS,
+    aConfirmingInstallation,
+    aTermsArchive,
+} from './helpers/contract-confirmations.js';
+import { aConfirmationArchive, aMailbox } from './helpers/invoice-documents.js';
+import { INVOICING_SETTINGS, berlin, line } from './helpers/invoice-run.js';
 import { invoicingPlatform, wiredInvoices } from './helpers/invoicing-platform.js';
 import { controllersIn, handlersOf } from './helpers/operator-routes.js';
-
-const AT = new Date('2026-02-01T05:30:00.000Z');
-const INVOICE_EMAIL = 'rechnung@t1.example';
-const FOOTER = ['Issuer GmbH · HRB 12345 · Amtsgericht München'];
-const TERMS = {
-    version: '2026-10',
-    checksum: 'a'.repeat(64),
-    mediaType: 'application/pdf',
-    fileName: 'agb-2026-10.pdf',
-    content: new TextEncoder().encode('%PDF-1.7 the terms of 2026-10'),
-    archivedAt: AT,
-};
-
-/** The operator's terms, in memory: the versions given, and nothing else. */
-function aTermsArchive(...versions) {
-    const kept = new Map(versions.map((terms) => [terms.version, terms]));
-    return {
-        kept,
-        read: async (version) => structuredClone(kept.get(version) ?? null),
-    };
-}
-
-/**
- * An installation that confirms its contracts: the invoicing one, with a
- * footer in its file, and the confirmations' record, archive and mail beside
- * it. `writtenBefore` names contracts written before confirmations.
- */
-function aConfirmingInstallation({
-    terms = aTermsArchive(TERMS),
-    renderer = aConfirmationRenderer(),
-    archive = aConfirmationArchive(),
-    mail = aMailbox(),
-    writtenBefore = [],
-} = {}) {
-    const settings = {
-        ...INVOICING_SETTINGS,
-        invoicing: { ...INVOICING_SETTINGS.invoicing, footer: FOOTER },
-    };
-    const installation = anInvoicingInstallation({ settings, mail });
-    const written = [];
-    const subscribed = new Set();
-    const record = aConfirmationRecord(() => written, { writtenBefore });
-    const confirmations = new ContractConfirmationService(
-        record,
-        renderer,
-        archive,
-        mail,
-        installation.contracts,
-        installation.subscribers,
-        settings,
-        terms,
-        null,
-        installation.auditLog,
-        installation.store,
-    );
-    return {
-        ...installation,
-        record,
-        renderer,
-        archive,
-        mail,
-        terms,
-        confirmations,
-        /** A contract of a subscriber of `tenantId`, recording `termsVersion`. */
-        async aConfirmableContract(
-            tenantId,
-            { termsVersion = TERMS.version, details, ...rest } = {},
-        ) {
-            // One subscriber per tenant, created with its first contract.
-            if (!subscribed.has(tenantId)) {
-                subscribed.add(tenantId);
-                await installation.aSubscriber(tenantId, {
-                    invoiceEmail: INVOICE_EMAIL,
-                    ...details,
-                });
-            }
-            const { parties } = await installation.subscribers.contractPartyFor(tenantId, {
-                forTaxAdapter: false,
-            });
-            const contract = await installation.contracts.create({
-                tenantId,
-                parties: { ...parties, ...rest.parties },
-                partiesMigrated: rest.partiesMigrated ?? false,
-                cancellationNoticeDays: 14,
-                termsVersion,
-                agreedAt: berlin('2026-01-01'),
-                effectiveFrom: berlin('2026-01-01'),
-                priceSnapshot: {
-                    currency: 'EUR',
-                    billingCycle: 'monthly',
-                    subtotalNet: 49,
-                    discountNet: 0,
-                    totalNet: 49,
-                    vatRate: 19,
-                    totalGross: 58.31,
-                },
-                lineItems: rest.lineItems ?? [line('plan', 'STANDARD', 49, 'Standard, monthly')],
-            });
-            written.push(contract.id);
-            return contract;
-        },
-    };
-}
 
 /** The audit entries of `action`, as code and params. */
 const entriesOf = (audits, action) =>

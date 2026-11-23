@@ -122,6 +122,9 @@ export class InvoiceDocumentService implements OnModuleInit {
                 number: invoice.number,
             }),
             load: (id) => invoices.findById(id),
+            // Recorded on the invoice when it is issued, which its renderer
+            // reads, as it reads everything else it prints, from the invoice.
+            operationOf: async (invoice) => invoice.testOperation,
             render: (invoice) => renderer.render(invoice),
             // Holds an invoice whose file the tax adapter refuses (`SC-PRIC-042`).
             check: async (invoice, file) => {

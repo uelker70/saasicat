@@ -9824,6 +9824,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         // mailed once, in the writes an invoice's document makes
         // -------------------------------------------------------------
 
+        /** A confirmation's first rendering as the run records it, in the operation `testOperation` says. */
+        const confirmationRenderingOf = (checksum: string, testOperation = false) => ({
+            ...renderingOf(checksum),
+            testOperation,
+        });
+
         /**
          * `count` contracts of one subscriber, by id, and where their
          * confirmations stand. Null without confirmations.
@@ -9857,17 +9863,20 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             if (!account) return;
             const { confirmations, contractId } = account;
 
-            const first = await confirmations.recordRendering(contractId, renderingOf(CHECKSUM));
+            const first = await confirmations.recordRendering(
+                contractId,
+                confirmationRenderingOf(CHECKSUM),
+            );
             assert.deepEqual(
                 await confirmations.recordRendering(contractId, {
-                    ...renderingOf(CHECKSUM),
+                    ...confirmationRenderingOf(CHECKSUM),
                     renderedAt: new Date('2026-02-01T05:31:00.000Z'),
                 }),
                 first,
                 'a second recording of the same file changed the first',
             );
             await assert.rejects(
-                confirmations.recordRendering(contractId, renderingOf(OTHER_CHECKSUM)),
+                confirmations.recordRendering(contractId, confirmationRenderingOf(OTHER_CHECKSUM)),
                 refusedAs(CONTRACT_ERROR_CODES.CONTRACT_CONFIRMATION_CHANGED, {
                     contractId,
                     recorded: CHECKSUM,
@@ -9876,7 +9885,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
             assert.deepEqual(first, {
                 contractId,
-                ...renderingOf(CHECKSUM),
+                ...confirmationRenderingOf(CHECKSUM),
                 archivedAt: null,
                 deliveryClaimedAt: null,
                 deliveredAt: null,
@@ -9907,6 +9916,84 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        test('a confirmation records the operation of its first rendering, and neither a second recording nor a replacement changes it', async (t) => {
+            const account = await confirmableContracts(t, 'tenant-confirmation-operation');
+            if (!account) return;
+            const { confirmations, contractId } = account;
+
+            const first = await confirmations.recordRendering(
+                contractId,
+                confirmationRenderingOf(CHECKSUM, true),
+            );
+            assert.equal(first.testOperation, true);
+            assert.equal(
+                (
+                    await confirmations.recordRendering(
+                        contractId,
+                        confirmationRenderingOf(CHECKSUM, false),
+                    )
+                ).testOperation,
+                true,
+                'a second recording changed the operation of the first',
+            );
+            const replaced = await confirmations.replaceRendering(
+                contractId,
+                renderingOf(OTHER_CHECKSUM),
+                CHECKSUM,
+            );
+
+            assert.equal(replaced?.testOperation, true);
+            assert.equal((await confirmations.find(contractId))?.testOperation, true);
+        });
+
+        test('no operation is named where no confirmation was rendered', async (t) => {
+            const account = await confirmableContracts(t, 'tenant-confirmation-no-operation');
+            if (!account) return;
+
+            assert.deepEqual(await account.confirmations.recordedOperations(), {
+                test: false,
+                live: false,
+            });
+        });
+
+        for (const testOperation of [true, false]) {
+            const operation = testOperation ? 'test' : 'live';
+            test(`the ${operation} operation alone is named where only its confirmations were rendered`, async (t) => {
+                const account = await confirmableContracts(
+                    t,
+                    `tenant-confirmation-${operation}-operation`,
+                    2,
+                );
+                if (!account) return;
+                const { confirmations, ids } = account;
+
+                for (const id of ids) {
+                    await confirmations.recordRendering(
+                        id,
+                        confirmationRenderingOf(CHECKSUM, testOperation),
+                    );
+                }
+
+                assert.deepEqual(await confirmations.recordedOperations(), {
+                    test: testOperation,
+                    live: !testOperation,
+                });
+            });
+        }
+
+        test('both operations are named where confirmations of both were rendered', async (t) => {
+            const account = await confirmableContracts(t, 'tenant-confirmation-both-operations', 2);
+            if (!account) return;
+            const { confirmations } = account;
+            // SAFETY: `confirmableContracts` wrote two contracts, and answers their ids.
+            const [inTest, live] = account.ids as [string, string];
+
+            await confirmations.recordRendering(inTest, confirmationRenderingOf(CHECKSUM, true));
+            await confirmations.recordRendering(live, confirmationRenderingOf(CHECKSUM, false));
+
+            assert.deepEqual(await confirmations.recordedOperations(), { test: true, live: true });
+        });
+
         test("a contract's confirmation written on a transaction that rolls back is undone with it, and one for no contract is refused", async (t) => {
             const account = await confirmableContracts(t, 'tenant-confirmation-rollback');
             if (!account) return;
@@ -9914,7 +10001,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
             await assert.rejects(
                 harness.adapter.transactionRunner.run(async (tx) => {
-                    await confirmations.recordRendering(contractId, renderingOf(CHECKSUM), tx);
+                    await confirmations.recordRendering(
+                        contractId,
+                        confirmationRenderingOf(CHECKSUM),
+                        tx,
+                    );
                     throw new Error('the run that rendered it failed');
                 }),
                 /the run that rendered it failed/,
@@ -9922,7 +10013,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
             assert.equal(await confirmations.find(contractId), null);
             await assert.rejects(
-                confirmations.recordRendering(NO_SUCH_VERSION, renderingOf(CHECKSUM)),
+                confirmations.recordRendering(NO_SUCH_VERSION, confirmationRenderingOf(CHECKSUM)),
             );
             assert.equal(await confirmations.find(NO_SUCH_VERSION), null);
         });
@@ -9933,7 +10024,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             if (!account) return;
             const { confirmations, contractId } = account;
             const archivedAt = new Date('2026-02-01T05:17:00.000Z');
-            await confirmations.recordRendering(contractId, renderingOf(CHECKSUM));
+            await confirmations.recordRendering(contractId, confirmationRenderingOf(CHECKSUM));
 
             assert.equal(
                 await confirmations.claimDelivery(contractId, CLAIMED_AT, LEASE_START),
@@ -9971,7 +10062,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             if (!account) return;
             const { confirmations, contractId } = account;
             const later = new Date('2026-02-01T05:33:00.000Z');
-            await confirmations.recordRendering(contractId, renderingOf(CHECKSUM));
+            await confirmations.recordRendering(contractId, confirmationRenderingOf(CHECKSUM));
             await confirmations.markArchived(contractId, LEASE_START, CHECKSUM);
             await confirmations.claimDelivery(contractId, CLAIMED_AT, LEASE_START);
 
@@ -9995,7 +10086,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const account = await confirmableContracts(t, 'tenant-confirmation-race');
             if (!account) return;
             const { confirmations, contractId } = account;
-            await confirmations.recordRendering(contractId, renderingOf(CHECKSUM));
+            await confirmations.recordRendering(contractId, confirmationRenderingOf(CHECKSUM));
             await confirmations.markArchived(contractId, LEASE_START, CHECKSUM);
 
             const claims = await Promise.all(
@@ -10026,7 +10117,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ];
             await writtenBefore(before);
             for (const id of [rendered, archived, delivered]) {
-                await confirmations.recordRendering(id, renderingOf(CHECKSUM));
+                await confirmations.recordRendering(id, confirmationRenderingOf(CHECKSUM));
             }
             for (const id of [archived, delivered]) {
                 await confirmations.markArchived(id, LEASE_START, CHECKSUM);
@@ -10055,7 +10146,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // SAFETY: `confirmableContracts` wrote three contracts, and answers their ids.
             const [before, waiting, sent] = account.ids as [string, string, string];
             await writtenBefore(before);
-            await confirmations.recordRendering(sent, renderingOf(CHECKSUM));
+            await confirmations.recordRendering(sent, confirmationRenderingOf(CHECKSUM));
             await confirmations.markArchived(sent, LEASE_START, CHECKSUM);
             await confirmations.claimDelivery(sent, CLAIMED_AT, LEASE_START);
             await confirmations.markDelivered(sent, DELIVERY);

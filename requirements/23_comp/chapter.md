@@ -708,6 +708,8 @@ _Tested by:_
         - a rendering recorded before under another checksum is refused, and none at all is said
         - ${what} is one update on its guard, answered by whether it took the row
         - a rendering is replaced in place of the recorded checksum while nothing is archived
+        - a replacement sets the file alone, and leaves the operation recorded first
+        - the operations the confirmations recorded are read as their distinct values, at most two
         - the contracts due one are the contracts marked due, joined to their confirmation
         - a confirmation is found by its contract, and nothing where none is recorded
     - each contract’s standing, as Drizzle reads it
@@ -849,6 +851,8 @@ _Tested by:_
           checksum
         - a rendering neither written nor found is said
         - a rendering replaced in place of the one recorded is read back, and nothing where none was
+        - a replacement writes the file alone, and leaves the operation recorded first
+        - the operations the confirmations recorded are read as their distinct values, at most two
         - the contracts due one are read over the contracts, those for the mail over the
           confirmations, page by page
         - a confirmation is found by its contract, and nothing where none is recorded

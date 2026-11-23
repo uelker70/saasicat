@@ -38,6 +38,7 @@ const RENDERED = {
 const STANDING = {
     contractId: CONTRACT,
     ...RENDERED,
+    testOperation: false,
     archivedAt: null,
     deliveryClaimedAt: null,
     deliveredAt: null,
@@ -207,6 +208,33 @@ describe('where a contract’s confirmation stands, as the Prisma adapter writes
             null,
         );
         assert.equal(missed.asked.length, 1, 'a replacement that took nothing read the row');
+    });
+
+    test('a replacement writes the file alone, and leaves the operation recorded first', async () => {
+        const client = clientAnswering({ updateMany: { count: 0 } });
+
+        await new PrismaContractConfirmationRepository(client).replaceRendering(
+            CONTRACT,
+            { ...RENDERED, testOperation: true },
+            ANOTHER,
+        );
+
+        assert.deepEqual(client.asked[0][1].data, RENDERED);
+    });
+
+    test('the operations the confirmations recorded are read as their distinct values, at most two', async () => {
+        const client = clientAnswering({ findMany: [{ testOperation: false }] });
+
+        assert.deepEqual(
+            await new PrismaContractConfirmationRepository(client).recordedOperations(),
+            { test: false, live: true },
+        );
+        assert.deepEqual(client.asked, [
+            [
+                'confirmation.findMany',
+                { distinct: ['testOperation'], select: { testOperation: true }, take: 2 },
+            ],
+        ]);
     });
 
     test('the contracts due one are read over the contracts, those for the mail over the confirmations, page by page', async () => {
