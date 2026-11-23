@@ -68,6 +68,24 @@ describe('an issued invoice rendered by the default renderer', () => {
     });
 });
 
+// @requirement SC-AUD-024 — Every document issued in a test operation says it is one
+describe('an issued invoice and its twin issued in a test operation', () => {
+    for (const name of ['standard', 'cancellation', 'replacement']) {
+        test(`(${name}) are each refused by the German adapter as the file of the other`, async () => {
+            const live = sample(name);
+            const marked = sample(`${name}-test`);
+
+            assert.deepEqual(await adapter.invoiceDocumentGaps(await render(name), marked), [
+                'xml.testOperation',
+            ]);
+            assert.deepEqual(
+                await adapter.invoiceDocumentGaps(await render(`${name}-test`), live),
+                ['xml.testOperation'],
+            );
+        });
+    }
+});
+
 describe('what the page says', () => {
     const unspaced = (text) => text.replaceAll(' ', '');
 

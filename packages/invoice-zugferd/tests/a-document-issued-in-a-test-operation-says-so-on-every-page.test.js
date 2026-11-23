@@ -5,6 +5,8 @@
 // document issued live says none of it. The renderers are taken from what the
 // package exports, so one added later fails here until its documents are.
 
+// @requirement SC-AUD-024 — Every document issued in a test operation says it is one
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

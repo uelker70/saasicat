@@ -1554,6 +1554,8 @@ _Tested by:_
         - is the same bytes every time, whatever was rendered in between
         - is dated from the moment the invoice was issued, not the clock
         - of another invoice is another file, under another identifier
+    - an issued invoice and its twin issued in a test operation
+        - (${name}) are each refused by the German adapter as the file of the other
     - what the page says
         - the parties, the invoice’s facts, its lines and its total, labelled in German and English
         - the subscriber’s VAT id and its country by name, under the reverse charge
@@ -3339,6 +3341,8 @@ _Tested by:_
         - is the same bytes every time, whatever was rendered in between
         - is dated from the moment the invoice was issued, not the clock
         - of another invoice is another file, under another identifier
+    - an issued invoice and its twin issued in a test operation
+        - (${name}) are each refused by the German adapter as the file of the other
     - what the page says
         - the parties, the invoice’s facts, its lines and its total, labelled in German and English
         - the subscriber’s VAT id and its country by name, under the reverse charge
@@ -3496,6 +3500,8 @@ _Tested by:_
         - is the same bytes every time, whatever was rendered in between
         - is dated from the moment the invoice was issued, not the clock
         - of another invoice is another file, under another identifier
+    - an issued invoice and its twin issued in a test operation
+        - (${name}) are each refused by the German adapter as the file of the other
     - what the page says
         - the parties, the invoice’s facts, its lines and its total, labelled in German and English
         - the subscriber’s VAT id and its country by name, under the reverse charge

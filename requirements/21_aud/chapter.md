@@ -741,3 +741,54 @@ _Tested by:_
         - is refused where the documents recorded both, naming both
 
 <!-- END proof -->
+
+### SC-AUD-024 — Every document issued in a test operation says it is one
+
+🟢 💰 An invoice, a cancellation invoice, a replacement and a contract confirmation issued in a test
+operation, as each records it, say so on every page, so that neither their recipient nor a tax
+auditor takes one for a real document: the title calls it a test document, on the first page and
+at the head of every page after it, and so does the title in its metadata; a notice that it is not
+an invoice for VAT purposes, on a confirmation that it confirms no contract, stands under the title
+and at the foot of every page; an invoice's XML states that notice as its first note. A document
+issued live says none of it. Its amounts, tax and due date are those of any document, so a test
+invoice falls due and is collected as a live one. The renderers SaaSiCat ships write all of it,
+and the German tax adapter holds every invoice file to it, whichever renderer wrote it: a test
+invoice whose XML does not state the notice first, or a live one whose XML states it, waits under
+its number (`SC-PRIC-042`). Where it stops: the adapter reads the XML and not the page, so the page
+of an application's own invoice renderer is not checked; and an application's own confirmation
+renderer is handed the operation and the wording, but nothing checks what it prints, since a
+confirmation is a plain PDF with no XML, which the format's validators do not read either.
+
+_Source:_ #523
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/invoice-zugferd/tests/a-document-issued-in-a-test-operation-says-so-on-every-page.test.js`
+    - every renderer the package exports is held to what a test operation marks
+    - ${renderer}, for a document issued in a test operation
+        - (${name}) says so in its title and in the notice under it, at the foot of every page, in
+          its metadata${carriesXml ? ' and first in its XML' : ''}
+        - (${name}) renders into the same bytes every time
+        - is rendered over more than one page at least once, so that every page is read
+    - ${renderer}, for a document issued live
+        - (${name}) says none of it, on any page, in its metadata${carriesXml ? ' or in its XML' :
+          ''}
+- `packages/invoice-zugferd/tests/renders-an-invoice-the-german-adapter-accepts.test.js`
+    - an issued invoice and its twin issued in a test operation
+        - (${name}) are each refused by the German adapter as the file of the other
+- `packages/nest/tests/an-invoice-records-whether-it-was-issued-in-a-test-operation.test.js`
+    - the file of an invoice, checked by the tax adapter
+        - of one issued in a test operation reaches the check as one, and is held where the adapter
+          refuses it
+        - of one issued live reaches the check as live, and is archived
+- `packages/tax-de/tests/an-invoice-file-says-whether-it-was-issued-in-a-test-operation.test.js`
+    - the file of an invoice issued in a test operation
+        - stating the notice as its first note passes
+        - ${what} is refused
+    - the file of an invoice issued live
+        - stating no note, or another one, passes
+        - ${what} is refused
+
+<!-- END proof -->

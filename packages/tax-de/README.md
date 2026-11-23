@@ -83,8 +83,12 @@ breakdown in the VAT category EN 16931 gives the treatment. A VAT identification
 number it names for the subscriber is the one the invoice records, and under the
 reverse charge it has to name it; neither party names more than one, and outside
 the scope of VAT neither names one and no rate is stated, as EN 16931 asks
-(BR-O-02, BR-O-05). A recorded name holding a character XML cannot hold is
-compared with `?` in its place, as the XML has to write it. A file that lacks
+(BR-O-02, BR-O-05). An invoice issued in a test operation states
+`TEST_OPERATION_NOTICE.invoice` from `@saasicat/core`, in German and in English,
+as the first note of the document (BT-22), and an invoice issued live states it
+in none (`SC-AUD-024`); the page is not read, so an application's own renderer
+answers for what its page says. A recorded name holding a character XML cannot
+hold is compared with `?` in its place, as the XML has to write it. A file that lacks
 any of it, states another figure, or states once more what the format gives
 once, is refused, and the invoice waits under its number for a renderer that
 gets it right. The check reads the file itself; it does not run EN 16931's full

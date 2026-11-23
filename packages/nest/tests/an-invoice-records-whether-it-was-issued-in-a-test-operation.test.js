@@ -10,18 +10,35 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { INVOICE_ERROR_CODES } from '@saasicat/core';
 
 import { SubscriptionInvoiceService } from '../dist/billing/index.js';
 import { changeTo, marked } from './helpers/installation-marks.js';
-import { FIRST_RUN, anInvoiceToCollect, clockFrom } from './helpers/invoice-collection.js';
-import { INVOICING_SETTINGS, anInvoicingInstallation, berlin } from './helpers/invoice-run.js';
+import {
+    FIRST_RUN,
+    anInvoiceToCollect,
+    clockFrom,
+    quietLog,
+} from './helpers/invoice-collection.js';
+import {
+    INVOICING_SETTINGS,
+    anInvoicingInstallation,
+    berlin,
+    invoicingAdapter,
+} from './helpers/invoice-run.js';
 
 /** 10:00 in Berlin on 20 March, when the operator cancels the invoice of February. */
 const CANCELLED_AT = new Date('2026-03-20T09:00:00.000Z');
 
-/** The invoice of February, issued to one subscriber of an installation marked by `marks`, with its contract. */
-async function issuedUnder(marks) {
-    const installation = anInvoicingInstallation({ marks });
+/** When the archiving run reads the clock. */
+const ARCHIVED_AT = new Date('2026-02-01T05:30:00.000Z');
+
+/**
+ * The invoice of February, issued to one subscriber of an installation marked
+ * by `marks`, with its contract; `options` as `anInvoicingInstallation` takes them.
+ */
+async function issuedUnder(marks, options = {}) {
+    const installation = anInvoicingInstallation({ ...options, marks });
     const subscriber = await installation.aSubscriber('t1');
     const contract = await installation.aContract(subscriber);
     installation.charge(contract, 'plan');
@@ -109,4 +126,56 @@ describe('a cancellation and its replacement take the operation of the invoice t
             );
         });
     }
+});
+
+// @requirement SC-AUD-024 — Every document issued in a test operation says it is one
+describe('the file of an invoice, checked by the tax adapter', () => {
+    /**
+     * An adapter refusing the file of every invoice issued in a test operation,
+     * as `@saasicat/tax-de` refuses one whose XML does not state the notice:
+     * the file of a renderer that does not mark it.
+     */
+    const unmarkedFileRefused = () =>
+        invoicingAdapter({
+            documentGaps: (document, invoice) =>
+                invoice.testOperation ? ['xml.testOperation'] : [],
+        });
+
+    test('of one issued in a test operation reaches the check as one, and is held where the adapter refuses it', async () => {
+        quietLog();
+        const { documents, audits, store } = await issuedUnder(await marked(true), {
+            adapter: unmarkedFileRefused(),
+        });
+
+        assert.deepEqual(await documents.archiveDue(ARCHIVED_AT), {
+            archived: 0,
+            held: 1,
+            failed: 0,
+        });
+        const held = audits.filter(
+            (entry) => entry.action === 'SUBSCRIPTION_INVOICE_DOCUMENT_HELD',
+        );
+        assert.deepEqual(
+            held.map((entry) => [entry.entityId, entry.changes.code, entry.changes.params]),
+            [
+                [
+                    store.invoices[0].id,
+                    INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED,
+                    { adapter: 'test-tax', missing: ['xml.testOperation'] },
+                ],
+            ],
+        );
+    });
+
+    test('of one issued live reaches the check as live, and is archived', async () => {
+        const { documents } = await issuedUnder(await marked(false), {
+            adapter: unmarkedFileRefused(),
+        });
+
+        assert.deepEqual(await documents.archiveDue(ARCHIVED_AT), {
+            archived: 1,
+            held: 0,
+            failed: 0,
+        });
+    });
 });
