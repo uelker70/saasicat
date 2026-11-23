@@ -86,6 +86,7 @@
                 "invoiceId",
                 "number",
                 "kind",
+                "operation",
                 "corrects",
                 "issueDate",
                 "issuedAt",
@@ -124,6 +125,11 @@
                     "description": "An invoice, the cancellation invoice that cancels one, or the replacement for one.",
                     "type": "string",
                     "enum": ["invoice", "cancellation", "replacement"]
+                },
+                "operation": {
+                    "description": "The operation the installation issued it in. test: an installation marked as a test operation issued it, and it is no invoice for VAT purposes, as its document says; live: any other.",
+                    "type": "string",
+                    "enum": ["test", "live"]
                 },
                 "corrects": {
                     "description": "The number of the invoice it cancels or replaces; null for an invoice.",

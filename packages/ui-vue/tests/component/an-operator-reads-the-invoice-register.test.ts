@@ -54,6 +54,7 @@ const rowOf = (
     totalNet: 100,
     totalTax: 19,
     totalGross: 119,
+    testOperation: false,
     documentArchived: true,
     cancelledBy: null,
     ...overrides,
@@ -329,6 +330,37 @@ describe('the register of invoices', () => {
         expect(calls.length).toBe(asked);
         expect(monthField(wrapper, 'Until (month)').text()).toContain(
             'The register shows at most 12 months at a time, and 2026-07 to 2027-09 spans 15.',
+        );
+    });
+
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('names an invoice issued in a test operation a test, in words beside its number and in its download, and one issued live as before', async () => {
+        const { wrapper } = await mountRegister({
+            rows: [
+                rowOf('AHPT-2026-000001', { testOperation: true }),
+                rowOf('AHP-2026-000002', { issueDate: '2026-10-05' }),
+            ],
+        });
+        const rowNumbered = (number: string) => {
+            const row = wrapper
+                .findAll('tbody tr')
+                .find((candidate) => candidate.find('td').text().startsWith(number));
+            expect(row, `no row ${number}`).toBeTruthy();
+            return row!;
+        };
+
+        const marked = rowNumbered('AHPT-2026-000001');
+        expect(marked.find('td').find('.sa-pill').text()).toBe('Test');
+        expect(marked.find('td').text().split(/\s+/)).toEqual(['AHPT-2026-000001', 'Test']);
+        expect(
+            marked.find('button[aria-label="Download test invoice AHPT-2026-000001"]').exists(),
+        ).toBe(true);
+
+        const live = rowNumbered('AHP-2026-000002');
+        expect(live.find('.sa-pill').exists()).toBe(false);
+        expect(live.find('td').text()).toBe('AHP-2026-000002');
+        expect(live.find('button[aria-label="Download invoice AHP-2026-000002"]').exists()).toBe(
+            true,
         );
     });
 

@@ -17,6 +17,7 @@ import {
     INVOICE_EXPORT_LOCALES,
     INVOICE_EXPORT_SETTLE_MS,
     INVOICE_SETTLEMENT_KINDS,
+    INSTALLATION_OPERATIONS,
     TAX_TREATMENT_KINDS,
     invoiceExportAsOfOf,
     invoiceExportFileNameOf,
@@ -50,8 +51,13 @@ const STANDARD = {
     adapter: { name: 'tax-de', version: '1' },
 };
 
-/** An invoice issued at `issuedAt`, with one line of `net` and what it corrects, if anything. */
-function invoiceOf(id, number, issuedAt, { net = 100, correction = null, lines } = {}) {
+/** An invoice issued at `issuedAt`, with one line of `net`, what it corrects, if anything, and its operation. */
+function invoiceOf(
+    id,
+    number,
+    issuedAt,
+    { net = 100, correction = null, lines, testOperation = false } = {},
+) {
     const issueDate = issuedAt.slice(0, 10);
     return {
         id,
@@ -70,6 +76,7 @@ function invoiceOf(id, number, issuedAt, { net = 100, correction = null, lines }
         tenantId: 't-1',
         subscriber: PARTY,
         correction,
+        testOperation,
         lines: lines ?? [
             {
                 id: `${id}-line-1`,
@@ -241,6 +248,14 @@ describe('the schema an export is published under', () => {
         assert.deepEqual(manifest.properties.locale.enum, [...INVOICE_EXPORT_LOCALES]);
     });
 
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('names the operations an installation issues its invoices in, no more', () => {
+        assert.deepEqual(schema.$defs.InvoiceExportInvoiceRow.properties.operation.enum, [
+            ...INSTALLATION_OPERATIONS,
+        ]);
+        assert.ok(schema.$defs.InvoiceExportInvoiceRow.required.includes('operation'));
+    });
+
     test('names the format version core writes, in the export and in its manifest', () => {
         assert.equal(schema.properties.formatVersion.const, INVOICE_EXPORT_FORMAT_VERSION);
         assert.equal(manifest.properties.formatVersion.const, INVOICE_EXPORT_FORMAT_VERSION);
@@ -284,6 +299,7 @@ describe('an export as of a moment', () => {
             invoiceId: 'i-1',
             number: 'AHP-2026-000001',
             kind: 'invoice',
+            operation: 'live',
             corrects: null,
             issueDate: '2026-07-01',
             issuedAt: '2026-07-01T05:00:00.000Z',
@@ -309,6 +325,32 @@ describe('an export as of a moment', () => {
         assert.deepEqual(
             [exported.asOf, exported.asOfLocal, exported.timeZone, exported.period],
             ['2026-09-30T04:59:59.000Z', '2026-09-30T06:59:59', BERLIN, SPAN],
+        );
+    });
+
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('names the operation each invoice was issued in, a test one as a test', () => {
+        const issued = (invoice) => ({ invoice, cancelledBy: null });
+        const exported = exportOf({
+            invoices: [
+                issued(
+                    invoiceOf('i-1', 'AHPT-2026-000001', '2026-07-01T05:00:00.000Z', {
+                        testOperation: true,
+                    }),
+                ),
+                issued(invoiceOf('i-2', 'AHP-2026-000002', '2026-08-01T05:00:00.000Z')),
+            ],
+            cancellations: [],
+            settlements: [],
+            documents: [],
+        });
+
+        assert.deepEqual(
+            exported.invoices.map(({ number, operation }) => [number, operation]),
+            [
+                ['AHPT-2026-000001', 'test'],
+                ['AHP-2026-000002', 'live'],
+            ],
         );
     });
 
@@ -692,7 +734,9 @@ describe('the files an export is written to', () => {
             assert.equal(csv[0], '﻿');
             assert.ok(csv.endsWith('\r\n'));
             assert.ok(
-                header.startsWith(['invoiceId', 'number', 'kind', 'corrects'].join(delimiter)),
+                header.startsWith(
+                    ['invoiceId', 'number', 'kind', 'operation', 'corrects'].join(delimiter),
+                ),
             );
             assert.ok(row.includes(`${delimiter}${amount}${delimiter}`), row);
         });
@@ -703,6 +747,38 @@ describe('the files an export is written to', () => {
 
         assert.ok(csv.includes(`"'=HYPERLINK(""x""); Müller, ""GmbH"""`), 'the legal name');
         assert.ok(csv.includes(`"'-2. Etage\nHinterhaus"`), 'the second address line');
+    });
+
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('write the operation of each invoice in a column of its own, a test one as test', () => {
+        const issued = (invoice) => ({ invoice, cancelledBy: null });
+        const both = exportOf({
+            invoices: [
+                issued(
+                    invoiceOf('i-1', 'AHPT-2026-000001', '2026-07-01T05:00:00.000Z', {
+                        testOperation: true,
+                    }),
+                ),
+                issued(invoiceOf('i-2', 'AHP-2026-000002', '2026-08-01T05:00:00.000Z')),
+            ],
+            cancellations: [],
+            settlements: [],
+            documents: [],
+        });
+        const [header, ...rows] = named(invoiceExportFilesOf(both, 'de'), 'invoices.csv')
+            .slice(1)
+            .split('\r\n')
+            .map((line) => line.split(';'));
+        const column = header.indexOf('operation');
+
+        assert.ok(column > 0, header.join(';'));
+        assert.deepEqual(
+            rows.filter((cells) => cells.length > 1).map((cells) => [cells[1], cells[column]]),
+            [
+                ['AHPT-2026-000001', 'test'],
+                ['AHP-2026-000002', 'live'],
+            ],
+        );
     });
 
     test('write an amount as a number, never defused, and a missing value as an empty cell', () => {

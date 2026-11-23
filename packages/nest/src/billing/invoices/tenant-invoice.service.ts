@@ -176,6 +176,7 @@ export class TenantInvoiceService implements OpenInvoiceSource, InvoiceNameSourc
                     firstDay: contract.firstDay,
                     planTitle: contract.plan?.title ?? null,
                     archived: contract.confirmation.archivedAt !== null,
+                    testOperation: contract.confirmation.testOperation,
                 })),
         };
     }
@@ -236,6 +237,7 @@ function tenantInvoiceOf(
         totalGross: invoice.totalGross,
         currency: invoice.currency,
         issuer: { legalName: invoice.issuer.legalName },
+        testOperation: invoice.testOperation,
         correction: invoice.correction
             ? {
                   kind: invoice.correction.kind,

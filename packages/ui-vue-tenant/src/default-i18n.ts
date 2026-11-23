@@ -475,6 +475,14 @@ export interface TenantPlanSectionI18n {
     invoicesDownload: string;
     /** The download's accessible name: `{number}`. */
     invoicesDownloadInvoice: string;
+    /** As `invoicesDownloadInvoice`, for one issued in a test operation (`SC-UI-029`). */
+    invoicesDownloadTestInvoice: string;
+    /**
+     * Beside an invoice or a contract confirmation issued in a test
+     * operation, which is no invoice for VAT purposes and confirms no
+     * contract; in words, never a colour alone (`SC-UI-029`).
+     */
+    invoiceTestOperation: string;
     /** Where the invoice's document is not archived yet. */
     invoicesDocumentFollows: string;
     invoicesMore: string;
@@ -515,6 +523,8 @@ export interface TenantPlanSectionI18n {
     confirmationBeingMade: string;
     /** The download's accessible name: `{concluded}`. */
     confirmationDownload: string;
+    /** As `confirmationDownload`, for one made in a test operation, which confirms no contract (`SC-UI-029`). */
+    confirmationDownloadTest: string;
     /** A window announced ahead: `{start}` and `{end}`, in the reader's zone. */
     maintenanceAnnounced: string;
     maintenanceTitle: string;
@@ -981,6 +991,8 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     invoicesPeriod: '{from} – {until}',
     invoicesDownload: 'Herunterladen',
     invoicesDownloadInvoice: 'Rechnung {number} herunterladen',
+    invoicesDownloadTestInvoice: 'Testrechnung {number} herunterladen',
+    invoiceTestOperation: 'Test',
     invoicesDocumentFollows: 'Dokument folgt',
     invoicesMore: 'Weitere Rechnungen',
     invoicesMoreFailed: 'Weitere Rechnungen konnten nicht geladen werden.',
@@ -1004,6 +1016,7 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     confirmationNoPlan: 'Vertrag',
     confirmationBeingMade: 'Bestätigung wird erstellt',
     confirmationDownload: 'Vertragsbestätigung vom {concluded} herunterladen',
+    confirmationDownloadTest: 'Test-Vertragsbestätigung vom {concluded} herunterladen',
     maintenanceAnnounced: 'Geplante Wartung von {start} bis {end}.',
     maintenanceTitle: 'Wartung',
     maintenanceUntil:
@@ -1418,6 +1431,8 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     invoicesPeriod: '{from} – {until}',
     invoicesDownload: 'Download',
     invoicesDownloadInvoice: 'Download invoice {number}',
+    invoicesDownloadTestInvoice: 'Download test invoice {number}',
+    invoiceTestOperation: 'Test',
     invoicesDocumentFollows: 'Document follows',
     invoicesMore: 'More invoices',
     invoicesMoreFailed: 'More invoices could not be loaded.',
@@ -1441,6 +1456,7 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     confirmationNoPlan: 'Contract',
     confirmationBeingMade: 'Confirmation being made',
     confirmationDownload: 'Download the contract confirmation of {concluded}',
+    confirmationDownloadTest: 'Download the test contract confirmation of {concluded}',
     maintenanceAnnounced: 'Planned maintenance from {start} to {end}.',
     maintenanceTitle: 'Under maintenance',
     maintenanceUntil: 'The application is being maintained and is expected back at {end}.',

@@ -153,6 +153,7 @@ export class SubscriberReconciliationService {
                     ? { kind: invoice.correction.kind, of: invoice.correction.of }
                     : null,
                 ...standing,
+                testOperation: invoice.testOperation,
                 documentArchived: archived.has(invoice.id),
             })),
             openCases: await this.viewsOf(open),

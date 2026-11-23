@@ -60,6 +60,11 @@ export interface AdminOpenInvoice {
     subscriber: { id: string; customerNumber: string; legalName: string };
     tenantId: string;
     /**
+     * Whether it was issued in a test operation, and is no invoice for VAT
+     * purposes; the list names it a test (`SC-UI-029`).
+     */
+    testOperation: boolean;
+    /**
      * The payment method it is collected with: the one its latest attempt
      * charged — a replacement the subscriber gave since it was issued
      * included —, before any attempt the one it was issued with; `null` where

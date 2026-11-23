@@ -11,6 +11,17 @@
                 :empty-text="msg.payments.invoicesEmpty"
                 storage-key="subscriber-invoices"
             >
+                <template #body-cell-number="{ row }">
+                    <q-td>
+                        {{ row.number }}
+                        <AdminStatusPill
+                            v-if="row.testOperation"
+                            :label="common.testOperation"
+                            :tone="TEST_OPERATION_TONE"
+                            size="sm"
+                        />
+                    </q-td>
+                </template>
                 <template v-if="documents || cancellation.available.value" #row-actions="{ row }">
                     <q-btn
                         v-if="documents && row.documentArchived"
@@ -18,9 +29,7 @@
                         dense
                         no-caps
                         :label="msg.payments.download"
-                        :aria-label="
-                            formatMessage(msg.payments.downloadInvoice, { number: row.number })
-                        "
+                        :aria-label="row.downloadLabel"
                         :loading="documents.downloading.value === row.id"
                         :disable="documents.downloading.value !== null"
                         @click="documents.download(row.id)"
@@ -59,10 +68,16 @@ import type { AdminSubscriberPayments, AdminSubscriberDetails } from '@saasicat/
 
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { formatMessage } from '../../client/i18n/format.js';
-import { invoicePaymentOf, invoiceStandingOf } from '../../client/invoice-standing.js';
+import {
+    invoiceDownloadLabelOf,
+    invoicePaymentOf,
+    invoiceStandingOf,
+} from '../../client/invoice-standing.js';
+import AdminStatusPill from '../../ui/data/AdminStatusPill.vue';
 import AdminTable from '../../ui/data/AdminTable.vue';
 import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
+import { TEST_OPERATION_TONE } from '../../vue/status.js';
 import type { FileDownload } from '../../vue/use-file-download.js';
 import type { InvoiceCancellationFlow } from '../../vue/use-invoice-cancellation.js';
 import { useInstallationDays } from '../../vue/use-installation-days.js';
@@ -76,7 +91,8 @@ import InvoiceCancellationDialog from './InvoiceCancellationDialog.vue';
 // gateway reported and no credit matched. An invoice that stands is cancelled
 // here; a case is closed on the reconciliation page, with a note. Every
 // invoice's archived document is downloaded beside it, where the platform
-// serves it.
+// serves it. One issued in a test operation says so beside its number and in
+// its download's name (`SC-UI-029`).
 const props = defineProps<{
     payments: AdminSubscriberPayments | null;
     pending: boolean;
@@ -96,6 +112,7 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('subscribers');
+const common = useSaMessages('common');
 const days = useInstallationDays();
 const kinds = useSaMessages('reconciliation');
 const { locale } = useSuperAdminI18n();
@@ -114,7 +131,9 @@ const invoiceRows = computed(() =>
             money: (amount) => formatCurrency(amount, locale.value, invoice.currency),
         }),
         cancellable: props.cancellation.canCancel(invoice),
+        testOperation: invoice.testOperation,
         documentArchived: invoice.documentArchived,
+        downloadLabel: invoiceDownloadLabelOf(invoice, msg.value.payments),
         invoice,
     })),
 );

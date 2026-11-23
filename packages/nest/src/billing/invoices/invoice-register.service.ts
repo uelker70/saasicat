@@ -49,6 +49,7 @@ function rowOf(
         totalNet: invoice.totalNet,
         totalTax: invoice.totalTax,
         totalGross: invoice.totalGross,
+        testOperation: invoice.testOperation,
         documentArchived: archived,
         cancelledBy,
     };

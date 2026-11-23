@@ -42,6 +42,7 @@ const INVOICES: AdminOpenInvoice[] = [
         owed: 100,
         subscriber: { id: 's-1', customerNumber: 'K-10001', legalName: 'Northwind GmbH' },
         tenantId: 't-1',
+        testOperation: false,
         payment: { type: 'sepa_debit', last4: '3000' },
         lastAttempt: {
             status: 'FAILED',
@@ -60,6 +61,7 @@ const INVOICES: AdminOpenInvoice[] = [
         owed: 59.5,
         subscriber: { id: 's-2', customerNumber: 'K-10002', legalName: 'Fabrikam GmbH' },
         tenantId: 't-2',
+        testOperation: false,
         payment: null,
         lastAttempt: null,
     },
@@ -223,6 +225,24 @@ describe('the open items', () => {
                 'Bank transfer',
                 'none',
             ],
+        ]);
+    });
+
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('name an invoice issued in a test operation a test beside its number, and one issued live as before', async () => {
+        const [first, second] = INVOICES;
+        const { wrapper } = await mountOpenItems({
+            invoices: [{ ...first!, number: 'AHPT-2026-000001', testOperation: true }, second!],
+        });
+
+        expect(tableOf(wrapper, 'Open invoices').map((cells) => cells[0]?.split(/\s+/))).toEqual([
+            ['AHPT-2026-000001', 'Test'],
+            ['AHP-2026-000002'],
+        ]);
+        const pills = wrapper.findAll('tbody tr').map((row) => row.find('td').findAll('.sa-pill'));
+        expect(pills.slice(0, 2).map((each) => each.map((pill) => pill.text()))).toEqual([
+            ['Test'],
+            [],
         ]);
     });
 

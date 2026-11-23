@@ -289,6 +289,7 @@ describe('a subscriber’s contracts, as the operator reads them', () => {
                 archivedAt: AT.toISOString(),
                 deliveredAt: mailed.confirmation.deliveredAt,
                 deliveredTo: INVOICE_EMAIL,
+                testOperation: false,
             },
         });
         assert.ok(mailed.confirmation.deliveredAt, 'the moment it was mailed');

@@ -69,7 +69,13 @@ const contract = (
     bundles: [],
     minimumTermUntil: null,
     change: UNCHANGED,
-    confirmation: { state, archivedAt: null, deliveredAt: null, deliveredTo: null },
+    confirmation: {
+        state,
+        archivedAt: null,
+        deliveredAt: null,
+        deliveredTo: null,
+        testOperation: null,
+    },
     ...overrides,
 });
 
@@ -78,6 +84,7 @@ const SENT = {
     archivedAt: '2026-02-01T09:15:00.000Z',
     deliveredAt: '2026-02-01T09:30:00.000Z',
     deliveredTo: 'rechnung@northwind.example',
+    testOperation: false,
 };
 
 // Northwind: concluded in January, upgraded in February and running since; a
@@ -185,6 +192,7 @@ const dossierOf = (
             issueDate: '2026-03-01',
             currency: 'EUR',
             totalGross: 106.81,
+            testOperation: false,
         },
     ],
     integrity: 'intact',
@@ -203,6 +211,7 @@ const PAYMENTS = {
             owed: 0,
             correction: null,
             cancelledBy: null,
+            testOperation: false,
             documentArchived: true,
         },
         {
@@ -215,6 +224,7 @@ const PAYMENTS = {
             owed: 58.31,
             correction: null,
             cancelledBy: null,
+            testOperation: false,
             documentArchived: false,
         },
     ],
@@ -694,6 +704,47 @@ describe("the subscriber's record shows its contracts", () => {
         expect(asked).toContain('confirmation c-2');
         expect(saved.map((each) => each.name)).toEqual(['contract-confirmation-c-2.pdf']);
         expect(new Uint8Array(await saved[0].blob.arrayBuffer())).toEqual(PDF);
+    });
+
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('a confirmation and an invoice made in a test operation are named a test, and live ones as before', async () => {
+        const [gone, upgraded, concluded] = CONTRACTS.contracts;
+        const tested = {
+            ...upgraded!,
+            confirmation: { ...SENT, testOperation: true },
+        };
+        const { wrapper } = await mountPage({
+            contracts: { contracts: [gone!, tested, concluded!] },
+            dossier: async (contractId: string) => {
+                const summary = contractId === tested.id ? tested : concluded!;
+                const read = dossierOf(summary);
+                return {
+                    ...read,
+                    invoices: read.invoices.map((each) => ({
+                        ...each,
+                        testOperation: contractId === tested.id,
+                    })),
+                };
+            },
+        });
+
+        const headers = timelinesOf(wrapper)[0]!.entries;
+        expect(headers[0]).toMatch(/ Sent Test$/);
+        expect(headers[1]).not.toContain('Test');
+
+        await openContract(wrapper, 'Plan upgraded');
+        const dossier = dossierIn(wrapper);
+        expect(
+            dossier.find('.sa-contract-dossier__list li').text().split(/\s+/).slice(0, 2),
+        ).toEqual(['AHP-2026-000002', 'Test']);
+        expect(dossier.find('.sa-contract-dossier__list li .sa-pill').text()).toBe('Test');
+        expect(
+            dossier
+                .find(
+                    'button[aria-label="Download the test confirmation of the contract of 2026-02-01"]',
+                )
+                .exists(),
+        ).toBe(true);
     });
 
     test('a download that fails says so, and saves nothing', async () => {

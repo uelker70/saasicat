@@ -124,6 +124,7 @@ export function adminContractInvoicesOf(
             issueDate: invoice.issueDate,
             currency: invoice.currency,
             totalGross: invoice.totalGross,
+            testOperation: invoice.testOperation,
         }));
 }
 
@@ -188,6 +189,7 @@ export function adminSubscriberContractOf(
             archivedAt: confirmation?.archivedAt?.toISOString() ?? null,
             deliveredAt: confirmation?.deliveredAt?.toISOString() ?? null,
             deliveredTo: confirmation?.deliveredTo ?? null,
+            testOperation: confirmation?.testOperation ?? null,
         },
     };
 }

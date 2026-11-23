@@ -46,6 +46,7 @@ const invoiceOf = (id, subscriberId, totalGross, issuedAt = '2026-02-01T05:15:00
     currency: 'EUR',
     issuedAt: new Date(issuedAt),
     dueDate: '2026-02-15',
+    testOperation: false,
 });
 
 /**
@@ -312,6 +313,24 @@ describe("where each of a subscriber's invoices stands", () => {
             [
                 ['AHP-2026-000002', { kind: 'open', owed: 20, overdue: true }],
                 ['AHP-2026-000001', { kind: 'paid', on: '2026-02-01' }],
+            ],
+        );
+    });
+
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('names one issued in a test operation as one, and one issued live as live', async () => {
+        const { service } = recordOf([
+            { ...invoiceOf('invoice-02', 'subscriber-1', 20), testOperation: true },
+            invoiceOf('invoice-01', 'subscriber-1', 58.31),
+        ]);
+
+        const read = await service.paymentsOf('subscriber-1');
+
+        assert.deepEqual(
+            read.invoices.map((each) => [each.number, each.testOperation]),
+            [
+                ['AHP-2026-000002', true],
+                ['AHP-2026-000001', false],
             ],
         );
     });

@@ -145,6 +145,11 @@ export interface AdminSubscriberInvoice {
      * nothing.
      */
     payment: InvoicePaymentStanding | null;
+    /**
+     * Whether it was issued in a test operation, and is no invoice for VAT
+     * purposes; the list names it a test (`SC-UI-029`).
+     */
+    testOperation: boolean;
     /** Whether its document is archived, and can be downloaded (`SC-AUD-014`). */
     documentArchived: boolean;
 }

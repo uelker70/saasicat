@@ -4592,6 +4592,7 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
     - a tenant's invoices
         - are its subscriber’s, the newest first, each as the list shows it
+        - name one issued in a test operation as one, and one issued live as live
         - include those of an earlier tenant joined into the subscriber, read past the tenant policy
         - come fifty a page, the next after the last of the one before
         - after an invoice the subscriber does not have, are none rather than the first page again

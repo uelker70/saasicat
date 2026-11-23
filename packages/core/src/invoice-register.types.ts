@@ -95,6 +95,11 @@ export interface AdminInvoiceRegisterRow {
     totalNet: number;
     totalTax: number;
     totalGross: number;
+    /**
+     * Whether it was issued in a test operation, and is no invoice for VAT
+     * purposes; the register names it a test (`SC-UI-029`).
+     */
+    testOperation: boolean;
     /** Whether its document is archived; until then it is neither sent nor cancelled. */
     documentArchived: boolean;
     cancelledBy: { invoiceId: string; number: string } | null;

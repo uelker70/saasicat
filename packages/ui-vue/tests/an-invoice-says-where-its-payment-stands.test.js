@@ -9,7 +9,12 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SA_MESSAGES, invoicePaymentOf, invoiceStandingOf } from '../dist/index.js';
+import {
+    SA_MESSAGES,
+    invoiceDownloadLabelOf,
+    invoicePaymentOf,
+    invoiceStandingOf,
+} from '../dist/index.js';
 
 const EN = SA_MESSAGES.en.subscribers.payments;
 const DE = SA_MESSAGES.de.subscribers.payments;
@@ -116,5 +121,30 @@ describe("where an invoice's payment stands", () => {
     test('its sentences never call a credit a Gutschrift', () => {
         const sentences = Object.values(DE).join(' ');
         assert.equal(sentences.includes('Gutschrift'), false);
+    });
+});
+
+// @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+describe('the download of an invoice', () => {
+    test('is named a test invoice’s for one issued in a test operation, in both languages', () => {
+        assert.equal(
+            invoiceDownloadLabelOf({ number: 'R-1', testOperation: true }, EN),
+            'Download test invoice R-1',
+        );
+        assert.equal(
+            invoiceDownloadLabelOf({ number: 'R-1', testOperation: true }, DE),
+            'Testrechnung R-1 herunterladen',
+        );
+    });
+
+    test('is named as before for one issued live', () => {
+        assert.equal(
+            invoiceDownloadLabelOf({ number: 'R-1', testOperation: false }, EN),
+            'Download invoice R-1',
+        );
+        assert.equal(
+            invoiceDownloadLabelOf({ number: 'R-1', testOperation: false }, DE),
+            'Rechnung R-1 herunterladen',
+        );
     });
 });

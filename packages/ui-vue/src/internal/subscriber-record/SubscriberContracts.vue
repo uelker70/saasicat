@@ -54,6 +54,12 @@
                         />
                         <AdminStatusPill :label="entry.status" tone="muted" size="sm" />
                         <AdminStatusPill :label="entry.confirmation" :tone="entry.tone" size="sm" />
+                        <AdminStatusPill
+                            v-if="entry.testOperation"
+                            :label="common.testOperation"
+                            :tone="TEST_OPERATION_TONE"
+                            size="sm"
+                        />
                     </template>
                     <ContractDossierView
                         :contract="entry.contract"
@@ -95,13 +101,15 @@ import AdminSection from '../../ui/page/AdminSection.vue';
 import { contractAnchorOf, type ContractDossier } from '../../vue/use-contract-dossier.js';
 import type { CopyText } from '../../vue/use-copy-text.js';
 import type { FileDownload } from '../../vue/use-file-download.js';
+import { TEST_OPERATION_TONE } from '../../vue/status.js';
 import { CONFIRMATION_STATE_TONE } from '../../vue/use-subscriber-contracts.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import ContractDossierView from './ContractDossierView.vue';
 
 // The subscriber's contracts, one timeline per tenant with the latest start
 // first, each naming what it changed against the one before it and where its
-// confirmation stands; a contract opens into what it froze (`SC-ADM-041`,
+// confirmation stands, a confirmation made in a test operation named a test
+// (`SC-UI-029`); a contract opens into what it froze (`SC-ADM-041`,
 // `SC-AUD-016`). A day picked marks the contracts in force on it.
 const props = defineProps<{
     contracts: AdminSubscriberContracts | null;
@@ -161,6 +169,7 @@ const timelines = computed(() =>
             // contract opened, so the header fits the narrowest screen.
             confirmation: msg.value.contracts.statesShort[contract.confirmation.state],
             tone: CONFIRMATION_STATE_TONE[contract.confirmation.state],
+            testOperation: contract.confirmation.testOperation === true,
         })),
     })),
 );

@@ -54,6 +54,12 @@
                         invoice.number
                     }}</a>
                     <span v-else>{{ invoice.number }}</span>
+                    <AdminStatusPill
+                        v-if="invoice.testOperation"
+                        :label="common.testOperation"
+                        :tone="TEST_OPERATION_TONE"
+                        size="sm"
+                    />
                     · {{ formatDate(invoice.issueDate) }} ·
                     {{ formatCurrency(invoice.totalGross, locale, invoice.currency) }}
                 </li>
@@ -89,11 +95,7 @@
                 no-caps
                 icon="download"
                 :label="msg.contracts.download"
-                :aria-label="
-                    formatMessage(msg.contracts.downloadConfirmation, {
-                        date: formatDate(days.ofMoment(contract.concludedAt)),
-                    })
-                "
+                :aria-label="confirmationDownloadLabel"
                 :loading="downloads.downloading.value === contract.id"
                 :disable="downloads.downloading.value !== null"
                 @click="downloads.download(contract.id)"
@@ -112,9 +114,11 @@ import type { RouteLocationRaw } from 'vue-router';
 
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { formatMessage } from '../../client/i18n/format.js';
+import AdminStatusPill from '../../ui/data/AdminStatusPill.vue';
 import KvBlock from '../../ui/data/KvBlock.vue';
 import AdminBanner from '../../ui/feedback/AdminBanner.vue';
 import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
+import { TEST_OPERATION_TONE } from '../../vue/status.js';
 import type { ContractDossier } from '../../vue/use-contract-dossier.js';
 import type { CopyText } from '../../vue/use-copy-text.js';
 import type { FileDownload } from '../../vue/use-file-download.js';
@@ -125,6 +129,8 @@ import ContractLines from './ContractLines.vue';
 // One contract, opened: what it froze, the invoices issued under it, the ids
 // to copy, and its confirmation — offered for download only where the archived
 // file still matches the checksum recorded when it was rendered (`SC-ADM-041`).
+// An invoice and a confirmation made in a test operation are named a test
+// (`SC-UI-029`).
 const props = defineProps<{
     /** The contract as the timeline lists it. */
     contract: AdminSubscriberContract;
@@ -147,6 +153,17 @@ const { locale } = useSuperAdminI18n();
 const read = computed(() => {
     const data = props.dossier.data.value;
     return data && data.contract.id === props.contract.id ? data : null;
+});
+
+/** The download's accessible name, which names a confirmation made in a test operation a test (`SC-UI-029`). */
+const confirmationDownloadLabel = computed(() => {
+    const m = msg.value.contracts;
+    return formatMessage(
+        props.contract.confirmation.testOperation === true
+            ? m.downloadTestConfirmation
+            : m.downloadConfirmation,
+        { date: props.formatDate(days.ofMoment(props.contract.concludedAt)) },
+    );
 });
 
 /** Where the confirmation stands, with the day and address it was sent to once it was. */

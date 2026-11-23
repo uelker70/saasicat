@@ -1,8 +1,9 @@
 // What an invoice stands in relation to, by the numbers on the documents —
-// what it corrects, what cancelled it and what replaced it — and where its
-// payment stands. Worded here once, so the subscriber's record, the register
-// and the tenant's list say it alike; the platform decides the standing
-// (`invoiceStandingsOf` in core), this only words it.
+// what it corrects, what cancelled it and what replaced it —, where its
+// payment stands, and what its download is named. Worded here once, so the
+// subscriber's record, the register and the tenant's list say it alike; the
+// platform decides the standing (`invoiceStandingsOf` in core), this only
+// words it.
 
 import type { AdminSubscriberInvoice, CalendarDay, InvoiceReference } from '@saasicat/core';
 
@@ -30,6 +31,13 @@ export interface InvoicePaymentMessages {
     paymentToBeRefunded: string;
     paymentToBeRefundedPart: string;
     paymentRefunded: string;
+}
+
+/** The accessible names an invoice's download is given, each with the invoice's `{number}`. */
+export interface InvoiceDownloadMessages {
+    downloadInvoice: string;
+    /** For one issued in a test operation, which is no invoice for VAT purposes (`SC-UI-029`). */
+    downloadTestInvoice: string;
 }
 
 /** How the page writes a day and an amount of the invoice's currency. */
@@ -108,5 +116,15 @@ function owedOf(
     return formatMessage(overdue ? messages.paymentOverduePart : messages.paymentOpenPart, {
         owed: write.money(owed),
         total: write.money(totalGross),
+    });
+}
+
+/** The accessible name of `invoice`'s download, which names one issued in a test operation a test invoice. */
+export function invoiceDownloadLabelOf(
+    { number, testOperation }: Pick<AdminSubscriberInvoice, 'number' | 'testOperation'>,
+    messages: InvoiceDownloadMessages,
+): string {
+    return formatMessage(testOperation ? messages.downloadTestInvoice : messages.downloadInvoice, {
+        number,
     });
 }

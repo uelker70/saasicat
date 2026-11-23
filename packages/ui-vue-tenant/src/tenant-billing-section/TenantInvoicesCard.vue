@@ -34,6 +34,9 @@
                         <tr v-for="row in rows" :id="row.anchor" :key="row.id" tabindex="-1">
                             <td>
                                 {{ row.number }}
+                                <span v-if="row.testOperation" class="sp-badge sp-badge--warning">
+                                    {{ row.testOperation }}
+                                </span>
                                 <span v-if="row.issuer" class="sp-invoices__issuer">
                                     {{ issuedBy(row.issuer) }}
                                 </span>
@@ -68,7 +71,7 @@
                                     variant="quiet"
                                     :loading="documents.downloading.value === row.id"
                                     :disabled="documents.downloading.value !== null"
-                                    :aria-label="downloadLabelOf(row.number)"
+                                    :aria-label="row.downloadLabel"
                                     @click="download(() => documents.downloadInvoice(row.id))"
                                 >
                                     {{ i18n.invoicesDownload }}
@@ -112,7 +115,12 @@
             </p>
             <ul v-else class="sp-invoices__list">
                 <li v-for="confirmation in confirmations" :key="confirmation.contractId">
-                    <span>{{ confirmation.line }}</span>
+                    <span>
+                        {{ confirmation.line }}
+                        <span v-if="confirmation.testOperation" class="sp-badge sp-badge--warning">
+                            {{ i18n.invoiceTestOperation }}
+                        </span>
+                    </span>
                     <TenantButton
                         v-if="confirmation.archived"
                         variant="quiet"
@@ -149,7 +157,9 @@ import { invoiceRowsOf, issuersOf, type InvoiceRowLink } from './invoice-rows.js
 // a user the server lets see them — the billing permission — and the card does
 // not render for anyone else. The heading and the issuer tell them apart from
 // invoices an application writes to its own customers. A document is
-// downloaded once it is archived, as the file that was issued.
+// downloaded once it is archived, as the file that was issued. One issued in
+// a test operation says so in words, beside it and in its download's name
+// (`SC-UI-029`).
 
 const props = defineProps<{
     http?: HttpClient;
@@ -190,12 +200,18 @@ const confirmations = computed(() =>
         return {
             contractId: confirmation.contractId,
             archived: confirmation.archived,
+            testOperation: confirmation.testOperation === true,
             line: sentence(i18n.value.confirmationLine, {
                 plan: confirmation.planTitle ?? i18n.value.confirmationNoPlan,
                 concluded,
                 firstDay: writeDay(props.formatDate, confirmation.firstDay),
             }),
-            downloadLabel: sentence(i18n.value.confirmationDownload, { concluded }),
+            downloadLabel: sentence(
+                confirmation.testOperation === true
+                    ? i18n.value.confirmationDownloadTest
+                    : i18n.value.confirmationDownload,
+                { concluded },
+            ),
         };
     }),
 );
@@ -208,10 +224,6 @@ function sentence(template: string, values: Record<string, string>): string {
 
 function issuedBy(issuer: string): string {
     return sentence(i18n.value.invoicesIssuedBy, { issuer });
-}
-
-function downloadLabelOf(number: string): string {
-    return sentence(i18n.value.invoicesDownloadInvoice, { number });
 }
 
 /**

@@ -11,6 +11,7 @@
 // it beside them.
 
 import { INVOICE_ERROR_CODES } from './error-codes.js';
+import { installationOperationOf } from './installation-mark.types.js';
 import type {
     InvoiceExport,
     InvoiceExportFile,
@@ -123,6 +124,7 @@ export function invoiceExportOf(input: {
             invoiceId: invoice.id,
             number: invoice.number,
             kind: kindOf(invoice),
+            operation: installationOperationOf(invoice),
             corrects: invoice.correction?.of.number ?? null,
             issueDate: invoice.issueDate,
             issuedAt: invoice.issuedAt.toISOString(),
@@ -232,6 +234,7 @@ const INVOICE_COLUMNS: Columns<InvoiceExportInvoiceRow> = [
     ['invoiceId', 'text'],
     ['number', 'text'],
     ['kind', 'text'],
+    ['operation', 'text'],
     ['corrects', 'text'],
     ['issueDate', 'text'],
     ['issuedAt', 'text'],

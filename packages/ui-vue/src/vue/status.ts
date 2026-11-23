@@ -42,3 +42,11 @@ export const PROMO_STATUS_TONE: Readonly<Record<PromoCodeStatus, PillTone>> = {
 export function promoStatusTone(status: PromoCodeStatus): PillTone {
     return PROMO_STATUS_TONE[status];
 }
+
+/**
+ * The tone of the pill that names a document issued in a test operation
+ * (`SC-UI-029`): one tone on every list, so a test invoice or confirmation
+ * looks alike wherever the operator meets it. The pill says "Test" in words;
+ * the tone only draws the eye.
+ */
+export const TEST_OPERATION_TONE: PillTone = 'warning';

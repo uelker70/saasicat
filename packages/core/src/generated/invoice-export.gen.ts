@@ -75,6 +75,10 @@ export interface InvoiceExportInvoiceRow {
      */
     kind: 'invoice' | 'cancellation' | 'replacement';
     /**
+     * The operation the installation issued it in. test: an installation marked as a test operation issued it, and it is no invoice for VAT purposes, as its document says; live: any other.
+     */
+    operation: 'test' | 'live';
+    /**
      * The number of the invoice it cancels or replaces; null for an invoice.
      */
     corrects: string | null;

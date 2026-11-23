@@ -3,14 +3,16 @@
 // where each invoice stands and named every day (`SC-UI-028`); this only
 // words it. A link names the other invoice by its number and points at its
 // row, so a cancelled invoice leads to its cancellation and its replacement,
-// and each of those back (`SC-UI-024`).
+// and each of those back (`SC-UI-024`). One issued in a test operation says
+// so beside its number and in its download's name, in words, so that it is
+// never taken for a real invoice (`SC-UI-029`).
 
-import { invoicePaymentOf } from '@saasicat/ui-vue';
+import { invoiceDownloadLabelOf, invoicePaymentOf } from '@saasicat/ui-vue';
 import type { InvoiceReference, TenantInvoice } from '@saasicat/core';
 
 import type { TenantPlanSectionI18n } from '../default-i18n.js';
 import { writeDay } from '../day-as-instant.js';
-import { messageParts, type MessagePart } from '../message-parts.js';
+import { messageParts, messageText, type MessagePart } from '../message-parts.js';
 
 /** How the application writes a day, and an amount in its ISO 4217 currency. */
 export interface InvoiceRowFormats {
@@ -40,7 +42,11 @@ export interface InvoiceRow {
     issuer: string | null;
     links: InvoiceRowLink[];
     payment: string;
+    /** What stands beside the number of one issued in a test operation; `null` for any other. */
+    testOperation: string | null;
     documentArchived: boolean;
+    /** The accessible name of its download, which names one issued in a test operation a test invoice. */
+    downloadLabel: string;
 }
 
 /** The element id of an invoice's row. */
@@ -66,12 +72,10 @@ export function invoiceRowsOf(
         anchor: invoiceAnchorOf(invoice.id),
         number: invoice.number,
         issued: day(invoice.issueDate),
-        period: messageParts(i18n.invoicesPeriod, {
+        period: messageText(i18n.invoicesPeriod, {
             from: day(invoice.servicePeriod.from),
             until: day(invoice.servicePeriod.until),
-        })
-            .map((part) => part.text)
-            .join(''),
+        }),
         due: day(invoice.dueDate),
         total: formats.formatCurrency(invoice.totalGross, invoice.currency),
         issuer: severalIssuers ? invoice.issuer.legalName : null,
@@ -80,7 +84,12 @@ export function invoiceRowsOf(
             day,
             money: (amount) => formats.formatCurrency(amount, invoice.currency),
         }),
+        testOperation: invoice.testOperation ? i18n.invoiceTestOperation : null,
         documentArchived: invoice.documentArchived,
+        downloadLabel: invoiceDownloadLabelOf(invoice, {
+            downloadInvoice: i18n.invoicesDownloadInvoice,
+            downloadTestInvoice: i18n.invoicesDownloadTestInvoice,
+        }),
     }));
 }
 

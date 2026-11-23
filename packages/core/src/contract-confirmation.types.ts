@@ -229,6 +229,12 @@ export interface AdminSubscriberContract {
         deliveredAt: string | null;
         /** The address it was sent to. */
         deliveredTo: string | null;
+        /**
+         * Whether it was made in a test operation, and confirms no contract;
+         * the list names it a test (`SC-UI-029`). `null` until it is first
+         * rendered, which records the operation it is made in.
+         */
+        testOperation: boolean | null;
     };
 }
 
@@ -291,6 +297,11 @@ export interface AdminContractInvoice {
     issueDate: CalendarDay;
     currency: string;
     totalGross: number;
+    /**
+     * Whether it was issued in a test operation, and is no invoice for VAT
+     * purposes; the list names it a test (`SC-UI-029`).
+     */
+    testOperation: boolean;
 }
 
 /** A contract as it was frozen, with the invoices issued under it and the state of its confirmation. */

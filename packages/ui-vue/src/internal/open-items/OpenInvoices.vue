@@ -21,6 +21,17 @@
             :loading="list.loading.value"
             storage-key="open-invoices"
         >
+            <template #body-cell-number="{ row }">
+                <q-td>
+                    {{ row.number }}
+                    <AdminStatusPill
+                        v-if="row.testOperation"
+                        :label="common.testOperation"
+                        :tone="TEST_OPERATION_TONE"
+                        size="sm"
+                    />
+                </q-td>
+            </template>
             <template #body-cell-subscriber="{ row }">
                 <q-td>
                     <router-link
@@ -53,18 +64,21 @@ import type { RouteLocationRaw } from 'vue-router';
 
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { formatMessage } from '../../client/i18n/format.js';
+import AdminStatusPill from '../../ui/data/AdminStatusPill.vue';
 import AdminTable from '../../ui/data/AdminTable.vue';
 import AdminEmptyState from '../../ui/feedback/AdminEmptyState.vue';
 import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import AdminFilters from '../../ui/page/AdminFilters.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
+import { TEST_OPERATION_TONE } from '../../vue/status.js';
 import type { PagedList } from '../../vue/use-paged-list.js';
 import { useInstallationDays } from '../../vue/use-installation-days.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // The invoices that still owe something, the oldest due date first: what each
 // owes, how many days it is overdue, how it is paid and how its latest
-// collection attempt ended — the list a dunning run starts from.
+// collection attempt ended — the list a dunning run starts from. One issued in
+// a test operation says so beside its number (`SC-UI-029`).
 const props = defineProps<{
     list: PagedList<AdminOpenInvoice>;
     overdueOnly: boolean;
@@ -75,6 +89,7 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'update:overdueOnly', value: boolean): void }>();
 
 const msg = useSaMessages('openItems');
+const common = useSaMessages('common');
 const { locale } = useSuperAdminI18n();
 const days = useInstallationDays();
 
@@ -105,6 +120,7 @@ const rows = computed(() =>
         return {
             id: invoice.id,
             number: invoice.number,
+            testOperation: invoice.testOperation,
             due: invoice.dueDate,
             daysOverdue: invoice.daysOverdue > 0 ? String(invoice.daysOverdue) : '—',
             subscriberId: invoice.subscriber.id,

@@ -58,6 +58,17 @@
                     :loading="loading"
                     storage-key="invoices"
                 >
+                    <template #body-cell-number="{ row }">
+                        <q-td>
+                            {{ row.number }}
+                            <AdminStatusPill
+                                v-if="row.testOperation"
+                                :label="common.testOperation"
+                                :tone="TEST_OPERATION_TONE"
+                                size="sm"
+                            />
+                        </q-td>
+                    </template>
                     <template #body-cell-subscriber="{ row }">
                         <q-td>
                             <router-link
@@ -79,9 +90,7 @@
                             dense
                             no-caps
                             :label="texts.download"
-                            :aria-label="
-                                formatMessage(texts.downloadInvoice, { number: row.number })
-                            "
+                            :aria-label="row.downloadLabel"
                             :loading="documents.downloading.value === row.id"
                             :disable="documents.downloading.value !== null"
                             @click="documents.download(row.id)"
@@ -124,13 +133,14 @@ import type { RouteLocationRaw } from 'vue-router';
 
 import { formatCurrency } from '../client/i18n/currency.js';
 import { formatMessage } from '../client/i18n/format.js';
-import { invoiceStandingOf } from '../client/invoice-standing.js';
+import { invoiceDownloadLabelOf, invoiceStandingOf } from '../client/invoice-standing.js';
 import type { invoicesResource } from '../client/resources/invoices.resource.js';
 import type { subscribersResource } from '../client/resources/subscribers.resource.js';
 import InvoiceExportDialog from '../internal/invoice-register/InvoiceExportDialog.vue';
 import InvoiceRegisterTotals from '../internal/invoice-register/InvoiceRegisterTotals.vue';
 import InvoiceCancellationDialog from '../internal/subscriber-record/InvoiceCancellationDialog.vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
+import AdminStatusPill from '../ui/data/AdminStatusPill.vue';
 import AdminTable from '../ui/data/AdminTable.vue';
 import AdminEmptyState from '../ui/feedback/AdminEmptyState.vue';
 import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
@@ -143,6 +153,7 @@ import AdminPage from '../ui/page/AdminPage.vue';
 import AdminSection from '../ui/page/AdminSection.vue';
 import { type ResourceOverride, useResource } from '../vue/resource-registry.js';
 import { useStandardPageRoute } from '../vue/standard-page-routes.js';
+import { TEST_OPERATION_TONE } from '../vue/status.js';
 import { useCancellationParty } from '../vue/use-cancellation-party.js';
 import { useInvoiceCancellation } from '../vue/use-invoice-cancellation.js';
 import { useInvoiceExport } from '../vue/use-invoice-export.js';
@@ -159,7 +170,9 @@ import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js
 // invoices, and how much tax at which rate — without opening every
 // subscriber's record. An invoice is cancelled, and its document downloaded,
 // here as in the record, and the months handed to the advisor as of a moment
-// (`SC-ADM-043`).
+// (`SC-ADM-043`). An invoice issued in a test operation says so beside its
+// number and in its download's name, in words, so that the operator never
+// takes it for a real one (`SC-UI-029`).
 
 const props = defineProps<{
     /** Override the resources for this page only; see AP3 §3.2. */
@@ -170,6 +183,7 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('invoices');
+const common = useSaMessages('common');
 const subscriberTexts = useSaMessages('subscribers');
 const texts = computed(() => subscriberTexts.value.payments);
 const { locale } = useSuperAdminI18n();
@@ -234,6 +248,8 @@ const tableRows = computed(() =>
                 ? msg.value.documentArchived
                 : msg.value.documentAwaited,
             documentArchived: invoice.documentArchived,
+            testOperation: invoice.testOperation,
+            downloadLabel: invoiceDownloadLabelOf(invoice, texts.value),
             cancellable: cancellation.canCancel(invoice),
             invoice,
         };

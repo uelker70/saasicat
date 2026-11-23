@@ -618,6 +618,8 @@ _Tested by:_
           offered
         - a confirmation not archived yet, or not due, is said and not offered
         - downloads an intact confirmation under the name it was archived with
+        - a confirmation and an invoice made in a test operation are named a test, and live ones as
+          before
         - a download that fails says so, and saves nothing
         - a contract that fails to load says so
         - opening another contract closes the first, and reads the one opened

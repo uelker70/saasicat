@@ -22,16 +22,18 @@ import {
     anInstallation,
     throughThePipe,
 } from './helpers/invoice-register.js';
+import { marked } from './helpers/installation-marks.js';
 import { invoicingPlatform } from './helpers/invoicing-platform.js';
 import { controllersIn, handlersOf } from './helpers/operator-routes.js';
 
 const PAGE_ROUTE = 'GET admin/invoices';
 const TOTALS_ROUTE = 'GET admin/invoice-totals';
 /** The platform serving `installation`'s register, its page and totals read as the routes serve them. */
-async function aPlatform(installation, options = {}, { through = false } = {}) {
+async function aPlatform(installation, options = {}, { through = false, marks = null } = {}) {
     const platform = await aRegisterPlatform(installation, {
         options,
         through,
+        marks,
         reads: ['listIssued', 'listIssuedAmounts', 'listArchivedDocuments'],
     });
     return { ...platform, page: platform.call(PAGE_ROUTE), totals: platform.call(TOTALS_ROUTE) };
@@ -73,10 +75,33 @@ describe('a page of the register', () => {
             totalNet: 100,
             totalTax: 19,
             totalGross: 119,
+            testOperation: false,
             documentArchived: false,
             cancelledBy: null,
         });
         await platform.moduleRef.close();
+    });
+
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('names an invoice issued in a test operation as one, and one issued live as live', async () => {
+        const testing = anInstallation();
+        await testing.issue('2026-02-10', { testOperation: true });
+        const live = anInstallation();
+        await live.issue('2026-02-10');
+        const platforms = [
+            await aPlatform(testing, {}, { marks: await marked(true) }),
+            await aPlatform(live),
+        ];
+
+        const pages = await Promise.all(
+            platforms.map((platform) => platform.page({ from: '2026-02' })),
+        );
+
+        assert.deepEqual(
+            pages.map((page) => page.invoices.map((row) => row.testOperation)),
+            [[true], [false]],
+        );
+        for (const platform of platforms) await platform.moduleRef.close();
     });
 
     test('says whose document is archived, and which cancellation invoice cancelled an invoice, however much later', async () => {

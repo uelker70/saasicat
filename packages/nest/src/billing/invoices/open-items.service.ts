@@ -98,6 +98,7 @@ function openInvoiceOf(
             legalName: invoice.subscriber.legalName,
         },
         tenantId: invoice.tenantId,
+        testOperation: invoice.testOperation,
         payment: paymentOf(invoice, attempt, methods),
         lastAttempt: attempt
             ? {
