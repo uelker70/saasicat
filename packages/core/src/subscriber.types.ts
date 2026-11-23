@@ -9,7 +9,7 @@
 // `legal-identity.ts`: the operator's issuer is named by the same fields, and
 // the rule about correcting them is the same on both sides of the contract.
 
-import type { LegalIdentity, PartyAddress } from './legal-identity.js';
+import type { LegalIdentity, LegalIdentityField, PartyAddress } from './legal-identity.js';
 import type { AdminSubscriberJoins } from './subscriber-join.types.js';
 import type { VatIdCheck } from './tax.types.js';
 
@@ -44,6 +44,95 @@ export const SUBSCRIBER_INVOICE_ADDRESS_FIELDS = [
     'country',
 ] as const;
 export type SubscriberInvoiceAddressField = (typeof SUBSCRIBER_INVOICE_ADDRESS_FIELDS)[number];
+
+/**
+ * How a subscriber is reached, field by field, in the order every screen and
+ * answer names them: the fields of `SubscriberContact`, which a contact change
+ * may name and the legal identity is not part of.
+ */
+export const SUBSCRIBER_CONTACT_FIELDS = [
+    'addressLine1',
+    'addressLine2',
+    'postalCode',
+    'city',
+    'country',
+    'invoiceEmail',
+] as const satisfies readonly (keyof SubscriberContact)[];
+export type SubscriberContactField = (typeof SUBSCRIBER_CONTACT_FIELDS)[number];
+
+/**
+ * The most characters each line of the address holds once trimmed, wherever
+ * it arrives — sign-up, a subscriber an application creates, a change, the
+ * operator's correction of an invoice — and whether or not the application
+ * installs a `ValidationPipe` (`SC-SUB-049`). The country is held to its two
+ * letters and the invoice email to what an address can hold, so neither is
+ * listed.
+ *
+ * Measured as the trimmed value's `length`: UTF-16 code units, which is what
+ * an input's `maxlength` counts too, so a form bound by these numbers stops
+ * exactly where the platform would refuse. A character outside the Basic
+ * Multilingual Plane, such as an emoji, counts as two. Only the platform
+ * measures: no route declares a bound of its own, which a `ValidationPipe`
+ * would count otherwise — untrimmed, or by code points — and refuse first
+ * with a `400`.
+ */
+export const SUBSCRIBER_ADDRESS_MAX_LENGTHS = {
+    addressLine1: 200,
+    addressLine2: 200,
+    postalCode: 20,
+    city: 100,
+} as const satisfies Partial<Record<SubscriberContactField, number>>;
+export type SubscriberAddressLineField = keyof typeof SUBSCRIBER_ADDRESS_MAX_LENGTHS;
+
+/** The two letters of an ISO 3166-1 alpha-2 code, which the country is held to. */
+const COUNTRY_CODE_LENGTH = 2;
+
+/** RFC 5321 caps an address at 254 characters; the invoice email is held to it. */
+export const SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH = 254;
+
+/**
+ * The most characters an input for the contact detail `field` takes, counted
+ * as the platform counts them (`SUBSCRIBER_ADDRESS_MAX_LENGTHS`): a line of
+ * the address its bound, the country the two letters of its code, the invoice
+ * email what an address can hold. Bound to an input's `maxlength`, it stops
+ * the person where they type rather than refusing what they save.
+ */
+export function subscriberContactMaxLengthOf(field: SubscriberContactField): number {
+    if (field === 'country') return COUNTRY_CODE_LENGTH;
+    if (field === 'invoiceEmail') return SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH;
+    return SUBSCRIBER_ADDRESS_MAX_LENGTHS[field];
+}
+
+/**
+ * The most characters a subscriber's legal name holds once trimmed, wherever
+ * it arrives — sign-up, a subscriber an application creates, a checkout
+ * offer's new subscriber, a correction of the legal identity, the operator's
+ * correction of an invoice — and whether or not the application installs a
+ * `ValidationPipe` (`SC-SUB-050`). Counted as `SUBSCRIBER_ADDRESS_MAX_LENGTHS`
+ * counts a line of the address.
+ */
+export const SUBSCRIBER_LEGAL_NAME_MAX_LENGTH = 300;
+
+/**
+ * The most characters each tax identifier — the VAT identification number and
+ * the tax number — holds once trimmed, wherever it arrives (`SC-SUB-050`).
+ * The VAT number is measured as it was written, before its spaces, dots and
+ * hyphens are dropped (`canonicalVatId`): an input's `maxlength` counts what
+ * is typed, so it stops the person exactly where the platform would refuse.
+ */
+export const SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH = 30;
+
+/**
+ * The most characters an input for the detail of the legal identity `field`
+ * takes, counted as the platform counts them: the legal name
+ * `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH`, a tax identifier
+ * `SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH`.
+ */
+export function subscriberIdentityMaxLengthOf(field: LegalIdentityField): number {
+    return field === 'legalName'
+        ? SUBSCRIBER_LEGAL_NAME_MAX_LENGTH
+        : SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH;
+}
 
 /**
  * Whether a subscriber can be given its next contract where a tax adapter

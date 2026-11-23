@@ -10,6 +10,10 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import { computed, nextTick, ref } from 'vue';
 import { flushPromises } from '@vue/test-utils';
+import {
+    SUBSCRIBER_LEGAL_NAME_MAX_LENGTH,
+    SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH,
+} from '@saasicat/core';
 
 import SubscriberMasterData from '../../src/internal/subscriber-record/SubscriberMasterData.vue';
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
@@ -239,6 +243,29 @@ describe('the operator corrects the subscriber in its record', () => {
         ]);
         expect(document.querySelector('.sa-dialog')).toBeNull();
         expect(notices).toEqual([['positive', 'Correction saved.']]);
+    });
+
+    // @requirement SC-SUB-050 — Legal name, tax identifiers and country hold one bound and one form at every way in
+    test('each field of the identity stops where the platform would refuse it', async () => {
+        const { wrapper } = await mountPage();
+
+        await buttonNamed(wrapper, 'Correct identity')!.trigger('click');
+        await settle();
+
+        const maxlengthOf = (label: string) =>
+            [...(dialog().node?.querySelectorAll('.sa-field') ?? [])]
+                .find((field) => field.textContent?.includes(label))
+                ?.querySelector('input')
+                ?.getAttribute('maxlength');
+        expect([
+            maxlengthOf('Name on the contract'),
+            maxlengthOf('VAT ID'),
+            maxlengthOf('Tax number'),
+        ]).toEqual([
+            String(SUBSCRIBER_LEGAL_NAME_MAX_LENGTH),
+            String(SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH),
+            String(SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH),
+        ]);
     });
 
     test('stepping back from the second factor sends nothing and keeps the form', async () => {

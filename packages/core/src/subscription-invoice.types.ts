@@ -13,6 +13,7 @@
 import type { LegalIdentity, PartyAddress } from './legal-identity.js';
 import type { TaxAtRate } from './money.js';
 import type { PaymentMethodType } from './payment-gateway.types.js';
+import { subscriberContactMaxLengthOf, subscriberIdentityMaxLengthOf } from './subscriber.types.js';
 import type { SubscriberChargeOrigin, SubscriberChargeSource } from './subscriber-ledger.types.js';
 import type { TaxTreatment } from './tax.types.js';
 import type { CalendarDay } from './zoned-day.js';
@@ -249,10 +250,18 @@ export type CorrectedInvoiceSubscriber = Partial<
 export const INVOICE_CANCELLATION_REASON_MAX_LENGTH = 500;
 
 /**
- * The longest a detail of the subscriber the operator corrects for a
- * replacement is, once trimmed: one line of an address or a name.
+ * The longest `detail` the operator corrects for a replacement is, once
+ * trimmed: the bound it has wherever it arrives — a line of the address its
+ * own (`SUBSCRIBER_ADDRESS_MAX_LENGTHS`, `SC-SUB-049`), the country its two
+ * letters, the legal name and a tax identifier theirs
+ * (`subscriberIdentityMaxLengthOf`, `SC-SUB-050`).
  */
-export const INVOICE_CORRECTION_MAX_LENGTH = 300;
+export function invoiceCorrectionMaxLengthOf(detail: InvoiceSubscriberDetail): number {
+    if (detail === 'legalName' || detail === 'vatId' || detail === 'taxNumber') {
+        return subscriberIdentityMaxLengthOf(detail);
+    }
+    return subscriberContactMaxLengthOf(detail);
+}
 
 /** A cancellation as a store reads it back (`SC-PRIC-095`). */
 export interface SubscriptionInvoiceCancellationRecord {

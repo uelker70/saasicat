@@ -153,7 +153,8 @@ _Tested by:_
         - a complete request passes, the tax identifiers left out
         - the offer the sign-up concludes may be named, and an empty name is refused
         - a request without billing details is refused
-        - a missing address line, a lower-case country and a script URL are each refused
+        - a missing address line and a script URL are each refused, and the form of the country is
+          left to the platform
 - `packages/nest/tests/bundle-dtos-validate.test.js`
     - CreateBundleDto
         - accepts a complete bundle
@@ -452,6 +453,8 @@ _Tested by:_
         - cancelling runs nothing and says so
         - a refused code keeps the dialog open, says so, and a second code goes through
         - a package error carrying the status counts as a refusal, not only an AdminError
+        - a 401 saying ${code} closes the dialog and reaches the caller: no code helps there
+        - a 401 naming the code as wrong or missing asks again
         - any other failure closes the dialog and reaches the caller
 
 <!-- END proof -->

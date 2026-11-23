@@ -5486,6 +5486,193 @@ with their types `AddOnPriceBeside` and `AddOnPrices`; `@saasicat/core` adds
 - **No codemod step**: the plan a page has chosen and the sentence beside an unchosen price are
   yours to supply, and the compiler names each prop, key and field.
 
+### An application decides which billing details its tenants change
+
+A tenant changed all six contact details of its subscriber in the billing area, while an
+application that keeps the address on a page of its own had a second place for it, and whichever
+wrote last won. `tenantBilling.billingDetails.tenantEditable` now names the details the tenant
+changes there (`SC-SUB-047`). Left out, it is every one, as before. `GET` and
+`PATCH /billing/details` answer the list as `tenantEditable`, a change naming another detail is
+refused with `422 SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`, and `TenantBillingSection` shows the others
+as text with a sentence saying where they are changed. The two routes are also served where
+`payments` is not wired: an installation that invoices for a bank transfer has the billing details
+too. See [which billing details a tenant changes](wire-the-backend.md#which-billing-details-a-tenant-changes).
+
+| before                                                                 | after                                                                                                                 |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `GET`/`PATCH /billing/details` served only with `payments`             | served wherever `tenantBilling` is on and a subscriber repository is composed                                         |
+| `TenantBillingDetailsView`, `TenantBillingDetailsShape`                | also `tenantEditable`, required; `useTenantBillingDetails` reports an answer without it as a failure to load          |
+| `TenantBillingContactField` in `@saasicat/ui-vue`, a union of its own  | an alias of `SubscriberContactField`, with `SUBSCRIBER_CONTACT_FIELDS`, from `@saasicat/core`                         |
+| `SubscriberService.changeContactOfTenant(tenantId, change, changedBy)` | also `options.changeable`, which the route passes; your own page calls it without, unlimited                          |
+| —                                                                      | `billingDetailsChangedElsewhere` in the section's `i18n`, the `changed-elsewhere` slot of the section and of the card |
+
+1. **Where your application keeps the address on a page of its own**, name what the tenant changes
+   in the billing area — `billingDetails: { tenantEditable: ['invoiceEmail'] }` under
+   `tenantBilling` — and give `TenantBillingSection` the `changed-elsewhere` slot with a link to
+   that page, or `billingDetailsChangedElsewhere` in its `i18n`. Otherwise nothing to do.
+2. **Where your application serves a route of its own at `billing/details`** and wires no
+   `payments`, the platform now serves that path: remove yours, or the two collide at start.
+3. **Where code of yours builds a `TenantBillingDetailsView` or `TenantBillingDetailsShape`** — a
+   fixture, a stand-in server — give it `tenantEditable`, every detail the tenant may change.
+4. **Where your interface words refusals itself**, add `SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`. The
+   German and English texts ship in `@saasicat/core`.
+
+- **No codemod step**: which details have a page of their own is your application's decision, and
+  the compiler names each type that lacks the new field.
+
+### `CheckoutOfferPricing.price` refuses an unmet feature dependency
+
+`CheckoutOfferModule` provided `CheckoutOfferPricing` without exporting it, so a checkout of your
+own reached it through `ModuleRef.get(CheckoutOfferPricing, { strict: false })`. The module now
+exports it beside `CheckoutOfferService`, and `SaaSiCatModule` hands it on: inject it with
+`@Inject(CheckoutOfferPricing)` from `@saasicat/nest/checkout-offer`. Its `price(selection, asOf)`
+gives the amounts an offer created from the same selection carries and refuses what creating that
+offer refuses — now its feature dependencies too, which only creating it checked: a preview could
+show a price for a selection the offer then refused (`SC-MKT-031`). It stores no offer and holds or
+redeems no promo code; a code it checks is recorded in the promo code's validation log like every
+check. See
+[the price before the offer](wire-the-backend.md#offering-a-newer-add-on-version).
+
+| before                                                                                              | after                                                                                                                      |
+| --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `CheckoutOfferPricing` provided by `CheckoutOfferModule`, not exported                              | exported, and injected like any other service                                                                              |
+| `price()` prices an add-on whose feature needs one neither the plan nor an add-on brings            | refused with `422 CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED` and `missingRequires`, as `create` and `update` refuse it |
+| `CheckoutOfferService` takes `PlanRepository` and `CatalogEntryRepository` after `BundleRepository` | neither: the check moved into the pricing                                                                                  |
+| `CheckoutOfferPricing`                                                                              | also `CatalogEntryRepository`, an optional last constructor argument                                                       |
+
+1. **Where your application reaches `CheckoutOfferPricing` through `ModuleRef` with
+   `strict: false`**, inject it instead, and drop `strict: false` from a test that resolves it.
+2. **Where a screen of yours shows the preview**, show its refusal as it shows the refusal of
+   creating the offer: a selection with an unmet dependency is now refused before the tenant
+   confirms rather than after.
+3. **Where you construct `CheckoutOfferService` by hand** — a test included — drop the plan and
+   catalogue entry repositories from its arguments; where you construct `CheckoutOfferPricing`,
+   pass the `CatalogEntryRepository` last for the check. Without it no dependency is checked, as
+   before without the repository.
+
+- **No codemod step**: an injection through `ModuleRef` is written in too many shapes to rewrite,
+  and what a screen does with a refusal is yours. The compiler names each constructor call.
+
+### Your pilot route receives the subscriber's address
+
+Where `config/saas.yaml` names a tax adapter, a contract names its subscriber only with the full
+address, so a pilot created without one failed at its first plan, version or add-on change with
+`SUBSCRIBER_IDENTITY_INCOMPLETE`. The pilot dialog now asks for the address of the pilot's subscriber
+and sends it as `subscriber`; where the manifest says `subscriberAddressRequired`, which the platform
+sets from the adapter, it does not submit without the street, postal code, city and country
+(`SC-SPEC-010`). `SubscriberService.assessNewSubscriber` refuses details without them first, where
+an adapter decides (`SC-SUB-048`). Both pilot dialogs read the route's refusal as the platform's
+error: a refusal reads as its sentence in the interface's language, where every one read "Creation
+failed", and a wrong code asks again, where it closed the prompt. See
+[the pilot routes are yours](build-the-admin-frontend.md#the-pilot-routes-are-yours).
+
+| before                                                                                                                    | after                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PilotCreatePayload`: `tenant`, `admin`, `pilot`                                                                          | also `subscriber?: PilotSubscriberAddress` — `addressLine1`, `addressLine2`, `postalCode`, `city`, `country` — absent where none was entered |
+| `AdminManifest`                                                                                                           | also `subscriberAddressRequired`, set by the platform; a manifest built without it reads as `false`                                          |
+| `assessNewSubscriber` under a tax adapter asks the adapter whatever the address                                           | refuses details without street, postal code, city or country with `422 SUBSCRIBER_IDENTITY_INCOMPLETE`, before the adapter is asked          |
+| `useMfaPrompt().run` keeps the prompt open on every `401`                                                                 | closes it and rethrows a `401` saying `MFA_NOT_SET_UP` or `NOT_AUTHENTICATED`: no other code helps there                                     |
+| `common.errorSaveFailed`, `common.createFailed`, `pilots.mfa.invalidOrNotSetUp` and `pilots.mfa.notSetUp` in the messages | gone                                                                                                                                         |
+
+`@saasicat/ui-vue` adds `PilotSubscriberAddress`, and the framework-free `pilotAddressGaps`,
+`pilotSubscriberOf`, `PILOT_SUBSCRIBER_ADDRESS_FIELDS` with the types `PilotSubscriberAddressField`
+and `PilotSubscriberAddressForm`, for a pilot form of your own.
+
+1. **Where your pilot route's DTO refuses unknown keys** (`forbidNonWhitelisted`), declare
+   `subscriber` with its five optional fields. Otherwise a pilot created with an address is refused
+   with `400`.
+2. **Where your pilot route creates the subscriber**, give it the address:
+   `{ legalName: tenant.name, vatId: tenant.vatId, ...subscriber }`, asked of
+   `assessNewSubscriber` before the transaction and created with `createForTenant`. A check of the
+   address of your own, before the assessment, is no longer needed under an adapter.
+3. **Where your route words its own refusal**, send it as the body's `message`; the dialog shows it
+   where the code is not the platform's.
+4. **Where a page of yours calls `useMfaPrompt().run`**, show the error it rethrows for
+   `MFA_NOT_SET_UP` and `NOT_AUTHENTICATED`, as for any other failure of the action.
+5. **Where your `i18n.overrides` name one of the four messages that are gone**, delete the entry;
+   the compiler names it.
+
+- **No codemod step**: the DTO and the route are your server's, and what an override said is your
+  wording. The compiler names a removed message key.
+
+### A line of the address holds one bound, wherever it arrives
+
+A line of a subscriber's address was bounded only by a route's decorators, and only where the
+application installed a `ValidationPipe`: sign-up and the billing area held it to one bound, the
+operator's correction of an invoice to `INVOICE_CORRECTION_MAX_LENGTH`, and a subscriber your code
+created or changed to none. The platform now holds each line to one bound itself,
+`SUBSCRIBER_ADDRESS_MAX_LENGTHS` from `@saasicat/core`, and refuses a longer one with
+`422 SUBSCRIBER_DETAIL_INVALID`, `params.field` naming it (`SC-SUB-049`). `ChangeBillingDetailsDto`
+no longer judges a value, so under a pipe a detail the billing area keeps elsewhere is refused by its
+name, as `SC-SUB-047` says, and not with a `400` for its value. See
+[which billing details a tenant changes](wire-the-backend.md#which-billing-details-a-tenant-changes).
+
+| before                                                                                                                                                     | after                                                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createForTenant`, `assessNewSubscriber`, `changeContact`, `changeContactOfTenant` and an offer's `newSubscriber` take a line of the address of any length | at most its bound, or `422 SUBSCRIBER_DETAIL_INVALID`                                                                                                                                                                                   |
+| `PATCH /billing/details` behind a pipe answers `400` for a value its decorators refuse, of a detail kept elsewhere too                                     | `422 SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE` for a detail kept elsewhere, whatever its value; `422 SUBSCRIBER_DETAIL_INVALID` for the value of a detail it takes                                                                           |
+| the operator's correction of an invoice takes every detail up to `INVOICE_CORRECTION_MAX_LENGTH`                                                           | a line of the address up to its bound (`invoiceCorrectionMaxLengthOf`); the legal name, the tax identifiers and the country [as the next section says](#the-legal-name-the-tax-identifiers-and-the-country-hold-one-bound-and-one-form) |
+| step 4 of sign-up and the operator's correction of an invoice behind a pipe answer `400` for a detail over its bound                                       | `422 SUBSCRIBER_DETAIL_INVALID` naming it: only the platform measures, once trimmed, in UTF-16 code units                                                                                                                               |
+| —                                                                                                                                                          | `SUBSCRIBER_ADDRESS_MAX_LENGTHS`, `SubscriberAddressLineField`, `invoiceCorrectionMaxLengthOf`, `SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH` and `subscriberContactMaxLengthOf` in `@saasicat/core`                                            |
+
+1. **Where a form of yours takes a line of the address** — a pilot route, a page of your own for
+   the company's address, a sign-up of your own — bind its `maxlength` to
+   `subscriberContactMaxLengthOf(field)`, the bounds of `SUBSCRIBER_ADDRESS_MAX_LENGTHS` with the
+   country's two letters, so the person is stopped where they type rather than refused when they
+   save; `maxlength` counts as the platform does. Leave the length out of a DTO of yours:
+   `@MaxLength` counts untrimmed and by code points, and would answer a `400` where the platform
+   answers its `422`.
+2. **Where your interface words the `400` of `PATCH /billing/details`**, it is now a `422` naming
+   the field: show it as every `SUBSCRIBER_DETAIL_INVALID` and `SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`.
+3. **Where data of yours holds a longer line**, shorten it before your code passes it to the
+   platform again.
+
+- **No codemod step**: which of your forms takes an address, and how long it lets a line be, is
+  your application's.
+
+### The legal name, the tax identifiers and the country hold one bound and one form
+
+The legal name and the tax identifiers were bounded only at sign-up, by `@MaxLength(30)` for each
+tax identifier behind a `ValidationPipe`, and by `INVOICE_CORRECTION_MAX_LENGTH` in the operator's
+correction of an invoice; a subscriber your code created or corrected held them to none. Sign-up's
+DTO refused a country in lower case with a `400`, while every other way in upper-cased it. The
+platform now judges each itself, wherever it arrives and whether or not your application installs a
+pipe (`SC-SUB-050`): the legal name at most `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH` (300) characters,
+each tax identifier at most `SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH` (30), counted once trimmed in
+UTF-16 code units, a VAT number as it was written, before its spaces, dots and hyphens are dropped;
+the country upper-cased to its two letters. It refuses a value out of its bound or form with
+`422 SUBSCRIBER_DETAIL_INVALID`, `params.field` naming it. A sign-up's tenant name, which becomes
+the legal name, holds `REGISTRATION_TENANT_NAME_MIN_LENGTH` to `REGISTRATION_TENANT_NAME_MAX_LENGTH`
+characters, judged where the sign-up starts. A cancellation's reason and the address it is
+delivered to are judged by the cancellation alone (`SC-ADM-059`).
+
+| before                                                                                                                                                          | after                                                                                                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createForTenant`, `correctIdentity` and an offer's `newSubscriber` take a legal name and a tax identifier of any length                                        | the legal name at most 300 characters, a tax identifier at most 30, or `422 SUBSCRIBER_DETAIL_INVALID`                                                                                       |
+| the operator's correction of an invoice takes a tax identifier of up to 300 characters                                                                          | up to 30                                                                                                                                                                                     |
+| step 4 of sign-up behind a pipe answers `400` for a tax identifier over 30 characters and for a country such as `de`                                            | `422 SUBSCRIBER_DETAIL_INVALID` for a tax identifier over its bound and for a country that is no code; `de` is taken as `DE`                                                                 |
+| `POST /auth/register/start` behind a pipe answers `400` for a tenant name under 2 or over 120 characters, counted untrimmed; without a pipe it takes any length | `422 SUBSCRIBER_DETAIL_INVALID` naming `tenantName`, counted once trimmed, with a pipe or without one                                                                                        |
+| a cancellation behind a pipe answers `400` for a reason that is missing, blank or over its bound, and for an address that is no text or too long                | `422 SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID` and `422 SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID`, as without a pipe                                                            |
+| `INVOICE_CORRECTION_MAX_LENGTH` in `@saasicat/core`                                                                                                             | gone: `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH`, `SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH` and `subscriberIdentityMaxLengthOf`; `invoiceCorrectionMaxLengthOf(detail)` answers each detail's own bound |
+| —                                                                                                                                                               | `REGISTRATION_TENANT_NAME_MIN_LENGTH` and `REGISTRATION_TENANT_NAME_MAX_LENGTH` in `@saasicat/core`                                                                                          |
+
+1. **Where a form or a DTO of yours takes a tax identifier or a legal name** — a pilot route, a
+   page of your own for the company's data, a sign-up of your own — bind the input's `maxlength`
+   to `subscriberIdentityMaxLengthOf(field)` and leave the length out of the DTO, or hold it to the
+   same number. A DTO that lets a longer value through to code that passes it to the platform now
+   meets the platform's `422`, and where your code saves its own record before it hands the value
+   on, the record keeps a value the platform refused.
+2. **Where your code reads `INVOICE_CORRECTION_MAX_LENGTH`**, read
+   `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH`, or `invoiceCorrectionMaxLengthOf(detail)` for the bound of
+   one detail.
+3. **Where your interface words the `400` of step 4, of `POST /auth/register/start` or of a
+   cancellation**, it is now the `422` named above: show it as every refusal with a platform code.
+4. **Where data of yours holds a longer legal name or tax identifier**, shorten it before your code
+   passes it to the platform again.
+
+- **No codemod step**: which of your forms and DTOs take these values, and how long they let them
+  be, is your application's.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

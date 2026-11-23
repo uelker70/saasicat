@@ -1070,13 +1070,16 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
   the payment method it had, so a gateway adapter that reports a session under a name of its own
   shows up as changes that never arrive.
 - **`GET /billing/details`** and **`PATCH /billing/details`** — whom the tenant's subscription is
-  billed to, behind the same guards and permission. The tenant changes the address and the invoice
-  email; the street, postal code, city, country and invoice email can be replaced but not cleared
-  (`SUBSCRIBER_DETAIL_INVALID` names the field), and a legal name or tax identifier in the body is
-  refused with `SUBSCRIBER_IDENTITY_NOT_A_CONTACT` — the operator corrects those. The request DTO
-  declares those three fields so that a `ValidationPipe` with `whitelist` passes them through to the
-  refusal instead of stripping them into a silent success. Both answer `business` as the operator
-  keeps it and, where a tax adapter decides, `readiness`: what holds the next contract back
+  billed to, behind the same guards and permission. With `tenantBilling` they are served whether or
+  not `payments` is wired: an installation that invoices for a bank transfer bills its tenants to an
+  address too. The tenant changes the address and the invoice email, or the ones of them your
+  application leaves to it ([below](#which-billing-details-a-tenant-changes)); the street, postal
+  code, city, country and invoice email can be replaced but not cleared (`SUBSCRIBER_DETAIL_INVALID`
+  names the field), and a legal name or tax identifier in the body is refused with
+  `SUBSCRIBER_IDENTITY_NOT_A_CONTACT` — the operator corrects those. The request DTO declares those
+  three fields so that a `ValidationPipe` with `whitelist` passes them through to the refusal instead
+  of stripping them into a silent success. Both answer `business` as the operator keeps it and, where
+  a tax adapter decides, `readiness`: what holds the next contract back
   ([the tax adapter](#the-tax-adapter)). `TenantBillingSection` in `@saasicat/ui-vue-tenant` is the
   page for both routes and the payment method.
 - **Row-level security and the callback.** A callback arrives with no session and no tenant. If your
@@ -1094,6 +1097,54 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
   read platform-wide, before anything is served: the platform wraps them in `RlsBypassPort`, and an
   implementation of that port which needs a request context, or answers with the caller's tenant
   scope, turns the check that exists to refuse into one that passes.
+
+### Which billing details a tenant changes
+
+A tenant changes all six contact details in its billing area unless your application says
+otherwise. Where it keeps the address on a page of its own, name the details the tenant changes in
+the billing area, so the address has one place:
+
+```ts
+SaaSiCatModule.forRoot({
+    // …
+    tenantBilling: {
+        // …
+        billingDetails: { tenantEditable: ['invoiceEmail'] },
+    },
+});
+```
+
+`GET` and `PATCH /billing/details` then answer `tenantEditable`, the details named, in the order of
+`SUBSCRIBER_CONTACT_FIELDS` from `@saasicat/core`. A change that names any other detail is refused
+with `422 SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`, `params.field` naming it, and nothing of that change
+is written — by the name, so an unchanged value, `null` and a value out of its form are refused
+too. The details it takes are then judged: a line of the address at most the bound
+`SUBSCRIBER_ADDRESS_MAX_LENGTHS` names for it, counted once trimmed in UTF-16 code units as an
+input's `maxlength` counts them (an emoji counts as two), the country as its code, the invoice email
+as an address, each refused otherwise with `422 SUBSCRIBER_DETAIL_INVALID` naming it (`SC-SUB-049`).
+The platform judges them itself: this route's DTO judges nothing, and neither it nor the DTOs of
+sign-up and of the operator's correction of an invoice measure a detail or judge its form. So a detail
+is answered the same behind your `ValidationPipe` and without one; a field that is no detail at all
+is still refused by a pipe that forbids unknown ones. `[]` leaves every detail to your
+application. A name that is not a contact detail, or the legal name or a tax identifier, stops the
+start. Your own page writes through
+`SubscriberService.changeContactOfTenant(tenantId, change, changedBy)`, which the option does not
+limit (`SC-SUB-047`); the bounds of the address hold there as on every way in.
+
+`TenantBillingSection` from `@saasicat/ui-vue-tenant` shows the other details as text, followed by a
+sentence saying where they are changed: `billingDetailsChangedElsewhere` in its `i18n`, or the
+`changed-elsewhere` slot in its place, for a link to your page:
+
+```vue
+<TenantBillingSection :http="http" :format-currency="formatCurrency" :format-date="formatDate">
+    <template #changed-elsewhere>
+        <RouterLink to="/settings/company">Change the address under Company.</RouterLink>
+    </template>
+</TenantBillingSection>
+```
+
+What holds the next contract back is still named above the details, those your page keeps included:
+the tenant reads what is missing there, and your sentence says where to add it.
 
 ## The Tax Adapter
 
@@ -1142,10 +1193,25 @@ await subscribers.createForTenant(tenantId, assessed, tx);
 
 It answers the details with the check of the VAT number attached where the treatment depends on
 one, which `createForTenant` records with the subscriber on the transaction you pass; assessed
-details are refused without one, whether or not a check was needed. It refuses a case the adapter
-cannot treat with `422 TAX_TREATMENT_NOT_SUPPORTED`, and a number it could not check just now with
-`503 TAX_VAT_ID_CHECK_NOT_COMPLETED`. It reaches an outside service, so never call it inside a
-transaction.
+details are refused without one, whether or not a check was needed. Under an adapter it refuses
+details without the street, postal code, city or country first, with
+`422 SUBSCRIBER_IDENTITY_INCOMPLETE` naming the empty fields, since no contract could name such a
+subscriber. It refuses a case the adapter cannot treat with `422 TAX_TREATMENT_NOT_SUPPORTED`, and
+a number it could not check just now with `503 TAX_VAT_ID_CHECK_NOT_COMPLETED`. It reaches an
+outside service, so never call it inside a transaction.
+
+Every way a subscriber's details arrive — sign-up, `createForTenant`, an offer's `newSubscriber`,
+`correctIdentity`, the operator's correction of an invoice — holds them to the same bounds and
+forms, judged by the platform whether or not your application installs a `ValidationPipe`: the
+legal name at most `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH` characters, the VAT number and the tax number
+at most `SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH` each, counted once trimmed in UTF-16 code units — a
+VAT number as it was written, before its spaces, dots and hyphens are dropped —, the country
+upper-cased to its two letters, and each line of the address its bound (`SC-SUB-049`,
+`SC-SUB-050`). A value out of its bound or form is refused with `422 SUBSCRIBER_DETAIL_INVALID`,
+`params.field` naming it. A form of yours that takes them binds `maxlength` to
+`subscriberIdentityMaxLengthOf(field)` and `subscriberContactMaxLengthOf(field)` from
+`@saasicat/core`; a DTO of yours leaves the length out, or holds it to the same number, since a
+longer value it lets through meets the platform's refusal after your own record was written.
 
 With an adapter, a contract names its subscriber only with the whole address an invoice names —
 street and number, postal code, city and country. Every way a contract comes about refuses a
@@ -1820,10 +1886,14 @@ invoice.
   `SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED` and the new preview, rather than writing what
   nobody confirmed.
 - **The cancellation**, `POST admin/invoices/:invoiceId/cancellation`, asks for the
-  second factor (`x-mfa-code`). Both take `reason` — one line of at most 500 characters, which both
-  invoices name —, `lines`, each `{ position, owed }` of a line not owed in full with what is still
-  owed of it, net, `corrections` of the subscriber's details the replacement names, and
-  `deliverTo`, required where the subscriber's record holds no invoice email. Each line named is
+  second factor (`x-mfa-code`). Both take `reason` — one line of at most
+  `INVOICE_CANCELLATION_REASON_MAX_LENGTH` characters, which both invoices name —, `lines`, each
+  `{ position, owed }` of a line not owed in full with what is still owed of it, net,
+  `corrections` of the subscriber's details the replacement names, and `deliverTo`, required
+  where the subscriber's record holds no invoice email. The cancellation judges the reason and
+  the address itself, behind a pipe as without one, and refuses them with
+  `422 SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID` and
+  `422 SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID` (`SC-ADM-059`). Each line named is
   lowered by a counter-entry with the reason, each discount that reduced it follows in the share it
   fell, and the preview's `lines` say what each charge line stands at and becomes, in the
   invoice's currency. Both invoices and the
@@ -3085,6 +3155,14 @@ own `listByIds` for it, or a start with version notices is refused.
 with a contract in force when the offer's would take effect, or one beginning after it, with
 `CHECKOUT_OFFER_CONTRACT_IN_FORCE` (`SC-MKT-028`), and an offer naming another version of an add-on
 the tenant has booked with `CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION` (`SC-MKT-029`).
+
+**The price before the offer.** A checkout of your own shows the amounts before the tenant confirms.
+Take them from `CheckoutOfferPricing`, which the checkout offer module exports beside the service:
+inject it with `@Inject(CheckoutOfferPricing)` from `@saasicat/nest/checkout-offer`, never through
+`ModuleRef`. `price(selection)` gives the amounts an offer created from the same selection carries,
+and refuses what creating it refuses, an unmet feature dependency included. It stores no offer and
+holds or redeems no promo code; a code it checks is recorded in the promo code's validation log like
+every check (`SC-MKT-031`).
 
 ## Withdrawing a Feature
 

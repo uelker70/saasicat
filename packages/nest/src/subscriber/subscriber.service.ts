@@ -11,6 +11,7 @@ import type {
     PlanCatalogSettings,
     SubscriberBusinessStatusResult,
     SubscriberContactChange,
+    SubscriberContactField,
     SubscriberCorrectionRecord,
     SubscriberIdentityCorrection,
     SubscriberReadiness,
@@ -98,8 +99,11 @@ export class SubscriberService {
     /**
      * Whether a subscriber of these details may be created, asked before the
      * transaction that creates it: `assessNewSubscriber` from the tax module,
-     * for an application that creates subscribers itself. Answers the details
-     * with the check attached, which `createForTenant` records.
+     * for an application that creates subscribers itself. Where a tax adapter
+     * decides, details without the full address a contract names are refused
+     * with `SUBSCRIBER_IDENTITY_INCOMPLETE` before the adapter is asked.
+     * Answers the details with the check attached, which `createForTenant`
+     * records.
      */
     assessNewSubscriber(
         details: NewSubscriberDetails,
@@ -375,15 +379,23 @@ export class SubscriberService {
      * can be invoiced. The legal name and the tax identifiers are refused as
      * with `changeContact`: they are the party, and only the operator corrects
      * them. `changedBy` names the tenant's user, as with `changeContact`.
+     *
+     * `options.changeable` names the contact details the change may name — the
+     * ones the application lets its tenant change in the billing area
+     * (`tenantBilling.billingDetails`) — and any other is refused by name with
+     * `SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`, nothing of the change written.
+     * Left out, every one may be named: an application writing from a page of
+     * its own calls this without it.
      */
     async changeContactOfTenant(
         tenantId: string,
         change: SubscriberContactChange,
         changedBy: string,
+        options: { changeable?: readonly SubscriberContactField[] } = {},
     ): Promise<SubscriberRecord> {
         const actor = settleActor(changedBy);
         const subscriber = await this.requireForTenant(tenantId);
-        const settled = settleContactChange(change);
+        const settled = settleContactChange(change, options.changeable);
         const cleared = KEPT_BY_A_TENANT.find((field) => settled[field] === null);
         if (cleared) {
             throw new UnprocessableEntityException(

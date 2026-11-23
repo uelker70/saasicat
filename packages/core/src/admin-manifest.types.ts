@@ -47,6 +47,15 @@ export interface AdminManifest {
      */
     timeZone?: string;
 
+    /**
+     * Whether a contract needs its subscriber's full address — street, postal
+     * code, city and country — which holds where `config/saas.yaml` names a
+     * tax adapter: a screen that creates a subscriber, such as the pilot
+     * dialog, then asks for it as required. Always set by the platform; a
+     * manifest built without it is read as `false`.
+     */
+    subscriberAddressRequired?: boolean;
+
     planCatalogSnapshot: {
         source: string;
         hash: string;

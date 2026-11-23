@@ -52,6 +52,8 @@ import {
     PENDING_EMAIL_TTL_HOURS,
     PENDING_ONBOARDING_TTL_DAYS,
     REGISTRATION_STEP_BY_STATUS,
+    REGISTRATION_TENANT_NAME_MAX_LENGTH,
+    REGISTRATION_TENANT_NAME_MIN_LENGTH,
 } from '@saasicat/core';
 import { CheckoutOfferService } from '../checkout-offer/checkout-offer.service.js';
 import { codedError } from '../errors/coded-error.js';
@@ -386,10 +388,7 @@ export class PendingRegistrationService implements OnModuleInit {
         input: StartRegistrationInput,
         context?: RegistrationAuditContext,
     ): Promise<StartRegistrationResult> {
-        // The tenant name becomes the subscriber's legal name at step 4, whose
-        // form does not show it: what step 4 would refuse is refused here — a
-        // name that cannot stand as a detail, and one that trims to nothing.
-        if (!holdsAsSubscriberDetail(input.tenantName) || input.tenantName.trim() === '') {
+        if (!isFitTenantName(input.tenantName)) {
             throw new UnprocessableEntityException(
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, {
                     field: 'tenantName',
@@ -976,4 +975,22 @@ function billingDetailsOf(
 function nullable(value: string | null | undefined): string | null {
     const trimmed = value?.trim();
     return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Whether `name` can be a sign-up's tenant name, which becomes the
+ * subscriber's legal name at step 4, whose form does not show it: what step 4
+ * would refuse is refused here — a name that cannot stand as a detail — and
+ * the name is held to its own bounds once trimmed
+ * (`REGISTRATION_TENANT_NAME_MIN_LENGTH`, `REGISTRATION_TENANT_NAME_MAX_LENGTH`).
+ * Judged here, not by the route's decorators, so the bounds hold whether or not
+ * the application installs a `ValidationPipe` (`SC-SUB-050`).
+ */
+function isFitTenantName(name: unknown): boolean {
+    if (typeof name !== 'string' || !holdsAsSubscriberDetail(name)) return false;
+    const length = name.trim().length;
+    return (
+        length >= REGISTRATION_TENANT_NAME_MIN_LENGTH &&
+        length <= REGISTRATION_TENANT_NAME_MAX_LENGTH
+    );
 }

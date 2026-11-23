@@ -573,9 +573,10 @@ the installation's `timeZone` as `config/saas.yaml` sets it, and the pages read 
 - **A day somebody picked** in a date field and stored as that day's UTC midnight — a version's
   validity, a pilot's end — is that day in every zone, and "today" in a form is the installation's
   today. The platform stores a version's days itself; a pilot's end is stored by your server,
-  because the pilot routes are yours: they receive the end as a calendar day (`YYYY-MM-DD`) and hand
-  `pilotEndsAt` back as that day's UTC midnight, which is what `new Date(endsAt)` makes of it. An
-  end stored at your own zone's midnight shows as the day before east of Greenwich.
+  because [the pilot routes are yours](#the-pilot-routes-are-yours): they receive the end as a
+  calendar day (`YYYY-MM-DD`) and hand `pilotEndsAt` back as that day's UTC midnight, which is what
+  `new Date(endsAt)` makes of it. An end stored at your own zone's midnight shows as the day before
+  east of Greenwich.
 
 Where the file names no zone, the days are UTC days. The pages read the manifest through
 `manifestGuard.getManifest` (see the setup above); an app that passes none shows UTC days whatever
@@ -643,6 +644,50 @@ around it rather than replacing it. Every other operation is untouched.
 
 `createAdminResourceClient` is still exported for an app that wants to call the
 admin API from its own code rather than through a page.
+
+## The pilot routes are yours
+
+`PilotsPage` and its dialogs call routes your server serves, under the admin API base:
+`GET pilots`, `GET pilots/review`, `POST pilots/create`, `PATCH pilots/:slug`,
+`POST pilots/:slug/extend` and `POST pilots/:slug/revoke`. A route behind the second factor reads
+its code from the `X-Mfa-Code` header. The shapes are `PilotRow`, `PilotCreatePayload` and
+`PilotEditPayload` from `@saasicat/ui-vue`.
+
+`POST pilots/create` receives `tenant`, `admin` and `pilot`, and `subscriber`: the address of the
+pilot's subscriber, in the subscriber's own field names — `addressLine1`, `addressLine2`,
+`postalCode`, `city` and `country` (two letters, upper case). Each input stops where the platform
+would refuse the line, at `subscriberContactMaxLengthOf` from `@saasicat/core`. The dialog sends the
+fields entered, trimmed, and leaves `subscriber` out where none was. Where the manifest says
+`subscriberAddressRequired` — `config/saas.yaml` names a tax adapter, so a contract names its
+subscriber only with the full address — the dialog does not submit until the street, postal code,
+city and country are given; otherwise they are optional (`SC-SPEC-010`). Each input stops where the
+platform would refuse the value the route passes on: the name at the legal name's bound, the VAT
+number at a tax identifier's (`subscriberIdentityMaxLengthOf`, `SC-SUB-050`).
+
+The route creates the pilot's subscriber with that address. Ask
+`SubscriberService.assessNewSubscriber` before the transaction that creates it, and give
+`createForTenant` what it answers
+([the tax adapter](wire-the-backend.md#the-tax-adapter)):
+
+```ts
+import { contractTaxPeriod } from '@saasicat/nest/billing';
+
+// The first period of the contract the pilot's subscriber will have.
+const period = contractTaxPeriod({ effectiveFrom: new Date(), billingCycle: 'MONTHLY' });
+const details = { legalName: body.tenant.name, vatId: body.tenant.vatId, ...body.subscriber };
+const assessed = await subscribers.assessNewSubscriber(details, period);
+await subscribers.createForTenant(tenantId, assessed, tx);
+```
+
+Under a tax adapter it refuses an incomplete address with `422 SUBSCRIBER_IDENTITY_INCOMPLETE`,
+naming the empty fields, before the adapter is asked (`SC-SUB-048`) — the refusal every contract
+would meet later. Where your `ValidationPipe` sets `forbidNonWhitelisted`, declare `subscriber` in the
+route's DTO, or a pilot created with an address is refused with `400`.
+
+The dialogs show what the route answered: a refusal with a platform code reads as the catalogue's
+sentence in the interface's language, a refusal of your own as its `message`, and anything else by
+its status. A `401` refusing the code keeps the prompt for the second factor open; one saying
+`MFA_NOT_SET_UP` or `NOT_AUTHENTICATED` closes it and is said in the dialog.
 
 ## The tenant-facing feature gate
 

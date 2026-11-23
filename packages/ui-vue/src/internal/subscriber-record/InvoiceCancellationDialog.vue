@@ -37,7 +37,7 @@
                         outlined
                         dense
                         type="email"
-                        :maxlength="ADDRESS_MAX_LENGTH"
+                        :maxlength="SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH"
                         :aria-describedby="describedBy"
                     />
                 </template>
@@ -57,7 +57,7 @@
                                 :model-value="draft.corrections[detail] ?? ''"
                                 outlined
                                 dense
-                                :maxlength="INVOICE_CORRECTION_MAX_LENGTH"
+                                :maxlength="invoiceCorrectionMaxLengthOf(detail)"
                                 :aria-describedby="describedBy"
                                 @update:model-value="(value) => correct(detail, value)"
                             />
@@ -166,8 +166,9 @@
 import { computed, reactive, ref, watch } from 'vue';
 import {
     INVOICE_CANCELLATION_REASON_MAX_LENGTH,
-    INVOICE_CORRECTION_MAX_LENGTH,
     INVOICE_SUBSCRIBER_DETAILS,
+    invoiceCorrectionMaxLengthOf,
+    SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH,
     type AdminReplacementLine,
     type AdminSubscriberDetails,
     type InvoiceSubscriberDetail,
@@ -187,9 +188,6 @@ import AdminFieldGrid from '../../ui/page/AdminFieldGrid.vue';
 import type { InvoiceCancellationFlow } from '../../vue/use-invoice-cancellation.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import InvoiceCancellationLines from './InvoiceCancellationLines.vue';
-
-/** RFC 5321 caps an address at 254 characters, as the route does. */
-const ADDRESS_MAX_LENGTH = 254;
 
 const props = defineProps<{
     flow: InvoiceCancellationFlow;

@@ -1,9 +1,27 @@
+import { AUTH_ERROR_CODES } from '@saasicat/core';
 import { ref, type Ref } from 'vue';
 
 import { toAdminError } from '../client/admin-error.js';
 
-/** The status a route answers with when it refuses the code: wrong, expired, or no second factor set up. */
+/** The status a route answers with when it refuses the code: wrong, expired, or missing. */
 const CODE_REFUSED = 401;
+
+/**
+ * The codes of a `401` that no other code can change: the second factor was
+ * never set up, or nobody is signed in. Asking again would only repeat the
+ * refusal under the wrong sentence.
+ */
+const NO_CODE_HELPS: ReadonlySet<string> = new Set([
+    AUTH_ERROR_CODES.MFA_NOT_SET_UP,
+    AUTH_ERROR_CODES.NOT_AUTHENTICATED,
+]);
+
+/** Whether the route refused the code itself, so another code may pass. */
+function refusedTheCode(err: unknown): boolean {
+    const error = toAdminError(err);
+    if (error.status !== CODE_REFUSED) return false;
+    return error.code === undefined || !NO_CODE_HELPS.has(error.code);
+}
 
 /** What became of an action taken behind the second factor. */
 export type MfaOutcome<T> = { readonly done: true; readonly value: T } | { readonly done: false };
@@ -43,7 +61,9 @@ export interface MfaPrompt {
      * A refused code keeps the dialog open with `invalidCode` and asks again,
      * because the operator can fix that without starting over. Any other
      * failure closes the dialog and is rethrown: it is the action's own error,
-     * and the caller already knows how to show it.
+     * and the caller already knows how to show it. So is a `401` whose code
+     * says no code helps — `MFA_NOT_SET_UP`, `NOT_AUTHENTICATED` — whose own
+     * sentence the caller shows.
      */
     run: <T>(
         description: string,
@@ -110,7 +130,7 @@ export function useMfaPrompt(): MfaPrompt {
                     show.value = false;
                     return { done: true, value };
                 } catch (err) {
-                    if (toAdminError(err).status !== CODE_REFUSED) {
+                    if (!refusedTheCode(err)) {
                         show.value = false;
                         throw err;
                     }

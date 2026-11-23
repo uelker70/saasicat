@@ -28,8 +28,29 @@ export interface PilotRow {
     [extra: string]: unknown;
 }
 
+/**
+ * The address of the pilot's subscriber, in the subscriber's own field names:
+ * the fields the operator entered, trimmed, the country upper-cased. Where the
+ * manifest says a contract needs the full address (`subscriberAddressRequired`),
+ * the street, postal code, city and country are all there.
+ */
+export interface PilotSubscriberAddress {
+    addressLine1?: string;
+    addressLine2?: string;
+    postalCode?: string;
+    city?: string;
+    /** Two letters, such as `DE`; the route judges the form. */
+    country?: string;
+}
+
 export interface PilotCreatePayload {
     tenant: { name: string; slug?: string; legalForm?: string; vatId?: string };
+    /**
+     * The address of the pilot's subscriber, absent where none was entered. A
+     * route that refuses unknown keys declares it; one where a tax adapter
+     * decides refuses an incomplete one, as `assessNewSubscriber` does.
+     */
+    subscriber?: PilotSubscriberAddress;
     admin: {
         email: string;
         firstName: string;

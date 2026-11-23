@@ -14,11 +14,7 @@ import {
     BillingPermissionGuard,
     ComposedTenantAuthGuard,
 } from '../dist/billing/index.js';
-import {
-    RLS_BYPASS_PORT_TOKEN,
-    SAASICAT_PUBLIC_ROUTE_KEY,
-    storeSecretsInPlainText,
-} from '../dist/index.js';
+import { RLS_BYPASS_PORT_TOKEN, SAASICAT_PUBLIC_ROUTE_KEY } from '../dist/index.js';
 import {
     DevPaymentGateway,
     PaymentWebhookController,
@@ -26,30 +22,23 @@ import {
     TenantBillingDetailsController,
     TenantPaymentMethodController,
 } from '../dist/payments/index.js';
-import { SaaSiCatModule } from '../dist/platform/index.js';
 import { SubscriberService } from '../dist/subscriber/index.js';
+import { FakeSubscriberRepository } from '../dist/testing/index.js';
 import {
-    FakeSubscriberRepository,
-    FakeInstallationMarkRepository,
-    FakeTenantDeletionRepository,
-    FakeSubscriptionEndRepository,
-    FakeTenantAccessHoldRepository,
-} from '../dist/testing/index.js';
-import {
-    AllowAll,
     MAIN_ACCOUNT,
     MemoryPaymentMethods,
     ScriptedGateway,
     closePaymentsApps,
+    composablePersistence,
+    composedPlatform,
     confirmation,
     paymentsApp,
     paymentsCatalog,
+    mountsOf,
+    paymentsModuleOf,
     providerRefusal,
     signedCallback,
 } from './helpers/payments.js';
-import { aDeletion } from './helpers/installation-mark.js';
-import { anExport } from './helpers/tenant-data-export.js';
-import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
 const URLS = {
     successUrl: 'https://app.example/plan?payment-method=changed',
@@ -1029,52 +1018,14 @@ describe('the development gateway', () => {
 });
 
 describe('SaaSiCatModule composes payments', () => {
-    const catalog = paymentsCatalog();
-    const persistence = {
-        capabilities: {
-            transactions: true,
-            pessimisticLocking: true,
-            rowLevelSecurity: false,
-            advisoryLocks: false,
-        },
-        core: {
-            tenantAccessHolds: new FakeTenantAccessHoldRepository(),
-            subscriptionEnds: new FakeSubscriptionEndRepository(),
-            installationMark: new FakeInstallationMarkRepository(),
-            tenantDeletions: new FakeTenantDeletionRepository(),
-            mfa: {},
-            audit: {},
-            rlsBypass: {},
-            transactionRunner: {},
-        },
-        entitlement: {
-            subscriptionRepository: {},
-            planVersionRepository: {},
-            subscriberRepository: {},
-        },
-        tenantBilling: { subscriptionUsagePort: {}, subscriptionWritePort: {} },
-        payments: { paymentEventLog: {}, subscriberPaymentMethodRepository: {} },
-    };
-    const paymentsModuleOf = (dyn) =>
-        dyn.imports.find((imported) => imported?.module?.name === 'PaymentsModule');
+    const payments = { gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() } };
 
     test('with tenant billing: the webhook route and the tenant routes, behind the tenant guards', () => {
-        const dyn = SaaSiCatModule.forRoot({
-            adapters: { secretSealer: storeSecretsInPlainText() },
-            planCatalog: catalog,
-            controller: { guards: [AllowAll] },
-            persistence,
-            tenantBilling: {
-                authGuards: [AllowAll],
-                notices: { port: sendingPort(), record: noticeRecord() },
-                subscriptionEnds: { export: anExport(), deletion: aDeletion() },
-            },
-            payments: { gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() } },
-        });
+        const dyn = composedPlatform({ payments });
 
-        const payments = paymentsModuleOf(dyn);
-        assert.ok(payments, 'PaymentsModule is not composed');
-        assert.deepEqual(payments.controllers, [
+        const composed = paymentsModuleOf(dyn);
+        assert.ok(composed, 'PaymentsModule is not composed');
+        assert.deepEqual(composed.controllers, [
             PaymentWebhookController,
             TenantPaymentMethodController,
             TenantBillingDetailsController,
@@ -1084,18 +1035,9 @@ describe('SaaSiCatModule composes payments', () => {
     // @requirement SC-UI-023 — A tenant's invoices, payment method and billing details need the billing permission
     test('the billing permission named once, under tenantBilling, guards the payment routes too', () => {
         const accountingOnly = [{ canActivate: () => false }];
-        const dyn = SaaSiCatModule.forRoot({
-            adapters: { secretSealer: storeSecretsInPlainText() },
-            planCatalog: catalog,
-            controller: { guards: [AllowAll] },
-            persistence,
-            tenantBilling: {
-                authGuards: [AllowAll],
-                billingPermissionGuards: accountingOnly,
-                notices: { port: sendingPort(), record: noticeRecord() },
-                subscriptionEnds: { export: anExport(), deletion: aDeletion() },
-            },
-            payments: { gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() } },
+        const dyn = composedPlatform({
+            tenantBilling: { billingPermissionGuards: accountingOnly },
+            payments,
         });
 
         const bound = paymentsModuleOf(dyn).providers.find(
@@ -1107,18 +1049,9 @@ describe('SaaSiCatModule composes payments', () => {
     test('the billing permission still named under payments stops the start, saying where it moved', () => {
         assert.throws(
             () =>
-                SaaSiCatModule.forRoot({
-                    adapters: { secretSealer: storeSecretsInPlainText() },
-                    planCatalog: catalog,
-                    controller: { guards: [AllowAll] },
-                    persistence,
-                    tenantBilling: {
-                        authGuards: [AllowAll],
-                        notices: { port: sendingPort(), record: noticeRecord() },
-                        subscriptionEnds: { export: anExport(), deletion: aDeletion() },
-                    },
+                composedPlatform({
                     payments: {
-                        gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },
+                        ...payments,
                         billingPermissionGuards: [{ canActivate: () => true }],
                     },
                 }),
@@ -1127,26 +1060,19 @@ describe('SaaSiCatModule composes payments', () => {
     });
 
     test('without tenant billing: the webhook route alone', () => {
-        const dyn = SaaSiCatModule.forRoot({
-            adapters: { secretSealer: storeSecretsInPlainText() },
-            planCatalog: catalog,
-            controller: { guards: [AllowAll] },
-            persistence,
-            payments: { gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() } },
-        });
+        const dyn = composedPlatform({ tenantBilling: null, payments });
 
         assert.deepEqual(paymentsModuleOf(dyn).controllers, [PaymentWebhookController]);
+        assert.equal(mountsOf(dyn, TenantBillingDetailsController), 0);
     });
 
     test('without a payments slice in the persistence bundle, the boot names what is missing', () => {
         assert.throws(
             () =>
-                SaaSiCatModule.forRoot({
-                    adapters: { secretSealer: storeSecretsInPlainText() },
-                    planCatalog: catalog,
-                    controller: { guards: [AllowAll] },
-                    persistence: { ...persistence, payments: undefined },
+                composedPlatform({
+                    tenantBilling: null,
                     payments: { gateways: {} },
+                    persistence: { ...composablePersistence(), payments: undefined },
                 }),
             /paymentEventLog, subscriberPaymentMethodRepository/,
         );

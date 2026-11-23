@@ -1038,7 +1038,11 @@ paths:
                         application/json:
                             schema: { $ref: '#/components/schemas/AdminInvoiceCancellationPlan' }
                 '400':
-                    description: A field out of shape, or a reason blank or too long
+                    description: >-
+                        A field out of shape: corrections or lines that are no
+                        object or list, a line or digest out of its form. The
+                        reason and the address are judged by the cancellation,
+                        with `422`
                 '404':
                     description: No invoice under this id (`SUBSCRIPTION_INVOICE_NOT_FOUND`)
                 '409':
@@ -1105,7 +1109,11 @@ paths:
                         application/json:
                             schema: { $ref: '#/components/schemas/AdminCancelledInvoice' }
                 '400':
-                    description: A field out of shape, or a reason blank or too long
+                    description: >-
+                        A field out of shape: corrections or lines that are no
+                        object or list, a line or digest out of its form. The
+                        reason and the address are judged by the cancellation,
+                        with `422`
                 '404':
                     description: No invoice under this id (`SUBSCRIPTION_INVOICE_NOT_FOUND`)
                 '409':
@@ -1225,9 +1233,9 @@ paths:
                             required: [kind, reason]
                             properties:
                                 kind: { type: string, enum: [correction, takeover] }
-                                legalName: { type: string }
-                                vatId: { type: string, nullable: true }
-                                taxNumber: { type: string, nullable: true }
+                                legalName: { type: string, maxLength: 300 }
+                                vatId: { type: string, nullable: true, maxLength: 30 }
+                                taxNumber: { type: string, nullable: true, maxLength: 30 }
                                 reason: { type: string, maxLength: 500 }
             responses:
                 '200':
@@ -1242,7 +1250,8 @@ paths:
                         A takeover, no reason, or a correction that changes
                         nothing (`SUBSCRIBER_TAKEOVER_IS_A_TRANSFER`,
                         `SUBSCRIBER_CORRECTION_REASON_REQUIRED`,
-                        `SUBSCRIBER_CORRECTION_CHANGES_NOTHING`)
+                        `SUBSCRIBER_CORRECTION_CHANGES_NOTHING`); a detail over
+                        its bound or out of its form (`SUBSCRIBER_DETAIL_INVALID`)
 
     /subscribers/{id}/join/preview:
         parameters:
@@ -4678,20 +4687,23 @@ components:
                         The subscriber's details the cancelled invoice named
                         wrongly, as the replacement is to name them. A detail
                         left out stays as it was; `null` clears one, except the
-                        legal name.
+                        legal name. Each is counted once trimmed, in UTF-16 code
+                        units, and held to the bound it has wherever it arrives;
+                        the platform refuses one over it with
+                        `422 SUBSCRIBER_DETAIL_INVALID`.
                     properties:
                         legalName: { type: string, maxLength: 300 }
-                        vatId: { type: string, nullable: true, maxLength: 300 }
-                        taxNumber: { type: string, nullable: true, maxLength: 300 }
-                        addressLine1: { type: string, nullable: true, maxLength: 300 }
-                        addressLine2: { type: string, nullable: true, maxLength: 300 }
-                        postalCode: { type: string, nullable: true, maxLength: 300 }
-                        city: { type: string, nullable: true, maxLength: 300 }
+                        vatId: { type: string, nullable: true, maxLength: 30 }
+                        taxNumber: { type: string, nullable: true, maxLength: 30 }
+                        addressLine1: { type: string, nullable: true, maxLength: 200 }
+                        addressLine2: { type: string, nullable: true, maxLength: 200 }
+                        postalCode: { type: string, nullable: true, maxLength: 20 }
+                        city: { type: string, nullable: true, maxLength: 100 }
                         country:
                             type: string
                             nullable: true
-                            maxLength: 300
-                            description: ISO 3166-1 alpha-2.
+                            maxLength: 2
+                            description: ISO 3166-1 alpha-2; `de` is taken as `DE`.
                 deliverTo:
                     type: string
                     nullable: true

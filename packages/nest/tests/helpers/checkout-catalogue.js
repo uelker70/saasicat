@@ -188,13 +188,12 @@ export function buildOfferService(overrides = {}) {
         deps.promotions,
         deps.promoCodes,
         deps.taxes,
+        deps.catalogEntries,
     );
     const service = new CheckoutOfferService(
         deps.repo,
         pricing,
         deps.bundles,
-        deps.plans,
-        deps.catalogEntries,
         deps.contracts,
         deps.transactions,
         deps.subscribers,
@@ -203,5 +202,5 @@ export function buildOfferService(overrides = {}) {
         deps.subscriptionUsage,
         deps.bookings,
     );
-    return { service, ...deps };
+    return { service, pricing, ...deps };
 }

@@ -23,6 +23,7 @@ const DETAILS = {
     city: 'Berlin',
     country: 'DE',
     invoiceEmail: 'rechnung@meier.example',
+    tenantEditable: ['invoiceEmail'],
 };
 
 describe('loading the billing details', () => {
@@ -79,6 +80,22 @@ describe('loading the billing details', () => {
         assert.equal(billing.details.value, null);
         assert.match(billing.error.value?.message ?? '', /did not answer with \{ details \}/);
     });
+
+    for (const [label, tenantEditable] of [
+        ['without the details the tenant changes here', undefined],
+        ['naming them other than as a list', 'invoiceEmail'],
+    ]) {
+        // @requirement SC-SUB-047 — A tenant changes the contact details left to it, and never clears them
+        test(`an answer ${label} is an error, not a card that offers every field`, async () => {
+            const { client } = scriptedHttp([200, { details: { ...DETAILS, tenantEditable } }]);
+            const billing = useTenantBillingDetails({ http: client, autoLoad: false });
+
+            await billing.reload();
+
+            assert.equal(billing.details.value, null);
+            assert.match(billing.error.value?.message ?? '', /did not answer with \{ details \}/);
+        });
+    }
 
     test('the prefix the billing routes sit under is used as given', async () => {
         const { client, calls } = scriptedHttp([200, { details: DETAILS }]);

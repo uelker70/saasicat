@@ -1,7 +1,8 @@
 // What a subscriber's details have to be before they are written: trimmed, a
-// blank value recorded as unknown, the legal name present, the two details
-// that have a form — the country and the invoice email — in it, and the
-// business status a yes, a no or not stated.
+// blank value recorded as unknown, the legal name present, each detail that
+// has a bound within it — the legal name, the tax identifiers, the lines of
+// the address — and each that has a form — the country and the invoice email —
+// in it, and the business status a yes, a no or not stated.
 //
 // Every way a detail arrives goes through here: a new subscriber, a contact
 // change, a correction of the legal identity, and a detail the operator
@@ -22,11 +23,16 @@ import type {
 import {
     canonicalVatId,
     holdsOnlyXmlCharacters,
-    INVOICE_CORRECTION_MAX_LENGTH,
     INVOICE_SUBSCRIBER_DETAILS,
     LEGAL_IDENTITY_FIELDS,
+    SUBSCRIBER_ADDRESS_MAX_LENGTHS,
+    SUBSCRIBER_CONTACT_FIELDS,
     SUBSCRIBER_ERROR_CODES,
     SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
+    SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH,
+    SUBSCRIBER_LEGAL_NAME_MAX_LENGTH,
+    SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH,
+    type SubscriberContactField,
     type SubscriberInvoiceAddressField,
 } from '@saasicat/core';
 
@@ -35,25 +41,13 @@ import { codedError } from '../errors/coded-error.js';
 /** ISO 3166-1 alpha-2, as the schema of `config/saas.yaml` holds the issuer's. */
 const COUNTRY_CODE = /^[A-Z]{2}$/;
 
-/** RFC 5321 caps an address at 254 characters. */
-const MAX_EMAIL_LENGTH = 254;
-
-const CONTACT_FIELDS: readonly (keyof SubscriberContact)[] = [
-    'addressLine1',
-    'addressLine2',
-    'postalCode',
-    'city',
-    'country',
-    'invoiceEmail',
-];
-
 /** A new subscriber's details, every one settled. */
 export function settleNewSubscriberDetails(details: NewSubscriberDetails): SubscriberDetails {
     return {
         legalName: settleLegalName(details.legalName),
         vatId: settleVatId(details.vatId),
-        taxNumber: settleText('taxNumber', details.taxNumber),
-        ...settleContact(details, CONTACT_FIELDS),
+        taxNumber: settleTaxIdentifier('taxNumber', details.taxNumber),
+        ...settleContact(details, SUBSCRIBER_CONTACT_FIELDS),
         business: settleBusinessStatus(details.business),
     };
 }
@@ -74,8 +68,17 @@ export function settleBusinessStatus(value: unknown): boolean | null {
  * leaves it out. A field of the legal identity, and the business status, are
  * refused rather than dropped — a caller that sent a new legal name through
  * here would otherwise be told it succeeded.
+ *
+ * `changeable` names the contact details this caller may change, every one
+ * where it is left out. Any other the change names is refused by its name,
+ * whatever its value — the unchanged value and `null` included — before a
+ * value is judged: the caller cannot change it here, so whether the value
+ * would have held is not the caller's question.
  */
-export function settleContactChange(change: SubscriberContactChange): SubscriberContactChange {
+export function settleContactChange(
+    change: SubscriberContactChange,
+    changeable: readonly SubscriberContactField[] = SUBSCRIBER_CONTACT_FIELDS,
+): SubscriberContactChange {
     const identity = LEGAL_IDENTITY_FIELDS.find(
         (field) => (change as Record<string, unknown>)[field] !== undefined,
     );
@@ -91,8 +94,53 @@ export function settleContactChange(change: SubscriberContactChange): Subscriber
             codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT),
         );
     }
-    const named = CONTACT_FIELDS.filter((field) => change[field] !== undefined);
+    const named = SUBSCRIBER_CONTACT_FIELDS.filter((field) => change[field] !== undefined);
+    const elsewhere = named.find((field) => !changeable.includes(field));
+    if (elsewhere) {
+        throw new UnprocessableEntityException(
+            codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE, {
+                field: elsewhere,
+            }),
+        );
+    }
     return settleContact(change, named);
+}
+
+/**
+ * The contact details `tenantEditable` names, once each, in the order of
+ * `SUBSCRIBER_CONTACT_FIELDS`; every one where it is left out. A name that is
+ * not a contact detail stops the start rather than being dropped: a field the
+ * application meant to keep elsewhere would otherwise stay changeable, or one
+ * it meant to leave to the tenant would be refused.
+ */
+export function tenantEditableDetailsOf(
+    tenantEditable: readonly SubscriberContactField[] | undefined,
+): SubscriberContactField[] {
+    const named: unknown = tenantEditable;
+    if (named === undefined) return [...SUBSCRIBER_CONTACT_FIELDS];
+    const option = '`tenantBilling.billingDetails.tenantEditable`';
+    if (!Array.isArray(named)) {
+        throw new Error(`${option} is a list of contact details, such as ['invoiceEmail'].`);
+    }
+    const listed = new Set<unknown>(named);
+    const identity = new Set<unknown>(LEGAL_IDENTITY_FIELDS);
+    const contact = new Set<unknown>(SUBSCRIBER_CONTACT_FIELDS);
+    for (const name of listed) {
+        if (identity.has(name)) {
+            throw new Error(
+                `${option} names \`${String(name)}\`: the legal name and the tax identifiers ` +
+                    'are shown to the tenant and corrected by the operator (SC-SUB-017), never ' +
+                    'changed by the tenant.',
+            );
+        }
+        if (!contact.has(name)) {
+            throw new Error(
+                `${option} names \`${String(name)}\`, which is not a contact detail. It names ` +
+                    `only ${SUBSCRIBER_CONTACT_FIELDS.join(', ')}.`,
+            );
+        }
+    }
+    return SUBSCRIBER_CONTACT_FIELDS.filter((field) => listed.has(field));
 }
 
 /**
@@ -113,9 +161,9 @@ export function settleIdentityCorrection(
 
 /**
  * The details of the subscriber the operator corrects for the replacement of
- * a cancelled invoice (`SC-PRIC-095`), each settled as the record's own are and
- * at most `INVOICE_CORRECTION_MAX_LENGTH` characters once trimmed; a detail
- * left out stays out.
+ * a cancelled invoice (`SC-PRIC-095`), each settled as the record's own are,
+ * within the bound it has wherever it arrives (`invoiceCorrectionMaxLengthOf`);
+ * a detail left out stays out.
  */
 export function settleInvoiceCorrections(
     corrections: Readonly<Partial<Record<InvoiceSubscriberDetail, string | null>>>,
@@ -124,12 +172,10 @@ export function settleInvoiceCorrections(
     for (const field of INVOICE_SUBSCRIBER_DETAILS) {
         const value = corrections[field];
         if (value === undefined) continue;
-        const detail =
+        settled[field] =
             field === 'legalName' || field === 'vatId' || field === 'taxNumber'
                 ? settleIdentityValue(field, value)
                 : settleContactValue(field, value);
-        if (detail !== null && detail.length > INVOICE_CORRECTION_MAX_LENGTH) throw invalid(field);
-        settled[field] = detail;
     }
     return settled;
 }
@@ -146,15 +192,30 @@ export function isDeliverableAddress(text: string): boolean {
 function settleIdentityValue(field: LegalIdentityField, value: unknown): string | null {
     if (field === 'legalName') return settleLegalName(value);
     if (field === 'vatId') return settleVatId(value);
-    return settleText(field, value);
+    return settleTaxIdentifier(field, value);
 }
 
-/** A VAT identification number given as text, in its canonical form (`canonicalVatId`). */
+/**
+ * A VAT identification number given as text, within its bound as written and
+ * then in its canonical form (`canonicalVatId`).
+ */
 function settleVatId(value: unknown): string | null {
-    const text = settleText('vatId', value);
+    const text = settleTaxIdentifier('vatId', value);
     return text === null ? null : canonicalVatId(text);
 }
 
+/**
+ * A tax identifier no longer than `SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH`.
+ * Measured before a VAT number drops its separators, so an input bound by the
+ * same number stops exactly where the platform refuses.
+ */
+function settleTaxIdentifier(field: 'vatId' | 'taxNumber', value: unknown): string | null {
+    const text = settleText(field, value);
+    if (text !== null && text.length > SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH) throw invalid(field);
+    return text;
+}
+
+/** The legal name, present and no longer than `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH`. */
 function settleLegalName(value: unknown): string {
     const legalName = settleText('legalName', value);
     if (legalName === null) {
@@ -162,6 +223,7 @@ function settleLegalName(value: unknown): string {
             codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_LEGAL_NAME_REQUIRED),
         );
     }
+    if (legalName.length > SUBSCRIBER_LEGAL_NAME_MAX_LENGTH) throw invalid('legalName');
     return legalName;
 }
 
@@ -176,6 +238,14 @@ function settleContact(
     return contact;
 }
 
+/**
+ * A contact detail in its form — the country upper-cased to its code, the
+ * invoice email shaped as an address — and a line of the address no longer
+ * than its bound (`SUBSCRIBER_ADDRESS_MAX_LENGTHS`). Judged here rather than
+ * by a route's decorators, as the legal name and the tax identifiers are: the
+ * platform cannot rely on a `ValidationPipe` it does not install, and a pipe
+ * would judge a detail kept elsewhere before it is refused by name.
+ */
 function settleContactValue(field: keyof SubscriberContact, value: unknown): string | null {
     const text = settleText(field, value);
     if (text === null) return null;
@@ -184,7 +254,11 @@ function settleContactValue(field: keyof SubscriberContact, value: unknown): str
         if (!COUNTRY_CODE.test(country)) throw invalid(field);
         return country;
     }
-    if (field === 'invoiceEmail' && !isEmailShaped(text)) throw invalid(field);
+    if (field === 'invoiceEmail') {
+        if (!isEmailShaped(text)) throw invalid(field);
+        return text;
+    }
+    if (text.length > SUBSCRIBER_ADDRESS_MAX_LENGTHS[field]) throw invalid(field);
     return text;
 }
 
@@ -222,7 +296,7 @@ function settleText(field: keyof SubscriberDetails, value: unknown): string | nu
  * like an address at all, and a scan answers that in one pass on any input.
  */
 function isEmailShaped(value: string): boolean {
-    if (value.length > MAX_EMAIL_LENGTH) return false;
+    if (value.length > SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH) return false;
     const at = value.indexOf('@');
     if (at <= 0 || at !== value.lastIndexOf('@')) return false;
     const domain = value.slice(at + 1);

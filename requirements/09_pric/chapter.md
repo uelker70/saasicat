@@ -4294,6 +4294,7 @@ _Tested by:_
         - the fields of its address that are empty — and none once it fills them in
         - the adapter sentence where it treats no such case — and none once the country it can treat
           is named
+        - an empty field of the address is named though the application keeps the address elsewhere
 - `packages/nest/tests/an-operator-sees-a-tenants-subscriber.test.js`
     - the operator sees a tenant's subscriber beside the tenant
         - its address and tax details, and that nothing holds its next contract back

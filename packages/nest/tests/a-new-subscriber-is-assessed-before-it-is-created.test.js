@@ -48,6 +48,9 @@ function subscribersWith({
     };
 }
 
+/** The address a contract names its subscriber with (`SC-PRIC-069`). */
+const ADDRESS = { addressLine1: 'Hauptstraße 1', postalCode: '10115', city: 'Berlin' };
+
 const refusedWith = (status, code) => (error) =>
     error.getStatus() === status && error.getResponse().code === code;
 
@@ -56,7 +59,13 @@ describe('an application asks before it creates a subscriber', () => {
     test('a subscriber in Germany is treated as given: no number is checked', async () => {
         const { subscribers, asked } = subscribersWith();
         const assessed = await subscribers.assessNewSubscriber(
-            { legalName: 'Meier GmbH', country: 'DE', vatId: 'DE123456789', business: true },
+            {
+                legalName: 'Meier GmbH',
+                ...ADDRESS,
+                country: 'DE',
+                vatId: 'DE123456789',
+                business: true,
+            },
             A_MONTH,
         );
         assert.deepEqual(asked, []);
@@ -66,7 +75,13 @@ describe('an application asks before it creates a subscriber', () => {
     test('a business in Austria: its number checked as it will be held, and the check attached', async () => {
         const { subscribers, asked } = subscribersWith();
         const assessed = await subscribers.assessNewSubscriber(
-            { legalName: 'Wien GmbH', country: 'AT', vatId: ' atu 123 456 78', business: true },
+            {
+                legalName: 'Wien GmbH',
+                ...ADDRESS,
+                country: 'AT',
+                vatId: ' atu 123 456 78',
+                business: true,
+            },
             A_MONTH,
         );
         assert.deepEqual(asked, ['ATU12345678']);
@@ -81,7 +96,13 @@ describe('an application asks before it creates a subscriber', () => {
         const { subscribers, asked } = subscribersWith();
         await assert.rejects(
             subscribers.assessNewSubscriber(
-                { legalName: 'Dupont', country: 'FR', vatId: 'FR12345678901', business: false },
+                {
+                    legalName: 'Dupont',
+                    ...ADDRESS,
+                    country: 'FR',
+                    vatId: 'FR12345678901',
+                    business: false,
+                },
                 A_MONTH,
             ),
             refusedWith(422, 'TAX_TREATMENT_NOT_SUPPORTED'),
@@ -95,7 +116,13 @@ describe('an application asks before it creates a subscriber', () => {
         });
         await assert.rejects(
             subscribers.assessNewSubscriber(
-                { legalName: 'Wien GmbH', country: 'AT', vatId: 'ATU12345678', business: true },
+                {
+                    legalName: 'Wien GmbH',
+                    ...ADDRESS,
+                    country: 'AT',
+                    vatId: 'ATU12345678',
+                    business: true,
+                },
                 A_MONTH,
             ),
             (error) =>
@@ -116,7 +143,13 @@ describe('an application asks before it creates a subscriber', () => {
         });
         await assert.rejects(
             subscribers.assessNewSubscriber(
-                { legalName: 'Wien GmbH', country: 'AT', vatId: 'ATU12345678', business: true },
+                {
+                    legalName: 'Wien GmbH',
+                    ...ADDRESS,
+                    country: 'AT',
+                    vatId: 'ATU12345678',
+                    business: true,
+                },
                 A_MONTH,
             ),
             /the rate table could not be read/,
@@ -139,7 +172,13 @@ describe('a subscriber created with a check keeps it', () => {
     test('the attached check is recorded, and the number counts as validated', async () => {
         const { subscribers, repo } = subscribersWith();
         const assessed = await subscribers.assessNewSubscriber(
-            { legalName: 'Wien GmbH', country: 'AT', vatId: 'ATU12345678', business: true },
+            {
+                legalName: 'Wien GmbH',
+                ...ADDRESS,
+                country: 'AT',
+                vatId: 'ATU12345678',
+                business: true,
+            },
             A_MONTH,
         );
 
@@ -154,7 +193,13 @@ describe('a subscriber created with a check keeps it', () => {
     test('a check is recorded only on the transaction the subscriber is created on', async () => {
         const { subscribers, repo } = subscribersWith();
         const assessed = await subscribers.assessNewSubscriber(
-            { legalName: 'Wien GmbH', country: 'AT', vatId: 'ATU12345678', business: true },
+            {
+                legalName: 'Wien GmbH',
+                ...ADDRESS,
+                country: 'AT',
+                vatId: 'ATU12345678',
+                business: true,
+            },
             A_MONTH,
         );
 
@@ -168,7 +213,7 @@ describe('a subscriber created with a check keeps it', () => {
     test('assessed details need the transaction even where no check was needed', async () => {
         const { subscribers, repo } = subscribersWith();
         const assessed = await subscribers.assessNewSubscriber(
-            { legalName: 'Meier GmbH', country: 'DE', business: false },
+            { legalName: 'Meier GmbH', ...ADDRESS, country: 'DE', business: false },
             A_MONTH,
         );
         assert.equal(assessed.vatIdCheck, null);
@@ -204,5 +249,94 @@ describe('a subscriber created with a check keeps it', () => {
             vatId: 'ATU12345678',
         });
         assert.equal(await repo.findCurrentVatIdCheck(created.id), null);
+    });
+});
+
+/** An installation whose adapter counts how often it is asked to decide and to check. */
+function countingSubscribers() {
+    const asked = { decide: 0, checkVatId: 0 };
+    const adapter = {
+        ...TEST_TAX_ADAPTER,
+        decide: (input) => {
+            asked.decide += 1;
+            return TEST_TAX_ADAPTER.decide(input);
+        },
+        checkVatId: async (vatId) => {
+            asked.checkVatId += 1;
+            return { completed: true, check: checked(vatId) };
+        },
+    };
+    const settings = { ...TAX_SETTINGS, app: { name: 'Test App' } };
+    const subscribers = new SubscriberService(
+        new FakeSubscriberRepository(),
+        settings,
+        new TaxTreatments(settings, adapter),
+    );
+    return { subscribers, asked };
+}
+
+const incompleteNaming = (missing) => (error) =>
+    refusedWith(422, 'SUBSCRIBER_IDENTITY_INCOMPLETE')(error) &&
+    JSON.stringify(error.getResponse().params.missing) === JSON.stringify(missing);
+
+// A business in Austria with a number: the case that would reach both the
+// adapter and the VAT number service, were the address complete.
+const AUSTRIAN_BUSINESS = {
+    legalName: 'Wien GmbH',
+    ...ADDRESS,
+    country: 'AT',
+    vatId: 'ATU12345678',
+    business: true,
+};
+
+// @requirement SC-SUB-048 — A new subscriber is assessed only with a full address where a tax adapter decides
+describe('where a tax adapter decides, a new subscriber is assessed only with a complete address', () => {
+    test('without the city: refused naming it, and neither the adapter nor the number service asked', async () => {
+        const { subscribers, asked } = countingSubscribers();
+        await assert.rejects(
+            subscribers.assessNewSubscriber({ ...AUSTRIAN_BUSINESS, city: undefined }, A_MONTH),
+            incompleteNaming(['city']),
+        );
+        assert.deepEqual(asked, { decide: 0, checkVatId: 0 });
+    });
+
+    test('a city of blanks is no city', async () => {
+        const { subscribers } = countingSubscribers();
+        await assert.rejects(
+            subscribers.assessNewSubscriber({ ...AUSTRIAN_BUSINESS, city: '   ' }, A_MONTH),
+            incompleteNaming(['city']),
+        );
+    });
+
+    test('no address at all: all four named, in the order an invoice names them', async () => {
+        const { subscribers, asked } = countingSubscribers();
+        await assert.rejects(
+            subscribers.assessNewSubscriber(
+                { legalName: 'Dupont', vatId: 'FR12345678901', business: false },
+                A_MONTH,
+            ),
+            incompleteNaming(['addressLine1', 'postalCode', 'city', 'country']),
+        );
+        assert.deepEqual(asked, { decide: 0, checkVatId: 0 }, 'not the adapter sentence either');
+    });
+
+    test('all four without a second line: assessed as before, the number checked', async () => {
+        const { subscribers, asked } = countingSubscribers();
+        const assessed = await subscribers.assessNewSubscriber(AUSTRIAN_BUSINESS, A_MONTH);
+        assert.equal('addressLine2' in AUSTRIAN_BUSINESS, false);
+        assert.equal(assessed.vatIdCheck.vatId, 'ATU12345678');
+        assert.deepEqual(asked, { decide: 2, checkVatId: 1 });
+    });
+
+    test('without an adapter, details without an address are assessed as before', async () => {
+        const subscribers = new SubscriberService(new FakeSubscriberRepository(), {
+            vatRate: 19,
+            app: { name: 'Test App' },
+        });
+        const assessed = await subscribers.assessNewSubscriber(
+            { legalName: 'Verein e. V.' },
+            A_MONTH,
+        );
+        assert.deepEqual(assessed, { legalName: 'Verein e. V.', vatIdCheck: null });
     });
 });

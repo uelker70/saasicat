@@ -32,7 +32,12 @@
             :http="http"
             :api-prefix="apiPrefix"
             @availability="shown.details = $event"
-        />
+        >
+            <!-- Handed on only when given, so the card's own sentence stands otherwise. -->
+            <template v-if="$slots['changed-elsewhere']" #changed-elsewhere>
+                <slot name="changed-elsewhere" />
+            </template>
+        </TenantBillingDetailsCard>
     </TenantCard>
 </template>
 
@@ -61,6 +66,11 @@ import './ui/tenant-ui.css';
 // user the server lets see it; the rest of the tenant sees nothing here, and a
 // request built by hand is refused where it is served. Each part asks its own
 // routes, so a part the server does not serve shows nothing.
+//
+// The billing details the application keeps on a page of its own are shown as
+// text, followed by a sentence saying where they are changed: the
+// `billingDetailsChangedElsewhere` text, or the `changed-elsewhere` slot in its
+// place — for a link to that page.
 
 const props = defineProps<{
     /** App-specific HTTP adapter (axios with auth header etc.). */

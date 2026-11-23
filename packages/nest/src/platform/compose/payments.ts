@@ -1,8 +1,14 @@
 import type { DynamicModule } from '@nestjs/common';
 
-import { PaymentsModule, type PaymentsModuleOptions } from '../../payments/payments.module.js';
+import {
+    PaymentsModule,
+    type PaymentsModuleOptions,
+    type PaymentsTenantRoutesOptions,
+} from '../../payments/payments.module.js';
+import { TenantBillingDetailsModule } from '../../payments/tenant-billing-details.module.js';
 
 import { optionsOf, type CompositionContext } from './context.js';
+import { subscriberRepositoryOf } from './subscriber-admin.js';
 
 /**
  * Payment methods through a payment gateway.
@@ -17,12 +23,9 @@ export function composePayments(ctx: CompositionContext): DynamicModule[] {
     const config = ctx.options.payments;
     if (!config) return [];
     assertPermissionNotUnderPayments(config);
-    const tenantBilling = optionsOf(ctx.options.tenantBilling);
-    const authGuards = ctx.shared.authGuards;
-    const imports = [...(config.imports ?? ctx.options.imports ?? [])];
     // A gateway hands back the subscriber its session was opened for, which a
     // join cannot move: a confirmation follows the joins this module keeps.
-    if (ctx.shared.subscriberJoinModule) imports.push(ctx.shared.subscriberJoinModule);
+    const imports = withJoins(ctx, config.imports ?? ctx.options.imports ?? []);
     return [
         PaymentsModule.forRoot({
             gateways: config.gateways,
@@ -34,17 +37,58 @@ export function composePayments(ctx: CompositionContext): DynamicModule[] {
                 ?.subscriberRepository as PaymentsModuleOptions['subscriberRepository'],
             transactionRunner: ctx.adapters
                 .transactionRunner as PaymentsModuleOptions['transactionRunner'],
-            tenantRoutes: authGuards
-                ? {
-                      authGuards,
-                      billingPermissionGuards: tenantBilling.billingPermissionGuards,
-                      tenantIdResolver: tenantBilling.tenantIdResolver,
-                  }
-                : undefined,
+            tenantRoutes: tenantRoutesOf(ctx),
             imports,
             extraProviders: config.extraProviders,
         }),
     ];
+}
+
+/**
+ * Whom the tenant is billed to, where no payment gateway is wired: the billing
+ * details are part of the billing area whether or not payment methods are
+ * taken, and with a gateway `PaymentsModule` mounts them beside its own
+ * routes. Runs after `composeTenantBilling`, whose guards it reads, and after
+ * `composeSubscriberJoins`: a joined subscriber takes no change.
+ */
+export function composeTenantBillingDetails(ctx: CompositionContext): DynamicModule[] {
+    if (ctx.options.payments) return [];
+    const tenantRoutes = tenantRoutesOf(ctx);
+    const subscriberRepository = subscriberRepositoryOf(ctx);
+    if (!tenantRoutes || !subscriberRepository) return [];
+    // Resolved from what the application gave tenant billing, whose guards
+    // these routes share.
+    const tenantBilling = optionsOf(ctx.options.tenantBilling);
+    return [
+        TenantBillingDetailsModule.forRoot({
+            tenantRoutes,
+            subscriberRepository,
+            imports: withJoins(ctx, tenantBilling.imports ?? ctx.options.imports ?? []),
+            extraProviders: tenantBilling.extraProviders,
+        }),
+    ];
+}
+
+/** The tenant routes of the billing area, guarded as tenant billing resolved; none without it. */
+function tenantRoutesOf(ctx: CompositionContext): PaymentsTenantRoutesOptions | undefined {
+    const authGuards = ctx.shared.authGuards;
+    if (!authGuards) return undefined;
+    const tenantBilling = optionsOf(ctx.options.tenantBilling);
+    return {
+        authGuards,
+        billingPermissionGuards: tenantBilling.billingPermissionGuards,
+        tenantIdResolver: tenantBilling.tenantIdResolver,
+        billingDetails: tenantBilling.billingDetails,
+    };
+}
+
+/** `imports` and the module that keeps the installation's joins, where it has one. */
+function withJoins(
+    ctx: CompositionContext,
+    imports: NonNullable<PaymentsModuleOptions['imports']>,
+): NonNullable<PaymentsModuleOptions['imports']> {
+    const joins = ctx.shared.subscriberJoinModule;
+    return joins ? [...imports, joins] : [...imports];
 }
 
 /**

@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Inject, Optional, Patch, Req, UseGuards } from '@nestjs/common';
-import type { SubscriberReadiness, SubscriberRecord } from '@saasicat/core';
+import type { SubscriberContactField, SubscriberReadiness, SubscriberRecord } from '@saasicat/core';
 
 import { BillingPermissionGuard } from '../billing/billing-permission.guard.js';
 import { ComposedTenantAuthGuard } from '../billing/composed-tenant-auth.guard.js';
@@ -19,6 +19,7 @@ import { actorFromRequest } from '../core/request-user.js';
 import { actorTagOf } from '../core/web-audit.js';
 import { SubscriberService } from '../subscriber/subscriber.service.js';
 import { ChangeBillingDetailsDto } from './dto/change-billing-details.dto.js';
+import { TENANT_EDITABLE_DETAILS_TOKEN } from './payments.tokens.js';
 
 /** The subscriber as its tenant sees it in its billing area. */
 export interface TenantBillingDetailsView {
@@ -39,16 +40,24 @@ export interface TenantBillingDetailsView {
      * (`SC-PRIC-070`); `null` where none decides.
      */
     readiness: SubscriberReadiness | null;
+    /**
+     * The contact details the tenant changes here, in the order of
+     * `SUBSCRIBER_CONTACT_FIELDS`; the application changes the others
+     * (`tenantBilling.billingDetails`).
+     */
+    tenantEditable: SubscriberContactField[];
 }
 
 /**
  * `GET /billing/details` and `PATCH /billing/details` — whom the tenant's
  * subscription is billed to, behind the billing permission for reading and
  * changing alike. The contact details change here; the legal name and the tax
- * identifiers are shown and corrected by the operator (`SC-SUB-017`). A change
- * names the user who made it, derived the way the audit log derives it: the
- * country is part of the tax origin, and its change is recorded with who made
- * it.
+ * identifiers are shown and corrected by the operator (`SC-SUB-017`). Of the
+ * contact details, the tenant changes the ones the application lets it change
+ * here (`tenantBilling.billingDetails`), and a change naming another is
+ * refused. A change names the user who made it, derived the way the audit log
+ * derives it: the country is part of the tax origin, and its change is
+ * recorded with who made it.
  */
 @Controller('billing/details')
 @UseGuards(ComposedTenantAuthGuard, BillingPermissionGuard)
@@ -56,6 +65,8 @@ export class TenantBillingDetailsController {
     constructor(
         @Inject(SubscriberService) private readonly subscribers: SubscriberService,
         @Inject(TENANT_ID_RESOLVER_TOKEN) private readonly tenantIdResolver: TenantIdResolver,
+        @Inject(TENANT_EDITABLE_DETAILS_TOKEN)
+        private readonly tenantEditable: readonly SubscriberContactField[],
         @Optional()
         @Inject(USER_ID_RESOLVER_TOKEN)
         private readonly userIdResolver: UserIdResolver | null = null,
@@ -84,6 +95,7 @@ export class TenantBillingDetailsController {
             tenantIdOf(this.tenantIdResolver, request),
             body,
             this.actorOf(request),
+            { changeable: this.tenantEditable },
         );
         return { details: await this.viewOf(subscriber) };
     }
@@ -103,6 +115,7 @@ export class TenantBillingDetailsController {
             invoiceEmail: subscriber.invoiceEmail,
             business: subscriber.business,
             readiness: await this.subscribers.readinessFor({ subscriberId: subscriber.id }),
+            tenantEditable: [...this.tenantEditable],
         };
     }
 

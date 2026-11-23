@@ -369,7 +369,8 @@ export class MemorySubscriptions {
 
 /**
  * A promo service over the stores; `holds: false` wires none, as an adapter
- * without a hold repository would.
+ * without a hold repository would, and `validationLog` receives the check of
+ * every code.
  */
 export function promoCodesOver({
     codes = new MemoryPromoCodes(),
@@ -380,11 +381,12 @@ export function promoCodesOver({
     catalog = PROMO_CATALOG,
     holds = true,
     taxes = null,
+    validationLog = { log: async () => {}, countValid: async () => 0 },
 } = {}) {
     const service = new PromoCodesService(
         codes,
         redemptions,
-        { log: async () => {}, countValid: async () => 0 },
+        validationLog,
         { hasExistingCustomerForEmail: async (email) => existingCustomers.includes(email) },
         subscriptions,
         { sumGrossForPromoCode: async () => '0.00' },

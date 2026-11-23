@@ -1,10 +1,8 @@
 <template>
-    <!-- The chrome is AdminDialog's; the submit lifecycle is not AdminFormDialog's.
-     A failure here goes to one of two places depending on the response reason —
-     an invalid or missing second factor belongs in the MFA prompt, everything
-     else in this dialog — and a component that owns the error cannot make that
-     split. Rather than widen AdminFormDialog for one caller, the two dialogs
-     that re-prompt keep their own handler. -->
+    <!-- The chrome is AdminDialog's, the submit lifecycle not AdminFormDialog's:
+     the footer carries the invitation hint, and `created` hands the page what
+     the route answered. A refused second factor keeps the prompt open
+     (`useMfaPrompt().run`); any other refusal is worded in the banner. -->
     <AdminDialog
         :model-value="modelValue"
         :title="msg.createDialog.title"
@@ -32,6 +30,7 @@
                             v-model="form.tenant.name"
                             outlined
                             dense
+                            :maxlength="subscriberIdentityMaxLengthOf('legalName')"
                             :placeholder="copy.tenantNamePlaceholder"
                             autofocus
                         />
@@ -75,7 +74,35 @@
                             v-model="form.tenant.vatId"
                             outlined
                             dense
+                            :maxlength="subscriberIdentityMaxLengthOf('vatId')"
                             :placeholder="msg.createDialog.vatIdPlaceholder"
+                        />
+                    </div>
+
+                    <p class="pl-section__sub pl-field--full">
+                        {{
+                            addressRequired
+                                ? msg.createDialog.subscriberAddressRequired
+                                : msg.createDialog.subscriberAddressOptional
+                        }}
+                    </p>
+                    <div
+                        v-for="field in addressFields"
+                        :key="field.key"
+                        class="pl-field"
+                        :class="{ 'pl-field--full': field.key === 'addressLine1' }"
+                    >
+                        <label :for="field.id">
+                            {{ field.label }}
+                            <span v-if="field.hint" class="pl-field__hint">{{ field.hint }}</span>
+                        </label>
+                        <q-input
+                            v-model="form.subscriber[field.key]"
+                            :for="field.id"
+                            outlined
+                            dense
+                            :maxlength="field.maxlength"
+                            :placeholder="field.placeholder"
                         />
                     </div>
                 </div>
@@ -251,25 +278,39 @@
 
     <MfaPromptDialog
         v-if="requireMfa"
-        v-model="showMfa"
-        :description="mfaDescription"
-        :error="mfaError"
+        :model-value="mfa.show.value"
+        :description="mfa.description.value"
+        :error="mfa.error.value"
         :setup-hint="mfaSetupHint"
-        @confirm="(code) => doSubmit(code)"
+        @update:model-value="mfa.onVisibility"
+        @confirm="mfa.onConfirm"
     />
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
-import { addDaysToDay } from '@saasicat/core';
+import { computed, reactive, ref, useId, watch } from 'vue';
+import {
+    addDaysToDay,
+    subscriberContactMaxLengthOf,
+    subscriberIdentityMaxLengthOf,
+} from '@saasicat/core';
 import MfaPromptDialog from '../../ui/overlay/MfaPromptDialog.vue';
 import AdminDialog from '../../ui/overlay/AdminDialog.vue';
 import AdminBanner from '../../ui/feedback/AdminBanner.vue';
 import { IDENTITY_NEUTRAL } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { looksLikeEmail, trimChar } from '../../client/text-shape.js';
+import {
+    PILOT_SUBSCRIBER_ADDRESS_FIELDS,
+    pilotAddressGaps,
+    pilotSubscriberOf,
+    type PilotSubscriberAddressField,
+    type PilotSubscriberAddressForm,
+} from '../../client/pilot-subscriber-address.js';
 import { useInstallationDays } from '../../vue/use-installation-days.js';
-import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import { useMfaPrompt } from '../../vue/use-mfa-prompt.js';
+import { useAdminErrorText, useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import { useSuperAdminManifest } from '../../vue/use-super-admin-context.js';
 import type { PilotCopy, PilotCreatePayload, PilotCreateResult } from './types.js';
 
 // Platform pilot-create dialog (sim layout: 3 numbered sections,
@@ -323,6 +364,47 @@ const presetEnds = computed<ReadonlyArray<{ label: string; days: number }>>(() =
 
 const copy = computed<Required<PilotCopy>>(() => ({ ...msg.value.copyDefaults, ...props.copy }));
 
+// Where a tax adapter decides, a contract needs the subscriber's full address
+// (`SC-PRIC-069`); the manifest says so. Without a manifest the route still
+// refuses an incomplete one, and the banner shows its sentence.
+const addressRequired = useSuperAdminManifest()?.subscriberAddressRequired === true;
+
+function emptyAddress(): PilotSubscriberAddressForm {
+    return { addressLine1: '', addressLine2: '', postalCode: '', city: '', country: '' };
+}
+
+// One id per mounted dialog, so each label names its own input.
+const addressIdPrefix = useId();
+
+const addressFields = computed(() => {
+    const texts = msg.value.createDialog;
+    const shown: Record<PilotSubscriberAddressField, { label: string; placeholder: string }> = {
+        addressLine1: {
+            label: texts.addressLine1Label,
+            placeholder: texts.addressLine1Placeholder,
+        },
+        addressLine2: {
+            label: texts.addressLine2Label,
+            placeholder: texts.addressLine2Placeholder,
+        },
+        postalCode: { label: texts.postalCodeLabel, placeholder: texts.postalCodePlaceholder },
+        city: { label: texts.cityLabel, placeholder: texts.cityPlaceholder },
+        country: { label: texts.countryLabel, placeholder: texts.countryPlaceholder },
+    };
+    const hintOf = (key: PilotSubscriberAddressField): string => {
+        if (key === 'country') return texts.countryHint;
+        if (key === 'addressLine2' || !addressRequired) return texts.addressOptionalHint;
+        return '';
+    };
+    return PILOT_SUBSCRIBER_ADDRESS_FIELDS.map((key) => ({
+        key,
+        id: `${addressIdPrefix}-${key}`,
+        ...shown[key],
+        hint: hintOf(key),
+        maxlength: subscriberContactMaxLengthOf(key),
+    }));
+});
+
 const normalizedPlanOptions = computed<Array<{ value: string; label: string; color?: string }>>(
     () =>
         props.planOptions.map((opt) => {
@@ -339,6 +421,7 @@ function defaultPlanValue(): string {
 function emptyForm() {
     return {
         tenant: { name: '', slug: '', legalForm: '', vatId: '' },
+        subscriber: emptyAddress(),
         admin: { email: '', firstName: '', lastName: '', initialPassword: '' },
         pilot: {
             plan: defaultPlanValue(),
@@ -351,9 +434,8 @@ function emptyForm() {
 const form = reactive(emptyForm());
 const loading = ref(false);
 const error = ref('');
-const showMfa = ref(false);
-const mfaError = ref('');
-const mfaDescription = ref('');
+const mfa = useMfaPrompt();
+const errorText = useAdminErrorText();
 const slugTouched = ref(false);
 
 function slugify(s: string): string {
@@ -394,7 +476,8 @@ const isValid = computed(
         emailValid.value &&
         !!form.admin.firstName.trim() &&
         !!form.admin.lastName.trim() &&
-        !!form.pilot.plan,
+        !!form.pilot.plan &&
+        pilotAddressGaps(form.subscriber, addressRequired).length === 0,
 );
 
 function setEndsAtDays(count: number): void {
@@ -407,6 +490,7 @@ watch(
         if (open) {
             const fresh = emptyForm();
             Object.assign(form.tenant, fresh.tenant);
+            Object.assign(form.subscriber, fresh.subscriber);
             Object.assign(form.admin, fresh.admin);
             Object.assign(form.pilot, fresh.pilot);
             error.value = '';
@@ -415,75 +499,68 @@ watch(
     },
 );
 
-function onSubmit(): void {
-    if (!isValid.value) return;
-    if (props.requireMfa) {
-        mfaDescription.value = formatMessage(msg.value.createDialog.mfaDescription, {
+function payloadOf(): PilotCreatePayload {
+    const payload: PilotCreatePayload = {
+        tenant: {
             name: form.tenant.name,
+            slug: form.tenant.slug || undefined,
+            legalForm: form.tenant.legalForm || undefined,
+            vatId: form.tenant.vatId || undefined,
+        },
+        admin: {
+            email: form.admin.email,
+            firstName: form.admin.firstName,
+            lastName: form.admin.lastName,
+            initialPassword: form.admin.initialPassword || undefined,
+        },
+        pilot: {
             plan: form.pilot.plan,
-        });
-        mfaError.value = '';
-        showMfa.value = true;
-        return;
-    }
-    void doSubmit('');
+            note: form.pilot.note || undefined,
+            endsAt: form.pilot.endsAt || undefined,
+        },
+    };
+    // Left out rather than empty: a route that refuses unknown keys would
+    // otherwise refuse every pilot created without an address.
+    const subscriber = pilotSubscriberOf(form.subscriber);
+    if (subscriber) payload.subscriber = subscriber;
+    return payload;
 }
 
-async function doSubmit(code: string): Promise<void> {
+async function create(payload: PilotCreatePayload, code: string): Promise<PilotCreateResult> {
     loading.value = true;
-    error.value = '';
     try {
-        const result = await props.submit(
-            {
-                tenant: {
-                    name: form.tenant.name,
-                    slug: form.tenant.slug || undefined,
-                    legalForm: form.tenant.legalForm || undefined,
-                    vatId: form.tenant.vatId || undefined,
-                },
-                admin: {
-                    email: form.admin.email,
-                    firstName: form.admin.firstName,
-                    lastName: form.admin.lastName,
-                    initialPassword: form.admin.initialPassword || undefined,
-                },
-                pilot: {
-                    plan: form.pilot.plan,
-                    note: form.pilot.note || undefined,
-                    endsAt: form.pilot.endsAt || undefined,
-                },
-            },
-            code,
-        );
-        showMfa.value = false;
-        emit('created', result);
-        emit('update:modelValue', false);
-    } catch (err) {
-        const response = (
-            err as {
-                response?: {
-                    status?: number;
-                    data?: { reason?: string; message?: string };
-                };
-            }
-        ).response;
-        const status = response?.status;
-        const reason = response?.data?.reason;
-        if (
-            props.requireMfa &&
-            status === 401 &&
-            (reason === 'MFA_FAILED' || reason === 'MFA_REQUIRED')
-        ) {
-            mfaError.value = msg.value.mfa.invalidCode;
-        } else if (props.requireMfa && status === 401 && reason === 'MFA_NOT_SET_UP') {
-            mfaError.value = response?.data?.message ?? msg.value.mfa.notSetUp;
-        } else {
-            error.value = response?.data?.message ?? common.value.createFailed;
-            showMfa.value = false;
-        }
+        return await props.submit(payload, code);
     } finally {
         loading.value = false;
     }
+}
+
+async function onSubmit(): Promise<void> {
+    if (!isValid.value) return;
+    const payload = payloadOf();
+    error.value = '';
+    try {
+        if (!props.requireMfa) {
+            created(await create(payload, ''));
+            return;
+        }
+        const outcome = await mfa.run(
+            formatMessage(msg.value.createDialog.mfaDescription, {
+                name: payload.tenant.name,
+                plan: payload.pilot.plan,
+            }),
+            msg.value.mfa.invalidCode,
+            (code) => create(payload, code),
+        );
+        if (outcome.done) created(outcome.value);
+    } catch (err) {
+        error.value = errorText(err);
+    }
+}
+
+function created(result: PilotCreateResult): void {
+    emit('created', result);
+    emit('update:modelValue', false);
 }
 </script>
 

@@ -837,6 +837,8 @@ _Tested by:_
     - an invoice cancelled from the subscriber’s record
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
+        - stops each correction where the platform would refuse that detail on any way in
+        - stops the reason and the address to deliver to where the platform would refuse them
         - previews and announces a cancellation that leaves no replacement, naming no party for one
         - is confirmed behind the second factor with the preview’s digest, announced, and the
           invoices read again
@@ -1523,6 +1525,8 @@ _Tested by:_
     - an invoice cancelled from the subscriber’s record
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
+        - stops each correction where the platform would refuse that detail on any way in
+        - stops the reason and the address to deliver to where the platform would refuse them
         - previews and announces a cancellation that leaves no replacement, naming no party for one
         - is confirmed behind the second factor with the preview’s digest, announced, and the
           invoices read again
@@ -1896,6 +1900,7 @@ _Tested by:_
         - a ${status} hides them without an error: ${why}
         - any other failure keeps the part and says it failed
         - an answer in another shape is an error, not a subscriber nobody told anything
+        - an answer ${label} is an error, not a card that offers every field
         - the prefix the billing routes sit under is used as given
     - changing the contact details
         - sends the change and shows the details as the server now has them
@@ -1930,12 +1935,25 @@ _Tested by:_
         - show the legal identity as it stands, with no field to change it, and say who changes it
         - offer the contact details as fields, each named by its label
         - the country is named by its label alone, and described by its hint
+        - stop each field where the server would refuse it, so nothing too long is saved
         - save only once something changed, send only what changed, and say it was saved
         - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
         - a field the server refuses is named by its label and marked, and nothing claims it was
           saved
         - any other failure says the details were not saved
         - a failure to load is said, with no form to fill
+    - the details the application keeps elsewhere
+        - are shown as text, followed by the sentence saying where they are changed, and only the
+          rest is a field
+        - a save sends only what the tenant changes here
+        - the application's own sentence replaces the default one
+        - the application's slot replaces the sentence, so it can link to its page
+        - where the tenant changes none of them, every one is text and nothing offers to save
+        - where the tenant changes every one, nothing is kept elsewhere and no sentence says so
+        - an empty one is still named in what holds the next contract back, and shown as not stated
+        - a change the server says is made elsewhere is refused in the reader's language
+          (${locale}), by the field's label
+        - an answer that does not say which details the tenant changes here is a failure to load
     - what holds the next contract back
         - the customer type is shown with the identity, as the operator keeps it
         - the empty address fields by their labels, then the adapter sentence
@@ -1972,6 +1990,11 @@ _Source:_ #303
 
 _Tested by:_
 
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the billing details where no payment gateway is wired
+        - are mounted once, with a gateway and without one
+        - the tenant reads them and changes what the application lets it change
+        - a name that is not a contact detail stops the start there too
 - `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
     - the billing section
         - a user holding the billing permission finds the payment method and the billing details
@@ -1984,12 +2007,25 @@ _Tested by:_
         - show the legal identity as it stands, with no field to change it, and say who changes it
         - offer the contact details as fields, each named by its label
         - the country is named by its label alone, and described by its hint
+        - stop each field where the server would refuse it, so nothing too long is saved
         - save only once something changed, send only what changed, and say it was saved
         - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
         - a field the server refuses is named by its label and marked, and nothing claims it was
           saved
         - any other failure says the details were not saved
         - a failure to load is said, with no form to fill
+    - the details the application keeps elsewhere
+        - are shown as text, followed by the sentence saying where they are changed, and only the
+          rest is a field
+        - a save sends only what the tenant changes here
+        - the application's own sentence replaces the default one
+        - the application's slot replaces the sentence, so it can link to its page
+        - where the tenant changes none of them, every one is text and nothing offers to save
+        - where the tenant changes every one, nothing is kept elsewhere and no sentence says so
+        - an empty one is still named in what holds the next contract back, and shown as not stated
+        - a change the server says is made elsewhere is refused in the reader's language
+          (${locale}), by the field's label
+        - an answer that does not say which details the tenant changes here is a failure to load
     - what holds the next contract back
         - the customer type is shown with the identity, as the operator keeps it
         - the empty address fields by their labels, then the adapter sentence

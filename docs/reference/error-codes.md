@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 322 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 323 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -328,6 +328,7 @@ The party a contract is concluded with.
 | `SUBSCRIBER_CORRECTION_ACTOR_REQUIRED`       | A correction of the legal identity has to say who makes it.                                                                                                  |
 | `SUBSCRIBER_CORRECTION_CHANGES_NOTHING`      | The correction changes nothing: every value it names is already recorded.                                                                                    |
 | `SUBSCRIBER_CORRECTION_REASON_REQUIRED`      | A correction of the legal identity needs a reason.                                                                                                           |
+| `SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`        | {field} is not changed here: this application keeps it elsewhere.                                                                                            |
 | `SUBSCRIBER_DETAIL_INVALID`                  | The subscriber's {field} is not valid.                                                                                                                       |
 | `SUBSCRIBER_IDENTITY_INCOMPLETE`             | The subscriber's billing address is not complete yet: a contract names it only with street and number, postal code, city and country.                        |
 | `SUBSCRIBER_IDENTITY_NOT_A_CONTACT`          | {field} is part of the subscriber's legal identity and changes only as a correction, with a reason.                                                          |

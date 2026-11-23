@@ -17,7 +17,11 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { OTP_VERIFY_MAX_ATTEMPTS } from '@saasicat/core';
+import {
+    OTP_VERIFY_MAX_ATTEMPTS,
+    REGISTRATION_TENANT_NAME_MAX_LENGTH,
+    REGISTRATION_TENANT_NAME_MIN_LENGTH,
+} from '@saasicat/core';
 import { PendingRegistrationService, hashOtpCode } from '../dist/registration/index.js';
 import {
     FakeAuditLogger,
@@ -812,6 +816,41 @@ const UNFIT_TENANT_NAMES = [
 for (const [what, tenantName] of UNFIT_TENANT_NAMES) {
     // @requirement SC-SEC-005 — Data arriving from outside is validated at the boundary
     test(`start() refuses a tenant name with ${what}, keeping and sending nothing`, async () => {
+        const ctx = makeService();
+
+        await assert.rejects(
+            () => ctx.service.start(baseInput({ tenantName })),
+            refusedAsTenantName,
+        );
+        assert.equal(await ctx.repo.findByEmail('max@example.com'), null);
+        assert.equal(ctx.delivery.sent.length, 0);
+    });
+}
+
+// @requirement SC-SUB-050 — Legal name, tax identifiers and country hold one bound and one form at every way in
+test('start() takes a tenant name at either end of its bounds, counted once trimmed', async () => {
+    for (const [email, tenantName, kept] of [
+        ['shortest@example.com', ' AB ', 'AB'],
+        [
+            'longest@example.com',
+            `  ${'x'.repeat(REGISTRATION_TENANT_NAME_MAX_LENGTH)} `,
+            'x'.repeat(REGISTRATION_TENANT_NAME_MAX_LENGTH),
+        ],
+    ]) {
+        const ctx = makeService();
+
+        await ctx.service.start(baseInput({ email, tenantName }));
+
+        assert.equal((await ctx.repo.findByEmail(email)).tenantName, kept);
+    }
+});
+
+for (const [what, tenantName] of [
+    ['a character once trimmed', ` ${'A'.repeat(REGISTRATION_TENANT_NAME_MIN_LENGTH - 1)} `],
+    ['a character over its bound', 'x'.repeat(REGISTRATION_TENANT_NAME_MAX_LENGTH + 1)],
+]) {
+    // @requirement SC-SUB-050 — Legal name, tax identifiers and country hold one bound and one form at every way in
+    test(`start() refuses a tenant name of ${what} with no pipe at all, keeping and sending nothing`, async () => {
         const ctx = makeService();
 
         await assert.rejects(

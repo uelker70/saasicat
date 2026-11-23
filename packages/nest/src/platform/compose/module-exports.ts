@@ -80,10 +80,16 @@ function optionalExports({ options, requiresFullEntitlement }: CompositionContex
  * deletion and provides nothing: the service they read through,
  * `TenantDeletionReadingService`, is `TenantBillingModule`'s, which is
  * exported.
+ *
+ * `TenantBillingDetailsModule` is the tenant's two routes about whom it is
+ * billed to, mounted where no payment gateway is wired, and exports nothing:
+ * an application changes the subscriber's contact details through
+ * `SubscriberService`, from the module it already imports.
  */
 export const MOUNTED_BUT_NOT_EXPORTED: readonly string[] = [
     'PublicCatalogModule',
     'SubscriberAdminModule',
+    'TenantBillingDetailsModule',
     'TenantDeletionAdminModule',
 ];
 

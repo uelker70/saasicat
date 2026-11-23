@@ -13,7 +13,7 @@ import {
     Req,
     type Type,
 } from '@nestjs/common';
-import { Type as Nested, Transform } from 'class-transformer';
+import { Type as Nested } from 'class-transformer';
 import {
     IsArray,
     IsInt,
@@ -22,13 +22,10 @@ import {
     IsOptional,
     IsString,
     Matches,
-    MaxLength,
     ValidateIf,
     ValidateNested,
 } from 'class-validator';
 import {
-    INVOICE_CANCELLATION_REASON_MAX_LENGTH,
-    INVOICE_CORRECTION_MAX_LENGTH,
     type AdminInvoice,
     type InvoiceCancellationRequest,
     type InvoiceLineOwed,
@@ -47,81 +44,55 @@ import {
     invoiceCancellationAudit,
 } from './invoice-cancellation.service.js';
 
-/** RFC 5321 caps an address at 254 characters. */
-const MAX_ADDRESS_LENGTH = 254;
-/** Something besides blanks. */
-const NOT_BLANK = /\S/;
 /** A preview's digest: SHA-256, in hex. */
 const DIGEST_PATTERN = /^[0-9a-f]{64}$/;
 
 /**
- * Text trimmed before its length is checked, as the service settles it: the
- * route accepts what the command line does, and nothing more.
- */
-const Trimmed = () =>
-    Transform(({ value }: { value: unknown }) =>
-        typeof value === 'string' ? value.trim() : value,
-    );
-
-/**
  * The details of the subscriber the cancelled invoice named wrongly, as the
  * replacement is to name them. A detail left out stays as it was; `null`
- * clears one, except the legal name, which a party always has.
+ * clears one, except the legal name, which a party always has. Their form and
+ * length are judged where the cancellation settles them
+ * (`invoiceCorrectionMaxLengthOf`), not here: one measure, whichever way the
+ * correction arrives.
  */
 export class InvoiceSubscriberCorrectionsDto {
-    @Trimmed()
     @IsOptional()
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     legalName?: string;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     vatId?: string | null;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     taxNumber?: string | null;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     addressLine1?: string | null;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     addressLine2?: string | null;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     postalCode?: string | null;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     city?: string | null;
 
-    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     country?: string | null;
 }
 
@@ -144,10 +115,14 @@ export class InvoiceLineOwedDto implements InvoiceLineOwed {
  * `…/preview` — what the operator gives a cancellation (`SC-ADM-020`).
  */
 export class CancelInvoiceDto implements InvoiceCancellationRequest {
-    @Trimmed()
-    @IsString()
-    @Matches(NOT_BLANK, { message: 'reason must say why the invoice is cancelled' })
-    @MaxLength(INVOICE_CANCELLATION_REASON_MAX_LENGTH)
+    /**
+     * Declared and not judged: the cancellation settles the reason itself —
+     * present, of one line, at most `INVOICE_CANCELLATION_REASON_MAX_LENGTH`
+     * once trimmed — and refuses it with
+     * `SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID`, whether or not the
+     * application installs a `ValidationPipe` (`SC-ADM-059`).
+     */
+    @IsOptional()
     reason!: string;
 
     @IsOptional()
@@ -156,11 +131,12 @@ export class CancelInvoiceDto implements InvoiceCancellationRequest {
     @Nested(() => InvoiceSubscriberCorrectionsDto)
     corrections?: InvoiceSubscriberCorrectionsDto;
 
-    @Trimmed()
+    /**
+     * Declared and not judged, as the reason: the cancellation refuses an
+     * address that is no text or not shaped as one with
+     * `SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID`.
+     */
     @IsOptional()
-    @ValidateIf((_, value: unknown) => value !== null)
-    @IsString()
-    @MaxLength(MAX_ADDRESS_LENGTH)
     deliverTo?: string | null;
 
     @IsOptional()

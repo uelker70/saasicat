@@ -452,8 +452,8 @@ function onCreated(result: PilotCreateResult): void {
     void reload();
 }
 
-// Called by the MFA submit — on HTTP 401 the MFA dialog stays open
-// so the user can correct the code. Otherwise notify+close+reload.
+// Called by the MFA submit — a refused code keeps the MFA dialog open
+// so the user can correct it. Otherwise notify+close+reload.
 async function runAction(
     actionLabel: string,
     successMessage: string,
@@ -471,7 +471,7 @@ async function runAction(
         return;
     }
     try {
-        const outcome = await mfa.run(actionLabel, msg.value.mfa.invalidOrNotSetUp, invoke);
+        const outcome = await mfa.run(actionLabel, msg.value.mfa.invalidCode, invoke);
         if (!outcome.done) return;
         notify('positive', successMessage);
         await reload();

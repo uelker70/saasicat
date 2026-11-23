@@ -111,16 +111,16 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 67      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 46      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 50      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 27      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
-| 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
+| 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 10      |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 105     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
-| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 30      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 58      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 31      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 59      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 28      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 721 entries: 🟢 629 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
-🔵 62 superseded, 🔴 7 withdrawn.
+Of 728 entries: 🟢 635 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+🔵 63 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -166,6 +166,7 @@ Of 721 entries: 🟢 629 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-BUN-040](#sc-bun-040--an-add-on-retirements-date-is-an-end-of-the-bookings-own-period-three-months-on),
 [SC-BUN-047](#sc-bun-047--the-operator-sees-how-far-each-add-on-retirement-has-come),
 [SC-SUB-012](#sc-sub-012--a-new-version-of-a-plan-does-not-move-a-customer-who-already-bought-one),
+[SC-SUB-018](#sc-sub-018--a-tenant-can-change-the-address-and-email-it-is-billed-at-but-not-clear-them),
 [SC-SUB-020](#sc-sub-020--a-newer-version-is-offered-classified-against-the-version-bound),
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-035](#sc-sub-035--a-retirements-date-is-a-term-end-at-least-three-months-after-its-notice-arrived),
@@ -230,7 +231,7 @@ Of 721 entries: 🟢 629 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 721 requirements. Do not edit by hand:
+Generated from `requirements/` — 728 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5501,14 +5502,30 @@ _Tested by:_
 
 ### SC-SUB-018 — A tenant can change the address and email it is billed at, but not clear them
 
-🟢 💰 A user holding the billing permission (`SC-UI-023`) changes the subscriber's address and
-invoice email in the tenant's billing area; later invoices carry the new ones (`SC-SUB-017`). The
-street, postal code, city, country and invoice email are what sign-up asked for and what an invoice
-cannot be sent without (`SC-PRIC-032`), so a change can replace them and is refused where it would
-leave one empty. The legal name and the tax identifiers are refused there by name, not dropped: the
-operator corrects them.
+🔵 _(Superseded on 2026-11-22 by `SC-SUB-047`.)_ 💰 A user holding the billing permission
+(`SC-UI-023`) changes the subscriber's address and invoice email in the tenant's billing area; later
+invoices carry the new ones (`SC-SUB-017`). The street, postal code, city, country and invoice email
+are what sign-up asked for and what an invoice cannot be sent without (`SC-PRIC-032`), so a change
+can replace them and is refused where it would leave one empty. The legal name and the tax
+identifiers are refused there by name, not dropped: the operator corrects them.
 
 _Source:_ #303
+
+### SC-SUB-047 — A tenant changes the contact details left to it, and never clears them
+
+🟢 💰 A user holding the billing permission (`SC-UI-023`) changes the subscriber's contact details
+in the tenant's billing area, and later invoices carry the new ones (`SC-SUB-017`). An application
+that keeps some of them in a page of its own names the ones the tenant changes there; where it names
+none, the tenant changes every one. A change of any other is refused by name with
+`SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE` and nothing of it is written, and the billing area shows those
+details as text, with the application's sentence saying where they are changed; what holds the next
+contract back is still named, those details included (`SC-PRIC-070`). What the application writes
+from its own page is not limited by this. The street, postal code, city, country and invoice email
+are what sign-up asked for and what an invoice cannot be sent without (`SC-PRIC-032`), so a change
+can replace them and is refused where it would leave one empty. The legal name and the tax
+identifiers are refused there by name, not dropped: the operator corrects them.
+
+_Source:_ #303 · #524
 
 <!-- BEGIN proof -->
 
@@ -5518,6 +5535,194 @@ _Tested by:_
     - the tenant changes how it is reached
         - the ${field} can be changed but not cleared, and a refused change writes nothing
         - the ${field} reaches the service through the pipe and is refused there, not dropped
+    - the tenant sees what holds its next contract back
+        - an empty field of the address is named though the application keeps the address elsewhere
+    - an application decides which details its tenant changes in the billing area
+        - the tenant is told which details it changes here: every one where the application names
+          none
+        - the details it names are answered once each, in the order every screen names them
+        - a detail it names is changed, and the others are kept
+        - a detail kept elsewhere, ${label}, is refused by name and nothing of the change is written
+        - a detail kept elsewhere is refused by its name, not its value: ${label}
+        - a refused country records no change of the tax origin
+        - a legal name sent beside a detail kept elsewhere is refused as the legal identity
+        - the invoice email it may change is still not cleared
+        - where it names none, the tenant changes none
+        - the application's own page changes what the billing area refuses
+    - the billing details through the application's ValidationPipe
+        - the ${field} kept elsewhere is refused by its name, though its value is ${why}
+        - the ${field} the tenant changes is refused by its name for ${why}
+        - a detail the tenant changes is written through the pipe
+        - a field no change has is still refused by the pipe, and nothing is written
+        - the legal identity is refused first, before a detail kept elsewhere
+    - the details an application names are held to at the start
+        - ${named} stops the start, saying why
+        - a single name instead of a list stops the start
+        - named under tenantBilling, it reaches the routes that serve the billing details
+    - the billing details where no payment gateway is wired
+        - are mounted once, with a gateway and without one
+        - the tenant reads them and changes what the application lets it change
+        - a name that is not a contact detail stops the start there too
+- `packages/ui-vue/tests/billing-details-are-shown-to-whoever-may-see-them.test.js`
+    - loading the billing details
+        - an answer ${label} is an error, not a card that offers every field
+- `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
+    - the details the application keeps elsewhere
+        - are shown as text, followed by the sentence saying where they are changed, and only the
+          rest is a field
+        - a save sends only what the tenant changes here
+        - the application's own sentence replaces the default one
+        - the application's slot replaces the sentence, so it can link to its page
+        - where the tenant changes none of them, every one is text and nothing offers to save
+        - where the tenant changes every one, nothing is kept elsewhere and no sentence says so
+        - an empty one is still named in what holds the next contract back, and shown as not stated
+        - a change the server says is made elsewhere is refused in the reader's language
+          (${locale}), by the field's label
+        - an answer that does not say which details the tenant changes here is a failure to load
+
+<!-- END proof -->
+
+### SC-SUB-048 — A new subscriber is assessed only with a full address where a tax adapter decides
+
+🟢 💰 Before an application creates a subscriber, `SubscriberService.assessNewSubscriber` asks the
+tax adapter whether it treats it. Where `config/saas.yaml` names an adapter, details without the
+street, postal code, city and country are refused first with `SUBSCRIBER_IDENTITY_INCOMPLETE`,
+naming the empty fields, and the adapter is not asked: a subscriber created without them could be
+given no contract (`SC-PRIC-069`). Without an adapter nothing changes.
+
+_Source:_ #528
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-new-subscriber-is-assessed-before-it-is-created.test.js`
+    - where a tax adapter decides, a new subscriber is assessed only with a complete address
+        - without the city: refused naming it, and neither the adapter nor the number service asked
+        - a city of blanks is no city
+        - no address at all: all four named, in the order an invoice names them
+        - all four without a second line: assessed as before, the number checked
+        - without an adapter, details without an address are assessed as before
+
+<!-- END proof -->
+
+### SC-SUB-049 — A line of the address holds one bound, wherever it arrives
+
+🟢 💰 Each line of a subscriber's address — street, second line, postal code, city — holds at most
+the number of characters `SUBSCRIBER_ADDRESS_MAX_LENGTHS` from `@saasicat/core` names for it, once
+trimmed, wherever it arrives: sign-up, a subscriber an application creates, a change of the contact
+details, and the operator's correction of the subscriber an invoice names (`SC-PRIC-095`), which
+holds the legal name and the tax identifiers to a bound of their own. The platform refuses a longer
+line itself with `SUBSCRIBER_DETAIL_INVALID`, naming the field, so the bound holds whether or not
+the application installs a `ValidationPipe`, and a route that declares a bound to that pipe declares
+the same one. A detail the billing area keeps elsewhere is refused by its name before its length is
+judged (`SC-SUB-047`). The same value is then answered the same way through every door and under
+every consumer's wiring, rather than accepted through one and refused through the next.
+
+_Source:_ #524
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-line-of-the-address-holds-one-bound.test.js`
+    - a line of the address holds one bound
+        - the bounds are the ones promised
+        - the operator's correction holds a line of the address to its bound, and the rest to its
+          own
+        - a subscriber is created with the ${field} at its bound, the blanks around it not counted
+        - a subscriber with the ${field} a character over it is refused, naming it
+        - a form bound by `subscriberContactMaxLengthOf` stops each contact detail exactly where the
+          platform refuses
+        - a change of the contact details is held to it with no pipe at all, and nothing is written
+        - ${why} leaves the bound to the platform: the application's pipe passes a longer line
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - step 4 behind the application's pipe measures a line of the address once
+        - takes a ${field} ${why}, trimmed
+        - refuses a ${field} ${why} with the platform's own answer, naming it
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the billing details through the application's ValidationPipe
+        - the ${field} kept elsewhere is refused by its name, though its value is ${why}
+        - the ${field} the tenant changes is refused by its name for ${why}
+        - a detail the tenant changes is written through the pipe
+        - a field no change has is still refused by the pipe, and nothing is written
+        - the legal identity is refused first, before a detail kept elsewhere
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - a cancellation settles what it is given before anything else
+        - takes a line of the address at its own bound, though the legal name may be longer
+        - refuses a line of the address a character over its own bound, as the command line gives it
+    - a correction behind the application's pipe is measured once
+        - takes a ${field} ${why}, trimmed
+        - refuses a ${field} ${why} with the platform's own answer, naming it
+
+<!-- END proof -->
+
+### SC-SUB-050 — Legal name, tax identifiers and country hold one bound and one form at every way in
+
+🟢 💰 A subscriber's legal name holds at most `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH` characters and each
+tax identifier — the VAT identification number and the tax number — at most
+`SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH`, both from `@saasicat/core`, once trimmed and counted as a
+line of the address is counted (`SC-SUB-049`); a VAT number is measured as it was written, before
+its spaces, dots and hyphens are dropped. The country is upper-cased and held to its two letters.
+Each holds wherever it arrives — sign-up, a subscriber an application creates, a correction of the
+legal identity (`SC-SUB-017`), and the operator's correction of the subscriber an invoice names
+(`SC-PRIC-095`) — whether or not the application installs a `ValidationPipe`. The platform refuses a
+value out of its bound or its form itself with `SUBSCRIBER_DETAIL_INVALID`, naming the field, and no
+route declares a bound or a form of its own for that pipe, so sign-up takes `de` as `DE` as every
+other way in does. A sign-up's tenant name, which becomes the legal name at step 4, holds between
+`REGISTRATION_TENANT_NAME_MIN_LENGTH` and `REGISTRATION_TENANT_NAME_MAX_LENGTH` characters once
+trimmed, judged where the sign-up starts and refused there with the same code naming `tenantName`.
+An input bound by `subscriberIdentityMaxLengthOf` stops the person exactly where the platform would
+refuse.
+
+_Source:_ #524 (decided 2026-11-23)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-contact-input-is-bound-where-the-platform-refuses.test.js`
+    - the input of a detail of the legal identity
+        - holds the legal name to 300 and each tax identifier to 30
+        - the operator's correction of an invoice holds each detail to the bound it has wherever it
+          arrives
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - step 4 behind the application's pipe judges the tax identifiers and the country as elsewhere
+        - takes a ${field} at its bound, trimmed
+        - refuses a ${field} a character over it with the platform's own answer, naming it
+        - takes a country in lower case as its code
+        - refuses a country that is no code with the platform's own answer, naming it
+- `packages/nest/tests/an-identity-detail-holds-one-bound.test.js`
+    - each detail of the legal identity holds one bound
+        - the bounds are the ones promised
+        - a subscriber is created with the ${field} at its bound, the blanks around it not counted
+        - a subscriber with the ${field} a character over it is refused, naming it
+        - a correction of the legal identity takes the ${field} at its bound and refuses one over
+          it, writing nothing
+        - a VAT number is measured as it was written, before its separators are dropped
+        - a country is taken in its form wherever it arrives, upper-cased first
+        - ${why}, leaves the judgement to the platform: the application's pipe passes it
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - a cancellation settles what it is given before anything else
+        - takes a tax identifier at its own bound and refuses one a character over it, as the
+          command line gives it
+    - a correction of a tax identifier behind the application's pipe holds the bound it has everywhere
+        - takes the ${field} at its bound, trimmed
+        - refuses the ${field} a character over it with the platform's own answer, naming it
+        - takes a country in lower case, as every way in does
+- `packages/nest/tests/registration-service.test.js`
+    - start() takes a tenant name at either end of its bounds, counted once trimmed
+    - start() refuses a tenant name of ${what} with no pipe at all, keeping and sending nothing
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the subscriber’s record
+        - stops each correction where the platform would refuse that detail on any way in
+- `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
+    - the operator corrects the subscriber in its record
+        - each field of the identity stops where the platform would refuse it
+- `packages/ui-vue/tests/component/pilot-dialogs.test.ts`
+    - the pilot subscriber's address
+        - the name and the VAT number stop where the platform would refuse them as the legal name
+          and a tax identifier
 
 <!-- END proof -->
 
@@ -6805,6 +7010,7 @@ _Tested by:_
         - without the capability, nothing is offered and no history is shown
         - a correction is sent only once something changed and a reason is given, with the second
           factor
+        - each field of the identity stops where the platform would refuse it
         - stepping back from the second factor sends nothing and keeps the form
         - moving to another subscriber closes an open dialog and shows nothing of the first one
           while the next one is read
@@ -9138,6 +9344,74 @@ _Tested by:_
         - adopts plan, end date and note from the row
         - draws the same plan picker as the create dialog
         - offers preset buttons for the end date
+    - a pilot dialog shows what the route answered
+        - creating › a refused address reads as the catalogue sentence, and the prompt closes
+        - creating › an application's own refusal reads as the route worded it
+        - creating › a refused code keeps the prompt open and says so; the next code creates the
+          pilot
+        - creating › a failure of the route closes the prompt and reads as the status sentence
+        - creating › a second factor not set up is said in the banner, not asked for again
+        - creating › without a second factor, the refusal reads the same
+        - editing › a refused code keeps the prompt open and says so; the next code saves
+        - editing › a failure of the route closes the prompt and reads as the status sentence
+    - the pilot subscriber's address
+        - where a contract needs it, "Create" stays off until street, postal code, city and country
+          are there
+        - where it says so, the dialog says why the address is asked for
+        - under ${what}, "Create" is on without an address and sends no subscriber
+        - where it is optional, what was entered is sent
+        - opened again, the dialog starts without the address entered before
+        - each address field stops where the route would refuse it, so "Create" is never on for too
+          long a line
+        - the name and the VAT number stop where the platform would refuse them as the legal name
+          and a tax identifier
+        - every address field is labelled for the input it names
+
+<!-- END proof -->
+
+### SC-SPEC-010 — The operator gives a pilot's subscriber its address, required under a tax adapter
+
+🟢 💰 The pilot dialog asks for the street, a second line, postal code, city and country of the
+pilot's subscriber and sends them as `subscriber`. Where a tax adapter decides, the manifest says
+that a contract needs the full address, and the dialog does not submit until the street, postal
+code, city and country are given, since the pilot's first contract would otherwise be refused
+(`SC-PRIC-069`); without one they are optional, and none entered sends none. The pilot routes are
+the application's: it creates the subscriber with the address, refusing an incomplete one as
+`SC-SUB-048` does, and the dialog shows the refusal in the interface's language.
+
+_Source:_ #528
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/the-manifest-says-whether-a-contract-needs-the-address.test.js`
+    - where a tax adapter decides, a contract needs the full address
+    - without a tax adapter, it does not — said, not left out
+    - a manifest built without the field is still one the schema takes, and it takes no other answer
+- `packages/ui-vue/tests/a-pilot-subscriber-is-given-its-address.test.js`
+    - where a contract needs the full address
+        - an empty address lacks the four an invoice names, in their order
+        - all four given lack nothing, and are sent trimmed with the country upper-cased
+        - a city of blanks is no city
+        - the second line is never required, and sent when given
+    - where it does not
+        - an empty address lacks nothing and sends nothing
+        - blanks alone send nothing either
+        - a city alone is sent alone
+- `packages/ui-vue/tests/component/pilot-dialogs.test.ts`
+    - the pilot subscriber's address
+        - where a contract needs it, "Create" stays off until street, postal code, city and country
+          are there
+        - where it says so, the dialog says why the address is asked for
+        - under ${what}, "Create" is on without an address and sends no subscriber
+        - where it is optional, what was entered is sent
+        - opened again, the dialog starts without the address entered before
+        - each address field stops where the route would refuse it, so "Create" is never on for too
+          long a line
+        - the name and the VAT number stop where the platform would refuse them as the legal name
+          and a tax identifier
+        - every address field is labelled for the input it names
 
 <!-- END proof -->
 
@@ -13487,6 +13761,7 @@ _Tested by:_
         - the fields of its address that are empty — and none once it fills them in
         - the adapter sentence where it treats no such case — and none once the country it can treat
           is named
+        - an empty field of the address is named though the application keeps the address elsewhere
 - `packages/nest/tests/an-operator-sees-a-tenants-subscriber.test.js`
     - the operator sees a tenant's subscriber beside the tenant
         - its address and tax details, and that nothing holds its next contract back
@@ -16676,6 +16951,40 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-MKT-031 — An application previews what a checkout offer costs, and the preview stores nothing
+
+🟢 💰 `CheckoutOfferPricing.price` is what an application shows before an offer is created: injected
+from the checkout offer module like any other service, it gives the amounts an offer created from
+the same selection at the same moment carries (`SC-MKT-027`), and refuses what creating that offer
+would refuse, its feature dependencies included (`SC-MKT-015`). It stores no offer, holds no slot of
+a promo code and redeems nothing; a promo code it checks is recorded as an attempt, as every check of
+a code is (`SC-PROMO-017`). Where a tax adapter decides, the preview shows the rate for a subscriber
+in the issuer's country, as the offer does, and the contract takes the rate decided for the
+subscriber who takes it.
+
+_Source:_ #527
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-application-previews-an-offer.test.js`
+    - an application injects the preview of an offer
+        - ${where}, and it prices what the offer carries
+    - the preview is what an offer created from the same selection carries
+        - ${what}: the preview equals the offer
+        - the combined case carries each part it names
+    - what the preview writes
+        - with a promo code, the check of the code and nothing else
+        - a refused promo code is recorded as an attempt, and the preview refuses
+        - without a promo code, nothing at all
+    - the preview refuses what creating the offer refuses
+        - ${what}: both refuse alike
+        - the unmet dependency is named
+        - a selection that brings the needed feature is priced
+
+<!-- END proof -->
+
 ## 14. Administration and access to it
 
 Who may act on the platform, and what has to be true before they can. Most of this chapter is
@@ -17540,7 +17849,8 @@ _Tested by:_
 - `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
     - what an operator gives a cancellation
         - passes with a reason, and with corrections and an address beside it
-        - is trimmed before its lengths are checked, as the service settles it
+        - with ${why} is left to the cancellation, which settles it
+        - leaves the length of a correction to the cancellation, which settles it
         - with ${why} is refused
         - keeps the lines through a pipe that strips what no decorator names
     - a cancellation settles what it is given before anything else
@@ -17548,10 +17858,15 @@ _Tested by:_
         - an address of blanks as none given
         - refuses a reason ${why}, drawing no number
         - takes a reason of exactly the longest length
+        - takes an address of exactly the longest length
         - refuses an address ${why}
         - each correction as the subscriber’s record holds that detail
         - takes a correction of exactly the longest length
+        - takes a tax identifier at its own bound and refuses one a character over it, as the
+          command line gives it
+        - takes a line of the address at its own bound, though the legal name may be longer
         - refuses ${why}
+        - refuses a line of the address a character over its own bound, as the command line gives it
     - the cancellation route
         - writes the cancellation and records it under the operator, the address not named
         - records each line it moved, from what to what, in the invoice’s currency
@@ -18425,7 +18740,7 @@ _Tested by:_
         - follows the earlier subscriber where it was joined in turn into one before it
         - is refused where the session is another subscriber's, joined or not
     - a change of a subscriber that waited for its join
-        - made by the tenant's user, lands at the subscriber it was joined into
+        - made by the tenant's user${where}, lands at the subscriber it was joined into
         - made by the operator, is answered as a change of a joined subscriber is
         - that failed for another reason, is passed on as it failed
     - the subscriber a reference kept outside the installation belongs to
@@ -18832,6 +19147,7 @@ _Tested by:_
         - without the capability, nothing is offered and no history is shown
         - a correction is sent only once something changed and a reason is given, with the second
           factor
+        - each field of the identity stops where the platform would refuse it
         - stepping back from the second factor sends nothing and keeps the form
         - moving to another subscriber closes an open dialog and shows nothing of the first one
           while the next one is read
@@ -19872,7 +20188,7 @@ _Tested by:_
         - follows the earlier subscriber where it was joined in turn into one before it
         - is refused where the session is another subscriber's, joined or not
     - a change of a subscriber that waited for its join
-        - made by the tenant's user, lands at the subscriber it was joined into
+        - made by the tenant's user${where}, lands at the subscriber it was joined into
         - made by the operator, is answered as a change of a joined subscriber is
         - that failed for another reason, is passed on as it failed
     - joining subscribers
@@ -19988,6 +20304,37 @@ _Tested by:_
         - the tenant's subscriber is found through the application's lookup by slug
         - a generic read asked of the two-method lookup says what it needs
         - without a lookup and without the bundle, the start is refused naming the two methods
+
+<!-- END proof -->
+
+### SC-ADM-059 — A cancellation's reason and delivery address are judged by the platform alone
+
+🟢 The reason a cancellation is given — present, of one line, at most
+`INVOICE_CANCELLATION_REASON_MAX_LENGTH` characters once trimmed — and the address it is delivered to
+— text shaped as an email address, at most `SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH` characters once
+trimmed — are judged where the cancellation settles them, so they hold the same over the route,
+behind a `ValidationPipe` or without one, and from the command line (`SC-ADM-020`). A reason that
+does not hold is refused with `SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID`, naming the bound,
+and an address with `SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID`: the route declares both without
+judging them, so neither is answered with a `400`. The cancellation dialog stops each input at the
+same bound.
+
+_Source:_ #524 (decided 2026-11-23)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - what an operator gives a cancellation
+        - with ${why} is left to the cancellation, which settles it
+    - a cancellation behind the application's pipe is judged by the platform alone
+        - takes a reason at its bound and an address at the longest one can be, trimmed
+        - refuses a reason ${why} with the platform's own answer
+        - refuses an address ${why} with the platform's own answer
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the subscriber’s record
+        - stops the reason and the address to deliver to where the platform would refuse them
 
 <!-- END proof -->
 
@@ -20828,6 +21175,8 @@ _Tested by:_
     - an invoice cancelled from the subscriber’s record
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
+        - stops each correction where the platform would refuse that detail on any way in
+        - stops the reason and the address to deliver to where the platform would refuse them
         - previews and announces a cancellation that leaves no replacement, naming no party for one
         - is confirmed behind the second factor with the preview’s digest, announced, and the
           invoices read again
@@ -21514,6 +21863,8 @@ _Tested by:_
     - an invoice cancelled from the subscriber’s record
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
+        - stops each correction where the platform would refuse that detail on any way in
+        - stops the reason and the address to deliver to where the platform would refuse them
         - previews and announces a cancellation that leaves no replacement, naming no party for one
         - is confirmed behind the second factor with the preview’s digest, announced, and the
           invoices read again
@@ -21887,6 +22238,7 @@ _Tested by:_
         - a ${status} hides them without an error: ${why}
         - any other failure keeps the part and says it failed
         - an answer in another shape is an error, not a subscriber nobody told anything
+        - an answer ${label} is an error, not a card that offers every field
         - the prefix the billing routes sit under is used as given
     - changing the contact details
         - sends the change and shows the details as the server now has them
@@ -21921,12 +22273,25 @@ _Tested by:_
         - show the legal identity as it stands, with no field to change it, and say who changes it
         - offer the contact details as fields, each named by its label
         - the country is named by its label alone, and described by its hint
+        - stop each field where the server would refuse it, so nothing too long is saved
         - save only once something changed, send only what changed, and say it was saved
         - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
         - a field the server refuses is named by its label and marked, and nothing claims it was
           saved
         - any other failure says the details were not saved
         - a failure to load is said, with no form to fill
+    - the details the application keeps elsewhere
+        - are shown as text, followed by the sentence saying where they are changed, and only the
+          rest is a field
+        - a save sends only what the tenant changes here
+        - the application's own sentence replaces the default one
+        - the application's slot replaces the sentence, so it can link to its page
+        - where the tenant changes none of them, every one is text and nothing offers to save
+        - where the tenant changes every one, nothing is kept elsewhere and no sentence says so
+        - an empty one is still named in what holds the next contract back, and shown as not stated
+        - a change the server says is made elsewhere is refused in the reader's language
+          (${locale}), by the field's label
+        - an answer that does not say which details the tenant changes here is a failure to load
     - what holds the next contract back
         - the customer type is shown with the identity, as the operator keeps it
         - the empty address fields by their labels, then the adapter sentence
@@ -21963,6 +22328,11 @@ _Source:_ #303
 
 _Tested by:_
 
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the billing details where no payment gateway is wired
+        - are mounted once, with a gateway and without one
+        - the tenant reads them and changes what the application lets it change
+        - a name that is not a contact detail stops the start there too
 - `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
     - the billing section
         - a user holding the billing permission finds the payment method and the billing details
@@ -21975,12 +22345,25 @@ _Tested by:_
         - show the legal identity as it stands, with no field to change it, and say who changes it
         - offer the contact details as fields, each named by its label
         - the country is named by its label alone, and described by its hint
+        - stop each field where the server would refuse it, so nothing too long is saved
         - save only once something changed, send only what changed, and say it was saved
         - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
         - a field the server refuses is named by its label and marked, and nothing claims it was
           saved
         - any other failure says the details were not saved
         - a failure to load is said, with no form to fill
+    - the details the application keeps elsewhere
+        - are shown as text, followed by the sentence saying where they are changed, and only the
+          rest is a field
+        - a save sends only what the tenant changes here
+        - the application's own sentence replaces the default one
+        - the application's slot replaces the sentence, so it can link to its page
+        - where the tenant changes none of them, every one is text and nothing offers to save
+        - where the tenant changes every one, nothing is kept elsewhere and no sentence says so
+        - an empty one is still named in what holds the next contract back, and shown as not stated
+        - a change the server says is made elsewhere is refused in the reader's language
+          (${locale}), by the field's label
+        - an answer that does not say which details the tenant changes here is a failure to load
     - what holds the next contract back
         - the customer type is shown with the identity, as the operator keeps it
         - the empty address fields by their labels, then the adapter sentence
@@ -24274,6 +24657,17 @@ _Tested by:_
         - German reads German
         - the flag a status raises follows it too
         - and so does the sentence for a feature with nothing behind it
+- `packages/ui-vue/tests/component/pilot-dialogs.test.ts`
+    - a pilot dialog shows what the route answered
+        - creating › a refused address reads as the catalogue sentence, and the prompt closes
+        - creating › an application's own refusal reads as the route worded it
+        - creating › a refused code keeps the prompt open and says so; the next code creates the
+          pilot
+        - creating › a failure of the route closes the prompt and reads as the status sentence
+        - creating › a second factor not set up is said in the banner, not asked for again
+        - creating › without a second factor, the refusal reads the same
+        - editing › a refused code keeps the prompt open and says so; the next code saves
+        - editing › a failure of the route closes the prompt and reads as the status sentence
 - `packages/ui-vue/tests/i18n.test.js`
     - i18n locales
         - German is the default locale
@@ -24860,7 +25254,8 @@ _Tested by:_
         - a complete request passes, the tax identifiers left out
         - the offer the sign-up concludes may be named, and an empty name is refused
         - a request without billing details is refused
-        - a missing address line, a lower-case country and a script URL are each refused
+        - a missing address line and a script URL are each refused, and the form of the country is
+          left to the platform
 - `packages/nest/tests/bundle-dtos-validate.test.js`
     - CreateBundleDto
         - accepts a complete bundle
@@ -25159,6 +25554,8 @@ _Tested by:_
         - cancelling runs nothing and says so
         - a refused code keeps the dialog open, says so, and a second code goes through
         - a package error carrying the status counts as a refusal, not only an AdminError
+        - a 401 saying ${code} closes the dialog and reaches the caller: no code helps there
+        - a 401 naming the code as wrong or missing asks again
         - any other failure closes the dialog and reaches the caller
 
 <!-- END proof -->

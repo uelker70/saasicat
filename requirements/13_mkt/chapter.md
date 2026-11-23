@@ -864,3 +864,37 @@ _Tested by:_
         - whose booking has ended is concluded
 
 <!-- END proof -->
+
+### SC-MKT-031 — An application previews what a checkout offer costs, and the preview stores nothing
+
+🟢 💰 `CheckoutOfferPricing.price` is what an application shows before an offer is created: injected
+from the checkout offer module like any other service, it gives the amounts an offer created from
+the same selection at the same moment carries (`SC-MKT-027`), and refuses what creating that offer
+would refuse, its feature dependencies included (`SC-MKT-015`). It stores no offer, holds no slot of
+a promo code and redeems nothing; a promo code it checks is recorded as an attempt, as every check of
+a code is (`SC-PROMO-017`). Where a tax adapter decides, the preview shows the rate for a subscriber
+in the issuer's country, as the offer does, and the contract takes the rate decided for the
+subscriber who takes it.
+
+_Source:_ #527
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-application-previews-an-offer.test.js`
+    - an application injects the preview of an offer
+        - ${where}, and it prices what the offer carries
+    - the preview is what an offer created from the same selection carries
+        - ${what}: the preview equals the offer
+        - the combined case carries each part it names
+    - what the preview writes
+        - with a promo code, the check of the code and nothing else
+        - a refused promo code is recorded as an attempt, and the preview refuses
+        - without a promo code, nothing at all
+    - the preview refuses what creating the offer refuses
+        - ${what}: both refuse alike
+        - the unmet dependency is named
+        - a selection that brings the needed feature is priced
+
+<!-- END proof -->
