@@ -1,5 +1,248 @@
 # @saasicat/ui-vue-tenant
 
+## 1.0.0-rc.33
+
+### Minor Changes
+
+- 31290c0: An application decides which billing details its tenants change
+
+    An application that keeps the address on a page of its own now names the
+    contact details a tenant changes in its billing area:
+    `tenantBilling.billingDetails: { tenantEditable: ['invoiceEmail'] }`. Left
+    out, the tenant changes every one, as before. `PATCH /billing/details` refuses
+    a change naming another with `SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE`, by name and
+    writing nothing of it, and a name that is not a contact detail stops the start.
+    What the application writes through `SubscriberService.changeContactOfTenant`
+    is not limited (`SC-SUB-047`, which supersedes `SC-SUB-018`). The two billing
+    details routes are now served wherever tenant billing is on, with a payment
+    gateway or without one. See "An application decides which billing details its
+    tenants change" in `docs/guides/upgrade-to-1.0.md`.
+
+    Each line of a subscriber's address is now held to one bound wherever it
+    arrives — sign-up, a subscriber an application creates, a change of the
+    contact details, the operator's correction of an invoice — and the platform
+    refuses a longer one itself with `SUBSCRIBER_DETAIL_INVALID`, naming the field,
+    whether or not the application installs a `ValidationPipe` (`SC-SUB-049`). So
+    `PATCH /billing/details` behind a pipe refuses a detail kept elsewhere by its
+    name whatever its value, instead of with a `400`. **Breaking** for code that
+    passes a longer line through `SubscriberService` or a checkout offer, and for
+    the operator's correction, which took 300 characters for every detail and now
+    does so for the legal name only. See "A line of the
+    address holds one bound, wherever it arrives" in the same guide.
+
+    The legal name, the tax identifiers and the country now hold one bound and one
+    form wherever they arrive, behind a pipe or without one (`SC-SUB-050`): the
+    legal name at most 300 characters, the VAT number and the tax number at most
+    30 each — the VAT number measured as written, before its separators are
+    dropped — and the country upper-cased to its two letters. They hold at sign-up,
+    in `createForTenant`, in a checkout offer's `newSubscriber`, in
+    `correctIdentity` and in the operator's correction of an invoice; the platform
+    refuses a value out of its bound or form with `SUBSCRIBER_DETAIL_INVALID`,
+    naming the field. A sign-up's tenant name holds 2 to 120 characters once
+    trimmed, judged where the sign-up starts. A cancellation's reason and the
+    address it is delivered to are judged by the cancellation alone
+    (`SC-ADM-059`). **Breaking** for code that passes a longer legal name or tax
+    identifier, for the operator's correction of an invoice, which took 300
+    characters for a tax identifier and now takes 30, and behind a pipe, where a
+    `400` becomes a `422`: step 4 for a tax identifier over its bound or a country
+    that is no code, `POST /auth/register/start` for a tenant name out of its
+    bounds, and a cancellation for a reason or an address that does not hold.
+    Step 4 now takes `de` as `DE`. See "The legal name, the tax identifiers and the
+    country hold one bound and one form" in the same guide.
+
+    - `@saasicat/core`: `SUBSCRIBER_CONTACT_FIELDS`, `SubscriberContactField` and
+      the code `SUBSCRIBER_DETAIL_CHANGED_ELSEWHERE` with its German and English
+      texts; `SUBSCRIBER_ADDRESS_MAX_LENGTHS`, `SubscriberAddressLineField`,
+      `invoiceCorrectionMaxLengthOf`, `SUBSCRIBER_INVOICE_EMAIL_MAX_LENGTH` and
+      `subscriberContactMaxLengthOf`, the `maxlength` of a contact detail's input;
+      `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH`, `SUBSCRIBER_TAX_IDENTIFIER_MAX_LENGTH`,
+      `subscriberIdentityMaxLengthOf`, `REGISTRATION_TENANT_NAME_MIN_LENGTH` and
+      `REGISTRATION_TENANT_NAME_MAX_LENGTH`. `invoiceCorrectionMaxLengthOf`
+      answers each detail's own bound, the country's two letters included.
+      **Breaking**: `INVOICE_CORRECTION_MAX_LENGTH` is gone; the legal name's bound
+      is `SUBSCRIBER_LEGAL_NAME_MAX_LENGTH`.
+    - `@saasicat/nest`: `TenantBillingDetailsOptions`; `GET` and
+      `PATCH /billing/details` answer `tenantEditable`;
+      `changeContactOfTenant` takes `options.changeable`. `ChangeBillingDetailsDto`
+      declares every field without judging it; the sign-up DTO no longer measures
+      a line of the address, nor the correction DTO any detail. Behind a pipe,
+      step 4 and the correction answer one over its bound with
+      `422 SUBSCRIBER_DETAIL_INVALID`, not `400`. The platform counts it once
+      trimmed, in UTF-16 code units, as an input's `maxlength` does. The sign-up
+      DTOs no longer measure the tenant name, the tax identifiers or the country,
+      and `CancelInvoiceDto` declares `reason` and `deliverTo` without judging
+      them.
+    - `@saasicat/spec`: the admin API schema names the bound each detail of an
+      invoice's correction and of a correction of the legal identity holds, and
+      says that a cancellation's reason and address are refused with `422`.
+    - `@saasicat/ui-vue`: `TenantBillingContactField` is an alias of
+      `SubscriberContactField`. **Breaking** for code that builds the answer:
+      `TenantBillingDetailsShape.tenantEditable` is required, and
+      `useTenantBillingDetails` reports an answer without it as a failure to load.
+      The invoice cancellation dialog stops each correction at its own bound, the
+      identity dialog the legal name and the tax identifiers at theirs, and the
+      pilot dialog the name and the VAT number at the legal name's and a tax
+      identifier's.
+    - `@saasicat/ui-vue-tenant`: `TenantBillingSection` shows the details the
+      application keeps as text, followed by `billingDetailsChangedElsewhere` from
+      its `i18n` or the `changed-elsewhere` slot, for a link to that page, and
+      stops each detail it takes where the server would refuse it.
+
+- 98e0497: A test installation marks every document it issues as a test
+
+    An installation that tries invoicing out beside production issues documents
+    that look like real ones, and a recipient, a tax advisor or an auditor could
+    take one for a real invoice. Mark its database with
+    `<app> installation mark <identifier> --operation test`, before its first
+    document, and every invoice, cancellation invoice, replacement and contract
+    confirmation it issues is titled as a test and states under its title and at
+    the foot of every page that it is no invoice for VAT purposes, or confirms no
+    contract; an invoice's XML states the same as its first note (`SC-AUD-024`).
+    Amounts, tax and due date stay as they are. Every list of invoices and
+    confirmations marks such a document "Test" (`SC-UI-029`). An installation that
+    never tests changes nothing it configures.
+
+    - Each invoice records the operation it was issued in, a cancellation invoice
+      and its replacement the one of the invoice they correct, and a confirmation
+      the one of its first rendering; every later rendering and mail read the
+      record. The first document fixes the installation's operation: the command
+      refuses another (`INSTALLATION_OPERATION_FIXED`) and any change where the
+      documents cannot be read (`INSTALLATION_DOCUMENTS_NOT_READABLE`), and a start
+      that issues invoices refuses where the documents recorded another operation
+      than the mark (`SC-AUD-023`).
+    - An operator's command line starts there all the same: `installation status`
+      and the doctor name the disagreement, and marking the operation the documents
+      recorded repairs it. Instead of its start, it refuses each invoice or first
+      confirmation it would issue while the two disagree. `CliContextModule` imports
+      `OperatorCommandLineModule` from `@saasicat/nest`, which declares the process
+      one; a command line built without it imports that itself. Where the documents
+      recorded both operations, nothing repairs the installation: it issues no
+      further document.
+    - `@saasicat/core` adds `TEST_OPERATION_TITLE` and `TEST_OPERATION_NOTICE`, the
+      wording in German and English; it waits for a tax advisor's confirmation.
+    - `@saasicat/invoice-zugferd` prints it on both renderers, and
+      `@saasicat/tax-de` holds an invoice whose XML does not state the notice
+      first, or a live one that states it.
+
+    **Breaking:**
+
+    - `@saasicat/spec` ships `1.0-the-test-operation-is-recorded.postgres.sql`,
+      safe to run twice, and the column in fragments `20` and `26`. Run it before
+      `db push` where invoices are issued.
+    - `SubscriptionInvoiceRecord`, `NewSubscriptionInvoice`, `InvoiceDraftInput`,
+      `ContractConfirmationRecord`, `NewContractConfirmationRendering`,
+      `ContractToConfirm` and `ContractConfirmationMail` gain `testOperation`.
+      `SubscriptionInvoiceRepository` gains `issuedOperations()`,
+      `ContractConfirmationRepository` gains `recordedOperations()`, and its
+      `replaceRendering` takes a `ContractConfirmationReplacement`. Both shipped
+      adapters have them, held to the persistence contract.
+    - A renderer of your own prints the title and the notice where `testOperation`
+      is `true`; a mail port of yours says so.
+    - `TenantInvoice`, `TenantContractConfirmation`, `AdminInvoiceRegisterRow`,
+      `AdminSubscriberInvoice`, `AdminOpenInvoice`, `AdminContractInvoice` and
+      `AdminSubscriberContract.confirmation` gain `testOperation`.
+    - The export's `invoices.csv` and `export.json` gain `operation`, `test` or
+      `live`, after `kind`: every later column moves by one.
+    - `TenantBillingModule` wired by hand refuses invoices and confirmations without
+      `subscriptionEnds.deletion.marks`, and takes
+      `subscriptionEnds.deletion.documents` where invoicing is off.
+    - `TenantPlanSectionI18n` gains `invoiceTestOperation`,
+      `invoicesDownloadTestInvoice` and `confirmationDownloadTest`;
+      `@saasicat/ui-vue` adds three messages, `invoiceDownloadLabelOf` and
+      `TEST_OPERATION_TONE`.
+
+    See `docs/guides/upgrade-to-1.0.md`.
+
+- 35cd0bf: The catalogue names an add-on's price beside each plan
+
+    The public catalogue named an add-on's own price, while the contract and the
+    invoice take the price the add-on carries for the plan chosen, so a prospect
+    could be shown one price and charged another. `GET public/marketing-catalog`
+    now gives each add-on `planPrices`: for each plan it can be booked with, what a
+    contract for that plan takes in each rhythm, and after its promotion
+    (`SC-MKT-030`). The onboarding shows and charges the price beside the chosen
+    plan. See "The catalogue names an add-on's price beside each plan" in
+    `docs/guides/upgrade-to-1.0.md`.
+
+    - `@saasicat/core`: `PublicBundlePlanPrice`, and
+      `PublicMarketingBundle.planPrices`, required — code that builds the type
+      gives it.
+    - `@saasicat/ui-vue`: `addOnPriceBeside`, `isOfferedWithEveryPlan`,
+      `AddOnPriceBeside` and `AddOnPrices`. `useSubscriptionDraft` charges an
+      add-on its price beside the chosen plan, and nothing before a plan is chosen.
+    - **Breaking:** `@saasicat/ui-vue-tenant`: `PublicBundleGrid` requires
+      `planKey` and `planKeys`; its `i18n` and `OnboardingConfigurator`'s
+      `i18n.bundles` take `dependsOnPlan` in place of `priceOnRequest`.
+
+- a32ce34: The operator sees where a tenant's deletion stands, and the tenant what it keeps
+
+    Wherever `adminResources` and `tenantBilling` are on, the operator sees on the
+    tenant's page and in its subscriber's record whether the tenant's deletion is
+    scheduled, due, halted, under way, being retried or done (`SC-ADM-058`). A
+    halted deletion names every reason that holds it and the act that lets it go
+    on — on a database not yet marked as the installation's, the command that marks
+    it; a contract that runs past the end; the store that took part of the
+    commercial record, with each part before and after. Before the day, the page
+    says what would hold the deletion were the day today: the preview before
+    marking (`SC-PRIV-021`). The subscriber's record keeps the record of a begun
+    deletion, also once the application no longer has the tenant (`SC-ADM-021`):
+    each store's counts, the commercial record before and after, what the tenant
+    was told to keep, when the export was offered and whether a suspension kept it
+    from being taken, the reminders and the downloads — by role and number, never
+    by person (`SC-PRIV-024`, `SC-CANC-022`).
+
+    The tenant's users read in the banner of the read-only period what the tenant
+    keeps for obligations of its own, in their language with `en` as the fallback
+    (`SC-PRIV-022`).
+
+    - `@saasicat/nest` serves `GET admin/tenants/:slug/deletion` and
+      `GET admin/subscribers/:id/deletions`, announced as `deletions.read`, and
+      `GET billing/access/keep` for every user of the tenant, which asks the
+      `TenantKeepReportPort` within ten seconds and shows nothing where it fails.
+      `@saasicat/nest/billing` adds `TenantDeletionAdminModule`,
+      `TenantDeletionReadingService`, `TenantKeepReadingService`,
+      `TenantKeepController` and `KEEP_REPORT_READ_TIMEOUT_MS`.
+    - The deletion run decides through the same functions the pages read. It no
+      longer asks the `TenantKeepReportPort` for a tenant a contract holds, and it
+      says a held deletion in one line naming every reason, when it first holds,
+      when what holds changes, and otherwise once a day.
+    - `@saasicat/core` adds `TENANT_DELETION_CAPABILITY`, `tenantDeletionStatusOf`,
+      `deletionDayHasCome`, `deletionGoesOn`, `deletionHeldBy`,
+      `deletionHeldByTheMark`, `TENANT_DELETION_PLATFORM_FAILURE_CODES`,
+      `isTenantDeletionPlatformFailureCode`, `COMMERCIAL_RECORD_FIELDS`,
+      `TenantKeepView` and the view types `AdminTenantDeletion`,
+      `AdminTenantDeletionRecord` and `AdminSubscriberDeletions`.
+      `TenantDeletionHalt` gains `contract-runs-past-end`, which an exhaustive
+      `switch` over it has to handle.
+    - `@saasicat/spec` describes the two admin routes in `admin-api.openapi.yaml`.
+    - `@saasicat/ui-vue`: `TenantDetailPage` shows the section "Deletion",
+      `SubscriberRecordPage` the section "Deletions"; the resources gain
+      `tenants.deletion` and `subscribers.deletions`, and `useTenantDeletion`,
+      `useSubscriberDeletions`, `useTenantDeletionWriters`, `useTenantKeep`,
+      `tenantDeletionWording`, `tenantDeletionRecordWording` and `keepLineLabel`
+      are new.
+    - `@saasicat/ui-vue-tenant`: `TenantAccessBanner` lists the lines under "Keep
+      for your own records". `TenantPlanSectionI18n` gains `accessKeepHeading` and
+      `accessKeepLine`, which a catalogue built whole adds.
+
+    Nothing to wire. See `docs/guides/wire-the-backend.md` and
+    `docs/guides/upgrade-to-1.0.md`.
+
+### Patch Changes
+
+- Updated dependencies [31290c0]
+- Updated dependencies [35cd0bf]
+- Updated dependencies [31290c0]
+- Updated dependencies [6b43bf2]
+- Updated dependencies [98e0497]
+- Updated dependencies [6b43bf2]
+- Updated dependencies [51b735a]
+- Updated dependencies [35cd0bf]
+- Updated dependencies [3aa07f6]
+- Updated dependencies [a32ce34]
+    - @saasicat/core@1.0.0-rc.33
+    - @saasicat/ui-vue@1.0.0-rc.33
+
 ## 1.0.0-rc.32
 
 ### Minor Changes
