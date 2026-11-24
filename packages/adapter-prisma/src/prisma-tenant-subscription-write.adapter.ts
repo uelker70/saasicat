@@ -26,7 +26,9 @@ import {
     buildActivePlanVersionWhere,
     noActivePlanVersion,
     scheduledChangeAfterWrite,
+    specialTermsOf,
     subscriptionGone,
+    type SpecialTermFields,
 } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 import {
@@ -81,6 +83,40 @@ function bookableOn(version: PlanVersionIdentityDbRow, planId: string, asOf: Dat
 /** Structural minimum of the root client; model delegates are configurable. */
 interface TransactionalPrismaClient {
     $transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>;
+}
+
+/** The raw statements a return takes beside the configurable subscription delegate. */
+interface RawSubscriptionClient {
+    $queryRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<unknown>;
+    $executeRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<number>;
+}
+
+/** What `startAgain` answers where it claims nothing. */
+const NOTHING_STARTED: StartAgainResult = { claimed: false, endedSpecialTerms: [] };
+
+function rawClientOf(client: unknown): RawSubscriptionClient {
+    // SAFETY: a Prisma client, and the transaction client its `$transaction`
+    // hands out, both carry `$queryRaw` and `$executeRaw`.
+    return client as RawSubscriptionClient;
+}
+
+/**
+ * Locks the tenant's subscription row for the rest of the transaction `client`
+ * is on, and reads the fields that hold its special terms; null where the
+ * tenant has no subscription. Addresses the canonical physical `subscriptions`
+ * table, as the locked read of the subscription repository does.
+ */
+async function lockedSpecialTerms(
+    client: unknown,
+    tenantId: string,
+): Promise<SpecialTermFields | null> {
+    const rows = await rawClientOf(client).$queryRaw`
+        SELECT "isPilot", "customLimits", "customMonthlyNet" FROM subscriptions
+        WHERE "tenantId" = ${tenantId} FOR UPDATE`;
+    // SAFETY: the statement selects these three columns of the one row a
+    // tenant's subscription has, or none.
+    const [row] = rows as SpecialTermFields[];
+    return row ?? null;
 }
 
 /**
@@ -439,17 +475,17 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
      * the count at zero and nothing written. Not on the status, which a
      * cancellation that landed by its date left as it stood. In the caller's
      * transaction where one is given, so the return's contract and the lifted
-     * end share it.
+     * end share it, and in one of its own otherwise: the row is locked first,
+     * so the special terms it answers with are the ones the write ended.
      */
     async startAgain(
         tenantId: string,
         input: StartAgainInput,
         tx?: TransactionContext,
     ): Promise<StartAgainResult> {
-        const client = tx ?? this.prisma;
         const binds = this.schema.tenantSubscription.synchronizePlanVersion;
         if (binds) {
-            await this.assertBindsTheVersionOfThePlan(client, tenantId, input);
+            await this.assertBindsTheVersionOfThePlan(tx ?? this.prisma, tenantId, input);
         } else if (input.planVersionId !== null) {
             throw new Error(
                 `A return for tenant ${tenantId} asked for plan version ${input.planVersionId} ` +
@@ -466,12 +502,23 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             canceledEffectiveAt: null,
             ...NO_SCHEDULED_CHANGE,
             isPilot: false,
+            customMonthlyNet: null,
         };
-        const claimed = await this.subscription(client).updateMany({
-            where: { tenantId, canceledEffectiveAt: input.expectedCanceledEffectiveAt },
-            data: binds ? { ...columns, planVersionId: input.planVersionId } : columns,
-        });
-        return { claimed: claimed.count === 1 };
+        const startIn = async (client: unknown): Promise<StartAgainResult> => {
+            const carried = await lockedSpecialTerms(client, tenantId);
+            const claimed = await this.subscription(client).updateMany({
+                where: { tenantId, canceledEffectiveAt: input.expectedCanceledEffectiveAt },
+                data: binds ? { ...columns, planVersionId: input.planVersionId } : columns,
+            });
+            if (claimed.count !== 1 || carried === null) return NOTHING_STARTED;
+            // Prisma takes no plain null for a JSON column, and this package
+            // has no `DbNull` to give it instead.
+            await rawClientOf(client).$executeRaw`
+                UPDATE subscriptions SET "customLimits" = NULL WHERE "tenantId" = ${tenantId}`;
+            return { claimed: true, endedSpecialTerms: specialTermsOf(carried) };
+        };
+        if (tx) return startIn(tx);
+        return this.prisma.$transaction(startIn);
     }
 
     /**

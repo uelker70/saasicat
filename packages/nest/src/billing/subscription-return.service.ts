@@ -16,14 +16,23 @@
 //
 // The subscription, its contract and the lift of the end and its reason are
 // one transaction: where any of them fails, none of them is written. What can
-// refuse the contract — the subscriber, the tax, a plan not sold in the
-// rhythm — is asked while it is composed, before the transaction.
+// refuse the plan is asked first, as a plan change to it is refused — a
+// rhythm it is not sold in, usage today it would not hold
+// (`PlanChangePreviewService.blockersOfStartingAgain`); what can refuse the
+// contract — the subscriber, the tax — while it is composed. Both before the
+// transaction.
+//
+// The catalogue's terms are all a return runs on: the subscription's special
+// terms — a pilot, limits and a price of the operator's own — end with it,
+// and the audit names those that did. The operator grants them again where he
+// wants to.
 //
 // A booking of the subscription that ended belonged to it, and ends at its
 // end: a return books none, and a booking left running would come back with
 // the new subscription, granted and charged without being chosen.
 
 import {
+    BadRequestException,
     ConflictException,
     ForbiddenException,
     Inject,
@@ -36,6 +45,7 @@ import {
 import {
     BILLING_ERROR_CODES,
     TENANT_ACCESS_ERROR_CODES,
+    type SubscriptionSpecialTerm,
     installationZoneOf,
     openEndedHoldOf,
     subscriptionReturnRefusal,
@@ -79,6 +89,10 @@ import { initialPeriodWindow } from './billing-period.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
+import {
+    PlanChangePreviewService,
+    type PlanChangePreviewIssue,
+} from './plan-change-preview.service.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN, PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { findPlan } from './plan-helpers.js';
@@ -118,7 +132,15 @@ export interface SubscriptionReturnTerms extends SubscriptionReturned {
     readonly refusal: null;
     /** The deletion day the return lifts. */
     readonly deletesOn: CalendarDay;
-    /** One period of the new contract, as it records it; null where the installation keeps no contracts. */
+    /**
+     * What stands in the way of the plan chosen, as a plan change to it would
+     * be told (`PLAN_CHANGE_BLOCKED`); the return is refused until it is empty.
+     */
+    readonly blockers: readonly PlanChangePreviewIssue[];
+    /**
+     * One period of the new contract, as it records it; null where the
+     * installation keeps no contracts, and where a blocker stands in the way.
+     */
     readonly price: SubscriptionContractPriceSnapshot | null;
     /** The days of notice a cancellation of the new subscription is owed. */
     readonly cancellationNoticeDays: number;
@@ -186,6 +208,8 @@ export class SubscriptionReturnService {
         >,
         @Inject(ENTITLEMENT_SERVICE_TOKEN)
         private readonly entitlements: { invalidateTenant(tenantId: string): void },
+        @Inject(PlanChangePreviewService)
+        private readonly planChanges: Pick<PlanChangePreviewService, 'blockersOfStartingAgain'>,
         // Absent only where tenant billing is wired by hand without
         // `SaaSiCatModule`: nothing records the reason an end puts a tenant
         // in then, so no tenant has an end to come back from.
@@ -241,9 +265,10 @@ export class SubscriptionReturnService {
 
     /**
      * What `tenantId` would come back on at `now` with `choice`, and what it
-     * would pay, written nowhere; or why it cannot come back. A plan it cannot
-     * choose, and a contract that could not be written, are refused as the
-     * return refuses them.
+     * would pay, written nowhere; or why it cannot come back. What stands in
+     * the way of the plan chosen is listed as a plan change's preview lists
+     * it; a plan it cannot choose, and a contract that could not be written,
+     * are refused as the return refuses them.
      */
     async preview(
         tenantId: string,
@@ -256,11 +281,13 @@ export class SubscriptionReturnService {
             return { refusal: returnable.refusal, deletesOn: standing.end?.deletesOn ?? null };
         }
         const returned = await this.subscriptionChosen(choice, now);
-        const contract = await this.contractOf(tenantId, returned);
+        const blockers = await this.blockersOf(tenantId, returned, now);
+        const contract = blockers.length > 0 ? null : await this.contractOf(tenantId, returned);
         return {
             refusal: null,
             deletesOn: returnable.end.deletesOn,
             ...returned,
+            blockers,
             price: contract?.priceSnapshot ?? null,
             cancellationNoticeDays: agreementNamed(this.settings, choice.billingCycle, now)
                 .cancellationNoticeDays,
@@ -273,10 +300,11 @@ export class SubscriptionReturnService {
      * `actor`, its administrator: started again on the version on sale, its
      * contract written, and the end and the reason it put the tenant in
      * lifted, in one transaction. Refused, with nothing written, where the
-     * tenant cannot come back (`subscriptionReturnRefusal`), where a gateway
-     * takes payment methods and the subscriber has none in use, where a
-     * contract of the tenant runs already, and where the plan or its contract
-     * is refused.
+     * tenant cannot come back (`subscriptionReturnRefusal`), where something
+     * stands in the way of the plan as a plan change to it would be refused
+     * (`PLAN_CHANGE_BLOCKED`), where a gateway takes payment methods and the
+     * subscriber has none in use, where a contract of the tenant runs
+     * already, and where the plan or its contract is refused.
      */
     async takeOut(
         tenantId: string,
@@ -294,6 +322,14 @@ export class SubscriptionReturnService {
         const endsAt = cancellationLandsAt(subscription);
         if (endsAt === null) throw refused('not-ended', standing);
         const returned = await this.subscriptionChosen(choice, now);
+        const blockers = await this.blockersOf(tenantId, returned, now);
+        if (blockers.length > 0) {
+            throw new BadRequestException({
+                code: BILLING_ERROR_CODES.PLAN_CHANGE_BLOCKED,
+                message: 'Plan change is blocked.',
+                blockers,
+            });
+        }
         if (await this.paymentMethodMissing(tenantId)) {
             throw new ConflictException(
                 codedError(TENANT_ACCESS_ERROR_CODES.TENANT_RETURN_PAYMENT_METHOD_REQUIRED),
@@ -302,10 +338,10 @@ export class SubscriptionReturnService {
         const contract = await this.contractOf(tenantId, returned);
         if (await this.contracts?.runningFrom(tenantId, now)) throw contractChanged(tenantId);
         await this.endBookingsAt(returnable.end.subscriptionId, endsAt);
-        await this.transactions.run(async (tx) => {
+        const endedSpecialTerms = await this.transactions.run(async (tx) => {
             const locked = await this.lockedStanding(holds, tenantId, returnable, now, tx);
             if (locked.refusal) throw refused(locked.refusal, locked);
-            const { claimed } = await this.writes.startAgain(
+            const started = await this.writes.startAgain(
                 tenantId,
                 {
                     planId: returned.plan,
@@ -317,21 +353,16 @@ export class SubscriptionReturnService {
                 },
                 tx,
             );
-            if (!claimed) {
+            if (!started.claimed) {
                 throw new ConflictException(codedError(BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED));
             }
             if (contract && this.contracts) await this.contracts.create(contract, tx);
             await this.liftEnd(holds, returnable, now, actorTagOf(actor), tx);
+            return started.endedSpecialTerms;
         });
         this.entitlements.invalidateTenant(tenantId);
         await recordChargesAfter(this.charges, tenantId, 'a return', this.logger);
-        await this.audited(
-            actor,
-            tenantId,
-            returned,
-            returnable.end,
-            subscription.isPilot === true,
-        );
+        await this.audited(actor, tenantId, returned, returnable.end, endedSpecialTerms);
         return returned;
     }
 
@@ -464,6 +495,20 @@ export class SubscriptionReturnService {
         return onSale.id;
     }
 
+    /** What stands in the way of `returned`'s plan, as a plan change to it would be told. */
+    private blockersOf(
+        tenantId: string,
+        returned: SubscriptionReturned,
+        now: Date,
+    ): Promise<PlanChangePreviewIssue[]> {
+        return this.planChanges.blockersOfStartingAgain(
+            tenantId,
+            returned.plan,
+            returned.billingCycle,
+            now,
+        );
+    }
+
     /**
      * The contract `returned` is concluded under from its first period on,
      * composed for the subscription started again and checked, not written;
@@ -519,7 +564,7 @@ export class SubscriptionReturnService {
         tenantId: string,
         returned: SubscriptionReturned,
         end: SubscriptionEnd,
-        pilotEnded: boolean,
+        endedSpecialTerms: readonly SubscriptionSpecialTerm[],
     ): Promise<void> {
         if (!this.audit) return;
         try {
@@ -535,7 +580,7 @@ export class SubscriptionReturnService {
                     planVersionId: returned.planVersionId,
                     endedAt: end.endsAt.toISOString(),
                     deletesOn: end.deletesOn,
-                    pilotEnded,
+                    endedSpecialTerms: [...endedSpecialTerms],
                 },
             });
         } catch (error) {

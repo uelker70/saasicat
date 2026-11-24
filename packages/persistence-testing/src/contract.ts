@@ -17424,8 +17424,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             /**
              * `tenantId` on the plan `OLD_<tenantId>`, its cancellation landed
              * at `LANDED` with `status` left as it stood, a pilot whose pilot
-             * ended, with a change scheduled; and the version of
-             * `NEW_<tenantId>` on sale, which a return binds.
+             * ended, on limits and a price of the operator's own, with a change
+             * scheduled; and the version of `NEW_<tenantId>` on sale, which a
+             * return binds.
              */
             async function ended(tenantId: string, status = 'ACTIVE') {
                 const { planVersionId: endedOn } = await harness.seed.createPlanVersion({
@@ -17454,6 +17455,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     trialEndsAt: TRIAL_ENDED,
                     isPilot: true,
                     pilotEndsAt: PILOT_ENDED,
+                    customLimits: { quotas: { users: 50 } },
+                    customMonthlyNet: 99,
                 });
                 return { endedOn, onSale };
             }
@@ -17493,10 +17496,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     isPilot: usage?.isPilot,
                     pilotEndsAt: usage?.pilotEndsAt?.toISOString(),
                     trialEndsAt: usage?.trialEndsAt?.toISOString(),
+                    customLimits: record?.customLimits ?? null,
                 };
             };
+            const NOTHING_STARTED = { claimed: false, endedSpecialTerms: [] };
 
-            test('is a new subscription on the same row: the plan sold, from the moment it came back, and no longer a pilot', async (t) => {
+            test('is a new subscription on the same row: the plan sold, from the moment it came back, on the catalogue’s terms alone', async (t) => {
                 const writer = writerOr(t);
                 if (!writer) return;
                 const { onSale } = await ended('tenant-back');
@@ -17506,7 +17511,10 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     input('tenant-back', onSale),
                 );
 
-                assert.deepEqual(started, { claimed: true });
+                assert.deepEqual(started, {
+                    claimed: true,
+                    endedSpecialTerms: ['isPilot', 'customLimits', 'customMonthlyNet'],
+                });
                 assert.deepEqual(await asRead('tenant-back'), {
                     plan: 'NEW_tenant-back',
                     billingCycle: 'MONTHLY',
@@ -17521,7 +17529,28 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     isPilot: false,
                     pilotEndsAt: PILOT_ENDED.toISOString(),
                     trialEndsAt: TRIAL_ENDED.toISOString(),
+                    customLimits: null,
                 });
+            });
+
+            test('carries none of the special terms it ended into its next return', async (t) => {
+                const writer = writerOr(t);
+                if (!writer) return;
+                const { onSale } = await ended('tenant-twice');
+                await writer.startAgain('tenant-twice', input('tenant-twice', onSale));
+                const endsAgain = new Date('2027-01-31T23:00:00.000Z');
+                await writer.cancelSubscription('tenant-twice', {
+                    canceledAt: new Date('2026-12-01T09:00:00.000Z'),
+                    effectiveAt: endsAgain,
+                    terminateNow: false,
+                });
+
+                const again = await writer.startAgain('tenant-twice', {
+                    ...input('tenant-twice', onSale),
+                    expectedCanceledEffectiveAt: endsAgain,
+                });
+
+                assert.deepEqual(again, { claimed: true, endedSpecialTerms: [] });
             });
 
             test('whatever status the landed cancellation left it in', async (t) => {
@@ -17534,7 +17563,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     input('tenant-terminated', onSale),
                 );
 
-                assert.deepEqual(started, { claimed: true });
+                assert.equal(started.claimed, true);
                 assert.equal((await asRead('tenant-terminated')).status, 'ACTIVE');
             });
 
@@ -17549,7 +17578,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     expectedCanceledEffectiveAt: new Date('2026-10-31T23:00:00.000Z'),
                 });
 
-                assert.deepEqual(moved, { claimed: false });
+                assert.deepEqual(moved, NOTHING_STARTED);
                 assert.deepEqual(await asRead('tenant-moved'), before);
 
                 const { planVersionId } = await harness.seed.createPlanVersion({
@@ -17569,7 +17598,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     ...input('tenant-running', planVersionId),
                     planId: 'RUNNING_PLAN',
                 });
-                assert.deepEqual(running, { claimed: false });
+                assert.deepEqual(running, NOTHING_STARTED);
                 assert.equal((await asRead('tenant-running')).plan, 'RUNNING_PLAN');
             });
 

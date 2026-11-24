@@ -1366,6 +1366,8 @@ _Tested by:_
         - its contract is the catalogue of today, priced and granting what the version on sale does
         - is audited for the tenant, naming the end it lifted
         - a pilot that comes back is a pilot no more: its contract grants what it bought
+        - limits and a price of the operator’s own end with it: its contract is the catalogue’s, and
+          the audit names what ended
         - an add-on of the subscription that ended ends with it, and no contract of the return names
           it
         - an add-on cancelled for a date after the end ends at the end as well
@@ -1402,6 +1404,12 @@ _Tested by:_
         - an add-on of the subscription that ended costs nothing in it
         - from the deletion day, why not — and nothing is written
         - the price of the version it paid until then is not the one shown
+    - the plan it comes back on is refused as a plan change to it would be
+        - one whose limits the tenant’s use today exceeds, naming the quota, and nothing is written
+        - a rhythm the plan is not sold in
+        - measured against the version on sale, not the one it paid until then
+        - a special contract it ended on is over, not left: it comes back on a plan of the catalogue
+        - shown before it comes back, as a plan change’s preview shows them, without a price
     - taking the tenant back inside a transaction of the caller
         - lifts the end and its reason in it, and with it taken back, nothing is lifted
         - answers false where no end stands, and refuses from the deletion day

@@ -763,8 +763,9 @@ function firstAfter(now: Date, dates: ReadonlyArray<Date | null>): Date | null {
 
 /**
  * `sub` as `TenantSubscriptionWritePort.startAgain` leaves it on `version`:
- * on the version's plan, running, a pilot no more, with nothing cancelled or
- * scheduled.
+ * on the version's plan, running, with nothing cancelled or scheduled, and on
+ * the catalogue's terms alone — a pilot no more, without limits of the
+ * operator's own.
  */
 function startedAgainOn(sub: SubscriptionRecord, version: PlanVersionRow): SubscriptionRecord {
     return {
@@ -772,6 +773,7 @@ function startedAgainOn(sub: SubscriptionRecord, version: PlanVersionRow): Subsc
         plan: version.planId,
         status: 'ACTIVE',
         isPilot: false,
+        customLimits: null,
         pendingPlan: null,
         pendingEffectiveAt: null,
         planVersionId: version.id,

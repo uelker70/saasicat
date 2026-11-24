@@ -6,7 +6,10 @@
 // only what the application owns is stood in for — its subscription row, its
 // subscriber and its payment method.
 
+import { specialTermsOf } from '@saasicat/core';
+
 import {
+    PlanChangePreviewService,
     SubscriptionContractFreezeService,
     SubscriptionEndService,
     SubscriptionReturnService,
@@ -82,12 +85,23 @@ const ENTERPRISE = {
     quotas: { users: 100 },
     features: ['CORE', 'REPORTS', 'API'],
 };
+/** Sold by the month alone: it carries no yearly price. */
+const FLEX = {
+    id: 'FLEX',
+    name: 'Flex',
+    tagline: '',
+    marketed: true,
+    monthlyNet: 29,
+    yearlyNet: null,
+    quotas: { users: 8 },
+    features: ['CORE'],
+};
 export const CATALOG = {
     schemaVersion: 1,
     app: { name: 'Drive School' },
     currency: 'EUR',
     vatRate: 19,
-    plans: [STARTER, STANDARD, ENTERPRISE],
+    plans: [STARTER, STANDARD, ENTERPRISE, FLEX],
 };
 
 /** The version the subscription that ended was bound to: what it paid until then. */
@@ -102,12 +116,18 @@ const VERSIONS = [
     V3,
     boundPlanVersion(STARTER, 'pv-starter-1'),
     boundPlanVersion(ENTERPRISE, 'pv-enterprise-1'),
+    boundPlanVersion(FLEX, 'pv-flex-1'),
 ];
-const ON_SALE = { STARTER: 'pv-starter-1', STANDARD: V3.id, ENTERPRISE: 'pv-enterprise-1' };
+const ON_SALE = {
+    STARTER: 'pv-starter-1',
+    STANDARD: V3.id,
+    ENTERPRISE: 'pv-enterprise-1',
+    FLEX: 'pv-flex-1',
+};
 const versionById = (id) => VERSIONS.find((version) => version.id === id) ?? null;
 
-/** What the operator sells only by a contract of its own. */
-export const BLOCKED = { asTarget: ['ENTERPRISE'] };
+/** What the operator sells only by a contract of its own, and lets nobody leave by themselves. */
+export const BLOCKED = { asTarget: ['ENTERPRISE'], asSource: ['ENTERPRISE'] };
 
 /** A pilot is granted this plan, whatever its subscription names. */
 const PILOTS_ARE_GRANTED = 'ENTERPRISE';
@@ -145,6 +165,9 @@ export class SubscriptionRow {
             pendingBillingCycle: null,
             pendingEffectiveAt: null,
             planVersionId: V2.id,
+            customLimits: null,
+            customMonthlyNet: null,
+            customNote: null,
             ...overrides,
         };
     }
@@ -170,8 +193,9 @@ export class SubscriptionRow {
             tenantId !== row.tenantId ||
             row.canceledEffectiveAt?.getTime() !== input.expectedCanceledEffectiveAt.getTime()
         ) {
-            return { claimed: false };
+            return { claimed: false, endedSpecialTerms: [] };
         }
+        const endedSpecialTerms = specialTermsOf(row);
         const before = { ...row };
         tx?.undo.push(() => Object.assign(row, before));
         Object.assign(row, {
@@ -186,9 +210,11 @@ export class SubscriptionRow {
             pendingBillingCycle: null,
             pendingEffectiveAt: null,
             isPilot: false,
+            customLimits: null,
+            customMonthlyNet: null,
             planVersionId: input.planVersionId,
         });
-        return { claimed: true };
+        return { claimed: true, endedSpecialTerms };
     }
 
     // ── as the entitlements read it ──
@@ -205,7 +231,7 @@ export class SubscriptionRow {
             trialEntitlementPlan: null,
             pendingPlan: this.row.pendingPlan,
             pendingEffectiveAt: this.row.pendingEffectiveAt,
-            customLimits: null,
+            customLimits: this.row.customLimits,
             planVersionId: version.id,
             planVersion: {
                 planId: version.planId,
@@ -289,13 +315,15 @@ function aSubscriber(state) {
  * its deletion day, the run that deletes tenants, and the service it comes
  * back through — over one database. `row` changes the subscription row,
  * `gateway` makes the installation take payment methods through a gateway,
- * `paymentMethod` is the subscriber's one in use there.
+ * `paymentMethod` is the subscriber's one in use there, `usage` what the
+ * tenant uses today.
  */
 export async function aTenantThatEnded({
     row = {},
     gateway = false,
     paymentMethod = null,
     ended = true,
+    usage = {},
 } = {}) {
     const ports = aDatabase();
     ports.holds = new LockingHolds();
@@ -375,6 +403,20 @@ export async function aTenantThatEnded({
         methods: { current: async () => paymentMethod },
         gateways: { forNewPaymentMethods: () => (gateway ? { name: 'stripe' } : null) },
     };
+    const planChanges = new PlanChangePreviewService(
+        catalogs,
+        entitlements,
+        subscription,
+        { snapshot: async () => usage },
+        BLOCKED,
+        null,
+        bookings,
+        ports.contracts,
+        plans,
+        null,
+        null,
+        ZONE,
+    );
     const service = new SubscriptionReturnService(
         subscription,
         subscription,
@@ -386,6 +428,7 @@ export async function aTenantThatEnded({
             tenantBilling: { cancellationNoticeDays: { monthly: 30, yearly: 90 } },
         },
         entitlements,
+        planChanges,
         ports.holds,
         plans,
         BLOCKED,

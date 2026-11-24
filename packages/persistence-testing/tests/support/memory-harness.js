@@ -15,6 +15,7 @@ import {
     columnsOfPeriodOpened,
     columnsPutBack,
     NO_SCHEDULED_CHANGE,
+    specialTermsOf,
     formatCustomerNumber,
     formatInvoiceNumber,
     identityCorrectionDelta,
@@ -490,8 +491,13 @@ export function createMemoryHarness() {
                 stored === null ||
                 stored.getTime() !== input.expectedCanceledEffectiveAt.getTime()
             ) {
-                return { claimed: false };
+                return { claimed: false, endedSpecialTerms: [] };
             }
+            const endedSpecialTerms = specialTermsOf({
+                isPilot: row.isPilot ?? false,
+                customLimits: row.customLimits ?? null,
+                customMonthlyNet: row.customMonthlyNet ?? null,
+            });
             Object.assign(row, {
                 plan: input.planId,
                 billingCycle: input.cycle,
@@ -502,8 +508,10 @@ export function createMemoryHarness() {
                 canceledEffectiveAt: null,
                 ...NO_SCHEDULED_CHANGE,
                 isPilot: false,
+                customLimits: null,
+                customMonthlyNet: null,
             });
-            return { claimed: true };
+            return { claimed: true, endedSpecialTerms };
         },
         async endNow(tenantId, input) {
             const row = state.subscriptions.find((s) => s.tenantId === tenantId);
@@ -1903,6 +1911,7 @@ export function createMemoryHarness() {
                 trialEndsAt: input.trialEndsAt ?? null,
                 isPilot: input.isPilot ?? false,
                 pilotEndsAt: input.pilotEndsAt ?? null,
+                customMonthlyNet: input.customMonthlyNet ?? null,
             };
             state.subscriptions.push(row);
             return { subscriptionId: row.id };

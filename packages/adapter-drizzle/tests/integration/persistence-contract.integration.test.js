@@ -255,6 +255,10 @@ function createHarness() {
                     trialEndsAt: input.trialEndsAt ?? null,
                     isPilot: input.isPilot ?? false,
                     pilotEndsAt: input.pilotEndsAt ?? null,
+                    customMonthlyNet:
+                        input.customMonthlyNet === undefined
+                            ? null
+                            : String(input.customMonthlyNet),
                     updatedAt: new Date(),
                 });
                 return { subscriptionId: id };

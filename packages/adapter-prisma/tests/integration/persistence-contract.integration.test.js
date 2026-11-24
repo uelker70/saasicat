@@ -225,6 +225,7 @@ function createHarness() {
                         trialEndsAt: input.trialEndsAt ?? null,
                         isPilot: input.isPilot ?? false,
                         pilotEndsAt: input.pilotEndsAt ?? null,
+                        customMonthlyNet: input.customMonthlyNet ?? null,
                     },
                 });
                 return { subscriptionId: row.id };

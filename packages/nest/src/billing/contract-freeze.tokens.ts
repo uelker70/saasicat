@@ -135,8 +135,9 @@ export interface ContractTarget {
     /**
      * The subscription ended, and the contract starts it again (`SC-CANC-034`):
      * it records what the subscription grants once running on the version —
-     * a pilot no more, and none of the add-ons or the code of the subscription
-     * that ended, which a return does not take over.
+     * a pilot no more, without limits of the operator's own, and none of the
+     * add-ons or the code of the subscription that ended, which a return does
+     * not take over.
      */
     readonly startsAgain?: boolean;
 }

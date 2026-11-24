@@ -346,6 +346,8 @@ export interface ContractSeed {
         /** A pilot, and the day it ends; default not a pilot, with no end. */
         isPilot?: boolean;
         pilotEndsAt?: Date;
+        /** The operator's own monthly price, net; defaults to null. */
+        customMonthlyNet?: number;
     }): Promise<{ subscriptionId: string }>;
     /**
      * A published BundleVersion to book against.

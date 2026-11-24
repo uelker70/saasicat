@@ -64,6 +64,7 @@ export * from './feature-withdrawal-mapping.js';
 export * from './scheduled-change-after-write.js';
 export * from './plan-change-put-back.js';
 export * from './period-opened.js';
+export * from './special-terms.js';
 export * from './retirement-switch.js';
 export * from './retirement-reminder.js';
 export * from './maintenance-window-mapping.js';

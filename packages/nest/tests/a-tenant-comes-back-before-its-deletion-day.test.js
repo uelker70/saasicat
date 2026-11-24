@@ -175,7 +175,7 @@ describe('a tenant that comes back before its deletion day', () => {
                     planVersionId: V3.id,
                     endedAt: ENDED.toISOString(),
                     deletesOn: DELETES_ON,
-                    pilotEnded: false,
+                    endedSpecialTerms: [],
                 },
             },
         ]);
@@ -193,7 +193,30 @@ describe('a tenant that comes back before its deletion day', () => {
             quotas: { users: 8 },
             features: ['CORE', 'REPORTS'],
         });
-        assert.equal(tenant.calls.audited[0].changes.pilotEnded, true);
+        assert.deepEqual(tenant.calls.audited[0].changes.endedSpecialTerms, ['isPilot']);
+    });
+
+    test('limits and a price of the operator’s own end with it: its contract is the catalogue’s, and the audit names what ended', async () => {
+        const tenant = await aTenantThatEnded({
+            row: {
+                customLimits: { quotas: { users: 50 }, features: ['API'] },
+                customMonthlyNet: 39,
+                customNote: 'Framework agreement 2025',
+            },
+        });
+
+        await tenant.service.takeOut(TENANT, STANDARD_MONTHLY, ADMIN, RETURN_AT);
+
+        const [contract] = await contractsOf(tenant);
+        assert.deepEqual(contract.entitlementSnapshot, {
+            plan: 'STANDARD',
+            quotas: { users: 8 },
+            features: ['CORE', 'REPORTS'],
+        });
+        assert.deepEqual(tenant.calls.audited[0].changes.endedSpecialTerms, [
+            'customLimits',
+            'customMonthlyNet',
+        ]);
     });
 
     test('an add-on of the subscription that ended ends with it, and no contract of the return names it', async () => {
@@ -602,6 +625,7 @@ describe('what the tenant is shown before it comes back', () => {
             planVersionId: V3.id,
             periodStart: RETURN_AT,
             periodEnd: FIRST_PERIOD_ENDS,
+            blockers: [],
             price: {
                 currency: 'EUR',
                 billingCycle: 'monthly',
@@ -650,6 +674,96 @@ describe('what the tenant is shown before it comes back', () => {
 
         assert.notEqual(preview.planVersionId, V2.id);
         assert.notEqual(preview.price.totalNet, 49);
+    });
+});
+
+// @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+describe('the plan it comes back on is refused as a plan change to it would be', () => {
+    const STARTER_MONTHLY = { plan: 'STARTER', billingCycle: 'MONTHLY' };
+
+    test('one whose limits the tenant’s use today exceeds, naming the quota, and nothing is written', async () => {
+        const tenant = await aTenantThatEnded({ usage: { users: 5 } });
+        const before = await whatIsKept(tenant);
+
+        await assert.rejects(
+            tenant.service.takeOut(TENANT, STARTER_MONTHLY, ADMIN, RETURN_AT),
+            (error) => {
+                assert.equal(error.getStatus(), 400);
+                assert.deepEqual(error.response, {
+                    code: 'PLAN_CHANGE_BLOCKED',
+                    message: 'Plan change is blocked.',
+                    blockers: [
+                        {
+                            code: 'QUOTA_OVER_TARGET',
+                            message:
+                                'Current usage 5 exceeds the target limit 3 (users) in the ' +
+                                'Starter plan. Please reduce usage first.',
+                            params: {
+                                used: '5',
+                                targetMax: 3,
+                                quotaKey: 'users',
+                                planName: 'Starter',
+                            },
+                        },
+                    ],
+                });
+                return true;
+            },
+        );
+        assert.deepEqual(await whatIsKept(tenant), before);
+        assert.deepEqual(tenant.calls.audited, []);
+    });
+
+    test('a rhythm the plan is not sold in', async () => {
+        const tenant = await aTenantThatEnded();
+
+        await assert.rejects(
+            tenant.service.takeOut(
+                TENANT,
+                { plan: 'FLEX', billingCycle: 'YEARLY' },
+                ADMIN,
+                RETURN_AT,
+            ),
+            (error) => {
+                assert.equal(error.response?.code, 'PLAN_CHANGE_BLOCKED');
+                assert.deepEqual(
+                    error.response.blockers.map((blocker) => blocker.code),
+                    ['PLAN_NOT_SOLD_IN_CYCLE'],
+                );
+                return true;
+            },
+        );
+    });
+
+    test('measured against the version on sale, not the one it paid until then', async () => {
+        // The version it ended on held five users, the one on sale holds eight.
+        const tenant = await aTenantThatEnded({ usage: { users: 7 } });
+
+        await tenant.service.takeOut(TENANT, STANDARD_MONTHLY, ADMIN, RETURN_AT);
+
+        assert.equal(tenant.subscription.row.planVersionId, V3.id);
+    });
+
+    test('a special contract it ended on is over, not left: it comes back on a plan of the catalogue', async () => {
+        const tenant = await aTenantThatEnded({
+            row: { plan: 'ENTERPRISE', planVersionId: 'pv-enterprise-1' },
+        });
+
+        await tenant.service.takeOut(TENANT, STANDARD_MONTHLY, ADMIN, RETURN_AT);
+
+        assert.equal(tenant.subscription.row.plan, 'STANDARD');
+    });
+
+    test('shown before it comes back, as a plan change’s preview shows them, without a price', async () => {
+        const tenant = await aTenantThatEnded({ usage: { users: 5 } });
+
+        const preview = await tenant.service.preview(TENANT, STARTER_MONTHLY, RETURN_AT);
+
+        assert.deepEqual(
+            preview.blockers.map((blocker) => blocker.code),
+            ['QUOTA_OVER_TARGET'],
+        );
+        assert.equal(preview.price, null);
     });
 });
 

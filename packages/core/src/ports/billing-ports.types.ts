@@ -83,6 +83,7 @@ import type {
 } from '../subscriber-reconciliation.types.js';
 import type { CalendarDay } from '../zoned-day.js';
 import type { SubscriptionPutBack } from '../plan-change-put-back.js';
+import type { SubscriptionSpecialTerm } from '../special-terms.js';
 import type {
     InvoiceRegisterPage,
     InvoiceRegisterRange,
@@ -426,6 +427,12 @@ export interface StartAgainInput {
 export interface StartAgainResult {
     /** False where the cancellation read moved, or never landed, and nothing was written. */
     readonly claimed: boolean;
+    /**
+     * The special terms the subscription carried as it was started again,
+     * which starting it ended; empty where it carried none, or claimed
+     * nothing.
+     */
+    readonly endedSpecialTerms: readonly SubscriptionSpecialTerm[];
 }
 
 /** What ending a trial that ran out takes. */
@@ -2046,12 +2053,16 @@ export interface TenantSubscriptionWritePort {
      * cancellation stored: the plan, the rhythm, the first period and the day
      * it is billed on are written, the status becomes `ACTIVE`, both
      * cancellation dates and any change scheduled are emptied, and
-     * `input.planVersionId` is bound. A pilot ends with it — `isPilot` becomes
+     * `input.planVersionId` is bound. Its special terms end with it, so the
+     * catalogue's terms are what it runs on: a pilot — `isPilot` becomes
      * false, so the plan bought decides the entitlements and nothing holds the
-     * subscription as a pilot; the pilot's note and end stay as what it was.
-     * The trial's end stays as it was. Answers `claimed: false`, writing
-     * nothing, where the cancellation moved or was never there. One
-     * conditional statement, like `endNow`, in `tx` where one is given.
+     * subscription as a pilot — and the operator's own limits and price,
+     * `customLimits` and `customMonthlyNet`, become null. The pilot's note and
+     * end, the note on the special contract and the trial's end stay as what
+     * they were. Answers with the special terms it ended (`specialTermsOf` the
+     * row as it read it, locked), and `claimed: false`, writing nothing,
+     * where the cancellation moved or was never there. A conditional claim,
+     * like `endNow`, in `tx` where one is given.
      *
      * Throws, writing nothing, where the binding cannot be what the caller
      * composed the contract for: a version named to a write that binds none, a
