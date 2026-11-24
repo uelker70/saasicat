@@ -223,6 +223,8 @@ function createHarness() {
                         canceledAt: input.canceledAt ?? null,
                         canceledEffectiveAt: input.canceledEffectiveAt ?? null,
                         trialEndsAt: input.trialEndsAt ?? null,
+                        isPilot: input.isPilot ?? false,
+                        pilotEndsAt: input.pilotEndsAt ?? null,
                     },
                 });
                 return { subscriptionId: row.id };

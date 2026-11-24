@@ -11,6 +11,8 @@ import type {
     PromoCodeRedemptionRecord,
     RedeemPromoInTransactionCallback,
     ScheduledPlanChangeInput,
+    StartAgainInput,
+    StartAgainResult,
     TenantSubscriptionWritePort,
     TransactionContext,
 } from '@saasicat/core';
@@ -429,6 +431,75 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             canceledEffectiveAt: current.canceledEffectiveAt ?? null,
             status: current.status,
         };
+    }
+
+    /**
+     * The same conditional claim as `endNow`, on the landed cancellation the
+     * caller read: one that moved, or a subscription never cancelled, leaves
+     * the count at zero and nothing written. Not on the status, which a
+     * cancellation that landed by its date left as it stood. In the caller's
+     * transaction where one is given, so the return's contract and the lifted
+     * end share it.
+     */
+    async startAgain(
+        tenantId: string,
+        input: StartAgainInput,
+        tx?: TransactionContext,
+    ): Promise<StartAgainResult> {
+        const client = tx ?? this.prisma;
+        const binds = this.schema.tenantSubscription.synchronizePlanVersion;
+        if (binds) {
+            await this.assertBindsTheVersionOfThePlan(client, tenantId, input);
+        } else if (input.planVersionId !== null) {
+            throw new Error(
+                `A return for tenant ${tenantId} asked for plan version ${input.planVersionId} ` +
+                    'to be bound, and this write binds no version: ' +
+                    '`tenantSubscription.synchronizePlanVersion` is false.',
+            );
+        }
+        const columns = {
+            plan: input.planId,
+            billingCycle: input.cycle,
+            status: 'ACTIVE',
+            ...columnsOfPeriodOpened(input.periodStart, input.periodEnd),
+            canceledAt: null,
+            canceledEffectiveAt: null,
+            ...NO_SCHEDULED_CHANGE,
+            isPilot: false,
+        };
+        const claimed = await this.subscription(client).updateMany({
+            where: { tenantId, canceledEffectiveAt: input.expectedCanceledEffectiveAt },
+            data: binds ? { ...columns, planVersionId: input.planVersionId } : columns,
+        });
+        return { claimed: claimed.count === 1 };
+    }
+
+    /**
+     * Refuses a return that names no version, or one of another plan, where
+     * the write binds one: the version bound is the one the new contract was
+     * composed for, never the one in effect instead.
+     */
+    private async assertBindsTheVersionOfThePlan(
+        client: unknown,
+        tenantId: string,
+        input: StartAgainInput,
+    ): Promise<void> {
+        if (input.planVersionId === null) {
+            throw new Error(
+                `A return for tenant ${tenantId} names no plan version, and this write binds one: ` +
+                    'the version the new contract was composed for.',
+            );
+        }
+        const storagePlanId = await this.planBinding.toStoragePlanId(client, input.planId);
+        const version = await this.planVersions(client).findUnique({
+            where: { id: input.planVersionId },
+        });
+        if (version?.planId !== storagePlanId) {
+            throw new Error(
+                `A return for tenant ${tenantId} names plan version ${input.planVersionId}, ` +
+                    `which is not one of ${input.planId}.`,
+            );
+        }
     }
 
     /**

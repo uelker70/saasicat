@@ -14,6 +14,7 @@ import {
     columnsClaimedByPutBack,
     columnsOfPeriodOpened,
     columnsPutBack,
+    NO_SCHEDULED_CHANGE,
     formatCustomerNumber,
     formatInvoiceNumber,
     identityCorrectionDelta,
@@ -467,6 +468,42 @@ export function createMemoryHarness() {
                 canceledEffectiveAt: row.canceledEffectiveAt ?? null,
                 status: row.status,
             };
+        },
+        async startAgain(tenantId, input) {
+            if (input.planVersionId === null) {
+                throw new Error(
+                    `A return for tenant ${tenantId} names no plan version, and this write binds one.`,
+                );
+            }
+            const version = state.planVersions.find(
+                (candidate) => candidate.id === input.planVersionId,
+            );
+            if (version?.planId !== input.planId) {
+                throw new Error(
+                    `A return for tenant ${tenantId} names plan version ${input.planVersionId}, ` +
+                        `which is not one of ${input.planId}.`,
+                );
+            }
+            const row = state.subscriptions.find((s) => s.tenantId === tenantId);
+            const stored = row?.canceledEffectiveAt ?? null;
+            if (
+                stored === null ||
+                stored.getTime() !== input.expectedCanceledEffectiveAt.getTime()
+            ) {
+                return { claimed: false };
+            }
+            Object.assign(row, {
+                plan: input.planId,
+                billingCycle: input.cycle,
+                status: 'ACTIVE',
+                planVersionId: input.planVersionId,
+                ...columnsOfPeriodOpened(input.periodStart, input.periodEnd),
+                canceledAt: null,
+                canceledEffectiveAt: null,
+                ...NO_SCHEDULED_CHANGE,
+                isPilot: false,
+            });
+            return { claimed: true };
         },
         async endNow(tenantId, input) {
             const row = state.subscriptions.find((s) => s.tenantId === tenantId);
@@ -1864,6 +1901,8 @@ export function createMemoryHarness() {
                 canceledAt: input.canceledAt ?? null,
                 canceledEffectiveAt: input.canceledEffectiveAt ?? null,
                 trialEndsAt: input.trialEndsAt ?? null,
+                isPilot: input.isPilot ?? false,
+                pilotEndsAt: input.pilotEndsAt ?? null,
             };
             state.subscriptions.push(row);
             return { subscriptionId: row.id };

@@ -398,6 +398,36 @@ export interface EndNowInput {
     readonly expectedCanceledEffectiveAt: Date;
 }
 
+/**
+ * What starting a subscription again after its end landed takes: the tenant
+ * came back before its deletion day with a new subscription on the same row
+ * (`SC-CANC-034`).
+ */
+export interface StartAgainInput {
+    readonly planId: string;
+    readonly cycle: string;
+    /** The new subscription's first period, which it is billed from. */
+    readonly periodStart: Date;
+    readonly periodEnd: Date;
+    /**
+     * The effective date of the landed cancellation the caller decided from:
+     * the write takes the row only while that cancellation stands.
+     */
+    readonly expectedCanceledEffectiveAt: Date;
+    /**
+     * The version the new subscription's contract was composed for, bound
+     * exactly — never the one in effect instead. Null where the write binds no
+     * version (`bindsPlanVersion` false).
+     */
+    readonly planVersionId: string | null;
+}
+
+/** What `startAgain` answers with. */
+export interface StartAgainResult {
+    /** False where the cancellation read moved, or never landed, and nothing was written. */
+    readonly claimed: boolean;
+}
+
 /** What ending a trial that ran out takes. */
 export interface EndTrialInput {
     /** The moment the end is declared. */
@@ -2009,6 +2039,29 @@ export interface TenantSubscriptionWritePort {
      * `TrialEndService.endRanOut` refuses to end a trial (`SC-CANC-027`).
      */
     endTrial?(tenantId: string, input: EndTrialInput): Promise<EndSubscriptionNowResult>;
+
+    /**
+     * Starts the subscription of `tenantId` again, whose cancellation landed at
+     * `input.expectedCanceledEffectiveAt`, provided that is still the
+     * cancellation stored: the plan, the rhythm, the first period and the day
+     * it is billed on are written, the status becomes `ACTIVE`, both
+     * cancellation dates and any change scheduled are emptied, and
+     * `input.planVersionId` is bound. A pilot ends with it — `isPilot` becomes
+     * false, so the plan bought decides the entitlements and nothing holds the
+     * subscription as a pilot; the pilot's note and end stay as what it was.
+     * The trial's end stays as it was. Answers `claimed: false`, writing
+     * nothing, where the cancellation moved or was never there. One
+     * conditional statement, like `endNow`, in `tx` where one is given.
+     *
+     * Throws, writing nothing, where the binding cannot be what the caller
+     * composed the contract for: a version named to a write that binds none, a
+     * write that binds one named none, or a version of another plan.
+     */
+    startAgain(
+        tenantId: string,
+        input: StartAgainInput,
+        tx?: TransactionContext,
+    ): Promise<StartAgainResult>;
 
     /**
      * Atomic onboarding creation: sets plan + cycle + period window
