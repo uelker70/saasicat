@@ -1,5 +1,217 @@
 # @saasicat/cli
 
+## 1.0.0-rc.33
+
+### Minor Changes
+
+- 98e0497: A test installation marks every document it issues as a test
+
+    An installation that tries invoicing out beside production issues documents
+    that look like real ones, and a recipient, a tax advisor or an auditor could
+    take one for a real invoice. Mark its database with
+    `<app> installation mark <identifier> --operation test`, before its first
+    document, and every invoice, cancellation invoice, replacement and contract
+    confirmation it issues is titled as a test and states under its title and at
+    the foot of every page that it is no invoice for VAT purposes, or confirms no
+    contract; an invoice's XML states the same as its first note (`SC-AUD-024`).
+    Amounts, tax and due date stay as they are. Every list of invoices and
+    confirmations marks such a document "Test" (`SC-UI-029`). An installation that
+    never tests changes nothing it configures.
+
+    - Each invoice records the operation it was issued in, a cancellation invoice
+      and its replacement the one of the invoice they correct, and a confirmation
+      the one of its first rendering; every later rendering and mail read the
+      record. The first document fixes the installation's operation: the command
+      refuses another (`INSTALLATION_OPERATION_FIXED`) and any change where the
+      documents cannot be read (`INSTALLATION_DOCUMENTS_NOT_READABLE`), and a start
+      that issues invoices refuses where the documents recorded another operation
+      than the mark (`SC-AUD-023`).
+    - An operator's command line starts there all the same: `installation status`
+      and the doctor name the disagreement, and marking the operation the documents
+      recorded repairs it. Instead of its start, it refuses each invoice or first
+      confirmation it would issue while the two disagree. `CliContextModule` imports
+      `OperatorCommandLineModule` from `@saasicat/nest`, which declares the process
+      one; a command line built without it imports that itself. Where the documents
+      recorded both operations, nothing repairs the installation: it issues no
+      further document.
+    - `@saasicat/core` adds `TEST_OPERATION_TITLE` and `TEST_OPERATION_NOTICE`, the
+      wording in German and English; it waits for a tax advisor's confirmation.
+    - `@saasicat/invoice-zugferd` prints it on both renderers, and
+      `@saasicat/tax-de` holds an invoice whose XML does not state the notice
+      first, or a live one that states it.
+
+    **Breaking:**
+
+    - `@saasicat/spec` ships `1.0-the-test-operation-is-recorded.postgres.sql`,
+      safe to run twice, and the column in fragments `20` and `26`. Run it before
+      `db push` where invoices are issued.
+    - `SubscriptionInvoiceRecord`, `NewSubscriptionInvoice`, `InvoiceDraftInput`,
+      `ContractConfirmationRecord`, `NewContractConfirmationRendering`,
+      `ContractToConfirm` and `ContractConfirmationMail` gain `testOperation`.
+      `SubscriptionInvoiceRepository` gains `issuedOperations()`,
+      `ContractConfirmationRepository` gains `recordedOperations()`, and its
+      `replaceRendering` takes a `ContractConfirmationReplacement`. Both shipped
+      adapters have them, held to the persistence contract.
+    - A renderer of your own prints the title and the notice where `testOperation`
+      is `true`; a mail port of yours says so.
+    - `TenantInvoice`, `TenantContractConfirmation`, `AdminInvoiceRegisterRow`,
+      `AdminSubscriberInvoice`, `AdminOpenInvoice`, `AdminContractInvoice` and
+      `AdminSubscriberContract.confirmation` gain `testOperation`.
+    - The export's `invoices.csv` and `export.json` gain `operation`, `test` or
+      `live`, after `kind`: every later column moves by one.
+    - `TenantBillingModule` wired by hand refuses invoices and confirmations without
+      `subscriptionEnds.deletion.marks`, and takes
+      `subscriptionEnds.deletion.documents` where invoicing is off.
+    - `TenantPlanSectionI18n` gains `invoiceTestOperation`,
+      `invoicesDownloadTestInvoice` and `confirmationDownloadTest`;
+      `@saasicat/ui-vue` adds three messages, `invoiceDownloadLabelOf` and
+      `TEST_OPERATION_TONE`.
+
+    See `docs/guides/upgrade-to-1.0.md`.
+
+- 6b43bf2: An audit entry names the tenant it concerns
+
+    `AuditPort.write` takes `tenantId`, the one tenant an entry concerns
+    (`SC-AUD-021`): where somebody acts in the tenant, or the tenant's running
+    state — its subscription, its add-ons, its suspension — is what changes. An
+    operator's or a run's act on the subscriber's commercial record names none.
+    Both shipped audit adapters write it to `audit_logs."tenantId"`, which they
+    left empty for every entry, so a tenant's data eraser finds the tenant's
+    entries, and the e-mail addresses in their actor tags, by it.
+
+    - An `AuditPort` of your own stores `tenantId`. The platform passes the key on
+      every entry, `undefined` where the entry names no tenant.
+    - **Breaking:** `ReassignTenantAdminCliResult` requires `tenantId`, the tenant
+      whose administrator `reassignTenantAdmin` replaced; a `UserManagementPort` of
+      your own answers it. `user reassign-admin` writes it into its audit entry;
+      `user reset-password` and `user deactivate` act on a person by e-mail and name
+      no tenant.
+    - Entries written before carry no tenant, and nothing fills it in.
+
+- 3aa07f6: The schema check names a model of your own under a platform model's name
+
+    A model of the application's own that carries a platform model's name — its
+    own `SubscriptionInvoice`, mapped to `invoices` — was reported as a diverging
+    `@@map` and with every platform column missing. `saasicat schema check` now
+    names it once, under "Your own model under a platform model's name", with both
+    tables, and compares nothing else of it (`SC-SCOPE-013`). The table decides: a
+    model with another `@@map`, or none, is the application's. The check still
+    fails on it; rename the model, or map it to the platform's table where it was
+    meant to be the platform's. The closing advice names only what was found.
+
+    **Breaking** for code that reads the report of `checkSchema`: a diverging table
+    is an entry in the new `nameClashes` (`model`, `platformTable`,
+    `applicationTable`) rather than a `missingBlockAttributes` entry of kind `map`.
+    `BlockAttributeKind` is `'index' | 'unique'`, and `MissingBlockAttribute.actual`
+    is gone. Running the command needs no change.
+
+- 9141b67: `schema migrate` carries every constraint, and names one it leaves out
+
+    `saasicat schema migrate` took every word after "on" in the constraints file,
+    comments included, for a table, and left six constraints out of the migration
+    on a schema that has every table — among them two money checks and the one
+    payment confirmation per gateway session. It now reads the table from each
+    statement, and prints a line for each block it leaves out, with its constraint
+    and the missing table (`SC-OPS-017`). A database set up through
+    `schema migrate` alone applies `constraints.postgres.sql` once; see
+    "`schema migrate` carries every constraint" in `docs/guides/upgrade-to-1.0.md`.
+
+    - **Breaking:** `constraintsFor` is `selectConstraints` and returns
+      `{ applicable, leftOut }` rather than the SQL alone. `readStatements` is new,
+      and `tablesAddressedBy` reads statements rather than words.
+
+- 3aa07f6: A tenant is deleted only from a database marked as its installation's
+
+    A tenant's deletion erases what nobody can bring back, and the process that
+    runs it finds its database through a connection string. So the database now
+    carries the identifier of its installation, every process names the identifier
+    of the environment it runs in, and a deletion runs only where both are the same
+    (`SC-PRIV-021`). Until a database is marked, nothing is deleted in it.
+
+    **Breaking:** `tenantBilling.subscriptionEnds.deletion` is required. Pass the
+    identifier from the environment, with no fallback:
+
+    ```ts
+    subscriptionEnds: {
+        export: myTenantDataExport,
+        deletion: {
+            installation: process.env.SAASICAT_INSTALLATION,
+            // Required as well: the erasers that delete a tenant on its day.
+            erasers: myTenantErasers,
+            keep: myKeepReport,
+        },
+    },
+    ```
+
+    A start without an identifier, or with a value that is none — a blank, a space
+    around it, a character outside letters, digits, `.`, `_` and `-` — is refused
+    (`subscription-ends.requires-installation`), and so is a start with nowhere to
+    read the mark from (`subscription-ends.requires-installation-marks`).
+    `TenantBillingModule` wired by hand takes `installation` and `marks` in
+    `deletion`.
+
+    - `@saasicat/spec` ships the `InstallationMark` model
+      (`32-installation-mark.prisma`, table `installation_marks`, one row) and
+      `1.0-the-installation-is-marked.postgres.sql`, safe to apply twice.
+    - `@saasicat/core` adds `InstallationMarkPort`,
+      `installationIdentifierProblem`, `installationMarkVerdict` and the codes
+      `INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS`,
+      `INSTALLATION_MARKED_OTHERWISE` and `INSTALLATION_MARK_MOVED`.
+    - Both adapters provide `persistence.core.installationMark`, held to the
+      persistence contract; a harness of your own wires it or names it among its
+      `gaps`.
+    - `@saasicat/nest` adds `InstallationMarkService`; `@saasicat/nest/testing`
+      adds `FakeInstallationMarkRepository`.
+    - `@saasicat/cli` adds `<app> installation status` and
+      `<app> installation mark <identifier>`, with `--replace` after restoring a
+      backup into another environment. Marking takes the second factor and, against
+      production, the confirmation, and is audited as `INSTALLATION_MARKED` or
+      `INSTALLATION_MARK_REPLACED`. No start writes the mark. `<app> doctor` reports
+      it as `platform.installation-mark`.
+    - The mark also says how the installation operates:
+      `<app> installation mark <identifier> --operation test|live`. Without the
+      option a new mark is live and one that stands keeps its operation,
+      `--replace` included; a database nobody marked is live. A change is audited
+      as `INSTALLATION_OPERATION_CHANGED` with `from` and `to`, and
+      `INSTALLATION_MARKED` records the operation beside the identifier.
+      `installation status`, its `--output json` and the doctor name it.
+      `@saasicat/core` adds `InstallationMark.testOperation`,
+      `INSTALLATION_OPERATIONS`, `InstallationOperation`, `installationOperationOf`,
+      `installationStatus` and `InstallationStatus`; `InstallationMarkPort.replace`
+      takes the identifier and the operation that stand, and replaces only while
+      both do. A contract harness seeds a mark written before marks said their
+      operation with `markInstallationBeforeItsOperation`, or names
+      `installationMarkBeforeOperationSeed` among its `gaps`.
+
+    The brake stops a process meant for another environment. An environment copied
+    from production with its identifier included passes it: give each environment
+    its own. See `docs/guides/upgrade-to-1.0.md`.
+
+### Patch Changes
+
+- 51b735a: `doctor` no longer reports "0 feature(s)" for a catalogue that lists none
+
+    `platform.plan-catalog` counts the features the catalogue file lists. A
+    `config/saas.yaml` that lists none leaves the features to discovery, which
+    `platform.discovery-snapshot` reports, so the check now says only how many
+    plans it loaded rather than claiming there are no features.
+
+- Updated dependencies [31290c0]
+- Updated dependencies [35cd0bf]
+- Updated dependencies [31290c0]
+- Updated dependencies [6b43bf2]
+- Updated dependencies [98e0497]
+- Updated dependencies [31290c0]
+- Updated dependencies [6b43bf2]
+- Updated dependencies [9141b67]
+- Updated dependencies [51b735a]
+- Updated dependencies [35cd0bf]
+- Updated dependencies [3aa07f6]
+- Updated dependencies [a32ce34]
+    - @saasicat/core@1.0.0-rc.33
+    - @saasicat/spec@1.0.0-rc.33
+    - @saasicat/nest@1.0.0-rc.33
+
 ## 1.0.0-rc.32
 
 ### Patch Changes
