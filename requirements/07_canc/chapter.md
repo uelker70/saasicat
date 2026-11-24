@@ -1221,8 +1221,8 @@ tenant confirmed carries the day announced at confirmation (`SC-CANC-021`); one 
 gets its day from the period, counted from the day it ended, or from the day SaaSiCat records the
 end where that is later, so nobody is given less than the period's notice. A later change to the
 period moves no day already recorded, and the one way to delete earlier is `SC-ADM-020`'s. From the
-moment it ended until that day the tenant is read-only (`SC-ADM-055`); a new subscription before it
-is `SC-CANC-028`'s, and how the deletion runs is `SC-PRIV-022`'s.
+moment it ended until that day the tenant is read-only (`SC-ADM-060`); a new subscription before it
+is `SC-CANC-034`'s, and how the deletion runs is `SC-PRIV-022`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #337
 
@@ -1306,8 +1306,46 @@ _Tested by:_
 
 ### SC-CANC-028 — A new subscription before the deletion day keeps the tenant
 
-🟡 _(Decided, not yet delivered.)_ 🔒 A tenant whose subscription ended can take out a new one before
-its deletion day (`SC-CANC-027`). The new subscription lifts that day and the read-only state, and
-its own end records a day of its own.
+🔵 _(Superseded on 2026-11-24 by `SC-CANC-034`.)_ 🔒 A tenant whose subscription ended can take out
+a new one before its deletion day (`SC-CANC-027`). The new subscription lifts that day and the
+read-only state, and its own end records a day of its own.
 
 _Source:_ #276 · #337 (decided 2026-11-10)
+
+### SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Until the day its end names, in the installation's days, and
+while its deletion has not begun, the tenant's administrator can enter a payment method and take out
+a new subscription at the catalogue's current terms, and a checkout offer concluded for the tenant
+does the same (`SC-MKT-028`). The new subscription lifts the end, its deletion day and the read-only
+state that end put the tenant in, in the moment it is concluded; an invoice still unpaid keeps the
+tenant read-only until it is paid (`SC-PRIC-104`). From the deletion day on, or once the deletion
+has begun, it is refused with a stable code. The new subscription's own end records a day of its
+own.
+
+_Source:_ #276 · #337 · #339 (decided 2026-11-17)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tenant-comes-back-before-its-deletion-day.test.js`
+    - whether a tenant whose subscription ended can come back
+        - in its read-only period it can
+        - until the last moment before its deletion day, in the installation's zone
+        - from the first moment of its deletion day on, it cannot
+        - once its deletion has begun it cannot, even before the day
+        - a suspended tenant cannot, whatever else holds: the operator lifts a suspension
+        - a tenant whose subscription did not end has nothing to come back from
+        - nor has one whose end was lifted already — it came back before
+        - nor one whose end is not recorded yet
+        - an invoice still overdue does not keep it from coming back
+        - a suspension the operator lifted holds it back no longer
+    - the reason a return lifts
+        - of a tenant that came back once and ended again, is the open one
+    - whether its view offers the tenant to come back
+        - to whoever may take out a subscription, while the rule lets it
+        - to nobody else of the tenant
+        - nowhere the rule refuses it
+
+<!-- END proof -->

@@ -63,6 +63,7 @@ const toBilling = (overrides: Partial<TenantAccessView> = {}): TenantAccessView 
     mayPay: true,
     mayExport: false,
     exportDeliveredBy: null,
+    mayReturn: false,
     ...overrides,
 });
 const ACCOUNT = {
@@ -357,6 +358,7 @@ const endedToAnyone = (overrides: Partial<TenantAccessView> = {}): TenantAccessV
     mayPay: false,
     mayExport: false,
     exportDeliveredBy: null,
+    mayReturn: false,
     ...overrides,
 });
 /** What the tenant's administrator reads of it: they may take the export, which the platform serves. */

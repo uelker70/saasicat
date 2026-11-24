@@ -4254,7 +4254,7 @@ are on. Every installation with version notices on has to do this:
 
 Required wherever `tenantBilling` is on. SaaSiCat keeps the reasons a tenant is held back — a
 suspension, an invoice unpaid on its due date, a subscription that ended, a deletion under
-way — and every tenant request is checked against the strictest of them (`SC-ADM-055`): read-only
+way — and every tenant request is checked against the strictest of them (`SC-ADM-060`): read-only
 refuses a write, a suspension refuses everything, and the operator acting as the tenant is held
 back only by a deletion. Each reason is recorded by what brings it, as the sections below say. To
 adopt it:
@@ -4319,7 +4319,7 @@ tenant passes there too; one your guard did not check is checked as a tenant use
 ### A suspension is the platform's own record
 
 Suspending and reactivating a tenant in the administration now record and lift a `suspended`
-reason in `tenant_access_holds` (`SC-ADM-055`), and the check of the previous section holds the
+reason in `tenant_access_holds` (`SC-ADM-060`), and the check of the previous section holds the
 tenant to it. Nothing of the application's is written any more: `AdminResourcesPort.setTenantActive`
 is gone, and with it the subscription status a suspension used to set — a suspension is not an
 overdue invoice, and reactivating no longer sets every subscription of the tenant to `ACTIVE`, a
@@ -4422,7 +4422,7 @@ adopt it:
 
 Required wherever `tenantBilling` is on. Once a subscription's cancellation lands, the platform
 records its end with a deletion day and holds the tenant read-only until then (`SC-CANC-027`,
-`SC-ADM-055`): whichever path declared the cancellation, the tenant's own or your application's. To
+`SC-ADM-060`): whichever path declared the cancellation, the tenant's own or your application's. To
 adopt it:
 
 1. Add `tenantBilling.endOfSubscription.readOnlyDays` to `config/saas.yaml`. It is required and has
@@ -4544,7 +4544,7 @@ that ended — can still leave in every way it leaves on its own: its administra
 cancellation of its subscription (`POST billing/cancel`), cancels an add-on
 (`DELETE billing/subscription-bundles/:id`), and ends either at once while a feature is withdrawn
 (`POST billing/feature-withdrawals/:id/end` and `…/bookings/:subscriptionBundleId/end`)
-(`SC-ADM-055`, `SC-CANC-001`). Refusing it would bill a tenant that is behind with a payment for a
+(`SC-ADM-060`, `SC-CANC-001`). Refusing it would bill a tenant that is behind with a payment for a
 period it does not want. What it owes stays owed, and it stays read-only for as long as its reason
 holds.
 

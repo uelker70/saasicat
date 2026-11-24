@@ -1,4 +1,4 @@
-// What a tenant's users may do, and why (`SC-ADM-055`).
+// What a tenant's users may do, and why (`SC-ADM-060`).
 //
 // A tenant is held back for reasons, and every reason that holds is recorded on
 // its own: an operator's suspension, an invoice unpaid on its due date, a
@@ -14,14 +14,16 @@
 // therefore refuses a harmless request rather than letting a write through,
 // except for a `GET` that writes, which REST makes rare.
 //
-// Read-only stops at two kinds of write. One is starting a payment — paying
+// Read-only stops at three kinds of write. One is starting a payment — paying
 // now, or replacing the payment method — while one of the subscriber's
 // invoices is open, because the claim outlives the subscription and nobody else
-// can pay it. The other is leaving — declaring the cancellation of the
+// can pay it. The second is leaving — declaring the cancellation of the
 // subscription, cancelling an add-on, or ending either at once while a feature
-// is withdrawn —, because a tenant is never told it may not leave. The routes
-// that do either say so with a mark of their own, and are still writes
-// everywhere else.
+// is withdrawn —, because a tenant is never told it may not leave. The third is
+// coming back — entering a payment method and taking out a new subscription
+// until the deletion day of its end (`SC-CANC-034`) —, because a tenant that
+// wants to stay is not held to leaving. The routes that do any of them say so
+// with a mark of their own, and are still writes everywhere else.
 //
 // One kind of read passes every state, a suspension and a deletion under way
 // included: the tenant's own state, which is what tells its users why they
@@ -124,20 +126,24 @@ export function holdsOldestFirst(holds: readonly TenantAccessHold[]): TenantAcce
  * lets through while an invoice is open —; it lets the tenant leave —
  * declaring the cancellation of its subscription, cancelling an add-on, or
  * ending either at once while a feature is withdrawn, a write read-only lets
- * through as well, since a tenant is never told it may not leave —; or it
- * answers the tenant's own state, which every state lets through, a
- * suspension and a deletion under way included: being told why one cannot
- * act is not acting.
+ * through as well, since a tenant is never told it may not leave —; it lets
+ * the tenant come back — taking out a new subscription after its own ended, a
+ * write read-only lets through until the deletion day of that end
+ * (`subscriptionReturnRefusal`) —; or it answers the tenant's own state, which
+ * every state lets through, a suspension and a deletion under way included:
+ * being told why one cannot act is not acting.
  */
 export type TenantAccessMark =
-    'writes-nothing' | 'writes' | 'starts-payment' | 'leaves' | 'reads-its-state';
+    'writes-nothing' | 'writes' | 'starts-payment' | 'leaves' | 'returns' | 'reads-its-state';
 
 const READING_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** Whether a request writes: its route's mark where it has one, otherwise its method. */
 export function requestWrites(method: string, mark: TenantAccessMark | null): boolean {
     if (mark === 'writes-nothing' || mark === 'reads-its-state') return false;
-    if (mark === 'writes' || mark === 'starts-payment' || mark === 'leaves') return true;
+    if (mark === 'writes' || mark === 'starts-payment' || mark === 'leaves' || mark === 'returns') {
+        return true;
+    }
     return !READING_METHODS.has(method.toUpperCase());
 }
 

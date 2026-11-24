@@ -81,14 +81,14 @@ properties it has while doing it.
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 67      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 50      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 27      |
-| 7   | Cancelling                                   | `SC-CANC-…`  | 33      |
+| 7   | Cancelling                                   | `SC-CANC-…`  | 34      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 10      |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 105     |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 31      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 59      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 60      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 29      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -100,15 +100,15 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 732 entries: 🟢 639 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
-🔵 63 superseded, 🔴 7 withdrawn.
+Of 734 entries: 🟢 639 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+🔵 65 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
 [SC-SUB-017](#sc-sub-017--a-subscribers-legal-identity-can-be-corrected-not-replaced-under-a-running-contract),
 [SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
 [SC-CANC-027](#sc-canc-027--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
-[SC-CANC-028](#sc-canc-028--a-new-subscription-before-the-deletion-day-keeps-the-tenant),
+[SC-CANC-034](#sc-canc-034--a-tenant-whose-subscription-ended-can-come-back-until-its-deletion-day),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
 [SC-PRIC-095](#sc-pric-095--an-issued-invoice-is-never-edited-its-cancellation-corrects-what-was-not-owed),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
@@ -122,7 +122,7 @@ Of 732 entries: 🟢 639 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-021](#sc-reg-021--a-payment-confirmation-is-verified-before-anything-is-created-from-it),
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
-[SC-ADM-055](#sc-adm-055--a-suspended-tenant-cannot-act-and-a-read-only-one-writes-only-to-pay-or-to-leave),
+[SC-ADM-060](#sc-adm-060--a-suspended-tenant-cannot-act-a-read-only-one-writes-only-to-pay-leave-or-return),
 [SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
 [SC-PRIV-023](#sc-priv-023--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to)
@@ -143,6 +143,7 @@ Of 732 entries: 🟢 639 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
 [SC-CANC-025](#sc-canc-025--a-cancellation-is-judged-by-the-notice-period-its-contract-recorded),
 [SC-CANC-020](#sc-canc-020--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
+[SC-CANC-028](#sc-canc-028--a-new-subscription-before-the-deletion-day-keeps-the-tenant),
 [SC-PRIC-003](#sc-pric-003--this-platform-never-pays-money-back),
 [SC-PRIC-008](#sc-pric-008--gross-net-and-tax-are-one-calculation-stated-once),
 [SC-PRIC-009](#sc-pric-009--an-installation-sells-in-one-currency-and-applies-one-tax-rate-both-named-once),
@@ -175,6 +176,7 @@ Of 732 entries: 🟢 639 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-ADM-023](#sc-adm-023--an-operator-can-list-open-items-and-every-contract-including-former-subscribers),
 [SC-ADM-024](#sc-adm-024--a-suspended-tenants-users-cannot-act-and-a-read-only-tenant-cannot-write),
 [SC-ADM-052](#sc-adm-052--a-suspended-tenant-cannot-act-and-a-read-only-one-writes-nothing-but-a-payment),
+[SC-ADM-055](#sc-adm-055--a-suspended-tenant-cannot-act-and-a-read-only-one-writes-only-to-pay-or-to-leave),
 [SC-ADM-028](#sc-adm-028--an-operator-reads-a-subscribers-charges-beside-its-tenant),
 [SC-ADM-032](#sc-adm-032--the-operator-reads-a-subscribers-history-with-who-when-and-why),
 [SC-ADM-033](#sc-adm-033--the-operator-reconciles-what-no-credit-matched-and-closes-each-case-with-a-note),

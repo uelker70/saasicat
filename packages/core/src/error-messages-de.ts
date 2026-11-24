@@ -576,6 +576,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Den Export dieses Kontos kann nur ein Administrator des Kontos abrufen, nicht der Anbieter, der als das Konto handelt.',
     TENANT_EXPORT_IN_PROGRESS:
         'Der Export dieses Kontos wird bereits erstellt. Bitte versuchen Sie es erneut, sobald er angekommen ist.',
+    TENANT_RETURN_NOT_ENDED:
+        'Dieses Konto hat kein beendetes Abonnement, das sich wieder abschließen ließe: Sein Abonnement läuft, oder sein Ende wird noch erfasst, was bis zu einer Viertelstunde dauert. Laden Sie die Seite neu, um den aktuellen Stand zu sehen.',
+    TENANT_RETURN_DELETION_DAY_REACHED:
+        'Der Löschtag dieses Kontos, der {deletesOn}, ist gekommen; ein neues Abonnement lässt sich nicht mehr abschließen. Bitte wenden Sie sich an Ihren Anbieter, der Ihnen ein neues Konto einrichten kann.',
     // ── installation ──
     INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS:
         'Die Kennung {given} ist nicht die dieser Umgebung ({environment}); eine Datenbank wird nur als Installation der Umgebung markiert, die sie markiert.',

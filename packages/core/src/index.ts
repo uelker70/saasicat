@@ -70,6 +70,7 @@ export * from './maintenance-window-mapping.js';
 export * from './tenant-access-mapping.js';
 export * from './tenant-access-view.js';
 export * from './subscription-end.types.js';
+export * from './subscription-return.js';
 export * from './deletion-reminder.types.js';
 export * from './installation-mark.types.js';
 export * from './test-operation.js';

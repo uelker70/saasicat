@@ -175,7 +175,7 @@ const stateOf = (access) => ({
 });
 
 // @requirement SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe('the access state is read through the bypass, whatever frame the caller is in', () => {
     test('enforce on a reading request refuses a suspended tenant and lets a read-only and an open one through', async () => {
         const { service } = await accessOver();
@@ -350,7 +350,7 @@ describe('the access state is read through the bypass, whatever frame the caller
     });
 });
 
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe("the operator's suspension is written through the bypass, whatever frame the caller is in", () => {
     test('a suspension is recorded, and a second one answers null', async () => {
         for (const [name, within] of Object.entries(FRAMES)) {
@@ -404,7 +404,7 @@ describe("the operator's suspension is written through the bypass, whatever fram
     });
 });
 
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe('without a bypass bound', () => {
     test('the reasons are read in the frame the caller runs in', async () => {
         const { service, holds } = await accessOver({ bypass: null });
@@ -496,7 +496,7 @@ const contextOfRoute = (controller, handler, request) => ({
 // through is the one the composition provides, not one a test hands it. The
 // guard and the controller are the instances Nest built for the routes.
 // @requirement SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe("the platform's own tenant routes, as SaaSiCatModule composes them", () => {
     let moduleRef;
 

@@ -1120,6 +1120,7 @@ const TENANT_ACCESS_ENDED = {
     mayPay: true,
     mayExport: true,
     exportDeliveredBy: 'platform',
+    mayReturn: false,
 };
 
 // What the tenant's account owes, which the banner reads to offer paying.

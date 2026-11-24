@@ -1,5 +1,5 @@
 // TenantAccessService — what a tenant's users may do, asked on every request
-// (`SC-ADM-055`).
+// (`SC-ADM-060`).
 //
 // The application calls `enforce` at the end of its own authentication guard,
 // once the tenant of the request is known, and `assertAllowed` where there is
@@ -68,14 +68,14 @@ export interface TenantAccessIntent extends TenantAccessActor {
     /**
      * It starts a payment — pays now, or replaces the payment method: one of
      * the two kinds of write a read-only tenant may make, while one of its
-     * subscriber's invoices is open (`SC-ADM-055`).
+     * subscriber's invoices is open (`SC-ADM-060`).
      */
     startsPayment?: boolean;
     /**
      * It lets the tenant leave — declares the cancellation of its
      * subscription, cancels an add-on, or ends either at once while a feature
      * is withdrawn: the other kind of write a read-only tenant may make
-     * (`SC-ADM-055`, `SC-CANC-001`).
+     * (`SC-ADM-060`, `SC-CANC-001`).
      */
     leaves?: boolean;
 }

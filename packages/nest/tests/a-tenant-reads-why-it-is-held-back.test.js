@@ -77,6 +77,7 @@ describe("a tenant's users read why it is held back", () => {
             mayPay: false,
             mayExport: false,
             exportDeliveredBy: null,
+            mayReturn: false,
         });
     });
 
@@ -128,6 +129,7 @@ describe("a tenant's users read why it is held back", () => {
                 mayPay: false,
                 mayExport: false,
                 exportDeliveredBy: null,
+                mayReturn: false,
             },
         );
         const view = await new TenantInvoicesController(
@@ -144,6 +146,7 @@ describe("a tenant's users read why it is held back", () => {
             mayPay: true,
             mayExport: false,
             exportDeliveredBy: null,
+            mayReturn: false,
         });
     });
 });

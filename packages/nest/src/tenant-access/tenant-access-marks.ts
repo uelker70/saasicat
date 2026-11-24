@@ -31,7 +31,7 @@ export const Writes = (): ClassDecorator & MethodDecorator =>
 /**
  * One of the two kinds of write read-only lets through: starting a payment —
  * paying now, or replacing the payment method —, while one of the
- * subscriber's invoices is open (`SC-ADM-055`). The platform's own routes
+ * subscriber's invoices is open (`SC-ADM-060`). The platform's own routes
  * carry it, and nothing else should — whether the user may pay at all is
  * still the billing permission's to say.
  */
@@ -41,7 +41,7 @@ export const StartsPayment = (): MethodDecorator =>
 /**
  * The other kind of write read-only lets through: the tenant leaving —
  * declaring the cancellation of its subscription, cancelling an add-on, or
- * ending either at once while a feature is withdrawn (`SC-ADM-055`,
+ * ending either at once while a feature is withdrawn (`SC-ADM-060`,
  * `SC-CANC-001`). Refusing it would bill a tenant that is behind with a
  * payment for a period it does not want. The platform's own routes carry it,
  * and so does an application's own route through which a tenant leaves —

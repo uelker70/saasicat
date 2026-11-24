@@ -1,4 +1,4 @@
-// A tenant that is read-only may still leave (`SC-ADM-055`): its administrator
+// A tenant that is read-only may still leave (`SC-ADM-060`): its administrator
 // declares the cancellation of its subscription, cancels an add-on, and ends
 // either at once while a feature is withdrawn, whatever it owes — a tenant is
 // never told it may not leave (`SC-CANC-001`). A suspension and a deletion
@@ -94,7 +94,7 @@ async function refused(kinds, context, code, what) {
     await assert.rejects(accessOver(store).enforce(context, 't1'), refusedWith(code), what);
 }
 
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe('a read-only tenant leaving', () => {
     // @requirement SC-CANC-001 — A cancellation may always be declared
     test('is let through declaring the cancellation of its subscription, an invoice unpaid notwithstanding', async () => {
@@ -132,7 +132,7 @@ describe('a read-only tenant leaving', () => {
     });
 });
 
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe('leaving is read-only’s exception alone', () => {
     test('a suspended tenant is refused every way of leaving, an invoice unpaid or not', async () => {
         for (const [what, context] of Object.entries(LEAVING)) {
@@ -153,7 +153,7 @@ describe('leaving is read-only’s exception alone', () => {
     });
 });
 
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe('where the request is checked', () => {
     test('each route a tenant leaves through carries the mark, and stays behind the administrator', () => {
         for (const [what, context] of Object.entries(LEAVING)) {

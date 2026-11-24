@@ -6,7 +6,7 @@
 // The tenant comes from the authenticated request, never from the body, and
 // whether an end is open is decided by `EndAtOnceService` from what the
 // subscription was told. Ending at once is leaving, which a tenant that is
-// read-only for an unpaid invoice may still do (`SC-ADM-055`).
+// read-only for an unpaid invoice may still do (`SC-ADM-060`).
 
 import {
     Body,

@@ -4,7 +4,7 @@
 // application declared for a trial that ran out unbought, or one the operator
 // landed through its own path. The platform learns of it on its next run,
 // records the end with the day the tenant's data is deleted on, and holds the
-// tenant read-only until then (`SC-ADM-055`).
+// tenant read-only until then (`SC-ADM-060`).
 //
 // The deletion day is fixed when the end is recorded. Where the tenant was
 // told a day when it confirmed its cancellation, or ended its subscription at
@@ -173,3 +173,18 @@ export interface TenantExportDownload {
 
 /** A download to record: the id is the store's to assign. */
 export type NewTenantExportDownload = Omit<TenantExportDownload, 'id'>;
+
+/**
+ * Whether `download`, kept under the subscription `end` is of, was taken for
+ * `end` — the subscription's end that is not lifted: at or after the moment it
+ * was recorded, which is when its export is first offered. A subscription that
+ * came back and ended again keeps the downloads of its earlier end as well;
+ * those were taken before this end was recorded, and acknowledged that one
+ * (`SC-PRIV-024`).
+ */
+export function downloadBelongsToEnd(
+    download: Pick<TenantExportDownload, 'downloadedAt'>,
+    end: Pick<SubscriptionEnd, 'recordedAt'>,
+): boolean {
+    return download.downloadedAt.getTime() >= end.recordedAt.getTime();
+}

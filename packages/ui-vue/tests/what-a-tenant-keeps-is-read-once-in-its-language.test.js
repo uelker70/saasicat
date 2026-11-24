@@ -43,6 +43,7 @@ const viewOf = (state, kinds = []) => ({
     mayPay: false,
     mayExport: false,
     exportDeliveredBy: null,
+    mayReturn: false,
 });
 
 const READ_ONLY_ENDED = viewOf('read-only', ['ended']);

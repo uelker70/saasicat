@@ -32,7 +32,7 @@ const hold = (kind, overrides = {}) => ({
 });
 const stateOf = (...holds) => tenantAccessOf(holds).state;
 
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe('the strictest open reason decides the state', () => {
     test('no reason leaves the tenant open', () => {
         assert.deepEqual(tenantAccessOf([]), { state: 'open', holds: [] });
@@ -64,7 +64,7 @@ describe('the strictest open reason decides the state', () => {
     });
 });
 
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe('a request writes by its method, unless its route says otherwise', () => {
     test('GET, HEAD and OPTIONS read, in any case', () => {
         for (const method of ['GET', 'HEAD', 'OPTIONS', 'get', 'Head']) {
@@ -95,6 +95,11 @@ describe('a request writes by its method, unless its route says otherwise', () =
         assert.equal(requestWrites('DELETE', 'leaves'), true);
     });
 
+    test('coming back is a write, whatever the method', () => {
+        assert.equal(requestWrites('GET', 'returns'), true);
+        assert.equal(requestWrites('POST', 'returns'), true);
+    });
+
     // @requirement SC-ADM-054 — A tenant's users read why it is held back
     test("reading the tenant's own state is a read, whatever the method", () => {
         assert.equal(requestWrites('GET', 'reads-its-state'), false);
@@ -102,7 +107,7 @@ describe('a request writes by its method, unless its route says otherwise', () =
     });
 });
 
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe('who is refused, and for what', () => {
     const refusalOf = (holds, writes, actor) =>
         tenantAccessRefusal(tenantAccessOf(holds), writes, actor);

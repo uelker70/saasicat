@@ -794,7 +794,7 @@ _Tested by:_
 cancelling an invoice and joining a returning customer's tenant to the subscriber it had
 (`SC-ADM-027`). Each also needs an explicit confirmation, and deleting a tenant early asks the
 operator to type the tenant's name. A deletion date is not scheduled or withdrawn by hand: it is
-recorded when a subscription ends and lifted by a new one (`SC-CANC-027`, `SC-CANC-028`). The
+recorded when a subscription ends and lifted by a new one (`SC-CANC-027`, `SC-CANC-034`). The
 actions that were there before are `SC-ADM-005`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
@@ -1015,6 +1015,36 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
 
+🔵 _(Superseded on 2026-11-24 by `SC-ADM-060`.)_ 🔒 SaaSiCat decides the state, and records it with
+every reason that holds, such as an ended subscription (`SC-CANC-027`), an invoice unpaid on its due
+date (`SC-PRIC-104`), a suspension or a deletion under way; the strictest of them applies, a
+deletion under way before a suspension and a suspension before read-only, and ending one reason
+lifts only that one. The application checks it on every request through a port, sign-in included, so
+a session that was already open when the state changed is held to it on its next request; SaaSiCat
+does the same on the routes it protects. A state that is recorded and not enforced is a switch that
+looks like protection. The operator acting as the tenant (`SC-ADM-005`) is not one of its users and
+is not held to the state, except once the tenant is being deleted (`SC-PRIV-018`), so support and an
+export stay possible on a suspended tenant; that access requires the second factor and is recorded.
+Read-only stops at two kinds of write. One is starting a payment: while one of the subscriber's
+invoices is open, a user of the tenant holding the billing permission (`SC-UI-023`) can still pay it
+now (`SC-PRIC-100`) and replace the payment method (`SC-PRIC-030`), because the claim outlives the
+subscription (`SC-PRIV-013`) and nobody else can pay it. The other is leaving: the tenant's
+administrator can still declare the cancellation of its subscription (`SC-CANC-001`), cancel an
+add-on (`SC-BUN-063`), and end either at once while a feature it holds is withdrawn (`SC-CANC-024`,
+`SC-BUN-062`), because a tenant is never told it may not leave and refusing would bill it for a
+period it does not want; whatever it owes stays owed, and it stays read-only for as long as its
+reason holds. Nothing else is let through: reinstating an add-on, booking one or changing the plan
+stays refused. A suspended tenant has neither exception, and lifting a suspension is the operator's
+(`SC-ADM-005`). Once the tenant is deleted nobody is left to act in it, so an invoice still open is
+settled through a payment page of the gateway that the operator sends to the contact address
+`SC-PRIV-013` keeps, where the subscriber can pay it with a new payment method and needs no tenant.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #337
+
+(decided 2026-11-12)
+
+### SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
+
 🟡 _(Decided, not yet delivered.)_ 🔒 SaaSiCat decides the state, and records it with every reason
 that holds, such as an ended subscription (`SC-CANC-027`), an invoice unpaid on its due date
 (`SC-PRIC-104`), a suspension or a deletion under way; the strictest of them applies, a deletion
@@ -1025,22 +1055,24 @@ same on the routes it protects. A state that is recorded and not enforced is a s
 like protection. The operator acting as the tenant (`SC-ADM-005`) is not one of its users and is not
 held to the state, except once the tenant is being deleted (`SC-PRIV-018`), so support and an export
 stay possible on a suspended tenant; that access requires the second factor and is recorded.
-Read-only stops at two kinds of write. One is starting a payment: while one of the subscriber's
+Read-only stops at three kinds of write. One is starting a payment: while one of the subscriber's
 invoices is open, a user of the tenant holding the billing permission (`SC-UI-023`) can still pay it
 now (`SC-PRIC-100`) and replace the payment method (`SC-PRIC-030`), because the claim outlives the
-subscription (`SC-PRIV-013`) and nobody else can pay it. The other is leaving: the tenant's
+subscription (`SC-PRIV-013`) and nobody else can pay it. The second is leaving: the tenant's
 administrator can still declare the cancellation of its subscription (`SC-CANC-001`), cancel an
 add-on (`SC-BUN-063`), and end either at once while a feature it holds is withdrawn
 (`SC-CANC-024`, `SC-BUN-062`), because a tenant is never told it may not leave and refusing would
 bill it for a period it does not want; whatever it owes stays owed, and it stays read-only for as
-long as its reason holds. Nothing else is let through: reinstating an add-on, booking one or
-changing the plan stays refused. A
-suspended tenant has neither exception, and lifting a suspension is the operator's (`SC-ADM-005`).
+long as its reason holds. The third is coming back: until the deletion day of its end, and while its
+deletion has not begun, the tenant's administrator can enter a payment method and take out a new
+subscription (`SC-CANC-034`), because a tenant that wants to stay is not held to leaving. Nothing
+else is let through: reinstating an add-on, booking one or changing the plan stays refused. A
+suspended tenant has none of the three, and lifting a suspension is the operator's (`SC-ADM-005`).
 Once the tenant is deleted nobody is left to act in it, so an invoice still open is settled through
 a payment page of the gateway that the operator sends to the contact address `SC-PRIV-013` keeps,
 where the subscriber can pay it with a new payment method and needs no tenant.
 
-_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #337
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #339
 
 <!-- BEGIN proof -->
 
@@ -1058,6 +1090,7 @@ _Tested by:_
         - a mark wins over the method, both ways
         - replacing the payment method is a write, whatever the method
         - leaving is a write, whatever the method
+        - coming back is a write, whatever the method
         - reading the tenant's own state is a read, whatever the method
     - who is refused, and for what
         - an open tenant is refused nothing
@@ -1204,11 +1237,11 @@ _Tested by:_
 
 <!-- END proof -->
 
-(decided 2026-11-12)
+(decided 2026-11-17)
 
 ### SC-ADM-053 — The operator sees every reason a tenant is held back for
 
-🟢 🔒 The operator's page for a tenant names every reason it is held back for (`SC-ADM-055`), the
+🟢 🔒 The operator's page for a tenant names every reason it is held back for (`SC-ADM-060`), the
 oldest first: what it is, the day it began in the installation's days, the operator's own note on
 a suspension, and an invoice unpaid on its due date by its number, with the way into the record of
 the subscriber it belongs to (`SC-PRIC-104`). A tenant held back by nothing says so. Where the
@@ -1395,7 +1428,7 @@ _Tested by:_
 
 ### SC-ADM-054 — A tenant's users read why it is held back
 
-🟢 🔒 Every user of a tenant held back (`SC-ADM-055`) reads why above the application, in every
+🟢 🔒 Every user of a tenant held back (`SC-ADM-060`) reads why above the application, in every
 state a session of theirs is in, a suspension and a deletion under way included: the state in the
 words a refused request uses for it, and beneath it every reason, the oldest first, each with the
 day it began in the installation's days. A sign-in the state refuses says why itself. An invoice
