@@ -564,6 +564,10 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'The deletion day of this account, {deletesOn}, has come, so it can no longer subscribe again. Please contact your provider, who can set up a new account for you.',
     TENANT_RETURN_PAYMENT_METHOD_REQUIRED:
         'Please enter a payment method first; then you can subscribe again.',
+    TENANT_RETURN_DELETION_DAY_CHANGED:
+        'This page showed another deletion day than the one that applies now, {deletesOn}. Please reload it and look again before you subscribe.',
+    TENANT_RETURN_NOT_FOR_OPERATOR:
+        'Only an administrator of this account can subscribe it again, not the provider acting as the account.',
     // ── installation ──
     INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS:
         'The identifier {given} is not the one this environment names ({environment}); a database is marked only as the installation of the environment that marks it.',

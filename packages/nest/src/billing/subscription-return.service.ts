@@ -41,6 +41,7 @@ import {
     NotFoundException,
     Optional,
     type HttpException,
+    type OnModuleInit,
 } from '@nestjs/common';
 import {
     BILLING_ERROR_CODES,
@@ -84,6 +85,10 @@ import {
     contractChanged,
 } from '../subscription-contract/subscription-contract.service.js';
 import { heldBackRefusal } from '../tenant-access/held-back-refusal.js';
+import {
+    TenantAccessService,
+    type SubscriptionReturnSource,
+} from '../tenant-access/tenant-access.service.js';
 import { TENANT_ACCESS_HOLDS_TOKEN } from '../tenant-access/tenant-access.tokens.js';
 import { initialPeriodWindow } from './billing-period.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
@@ -98,6 +103,7 @@ import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { findPlan } from './plan-helpers.js';
 import { SELF_SERVICE_BLOCKED_PLANS_TOKEN } from './self-service-policy.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
+import { deletionDayDiffersFromShown } from './subscription-end.service.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
 import {
     SUBSCRIPTION_END_PORT_TOKEN,
@@ -110,10 +116,15 @@ import { versionOnSale } from './version-on-sale.js';
 /** What the audit log names a return under. */
 const AUDITED_ACTION = 'SUBSCRIPTION_RETURNED';
 
-/** The plan and the rhythm a tenant comes back on. */
+/** The plan and the rhythm a tenant comes back on, and the deletion day its page showed. */
 export interface SubscriptionReturnChoice {
     readonly plan: string;
     readonly billingCycle: BillingCycle;
+    /**
+     * The deletion day the page showed, where it sent one: the tenant is taken
+     * back only from the end that names it (`TENANT_RETURN_DELETION_DAY_CHANGED`).
+     */
+    readonly expectedDeletesOn?: CalendarDay;
 }
 
 /** The subscription a tenant comes back on. */
@@ -189,7 +200,7 @@ const REFUSED: Readonly<
 };
 
 @Injectable()
-export class SubscriptionReturnService {
+export class SubscriptionReturnService implements SubscriptionReturnSource, OnModuleInit {
     private readonly logger = new Logger(SubscriptionReturnService.name);
 
     constructor(
@@ -261,7 +272,26 @@ export class SubscriptionReturnService {
         @Optional()
         @Inject(AdminAuditService)
         private readonly audit: AdminAuditService | null = null,
+        // Absent where tenant access is wired by hand without one in scope:
+        // a read-only tenant is then let through to come back by nothing.
+        @Optional()
+        @Inject(TenantAccessService)
+        private readonly access: TenantAccessService | null = null,
     ) {}
+
+    onModuleInit(): void {
+        this.access?.answerReturnsFrom(this);
+    }
+
+    async mayComeBack(tenantId: string, now: Date): Promise<boolean> {
+        return !('refusal' in this.decide(await this.standingOf(tenantId), now));
+    }
+
+    async assertMayComeBack(tenantId: string, now: Date): Promise<void> {
+        const standing = await this.standingOf(tenantId);
+        const returnable = this.decide(standing, now);
+        if ('refusal' in returnable) throw refused(returnable.refusal, standing);
+    }
 
     /**
      * What `tenantId` would come back on at `now` with `choice`, and what it
@@ -300,7 +330,8 @@ export class SubscriptionReturnService {
      * `actor`, its administrator: started again on the version on sale, its
      * contract written, and the end and the reason it put the tenant in
      * lifted, in one transaction. Refused, with nothing written, where the
-     * tenant cannot come back (`subscriptionReturnRefusal`), where something
+     * tenant cannot come back (`subscriptionReturnRefusal`), where its page
+     * showed another deletion day than its end names, where something
      * stands in the way of the plan as a plan change to it would be refused
      * (`PLAN_CHANGE_BLOCKED`), where a gateway takes payment methods and the
      * subscriber has none in use, where a contract of the tenant runs
@@ -315,6 +346,13 @@ export class SubscriptionReturnService {
         const standing = await this.standingOf(tenantId);
         const returnable = this.decide(standing, now);
         if ('refusal' in returnable) throw refused(returnable.refusal, standing);
+        if (deletionDayDiffersFromShown(choice.expectedDeletesOn, returnable.end)) {
+            throw new ConflictException(
+                codedError(TENANT_ACCESS_ERROR_CODES.TENANT_RETURN_DELETION_DAY_CHANGED, {
+                    deletesOn: returnable.end.deletesOn,
+                }),
+            );
+        }
         const holds = this.holds;
         if (!holds) throw refused('not-ended', standing);
         const subscription = await this.subscriptions.findForTenant(tenantId);

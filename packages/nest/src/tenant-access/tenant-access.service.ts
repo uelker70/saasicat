@@ -59,17 +59,24 @@ export interface TenantAccessIntent extends TenantAccessActor {
     writes: boolean;
     /**
      * It starts a payment — pays now, or replaces the payment method: one of
-     * the two kinds of write a read-only tenant may make, while one of its
-     * subscriber's invoices is open (`SC-ADM-060`).
+     * the three kinds of write a read-only tenant may make, while one of its
+     * subscriber's invoices is open, or while it can come back, which takes a
+     * payment method first (`SC-ADM-060`).
      */
     startsPayment?: boolean;
     /**
      * It lets the tenant leave — declares the cancellation of its
      * subscription, cancels an add-on, or ends either at once while a feature
-     * is withdrawn: the other kind of write a read-only tenant may make
+     * is withdrawn: the second kind of write a read-only tenant may make
      * (`SC-ADM-060`, `SC-CANC-001`).
      */
     leaves?: boolean;
+    /**
+     * It lets the tenant come back — takes out a new subscription after its
+     * own ended: the third kind of write a read-only tenant may make, until
+     * the deletion day of that end (`SC-ADM-060`, `SC-CANC-034`).
+     */
+    returns?: boolean;
 }
 
 /**
@@ -78,6 +85,19 @@ export interface TenantAccessIntent extends TenantAccessActor {
  */
 export interface OpenInvoiceSource {
     hasOpenInvoice(tenantId: string): Promise<boolean>;
+}
+
+/**
+ * Whether a tenant whose subscription ended can come back now
+ * (`subscriptionReturnRefusal`, `SC-CANC-034`), so that a read-only tenant may
+ * take out a new subscription, and enter the payment method it needs first,
+ * until its deletion day. Answered by the return wherever the ends are kept.
+ */
+export interface SubscriptionReturnSource {
+    /** Whether `tenantId` can come back at `now`. */
+    mayComeBack(tenantId: string, now: Date): Promise<boolean>;
+    /** Refuses, as a return is refused, where `tenantId` cannot come back at `now`. */
+    assertMayComeBack(tenantId: string, now: Date): Promise<void>;
 }
 
 /** An invoice a reason names, by what tells it apart and whose record lists it. */
@@ -158,6 +178,12 @@ export class TenantAccessService {
      */
     private endedSubscriptions: EndedSubscriptionSource | null = null;
 
+    /**
+     * Whether a tenant can come back, registered by the return as
+     * `openInvoices` is by the invoices; without it no tenant comes back.
+     */
+    private returns: SubscriptionReturnSource | null = null;
+
     constructor(
         @Inject(TENANT_ACCESS_HOLDS_TOKEN) private readonly holds: TenantAccessHoldPort,
         @Inject(Reflector) private readonly reflector: Reflector,
@@ -187,6 +213,11 @@ export class TenantAccessService {
     /** Lets `source` say what is kept of the ended subscriptions the reasons name, and offer the export. */
     answerEndsFrom(source: EndedSubscriptionSource): void {
         this.endedSubscriptions = source;
+    }
+
+    /** Lets `source` say whether a tenant whose subscription ended can come back. */
+    answerReturnsFrom(source: SubscriptionReturnSource): void {
+        this.returns = source;
     }
 
     /**
@@ -358,6 +389,7 @@ export class TenantAccessService {
             writes,
             startsPayment: mark === 'starts-payment',
             leaves: mark === 'leaves',
+            returns: mark === 'returns',
         });
         this.passedFor(request, tenantId, actor);
     }
@@ -398,22 +430,47 @@ export class TenantAccessService {
         const access = await this.accessOf(tenantId);
         const refusal = tenantAccessRefusal(access, intent.writes, intent);
         if (!refusal) return;
-        // A tenant is never told it may not leave, whatever it owes. A
-        // suspension or a deletion under way has no such exception, and who
-        // may cancel is the administrator's guard's.
-        if (refusal === 'read-only' && intent.leaves === true) return;
-        // Asked only where it decides: a read-only tenant starting a
-        // payment. A suspension or a deletion under way has no such
-        // exception, and whether the user may pay at all is the billing
-        // permission's.
-        if (
-            refusal === 'read-only' &&
-            intent.startsPayment === true &&
-            (await this.hasOpenInvoice(tenantId))
-        ) {
-            return;
-        }
+        // A suspension or a deletion under way has none of read-only's
+        // exceptions.
+        if (refusal === 'read-only' && (await this.readOnlyLetsThrough(tenantId, intent))) return;
         throw heldBackRefusal(refusal, access.holds);
+    }
+
+    /** Whether read-only lets `intent` through for `tenantId`, asked only where it decides. */
+    private async readOnlyLetsThrough(
+        tenantId: string,
+        intent: TenantAccessIntent,
+    ): Promise<boolean> {
+        // A tenant is never told it may not leave, whatever it owes; who may
+        // cancel is the administrator's guard's.
+        if (intent.leaves === true) return true;
+        // A tenant whose subscription ended may come back until its deletion
+        // day, and where it cannot it is told why as the return tells it —
+        // not merely that it is read-only.
+        if (intent.returns === true) return this.letsComeBack(tenantId);
+        // A payment is started while an invoice is open, or where the tenant
+        // can come back, which takes a payment method first. Whether the user
+        // may pay at all is the billing permission's.
+        if (intent.startsPayment !== true) return false;
+        return (await this.hasOpenInvoice(tenantId)) || (await this.mayComeBack(tenantId));
+    }
+
+    /** Whether `tenantId` can come back now; never where nothing answers for a return. */
+    private async mayComeBack(tenantId: string): Promise<boolean> {
+        const returns = this.returns;
+        if (!returns) return false;
+        return this.throughTheBypass(() => returns.mayComeBack(tenantId, new Date()));
+    }
+
+    /**
+     * True where `tenantId` can come back now; refused as a return is refused
+     * where it cannot. False where nothing answers for a return.
+     */
+    private async letsComeBack(tenantId: string): Promise<boolean> {
+        const returns = this.returns;
+        if (!returns) return false;
+        await this.throughTheBypass(() => returns.assertMayComeBack(tenantId, new Date()));
+        return true;
     }
 
     /** Whether `tenantId`'s subscriber has an invoice open; never where invoices are not wired. */

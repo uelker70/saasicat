@@ -6,6 +6,7 @@
 // only what the application owns is stood in for — its subscription row, its
 // subscriber and its payment method.
 
+import { Reflector } from '@nestjs/core';
 import { specialTermsOf } from '@saasicat/core';
 
 import {
@@ -16,6 +17,7 @@ import {
     givenPlanCatalogSource,
 } from '../../dist/billing/index.js';
 import { EntitlementService } from '../../dist/entitlement/index.js';
+import { TenantAccessService } from '../../dist/index.js';
 import { SubscriptionContractService } from '../../dist/subscription-contract/index.js';
 import {
     FakeSubscriptionBundleRepository,
@@ -399,6 +401,9 @@ export async function aTenantThatEnded({
         null,
         plans,
     );
+    // The check every tenant request passes, which the return answers as the
+    // module's start registers it.
+    const access = new TenantAccessService(ports.holds, new Reflector());
     const payments = {
         methods: { current: async () => paymentMethod },
         gateways: { forNewPaymentMethods: () => (gateway ? { name: 'stripe' } : null) },
@@ -439,7 +444,9 @@ export async function aTenantThatEnded({
         payments.gateways,
         { recordDueCharges: async (tenantId) => calls.charged.push(tenantId) },
         { log: async (entry) => calls.audited.push(entry) },
+        access,
     );
+    service.onModuleInit();
     const subscriptionEnds = new SubscriptionEndService(
         subscription,
         ports.ends,
@@ -466,6 +473,7 @@ export async function aTenantThatEnded({
         state,
         calls,
         service,
+        access,
         subscriptionEnds,
     };
 }

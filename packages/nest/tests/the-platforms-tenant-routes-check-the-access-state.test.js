@@ -279,6 +279,7 @@ describe('which routes the check reaches', () => {
             'POST billing/plan/preview',
             'POST billing/subscription-bundles/preview',
             'POST billing/subscription-bundles/prices',
+            'POST billing/subscription/return/preview',
         ]);
     });
 
@@ -310,6 +311,17 @@ describe('which routes the check reaches', () => {
             'POST billing/feature-withdrawals/:id/bookings/:subscriptionBundleId/end',
             'POST billing/feature-withdrawals/:id/end',
         ]);
+    });
+
+    // Writes all the same, let through under read-only only while the tenant
+    // can come back (`a-read-only-tenant-may-come-back`).
+    test('exactly these routes let a tenant come back', () => {
+        const returning = tenantControllers
+            .flatMap(handlersOf)
+            .filter((handler) => handler.mark === 'returns')
+            .map((handler) => `${handler.method} ${handler.path}`)
+            .sort();
+        assert.deepEqual(returning, ['POST billing/subscription/return']);
     });
 
     // Let through in every state, so each of them is a decision somebody has

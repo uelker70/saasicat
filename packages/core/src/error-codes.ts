@@ -1229,6 +1229,21 @@ export const TENANT_ACCESS_ERROR_CODES = {
      * paid. Nothing was written.
      */
     TENANT_RETURN_PAYMENT_METHOD_REQUIRED: 'TENANT_RETURN_PAYMENT_METHOD_REQUIRED',
+    /**
+     * The page showed another deletion day than the one the tenant's end
+     * names now, `params.deletesOn` (`SC-CANC-034`, `409`): the tenant is not
+     * taken back on a page that told it of another end. Nothing was written;
+     * look again before subscribing.
+     */
+    TENANT_RETURN_DELETION_DAY_CHANGED: 'TENANT_RETURN_DELETION_DAY_CHANGED',
+    /**
+     * A new subscription for the tenant was asked by the operator — a user
+     * holding `SUPER_ADMIN`, or one the application's check let through as
+     * acting as the tenant (`SC-CANC-034`, `403`): the subscription is the
+     * subscriber's to take out, through its own administrator. Nothing was
+     * written.
+     */
+    TENANT_RETURN_NOT_FOR_OPERATOR: 'TENANT_RETURN_NOT_FOR_OPERATOR',
 } as const;
 export type TenantAccessErrorCode =
     (typeof TENANT_ACCESS_ERROR_CODES)[keyof typeof TENANT_ACCESS_ERROR_CODES];

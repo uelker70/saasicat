@@ -1359,6 +1359,30 @@ _Tested by:_
 - `packages/core/tests/an-ended-subscription-is-deleted-on-a-fixed-day.test.js`
     - an end read back from a store
         - says whether, and when, a new subscription lifted it
+- `packages/nest/tests/a-read-only-tenant-may-come-back.test.js`
+    - a read-only tenant entering the payment method it comes back with
+        - is let through until its deletion day, though no invoice is open
+        - is refused from its deletion day on
+        - is refused where it cannot come back, though read-only: its subscription runs
+    - coming back through the route
+        - its administrator comes back, and the check lets the request through
+        - for the tenant the session names: a tenant in the body is no field of it
+        - a user who is not its administrator is refused by the route’s guard
+        - the operator acting as the tenant is refused, and nothing is written
+        - a suspended tenant is refused by the check
+        - a tenant being deleted is refused by the check
+        - from its deletion day the check says why, naming the day
+        - a tenant whose subscription runs has nothing to come back from
+        - a page that showed another deletion day is refused with the day that applies, and nothing
+          is written
+        - a plan the catalogue does not sell is refused as the plan route refuses it
+    - what the route shows before the tenant comes back
+        - the terms with the days of the first period, and what stands in the way of the plan
+        - from the deletion day, why not
+    - whom the tenant’s state offers to come back
+        - its administrator, until the deletion day
+        - nobody else of the tenant, and not the operator
+        - nobody from the deletion day, or while the tenant is suspended
 - `packages/nest/tests/a-tenant-comes-back-before-its-deletion-day.test.js`
     - a tenant that comes back before its deletion day
         - on 20 October: the end and its reason lifted, the subscription running on the version on

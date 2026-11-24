@@ -358,7 +358,7 @@ export class SubscriptionEndService implements OnModuleInit {
  */
 export function deletionDayDiffersFromShown(
     shownDeletesOn: CalendarDay | null | undefined,
-    deletion: AnnouncedDeletion | null,
+    deletion: Pick<AnnouncedDeletion, 'deletesOn'> | null,
 ): boolean {
     return (
         shownDeletesOn !== undefined &&

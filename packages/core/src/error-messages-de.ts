@@ -582,6 +582,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Der Löschtag dieses Kontos, der {deletesOn}, ist gekommen; ein neues Abonnement lässt sich nicht mehr abschließen. Bitte wenden Sie sich an Ihren Anbieter, der Ihnen ein neues Konto einrichten kann.',
     TENANT_RETURN_PAYMENT_METHOD_REQUIRED:
         'Bitte hinterlegen Sie zuerst ein Zahlungsmittel; danach können Sie wieder abonnieren.',
+    TENANT_RETURN_DELETION_DAY_CHANGED:
+        'Diese Seite zeigte einen anderen Löschtag als den, der jetzt gilt, den {deletesOn}. Bitte laden Sie sie neu und sehen Sie noch einmal nach, bevor Sie abonnieren.',
+    TENANT_RETURN_NOT_FOR_OPERATOR:
+        'Ein neues Abonnement für dieses Konto kann nur ein Administrator des Kontos abschließen, nicht der Anbieter, der als das Konto handelt.',
     // ── installation ──
     INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS:
         'Die Kennung {given} ist nicht die dieser Umgebung ({environment}); eine Datenbank wird nur als Installation der Umgebung markiert, die sie markiert.',

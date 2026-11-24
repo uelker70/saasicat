@@ -172,6 +172,12 @@ export { FeatureWithdrawalTenantController } from './feature-withdrawal-tenant.c
 export { TenantAccessStateController } from './tenant-access-state.controller.js';
 export { TenantDataExportController } from './tenant-data-export.controller.js';
 export { TenantKeepController } from './tenant-keep.controller.js';
+export {
+    TenantSubscriptionReturnController,
+    type SubscriptionReturnPreviewWithDays,
+    type SubscriptionReturnedWithDays,
+} from './tenant-subscription-return.controller.js';
+export { SubscriptionReturnDto } from './dto/subscription-return.dto.js';
 export { TenantDataExportService } from './tenant-data-export.service.js';
 export { TenantExportDeliveryService } from './tenant-export-delivery.service.js';
 export {

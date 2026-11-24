@@ -29,17 +29,18 @@ export const Writes = (): ClassDecorator & MethodDecorator =>
     SetMetadata(TENANT_ACCESS_MARK_KEY, 'writes' satisfies TenantAccessMark);
 
 /**
- * One of the two kinds of write read-only lets through: starting a payment —
- * paying now, or replacing the payment method —, while one of the
- * subscriber's invoices is open (`SC-ADM-060`). The platform's own routes
- * carry it, and nothing else should — whether the user may pay at all is
- * still the billing permission's to say.
+ * The first of the three kinds of write read-only lets through: starting a
+ * payment — paying now, or replacing the payment method —, while one of the
+ * subscriber's invoices is open, or while the tenant can come back, which
+ * takes a payment method first (`SC-ADM-060`). The platform's own routes carry
+ * it, and nothing else should — whether the user may pay at all is still the
+ * billing permission's to say.
  */
 export const StartsPayment = (): MethodDecorator =>
     SetMetadata(TENANT_ACCESS_MARK_KEY, 'starts-payment' satisfies TenantAccessMark);
 
 /**
- * The other kind of write read-only lets through: the tenant leaving —
+ * The second kind of write read-only lets through: the tenant leaving —
  * declaring the cancellation of its subscription, cancelling an add-on, or
  * ending either at once while a feature is withdrawn (`SC-ADM-060`,
  * `SC-CANC-001`). Refusing it would bill a tenant that is behind with a
@@ -50,6 +51,21 @@ export const StartsPayment = (): MethodDecorator =>
  */
 export const Leaves = (): MethodDecorator =>
     SetMetadata(TENANT_ACCESS_MARK_KEY, 'leaves' satisfies TenantAccessMark);
+
+/**
+ * The third kind of write read-only lets through: the tenant coming back —
+ * taking out a new subscription after its own ended, until the deletion day
+ * of that end and while its deletion has not begun (`SC-ADM-060`,
+ * `SC-CANC-034`). Where it cannot come back it is refused as the return is,
+ * with the reason. The platform's own route carries it, and so does an
+ * application's own route through which a tenant concludes a new subscription
+ * and is taken back in the same transaction (`takeBackWithin`) — nothing that
+ * does more than come back, since everything a marked route writes is let
+ * through. Who may take the subscription out is still the route's guards' to
+ * say.
+ */
+export const Returns = (): MethodDecorator =>
+    SetMetadata(TENANT_ACCESS_MARK_KEY, 'returns' satisfies TenantAccessMark);
 
 /**
  * Lets every user of a tenant through to a route that answers the tenant's own

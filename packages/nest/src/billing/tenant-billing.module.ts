@@ -112,6 +112,7 @@ import { PlansAheadService } from './plans-ahead.js';
 import { VersionNoticeService } from './version-notice.service.js';
 import { SubscriptionEndService } from './subscription-end.service.js';
 import { SubscriptionReturnService } from './subscription-return.service.js';
+import { TenantSubscriptionReturnController } from './tenant-subscription-return.controller.js';
 import { SubscriptionEndCron } from './subscription-end.cron.js';
 import { DeletionReminderService } from './deletion-reminder.service.js';
 import { movedNoticeOptionsIn, noticeRecordNotWired, noticesNotWired } from './notice-sender.js';
@@ -1246,7 +1247,9 @@ export class TenantBillingModule {
                 TenantAccessStateController,
                 ...(featureWithdrawals ? [FeatureWithdrawalTenantController] : []),
                 ...(exportServed ? [TenantDataExportController] : []),
-                ...(subscriptionEnds ? [TenantKeepController] : []),
+                ...(subscriptionEnds
+                    ? [TenantKeepController, TenantSubscriptionReturnController]
+                    : []),
                 // The tenant reads its invoices where their documents are archived.
                 ...(invoices?.renderer && invoices.archive && invoices.mail
                     ? [TenantInvoicesController]

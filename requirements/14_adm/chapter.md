@@ -1107,6 +1107,14 @@ _Tested by:_
         - lifting the suspension leaves an overdue invoice holding
         - another tenant is not held back by this one
         - the operator acting as the tenant passes a suspension, not a deletion
+- `packages/nest/tests/a-read-only-tenant-may-come-back.test.js`
+    - a read-only tenant entering the payment method it comes back with
+        - is let through until its deletion day, though no invoice is open
+        - is refused from its deletion day on
+        - is refused where it cannot come back, though read-only: its subscription runs
+    - the other exceptions stay as they were
+        - a route through which the tenant leaves is let through on its deletion day as well
+        - the route carries the mark of coming back, its preview the mark of writing nothing
 - `packages/nest/tests/a-read-only-tenant-may-still-leave.test.js`
     - a read-only tenant leaving
         - is let through declaring the cancellation of its subscription, an invoice unpaid
@@ -1224,6 +1232,7 @@ _Tested by:_
         - exactly these routes let a read-only tenant through with a writing method
         - exactly these routes start a payment
         - exactly these routes let a tenant leave
+        - exactly these routes let a tenant come back
         - exactly these routes answer the tenant's own state
 - `packages/ui-vue/tests/a-tenant-action-follows-the-platforms-state.test.js`
     - a tenant row offers what the platform's state allows

@@ -9236,6 +9236,30 @@ _Tested by:_
 - `packages/core/tests/an-ended-subscription-is-deleted-on-a-fixed-day.test.js`
     - an end read back from a store
         - says whether, and when, a new subscription lifted it
+- `packages/nest/tests/a-read-only-tenant-may-come-back.test.js`
+    - a read-only tenant entering the payment method it comes back with
+        - is let through until its deletion day, though no invoice is open
+        - is refused from its deletion day on
+        - is refused where it cannot come back, though read-only: its subscription runs
+    - coming back through the route
+        - its administrator comes back, and the check lets the request through
+        - for the tenant the session names: a tenant in the body is no field of it
+        - a user who is not its administrator is refused by the route’s guard
+        - the operator acting as the tenant is refused, and nothing is written
+        - a suspended tenant is refused by the check
+        - a tenant being deleted is refused by the check
+        - from its deletion day the check says why, naming the day
+        - a tenant whose subscription runs has nothing to come back from
+        - a page that showed another deletion day is refused with the day that applies, and nothing
+          is written
+        - a plan the catalogue does not sell is refused as the plan route refuses it
+    - what the route shows before the tenant comes back
+        - the terms with the days of the first period, and what stands in the way of the plan
+        - from the deletion day, why not
+    - whom the tenant’s state offers to come back
+        - its administrator, until the deletion day
+        - nobody else of the tenant, and not the operator
+        - nobody from the deletion day, or while the tenant is suspended
 - `packages/nest/tests/a-tenant-comes-back-before-its-deletion-day.test.js`
     - a tenant that comes back before its deletion day
         - on 20 October: the end and its reason lifted, the subscription running on the version on
@@ -18209,6 +18233,14 @@ _Tested by:_
         - lifting the suspension leaves an overdue invoice holding
         - another tenant is not held back by this one
         - the operator acting as the tenant passes a suspension, not a deletion
+- `packages/nest/tests/a-read-only-tenant-may-come-back.test.js`
+    - a read-only tenant entering the payment method it comes back with
+        - is let through until its deletion day, though no invoice is open
+        - is refused from its deletion day on
+        - is refused where it cannot come back, though read-only: its subscription runs
+    - the other exceptions stay as they were
+        - a route through which the tenant leaves is let through on its deletion day as well
+        - the route carries the mark of coming back, its preview the mark of writing nothing
 - `packages/nest/tests/a-read-only-tenant-may-still-leave.test.js`
     - a read-only tenant leaving
         - is let through declaring the cancellation of its subscription, an invoice unpaid
@@ -18326,6 +18358,7 @@ _Tested by:_
         - exactly these routes let a read-only tenant through with a writing method
         - exactly these routes start a payment
         - exactly these routes let a tenant leave
+        - exactly these routes let a tenant come back
         - exactly these routes answer the tenant's own state
 - `packages/ui-vue/tests/a-tenant-action-follows-the-platforms-state.test.js`
     - a tenant row offers what the platform's state allows

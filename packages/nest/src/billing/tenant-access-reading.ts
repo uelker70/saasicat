@@ -10,7 +10,7 @@ import {
 } from '@saasicat/core';
 
 import type { TenantAccessService } from '../tenant-access/tenant-access.service.js';
-import { mayTakeTheTenantsExport } from './tenant-roles.js';
+import { mayTakeOutTheTenantsSubscription, mayTakeTheTenantsExport } from './tenant-roles.js';
 
 /** Who reads the state, and what the installation lets them do about it. */
 export interface TenantAccessReading {
@@ -28,15 +28,14 @@ export interface TenantAccessReading {
 /** The tenant's state as `reading` says who is asking. */
 export async function tenantAccessViewFor(reading: TenantAccessReading): Promise<TenantAccessView> {
     const { access, request } = reading;
+    const actingAsOperator = access?.actsAsOperator(request) ?? false;
     const asked = {
         timeZone: installationZoneOf(reading.settings),
         now: new Date(),
         holdsBillingPermission: reading.holdsBillingPermission,
         mayPay: reading.collects,
-        isTenantAdministrator: mayTakeTheTenantsExport(
-            request,
-            access?.actsAsOperator(request) ?? false,
-        ),
+        isTenantAdministrator: mayTakeTheTenantsExport(request, actingAsOperator),
+        mayTakeOutSubscription: mayTakeOutTheTenantsSubscription(request, actingAsOperator),
     };
     if (!access) return tenantAccessViewOf({ state: 'open', holds: [] }, asked);
     return access.viewOf(reading.tenantId, asked);
