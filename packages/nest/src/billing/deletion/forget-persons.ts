@@ -37,7 +37,13 @@ export function rolesInsteadOfPersons(rows: RowsNamingActors): RolesInsteadOfPer
                 hold.recordedBy,
                 hold.kind === 'suspended' ? 'hold.recordedBy.suspended' : 'hold.recordedBy.other',
             ),
-            liftedBy: hold.liftedBy === null ? null : actorRoleOf(hold.liftedBy, 'hold.liftedBy'),
+            liftedBy:
+                hold.liftedBy === null
+                    ? null
+                    : actorRoleOf(
+                          hold.liftedBy,
+                          hold.kind === 'ended' ? 'hold.liftedBy.ended' : 'hold.liftedBy',
+                      ),
         })),
         ends: {
             ends: rows.ends.map((end) => ({

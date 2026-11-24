@@ -1359,6 +1359,52 @@ _Tested by:_
 - `packages/core/tests/an-ended-subscription-is-deleted-on-a-fixed-day.test.js`
     - an end read back from a store
         - says whether, and when, a new subscription lifted it
+- `packages/nest/tests/a-tenant-comes-back-before-its-deletion-day.test.js`
+    - a tenant that comes back before its deletion day
+        - on 20 October: the end and its reason lifted, the subscription running on the version on
+          sale, its contract in force from then
+        - its contract is the catalogue of today, priced and granting what the version on sale does
+        - is audited for the tenant, naming the end it lifted
+        - a pilot that comes back is a pilot no more: its contract grants what it bought
+        - an add-on of the subscription that ended ends with it, and no contract of the return names
+          it
+        - an add-on cancelled for a date after the end ends at the end as well
+        - an invoice still unpaid keeps it read-only for that invoice alone
+    - the deletion day, in the installation’s days, is where coming back stops
+        - the last moment of the day before is still in time
+        - from midnight of the deletion day it is refused, naming the day, and nothing is written
+    - a return that is refused writes nothing
+        - once the deletion has begun, as the tenant is answered wherever it asks
+        - while the operator suspends the tenant
+        - where no end is recorded to come back from
+        - a second time: the tenant came back already
+        - where the contract cannot be written: the subscription, the reason and the end stay as
+          they were
+        - where the transaction fails as it ends: no contract stays either
+        - a tenant without a subscriber is refused before anything is written, an add-on included
+        - where a gateway takes payment methods and the subscriber has none in use
+        - a plan sold only by a contract of its own, or one the catalogue does not sell
+        - where a contract of the tenant runs past its end already
+    - with a payment method where a gateway takes them
+        - a tenant whose subscriber has one in use comes back
+        - without a gateway none is asked for
+    - a return and a deletion beside it lock the same reason
+        - the deletion first: the return waits for it, finds the tenant being deleted and is refused
+        - the return first: the deletion waits for it, finds the reason lifted and begins nothing
+    - after it came back
+        - a cancellation that lands again is recorded as an end of its own, with a day of its own
+        - its export is no longer offered: no end stands
+        - once deleted after a later end, the reason it lifted names the tenant’s administrator, not
+          the operator
+    - what the tenant is shown before it comes back
+        - the catalogue of today: the version on sale, its price, its first period and the notice it
+          is owed
+        - an add-on of the subscription that ended costs nothing in it
+        - from the deletion day, why not — and nothing is written
+        - the price of the version it paid until then is not the one shown
+    - taking the tenant back inside a transaction of the caller
+        - lifts the end and its reason in it, and with it taken back, nothing is lifted
+        - answers false where no end stands, and refuses from the deletion day
 - `packages/nest/tests/an-ended-subscription-is-recorded-once.test.js`
     - the run that records the subscriptions that ended
         - a run that read the subscription before its tenant came back records nothing, and holds

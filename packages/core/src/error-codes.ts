@@ -1222,6 +1222,13 @@ export const TENANT_ACCESS_ERROR_CODES = {
      * (`SC-ADM-027`). Nothing was written.
      */
     TENANT_RETURN_DELETION_DAY_REACHED: 'TENANT_RETURN_DELETION_DAY_REACHED',
+    /**
+     * The installation takes payment methods through a gateway, and the
+     * tenant's subscriber has none in use (`SC-CANC-034`, `409`): a tenant
+     * enters one before it subscribes again, so that the new subscription is
+     * paid. Nothing was written.
+     */
+    TENANT_RETURN_PAYMENT_METHOD_REQUIRED: 'TENANT_RETURN_PAYMENT_METHOD_REQUIRED',
 } as const;
 export type TenantAccessErrorCode =
     (typeof TENANT_ACCESS_ERROR_CODES)[keyof typeof TENANT_ACCESS_ERROR_CODES];

@@ -20,7 +20,6 @@
 import {
     ConflictException,
     type ExecutionContext,
-    ForbiddenException,
     Inject,
     Injectable,
     Optional,
@@ -32,11 +31,9 @@ import {
     type CalendarDay,
     type SubscriptionEnd,
     type TenantAccess,
-    type TenantAccessErrorCode,
     type TenantAccessHold,
     type TenantAccessActor,
     type TenantAccessHoldPort,
-    type TenantAccessState,
     type TenantAccessView,
     type TenantAccessViewOptions,
     type TenantExportDeliverer,
@@ -52,15 +49,10 @@ import {
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { codedError } from '../errors/coded-error.js';
+import { heldBackRefusal } from './held-back-refusal.js';
 import { referencesOf } from './hold-references.js';
 import { tenantAccessMarkOf } from './tenant-access-marks.js';
 import { TENANT_ACCESS_HOLDS_TOKEN } from './tenant-access.tokens.js';
-
-const REFUSAL_CODE: Readonly<Record<Exclude<TenantAccessState, 'open'>, TenantAccessErrorCode>> = {
-    'read-only': TENANT_ACCESS_ERROR_CODES.TENANT_READ_ONLY,
-    suspended: TENANT_ACCESS_ERROR_CODES.TENANT_SUSPENDED,
-    deleting: TENANT_ACCESS_ERROR_CODES.TENANT_BEING_DELETED,
-};
 
 /** What a request asks to do, where there is no request to read it from. */
 export interface TenantAccessIntent extends TenantAccessActor {
@@ -421,16 +413,7 @@ export class TenantAccessService {
         ) {
             return;
         }
-        // The operator's note on a suspension is theirs, not the tenant's: a
-        // refusal names each reason by its kind and the moment it began.
-        throw new ForbiddenException(
-            codedError(REFUSAL_CODE[refusal], {
-                reasons: access.holds.map((hold) => ({
-                    kind: hold.kind,
-                    since: hold.since.toISOString(),
-                })),
-            }),
-        );
+        throw heldBackRefusal(refusal, access.holds);
     }
 
     /** Whether `tenantId`'s subscriber has an invoice open; never where invoices are not wired. */

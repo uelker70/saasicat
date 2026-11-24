@@ -198,6 +198,16 @@ export const TENANT_DELETION_TRANSACTION_RUNNER_TOKEN = Symbol.for(
     'saasicat/nest/TenantDeletionTransactionRunner',
 );
 
+/**
+ * Starts a tenant's subscription again, writes its contract and lifts its end
+ * in one transaction, which locks the end's reason first
+ * (`TransactionRunner`, `SC-CANC-034`). The deletion's runner: a deletion
+ * locks the same reason.
+ */
+export const SUBSCRIPTION_RETURN_TRANSACTION_RUNNER_TOKEN = Symbol.for(
+    'saasicat/nest/SubscriptionReturnTransactionRunner',
+);
+
 /** Finds the subscriber a tenant's deletion is recorded with (`SubscriberRepository`). */
 export const TENANT_DELETION_SUBSCRIBERS_TOKEN = Symbol.for(
     'saasicat/nest/TenantDeletionSubscribers',

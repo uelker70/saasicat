@@ -580,6 +580,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Dieses Konto hat kein beendetes Abonnement, das sich wieder abschließen ließe: Sein Abonnement läuft, oder sein Ende wird noch erfasst, was bis zu einer Viertelstunde dauert. Laden Sie die Seite neu, um den aktuellen Stand zu sehen.',
     TENANT_RETURN_DELETION_DAY_REACHED:
         'Der Löschtag dieses Kontos, der {deletesOn}, ist gekommen; ein neues Abonnement lässt sich nicht mehr abschließen. Bitte wenden Sie sich an Ihren Anbieter, der Ihnen ein neues Konto einrichten kann.',
+    TENANT_RETURN_PAYMENT_METHOD_REQUIRED:
+        'Bitte hinterlegen Sie zuerst ein Zahlungsmittel; danach können Sie wieder abonnieren.',
     // ── installation ──
     INSTALLATION_IDENTIFIER_NOT_THIS_ENVIRONMENTS:
         'Die Kennung {given} ist nicht die dieser Umgebung ({environment}); eine Datenbank wird nur als Installation der Umgebung markiert, die sie markiert.',

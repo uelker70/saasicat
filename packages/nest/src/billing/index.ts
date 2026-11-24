@@ -101,6 +101,14 @@ export {
     type SubscriptionEndRun,
 } from './subscription-end.service.js';
 export { SubscriptionEndCron } from './subscription-end.cron.js';
+export {
+    SubscriptionReturnService,
+    type SubscriptionReturnChoice,
+    type SubscriptionReturnPreview,
+    type SubscriptionReturnRefused,
+    type SubscriptionReturnTerms,
+    type SubscriptionReturned,
+} from './subscription-return.service.js';
 export { DeletionReminderService, type DeletionReminderRun } from './deletion-reminder.service.js';
 export {
     InstallationMarkService,

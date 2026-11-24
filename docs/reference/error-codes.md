@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 327 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 328 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -417,20 +417,21 @@ The lock that refuses tenant requests, and the operator routes around it.
 
 What a held-back tenant's users meet, with the open reasons in `params.reasons`, the operator's suspension, and the export a tenant takes once its subscription ended.
 
-| Code                                 | Shipped English text                                                                                                                                                                                           |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TENANT_ALREADY_SUSPENDED`           | This tenant is suspended already.                                                                                                                                                                              |
-| `TENANT_BEING_DELETED`               | This account is being deleted.                                                                                                                                                                                 |
-| `TENANT_DELETION_BEGUN`              | This tenant is being deleted: it can no longer be suspended, and its export can no longer be taken.                                                                                                            |
-| `TENANT_EXPORT_FAILED`               | The export of this account could not be produced just now. Please try again later.                                                                                                                             |
-| `TENANT_EXPORT_IN_PROGRESS`          | The export of this account is being produced already. Please try again once it has arrived.                                                                                                                    |
-| `TENANT_EXPORT_NOT_FOR_OPERATOR`     | Only an administrator of this account can take its export, not the provider acting as the account.                                                                                                             |
-| `TENANT_EXPORT_NOT_OFFERED`          | The export of this account is offered once its subscription has ended.                                                                                                                                         |
-| `TENANT_NOT_SUSPENDED`               | This tenant is not suspended.                                                                                                                                                                                  |
-| `TENANT_READ_ONLY`                   | This account can be read but not changed at the moment. You can still view and export its data.                                                                                                                |
-| `TENANT_RETURN_DELETION_DAY_REACHED` | The deletion day of this account, {deletesOn}, has come, so it can no longer subscribe again. Please contact your provider, who can set up a new account for you.                                              |
-| `TENANT_RETURN_NOT_ENDED`            | This account has no ended subscription to subscribe again to: its subscription is running, or its end is still being recorded, which takes up to a quarter of an hour. Reload the page to see where it stands. |
-| `TENANT_SUSPENDED`                   | This account is suspended. Please contact your provider.                                                                                                                                                       |
+| Code                                    | Shipped English text                                                                                                                                                                                           |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TENANT_ALREADY_SUSPENDED`              | This tenant is suspended already.                                                                                                                                                                              |
+| `TENANT_BEING_DELETED`                  | This account is being deleted.                                                                                                                                                                                 |
+| `TENANT_DELETION_BEGUN`                 | This tenant is being deleted: it can no longer be suspended, and its export can no longer be taken.                                                                                                            |
+| `TENANT_EXPORT_FAILED`                  | The export of this account could not be produced just now. Please try again later.                                                                                                                             |
+| `TENANT_EXPORT_IN_PROGRESS`             | The export of this account is being produced already. Please try again once it has arrived.                                                                                                                    |
+| `TENANT_EXPORT_NOT_FOR_OPERATOR`        | Only an administrator of this account can take its export, not the provider acting as the account.                                                                                                             |
+| `TENANT_EXPORT_NOT_OFFERED`             | The export of this account is offered once its subscription has ended.                                                                                                                                         |
+| `TENANT_NOT_SUSPENDED`                  | This tenant is not suspended.                                                                                                                                                                                  |
+| `TENANT_READ_ONLY`                      | This account can be read but not changed at the moment. You can still view and export its data.                                                                                                                |
+| `TENANT_RETURN_DELETION_DAY_REACHED`    | The deletion day of this account, {deletesOn}, has come, so it can no longer subscribe again. Please contact your provider, who can set up a new account for you.                                              |
+| `TENANT_RETURN_NOT_ENDED`               | This account has no ended subscription to subscribe again to: its subscription is running, or its end is still being recorded, which takes up to a quarter of an hour. Reload the page to see where it stands. |
+| `TENANT_RETURN_PAYMENT_METHOD_REQUIRED` | Please enter a payment method first; then you can subscribe again.                                                                                                                                             |
+| `TENANT_SUSPENDED`                      | This account is suspended. Please contact your provider.                                                                                                                                                       |
 
 ## Installation
 

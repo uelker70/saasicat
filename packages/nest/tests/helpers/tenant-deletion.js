@@ -57,7 +57,7 @@ function keepFieldsForUndo(tx, rows, touches, fields) {
  * each write its own rows and columns: a reason written beside the
  * transaction stays written.
  */
-class TransactionalHolds extends FakeTenantAccessHoldRepository {
+export class TransactionalHolds extends FakeTenantAccessHoldRepository {
     async record(hold, tx) {
         const recorded = await super.record(hold);
         if (tx && recorded) {
@@ -86,8 +86,15 @@ class TransactionalHolds extends FakeTenantAccessHoldRepository {
     }
 }
 
-/** Ends that a failed transaction takes back where their actors were replaced in it. */
+/** Ends that a failed transaction takes back where they were lifted, or their actors replaced, in it. */
 class TransactionalEnds extends FakeSubscriptionEndRepository {
+    async lift(subscriptionId, liftedAt, tx) {
+        const ofIt = (row) => row.subscriptionId === subscriptionId;
+        keepFieldsForUndo(tx, this.ends, ofIt, ['liftedAt']);
+        keepFieldsForUndo(tx, this.announcements, ofIt, ['liftedAt']);
+        return super.lift(subscriptionId, liftedAt);
+    }
+
     async replaceActors(replacements, tx) {
         keepForUndo(tx, this.ends);
         keepForUndo(tx, this.announcements);
@@ -137,12 +144,16 @@ function transactionalNotices() {
     return notices;
 }
 
-/** A runner whose transaction takes back what was written in it where it fails; `failNext` fails one. */
+/**
+ * A runner whose transaction takes back what was written in it where it fails;
+ * `failNext` fails one. What the transaction locked is let go once it ends,
+ * either way.
+ */
 function aTransactionRunner() {
     const runner = {
         failNext: false,
         async run(work) {
-            const tx = { undo: [] };
+            const tx = { undo: [], release: [] };
             try {
                 const result = await work(tx);
                 if (runner.failNext) {
@@ -153,6 +164,8 @@ function aTransactionRunner() {
             } catch (error) {
                 for (const undo of tx.undo.reverse()) undo();
                 throw error;
+            } finally {
+                for (const release of tx.release) release();
             }
         },
     };

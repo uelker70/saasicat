@@ -7,7 +7,12 @@
 // is generic; only the bundle/plan-version data access
 // (`ContractFreezeSourcePort`) is consumer-specific.
 
-import type { BillingCycle, ContractAgreement, PlanVersionRow } from '@saasicat/core';
+import type {
+    BillingCycle,
+    ContractAgreement,
+    CreateSubscriptionContractData,
+    PlanVersionRow,
+} from '@saasicat/core';
 
 import type { PricedContractLineItem } from '../subscription-contract/contract-line-item-money.js';
 import type { IntendedContract } from '../subscription-contract/subscription-contract.service.js';
@@ -61,9 +66,22 @@ export interface ContractFreezePort {
      */
     assertContractFor(
         tenantId: string,
-        target: { readonly plan: string; readonly planVersionId: string | null },
+        target: ContractTarget,
         intended: IntendedContract | null,
     ): Promise<void>;
+
+    /**
+     * The contract a subscription bound to `target`'s version concludes as
+     * `intended`, composed and checked as `assertContractFor` checks it, and
+     * handed back instead of written — for a caller that writes it in a
+     * transaction of its own. `null` where the version cannot be read as one
+     * of `target`'s plan.
+     */
+    composeFor(
+        tenantId: string,
+        target: ContractTarget,
+        intended: IntendedContract,
+    ): Promise<CreateSubscriptionContractData | null>;
 
     /**
      * Freezes the agreed service at `effectiveFrom` as the new active
@@ -107,6 +125,20 @@ export interface ContractFreezePort {
      * call: there is nothing to succeed it with.
      */
     endOnCancellation(tenantId: string, effectiveAt: Date): Promise<void>;
+}
+
+/** The plan, and the version of it, a contract is composed for before the subscription is bound to it. */
+export interface ContractTarget {
+    readonly plan: string;
+    /** The version bound; `null` names the version the subscription is bound to now. */
+    readonly planVersionId: string | null;
+    /**
+     * The subscription ended, and the contract starts it again (`SC-CANC-034`):
+     * it records what the subscription grants once running on the version —
+     * a pilot no more, and none of the add-ons or the code of the subscription
+     * that ended, which a return does not take over.
+     */
+    readonly startsAgain?: boolean;
 }
 
 /**

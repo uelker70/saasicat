@@ -111,6 +111,7 @@ import {
 import { PlansAheadService } from './plans-ahead.js';
 import { VersionNoticeService } from './version-notice.service.js';
 import { SubscriptionEndService } from './subscription-end.service.js';
+import { SubscriptionReturnService } from './subscription-return.service.js';
 import { SubscriptionEndCron } from './subscription-end.cron.js';
 import { DeletionReminderService } from './deletion-reminder.service.js';
 import { movedNoticeOptionsIn, noticeRecordNotWired, noticesNotWired } from './notice-sender.js';
@@ -189,6 +190,7 @@ import {
     INSTALLATION_MARK_PORT_TOKEN,
     TENANT_DELETION_RECORD_PORT_TOKEN,
     TENANT_DELETION_SUBSCRIBERS_TOKEN,
+    SUBSCRIPTION_RETURN_TRANSACTION_RUNNER_TOKEN,
     TENANT_DELETION_TRANSACTION_RUNNER_TOKEN,
     TENANT_ERASERS_TOKEN,
     TENANT_KEEP_REPORT_PORT_TOKEN,
@@ -449,7 +451,13 @@ export interface SubscriptionDeletionOptions {
     records: ProviderSpec<TenantDeletionRecordPort>;
     /** Where the subscriber a deletion is recorded with is found. */
     subscribers: ProviderSpec<SubscriberRepository>;
-    /** Begins a deletion — its record and the reason holding the tenant back — in one transaction. */
+    /**
+     * Begins a deletion — its record and the reason holding the tenant back —
+     * in one transaction, and a tenant's return before its deletion day — its
+     * new subscription, its contract and the lift of its end — in another
+     * (`SC-CANC-034`). Both lock the reason the end put the tenant in, so the
+     * runner is one.
+     */
     transactionRunner: ProviderSpec<TransactionRunner>;
     /**
      * Where the documents the installation issued are read: once one exists,
@@ -1115,6 +1123,11 @@ export class TenantBillingModule {
                 asProvider(TENANT_DELETION_RECORD_PORT_TOKEN, deletion.records),
                 asProvider(TENANT_DELETION_SUBSCRIBERS_TOKEN, deletion.subscribers),
                 asProvider(TENANT_DELETION_TRANSACTION_RUNNER_TOKEN, deletion.transactionRunner),
+                {
+                    provide: SUBSCRIPTION_RETURN_TRANSACTION_RUNNER_TOKEN,
+                    useExisting: TENANT_DELETION_TRANSACTION_RUNNER_TOKEN,
+                },
+                SubscriptionReturnService,
                 TenantDeletionService,
                 TenantDeletionReadingService,
                 TenantKeepReadingService,
@@ -1248,6 +1261,7 @@ export class TenantBillingModule {
                 ...(subscriptionEnds
                     ? [
                           SubscriptionEndService,
+                          SubscriptionReturnService,
                           TrialEndService,
                           DeletionReminderService,
                           InstallationMarkService,
