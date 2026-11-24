@@ -149,6 +149,11 @@ overrides:
     # and never that entry. Lifting argparse to 2.x, which needs no sprintf-js,
     # takes the package out of the tree.
     'argparse@^1.0.0': '^2.0.1'
+    # GHSA-7589-6fvf-x4pw: catastrophic backtracking in the regular expression
+    # effect compiles for `Schema.TemplateLiteral`, fixed in 3.22.1. Reached only
+    # through @prisma/config, which the Prisma CLI loads its configuration with;
+    # its newest release still pins an older 3.x, so this lifts it within 3.x.
+    'effect@^3.0.0': '^3.22.1'
 allowBuilds:
     '@nestjs/core': true
     # Native file watcher pulled in by the admin dev tooling; the JS fallback is
