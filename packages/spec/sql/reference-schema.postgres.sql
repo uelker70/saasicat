@@ -860,6 +860,7 @@ CREATE TABLE "subscription_invoices" (
     "issuerParty" JSONB NOT NULL,
     "subscriberParty" JSONB NOT NULL,
     "footer" JSONB NOT NULL DEFAULT '[]',
+    "testOperation" BOOLEAN NOT NULL DEFAULT false,
     "taxTreatment" JSONB NOT NULL,
     "taxes" JSONB NOT NULL,
     "totalNet" DECIMAL(12,2) NOT NULL,
@@ -1128,6 +1129,7 @@ CREATE TABLE "contract_confirmations" (
     "fileName" TEXT NOT NULL,
     "size" INTEGER NOT NULL,
     "renderedAt" TIMESTAMP(3) NOT NULL,
+    "testOperation" BOOLEAN NOT NULL DEFAULT false,
     "archivedAt" TIMESTAMP(3),
     "deliveryClaimedAt" TIMESTAMP(3),
     "deliveredAt" TIMESTAMP(3),
@@ -1225,6 +1227,7 @@ CREATE TABLE "tenant_export_downloads" (
 CREATE TABLE "installation_marks" (
     "id" TEXT NOT NULL DEFAULT 'installation',
     "identifier" TEXT NOT NULL,
+    "testOperation" BOOLEAN NOT NULL DEFAULT false,
     "markedAt" TIMESTAMP(3) NOT NULL,
     "markedBy" TEXT NOT NULL,
 

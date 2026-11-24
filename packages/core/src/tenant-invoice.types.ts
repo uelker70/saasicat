@@ -30,6 +30,11 @@ export interface TenantInvoice {
     /** Where its payment stands; `null` for an invoice cancelled, a cancellation invoice and one of nothing. */
     payment: InvoicePaymentStanding | null;
     /**
+     * Whether it was issued in a test operation, and is no invoice for VAT
+     * purposes; its list names it a test (`SC-UI-029`).
+     */
+    testOperation: boolean;
+    /**
      * Whether its document is archived and can be downloaded; until then the
      * invoice is listed and its download is not offered (`SC-AUD-014`).
      */
@@ -53,6 +58,11 @@ export interface TenantContractConfirmation {
     planTitle: string | null;
     /** Whether the confirmation is archived and can be downloaded; until then it is being made. */
     archived: boolean;
+    /**
+     * Whether it was made in a test operation, and confirms no contract; its
+     * list names it a test (`SC-UI-029`). `null` until it is first rendered.
+     */
+    testOperation: boolean | null;
 }
 
 /** The tenant's contract confirmations, the newest first. */

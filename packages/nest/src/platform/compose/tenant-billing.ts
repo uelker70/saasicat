@@ -9,6 +9,7 @@ import type {
     SubscriberPaymentRepository,
     SubscriberRepository,
     SubscriptionEndPort,
+    SubscriptionInvoiceRepository,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
     TenantDeletionRecordPort,
@@ -167,6 +168,18 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
                 // serving tenants without the platform's transaction runner.
                 transactionRunner: ctx.adapters
                     .transactionRunner as ProviderSpec<TransactionRunner>,
+                // The documents the mark's operation is fixed by (`SC-AUD-023`),
+                // read from the bundle wherever invoicing names no stores of its own.
+                documents: {
+                    // SAFETY: the bundle's members are the providers of the
+                    // invoices and the confirmations, which `PersistenceProvider`
+                    // types as the provider specs they are.
+                    invoices: ctx.persistence?.entitlement?.subscriptionInvoiceRepository as
+                        ProviderSpec<SubscriptionInvoiceRepository> | undefined,
+                    // SAFETY: as above.
+                    confirmations: ctx.persistence?.entitlement?.contractConfirmationRepository as
+                        ProviderSpec<ContractConfirmationRepository> | undefined,
+                },
             },
         },
         imports: tenantImports ?? ctx.options.imports,

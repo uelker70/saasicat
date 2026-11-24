@@ -8,10 +8,11 @@
 // subscriber now (`SC-PRIC-043`), the tax by the adapter's rule
 // (`SC-PRIC-041`), its days in the installation's time zone (`SC-PRIC-045`),
 // and the subscriber's payment method it is collected with — a direct debit on
-// the day it announces, the lead time after the issue date (`SC-PRIC-028`).
-// The adapter checks its content before the number is drawn (`SC-PRIC-027`),
-// and the store draws the number in the transaction that writes the invoice
-// (`SC-PRIC-072`).
+// the day it announces, the lead time after the issue date (`SC-PRIC-028`),
+// and whether the installation is a test operation, as its mark says when the
+// run begins. The adapter checks its content before the number is drawn
+// (`SC-PRIC-027`), and the store draws the number in the transaction that
+// writes the invoice (`SC-PRIC-072`).
 //
 // A group that cannot be invoiced yet is held rather than guessed at: a
 // subscriber whose invoice address has gaps (`SC-PRIC-032`), one the adapter
@@ -44,10 +45,12 @@ import {
     invoiceFooterOf,
     invoiceIssuerOf,
     invoicePaymentOf,
+    installationOperationOf,
     isPersistenceRefusal,
     type AppliedSettingsPort,
     type ContractIssuerParty,
     type InvoiceGroup,
+    type InstallationMarkPort,
     type IssuerHistoryStep,
     type NewSubscriptionInvoice,
     type PlanCatalogSettings,
@@ -68,8 +71,11 @@ import { SubscriberService } from '../../subscriber/subscriber.service.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../../subscription-contract/subscription-contract.tokens.js';
 import { TAX_TREATMENTS_TOKEN } from '../../tax/tax.tokens.js';
 import type { TaxPeriod, TaxTreatments } from '../../tax/tax-treatments.js';
+import { installationMarkNotWired } from '../deletion/installation-mark-option.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
+import { INSTALLATION_MARK_PORT_TOKEN } from '../tenant-billing.tokens.js';
 import { AuditedOnce } from './audited-once.js';
+import { InvoiceOperationCheck } from './invoicing-start.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.tokens.js';
 
 /** The name the run writes its audit entries under: `job:platform:subscription-invoices`. */
@@ -136,6 +142,17 @@ export class SubscriptionInvoiceService implements OnModuleInit {
         @Optional()
         @Inject(SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN)
         private readonly paymentMethods: SubscriberPaymentMethodRepository | null = null,
+        // Required to start, as the record of the applied settings is: see
+        // `onModuleInit`. Bound with the deletion's brake, which every
+        // installation serving tenants through `SaaSiCatModule` wires.
+        @Optional()
+        @Inject(INSTALLATION_MARK_PORT_TOKEN)
+        private readonly marks: InstallationMarkPort | null = null,
+        // Registered beside this service; refuses in an operator's command
+        // line what the application's start refused.
+        @Optional()
+        @Inject(InvoiceOperationCheck)
+        private readonly operations: InvoiceOperationCheck | null = null,
     ) {}
 
     /**
@@ -149,6 +166,11 @@ export class SubscriptionInvoiceService implements OnModuleInit {
      * Refuses, too, an installation that takes payment methods and gives this
      * run no way to read them: its invoices would announce no collection, and
      * nothing would say why none is ever collected.
+     *
+     * And one whose mark this run cannot read. Each invoice records whether
+     * the installation is a test operation, as the mark says it; without the
+     * mark every invoice would be recorded as live, a test installation's as
+     * well, and nothing would say so.
      */
     onModuleInit(): void {
         const problems: string[] = [];
@@ -158,6 +180,13 @@ export class SubscriptionInvoiceService implements OnModuleInit {
                     'legal entity and keeps its declared corrections: adopt `AppliedSettings` and ' +
                     '`SettingsChange` (12-applied-settings.prisma), which the persistence bundle ' +
                     'then binds, or bind your own in `adapters.appliedSettings`.',
+            );
+        }
+        if (!this.marks) {
+            problems.push(
+                installationMarkNotWired(
+                    'invoices record whether they are issued in a test operation',
+                ),
             );
         }
         if (this.settings.payments && !this.paymentMethods) {
@@ -177,6 +206,8 @@ export class SubscriptionInvoiceService implements OnModuleInit {
     async issueDue(now: Date): Promise<SubscriptionInvoiceRun> {
         return readAcrossTenants(this.rlsBypass, async () => {
             const history = await this.issuerHistory();
+            // Read once for the run: every invoice it issues says the same.
+            const testOperation = await this.testOperation();
             const run: SubscriptionInvoiceRun = { issued: 0, held: 0, failed: 0 };
             let after: string | undefined;
             for (;;) {
@@ -187,7 +218,7 @@ export class SubscriptionInvoiceService implements OnModuleInit {
                 for (const subscriptionId of page) {
                     const charges = await this.invoices.listUninvoicedCharges(subscriptionId);
                     for (const group of invoiceGroupsOf(charges)) {
-                        const outcome = await this.issueGroup(group, now, history);
+                        const outcome = await this.issueGroup(group, now, history, testOperation);
                         if (outcome !== 'taken') run[outcome] += 1;
                     }
                 }
@@ -201,9 +232,10 @@ export class SubscriptionInvoiceService implements OnModuleInit {
         group: InvoiceGroup,
         now: Date,
         history: readonly IssuerHistoryStep[],
+        testOperation: boolean,
     ): Promise<GroupOutcome> {
         try {
-            const invoice = await this.invoiceOf(group, now, history);
+            const invoice = await this.invoiceOf(group, now, history, testOperation);
             const issued = await this.invoices.issue(invoice);
             this.logger.log(
                 `Invoice ${issued.number} issued to subscriber ${issued.subscriberId} for ` +
@@ -234,6 +266,7 @@ export class SubscriptionInvoiceService implements OnModuleInit {
         group: InvoiceGroup,
         now: Date,
         history: readonly IssuerHistoryStep[],
+        testOperation: boolean,
     ): Promise<NewSubscriptionInvoice> {
         const [first] = group.charges;
         const contract = await this.contracts.findById(group.contractId);
@@ -269,6 +302,7 @@ export class SubscriptionInvoiceService implements OnModuleInit {
             subscriber: parties.subscriber,
             issuer,
             footer: invoiceFooterOf(issuer, parties.issuer, invoicing.footer ?? []),
+            testOperation,
             treatment,
             tax: (lines) => this.taxes.invoiceTax(lines),
             issuedAt: now,
@@ -310,6 +344,17 @@ export class SubscriptionInvoiceService implements OnModuleInit {
         configured: ContractIssuerParty | null,
     ): Promise<SubscriptionInvoiceIssuer> {
         return invoiceIssuerOf(copy, configured, await this.issuerHistory());
+    }
+
+    /** Whether the installation's mark says it is a test operation; a database nobody marked is live. */
+    private async testOperation(): Promise<boolean> {
+        if (!this.marks) {
+            throw new Error(
+                'Invoices cannot be issued without the mark of the installation; the start refuses this.',
+            );
+        }
+        await this.operations?.checkBeforeIssuing();
+        return installationOperationOf(await this.marks.find()) === 'test';
     }
 
     /** The recorded settings changes, the oldest first; none without the record. */

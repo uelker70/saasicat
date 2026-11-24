@@ -354,6 +354,41 @@ describe('a contract as the list shows it', () => {
         assert.equal(view.minimumTermUntil, '2027-01-01T00:00:00.000Z');
     });
 
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('names the operation its confirmation was made in once it is, and none before', () => {
+        const frozen = contract('c1', '2026-01-01T00:00:00Z', [plan('BASIC', 29)]);
+        const change = contractChangesOf([frozen]).get('c1');
+        const rendered = (testOperation) => ({
+            contractId: 'c1',
+            due: true,
+            confirmation: {
+                contractId: 'c1',
+                checksum: 'c'.repeat(64),
+                mediaType: 'application/pdf',
+                fileName: 'contract-confirmation-c1.pdf',
+                size: 1,
+                renderedAt: new Date('2026-01-01T00:00:00Z'),
+                testOperation,
+                archivedAt: null,
+                deliveryClaimedAt: null,
+                deliveredAt: null,
+                deliveredTo: null,
+            },
+        });
+        const operationOf = (standing) =>
+            adminSubscriberContractOf(frozen, standing, change, BERLIN).confirmation.testOperation;
+
+        assert.deepEqual(
+            [
+                operationOf(rendered(true)),
+                operationOf(rendered(false)),
+                operationOf({ contractId: 'c1', due: true, confirmation: null }),
+                operationOf(undefined),
+            ],
+            [true, false, null, null],
+        );
+    });
+
     test('lists the one written last first', () => {
         const first = contract('c1', '2026-01-01T00:00:00Z', [plan('BASIC', 29)]);
         const second = contract('c2', '2026-02-01T00:00:00Z', [plan('PRO', 49)]);
@@ -433,6 +468,7 @@ describe('the invoices issued under a contract', () => {
         issueDate,
         currency: 'EUR',
         totalGross: 58.31,
+        testOperation: false,
     });
 
     test('are only the contract’s, the latest issue day first, and of one day by number', () => {
@@ -453,6 +489,26 @@ describe('the invoices issued under a contract', () => {
             issueDate: '2026-03-01',
             currency: 'EUR',
             totalGross: 58.31,
+            testOperation: false,
         });
+    });
+
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('name one issued in a test operation as one, and one issued live as live', () => {
+        const invoices = [
+            { ...invoice('i1', 'c1', '2026-02-01', 1), testOperation: true },
+            invoice('i2', 'c1', '2026-03-01', 2),
+        ];
+
+        assert.deepEqual(
+            adminContractInvoicesOf(invoices, 'c1').map(({ id, testOperation }) => [
+                id,
+                testOperation,
+            ]),
+            [
+                ['i2', false],
+                ['i1', true],
+            ],
+        );
     });
 });

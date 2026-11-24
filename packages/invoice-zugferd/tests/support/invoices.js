@@ -1,7 +1,8 @@
 // Invoices as the store reads them back, one for each treatment the German
 // adapter decides, one for each way an invoice is collected, one long enough
-// to run on to further pages, and a cancellation invoice and its replacement.
-// The tests render them, and CI hands the files to the format's own validators
+// to run on to further pages, and a cancellation invoice and its replacement —
+// each issued live, and each again as its twin issued in a test operation. The
+// tests render them, and CI hands the files to the format's own validators
 // (`scripts/write-samples.mjs`).
 
 const ISSUED_AT = new Date('2026-02-01T05:15:00.000Z');
@@ -131,6 +132,7 @@ function invoice(
             issuer,
             subscriber,
             footer,
+            testOperation: false,
             taxTreatment: { ...treatment, adapter: ADAPTER },
             taxes: [{ rate: treatment.rate, net, tax }],
             totalNet: net,
@@ -307,7 +309,7 @@ function correctedReplacementOf(name, { number, sequence }) {
     };
 }
 
-export const SAMPLES = [
+const ISSUED_LIVE = [
     STANDARD,
     cancellationOf('cancellation', STANDARD, {
         number: 'AHP-2026-000140',
@@ -465,3 +467,14 @@ export const SAMPLES = [
         ),
     }),
 ];
+
+/** `sample` as an installation in a test operation issues it: the same invoice, marked. */
+function inTestOperation({ name, invoice }) {
+    return {
+        name: `${name}-test`,
+        invoice: { ...invoice, id: `${invoice.id}-test`, testOperation: true },
+    };
+}
+
+/** Every sample, each followed by its twin issued in a test operation. */
+export const SAMPLES = ISSUED_LIVE.flatMap((sample) => [sample, inTestOperation(sample)]);

@@ -6,9 +6,10 @@
 // run against PostgreSQL in tests/integration/. What this holds is the
 // translation: that the one row is found by its fixed id, that the insert
 // leaves the refusal to the primary key (`skipDuplicates`) and answers what
-// stands after it, and that the identifier the caller read is in the update's
-// `WHERE`. A repository that replaced by id alone would pass its own unit tests
-// and let a replacement land on a mark somebody changed a moment earlier.
+// stands after it, and that the identifier and the operation the caller read
+// are in the update's `WHERE`. A repository that replaced by id alone would
+// pass its own unit tests and let a replacement land on a mark somebody
+// changed a moment earlier.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,7 +17,12 @@ import assert from 'node:assert/strict';
 import { PrismaInstallationMarkRepository } from '../dist/index.js';
 
 const MARKED_AT = new Date('2026-11-15T09:30:00.123Z');
-const PROD = { identifier: 'prod', markedAt: MARKED_AT, markedBy: 'cli:ops@example.com:host' };
+const PROD = {
+    identifier: 'prod',
+    testOperation: false,
+    markedAt: MARKED_AT,
+    markedBy: 'cli:ops@example.com:host',
+};
 const ROW = {
     id: 'installation',
     ...PROD,
@@ -59,7 +65,12 @@ describe('PrismaInstallationMarkRepository', () => {
 
     test('marking leaves the refusal to the primary key, and answers what stands after it', async () => {
         const client = fakeClient();
-        const staging = { identifier: 'staging', markedAt: MARKED_AT, markedBy: 'cli:dev@x:y' };
+        const staging = {
+            identifier: 'staging',
+            testOperation: true,
+            markedAt: MARKED_AT,
+            markedBy: 'cli:dev@x:y',
+        };
         const answered = await new PrismaInstallationMarkRepository(client).markIfUnmarked(staging);
         const [[name, args], [readName]] = client.calls;
         assert.equal(name, 'createMany');
@@ -78,23 +89,32 @@ describe('PrismaInstallationMarkRepository', () => {
         );
     });
 
-    test('a replacement is guarded on the identifier the caller read', async () => {
+    test('a replacement is guarded on the identifier and the operation the caller read', async () => {
         const client = fakeClient();
-        const staging = { identifier: 'staging', markedAt: MARKED_AT, markedBy: 'cli:ops@x:y' };
+        const staging = {
+            identifier: 'staging',
+            testOperation: true,
+            markedAt: MARKED_AT,
+            markedBy: 'cli:ops@x:y',
+        };
         const replaced = await new PrismaInstallationMarkRepository(client).replace(
-            'prod',
+            { identifier: 'prod', testOperation: false },
             staging,
         );
         const [[name, args]] = client.calls;
         assert.equal(name, 'updateMany');
-        assert.deepEqual(args.where, { id: 'installation', identifier: 'prod' });
+        assert.deepEqual(args.where, {
+            id: 'installation',
+            identifier: 'prod',
+            testOperation: false,
+        });
         assert.deepEqual(args.data, staging);
         assert.deepEqual(replaced, staging);
     });
 
     test('a replacement that matched nothing answers null and reads nothing back', async () => {
         const client = fakeClient({ updated: 0 });
-        const replaced = await new PrismaInstallationMarkRepository(client).replace('prod', PROD);
+        const replaced = await new PrismaInstallationMarkRepository(client).replace(PROD, PROD);
         assert.equal(replaced, null);
         assert.deepEqual(
             client.calls.map(([name]) => name),

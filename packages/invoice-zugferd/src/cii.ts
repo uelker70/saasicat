@@ -19,6 +19,7 @@ import {
     isCancellation,
     lineCorrectionOf,
     namedPaymentOf,
+    testNoticeOf,
     xmlSignOf,
 } from './correction.js';
 import { xmlAmount, xmlDay, xmlRate, xmlText } from './format.js';
@@ -252,6 +253,11 @@ export function ciiOf(invoice: SubscriptionInvoiceRecord): string {
         element('ram:ID', invoice.number) +
         `<ram:TypeCode>${isCancellation(invoice) ? CREDIT_NOTE : COMMERCIAL_INVOICE}</ram:TypeCode>` +
         day('ram:IssueDateTime', invoice.issueDate) +
+        // BT-22, first, so that a program reads that the invoice is a test
+        // before any other note. Without a subject code (BT-21), which would
+        // bind the note to a code list; and not as the context's TestIndicator,
+        // which the CII syntax rules of EN 16931 advise against (CII-SR-002).
+        note(testNoticeOf(invoice)) +
         note(correctionNoteOf(invoice)) +
         (invoice.taxTreatment.note
             ? `<ram:IncludedNote>${element('ram:Content', invoice.taxTreatment.note)}</ram:IncludedNote>`

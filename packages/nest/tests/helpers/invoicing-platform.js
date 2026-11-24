@@ -6,12 +6,13 @@
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
+import { documentOperationsOf } from '@saasicat/core';
 
 import { SaaSiCatModule } from '../../dist/platform/index.js';
 import { FakeAppliedSettingsPort } from './applied-settings-port.js';
 import { aConfirmationRenderer, aMailbox, aRenderer, anArchive } from './invoice-documents.js';
 import { ISSUER } from './invoice-run.js';
-import { bootable, everythingOnOptions } from './operator-routes.js';
+import { answersEverything, bootable, everythingOnOptions } from './operator-routes.js';
 import {
     MAIN_ACCOUNT,
     MemoryPaymentEventLog,
@@ -23,10 +24,28 @@ import { MemorySubscriberPayments } from './subscriber-payments.js';
 
 export const INVOICING = { numberPrefix: 'AHP', paymentTermDays: 14 };
 
-/** The invoices already issued, as far as the start asks. */
+/** The invoices already issued live under `prefixes`, as far as the start asks. */
 export const invoicesUnder = (...prefixes) => ({
     listIssuedNumberPrefixes: async () => prefixes,
+    issuedOperations: async () => documentOperationsOf(prefixes.map(() => false)),
 });
+
+/**
+ * The invoices already issued under the configured prefix, as far as the start
+ * asks: each `true` one issued in a test operation, each `false` one issued live.
+ */
+export const invoicesIssuedIn = (...testOperations) => ({
+    listIssuedNumberPrefixes: async () =>
+        testOperations.length > 0 ? [INVOICING.numberPrefix] : [],
+    issuedOperations: async () => documentOperationsOf(testOperations),
+});
+
+/**
+ * The bundle's record of the confirmations, rendered in the operations
+ * `testOperations` say, as far as the start asks.
+ */
+export const confirmationsMadeIn = (...testOperations) =>
+    answersEverything({ recordedOperations: async () => documentOperationsOf(testOperations) });
 
 /**
  * What the application wires for invoices: the repository, the ports of their
@@ -102,6 +121,8 @@ export function invoicingPlatform({
     // The bypass frame as an adapter without row-level security binds it: it
     // calls through, because the start reads the issued invoices through it.
     composed.persistence.core.rlsBypass = { runWithBypass: (fn) => fn() };
+    // Nothing was confirmed yet, as the start reads the confirmations.
+    composed.persistence.entitlement.contractConfirmationRepository = confirmationsMadeIn();
     // A record that has kept nothing yet: the first start that names an issuer.
     composed.persistence.core.appliedSettings = record ? new FakeAppliedSettingsPort() : undefined;
     if (!notices) composed.persistence.tenantBilling.subscriptionNotices = undefined;

@@ -13,10 +13,11 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-import { PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
+import { PDFDocument } from 'pdf-lib';
 import { GermanTaxAdapter } from '@saasicat/tax-de';
 
 import { ZugferdInvoiceRenderer, zugferdInvoiceRenderer } from '../dist/index.js';
+import { embeddedXml } from './support/embedded-xml.js';
 import { CARD, DIRECT_DEBIT, SAMPLES } from './support/invoices.js';
 import { pageRuns, pageTexts } from './support/page-text.js';
 
@@ -24,16 +25,6 @@ const renderer = zugferdInvoiceRenderer();
 const adapter = new GermanTaxAdapter();
 const sample = (name) => SAMPLES.find((each) => each.name === name).invoice;
 const render = (name) => renderer.render(sample(name));
-
-/** The embedded XML of a rendered file. */
-async function embeddedXml(content) {
-    const pdf = await PDFDocument.load(content);
-    const names = pdf.catalog.lookup(PDFName.of('Names'));
-    const tree = names.lookup(PDFName.of('EmbeddedFiles'));
-    const spec = tree.lookup(PDFName.of('Names')).lookup(1);
-    const stream = spec.lookup(PDFName.of('EF')).lookup(PDFName.of('F'), PDFRawStream);
-    return new TextDecoder().decode(decodePDFRawStream(stream).decode());
-}
 
 describe('an issued invoice rendered by the default renderer', () => {
     for (const { name, invoice } of SAMPLES) {
@@ -75,6 +66,24 @@ describe('an issued invoice rendered by the default renderer', () => {
             (await PDFDocument.load(content)).context.trailerInfo.ID.toString();
         assert.notEqual(await idOf(other.content), await idOf(standard.content));
     });
+});
+
+// @requirement SC-AUD-024 — Every document issued in a test operation says it is one
+describe('an issued invoice and its twin issued in a test operation', () => {
+    for (const name of ['standard', 'cancellation', 'replacement']) {
+        test(`(${name}) are each refused by the German adapter as the file of the other`, async () => {
+            const live = sample(name);
+            const marked = sample(`${name}-test`);
+
+            assert.deepEqual(await adapter.invoiceDocumentGaps(await render(name), marked), [
+                'xml.testOperation',
+            ]);
+            assert.deepEqual(
+                await adapter.invoiceDocumentGaps(await render(`${name}-test`), live),
+                ['xml.testOperation'],
+            );
+        });
+    }
 });
 
 describe('what the page says', () => {

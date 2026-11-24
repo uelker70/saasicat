@@ -197,12 +197,19 @@ export function withoutInvoicing(options) {
 
 /**
  * A port that has every method, for services that check their repositories
- * when they are constructed. A test that calls one binds its own in its place.
+ * when they are constructed: each answers `null`, except those `own` names. A
+ * test that calls one binds its own in its place.
  */
-const ANSWERS_EVERYTHING = new Proxy(
-    {},
-    { get: (_, key) => (typeof key === 'symbol' || key === 'then' ? undefined : async () => null) },
-);
+export function answersEverything(own = {}) {
+    return new Proxy(own, {
+        get: (target, key) => {
+            if (key in target) return target[key];
+            return typeof key === 'symbol' || key === 'then' ? undefined : async () => null;
+        },
+    });
+}
+
+const ANSWERS_EVERYTHING = answersEverything();
 
 /** The fixture with every port able to construct its service, for a test that compiles it. */
 export function bootable(options = everythingOnOptions()) {

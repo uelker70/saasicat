@@ -5035,13 +5035,22 @@ adopt it:
     Until a database is marked nothing is deleted in it, and `<app> doctor` warns
     (`platform.installation-mark`, also in `PLATFORM_DOCTOR_CHECK_PROVIDERS`). After restoring a
     backup into another environment, `installation status` names the mark it brought, and
-    `installation mark <this environment> --replace` takes it over.
+    `installation mark <this environment> --replace` takes it over. The mark also says whether the
+    installation is a test operation: a mark is live unless `--operation test` says otherwise, and
+    an environment that tries invoicing out is marked so before its first document
+    ([below](#a-test-installation-marks-every-document-it-issues)).
 
 - **Your own tests** that compose `SaaSiCatModule` with `tenantBilling` need
   `subscriptionEnds.deletion.installation` and the store — and the erasers and the report the next
   section adds: `FakeInstallationMarkRepository` from
   `@saasicat/nest/testing` keeps the mark in memory. A persistence contract harness of yours wires
-  `installationMark` or names it among its `gaps`.
+  `installationMark` or names it among its `gaps`, and seeds a mark written before marks said their
+  operation with `markInstallationBeforeItsOperation` or names `installationMarkBeforeOperationSeed`
+  among them.
+- **A store of the mark of your own** keeps `InstallationMark.testOperation`, a column that is
+  false unless written true, and replaces the mark only while both the identifier and the operation
+  of `current` stand: `replace(current: Pick<InstallationMark, 'identifier' | 'testOperation'>,
+mark)`.
 - **The brake** stops a process meant for another environment, not an environment copied from
   production with its identifier included
   ([where the brake stops](wire-the-backend.md#mark-the-installation-before-the-first-deletion)).
@@ -5672,6 +5681,89 @@ delivered to are judged by the cancellation alone (`SC-ADM-059`).
 
 - **No codemod step**: which of your forms and DTOs take these values, and how long they let them
   be, is your application's.
+
+### A test installation marks every document it issues
+
+New: an installation whose database is marked as a test operation —
+`<app> installation mark <identifier> --operation test` — titles every invoice, cancellation
+invoice, replacement and contract confirmation it issues as a test and states on every page, and
+first in an invoice's XML, that it is no invoice for VAT purposes or confirms no contract
+(`SC-AUD-024`). Each document records the operation it was issued in, and the first document fixes
+the installation's operation (`SC-AUD-023`). Every list of invoices and confirmations marks a test
+document "Test" (`SC-UI-029`). An installation that never tests marks nothing and configures
+nothing; what an operator does for one that does:
+[a test installation](wire-the-backend.md#a-test-installation-marks-every-document-it-issues).
+
+| before                                                                                                                                      | after                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subscription_invoices`, `contract_confirmations`                                                                                           | each with `testOperation`, false unless the document was made in a test operation                                                                                     |
+| `SubscriptionInvoiceRecord`, `NewSubscriptionInvoice`, `InvoiceDraftInput`, `CanonicalSubscriptionInvoiceRow`, `SubscriptionInvoiceColumns` | also `testOperation: boolean`; a cancellation invoice and its replacement take the one of the invoice they correct                                                    |
+| `SubscriptionInvoiceRepository`                                                                                                             | also `issuedOperations(tx?): Promise<DocumentOperations>`                                                                                                             |
+| `ContractConfirmationRecord`, `NewContractConfirmationRendering`, `CanonicalContractConfirmationRow`                                        | also `testOperation: boolean`, recorded with the first rendering                                                                                                      |
+| `ContractConfirmationRepository.replaceRendering(contractId, rendering, …)`                                                                 | `rendering` is a `ContractConfirmationReplacement`, without the operation, which stays as first recorded; also `recordedOperations(tx?): Promise<DocumentOperations>` |
+| `ContractToConfirm`, `ContractConfirmationMail`                                                                                             | also `testOperation: boolean`                                                                                                                                         |
+| `TenantInvoice`, `AdminInvoiceRegisterRow`, `AdminSubscriberInvoice`, `AdminOpenInvoice`, `AdminContractInvoice`                            | also `testOperation: boolean`                                                                                                                                         |
+| `TenantContractConfirmation`, `AdminSubscriberContract.confirmation`                                                                        | also `testOperation: boolean \| null`, `null` until the confirmation is first rendered                                                                                |
+| `invoices.csv` and `export.json` of the export: `…, kind, …`                                                                                | `…, kind, operation, …` — `test` or `live`; every column after `kind` moves one to the right, and `formatVersion` stays `1`                                           |
+| invoices and confirmations start without the installation's mark                                                                            | refused without it (`subscriptionEnds.deletion.marks`), and where its operation is not the one the documents recorded                                                 |
+
+`@saasicat/core` adds `TEST_OPERATION_TITLE`, `TEST_OPERATION_NOTICE` and `TestOperationText`, the
+wording a document of a test operation carries, `DocumentOperations`, `documentOperationsOf` and the
+refusals `INSTALLATION_OPERATION_FIXED` and `INSTALLATION_DOCUMENTS_NOT_READABLE`.
+`@saasicat/ui-vue` adds `invoiceDownloadLabelOf`, `InvoiceDownloadMessages` and
+`TEST_OPERATION_TONE`, and the messages `common.testOperation`,
+`subscribers.payments.downloadTestInvoice` and `subscribers.contracts.downloadTestConfirmation`.
+`TenantPlanSectionI18n` in `@saasicat/ui-vue-tenant` gains `invoiceTestOperation`,
+`invoicesDownloadTestInvoice` and `confirmationDownloadTest`. `TenantBillingModule` takes
+`subscriptionEnds.deletion.documents: { invoices, confirmations }`, the stores the mark's command
+reads where invoicing is off. `@saasicat/nest` adds `OperatorCommandLineModule` and
+`OPERATOR_COMMAND_LINE_TOKEN`, which `CliContextModule` imports: an operator's command line starts
+where the documents disagree with the mark, so that `installation status`, the doctor and
+`installation mark` can name and repair it, and refuses each document it would issue instead. A
+command line built without `CliContextModule` imports `OperatorCommandLineModule` itself. It adds
+`installationOperationProblem` and `InvoiceOperationCheck`, too, and `InstallationStatus` carries
+`issued`, the operations the documents recorded.
+
+1. **Where invoices are issued**, adopt the changed
+   `prisma-fragments/20-subscription-invoice.prisma` and `26-contract-confirmation.prisma`, and run
+   the migration once, before `db push` where you use one:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-the-test-operation-is-recorded.postgres.sql
+    ```
+
+    Every invoice and confirmation already there was made live, and the column says so. The file is
+    safe to run twice.
+
+2. **Where `TenantBillingModule` is wired by hand** with `chargeJournal.invoices`, wire
+   `subscriptionEnds.deletion.marks` too: without the mark the start refuses invoices and
+   confirmations, since every one of them would be recorded live. `SaaSiCatModule` binds it from
+   `persistence.core.installationMark`.
+3. **Where an invoice renderer of your own renders**, read `invoice.testOperation` and, where it is
+   `true`, print `TEST_OPERATION_TITLE.invoice` — `.cancellation` for a cancellation invoice — as
+   the title on the first page, at the head of every page after it and as the PDF's title, and
+   `TEST_OPERATION_NOTICE.invoice` under the title, at the foot of every page and as the first note
+   of the XML (BT-22), before any other. `@saasicat/tax-de` holds a test invoice whose XML does not
+   state the notice first, and a live one whose XML states it, under its number; it does not read
+   the page.
+4. **Where a confirmation renderer of your own renders**, read `ContractToConfirm.testOperation` and
+   print `TEST_OPERATION_TITLE.confirmation` and `TEST_OPERATION_NOTICE.confirmation` the same way.
+   Nothing checks its page.
+5. **Where your `InvoiceMailPort` words the message**, say that the file is a test document where
+   `mail.invoice.testOperation` or, for a confirmation, `mail.testOperation` is `true`.
+6. **Where a store of your own keeps invoices or confirmations**, map the column, write it with each
+   invoice and with a confirmation's first rendering, keep it when `replaceRendering` replaces the
+   file, and answer `issuedOperations()` and `recordedOperations()` with
+   `documentOperationsOf(flags)`. The persistence contract holds each of them.
+7. **Where code of yours builds one of the records or DTOs above** — a fake, a fixture, a route of
+   your own — give it `testOperation`; the compiler names each place.
+8. **Where your code reads `invoices.csv` by column position**, read it by the header's names, or
+   count `operation` after `kind`.
+
+- **A catalogue you build whole** adds the three messages of each package; one that overrides single
+  strings needs nothing.
+- **No codemod step**: a store's columns, a renderer's page, a mail's wording and how a reader takes
+  the export apart are your application's, and none of them is a rename.
 
 ## What the codemod leaves to you
 

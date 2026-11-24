@@ -6,7 +6,8 @@
 // (a PDF, declared PDF/A-3 and Factur-X EN 16931 in its metadata, with the
 // XML embedded as its alternative), the XML's profile, and the figures it
 // carries — the number, the dates, the parties, the tax per rate, the totals
-// and the lines — against the invoice. A renderer that writes 58.31 into the
+// and the lines, and whether it says it was issued in a test operation —
+// against the invoice. A renderer that writes 58.31 into the
 // PDF and 58.30 into the XML, or carries a total the invoice does not state,
 // is refused. Full Schematron validation of EN 16931 is not done here.
 
@@ -21,7 +22,12 @@ import {
     PDFHexString,
     decodePDFRawStream,
 } from 'pdf-lib';
-import { asXmlReadsIt, holdsOnlyXmlCharacters, vatCategoryOf } from '@saasicat/core';
+import {
+    TEST_OPERATION_NOTICE,
+    asXmlReadsIt,
+    holdsOnlyXmlCharacters,
+    vatCategoryOf,
+} from '@saasicat/core';
 import type { InvoiceDocument, SubscriptionInvoiceRecord } from '@saasicat/core';
 
 /** The name the Factur-X standard gives the embedded XML. */
@@ -50,6 +56,7 @@ const NOT_ONCE = 'not stated exactly once';
 
 /** The elements that repeat, read as lists whether one is there or many. */
 const REPEATED = new Set([
+    'IncludedNote',
     'ApplicableTradeTax',
     'IncludedSupplyChainTradeLineItem',
     'SpecifiedTaxRegistration',
@@ -135,6 +142,13 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
         text(header, 'TypeCode') === (cancellation ? CREDIT_NOTE : COMMERCIAL_INVOICE),
     );
     check('xml.number', text(header, 'ID') === written(invoice.number));
+    check(
+        'xml.testOperation',
+        testNoticeHolds(
+            list(header, 'IncludedNote').map((note) => text(note, 'Content') ?? ''),
+            invoice.testOperation,
+        ),
+    );
     check('xml.issueDate', dayOf(path(header, 'IssueDateTime')) === invoice.issueDate);
     // A cancellation invoice asks for nothing, so it names no day it is due.
     check(
@@ -235,6 +249,20 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
         ),
     );
     return gaps;
+}
+
+/**
+ * Whether the notes of the document (BT-22) say it is a test exactly where the
+ * invoice was issued in a test operation: the first states the notice, in
+ * German and in English, so a program reads it before any other note; an
+ * invoice issued live states either half in none. Compared as text, since the
+ * XML is the renderer's and the notice is one wording in `@saasicat/core`.
+ */
+function testNoticeHolds(notes: readonly string[], testOperation: boolean): boolean {
+    const { de, en } = TEST_OPERATION_NOTICE.invoice;
+    if (!testOperation) return !notes.some((note) => note.includes(de) || note.includes(en));
+    const first = notes[0] ?? '';
+    return first.includes(de) && first.includes(en);
 }
 
 /**

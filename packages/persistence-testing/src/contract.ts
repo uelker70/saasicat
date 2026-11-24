@@ -649,6 +649,14 @@ const CONTRACT_GAPS: Record<
         reason: 'adapter provides no InstallationMarkPort',
         present: ({ adapter }) => Boolean(adapter.installationMark),
     },
+    installationMarkBeforeOperationSeed: {
+        reason: 'harness cannot write a mark without its operation, which no repository method does',
+        present: ({ adapter, seed }) =>
+            Boolean(
+                adapter.installationMark &&
+                typeof seed.markInstallationBeforeItsOperation === 'function',
+            ),
+    },
     tenantAccessHolds: {
         reason: 'adapter provides no TenantAccessHoldPort',
         present: ({ adapter }) => Boolean(adapter.tenantAccessHolds),
@@ -7940,6 +7948,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     issuer: parties.issuer!,
                     subscriber: parties.subscriber,
                     footer: [],
+                    testOperation: false,
                     taxTreatment: treatment,
                     taxes: tax.rates,
                     totalNet: tax.net,
@@ -8297,6 +8306,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     servicePeriodFrom: '2026-12-01',
                     servicePeriodUntil: '2026-12-31',
                     numberYear: 2027,
+                    testOperation: true,
                     footer: [
                         'Amtsgericht München HRB 123456 · Geschäftsführer: Erika „Muster“',
                         'IBAN DE02 1203 0000 0000 2020 51 · BIC BYLADEM1001',
@@ -8450,6 +8460,46 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const prefixes = await invoices.listIssuedNumberPrefixes();
             assert.equal(prefixes.length, 2);
             assert.ok(prefixes.every((prefix) => ['AB', 'EX', 'ZZ'].includes(prefix)));
+        });
+
+        test('no operation is named where no invoice was issued', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-no-operation');
+            if (!account) return;
+
+            assert.deepEqual(await account.invoices.issuedOperations(), {
+                test: false,
+                live: false,
+            });
+        });
+
+        for (const testOperation of [true, false]) {
+            const operation = testOperation ? 'test' : 'live';
+            test(`the ${operation} operation alone is named where only its invoices were issued`, async (t) => {
+                const account = await anInvoiceAccount(t, `tenant-invoice-${operation}-operation`);
+                if (!account) return;
+                const { invoices, record, invoiceOf } = account;
+                const [february, march] = await record(monthly(1), monthly(2));
+
+                await invoices.issue(invoiceOf([february!], { testOperation }));
+                await invoices.issue(invoiceOf([march!], { testOperation }));
+
+                assert.deepEqual(await invoices.issuedOperations(), {
+                    test: testOperation,
+                    live: !testOperation,
+                });
+            });
+        }
+
+        test('both operations are named where invoices of both were issued', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-both-operations');
+            if (!account) return;
+            const { invoices, record, invoiceOf } = account;
+            const [february, march] = await record(monthly(1), monthly(2));
+
+            await invoices.issue(invoiceOf([february!], { testOperation: true }));
+            await invoices.issue(invoiceOf([march!], { testOperation: false }));
+
+            assert.deepEqual(await invoices.issuedOperations(), { test: true, live: true });
         });
 
         // -------------------------------------------------------------
@@ -9774,6 +9824,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         // mailed once, in the writes an invoice's document makes
         // -------------------------------------------------------------
 
+        /** A confirmation's first rendering as the run records it, in the operation `testOperation` says. */
+        const confirmationRenderingOf = (checksum: string, testOperation = false) => ({
+            ...renderingOf(checksum),
+            testOperation,
+        });
+
         /**
          * `count` contracts of one subscriber, by id, and where their
          * confirmations stand. Null without confirmations.
@@ -9807,17 +9863,20 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             if (!account) return;
             const { confirmations, contractId } = account;
 
-            const first = await confirmations.recordRendering(contractId, renderingOf(CHECKSUM));
+            const first = await confirmations.recordRendering(
+                contractId,
+                confirmationRenderingOf(CHECKSUM),
+            );
             assert.deepEqual(
                 await confirmations.recordRendering(contractId, {
-                    ...renderingOf(CHECKSUM),
+                    ...confirmationRenderingOf(CHECKSUM),
                     renderedAt: new Date('2026-02-01T05:31:00.000Z'),
                 }),
                 first,
                 'a second recording of the same file changed the first',
             );
             await assert.rejects(
-                confirmations.recordRendering(contractId, renderingOf(OTHER_CHECKSUM)),
+                confirmations.recordRendering(contractId, confirmationRenderingOf(OTHER_CHECKSUM)),
                 refusedAs(CONTRACT_ERROR_CODES.CONTRACT_CONFIRMATION_CHANGED, {
                     contractId,
                     recorded: CHECKSUM,
@@ -9826,7 +9885,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
             assert.deepEqual(first, {
                 contractId,
-                ...renderingOf(CHECKSUM),
+                ...confirmationRenderingOf(CHECKSUM),
                 archivedAt: null,
                 deliveryClaimedAt: null,
                 deliveredAt: null,
@@ -9857,6 +9916,84 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        test('a confirmation records the operation of its first rendering, and neither a second recording nor a replacement changes it', async (t) => {
+            const account = await confirmableContracts(t, 'tenant-confirmation-operation');
+            if (!account) return;
+            const { confirmations, contractId } = account;
+
+            const first = await confirmations.recordRendering(
+                contractId,
+                confirmationRenderingOf(CHECKSUM, true),
+            );
+            assert.equal(first.testOperation, true);
+            assert.equal(
+                (
+                    await confirmations.recordRendering(
+                        contractId,
+                        confirmationRenderingOf(CHECKSUM, false),
+                    )
+                ).testOperation,
+                true,
+                'a second recording changed the operation of the first',
+            );
+            const replaced = await confirmations.replaceRendering(
+                contractId,
+                renderingOf(OTHER_CHECKSUM),
+                CHECKSUM,
+            );
+
+            assert.equal(replaced?.testOperation, true);
+            assert.equal((await confirmations.find(contractId))?.testOperation, true);
+        });
+
+        test('no operation is named where no confirmation was rendered', async (t) => {
+            const account = await confirmableContracts(t, 'tenant-confirmation-no-operation');
+            if (!account) return;
+
+            assert.deepEqual(await account.confirmations.recordedOperations(), {
+                test: false,
+                live: false,
+            });
+        });
+
+        for (const testOperation of [true, false]) {
+            const operation = testOperation ? 'test' : 'live';
+            test(`the ${operation} operation alone is named where only its confirmations were rendered`, async (t) => {
+                const account = await confirmableContracts(
+                    t,
+                    `tenant-confirmation-${operation}-operation`,
+                    2,
+                );
+                if (!account) return;
+                const { confirmations, ids } = account;
+
+                for (const id of ids) {
+                    await confirmations.recordRendering(
+                        id,
+                        confirmationRenderingOf(CHECKSUM, testOperation),
+                    );
+                }
+
+                assert.deepEqual(await confirmations.recordedOperations(), {
+                    test: testOperation,
+                    live: !testOperation,
+                });
+            });
+        }
+
+        test('both operations are named where confirmations of both were rendered', async (t) => {
+            const account = await confirmableContracts(t, 'tenant-confirmation-both-operations', 2);
+            if (!account) return;
+            const { confirmations } = account;
+            // SAFETY: `confirmableContracts` wrote two contracts, and answers their ids.
+            const [inTest, live] = account.ids as [string, string];
+
+            await confirmations.recordRendering(inTest, confirmationRenderingOf(CHECKSUM, true));
+            await confirmations.recordRendering(live, confirmationRenderingOf(CHECKSUM, false));
+
+            assert.deepEqual(await confirmations.recordedOperations(), { test: true, live: true });
+        });
+
         test("a contract's confirmation written on a transaction that rolls back is undone with it, and one for no contract is refused", async (t) => {
             const account = await confirmableContracts(t, 'tenant-confirmation-rollback');
             if (!account) return;
@@ -9864,7 +10001,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
             await assert.rejects(
                 harness.adapter.transactionRunner.run(async (tx) => {
-                    await confirmations.recordRendering(contractId, renderingOf(CHECKSUM), tx);
+                    await confirmations.recordRendering(
+                        contractId,
+                        confirmationRenderingOf(CHECKSUM),
+                        tx,
+                    );
                     throw new Error('the run that rendered it failed');
                 }),
                 /the run that rendered it failed/,
@@ -9872,7 +10013,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
             assert.equal(await confirmations.find(contractId), null);
             await assert.rejects(
-                confirmations.recordRendering(NO_SUCH_VERSION, renderingOf(CHECKSUM)),
+                confirmations.recordRendering(NO_SUCH_VERSION, confirmationRenderingOf(CHECKSUM)),
             );
             assert.equal(await confirmations.find(NO_SUCH_VERSION), null);
         });
@@ -9883,7 +10024,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             if (!account) return;
             const { confirmations, contractId } = account;
             const archivedAt = new Date('2026-02-01T05:17:00.000Z');
-            await confirmations.recordRendering(contractId, renderingOf(CHECKSUM));
+            await confirmations.recordRendering(contractId, confirmationRenderingOf(CHECKSUM));
 
             assert.equal(
                 await confirmations.claimDelivery(contractId, CLAIMED_AT, LEASE_START),
@@ -9921,7 +10062,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             if (!account) return;
             const { confirmations, contractId } = account;
             const later = new Date('2026-02-01T05:33:00.000Z');
-            await confirmations.recordRendering(contractId, renderingOf(CHECKSUM));
+            await confirmations.recordRendering(contractId, confirmationRenderingOf(CHECKSUM));
             await confirmations.markArchived(contractId, LEASE_START, CHECKSUM);
             await confirmations.claimDelivery(contractId, CLAIMED_AT, LEASE_START);
 
@@ -9945,7 +10086,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const account = await confirmableContracts(t, 'tenant-confirmation-race');
             if (!account) return;
             const { confirmations, contractId } = account;
-            await confirmations.recordRendering(contractId, renderingOf(CHECKSUM));
+            await confirmations.recordRendering(contractId, confirmationRenderingOf(CHECKSUM));
             await confirmations.markArchived(contractId, LEASE_START, CHECKSUM);
 
             const claims = await Promise.all(
@@ -9976,7 +10117,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ];
             await writtenBefore(before);
             for (const id of [rendered, archived, delivered]) {
-                await confirmations.recordRendering(id, renderingOf(CHECKSUM));
+                await confirmations.recordRendering(id, confirmationRenderingOf(CHECKSUM));
             }
             for (const id of [archived, delivered]) {
                 await confirmations.markArchived(id, LEASE_START, CHECKSUM);
@@ -10005,7 +10146,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // SAFETY: `confirmableContracts` wrote three contracts, and answers their ids.
             const [before, waiting, sent] = account.ids as [string, string, string];
             await writtenBefore(before);
-            await confirmations.recordRendering(sent, renderingOf(CHECKSUM));
+            await confirmations.recordRendering(sent, confirmationRenderingOf(CHECKSUM));
             await confirmations.markArchived(sent, LEASE_START, CHECKSUM);
             await confirmations.claimDelivery(sent, CLAIMED_AT, LEASE_START);
             await confirmations.markDelivered(sent, DELIVERY);
@@ -13978,9 +14119,15 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 overrides: Partial<InstallationMark> = {},
             ): InstallationMark => ({
                 identifier,
+                testOperation: false,
                 markedAt: MARKED_AT,
                 markedBy: 'cli:ops@example.com:deploy-host',
                 ...overrides,
+            });
+            /** What a replacement is guarded on: the mark as the caller read it. */
+            const read = (identifier: string, testOperation = false) => ({
+                identifier,
+                testOperation,
             });
 
             test('no mark stands before an operator sets one', async (t) => {
@@ -14006,6 +14153,37 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 // is what an operator reads when the brake holds a deletion.
                 assert.equal(found?.markedAt.toISOString(), MARKED_AT.toISOString());
                 assert.equal(found?.markedBy, 'cli:ops@example.com:deploy-host');
+                assert.equal(found?.testOperation, false);
+            });
+
+            test('a mark of a test operation comes back as one', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                const landed = await port.markIfUnmarked(markOf('int', { testOperation: true }));
+                assert.equal(landed.testOperation, true);
+                assert.equal((await port.find())?.testOperation, true);
+            });
+
+            test('a mark written before marks said how they operate is live', async (t) => {
+                const port = harness.adapter.installationMark;
+                const writeOlder = harness.seed.markInstallationBeforeItsOperation?.bind(
+                    harness.seed,
+                );
+                if (!port || !writeOlder) {
+                    missing(t, port ? 'installationMarkBeforeOperationSeed' : 'installationMark');
+                    return;
+                }
+                await writeOlder({
+                    identifier: 'prod',
+                    markedAt: MARKED_AT,
+                    markedBy: 'cli:ops@example.com:deploy-host',
+                });
+                const found = await port.find();
+                assert.equal(found?.identifier, 'prod');
+                assert.equal(found?.testOperation, false);
             });
 
             test('a mark is never written over another: the one that stands is answered', async (t) => {
@@ -14074,7 +14252,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 }
                 await port.markIfUnmarked(markOf('prod'));
                 const replaced = await port.replace(
-                    'prod',
+                    read('prod'),
                     markOf('staging', { markedAt: LATER, markedBy: 'cli:ops@example.com:restore' }),
                 );
                 assert.equal(replaced?.identifier, 'staging');
@@ -14092,11 +14270,47 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 }
                 await port.markIfUnmarked(markOf('staging'));
                 assert.equal(
-                    await port.replace('prod', markOf('elsewhere', { markedAt: LATER })),
+                    await port.replace(read('prod'), markOf('elsewhere', { markedAt: LATER })),
                     null,
                 );
                 const found = await port.find();
                 assert.equal(found?.identifier, 'staging');
+                assert.equal(found?.markedAt.toISOString(), MARKED_AT.toISOString());
+            });
+
+            test('a replacement on the same identifier changes the operation', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                await port.markIfUnmarked(markOf('int'));
+                const changed = await port.replace(
+                    read('int'),
+                    markOf('int', { testOperation: true, markedAt: LATER }),
+                );
+                assert.equal(changed?.testOperation, true);
+                const found = await port.find();
+                assert.equal(found?.identifier, 'int');
+                assert.equal(found?.testOperation, true);
+                assert.equal(found?.markedAt.toISOString(), LATER.toISOString());
+            });
+
+            test('a replacement guarded on an operation that no longer stands changes nothing', async (t) => {
+                const port = harness.adapter.installationMark;
+                if (!port) {
+                    missing(t, 'installationMark');
+                    return;
+                }
+                // Somebody made the installation a test operation after the
+                // caller read it live: the caller's change lands on nothing.
+                await port.markIfUnmarked(markOf('int', { testOperation: true }));
+                assert.equal(
+                    await port.replace(read('int', false), markOf('int', { markedAt: LATER })),
+                    null,
+                );
+                const found = await port.find();
+                assert.equal(found?.testOperation, true);
                 assert.equal(found?.markedAt.toISOString(), MARKED_AT.toISOString());
             });
 
@@ -14106,7 +14320,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     missing(t, 'installationMark');
                     return;
                 }
-                assert.equal(await port.replace('prod', markOf('staging')), null);
+                assert.equal(await port.replace(read('prod'), markOf('staging')), null);
                 assert.equal(await port.find(), null);
             });
 
@@ -14119,7 +14333,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 await port.markIfUnmarked(markOf('prod'));
                 const answers = await Promise.all(
                     ['blue', 'green', 'teal'].map((identifier) =>
-                        port.replace('prod', markOf(identifier, { markedAt: LATER })),
+                        port.replace(read('prod'), markOf(identifier, { markedAt: LATER })),
                     ),
                 );
                 const landed = answers.filter((mark) => mark !== null);

@@ -1817,12 +1817,17 @@ _Tested by:_
         - link a cancelled invoice to its cancellation and its replacement, and each of those back
         - lead from a link to an invoice on a page not read yet, reading it first
         - offer the document once it is archived, and say it follows until then
+        - name one issued in a test operation a test, in words beside its number and in its
+          download, and one issued live as before
         - say so where a document could not be downloaded, and keep the list
         - go on with the next page below the first, where there is one
         - keep the rows read where a further page could not be, and say so beneath them
         - that could not be read are said to be so
     - the contract confirmations beside them
         - name each contract and its days, and offer the archived ones for download
+    - a contract confirmation made in a test operation
+        - is named a test beside its line and in its download, and one made live or not yet as
+          before
 
 <!-- END proof -->
 
@@ -2072,12 +2077,17 @@ _Tested by:_
         - link a cancelled invoice to its cancellation and its replacement, and each of those back
         - lead from a link to an invoice on a page not read yet, reading it first
         - offer the document once it is archived, and say it follows until then
+        - name one issued in a test operation a test, in words beside its number and in its
+          download, and one issued live as before
         - say so where a document could not be downloaded, and keep the list
         - go on with the next page below the first, where there is one
         - keep the rows read where a further page could not be, and say so beneath them
         - that could not be read are said to be so
     - the contract confirmations beside them
         - name each contract and its days, and offer the archived ones for download
+    - a contract confirmation made in a test operation
+        - is named a test beside its line and in its download, and one made live or not yet as
+          before
 
 <!-- END proof -->
 
@@ -2297,6 +2307,80 @@ _Tested by:_
         - an arrow may pass its parameter on, and nothing else
         - only the one place calls the formatter itself
         - a date is written with toLocaleDateString only inside a formatDate
+
+<!-- END proof -->
+
+### SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+
+🟢 💰 An invoice issued, or a contract confirmation made, in a test operation (`SC-AUD-024`) is
+marked "Test" beside it on every list a tenant or an operator reads it in — the tenant's invoices
+and confirmations; the operator's register, the open items, and a subscriber's record with its
+invoices, its contracts and the invoices of each contract — and its download is named a test
+document's: in words, never by a colour alone. One issued live shows nothing extra. The register's
+export for a tax advisor (`SC-ADM-043`) names each invoice's operation, `test` or `live`, in a
+column of its own. Where it stops: a confirmation not rendered yet carries no mark, because its
+operation is recorded when it is first rendered; and a reconciliation case or a credit names the
+invoice it concerns by its number alone.
+
+_Source:_ #523
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-contract-reads-as-it-was-frozen.test.js`
+    - a contract as the list shows it
+        - names the operation its confirmation was made in once it is, and none before
+    - the invoices issued under a contract
+        - name one issued in a test operation as one, and one issued live as live
+- `packages/core/tests/an-export-is-what-was-recorded-by-its-moment.test.js`
+    - the schema an export is published under
+        - names the operations an installation issues its invoices in, no more
+    - an export as of a moment
+        - names the operation each invoice was issued in, a test one as a test
+    - the files an export is written to
+        - write the operation of each invoice in a column of its own, a test one as test
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - a tenant's invoices
+        - name one issued in a test operation as one, and one issued live as live
+    - a tenant's contract confirmations
+        - name one made in a test operation as one, one made live as live, and one not made yet
+          neither
+- `packages/nest/tests/an-operator-reads-the-invoice-register.test.js`
+    - a page of the register
+        - names an invoice issued in a test operation as one, and one issued live as live
+- `packages/nest/tests/an-operator-reads-the-open-items.test.js`
+    - the open invoices
+        - name one issued in a test operation as one, and one issued live as live
+- `packages/nest/tests/an-operator-reconciles-what-matched-nothing.test.js`
+    - where each of a subscriber's invoices stands
+        - names one issued in a test operation as one, and one issued live as live
+- `packages/ui-vue/tests/an-invoice-says-where-its-payment-stands.test.js`
+    - the download of an invoice
+        - is named a test invoice’s for one issued in a test operation, in both languages
+        - is named as before for one issued live
+- `packages/ui-vue/tests/component/an-operator-reads-the-invoice-register.test.ts`
+    - the register of invoices
+        - names an invoice issued in a test operation a test, in words beside its number and in its
+          download, and one issued live as before
+- `packages/ui-vue/tests/component/an-operator-reads-the-open-items.test.ts`
+    - the open items
+        - name an invoice issued in a test operation a test beside its number, and one issued live
+          as before
+- `packages/ui-vue/tests/component/an-operator-reads-where-each-invoice-stands.test.ts`
+    - an invoice in a subscriber’s record issued in a test operation
+        - is named a test beside its number and in its download, and one issued live as before
+- `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
+    - the subscriber's record shows its contracts
+        - a confirmation and an invoice made in a test operation are named a test, and live ones as
+          before
+- `packages/ui-vue-tenant/tests/component/a-tenant-reads-its-invoices.test.ts`
+    - the tenant's invoices
+        - name one issued in a test operation a test, in words beside its number and in its
+          download, and one issued live as before
+    - a contract confirmation made in a test operation
+        - is named a test beside its line and in its download, and one made live or not yet as
+          before
 
 <!-- END proof -->
 

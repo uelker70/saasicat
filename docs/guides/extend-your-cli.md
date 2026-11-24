@@ -104,8 +104,12 @@ command reads the invoice's tenant as none. An application that cannot turn `adm
 The installation commands take `InstallationMarkService`, which the tenant billing module provides
 where `tenantBilling.subscriptionEnds` is wired. The CLI process names the identifier of its
 environment the way the application does, from the same variable: `installation mark` writes only
-that identifier, so run it with the variables of the environment whose database it marks. See
-[mark the installation before the first deletion](wire-the-backend.md#mark-the-installation-before-the-first-deletion).
+that identifier, so run it with the variables of the environment whose database it marks.
+`--operation test` marks the installation as a test operation, whose every document says it is a
+test, and `--operation live` as a live one; without it a new mark is live and one that stands keeps
+its operation. Once a document exists the operation is fixed. See
+[mark the installation before the first deletion](wire-the-backend.md#mark-the-installation-before-the-first-deletion)
+and [a test installation](wire-the-backend.md#a-test-installation-marks-every-document-it-issues).
 
 The admin module binds the same `secretSealer` as the application, under the same key:
 `admin mfa-setup` seals a SuperAdmin's secret here, and the application opens it when the code is
@@ -133,6 +137,7 @@ myapp subscribers join --from 10234 --into 10045 \
     --reason "Returning customer, confirmed by phone"        # what a join would move
 myapp installation status                                    # whose database this is
 myapp installation mark prod                                 # once per environment
+myapp installation mark int --operation test                 # before its first document
 ```
 
 The `maintenance` commands ask for no second factor: a deploy script has nobody to type one. They

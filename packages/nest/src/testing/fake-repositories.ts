@@ -1281,8 +1281,16 @@ export class FakeInstallationMarkRepository implements InstallationMarkPort {
         return { ...this.mark };
     }
 
-    async replace(current: string, mark: InstallationMark): Promise<InstallationMark | null> {
-        if (this.mark?.identifier !== current) return null;
+    async replace(
+        current: Pick<InstallationMark, 'identifier' | 'testOperation'>,
+        mark: InstallationMark,
+    ): Promise<InstallationMark | null> {
+        if (
+            this.mark?.identifier !== current.identifier ||
+            this.mark.testOperation !== current.testOperation
+        ) {
+            return null;
+        }
         this.mark = { ...mark };
         return { ...this.mark };
     }

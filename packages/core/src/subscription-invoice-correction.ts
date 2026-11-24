@@ -45,8 +45,8 @@ export interface CorrectionIssue {
 }
 
 /**
- * The cancellation invoice of `cancelled`: the same parties, treatment, footer
- * and service period, its figures reversed so that the two add up to nothing,
+ * The cancellation invoice of `cancelled`: the same parties, treatment, footer,
+ * operation and service period, its figures reversed so that the two add up to nothing,
  * each line naming the line it cancels. It asks for nothing, so it is collected
  * with nothing and falls due on the day it is issued (`SC-PRIC-089`).
  */
@@ -73,6 +73,7 @@ export function draftCancellationInvoice(
         issuer: { ...cancelled.issuer },
         subscriber: { ...cancelled.subscriber },
         footer: [...cancelled.footer],
+        testOperation: cancelled.testOperation,
         taxTreatment: cancelled.taxTreatment,
         taxes: cancelled.taxes.map((entry) => ({
             rate: entry.rate,
@@ -127,11 +128,12 @@ export interface ReplacementIssue extends CorrectionIssue {
 
 /**
  * The replacement of `cancelled` for its charges, each line naming the line it
- * replaces. Its tax is the treatment decided for the parties it names; it takes
- * over what was paid for the cancelled invoice, as far as it owes it, and
- * states that as paid; only what remains is collected, and announced where a
- * direct debit collects it (`SC-PRIC-095`, `SC-PRIC-028`). Its payment term runs
- * from its own issue date.
+ * replaces, issued in the operation `cancelled` was issued in, whatever the
+ * installation's mark says now. Its tax is the treatment decided for the
+ * parties it names; it takes over what was paid for the cancelled invoice, as
+ * far as it owes it, and states that as paid; only what remains is collected,
+ * and announced where a direct debit collects it (`SC-PRIC-095`,
+ * `SC-PRIC-028`). Its payment term runs from its own issue date.
  */
 export function draftReplacementInvoice(
     cancelled: SubscriptionInvoiceRecord,
@@ -219,6 +221,7 @@ function replacementOf<Line extends Omit<NewCorrectionInvoiceLine, 'chargeId'>>(
         issuer: { ...issue.issuer },
         subscriber: { ...issue.subscriber },
         footer: [...issue.footer],
+        testOperation: cancelled.testOperation,
         taxTreatment: issue.treatment,
         taxes: tax.rates,
         totalNet: tax.net,

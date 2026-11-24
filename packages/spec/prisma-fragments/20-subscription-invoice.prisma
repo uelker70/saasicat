@@ -81,6 +81,11 @@ model SubscriptionInvoice {
     subscriberParty Json
     // The footer lines config/saas.yaml named on the issue date (SC-PRIC-093).
     footer          Json    @default("[]")
+    // Whether it was issued in a test operation, as the installation's mark
+    // said then; a cancellation and a replacement carry the one of the invoice
+    // they correct. False on an invoice issued before invoices recorded it,
+    // which was issued live.
+    testOperation   Boolean @default(false)
     // The adapter's treatment, with its name and version, and the tax per rate.
     taxTreatment    Json
     taxes           Json

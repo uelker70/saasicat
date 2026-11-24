@@ -11,6 +11,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { documentOperationsOf } from '@saasicat/core';
 import { InstallationMarkService } from '@saasicat/nest';
 import { FakeInstallationMarkRepository } from '@saasicat/nest/testing';
 
@@ -27,15 +28,23 @@ const EARLIER = new Date('2026-11-01T09:00:00Z');
 
 /**
  * The flow over the platform's service, in an environment named `environment`,
- * on a database already marked as `standing` where one is given. Every write
+ * on a database already marked as `standing` where one is given, which has
+ * issued an invoice in each operation `issued` names: `true` a test one. Every write
  * to the store lands in `ctx.asked` beside what the command asked for, so the
  * order of the two can be read off one list.
  */
-async function setUp({ environment = 'prod', standing = null, refuse = null } = {}) {
+async function setUp({
+    environment = 'prod',
+    standing = null,
+    testOperation = false,
+    refuse = null,
+    issued = [],
+} = {}) {
     const store = new FakeInstallationMarkRepository();
     if (standing) {
         await store.markIfUnmarked({
             identifier: standing,
+            testOperation,
             markedAt: EARLIER,
             markedBy: 'cli:earlier@example.com:old-host',
         });
@@ -48,12 +57,15 @@ async function setUp({ environment = 'prod', standing = null, refuse = null } = 
             return store.markIfUnmarked(mark);
         },
         async replace(current, mark) {
-            ctx.asked.push(`replace ${current} with ${mark.identifier}`);
+            ctx.asked.push(`replace ${current.identifier} with ${mark.identifier}`);
             return store.replace(current, mark);
         },
     };
     if (refuse) ctx[refuse] = refusing(ctx, refuse);
-    const service = new InstallationMarkService(writes, environment, null);
+    // The documents the installation issued, each `true` one issued in a test operation.
+    const invoices = { issuedOperations: async () => documentOperationsOf(issued) };
+    const confirmations = { recordedOperations: async () => documentOperationsOf([]) };
+    const service = new InstallationMarkService(writes, environment, null, invoices, confirmations);
     return { ctx, store, flow: new InstallationCliFlow(ctx, service) };
 }
 
@@ -146,14 +158,17 @@ describe('installation mark', () => {
             ['staging'],
         );
 
-        assert.equal(marked, 'This database is marked as installation prod now.\n');
+        assert.equal(
+            marked,
+            'This database is marked as installation prod now, as a live operation.\n',
+        );
         assert.match(
             again,
-            /^This database was marked as installation prod already, on .* by cli:ops@example\.com:deploy-host; nothing was written\.\n$/,
+            /^This database was marked as installation prod already, as a live operation, on .* by cli:ops@example\.com:deploy-host; nothing was written\.\n$/,
         );
         assert.equal(
             replaced,
-            'This database is marked as installation staging now, in place of the mark it carried.\n',
+            'This database is marked as installation staging now, as a live operation, in place of the mark it carried.\n',
         );
     });
 });
@@ -175,17 +190,146 @@ describe('installation status', () => {
 
         assert.deepEqual(lines, [
             'This database carries no installation mark, so nothing is deleted in it. ' +
-                'Mark it as this environment’s with `<app> installation mark prod`.\n',
-            'This database is marked as installation prod, the one this environment names.\n',
+                'Mark it as this environment’s with `<app> installation mark prod`. ' +
+                'Without a mark it is a live operation.\n',
+            'This database is marked as installation prod, the one this environment names. ' +
+                'It is marked as a live operation.\n',
             'This database is marked as installation prod, but this environment names staging, ' +
                 'so nothing is deleted in it. If a backup was restored into this environment, ' +
-                'mark it again with `<app> installation mark staging --replace`.\n',
+                'mark it again with `<app> installation mark staging --replace`. ' +
+                'It is marked as a live operation.\n',
         ]);
         assert.deepEqual(JSON.parse(json), {
             kind: 'differs',
             expected: 'staging',
             marked: 'prod',
+            operation: 'live',
+            issued: { test: false, live: false },
         });
         assert.deepEqual(matches.ctx.asked, [], 'reading the mark asks for nobody');
+    });
+});
+
+describe('installation mark --operation', () => {
+    test('marks a new database as a test operation, and says so', async () => {
+        const { flow, store } = await setUp({ environment: 'INT' });
+
+        const said = await printed(
+            new InstallationMarkCommand(flow),
+            { yes: true, operation: 'test' },
+            ['INT'],
+        );
+
+        assert.equal(
+            said,
+            'This database is marked as installation INT now, as a test operation.\n',
+        );
+        assert.equal((await store.find()).testOperation, true);
+    });
+
+    test('with --replace, replaces production’s mark and makes the copy a test operation', async () => {
+        const { flow, ctx, store } = await setUp({ environment: 'INT', standing: 'PROD' });
+
+        const outcome = await flow.mark('INT', { yes: true, replace: true, operation: 'test' });
+
+        assert.equal(outcome.kind, 'replaced');
+        assert.equal(ctx.asked.at(-1), 'replace PROD with INT');
+        assert.deepEqual(
+            [(await store.find()).identifier, (await store.find()).testOperation],
+            ['INT', true],
+        );
+    });
+
+    test('with --replace alone, keeps the operation the database has', async () => {
+        const { flow, store } = await setUp({
+            environment: 'INT',
+            standing: 'OLD-INT',
+            testOperation: true,
+        });
+
+        await flow.mark('INT', { yes: true, replace: true });
+
+        assert.equal((await store.find()).testOperation, true);
+    });
+
+    test('changes the operation of this environment’s mark, and says from what', async () => {
+        const { flow, store } = await setUp({ environment: 'INT', standing: 'INT' });
+
+        const said = await printed(
+            new InstallationMarkCommand(flow),
+            { yes: true, operation: 'test' },
+            ['INT'],
+        );
+
+        assert.equal(
+            said,
+            'This database, installation INT, is marked as a test operation now, in place of a live operation.\n',
+        );
+        assert.equal((await store.find()).testOperation, true);
+    });
+
+    // @requirement SC-AUD-023 — An installation's operation is fixed with its first document
+    test('refuses another operation once a document exists, as a conflict, and writes nothing', async () => {
+        const { flow, ctx, store } = await setUp({
+            environment: 'INT',
+            standing: 'INT',
+            issued: [false],
+        });
+
+        const error = await cliErrorOf(() => flow.mark('INT', { yes: true, operation: 'test' }));
+
+        assert.deepEqual([error.code, error.exitCode], ['INSTALLATION_OPERATION_FIXED', 6]);
+        assert.match(error.message, /live operation/);
+        assert.ok(!ctx.asked.some((asked) => /^(write|replace)/.test(asked)), 'it wrote');
+        assert.equal((await store.find()).testOperation, false);
+    });
+
+    test('refuses any other value before it asks for anybody, and writes nothing', async () => {
+        const { flow, ctx, store } = await setUp({ environment: 'INT' });
+
+        for (const operation of ['production', 'Test', '']) {
+            const error = await cliErrorOf(() => flow.mark('INT', { yes: true, operation }));
+            assert.deepEqual([error.code, error.exitCode], ['INSTALLATION_OPERATION_INVALID', 1]);
+            assert.match(error.message, /--operation takes test or live/);
+        }
+        assert.deepEqual(ctx.asked, []);
+        assert.equal(await store.find(), null);
+    });
+
+    test('the status names a test operation', async () => {
+        const { flow } = await setUp({ environment: 'INT', standing: 'INT', testOperation: true });
+
+        const said = await printed(new InstallationStatusCommand(flow));
+        const json = await printed(new InstallationStatusCommand(flow), { output: 'json' });
+
+        assert.equal(
+            said,
+            'This database is marked as installation INT, the one this environment names. ' +
+                'It is marked as a test operation.\n',
+        );
+        assert.deepEqual(JSON.parse(json), {
+            kind: 'matches',
+            identifier: 'INT',
+            operation: 'test',
+            issued: { test: false, live: false },
+        });
+    });
+
+    // @requirement SC-AUD-025 — An operator's command line starts where the application refuses on its documents
+    test('the status names documents that recorded another operation, and the mark that repairs it', async () => {
+        const { flow } = await setUp({ environment: 'INT', standing: 'INT', issued: [true] });
+
+        const said = await printed(new InstallationStatusCommand(flow));
+        const json = await printed(new InstallationStatusCommand(flow), { output: 'json' });
+
+        assert.equal(
+            said,
+            'This database is marked as installation INT, the one this environment names. ' +
+                "It is marked as a live operation. The installation's mark says a live operation, " +
+                'and the documents it issued were issued in a test operation. An ' +
+                "installation's operation is fixed with its first document (SC-AUD-023): mark it " +
+                'as its documents say, with `<app> installation mark <identifier> --operation test`.\n',
+        );
+        assert.deepEqual(JSON.parse(json).issued, { test: true, live: false });
     });
 });

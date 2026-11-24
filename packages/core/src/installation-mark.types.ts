@@ -19,9 +19,28 @@ export const INSTALLATION_IDENTIFIER_MAX_LENGTH = 64;
 // more than one way: it is asked of text from the environment.
 const INSTALLATION_IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
-/** The mark a database carries: which installation it belongs to, since when and by whom. */
+/**
+ * How an installation operates, as an operator names it. In a `test`
+ * operation every document the installation issues is marked as a test, so
+ * that none is taken for a real one; a `live` one issues real documents.
+ */
+export const INSTALLATION_OPERATIONS = ['test', 'live'] as const;
+
+/** How an installation operates: `test` or `live`. */
+export type InstallationOperation = (typeof INSTALLATION_OPERATIONS)[number];
+
+/**
+ * The mark a database carries: which installation it belongs to, how it
+ * operates, since when and by whom.
+ */
 export interface InstallationMark {
     readonly identifier: string;
+    /**
+     * Whether the installation is a test operation. A mark written without
+     * saying so is live, as the column default writes it: a test operation is
+     * always the operator's deliberate step.
+     */
+    readonly testOperation: boolean;
     readonly markedAt: Date;
     /** As the audit log tags an actor: `cli:<email>:<host>`. */
     readonly markedBy: string;
@@ -66,4 +85,56 @@ export function installationMarkVerdict(
     if (mark === null) return { kind: 'unmarked', expected };
     if (mark.identifier === expected) return { kind: 'matches', identifier: expected };
     return { kind: 'differs', expected, marked: mark.identifier };
+}
+
+/**
+ * How a database marked so operates. One nobody marked is live: the operation
+ * is a property of the mark, and without one nothing says the installation is
+ * a test.
+ */
+export function installationOperationOf(
+    mark: Pick<InstallationMark, 'testOperation'> | null,
+): InstallationOperation {
+    return mark?.testOperation === true ? 'test' : 'live';
+}
+
+/**
+ * Which operations the documents a store keeps were issued in: `test` where
+ * any of them was issued in a test operation, `live` where any was issued in a
+ * live one. Both are `false` where it keeps none.
+ */
+export type DocumentOperations = Readonly<Record<InstallationOperation, boolean>>;
+
+/**
+ * The operations documents recorded with `testOperations` were issued in — the
+ * flag each of them recorded when it was issued, in any order and any number.
+ */
+export function documentOperationsOf(testOperations: readonly boolean[]): DocumentOperations {
+    return { test: testOperations.includes(true), live: testOperations.includes(false) };
+}
+
+/**
+ * What `installation status` and the doctor say of a database: whether it
+ * belongs to this environment, how it operates, and which operations the
+ * documents it issued recorded — `null` where they cannot be read.
+ */
+export type InstallationStatus = InstallationMarkVerdict & {
+    readonly operation: InstallationOperation;
+    readonly issued: DocumentOperations | null;
+};
+
+/**
+ * The verdict on `mark` against `expected`, with the operation the mark says
+ * and the operations the documents recorded.
+ */
+export function installationStatus(
+    expected: string,
+    mark: Pick<InstallationMark, 'identifier' | 'testOperation'> | null,
+    issued: DocumentOperations | null,
+): InstallationStatus {
+    return {
+        ...installationMarkVerdict(expected, mark),
+        operation: installationOperationOf(mark),
+        issued,
+    };
 }

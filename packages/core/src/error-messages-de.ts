@@ -583,6 +583,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Diese Datenbank ist bereits als Installation {marked} markiert; diese Markierung zu ersetzen ist ein eigener, bewusster Schritt.',
     INSTALLATION_MARK_MOVED:
         'Die Markierung dieser Datenbank hat sich geändert, während sie ersetzt wurde. Es wurde nichts geschrieben; lesen Sie sie erneut.',
+    INSTALLATION_OPERATION_FIXED:
+        'Diese Installation hat bereits Dokumente in der Betriebsart „{issued}“ ausgestellt und kann deshalb nicht als „{requested}“ markiert werden: Die Betriebsart einer Installation steht mit ihrem ersten Dokument fest. Es wurde nichts geschrieben.',
+    INSTALLATION_DOCUMENTS_NOT_READABLE:
+        'Diese Installation bleibt in der Betriebsart „{standing}“ und wird nicht als „{requested}“ markiert: Die Dokumente, die sie ausgestellt hat, können hier nicht gelesen werden, also ist nicht belegt, dass es keines gibt, und die Betriebsart steht mit dem ersten fest. Es wurde nichts geschrieben.',
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED:
         'Der Steueradapter {adapter} unterstützt diesen Fall nicht: {reason}',

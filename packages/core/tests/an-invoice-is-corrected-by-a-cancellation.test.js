@@ -104,6 +104,7 @@ const CANCELLED = {
     issuer: { ...PARTY, legalName: 'Issuer GmbH', vatId: 'DE123456789' },
     subscriber: { ...PARTY, customerNumber: 'K-10001' },
     footer: ['Amtsgericht München HRB 123456'],
+    testOperation: false,
     taxTreatment: STANDARD,
     taxes: [{ rate: 19, net: 45.1, tax: 8.57 }],
     totalNet: 45.1,

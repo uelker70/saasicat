@@ -89,18 +89,18 @@ properties it has while doing it.
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 31      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 59      |
-| 15  | Working in the interface                     | `SC-UI-…`    | 28      |
+| 15  | Working in the interface                     | `SC-UI-…`    | 29      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 27      |
-| 21  | Answering the question afterwards            | `SC-AUD-…`   | 22      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 25      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 17      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 728 entries: 🟢 635 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 732 entries: 🟢 639 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
 🔵 63 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),

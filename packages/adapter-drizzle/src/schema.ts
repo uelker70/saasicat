@@ -421,6 +421,7 @@ export const settingsChanges = pgTable('settings_changes', {
 export const installationMarks = pgTable('installation_marks', {
     id: text('id').primaryKey().default('installation'),
     identifier: text('identifier').notNull(),
+    testOperation: boolean('testOperation').notNull().default(false),
     markedAt: ts('markedAt').notNull(),
     markedBy: text('markedBy').notNull(),
 });
@@ -804,6 +805,7 @@ export const subscriptionInvoices = pgTable('subscription_invoices', {
     issuerParty: jsonb('issuerParty').notNull(),
     subscriberParty: jsonb('subscriberParty').notNull(),
     footer: jsonb('footer').notNull().default([]),
+    testOperation: boolean('testOperation').notNull().default(false),
     taxTreatment: jsonb('taxTreatment').notNull(),
     taxes: jsonb('taxes').notNull(),
     totalNet: numeric('totalNet', { precision: 12, scale: 2 }).notNull(),
@@ -1044,6 +1046,7 @@ export const contractConfirmations = pgTable('contract_confirmations', {
     fileName: text('fileName').notNull(),
     size: integer('size').notNull(),
     renderedAt: ts('renderedAt').notNull(),
+    testOperation: boolean('testOperation').notNull().default(false),
     archivedAt: ts('archivedAt'),
     deliveryClaimedAt: ts('deliveryClaimedAt'),
     deliveredAt: ts('deliveredAt'),

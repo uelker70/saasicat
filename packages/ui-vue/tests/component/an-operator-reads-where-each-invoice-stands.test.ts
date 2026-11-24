@@ -33,6 +33,7 @@ const invoice = (
     cancelledBy: null,
     replacedBy: null,
     payment: null,
+    testOperation: false,
     documentArchived: false,
     ...overrides,
 });
@@ -110,5 +111,42 @@ describe('the invoices in a subscriber’s record', () => {
     test('an invoice paid in part past its due date says what it still owes of its total', async () => {
         const replacement = (await rows()).get('AHP-2026-000003');
         expect(replacement?.payment).toBe(`Overdue: ${replacement?.owed} of ${replacement?.total}`);
+    });
+});
+
+// @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+describe('an invoice in a subscriber’s record issued in a test operation', () => {
+    test('is named a test beside its number and in its download, and one issued live as before', async () => {
+        const { wrapper } = await mountRecord({
+            capabilities: { 'payments.read': true, 'invoices.read': true },
+            subscribers: {
+                payments: async () => ({
+                    invoices: [
+                        invoice('AHPT-2026-000002', {
+                            testOperation: true,
+                            documentArchived: true,
+                        }),
+                        invoice('AHP-2026-000001', { documentArchived: true }),
+                    ],
+                    openCases: [],
+                }),
+            },
+        });
+        mounted.push(wrapper);
+        const numbers = [...rowsOf(wrapper).keys()].map((cell) => cell.split(/\s+/));
+
+        expect(numbers).toEqual([['AHPT-2026-000002', 'Test'], ['AHP-2026-000001']]);
+        expect(
+            wrapper.find('button[aria-label="Download test invoice AHPT-2026-000002"]').exists(),
+        ).toBe(true);
+        expect(wrapper.find('button[aria-label="Download invoice AHP-2026-000001"]').exists()).toBe(
+            true,
+        );
+        const pills = wrapper.findAll('tbody tr').map((row) => row.find('td').findAll('.sa-pill'));
+        expect(pills.map((each) => each.map((pill) => pill.text()))).toEqual([['Test'], []]);
+        const aligned = wrapper
+            .findAll('tbody tr')
+            .map((row) => row.find('td').classes('text-left'));
+        expect(aligned).toEqual([true, true]);
     });
 });

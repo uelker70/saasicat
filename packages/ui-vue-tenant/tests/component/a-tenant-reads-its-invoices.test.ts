@@ -42,6 +42,7 @@ const invoice = (id: string, overrides: Partial<TenantInvoice> = {}): TenantInvo
     cancelledBy: null,
     replacedBy: null,
     payment: null,
+    testOperation: false,
     documentArchived: true,
     ...overrides,
 });
@@ -69,6 +70,7 @@ const CONFIRMATIONS = {
             firstDay: '2026-07-01',
             planTitle: 'Pro',
             archived: true,
+            testOperation: false,
         },
         {
             contractId: 'c-3',
@@ -76,6 +78,7 @@ const CONFIRMATIONS = {
             firstDay: '2026-08-01',
             planTitle: null,
             archived: false,
+            testOperation: null,
         },
     ],
 };
@@ -293,6 +296,36 @@ describe("the tenant's invoices", () => {
         expect(rowOf(wrapper, '0').cells[6]).toBe(i18n.invoicesDocumentFollows);
     });
 
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('name one issued in a test operation a test, in words beside its number and in its download, and one issued live as before', async () => {
+        const { wrapper } = await mountSection({
+            '/billing/invoices': [
+                200,
+                {
+                    invoices: [invoice('t', { testOperation: true }), invoice('l')],
+                    next: null,
+                },
+            ],
+            '/billing/contracts': [200, { confirmations: [] }],
+        });
+
+        const marked = rowOf(wrapper, 't');
+        const badge = marked.row.find('td').find('.sp-badge');
+        expect(badge.exists()).toBe(true);
+        expect(badge.text()).toBe(i18n.invoiceTestOperation);
+        expect(marked.cells[0]).toBe(`R-t ${i18n.invoiceTestOperation}`);
+        expect(marked.row.find('button').attributes('aria-label')).toBe(
+            fill(i18n.invoicesDownloadTestInvoice, { number: 'R-t' }),
+        );
+
+        const live = rowOf(wrapper, 'l');
+        expect(live.row.find('.sp-badge').exists()).toBe(false);
+        expect(live.cells[0]).toBe('R-l');
+        expect(live.row.find('button').attributes('aria-label')).toBe(
+            fill(i18n.invoicesDownloadInvoice, { number: 'R-l' }),
+        );
+    });
+
     test('say so where a document could not be downloaded, and keep the list', async () => {
         const { wrapper, calls } = await mountSection({
             '/billing/invoices': [200, PAGE],
@@ -385,5 +418,44 @@ describe('the contract confirmations beside them', () => {
         expect(items[1]!.find('button').exists()).toBe(false);
         expect(items[1]!.text()).toContain(i18n.confirmationBeingMade);
         expect(wrapper.text()).toContain(i18n.invoicesEmpty);
+    });
+});
+
+// @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+describe('a contract confirmation made in a test operation', () => {
+    test('is named a test beside its line and in its download, and one made live or not yet as before', async () => {
+        const confirmation = (contractId: string, testOperation: boolean | null) => ({
+            contractId,
+            concludedOn: '2026-07-01',
+            firstDay: '2026-07-01',
+            planTitle: 'Pro',
+            archived: true,
+            testOperation,
+        });
+        const { wrapper } = await mountSection({
+            '/billing/invoices': [200, { invoices: [], next: null }],
+            '/billing/contracts': [
+                200,
+                {
+                    confirmations: [
+                        confirmation('test', true),
+                        confirmation('live', false),
+                        confirmation('waiting', null),
+                    ],
+                },
+            ],
+        });
+
+        const [marked, live, waiting] = wrapper.findAll('.sp-invoices__list li');
+        expect(marked!.find('.sp-badge').text()).toBe(i18n.invoiceTestOperation);
+        expect(marked!.find('button').attributes('aria-label')).toBe(
+            fill(i18n.confirmationDownloadTest, { concluded: written('2026-07-01') }),
+        );
+        for (const unmarked of [live!, waiting!]) {
+            expect(unmarked.find('.sp-badge').exists()).toBe(false);
+            expect(unmarked.find('button').attributes('aria-label')).toBe(
+                fill(i18n.confirmationDownload, { concluded: written('2026-07-01') }),
+            );
+        }
     });
 });

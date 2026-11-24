@@ -28,6 +28,7 @@ import {
 } from '../dist/testing/index.js';
 import { bootable, everythingOnOptions } from './helpers/operator-routes.js';
 import { THIS_INSTALLATION, aHandWiredDeletion } from './helpers/installation-mark.js';
+import { documentsIssued } from './helpers/installation-marks.js';
 import { anExport } from './helpers/tenant-data-export.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
@@ -199,8 +200,9 @@ const OPERATOR = { userId: 'u-1', email: 'ops@example.com', source: 'cli', conte
 const OPERATOR_TAG = 'cli:ops@example.com:host-1';
 
 /** A mark as somebody else left it. */
-const standing = (identifier) => ({
+const standing = (identifier, testOperation = false) => ({
     identifier,
+    testOperation,
     markedAt: new Date('2026-01-01T00:00:00.000Z'),
     markedBy: 'cli:other@example.com:host-0',
 });
@@ -208,7 +210,13 @@ const standing = (identifier) => ({
 function setUp(environment, marks = new FakeInstallationMarkRepository()) {
     const audited = [];
     const audit = new AdminAuditService({ write: async (entry) => void audited.push(entry) });
-    return { marks, audited, service: new InstallationMarkService(marks, environment, audit) };
+    // No document was issued, so the operation may change.
+    const { invoices, confirmations } = documentsIssued();
+    return {
+        marks,
+        audited,
+        service: new InstallationMarkService(marks, environment, audit, invoices, confirmations),
+    };
 }
 
 /** The status and coded body of what `fn` threw. */
@@ -284,7 +292,12 @@ describe('marking the database', () => {
         const first = await service.mark('prod', OPERATOR);
         assert.deepEqual(first, {
             kind: 'marked',
-            mark: { identifier: 'prod', markedAt: NOW, markedBy: OPERATOR_TAG },
+            mark: {
+                identifier: 'prod',
+                testOperation: false,
+                markedAt: NOW,
+                markedBy: OPERATOR_TAG,
+            },
         });
 
         mock.timers.tick(60_000);
@@ -295,7 +308,13 @@ describe('marking the database', () => {
         assert.deepEqual(await marks.find(), first.mark);
         assert.deepEqual(
             audited.map((entry) => [entry.action, entry.entityId, entry.changes]),
-            [['INSTALLATION_MARKED', 'prod', { identifier: 'prod', actor: OPERATOR_TAG }]],
+            [
+                [
+                    'INSTALLATION_MARKED',
+                    'prod',
+                    { identifier: 'prod', operation: 'live', actor: OPERATOR_TAG },
+                ],
+            ],
         );
     });
 
@@ -369,7 +388,12 @@ describe("replacing the mark, as after restoring production's backup into stagin
         const outcome = await service.replace('staging', OPERATOR);
         assert.deepEqual(outcome, {
             kind: 'replaced',
-            mark: { identifier: 'staging', markedAt: NOW, markedBy: OPERATOR_TAG },
+            mark: {
+                identifier: 'staging',
+                testOperation: false,
+                markedAt: NOW,
+                markedBy: OPERATOR_TAG,
+            },
         });
         assert.deepEqual(await marks.find(), outcome.mark);
         assert.deepEqual(await service.verdict(), { kind: 'matches', identifier: 'staging' });
@@ -423,6 +447,131 @@ describe("replacing the mark, as after restoring production's backup into stagin
         const { audited, service } = setUp('prod', marks);
 
         const refusal = await refusalOf(() => service.replace('prod', OPERATOR));
+        assert.equal(refusal.code, 'INSTALLATION_MARK_MOVED');
+        assert.deepEqual(audited, []);
+    });
+});
+
+describe('how the installation operates, said on its mark', () => {
+    /** The actions audited, each with what it records. */
+    const actions = (audited) => audited.map((entry) => [entry.action, entry.changes]);
+
+    test('a new mark is live unless the operator says test', async () => {
+        const live = setUp('PROD');
+        const test = setUp('INT');
+
+        const plain = await live.service.mark('PROD', OPERATOR);
+        const marked = await test.service.mark('INT', OPERATOR, { operation: 'test' });
+
+        assert.equal(plain.mark.testOperation, false);
+        assert.equal(marked.kind, 'marked');
+        assert.equal(marked.mark.testOperation, true);
+        assert.equal((await test.marks.find()).testOperation, true);
+        assert.deepEqual(actions(test.audited), [
+            ['INSTALLATION_MARKED', { identifier: 'INT', operation: 'test', actor: OPERATOR_TAG }],
+        ]);
+    });
+
+    test('the status names whose database it is, how it operates and what its documents recorded', async () => {
+        const { service } = setUp('INT');
+        assert.deepEqual(await service.status(), {
+            kind: 'unmarked',
+            expected: 'INT',
+            operation: 'live',
+            issued: { test: false, live: false },
+        });
+
+        await service.mark('INT', OPERATOR, { operation: 'test' });
+
+        assert.deepEqual(await service.status(), {
+            kind: 'matches',
+            identifier: 'INT',
+            operation: 'test',
+            issued: { test: false, live: false },
+        });
+    });
+
+    test('marking the same identifier with another operation changes it, and audits from and to', async () => {
+        const marks = new FakeInstallationMarkRepository();
+        await marks.markIfUnmarked(standing('INT'));
+        const { audited, service } = setUp('INT', marks);
+
+        const outcome = await service.mark('INT', OPERATOR, { operation: 'test' });
+
+        assert.deepEqual(outcome, {
+            kind: 'operation-changed',
+            from: 'live',
+            mark: { identifier: 'INT', testOperation: true, markedAt: NOW, markedBy: OPERATOR_TAG },
+        });
+        assert.deepEqual(await marks.find(), outcome.mark);
+        assert.deepEqual(actions(audited), [
+            ['INSTALLATION_OPERATION_CHANGED', { from: 'live', to: 'test', actor: OPERATOR_TAG }],
+        ]);
+    });
+
+    test('marking with the operation that stands, or with none, writes nothing', async () => {
+        const marks = new FakeInstallationMarkRepository();
+        await marks.markIfUnmarked(standing('INT', true));
+        const { audited, service } = setUp('INT', marks);
+
+        for (const options of [{ operation: 'test' }, {}, undefined]) {
+            const outcome = await service.mark('INT', OPERATOR, options);
+            assert.deepEqual(outcome, { kind: 'already-marked', mark: standing('INT', true) });
+        }
+        assert.deepEqual(audited, []);
+    });
+
+    test('--replace without an operation keeps the one that stands, with it changes it', async () => {
+        const kept = new FakeInstallationMarkRepository();
+        await kept.markIfUnmarked(standing('PROD', true));
+        const restored = setUp('INT', kept);
+
+        const outcome = await restored.service.replace('INT', OPERATOR);
+
+        assert.equal(outcome.kind, 'replaced');
+        assert.equal(outcome.mark.identifier, 'INT');
+        assert.equal(outcome.mark.testOperation, true, 'the operation belongs to the data');
+        assert.deepEqual(actions(restored.audited), [
+            ['INSTALLATION_MARK_REPLACED', { from: 'PROD', to: 'INT', actor: OPERATOR_TAG }],
+        ]);
+
+        const changed = new FakeInstallationMarkRepository();
+        await changed.markIfUnmarked(standing('PROD'));
+        const int = setUp('INT', changed);
+
+        const turned = await int.service.replace('INT', OPERATOR, { operation: 'test' });
+
+        assert.equal(turned.kind, 'replaced');
+        assert.equal((await changed.find()).testOperation, true);
+        assert.deepEqual(actions(int.audited), [
+            ['INSTALLATION_MARK_REPLACED', { from: 'PROD', to: 'INT', actor: OPERATOR_TAG }],
+            ['INSTALLATION_OPERATION_CHANGED', { from: 'live', to: 'test', actor: OPERATOR_TAG }],
+        ]);
+    });
+
+    test('--replace on the same identifier changes the operation as marking does', async () => {
+        const marks = new FakeInstallationMarkRepository();
+        await marks.markIfUnmarked(standing('INT'));
+        const { service } = setUp('INT', marks);
+
+        const outcome = await service.replace('INT', OPERATOR, { operation: 'test' });
+
+        assert.equal(outcome.kind, 'operation-changed');
+        assert.equal((await marks.find()).testOperation, true);
+    });
+
+    test('an operation changed by somebody else between the read and the write is refused as moved', async () => {
+        const marks = new FakeInstallationMarkRepository();
+        await marks.markIfUnmarked(standing('INT'));
+        const { audited, service } = setUp('INT', marks);
+        // The service reads the mark live; another operator turns it to a test
+        // operation before this write, which then lands on nothing.
+        mock.method(marks, 'find', async () => standing('INT'));
+        await marks.replace(standing('INT'), standing('INT', true));
+
+        const refusal = await refusalOf(() => service.mark('INT', OPERATOR, { operation: 'test' }));
+
+        assert.equal(refusal.status, 409);
         assert.equal(refusal.code, 'INSTALLATION_MARK_MOVED');
         assert.deepEqual(audited, []);
     });

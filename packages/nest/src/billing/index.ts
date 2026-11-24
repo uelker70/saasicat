@@ -105,6 +105,7 @@ export { DeletionReminderService, type DeletionReminderRun } from './deletion-re
 export {
     InstallationMarkService,
     type InstallationMarkOutcome,
+    type InstallationMarkWriteOptions,
 } from './deletion/installation-mark.service.js';
 export {
     DELETION_CLAIM_LEASE_MS,
@@ -192,6 +193,7 @@ export {
 } from './invoices/subscription-invoice.service.js';
 export { SubscriptionInvoiceCron } from './invoices/subscription-invoice.cron.js';
 export { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './invoices/subscription-invoice.tokens.js';
+export { InvoiceOperationCheck, installationOperationProblem } from './invoices/invoicing-start.js';
 export {
     INVOICE_DELIVERY_LEASE_MS,
     INVOICE_DOCUMENT_TIMEOUT_MS,

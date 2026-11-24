@@ -48,6 +48,7 @@ function invoiceOf(id, subscriber, tenantId, day, overrides = {}) {
         currency: 'EUR',
         issuer: { legalName: 'Systemhaus Nord GmbH' },
         correction: null,
+        testOperation: false,
         lines: [],
         ...overrides,
     };
@@ -203,9 +204,30 @@ describe("a tenant's invoices", () => {
             cancelledBy: null,
             replacedBy: null,
             payment: { kind: 'open', owed: 49, overdue: false },
+            testOperation: false,
             documentArchived: true,
         });
         assert.equal(page.next, null);
+    });
+
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('name one issued in a test operation as one, and one issued live as live', async () => {
+        const { service } = billingArea({
+            invoices: [
+                invoiceOf('meier-1', MEIER, 'tenant-meier-2026', 1),
+                invoiceOf('meier-2', MEIER, 'tenant-meier-2026', 2, { testOperation: true }),
+            ],
+        });
+
+        const page = await service.page('tenant-meier-2026');
+
+        assert.deepEqual(
+            page.invoices.map((invoice) => [invoice.id, invoice.testOperation]),
+            [
+                ['meier-2', true],
+                ['meier-1', false],
+            ],
+        );
     });
 
     test('include those of an earlier tenant joined into the subscriber, read past the tenant policy', async () => {
@@ -436,12 +458,19 @@ describe("an invoice's document", () => {
 
 // @requirement SC-SEC-020 — What crosses the tenant policy is named; a tenant's reach only its subscriber and itself
 describe("a tenant's contract confirmations", () => {
-    const contractOf = (id, concludedAt, state, archivedAt = null) => ({
+    /** A contract whose confirmation was made live once archived, and not made before unless `testOperation` says how. */
+    const contractOf = (
+        id,
+        concludedAt,
+        state,
+        archivedAt = null,
+        testOperation = archivedAt ? false : null,
+    ) => ({
         id,
         concludedAt,
         firstDay: '2026-07-01',
         plan: { key: 'pro', title: 'Pro' },
-        confirmation: { state, archivedAt, deliveredAt: null, deliveredTo: null },
+        confirmation: { state, archivedAt, deliveredAt: null, deliveredTo: null, testOperation },
     });
     const contracts = {
         [MEIER.id]: [
@@ -470,6 +499,7 @@ describe("a tenant's contract confirmations", () => {
                     firstDay: '2026-07-01',
                     planTitle: 'Pro',
                     archived: true,
+                    testOperation: false,
                 },
                 {
                     contractId: 'meier-new',
@@ -477,9 +507,47 @@ describe("a tenant's contract confirmations", () => {
                     firstDay: '2026-07-01',
                     planTitle: 'Pro',
                     archived: false,
+                    testOperation: null,
                 },
             ],
         });
+    });
+
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('name one made in a test operation as one, one made live as live, and one not made yet neither', async () => {
+        const { service } = billingArea({
+            contracts: {
+                [MEIER.id]: [
+                    contractOf(
+                        'test',
+                        '2026-07-03T08:00:00.000Z',
+                        'sent',
+                        '2026-07-03T09:00:00.000Z',
+                        true,
+                    ),
+                    contractOf('made', '2026-07-03T08:00:00.000Z', 'being-made', null, true),
+                    contractOf(
+                        'live',
+                        '2026-07-02T08:00:00.000Z',
+                        'sent',
+                        '2026-07-02T09:00:00.000Z',
+                    ),
+                    contractOf('waiting', '2026-07-01T08:00:00.000Z', 'being-made'),
+                ],
+            },
+        });
+
+        const { confirmations } = await service.confirmationsOf('tenant-meier-2026');
+
+        assert.deepEqual(
+            confirmations.map((each) => [each.contractId, each.testOperation]),
+            [
+                ['test', true],
+                ['made', true],
+                ['live', false],
+                ['waiting', null],
+            ],
+        );
     });
 
     test('download as the archived file for the subscriber’s own contract', async () => {

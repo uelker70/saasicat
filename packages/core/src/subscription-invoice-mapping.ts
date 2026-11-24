@@ -75,6 +75,7 @@ export interface CanonicalSubscriptionInvoiceRow {
     issuerParty: unknown;
     subscriberParty: unknown;
     footer: unknown;
+    testOperation: boolean;
     taxTreatment: unknown;
     taxes: unknown;
     totalNet: unknown;
@@ -160,6 +161,7 @@ export function toSubscriptionInvoiceRecord(
         issuer: issuerOf(row.issuerParty, where('issuerParty')),
         subscriber: subscriberOf(row.subscriberParty, where('subscriberParty')),
         footer: footerOf(row.footer, where('footer')),
+        testOperation: row.testOperation,
         taxTreatment: treatment,
         taxes: taxesOf(row.taxes, where('taxes')),
         totalNet: amountOf(row.totalNet, where('totalNet')),
@@ -376,6 +378,7 @@ export interface SubscriptionInvoiceColumns {
     issuerParty: SubscriptionInvoiceIssuer;
     subscriberParty: SubscriptionInvoiceSubscriber;
     footer: string[];
+    testOperation: boolean;
     taxTreatment: Record<string, unknown>;
     taxes: TaxAtRate[];
     totalNet: string;
@@ -443,6 +446,7 @@ export function subscriptionInvoiceColumns(
         issuerParty: { ...invoice.issuer },
         subscriberParty: { ...invoice.subscriber },
         footer: [...invoice.footer],
+        testOperation: invoice.testOperation,
         taxTreatment: taxTreatmentToJson(invoice.taxTreatment),
         taxes: invoice.taxes.map((entry) => ({ rate: entry.rate, net: entry.net, tax: entry.tax })),
         totalNet: centsText(invoice.totalNet, 'totalNet'),

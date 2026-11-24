@@ -1,11 +1,37 @@
-import type { InstallationMarkVerdict } from '@saasicat/core';
+import type { InstallationMarkVerdict, InstallationStatus } from '@saasicat/core';
+import { installationOperationProblem } from '@saasicat/nest';
 
 /**
- * What the installation verdict means, and the command that changes it where
- * one does, in one sentence or two. `installation status` prints it and the
- * doctor reports it, so that both say the same thing about the same database.
+ * What the installation status means, and the command that changes it where
+ * one does, in a few sentences. `installation status` prints it and the doctor
+ * reports it, so that both say the same thing about the same database.
  */
-export function installationVerdictText(verdict: InstallationMarkVerdict): string {
+export function installationStatusText(status: InstallationStatus): string {
+    const operation =
+        status.kind === 'unmarked'
+            ? 'Without a mark it is a live operation.'
+            : `It is marked as a ${status.operation} operation.`;
+    const problem = operationProblemOf(status);
+    const disagreement = problem === null ? '' : ` ${capitalised(problem)}`;
+    return `${verdictText(status)} ${operation}${disagreement}`;
+}
+
+/**
+ * Why the application refuses to start on this database's documents, in the
+ * words its start refuses with; `null` where they agree with the mark or
+ * cannot be read.
+ */
+export function operationProblemOf(status: InstallationStatus): string | null {
+    return status.issued === null
+        ? null
+        : installationOperationProblem(status.operation, status.issued);
+}
+
+function capitalised(sentence: string): string {
+    return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+}
+
+function verdictText(verdict: InstallationMarkVerdict): string {
     switch (verdict.kind) {
         case 'matches':
             return `This database is marked as installation ${verdict.identifier}, the one this environment names.`;

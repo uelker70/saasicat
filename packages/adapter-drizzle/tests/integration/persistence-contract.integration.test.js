@@ -281,6 +281,13 @@ function createHarness() {
                     .set({ recipientCount: null })
                     .where(eq(saasicatSchema.subscriptionNotices.id, noticeId));
             },
+            async markInstallationBeforeItsOperation(mark) {
+                // Raw, so that the column default decides the operation, as
+                // it does for a row written before the column existed.
+                await db.execute(
+                    sql`INSERT INTO "installation_marks" ("identifier", "markedAt", "markedBy") VALUES (${mark.identifier}, ${mark.markedAt}, ${mark.markedBy})`,
+                );
+            },
             async createSubscriber(input) {
                 const id = randomUUID();
                 await db.insert(saasicatSchema.subscribers).values({

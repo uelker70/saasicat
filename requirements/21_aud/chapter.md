@@ -618,6 +618,8 @@ _Tested by:_
           offered
         - a confirmation not archived yet, or not due, is said and not offered
         - downloads an intact confirmation under the name it was archived with
+        - a confirmation and an invoice made in a test operation are named a test, and live ones as
+          before
         - a download that fails says so, and saves nothing
         - a contract that fails to load says so
         - opening another contract closes the first, and reads the one opened
@@ -695,5 +697,143 @@ _Tested by:_
         - the scan sees each shape a read takes
         - and leaves alone what is not one
         - only core/request-user.ts reads it
+
+<!-- END proof -->
+
+### SC-AUD-023 — An installation's operation is fixed with its first document
+
+🟢 💰 Once an invoice has been issued or a contract confirmation rendered, the installation's mark
+says the operation those documents recorded and no other: `installation mark` refuses to mark it
+as the other operation, with `--replace` too, and refuses to change the operation at all where the
+documents cannot be read, since then nothing shows that none exists. A start that issues invoices
+refuses where the documents recorded another operation than the mark says, or both, naming them.
+So an installation that issued live documents never turns into a test operation, and a test
+operation never turns live; leaving one is a new installation. The command reads the documents
+before it writes the mark: a first document issued between the two is not seen by it, and the next
+start refuses.
+
+_Source:_ #523
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/installation-cli-flow.test.js`
+    - installation mark --operation
+        - refuses another operation once a document exists, as a conflict, and writes nothing
+- `packages/nest/tests/an-installations-operation-is-fixed-with-its-first-document.test.js`
+    - installation mark, once the installation has issued a document
+        - changes the operation while no document exists
+        - refuses another operation once an invoice exists, naming both, and writes nothing
+        - refuses it where only a confirmation was rendered
+        - marks with the operation the documents recorded, and with it alone
+        - --replace with the operation that stands goes ahead, with another it is refused
+        - moves a mark that says another operation to the one its documents recorded
+        - refuses either operation where the documents recorded both
+        - refuses any change where a store of the documents cannot be read, and marks as it stands
+        - reads every tenant's documents, inside the bypass frame
+    - where the command reads the documents from
+        - an installation without invoices reads them from the persistence bundle's stores
+        - tenant billing wired by hand reads the stores its deletion names, and refuses without them
+    - a start that issues invoices
+        - goes on where the documents recorded the operation the mark says
+        - goes on while no document exists, whatever the mark says
+        - is refused where the invoices recorded another operation than the mark, naming both
+        - is refused where only the confirmations recorded another
+        - is refused where the documents recorded both, naming both
+
+<!-- END proof -->
+
+### SC-AUD-025 — An operator's command line starts where the application refuses on its documents
+
+🟢 💰 Where the documents an installation issued recorded another operation than its mark says, or
+both, the application refuses to start (`SC-AUD-023`), and an operator's command line starts all
+the same: `installation status` and the doctor name the disagreement, the doctor as an error, and
+`installation mark` with the operation the documents recorded repairs it, after which the
+application starts. In place of its start, the command line refuses each invoice it would issue
+in the mark's operation and each confirmation it would first render while the two disagree; a
+cancellation and its replacement, which take the cancelled invoice's operation, remain possible.
+A process is a command line by declaration, which `CliContextModule` makes; nothing infers it from
+the shape of the process, since a worker without an HTTP server issues invoices as the application
+does. Where the documents recorded both operations, no command repairs the installation, and it
+issues no further document in the mark's operation.
+
+_Source:_ #523
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/default-doctor-checks.test.js`
+    - InstallationMarkDoctorCheck on how the installation operates
+        - is an error where the documents recorded another operation, naming the mark that repairs
+          it
+        - is an error where the documents recorded both, which no mark repairs
+- `packages/cli/tests/installation-cli-flow.test.js`
+    - installation mark --operation
+        - the status names documents that recorded another operation, and the mark that repairs it
+- `packages/nest/tests/a-confirmation-records-the-operation-it-was-made-in.test.js`
+    - a confirmation first rendered in an operator command line
+        - is not made while the documents recorded another operation than the mark
+        - is made where they recorded the operation the mark says
+- `packages/nest/tests/an-installations-operation-is-fixed-with-its-first-document.test.js`
+    - an operator command line, where the application refuses to start
+        - starts where the documents recorded another operation than the mark, or both
+        - says what the documents recorded, and marking it as they say lets the application start
+        - refuses to issue an invoice while the mark and the documents disagree
+- `examples/notesapp/tests/the-notes-app-cli-marks-its-installation.test.mjs`
+    - the notes app's command line
+        - says it is an operator command line, which the application does not
+
+<!-- END proof -->
+
+### SC-AUD-024 — Every document issued in a test operation says it is one
+
+🟢 💰 An invoice, a cancellation invoice, a replacement and a contract confirmation issued in a test
+operation, as each records it, say so on every page, so that neither their recipient nor a tax
+auditor takes one for a real document: the title calls it a test document, on the first page and
+at the head of every page after it, and so does the title in its metadata; a notice that it is not
+an invoice for VAT purposes, on a confirmation that it confirms no contract, stands under the title
+and at the foot of every page; an invoice's XML states that notice as its first note. A document
+issued live says none of it. Its amounts, tax and due date are those of any document, so a test
+invoice falls due and is collected as a live one. The renderers SaaSiCat ships write all of it,
+and the German tax adapter holds every invoice file to it, whichever renderer wrote it: a test
+invoice whose XML does not state the notice first, or a live one whose XML states it, waits under
+its number (`SC-PRIC-042`). Where it stops: the adapter reads the XML and not the page, so the page
+of an application's own invoice renderer is not checked; and an application's own confirmation
+renderer is handed the operation and the wording, but nothing checks what it prints, since a
+confirmation is a plain PDF with no XML, which the format's validators do not read either.
+
+_Source:_ #523
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/invoice-zugferd/tests/a-document-issued-in-a-test-operation-says-so-on-every-page.test.js`
+    - every renderer the package exports is held to what a test operation marks
+    - ${renderer}, for a document issued in a test operation
+        - (${name}) says so in its title and in the notice under it, at the foot of every page, in
+          its metadata${carriesXml ? ' and first in its XML' : ''}
+        - (${name}) renders into the same bytes every time
+        - is rendered over more than one page at least once, so that every page is read
+    - ${renderer}, for a document issued live
+        - (${name}) says none of it, on any page, in its metadata${carriesXml ? ' or in its XML' :
+          ''}
+- `packages/invoice-zugferd/tests/renders-an-invoice-the-german-adapter-accepts.test.js`
+    - an issued invoice and its twin issued in a test operation
+        - (${name}) are each refused by the German adapter as the file of the other
+- `packages/nest/tests/an-invoice-records-whether-it-was-issued-in-a-test-operation.test.js`
+    - the file of an invoice, checked by the tax adapter
+        - of one issued in a test operation reaches the check as one, and is held where the adapter
+          refuses it
+        - of one issued live reaches the check as live, and is archived
+- `packages/tax-de/tests/an-invoice-file-says-whether-it-was-issued-in-a-test-operation.test.js`
+    - the file of an invoice issued in a test operation
+        - stating the notice as its first note passes
+        - ${what} is refused
+    - the file of an invoice issued live
+        - stating no note, or another one, passes
+        - ${what} is refused
 
 <!-- END proof -->

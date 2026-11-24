@@ -23,6 +23,7 @@ export interface CanonicalContractConfirmationRow {
     fileName: string;
     size: unknown;
     renderedAt: Date;
+    testOperation: boolean;
     archivedAt: Date | null;
     deliveryClaimedAt: Date | null;
     deliveredAt: Date | null;

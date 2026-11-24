@@ -3810,6 +3810,8 @@ describe('a contract written before confirmations is due none, and an archived o
 
         await apply(ARCHIVE);
         await apply(ARCHIVE);
+        // The column a later file adds to the table this one creates.
+        await apply('1.0-the-test-operation-is-recorded.postgres.sql');
 
         assert.equal(await fingerprint(client), reference);
     });
@@ -4173,5 +4175,218 @@ describe('a notice keeps how many it went to', () => {
                 `to_regclass('subscription_ends') AS ends`,
         );
         assert.deepEqual(rows, [{ notices: null, ends: null }]);
+    });
+});
+
+describe('an installation mark says how the installation operates, and an older one is live', () => {
+    // The migration adds the operation to a table that may already hold the
+    // mark, written before marks said whether the installation is a test. A
+    // test operation is always the operator's deliberate step, so that mark
+    // reads as live.
+    const MIGRATION = '1.0-the-installation-is-marked.postgres.sql';
+
+    /** The reference schema with the mark's table in the shape before the operation. */
+    async function beforeTheOperation() {
+        await freshGround();
+        await client.query('ALTER TABLE "installation_marks" DROP COLUMN "testOperation"');
+    }
+
+    test('a mark that stood before the migration is live, after one run and after two', async () => {
+        await beforeTheOperation();
+        await client.query(
+            'INSERT INTO "installation_marks" ("identifier", "markedAt", "markedBy") ' +
+                "VALUES ('PROD', NOW(), 'cli:ops@example.com:host')",
+        );
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            'SELECT "identifier", "testOperation" FROM "installation_marks"',
+        );
+        assert.deepEqual(rows, [{ identifier: 'PROD', testOperation: false }]);
+    });
+
+    test('a database from before gains the column as the fragments declare it', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await client.query('ALTER TABLE "installation_marks" DROP COLUMN "testOperation"');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+    });
+
+    test('a test operation stays one when the migration runs again', async () => {
+        await freshGround();
+        await client.query(
+            'INSERT INTO "installation_marks" ("identifier", "testOperation", "markedAt", "markedBy") ' +
+                "VALUES ('INT', true, NOW(), 'cli:ops@example.com:host')",
+        );
+
+        await apply(MIGRATION);
+
+        const { rows } = await client.query('SELECT "testOperation" FROM "installation_marks"');
+        assert.deepEqual(rows, [{ testOperation: true }]);
+    });
+});
+
+describe('an invoice records whether it was issued in a test operation, and an older one is live', () => {
+    // The migration gives an invoice the operation it was issued in. An
+    // invoice issued before was issued by a release that marked no document as
+    // a test, so it reads as live.
+    const MIGRATION = '1.0-the-test-operation-is-recorded.postgres.sql';
+
+    /** The reference schema with the invoices' table in the shape before the operation. */
+    async function beforeTheOperation() {
+        await freshGround();
+        await client.query('ALTER TABLE "subscription_invoices" DROP COLUMN "testOperation"');
+    }
+
+    test('a database from before gains the column as the fragments declare it', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await beforeTheOperation();
+        assert.notEqual(await fingerprint(client), reference, 'nothing was taken out');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+    });
+
+    test('an invoice issued before the migration is live, after one run and after two', async () => {
+        await beforeTheOperation();
+        await anIssuedInvoice();
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            'SELECT "number", "testOperation" FROM "subscription_invoices"',
+        );
+        assert.deepEqual(rows, [{ number: 'AHP-2026-000001', testOperation: false }]);
+    });
+
+    test('a second run leaves an invoice issued in between as a test as it was written', async () => {
+        await beforeTheOperation();
+        await apply(MIGRATION);
+        await anIssuedInvoice();
+        await client.query('UPDATE "subscription_invoices" SET "testOperation" = true');
+
+        await apply(MIGRATION);
+
+        const { rows } = await client.query('SELECT "testOperation" FROM "subscription_invoices"');
+        assert.deepEqual(rows, [{ testOperation: true }]);
+    });
+
+    test('an installation without invoices is left without them, and runs through', async () => {
+        await freshGround();
+        await client.query('DROP TABLE "subscription_invoices" CASCADE');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscription_invoices') AS invoices`,
+        );
+        assert.deepEqual(rows, [{ invoices: null }]);
+    });
+});
+
+describe('a confirmation records whether it was made in a test operation, and an older one is live', () => {
+    // The migration gives a confirmation the operation it was first rendered
+    // in. One rendered before was made by a release that marked no document as
+    // a test, so it reads as live.
+    const MIGRATION = '1.0-the-test-operation-is-recorded.postgres.sql';
+
+    /** The reference schema with the confirmations' table in the shape before the operation. */
+    async function beforeTheOperation() {
+        await freshGround();
+        await client.query('ALTER TABLE "contract_confirmations" DROP COLUMN "testOperation"');
+    }
+
+    /** The rendered confirmation of the contract `anIssuedInvoice` writes, as the table has it by then. */
+    async function aRenderedConfirmation() {
+        await anIssuedInvoice();
+        await client.query(
+            `INSERT INTO "contract_confirmations"
+                 ("contractId", "checksum", "mediaType", "fileName", "size", "renderedAt")
+             VALUES ('c-1', $1, 'application/pdf', 'contract-c-1.pdf', 2048, now())`,
+            ['a'.repeat(64)],
+        );
+    }
+
+    /** How many `testOperation` columns `table` has. */
+    async function operationColumnsOf(table) {
+        const { rows } = await client.query(
+            'SELECT count(*)::int AS columns FROM information_schema.columns ' +
+                "WHERE table_schema = current_schema() AND table_name = $1 AND column_name = 'testOperation'",
+            [table],
+        );
+        return rows[0].columns;
+    }
+
+    test('a database from before gains the column as the fragments declare it', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await beforeTheOperation();
+        assert.notEqual(await fingerprint(client), reference, 'nothing was taken out');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+    });
+
+    test('a confirmation rendered before the migration is live, after one run and after two', async () => {
+        await beforeTheOperation();
+        await aRenderedConfirmation();
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            'SELECT "contractId", "testOperation" FROM "contract_confirmations"',
+        );
+        assert.deepEqual(rows, [{ contractId: 'c-1', testOperation: false }]);
+    });
+
+    test('a second run leaves a confirmation rendered in between as a test as it was written', async () => {
+        await beforeTheOperation();
+        await apply(MIGRATION);
+        await aRenderedConfirmation();
+        await client.query('UPDATE "contract_confirmations" SET "testOperation" = true');
+
+        await apply(MIGRATION);
+
+        const { rows } = await client.query('SELECT "testOperation" FROM "contract_confirmations"');
+        assert.deepEqual(rows, [{ testOperation: true }]);
+    });
+
+    test('an installation without confirmations still gains the column on its invoices, and runs through', async () => {
+        await freshGround();
+        await client.query('DROP TABLE "contract_confirmation_archive", "contract_confirmations"');
+        await client.query('ALTER TABLE "subscription_invoices" DROP COLUMN "testOperation"');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('contract_confirmations') AS confirmations`,
+        );
+        assert.deepEqual(rows, [{ confirmations: null }]);
+        assert.equal(await operationColumnsOf('subscription_invoices'), 1);
+    });
+
+    test('an installation without invoices still gains the column on its confirmations', async () => {
+        await beforeTheOperation();
+        await client.query('DROP TABLE "subscription_invoices" CASCADE');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        assert.equal(await operationColumnsOf('contract_confirmations'), 1);
     });
 });

@@ -651,6 +651,7 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
     - a tenant's invoices
         - are its subscriber’s, the newest first, each as the list shows it
+        - name one issued in a test operation as one, and one issued live as live
         - include those of an earlier tenant joined into the subscriber, read past the tenant policy
         - come fifty a page, the next after the last of the one before
         - after an invoice the subscriber does not have, are none rather than the first page again
@@ -662,6 +663,8 @@ _Tested by:_
         - ${why} is not found, and nothing is read from the archive
     - a tenant's contract confirmations
         - are those of its subscriber that are confirmed, with the installation’s day
+        - name one made in a test operation as one, one made live as live, and one not made yet
+          neither
         - download as the archived file for the subscriber’s own contract
         - of another subscriber's contract is not found, and nothing is read from the archive
     - the routes

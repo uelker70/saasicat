@@ -1521,7 +1521,13 @@ const contractRow = (
     bundles: [],
     minimumTermUntil: null,
     change: { ...UNCHANGED_CONTRACT, concluded: true },
-    confirmation: { state: 'not-due', archivedAt: null, deliveredAt: null, deliveredTo: null },
+    confirmation: {
+        state: 'not-due',
+        archivedAt: null,
+        deliveredAt: null,
+        deliveredTo: null,
+        testOperation: null,
+    },
     ...overrides,
 });
 
@@ -1546,6 +1552,7 @@ const SUBSCRIBER_CONTRACTS: AdminSubscriberContracts = {
                 archivedAt: '2026-01-01T09:15:00.000Z',
                 deliveredAt: '2026-01-01T09:30:00.000Z',
                 deliveredTo: 'invoices@northwind.example',
+                testOperation: false,
             },
         }),
         contractRow('c-0002', {
@@ -1569,6 +1576,7 @@ const SUBSCRIBER_CONTRACTS: AdminSubscriberContracts = {
                 archivedAt: '2025-07-01T09:15:00.000Z',
                 deliveredAt: null,
                 deliveredTo: null,
+                testOperation: false,
             },
         }),
         contractRow('c-0001', {
@@ -1660,6 +1668,7 @@ const SUBSCRIBER_CONTRACT_DOSSIER: AdminSubscriberContractDossier = {
             issueDate: '2026-02-01',
             currency: 'EUR',
             totalGross: 106.81,
+            testOperation: false,
         },
     ],
     integrity: 'mismatch',

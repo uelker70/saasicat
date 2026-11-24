@@ -121,18 +121,18 @@ properties it has while doing it.
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 31      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 59      |
-| 15  | Working in the interface                     | `SC-UI-…`    | 28      |
+| 15  | Working in the interface                     | `SC-UI-…`    | 29      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 20      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 27      |
-| 21  | Answering the question afterwards            | `SC-AUD-…`   | 22      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 25      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 17      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 728 entries: 🟢 635 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 732 entries: 🟢 639 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
 🔵 63 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -231,7 +231,7 @@ Of 728 entries: 🟢 635 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all),
 [SC-ADM-013](#sc-adm-013--a-tenant-facing-action-that-costs-money-requires-the-tenants-own-administrator)
 
-Generated from `requirements/` — 728 requirements. Do not edit by hand:
+Generated from `requirements/` — 732 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -11021,6 +11021,8 @@ _Tested by:_
         - is the same bytes every time, whatever was rendered in between
         - is dated from the moment the invoice was issued, not the clock
         - of another invoice is another file, under another identifier
+    - an issued invoice and its twin issued in a test operation
+        - (${name}) are each refused by the German adapter as the file of the other
     - what the page says
         - the parties, the invoice’s facts, its lines and its total, labelled in German and English
         - the subscriber’s VAT id and its country by name, under the reverse charge
@@ -12806,6 +12808,8 @@ _Tested by:_
         - is the same bytes every time, whatever was rendered in between
         - is dated from the moment the invoice was issued, not the clock
         - of another invoice is another file, under another identifier
+    - an issued invoice and its twin issued in a test operation
+        - (${name}) are each refused by the German adapter as the file of the other
     - what the page says
         - the parties, the invoice’s facts, its lines and its total, labelled in German and English
         - the subscriber’s VAT id and its country by name, under the reverse charge
@@ -12963,6 +12967,8 @@ _Tested by:_
         - is the same bytes every time, whatever was rendered in between
         - is dated from the moment the invoice was issued, not the clock
         - of another invoice is another file, under another identifier
+    - an issued invoice and its twin issued in a test operation
+        - (${name}) are each refused by the German adapter as the file of the other
     - what the page says
         - the parties, the invoice’s facts, its lines and its total, labelled in German and English
         - the subscriber’s VAT id and its country by name, under the reverse charge
@@ -14053,6 +14059,7 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
     - a tenant's invoices
         - are its subscriber’s, the newest first, each as the list shows it
+        - name one issued in a test operation as one, and one issued live as live
         - include those of an earlier tenant joined into the subscriber, read past the tenant policy
         - come fifty a page, the next after the last of the one before
         - after an invoice the subscriber does not have, are none rather than the first page again
@@ -17500,6 +17507,8 @@ _Tested by:_
           offered
         - a confirmation not archived yet, or not due, is said and not offered
         - downloads an intact confirmation under the name it was archived with
+        - a confirmation and an invoice made in a test operation are named a test, and live ones as
+          before
         - a download that fails says so, and saves nothing
         - a contract that fails to load says so
         - opening another contract closes the first, and reads the one opened
@@ -19343,6 +19352,7 @@ _Tested by:_
         - an end at midnight leaves the day before as its last day
         - one never in force has no last day and says so
         - names its plan and add-ons as frozen, and the latest minimum term of its lines
+        - names the operation its confirmation was made in once it is, and none before
         - lists the one written last first
     - the lines of a contract
         - read the plan, then the add-ons, then the discounts, each kind in the contract’s order
@@ -19352,6 +19362,7 @@ _Tested by:_
         - is in the catalogue, removed from it, or deleted
     - the invoices issued under a contract
         - are only the contract’s, the latest issue day first, and of one day by number
+        - name one issued in a test operation as one, and one issued live as live
 - `packages/nest/tests/a-contract-is-confirmed.test.js`
     - a contract’s dossier
         - is the contract as it was frozen, each line with where it came from, and the invoices
@@ -19419,6 +19430,8 @@ _Tested by:_
           offered
         - a confirmation not archived yet, or not due, is said and not offered
         - downloads an intact confirmation under the name it was archived with
+        - a confirmation and an invoice made in a test operation are named a test, and live ones as
+          before
         - a download that fails says so, and saves nothing
         - a contract that fails to load says so
         - opening another contract closes the first, and reads the one opened
@@ -19498,6 +19511,7 @@ _Tested by:_
           then number
         - names each invoice’s subscriber as it names itself, the way into its record, and its
           amounts
+        - names an invoice issued in a test operation as one, and one issued live as live
         - says whose document is archived, and which cancellation invoice cancelled an invoice,
           however much later
         - holds ${INVOICE_REGISTER_PAGE_SIZE} invoices, and the next one continues after its last
@@ -19521,6 +19535,8 @@ _Tested by:_
           document is archived
         - leads into a subscriber’s record wherever the shell put the subscribers
         - asks again for the months picked, and refuses months it cannot read without asking
+        - names an invoice issued in a test operation a test, in words beside its number and in its
+          download, and one issued live as before
         - says so where no invoice was issued in the months
         - offers cancelling where an invoice stands and the platform serves it, and nowhere else
     - an invoice cancelled from the register
@@ -19593,11 +19609,13 @@ _Tested by:_
         - ${text} is ${is ? '' : 'not '}a day and a time
     - the schema an export is published under
         - names the tax treatments, settlement kinds and languages core writes, no more
+        - names the operations an installation issues its invoices in, no more
         - names the format version core writes, in the export and in its manifest
         - takes a day and a month in the shapes core reads them
     - an export as of a moment
         - holds the invoices issued by then, by issue date and number, each with its party and
           treatment
+        - names the operation each invoice was issued in, a test one as a test
         - holds the settlements recorded by then, the period over too, and none recorded later
         - names a cancellation recorded by then, its invoice issued after the period too, and none
           recorded later
@@ -19619,6 +19637,7 @@ _Tested by:_
           CRLF after each row
         - defuse a text cell a spreadsheet would read as a formula, and quote what holds a
           separator, a quote or a line break
+        - write the operation of each invoice in a column of its own, a test one as test
         - write an amount as a number, never defused, and a missing value as an empty cell
         - write export.json from the same model, the same text every time
         - are named in a manifest with the period, the moment, the notation, the counts and every
@@ -19670,6 +19689,7 @@ _Tested by:_
     - the open invoices
         - are those that still owe, the oldest due date first, with what each owes and how many days
           it is overdue in the installation’s zone
+        - name one issued in a test operation as one, and one issued live as live
         - say how each is paid and how its latest collection attempt ended
         - say the payment method the latest attempt charged, one that replaced the invoice’s since
           included, and before any attempt the invoice’s
@@ -19702,6 +19722,8 @@ _Tested by:_
           credit
         - list each open invoice with what it owes, the days it is overdue, how it is paid and its
           last collection
+        - name an invoice issued in a test operation a test beside its number, and one issued live
+          as before
         - lead into a subscriber’s record wherever the shell put the subscribers
         - overdue alone asks for those again, and reads neither the credits nor the totals anew
         - say so where nothing is open
@@ -19921,6 +19943,7 @@ _Tested by:_
         - ${text} is ${is ? '' : 'not '}a day and a time
     - the schema an export is published under
         - names the tax treatments, settlement kinds and languages core writes, no more
+        - names the operations an installation issues its invoices in, no more
         - names the format version core writes, in the export and in its manifest
         - takes a day and a month in the shapes core reads them
     - the files an export is written to
@@ -19929,6 +19952,7 @@ _Tested by:_
           CRLF after each row
         - defuse a text cell a spreadsheet would read as a formula, and quote what holds a
           separator, a quote or a line break
+        - write the operation of each invoice in a column of its own, a test one as test
         - write an amount as a number, never defused, and a missing value as an empty cell
         - write export.json from the same model, the same text every time
         - are named in a manifest with the period, the moment, the notation, the counts and every
@@ -20262,6 +20286,7 @@ _Tested by:_
     - where each of a subscriber's invoices stands
         - is paid on the installation’s day its payment arrived, and open and overdue past its due
           date
+        - names one issued in a test operation as one, and one issued live as live
         - names the replacement of an invoice cancelled, which says nothing of a payment
 - `packages/ui-vue/tests/an-invoice-says-where-its-payment-stands.test.js`
     - an invoice cancelled
@@ -20270,11 +20295,16 @@ _Tested by:_
     - where an invoice's payment stands
         - reads ${JSON.stringify(en)} where ${why}
         - its sentences never call a credit a Gutschrift
+    - the download of an invoice
+        - is named a test invoice’s for one issued in a test operation, in both languages
+        - is named as before for one issued live
 - `packages/ui-vue/tests/component/an-operator-reads-where-each-invoice-stands.test.ts`
     - the invoices in a subscriber’s record
         - an invoice cancelled names what cancelled it and what replaced it, and no payment
         - an invoice paid says on which day, written as the record writes days
         - an invoice paid in part past its due date says what it still owes of its total
+    - an invoice in a subscriber’s record issued in a test operation
+        - is named a test beside its number and in its download, and one issued live as before
 
 <!-- END proof -->
 
@@ -22155,12 +22185,17 @@ _Tested by:_
         - link a cancelled invoice to its cancellation and its replacement, and each of those back
         - lead from a link to an invoice on a page not read yet, reading it first
         - offer the document once it is archived, and say it follows until then
+        - name one issued in a test operation a test, in words beside its number and in its
+          download, and one issued live as before
         - say so where a document could not be downloaded, and keep the list
         - go on with the next page below the first, where there is one
         - keep the rows read where a further page could not be, and say so beneath them
         - that could not be read are said to be so
     - the contract confirmations beside them
         - name each contract and its days, and offer the archived ones for download
+    - a contract confirmation made in a test operation
+        - is named a test beside its line and in its download, and one made live or not yet as
+          before
 
 <!-- END proof -->
 
@@ -22410,12 +22445,17 @@ _Tested by:_
         - link a cancelled invoice to its cancellation and its replacement, and each of those back
         - lead from a link to an invoice on a page not read yet, reading it first
         - offer the document once it is archived, and say it follows until then
+        - name one issued in a test operation a test, in words beside its number and in its
+          download, and one issued live as before
         - say so where a document could not be downloaded, and keep the list
         - go on with the next page below the first, where there is one
         - keep the rows read where a further page could not be, and say so beneath them
         - that could not be read are said to be so
     - the contract confirmations beside them
         - name each contract and its days, and offer the archived ones for download
+    - a contract confirmation made in a test operation
+        - is named a test beside its line and in its download, and one made live or not yet as
+          before
 
 <!-- END proof -->
 
@@ -22635,6 +22675,80 @@ _Tested by:_
         - an arrow may pass its parameter on, and nothing else
         - only the one place calls the formatter itself
         - a date is written with toLocaleDateString only inside a formatDate
+
+<!-- END proof -->
+
+### SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+
+🟢 💰 An invoice issued, or a contract confirmation made, in a test operation (`SC-AUD-024`) is
+marked "Test" beside it on every list a tenant or an operator reads it in — the tenant's invoices
+and confirmations; the operator's register, the open items, and a subscriber's record with its
+invoices, its contracts and the invoices of each contract — and its download is named a test
+document's: in words, never by a colour alone. One issued live shows nothing extra. The register's
+export for a tax advisor (`SC-ADM-043`) names each invoice's operation, `test` or `live`, in a
+column of its own. Where it stops: a confirmation not rendered yet carries no mark, because its
+operation is recorded when it is first rendered; and a reconciliation case or a credit names the
+invoice it concerns by its number alone.
+
+_Source:_ #523
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-contract-reads-as-it-was-frozen.test.js`
+    - a contract as the list shows it
+        - names the operation its confirmation was made in once it is, and none before
+    - the invoices issued under a contract
+        - name one issued in a test operation as one, and one issued live as live
+- `packages/core/tests/an-export-is-what-was-recorded-by-its-moment.test.js`
+    - the schema an export is published under
+        - names the operations an installation issues its invoices in, no more
+    - an export as of a moment
+        - names the operation each invoice was issued in, a test one as a test
+    - the files an export is written to
+        - write the operation of each invoice in a column of its own, a test one as test
+- `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
+    - a tenant's invoices
+        - name one issued in a test operation as one, and one issued live as live
+    - a tenant's contract confirmations
+        - name one made in a test operation as one, one made live as live, and one not made yet
+          neither
+- `packages/nest/tests/an-operator-reads-the-invoice-register.test.js`
+    - a page of the register
+        - names an invoice issued in a test operation as one, and one issued live as live
+- `packages/nest/tests/an-operator-reads-the-open-items.test.js`
+    - the open invoices
+        - name one issued in a test operation as one, and one issued live as live
+- `packages/nest/tests/an-operator-reconciles-what-matched-nothing.test.js`
+    - where each of a subscriber's invoices stands
+        - names one issued in a test operation as one, and one issued live as live
+- `packages/ui-vue/tests/an-invoice-says-where-its-payment-stands.test.js`
+    - the download of an invoice
+        - is named a test invoice’s for one issued in a test operation, in both languages
+        - is named as before for one issued live
+- `packages/ui-vue/tests/component/an-operator-reads-the-invoice-register.test.ts`
+    - the register of invoices
+        - names an invoice issued in a test operation a test, in words beside its number and in its
+          download, and one issued live as before
+- `packages/ui-vue/tests/component/an-operator-reads-the-open-items.test.ts`
+    - the open items
+        - name an invoice issued in a test operation a test beside its number, and one issued live
+          as before
+- `packages/ui-vue/tests/component/an-operator-reads-where-each-invoice-stands.test.ts`
+    - an invoice in a subscriber’s record issued in a test operation
+        - is named a test beside its number and in its download, and one issued live as before
+- `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
+    - the subscriber's record shows its contracts
+        - a confirmation and an invoice made in a test operation are named a test, and live ones as
+          before
+- `packages/ui-vue-tenant/tests/component/a-tenant-reads-its-invoices.test.ts`
+    - the tenant's invoices
+        - name one issued in a test operation a test, in words beside its number and in its
+          download, and one issued live as before
+    - a contract confirmation made in a test operation
+        - is named a test beside its line and in its download, and one made live or not yet as
+          before
 
 <!-- END proof -->
 
@@ -23158,6 +23272,12 @@ _Tested by:_
         - warns, before the first mark, that nothing is deleted until the operator marks it
         - is an error where the database is another installation’s, naming both
         - is an error where the mark cannot be read, and fine where nothing is deleted at all
+    - InstallationMarkDoctorCheck on how the installation operates
+        - names a test operation, and is not alarmed by it
+        - is an error where the documents recorded another operation, naming the mark that repairs
+          it
+        - is an error where the documents recorded both, which no mark repairs
+        - is silent about documents that recorded the operation the mark says
     - PLATFORM_DOCTOR_CHECK_PROVIDERS
         - holds every platform check, and nothing else
 - `packages/cli/tests/doctor-flow.test.js`
@@ -25752,6 +25872,7 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-reads-its-invoices.test.js`
     - a tenant's invoices
         - are its subscriber’s, the newest first, each as the list shows it
+        - name one issued in a test operation as one, and one issued live as live
         - include those of an earlier tenant joined into the subscriber, read past the tenant policy
         - come fifty a page, the next after the last of the one before
         - after an invoice the subscriber does not have, are none rather than the first page again
@@ -25763,6 +25884,8 @@ _Tested by:_
         - ${why} is not found, and nothing is read from the archive
     - a tenant's contract confirmations
         - are those of its subscriber that are confirmed, with the installation’s day
+        - name one made in a test operation as one, one made live as live, and one not made yet
+          neither
         - download as the archived file for the subscriber’s own contract
         - of another subscriber's contract is not found, and nothing is read from the archive
     - the routes
@@ -27439,6 +27562,8 @@ _Tested by:_
           offered
         - a confirmation not archived yet, or not due, is said and not offered
         - downloads an intact confirmation under the name it was archived with
+        - a confirmation and an invoice made in a test operation are named a test, and live ones as
+          before
         - a download that fails says so, and saves nothing
         - a contract that fails to load says so
         - opening another contract closes the first, and reads the one opened
@@ -27516,6 +27641,144 @@ _Tested by:_
         - the scan sees each shape a read takes
         - and leaves alone what is not one
         - only core/request-user.ts reads it
+
+<!-- END proof -->
+
+### SC-AUD-023 — An installation's operation is fixed with its first document
+
+🟢 💰 Once an invoice has been issued or a contract confirmation rendered, the installation's mark
+says the operation those documents recorded and no other: `installation mark` refuses to mark it
+as the other operation, with `--replace` too, and refuses to change the operation at all where the
+documents cannot be read, since then nothing shows that none exists. A start that issues invoices
+refuses where the documents recorded another operation than the mark says, or both, naming them.
+So an installation that issued live documents never turns into a test operation, and a test
+operation never turns live; leaving one is a new installation. The command reads the documents
+before it writes the mark: a first document issued between the two is not seen by it, and the next
+start refuses.
+
+_Source:_ #523
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/installation-cli-flow.test.js`
+    - installation mark --operation
+        - refuses another operation once a document exists, as a conflict, and writes nothing
+- `packages/nest/tests/an-installations-operation-is-fixed-with-its-first-document.test.js`
+    - installation mark, once the installation has issued a document
+        - changes the operation while no document exists
+        - refuses another operation once an invoice exists, naming both, and writes nothing
+        - refuses it where only a confirmation was rendered
+        - marks with the operation the documents recorded, and with it alone
+        - --replace with the operation that stands goes ahead, with another it is refused
+        - moves a mark that says another operation to the one its documents recorded
+        - refuses either operation where the documents recorded both
+        - refuses any change where a store of the documents cannot be read, and marks as it stands
+        - reads every tenant's documents, inside the bypass frame
+    - where the command reads the documents from
+        - an installation without invoices reads them from the persistence bundle's stores
+        - tenant billing wired by hand reads the stores its deletion names, and refuses without them
+    - a start that issues invoices
+        - goes on where the documents recorded the operation the mark says
+        - goes on while no document exists, whatever the mark says
+        - is refused where the invoices recorded another operation than the mark, naming both
+        - is refused where only the confirmations recorded another
+        - is refused where the documents recorded both, naming both
+
+<!-- END proof -->
+
+### SC-AUD-025 — An operator's command line starts where the application refuses on its documents
+
+🟢 💰 Where the documents an installation issued recorded another operation than its mark says, or
+both, the application refuses to start (`SC-AUD-023`), and an operator's command line starts all
+the same: `installation status` and the doctor name the disagreement, the doctor as an error, and
+`installation mark` with the operation the documents recorded repairs it, after which the
+application starts. In place of its start, the command line refuses each invoice it would issue
+in the mark's operation and each confirmation it would first render while the two disagree; a
+cancellation and its replacement, which take the cancelled invoice's operation, remain possible.
+A process is a command line by declaration, which `CliContextModule` makes; nothing infers it from
+the shape of the process, since a worker without an HTTP server issues invoices as the application
+does. Where the documents recorded both operations, no command repairs the installation, and it
+issues no further document in the mark's operation.
+
+_Source:_ #523
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/default-doctor-checks.test.js`
+    - InstallationMarkDoctorCheck on how the installation operates
+        - is an error where the documents recorded another operation, naming the mark that repairs
+          it
+        - is an error where the documents recorded both, which no mark repairs
+- `packages/cli/tests/installation-cli-flow.test.js`
+    - installation mark --operation
+        - the status names documents that recorded another operation, and the mark that repairs it
+- `packages/nest/tests/a-confirmation-records-the-operation-it-was-made-in.test.js`
+    - a confirmation first rendered in an operator command line
+        - is not made while the documents recorded another operation than the mark
+        - is made where they recorded the operation the mark says
+- `packages/nest/tests/an-installations-operation-is-fixed-with-its-first-document.test.js`
+    - an operator command line, where the application refuses to start
+        - starts where the documents recorded another operation than the mark, or both
+        - says what the documents recorded, and marking it as they say lets the application start
+        - refuses to issue an invoice while the mark and the documents disagree
+- `examples/notesapp/tests/the-notes-app-cli-marks-its-installation.test.mjs`
+    - the notes app's command line
+        - says it is an operator command line, which the application does not
+
+<!-- END proof -->
+
+### SC-AUD-024 — Every document issued in a test operation says it is one
+
+🟢 💰 An invoice, a cancellation invoice, a replacement and a contract confirmation issued in a test
+operation, as each records it, say so on every page, so that neither their recipient nor a tax
+auditor takes one for a real document: the title calls it a test document, on the first page and
+at the head of every page after it, and so does the title in its metadata; a notice that it is not
+an invoice for VAT purposes, on a confirmation that it confirms no contract, stands under the title
+and at the foot of every page; an invoice's XML states that notice as its first note. A document
+issued live says none of it. Its amounts, tax and due date are those of any document, so a test
+invoice falls due and is collected as a live one. The renderers SaaSiCat ships write all of it,
+and the German tax adapter holds every invoice file to it, whichever renderer wrote it: a test
+invoice whose XML does not state the notice first, or a live one whose XML states it, waits under
+its number (`SC-PRIC-042`). Where it stops: the adapter reads the XML and not the page, so the page
+of an application's own invoice renderer is not checked; and an application's own confirmation
+renderer is handed the operation and the wording, but nothing checks what it prints, since a
+confirmation is a plain PDF with no XML, which the format's validators do not read either.
+
+_Source:_ #523
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/invoice-zugferd/tests/a-document-issued-in-a-test-operation-says-so-on-every-page.test.js`
+    - every renderer the package exports is held to what a test operation marks
+    - ${renderer}, for a document issued in a test operation
+        - (${name}) says so in its title and in the notice under it, at the foot of every page, in
+          its metadata${carriesXml ? ' and first in its XML' : ''}
+        - (${name}) renders into the same bytes every time
+        - is rendered over more than one page at least once, so that every page is read
+    - ${renderer}, for a document issued live
+        - (${name}) says none of it, on any page, in its metadata${carriesXml ? ' or in its XML' :
+          ''}
+- `packages/invoice-zugferd/tests/renders-an-invoice-the-german-adapter-accepts.test.js`
+    - an issued invoice and its twin issued in a test operation
+        - (${name}) are each refused by the German adapter as the file of the other
+- `packages/nest/tests/an-invoice-records-whether-it-was-issued-in-a-test-operation.test.js`
+    - the file of an invoice, checked by the tax adapter
+        - of one issued in a test operation reaches the check as one, and is held where the adapter
+          refuses it
+        - of one issued live reaches the check as live, and is archived
+- `packages/tax-de/tests/an-invoice-file-says-whether-it-was-issued-in-a-test-operation.test.js`
+    - the file of an invoice issued in a test operation
+        - stating the notice as its first note passes
+        - ${what} is refused
+    - the file of an invoice issued live
+        - stating no note, or another one, passes
+        - ${what} is refused
 
 <!-- END proof -->
 
@@ -27869,6 +28132,22 @@ _Tested by:_
         - a notice delivered before counts its recipients, and one not delivered counts none
         - a second run keeps the number of a notice whose recipients were forgotten
         - an installation without notices and ends is left without them, and runs through
+    - an installation mark says how the installation operates, and an older one is live
+        - a mark that stood before the migration is live, after one run and after two
+        - a database from before gains the column as the fragments declare it
+        - a test operation stays one when the migration runs again
+    - an invoice records whether it was issued in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - an invoice issued before the migration is live, after one run and after two
+        - a second run leaves an invoice issued in between as a test as it was written
+        - an installation without invoices is left without them, and runs through
+    - a confirmation records whether it was made in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - a confirmation rendered before the migration is live, after one run and after two
+        - a second run leaves a confirmation rendered in between as a test as it was written
+        - an installation without confirmations still gains the column on its invoices, and runs
+          through
+        - an installation without invoices still gains the column on its confirmations
 
 <!-- END proof -->
 
@@ -28109,6 +28388,22 @@ _Tested by:_
         - a notice delivered before counts its recipients, and one not delivered counts none
         - a second run keeps the number of a notice whose recipients were forgotten
         - an installation without notices and ends is left without them, and runs through
+    - an installation mark says how the installation operates, and an older one is live
+        - a mark that stood before the migration is live, after one run and after two
+        - a database from before gains the column as the fragments declare it
+        - a test operation stays one when the migration runs again
+    - an invoice records whether it was issued in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - an invoice issued before the migration is live, after one run and after two
+        - a second run leaves an invoice issued in between as a test as it was written
+        - an installation without invoices is left without them, and runs through
+    - a confirmation records whether it was made in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - a confirmation rendered before the migration is live, after one run and after two
+        - a second run leaves a confirmation rendered in between as a test as it was written
+        - an installation without confirmations still gains the column on its invoices, and runs
+          through
+        - an installation without invoices still gains the column on its confirmations
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit
@@ -29168,6 +29463,8 @@ _Tested by:_
         - a rendering recorded before under another checksum is refused, and none at all is said
         - ${what} is one update on its guard, answered by whether it took the row
         - a rendering is replaced in place of the recorded checksum while nothing is archived
+        - a replacement sets the file alone, and leaves the operation recorded first
+        - the operations the confirmations recorded are read as their distinct values, at most two
         - the contracts due one are the contracts marked due, joined to their confirmation
         - a confirmation is found by its contract, and nothing where none is recorded
     - each contract’s standing, as Drizzle reads it
@@ -29309,6 +29606,8 @@ _Tested by:_
           checksum
         - a rendering neither written nor found is said
         - a rendering replaced in place of the one recorded is read back, and nothing where none was
+        - a replacement writes the file alone, and leaves the operation recorded first
+        - the operations the confirmations recorded are read as their distinct values, at most two
         - the contracts due one are read over the contracts, those for the mail over the
           confirmations, page by page
         - a confirmation is found by its contract, and nothing where none is recorded
@@ -29325,7 +29624,7 @@ _Tested by:_
         - no row is no mark
         - marking leaves the refusal to the primary key, and answers what stands after it
         - a row gone after the insert is an error, not a mark that was never written
-        - a replacement is guarded on the identifier the caller read
+        - a replacement is guarded on the identifier and the operation the caller read
         - a replacement that matched nothing answers null and reads nothing back
 - `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
     - writing an invoice’s next attempt
@@ -29893,6 +30192,7 @@ _Tested by:_
 - `examples/notesapp/tests/the-notes-app-cli-marks-its-installation.test.mjs`
     - the notes app's command line
         - offers the installation status, marking it, and the doctor — and no other command
+        - says it is an operator command line, which the application does not
         - runs the platform's checks in the doctor, the installation's mark among them
     - the notes app's operators
         - finds the seeded SuperAdmin by its e-mail, under the id its second factor is kept by
@@ -29925,6 +30225,7 @@ _Tested by:_
     - the notes app's invoice mail
         - writes the invoice, its subscriber, its file and its size — not the file, not the address
         - writes a contract's confirmation with each file it attaches
+        - names a test invoice and a test confirmation as tests, and a live one as neither
         - writes a notice about collecting an invoice by its kind and invoice
     - the notes app with invoices on
         - passes the start checks of invoicing and composes the invoice run

@@ -75,6 +75,7 @@ function invoiceOf(subscriberId, totalGross, dueDate, payment = null) {
         issueDate: '2026-02-01',
         dueDate,
         payment,
+        testOperation: false,
     };
 }
 
@@ -197,6 +198,23 @@ describe('the open invoices', () => {
             customerNumber: 'K-2',
             legalName: 'As invoiced subscriber-2',
         });
+    });
+
+    // @requirement SC-UI-029 — Every list of invoices and contract confirmations names a test document as one
+    test('name one issued in a test operation as one, and one issued live as live', async () => {
+        const marked = { ...invoiceOf('subscriber-1', 119, '2026-02-15'), testOperation: true };
+        const live = invoiceOf('subscriber-1', 119, '2026-02-16');
+        const { service } = anInstallation([marked, live]);
+
+        const page = await service.invoicesPage({}, NOW);
+
+        assert.deepEqual(
+            page.invoices.map((row) => [row.number, row.testOperation]),
+            [
+                [marked.number, true],
+                [live.number, false],
+            ],
+        );
     });
 
     test('say how each is paid and how its latest collection attempt ended', async () => {

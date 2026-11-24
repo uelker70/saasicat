@@ -174,6 +174,13 @@ export interface SubscriptionInvoiceRecord {
      * own content (`SC-PRIC-093`); none where it named none.
      */
     footer: string[];
+    /**
+     * Whether it was issued in a test operation, as the installation's mark
+     * said when it was issued; a cancellation and a replacement take the
+     * invoice's they correct. Every rendering of the invoice reads it here,
+     * never from the mark as it stands later (`SC-AUD-019`).
+     */
+    testOperation: boolean;
     /** The treatment the tax adapter decided when it was issued, with its name and version. */
     taxTreatment: TaxTreatment;
     /** The tax, rate by rate, computed once per rate (`SC-PRIC-041`). */

@@ -6,7 +6,7 @@
 // `AdminAuditService` are provided via platform DI.
 
 import { type DynamicModule, Module, type Provider } from '@nestjs/common';
-import { asProvider, type ProviderSpec } from '@saasicat/nest';
+import { asProvider, OperatorCommandLineModule, type ProviderSpec } from '@saasicat/nest';
 import type {
     AuditQueryPort,
     ManifestAccessPort,
@@ -147,6 +147,9 @@ export class CliContextModule {
         return {
             module: CliContextModule,
             global: options.global ?? false,
+            // Declares the process an operator's command line, so that a start
+            // check whose remedy is a command lets the command line start.
+            imports: [OperatorCommandLineModule],
             providers,
             exports: exports_,
         };

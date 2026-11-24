@@ -26,7 +26,8 @@
 //      nothing; `<app> contracts refresh` carries the vocabulary over.
 //   8. **`platform.installation-mark`** — whether the database is marked as
 //      the installation of the environment this process names, which is what
-//      a tenant's deletion runs only behind (`SC-PRIV-021`).
+//      a tenant's deletion runs only behind (`SC-PRIV-021`), and how it
+//      operates: as a test or live, as its documents recorded (`SC-AUD-023`).
 //
 
 import { Inject, Injectable, Optional, type Type } from '@nestjs/common';
@@ -45,7 +46,7 @@ import {
 import type { PlanCatalog, UserPort } from '@saasicat/core';
 import type { DoctorCheck, DoctorCheckResult } from './doctor-flow.js';
 import { USER_PORT_TOKEN } from './cli.tokens.js';
-import { installationVerdictText } from './installation-verdict.js';
+import { installationStatusText, operationProblemOf } from './installation-verdict.js';
 
 @Injectable()
 export class PlanCatalogDoctorCheck implements DoctorCheck {
@@ -378,13 +379,19 @@ export class ContractFeaturesDoctorCheck implements DoctorCheck {
 }
 
 /**
- * Whether the database belongs to the environment this process runs in.
+ * Whether the database belongs to the environment this process runs in, and
+ * how it operates.
  *
- * Unmarked is a warning, not an error: it is how an installation stands before
+ * A test operation is reported, not warned about: it is the operator's
+ * deliberate step, and a warning that fires on a correct configuration teaches
+ * an operator to skip the doctor. Unmarked is a warning, not an error: it is how an installation stands before
  * its operator turns deletion on, and nothing is deleted while it lasts. A
  * mark naming another environment is an error — the process is pointed at
  * another installation's database, or a backup was restored without marking
- * it again.
+ * it again. So is a mark the installation's documents recorded another
+ * operation than, or documents that recorded both (`SC-AUD-023`): the
+ * application refuses to start on either, and the command line, which starts,
+ * is where the operator reads it.
  */
 @Injectable()
 export class InstallationMarkDoctorCheck implements DoctorCheck {
@@ -393,7 +400,7 @@ export class InstallationMarkDoctorCheck implements DoctorCheck {
     constructor(
         @Optional()
         @Inject(InstallationMarkService)
-        private readonly marks: Pick<InstallationMarkService, 'verdict'> | null = null,
+        private readonly marks: Pick<InstallationMarkService, 'status'> | null = null,
     ) {}
 
     async run(): Promise<DoctorCheckResult> {
@@ -403,24 +410,29 @@ export class InstallationMarkDoctorCheck implements DoctorCheck {
                 message: 'The ends of subscriptions are not kept here, so nothing is deleted.',
             };
         }
-        let verdict;
+        let status;
         try {
-            verdict = await this.marks.verdict();
+            status = await this.marks.status();
         } catch (err) {
             return {
                 severity: 'error',
                 message:
-                    'The installation mark cannot be read, so nothing will be deleted: ' +
+                    'The installation mark, or the operations its documents recorded, cannot be ' +
+                    'read, so nothing will be deleted: ' +
                     `${err instanceof Error ? err.message : String(err)}`,
             };
         }
-        const message = installationVerdictText(verdict);
-        if (verdict.kind === 'matches') return { severity: 'ok', message };
-        if (verdict.kind === 'unmarked') return { severity: 'warning', message };
+        const message = installationStatusText(status);
+        // The application refuses to start on it, so the doctor fails on it too.
+        if (operationProblemOf(status) !== null) {
+            return { severity: 'error', message, details: { issued: status.issued } };
+        }
+        if (status.kind === 'matches') return { severity: 'ok', message };
+        if (status.kind === 'unmarked') return { severity: 'warning', message };
         return {
             severity: 'error',
             message,
-            details: { expected: verdict.expected, marked: verdict.marked },
+            details: { expected: status.expected, marked: status.marked },
         };
     }
 }

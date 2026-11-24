@@ -182,6 +182,7 @@ export const subscribersMessages = defineMessages(
             cancelInvoice: 'Rechnung {number} stornieren',
             download: 'Herunterladen',
             downloadInvoice: 'Rechnung {number} herunterladen',
+            downloadTestInvoice: 'Testrechnung {number} herunterladen',
             mfaCancel: 'Rechnung {number} stornieren. TOTP-Code eingeben.',
             cancelled: 'Storniert durch {cancellation}, ersetzt durch {replacement}.',
             cancelledWithoutReplacement:
@@ -297,6 +298,7 @@ export const subscribersMessages = defineMessages(
             },
             download: 'Herunterladen',
             downloadConfirmation: 'Bestätigung des Vertrags vom {date} herunterladen',
+            downloadTestConfirmation: 'Test-Bestätigung des Vertrags vom {date} herunterladen',
             dossier: {
                 loadFailed: 'Der Vertrag konnte nicht geladen werden.',
                 frozen: 'So wie bei Abschluss eingefroren – nicht der heutige Katalog.',
@@ -671,6 +673,7 @@ export const subscribersMessages = defineMessages(
             cancelInvoice: 'Cancel invoice {number}',
             download: 'Download',
             downloadInvoice: 'Download invoice {number}',
+            downloadTestInvoice: 'Download test invoice {number}',
             mfaCancel: 'Cancel invoice {number}. Enter the TOTP code.',
             cancelled: 'Cancelled by {cancellation}, replaced by {replacement}.',
             cancelledWithoutReplacement:
@@ -786,6 +789,7 @@ export const subscribersMessages = defineMessages(
             },
             download: 'Download',
             downloadConfirmation: 'Download the confirmation of the contract of {date}',
+            downloadTestConfirmation: 'Download the test confirmation of the contract of {date}',
             dossier: {
                 loadFailed: 'The contract could not be loaded.',
                 frozen: 'As frozen when it was concluded — not today’s catalogue.',

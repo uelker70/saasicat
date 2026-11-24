@@ -5,6 +5,7 @@
 // changes one thing and sees the check name it.
 
 import { AFRelationship, PDFArray, PDFDict, PDFDocument, PDFName, PDFString } from 'pdf-lib';
+import { TEST_OPERATION_NOTICE } from '@saasicat/core';
 
 /** An invoice as the store hands it back: 19 % on one plan line and a discount. */
 export const INVOICE = {
@@ -23,6 +24,7 @@ export const INVOICE = {
     servicePeriodFrom: '2026-02-01',
     servicePeriodUntil: '2026-02-28',
     currency: 'EUR',
+    testOperation: false,
     issuer: {
         legalName: 'AutohausPro.de GbR',
         vatId: 'DE123456789',
@@ -160,6 +162,13 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
     const referenced = corrected
         ? `<ram:InvoiceReferencedDocument><ram:IssuerAssignedID>${corrected.number}</ram:IssuerAssignedID><ram:FormattedIssueDateTime><qdt:DateTimeString format="102">${corrected.issueDate}</qdt:DateTimeString></ram:FormattedIssueDateTime></ram:InvoiceReferencedDocument>`
         : '';
+    // The notes of the document (BT-22): the notice of a test operation on an
+    // invoice issued in one, as the shipped renderer writes it, unless a test
+    // names others.
+    const { de, en } = TEST_OPERATION_NOTICE.invoice;
+    const notes = field('notes', invoice.testOperation ? [`${de} / ${en}`] : [])
+        .map((note) => `<ram:IncludedNote><ram:Content>${note}</ram:Content></ram:IncludedNote>`)
+        .join('');
     // What was paid on issue (BT-113), stated only where something was, and the
     // amount due less it, unless a test names others.
     const prepaid = field('prepaid', invoice.paidOnIssue > 0 ? invoice.paidOnIssue : null);
@@ -187,6 +196,7 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
     <ram:ID>${field('number', invoice.number)}</ram:ID>
     <ram:TypeCode>${field('typeCode', '380')}</ram:TypeCode>
     <ram:IssueDateTime><udt:DateTimeString format="102">${field('issueDate', day(invoice.issueDate))}</udt:DateTimeString></ram:IssueDateTime>
+    ${notes}
   </rsm:ExchangedDocument>
   <rsm:SupplyChainTradeTransaction>
     ${lines}

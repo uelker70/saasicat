@@ -8,6 +8,18 @@
 // only as the identifier of the environment the command runs in — a mark
 // naming another environment would hold every deletion here from then on.
 //
+// The mark also says how the installation operates: as a test, whose documents
+// are all marked as tests, or live. It belongs to the data, so a replacement
+// keeps it unless the operator names another, and a database nobody marked is
+// live. Once the installation has issued a document, the mark says the
+// operation its documents recorded and no other (`SC-AUD-023`); where the
+// documents cannot be read, nothing shows that none exists, and the operation
+// is not changed. The documents are read before the mark is written: a first
+// document issued between the two is not seen here, and the next start that
+// issues invoices refuses the mark that disagrees with it. The status names
+// the disagreement, and marking with the operation the documents recorded
+// repairs it: an operator's command line starts on it for that.
+//
 // Everything that decides lives here; the port only makes each write
 // conditional on what stands.
 
@@ -21,20 +33,32 @@ import {
 } from '@nestjs/common';
 import {
     type AdminActor,
+    type ContractConfirmationRepository,
+    type DocumentOperations,
     INSTALLATION_ERROR_CODES,
     type InstallationMark,
     type InstallationMarkPort,
     type InstallationMarkVerdict,
+    type InstallationOperation,
+    type InstallationStatus,
+    type RlsBypassPort,
+    type SubscriptionInvoiceRepository,
     installationMarkVerdict,
+    installationOperationOf,
+    installationStatus,
 } from '@saasicat/core';
 
 import { AdminAuditService } from '../../admin/admin-audit.service.js';
+import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { actorTagOf } from '../../core/web-audit.js';
 import { codedError } from '../../errors/coded-error.js';
+import { CONTRACT_CONFIRMATION_REPOSITORY_TOKEN } from '../confirmations/contract-confirmation.tokens.js';
+import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from '../invoices/subscription-invoice.tokens.js';
 import {
     INSTALLATION_IDENTIFIER_TOKEN,
     INSTALLATION_MARK_PORT_TOKEN,
 } from '../tenant-billing.tokens.js';
+import { issuedOperationsIn, operationOtherThan } from './issued-document-operations.js';
 
 /** What marking the database came to. */
 export type InstallationMarkOutcome =
@@ -43,13 +67,32 @@ export type InstallationMarkOutcome =
     /** The database carried this environment's mark already; nothing was written. */
     | { readonly kind: 'already-marked'; readonly mark: InstallationMark }
     /** Another installation's mark was replaced with this one. */
-    | { readonly kind: 'replaced'; readonly mark: InstallationMark };
+    | { readonly kind: 'replaced'; readonly mark: InstallationMark }
+    /** This environment's mark stood, and now says another operation than `from`. */
+    | {
+          readonly kind: 'operation-changed';
+          readonly mark: InstallationMark;
+          readonly from: InstallationOperation;
+      };
+
+/** What a mark is written with beside its identifier. */
+export interface InstallationMarkWriteOptions {
+    /**
+     * How the installation operates. Left out, a new mark is live and a mark
+     * that stands keeps its operation.
+     */
+    readonly operation?: InstallationOperation;
+}
 
 /** What the audit log names a mark under. */
 const AUDITED_ENTITY = 'InstallationMark';
 
-/** What an audit entry of a mark records: the identifier marked, or the one replaced and its successor. */
-type AuditedMarkChange = { identifier: string } | { from: string; to: string };
+/**
+ * What an audit entry of a mark records: the identifier marked and its
+ * operation, or the identifier or the operation replaced and its successor.
+ */
+type AuditedMarkChange =
+    { identifier: string; operation: InstallationOperation } | { from: string; to: string };
 
 @Injectable()
 export class InstallationMarkService {
@@ -69,6 +112,25 @@ export class InstallationMarkService {
         @Optional()
         @Inject(AdminAuditService)
         private readonly audit: AdminAuditService | null = null,
+        // The documents the installation issued, which fix its operation:
+        // bound where invoices are issued, or from the stores
+        // `subscriptionEnds.deletion.documents` names.
+        @Optional()
+        @Inject(SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN)
+        private readonly invoices: Pick<
+            SubscriptionInvoiceRepository,
+            'issuedOperations'
+        > | null = null,
+        @Optional()
+        @Inject(CONTRACT_CONFIRMATION_REPOSITORY_TOKEN)
+        private readonly confirmations: Pick<
+            ContractConfirmationRepository,
+            'recordedOperations'
+        > | null = null,
+        // The documents are the installation's, not a tenant's.
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
     ) {}
 
     /** Whether the database belongs to the environment this process runs in. */
@@ -77,45 +139,100 @@ export class InstallationMarkService {
     }
 
     /**
-     * Marks the database as this environment's installation where nothing
-     * marks it. Refused where `identifier` is not this environment's, and where
-     * another installation's mark stands.
+     * The verdict, how the installation operates — live where nobody marked
+     * it — and which operations its documents recorded, `null` where they
+     * cannot be read.
      */
-    async mark(identifier: string, actor: AdminActor): Promise<InstallationMarkOutcome> {
+    async status(): Promise<InstallationStatus> {
+        const mark = await this.marks.find();
+        return installationStatus(this.environment, mark, await this.issued());
+    }
+
+    /**
+     * Marks the database as this environment's installation where nothing
+     * marks it, and changes the operation of this environment's mark where
+     * `options` names another. Refused where `identifier` is not this
+     * environment's, and where another installation's mark stands.
+     */
+    async mark(
+        identifier: string,
+        actor: AdminActor,
+        options: InstallationMarkWriteOptions = {},
+    ): Promise<InstallationMarkOutcome> {
         this.refuseAnotherEnvironments(identifier);
         return this.oneAtATime(async () => {
             const standing = await this.marks.find();
-            if (standing === null) return this.markUnmarked(identifier, actor, markedOtherwise);
-            if (standing.identifier === identifier)
-                return { kind: 'already-marked', mark: standing };
-            throw markedOtherwise(standing);
+            if (standing === null) {
+                return this.markUnmarked(identifier, actor, options, markedOtherwise);
+            }
+            if (standing.identifier !== identifier) throw markedOtherwise(standing);
+            return this.keepOrChangeOperation(standing, actor, options);
         });
     }
 
     /**
      * Replaces another installation's mark with this environment's, as after
      * restoring a backup into another environment; marks where nothing does.
+     * The operation that stands is kept unless `options` names another.
      * Refused where `identifier` is not this environment's, and where the mark
      * changes between reading and replacing it.
      */
-    async replace(identifier: string, actor: AdminActor): Promise<InstallationMarkOutcome> {
+    async replace(
+        identifier: string,
+        actor: AdminActor,
+        options: InstallationMarkWriteOptions = {},
+    ): Promise<InstallationMarkOutcome> {
         this.refuseAnotherEnvironments(identifier);
         return this.oneAtATime(async () => {
             const standing = await this.marks.find();
-            if (standing === null) return this.markUnmarked(identifier, actor, markMoved);
-            if (standing.identifier === identifier)
-                return { kind: 'already-marked', mark: standing };
-            const replaced = await this.marks.replace(
-                standing.identifier,
-                this.markOf(identifier, actor),
-            );
+            if (standing === null) return this.markUnmarked(identifier, actor, options, markMoved);
+            if (standing.identifier === identifier) {
+                return this.keepOrChangeOperation(standing, actor, options);
+            }
+            const from = installationOperationOf(standing);
+            const to = options.operation ?? from;
+            await this.refuseAnotherOperationThanIssued(from, to);
+            const replaced = await this.marks.replace(standing, this.markOf(identifier, actor, to));
             if (replaced === null) throw markMoved();
             await this.record(actor, 'INSTALLATION_MARK_REPLACED', identifier, {
                 from: standing.identifier,
                 to: identifier,
             });
+            if (to !== from) {
+                await this.record(actor, 'INSTALLATION_OPERATION_CHANGED', identifier, {
+                    from,
+                    to,
+                });
+            }
             return { kind: 'replaced', mark: replaced };
         });
+    }
+
+    /**
+     * This environment's mark stands: nothing is written where `options`
+     * names no operation or the one that stands, otherwise the operation is
+     * changed — guarded on the mark as read, so a change somebody made a
+     * moment earlier is refused rather than overwritten.
+     */
+    private async keepOrChangeOperation(
+        standing: InstallationMark,
+        actor: AdminActor,
+        options: InstallationMarkWriteOptions,
+    ): Promise<InstallationMarkOutcome> {
+        const from = installationOperationOf(standing);
+        const to = options.operation ?? from;
+        if (to === from) return { kind: 'already-marked', mark: standing };
+        await this.refuseAnotherOperationThanIssued(from, to);
+        const changed = await this.marks.replace(
+            standing,
+            this.markOf(standing.identifier, actor, to),
+        );
+        if (changed === null) throw markMoved();
+        await this.record(actor, 'INSTALLATION_OPERATION_CHANGED', standing.identifier, {
+            from,
+            to,
+        });
+        return { kind: 'operation-changed', mark: changed, from };
     }
 
     /**
@@ -126,14 +243,57 @@ export class InstallationMarkService {
     private async markUnmarked(
         identifier: string,
         actor: AdminActor,
+        options: InstallationMarkWriteOptions,
         refusal: (standing: InstallationMark) => Error,
     ): Promise<InstallationMarkOutcome> {
-        const written = this.markOf(identifier, actor);
+        const operation = options.operation ?? 'live';
+        // A database nobody marked is live.
+        await this.refuseAnotherOperationThanIssued('live', operation);
+        const written = this.markOf(identifier, actor, operation);
         const standing = await this.marks.markIfUnmarked(written);
         if (standing.identifier !== identifier) throw refusal(standing);
         if (!sameMark(standing, written)) return { kind: 'already-marked', mark: standing };
-        await this.record(actor, 'INSTALLATION_MARKED', identifier, { identifier });
+        await this.record(actor, 'INSTALLATION_MARKED', identifier, { identifier, operation });
         return { kind: 'marked', mark: standing };
+    }
+
+    /**
+     * Refuses a mark saying `to` where the installation has issued a document
+     * in the other operation, and a change from `standing` where the documents
+     * cannot be read. A mark that keeps the operation standing is written all
+     * the same then: a database marked as before is no more than it was.
+     */
+    private async refuseAnotherOperationThanIssued(
+        standing: InstallationOperation,
+        to: InstallationOperation,
+    ): Promise<void> {
+        const issued = await this.issued();
+        if (!issued) {
+            if (to === standing) return;
+            throw new ConflictException(
+                codedError(INSTALLATION_ERROR_CODES.INSTALLATION_DOCUMENTS_NOT_READABLE, {
+                    standing,
+                    requested: to,
+                }),
+            );
+        }
+        const other = operationOtherThan(to);
+        if (!issued[other]) return;
+        throw new ConflictException(
+            codedError(INSTALLATION_ERROR_CODES.INSTALLATION_OPERATION_FIXED, {
+                issued: other,
+                requested: to,
+            }),
+        );
+    }
+
+    /** The operations the installation's documents recorded, or `null` without a store to read them from. */
+    private async issued(): Promise<DocumentOperations | null> {
+        if (!this.invoices || !this.confirmations) return null;
+        return issuedOperationsIn(
+            { invoices: this.invoices, confirmations: this.confirmations },
+            this.rlsBypass,
+        );
     }
 
     private refuseAnotherEnvironments(identifier: string): void {
@@ -146,8 +306,17 @@ export class InstallationMarkService {
         );
     }
 
-    private markOf(identifier: string, actor: AdminActor): InstallationMark {
-        return { identifier, markedAt: new Date(), markedBy: actorTagOf(actor) };
+    private markOf(
+        identifier: string,
+        actor: AdminActor,
+        operation: InstallationOperation,
+    ): InstallationMark {
+        return {
+            identifier,
+            testOperation: operation === 'test',
+            markedAt: new Date(),
+            markedBy: actorTagOf(actor),
+        };
     }
 
     private oneAtATime<T>(write: () => Promise<T>): Promise<T> {
@@ -185,6 +354,7 @@ export class InstallationMarkService {
 function sameMark(a: InstallationMark, b: InstallationMark): boolean {
     return (
         a.identifier === b.identifier &&
+        a.testOperation === b.testOperation &&
         a.markedBy === b.markedBy &&
         a.markedAt.getTime() === b.markedAt.getTime()
     );

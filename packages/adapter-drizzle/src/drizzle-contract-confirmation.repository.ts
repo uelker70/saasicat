@@ -2,12 +2,18 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, or, type SQL } from 'drizzle-orm';
 import type {
     ContractConfirmationRecord,
+    ContractConfirmationReplacement,
     ContractConfirmationRepository,
     ContractConfirmationStanding,
+    DocumentOperations,
     NewContractConfirmationRendering,
     TransactionContext,
 } from '@saasicat/core';
-import { contractConfirmationChanged, toContractConfirmationRecord } from '@saasicat/core';
+import {
+    contractConfirmationChanged,
+    documentOperationsOf,
+    toContractConfirmationRecord,
+} from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import { contractConfirmations, subscriptionContracts } from './schema.js';
 
@@ -62,13 +68,15 @@ export class DrizzleContractConfirmationRepository implements ContractConfirmati
 
     async replaceRendering(
         contractId: string,
-        rendering: NewContractConfirmationRendering,
+        rendering: ContractConfirmationReplacement,
         replaced: string,
         tx?: TransactionContext,
     ): Promise<ContractConfirmationRecord | null> {
+        // The file's columns alone: the operation recorded with the first rendering stays.
+        const { checksum, mediaType, fileName, size, renderedAt } = rendering;
         const [row] = await resolveDb(this.db, tx)
             .update(contractConfirmations)
-            .set({ ...rendering })
+            .set({ checksum, mediaType, fileName, size, renderedAt })
             .where(
                 and(
                     eq(contractConfirmations.contractId, contractId),
@@ -159,6 +167,14 @@ export class DrizzleContractConfirmationRepository implements ContractConfirmati
     ): Promise<ContractConfirmationRecord | null> {
         const row = await this.rowOf(contractId, tx);
         return row ? toContractConfirmationRecord(row) : null;
+    }
+
+    async recordedOperations(tx?: TransactionContext): Promise<DocumentOperations> {
+        const rows = await resolveDb(this.db, tx)
+            .selectDistinct({ testOperation: contractConfirmations.testOperation })
+            .from(contractConfirmations)
+            .limit(2);
+        return documentOperationsOf(rows.map((row) => row.testOperation));
     }
 
     async listAwaitingConfirmation(page: Page, tx?: TransactionContext): Promise<string[]> {

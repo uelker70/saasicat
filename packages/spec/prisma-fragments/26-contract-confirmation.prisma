@@ -36,6 +36,10 @@ model ContractConfirmation {
     // In bytes.
     size              Int
     renderedAt        DateTime
+    // Whether it was made in a test operation, as the installation's mark said
+    // when it was first rendered; never changed after. False on one rendered
+    // before confirmations recorded it, which was made live.
+    testOperation     Boolean   @default(false)
     // Null while the contract waits for its confirmation.
     archivedAt        DateTime?
     // When the run mailing it took it on; null while no run holds it.

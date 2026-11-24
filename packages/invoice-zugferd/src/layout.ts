@@ -2,7 +2,8 @@
 // above the address field, the issuer and the invoice's facts to the right,
 // the lines in a table that runs on over as many pages as it needs, the tax
 // per rate, the total, the treatment's note, how the invoice is paid, and the
-// footer lines on every page. Every figure on it is the one the XML states.
+// footer lines on every page — under a test operation's notice, which also
+// stands under the title. Every figure on it is the one the XML states.
 
 import type { PDFDocument, PDFPage } from 'pdf-lib';
 import type { SubscriptionInvoiceRecord } from '@saasicat/core';
@@ -13,6 +14,7 @@ import {
     correctionNoteOf,
     isCancellation,
     lineCorrectionOf,
+    testNoticeOf,
     titleOf,
 } from './correction.js';
 import { pageAmount, pageDay, pageRate } from './format.js';
@@ -30,7 +32,9 @@ import {
     letterhead,
     titleBaseline,
     writeFacts,
+    writeUnderTitle,
     type Fonts,
+    type UnderTitle,
 } from './letter.js';
 import { paymentNoteOf } from './payment-note.js';
 
@@ -53,7 +57,7 @@ export function layOut(pdf: PDFDocument, invoice: SubscriptionInvoiceRecord, fon
         return page;
     };
 
-    const foot = footOf(pen, invoice.footer);
+    const foot = footOf(pen, invoice.footer, testNoticeOf(invoice));
     let page = newPage();
     let y = firstPage(page, pen, invoice);
     y = tableHeader(page, pen, invoice, y);
@@ -115,21 +119,14 @@ function firstPage(page: PDFPage, pen: Pen, invoice: SubscriptionInvoiceRecord):
     pen.write(page, `${bilingual(titleOf(invoice))} ${invoice.number}`, LEFT, title, 15, {
         bold: true,
     });
+    // Under the title: what a test invoice is not, and which invoice a
+    // correction corrects and why, in German and then English.
+    const paragraphs: UnderTitle[] = [];
+    const notice = testNoticeOf(invoice);
+    if (notice) paragraphs.push({ text: bilingual(notice), bold: true });
     const correction = correctionNoteOf(invoice);
-    if (!correction) return title - 12 * MM;
-    // Which invoice it corrects and why, in German and then English, under the title.
-    let next = title - 8 * MM;
-    for (const text of [correction.de, correction.en]) {
-        next = pen.writeWrapped(page, text, {
-            x: LEFT,
-            y: next,
-            size: 9,
-            width: RIGHT - LEFT,
-            leading: 11,
-        });
-        next -= 13;
-    }
-    return next - 6 * MM;
+    if (correction) paragraphs.push({ text: correction.de }, { text: correction.en });
+    return writeUnderTitle(page, pen, title, paragraphs);
 }
 
 /**

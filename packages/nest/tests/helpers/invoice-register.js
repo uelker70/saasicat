@@ -31,8 +31,19 @@ export function anInstallation() {
     let charges = 0;
     return {
         store,
-        /** Issues an invoice of `tenantId` dated `issueDate`, 100.00 net at 19 % unless `taxes` says otherwise. */
-        issue(issueDate, { tenantId = 't1', taxes = [{ rate: 19, net: 100, tax: 19 }] } = {}) {
+        /**
+         * Issues an invoice of `tenantId` dated `issueDate`, 100.00 net at 19 %
+         * unless `taxes` says otherwise, in a live operation unless
+         * `testOperation` says it is a test.
+         */
+        issue(
+            issueDate,
+            {
+                tenantId = 't1',
+                taxes = [{ rate: 19, net: 100, tax: 19 }],
+                testOperation = false,
+            } = {},
+        ) {
             const party = PARTIES[tenantId];
             const net = sumToCents(...taxes.map((each) => each.net));
             const tax = sumToCents(...taxes.map((each) => each.tax));
@@ -66,6 +77,7 @@ export function anInstallation() {
                 },
                 footer: [],
                 taxTreatment: STANDARD,
+                testOperation,
                 taxes,
                 totalNet: net,
                 totalTax: tax,
@@ -125,8 +137,9 @@ export function anInstallation() {
  * ran inside the bypass frame, and each audit entry written into `written`,
  * or the audit log `audit` where a test gives one. `through` binds the bypass
  * the way an adapter without row-level policies does: it calls `fn` and hands
- * back what it returns, as it returns it. `call(route)` answers a route's
- * handler, called with what a test passes it.
+ * back what it returns, as it returns it. `marks` keeps the installation's mark
+ * where a test gives it. `call(route)` answers a route's handler, called with
+ * what a test passes it.
  */
 export async function aRegisterPlatform(
     installation,
@@ -137,6 +150,7 @@ export async function aRegisterPlatform(
         payments = null,
         written = null,
         audit = null,
+        marks = null,
     } = {},
 ) {
     const reads = [];
@@ -161,6 +175,7 @@ export async function aRegisterPlatform(
     });
     if (written) platform.persistence.core.audit = { write: async (entry) => written.push(entry) };
     if (audit) platform.persistence.core.audit = audit;
+    if (marks) platform.persistence.core.installationMark = marks;
     if (payments) {
         platform.persistence.entitlement.subscriberPaymentRepository = recording(payments);
     }

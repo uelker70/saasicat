@@ -56,6 +56,20 @@ read the mark from (`subscription-ends.requires-installation-marks`).
   production, the confirmation, and is audited as `INSTALLATION_MARKED` or
   `INSTALLATION_MARK_REPLACED`. No start writes the mark. `<app> doctor` reports
   it as `platform.installation-mark`.
+- The mark also says how the installation operates:
+  `<app> installation mark <identifier> --operation test|live`. Without the
+  option a new mark is live and one that stands keeps its operation,
+  `--replace` included; a database nobody marked is live. A change is audited
+  as `INSTALLATION_OPERATION_CHANGED` with `from` and `to`, and
+  `INSTALLATION_MARKED` records the operation beside the identifier.
+  `installation status`, its `--output json` and the doctor name it.
+  `@saasicat/core` adds `InstallationMark.testOperation`,
+  `INSTALLATION_OPERATIONS`, `InstallationOperation`, `installationOperationOf`,
+  `installationStatus` and `InstallationStatus`; `InstallationMarkPort.replace`
+  takes the identifier and the operation that stand, and replaces only while
+  both do. A contract harness seeds a mark written before marks said their
+  operation with `markInstallationBeforeItsOperation`, or names
+  `installationMarkBeforeOperationSeed` among its `gaps`.
 
 The brake stops a process meant for another environment. An environment copied
 from production with its identifier included passes it: give each environment

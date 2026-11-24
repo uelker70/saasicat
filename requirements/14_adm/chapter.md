@@ -515,6 +515,8 @@ _Tested by:_
           offered
         - a confirmation not archived yet, or not due, is said and not offered
         - downloads an intact confirmation under the name it was archived with
+        - a confirmation and an invoice made in a test operation are named a test, and live ones as
+          before
         - a download that fails says so, and saves nothing
         - a contract that fails to load says so
         - opening another contract closes the first, and reads the one opened
@@ -2358,6 +2360,7 @@ _Tested by:_
         - an end at midnight leaves the day before as its last day
         - one never in force has no last day and says so
         - names its plan and add-ons as frozen, and the latest minimum term of its lines
+        - names the operation its confirmation was made in once it is, and none before
         - lists the one written last first
     - the lines of a contract
         - read the plan, then the add-ons, then the discounts, each kind in the contract’s order
@@ -2367,6 +2370,7 @@ _Tested by:_
         - is in the catalogue, removed from it, or deleted
     - the invoices issued under a contract
         - are only the contract’s, the latest issue day first, and of one day by number
+        - name one issued in a test operation as one, and one issued live as live
 - `packages/nest/tests/a-contract-is-confirmed.test.js`
     - a contract’s dossier
         - is the contract as it was frozen, each line with where it came from, and the invoices
@@ -2434,6 +2438,8 @@ _Tested by:_
           offered
         - a confirmation not archived yet, or not due, is said and not offered
         - downloads an intact confirmation under the name it was archived with
+        - a confirmation and an invoice made in a test operation are named a test, and live ones as
+          before
         - a download that fails says so, and saves nothing
         - a contract that fails to load says so
         - opening another contract closes the first, and reads the one opened
@@ -2513,6 +2519,7 @@ _Tested by:_
           then number
         - names each invoice’s subscriber as it names itself, the way into its record, and its
           amounts
+        - names an invoice issued in a test operation as one, and one issued live as live
         - says whose document is archived, and which cancellation invoice cancelled an invoice,
           however much later
         - holds ${INVOICE_REGISTER_PAGE_SIZE} invoices, and the next one continues after its last
@@ -2536,6 +2543,8 @@ _Tested by:_
           document is archived
         - leads into a subscriber’s record wherever the shell put the subscribers
         - asks again for the months picked, and refuses months it cannot read without asking
+        - names an invoice issued in a test operation a test, in words beside its number and in its
+          download, and one issued live as before
         - says so where no invoice was issued in the months
         - offers cancelling where an invoice stands and the platform serves it, and nowhere else
     - an invoice cancelled from the register
@@ -2608,11 +2617,13 @@ _Tested by:_
         - ${text} is ${is ? '' : 'not '}a day and a time
     - the schema an export is published under
         - names the tax treatments, settlement kinds and languages core writes, no more
+        - names the operations an installation issues its invoices in, no more
         - names the format version core writes, in the export and in its manifest
         - takes a day and a month in the shapes core reads them
     - an export as of a moment
         - holds the invoices issued by then, by issue date and number, each with its party and
           treatment
+        - names the operation each invoice was issued in, a test one as a test
         - holds the settlements recorded by then, the period over too, and none recorded later
         - names a cancellation recorded by then, its invoice issued after the period too, and none
           recorded later
@@ -2634,6 +2645,7 @@ _Tested by:_
           CRLF after each row
         - defuse a text cell a spreadsheet would read as a formula, and quote what holds a
           separator, a quote or a line break
+        - write the operation of each invoice in a column of its own, a test one as test
         - write an amount as a number, never defused, and a missing value as an empty cell
         - write export.json from the same model, the same text every time
         - are named in a manifest with the period, the moment, the notation, the counts and every
@@ -2685,6 +2697,7 @@ _Tested by:_
     - the open invoices
         - are those that still owe, the oldest due date first, with what each owes and how many days
           it is overdue in the installation’s zone
+        - name one issued in a test operation as one, and one issued live as live
         - say how each is paid and how its latest collection attempt ended
         - say the payment method the latest attempt charged, one that replaced the invoice’s since
           included, and before any attempt the invoice’s
@@ -2717,6 +2730,8 @@ _Tested by:_
           credit
         - list each open invoice with what it owes, the days it is overdue, how it is paid and its
           last collection
+        - name an invoice issued in a test operation a test beside its number, and one issued live
+          as before
         - lead into a subscriber’s record wherever the shell put the subscribers
         - overdue alone asks for those again, and reads neither the credits nor the totals anew
         - say so where nothing is open
@@ -2936,6 +2951,7 @@ _Tested by:_
         - ${text} is ${is ? '' : 'not '}a day and a time
     - the schema an export is published under
         - names the tax treatments, settlement kinds and languages core writes, no more
+        - names the operations an installation issues its invoices in, no more
         - names the format version core writes, in the export and in its manifest
         - takes a day and a month in the shapes core reads them
     - the files an export is written to
@@ -2944,6 +2960,7 @@ _Tested by:_
           CRLF after each row
         - defuse a text cell a spreadsheet would read as a formula, and quote what holds a
           separator, a quote or a line break
+        - write the operation of each invoice in a column of its own, a test one as test
         - write an amount as a number, never defused, and a missing value as an empty cell
         - write export.json from the same model, the same text every time
         - are named in a manifest with the period, the moment, the notation, the counts and every
@@ -3277,6 +3294,7 @@ _Tested by:_
     - where each of a subscriber's invoices stands
         - is paid on the installation’s day its payment arrived, and open and overdue past its due
           date
+        - names one issued in a test operation as one, and one issued live as live
         - names the replacement of an invoice cancelled, which says nothing of a payment
 - `packages/ui-vue/tests/an-invoice-says-where-its-payment-stands.test.js`
     - an invoice cancelled
@@ -3285,11 +3303,16 @@ _Tested by:_
     - where an invoice's payment stands
         - reads ${JSON.stringify(en)} where ${why}
         - its sentences never call a credit a Gutschrift
+    - the download of an invoice
+        - is named a test invoice’s for one issued in a test operation, in both languages
+        - is named as before for one issued live
 - `packages/ui-vue/tests/component/an-operator-reads-where-each-invoice-stands.test.ts`
     - the invoices in a subscriber’s record
         - an invoice cancelled names what cancelled it and what replaced it, and no payment
         - an invoice paid says on which day, written as the record writes days
         - an invoice paid in part past its due date says what it still owes of its total
+    - an invoice in a subscriber’s record issued in a test operation
+        - is named a test beside its number and in its download, and one issued live as before
 
 <!-- END proof -->
 

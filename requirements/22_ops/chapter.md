@@ -350,6 +350,22 @@ _Tested by:_
         - a notice delivered before counts its recipients, and one not delivered counts none
         - a second run keeps the number of a notice whose recipients were forgotten
         - an installation without notices and ends is left without them, and runs through
+    - an installation mark says how the installation operates, and an older one is live
+        - a mark that stood before the migration is live, after one run and after two
+        - a database from before gains the column as the fragments declare it
+        - a test operation stays one when the migration runs again
+    - an invoice records whether it was issued in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - an invoice issued before the migration is live, after one run and after two
+        - a second run leaves an invoice issued in between as a test as it was written
+        - an installation without invoices is left without them, and runs through
+    - a confirmation records whether it was made in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - a confirmation rendered before the migration is live, after one run and after two
+        - a second run leaves a confirmation rendered in between as a test as it was written
+        - an installation without confirmations still gains the column on its invoices, and runs
+          through
+        - an installation without invoices still gains the column on its confirmations
 
 <!-- END proof -->
 
@@ -590,6 +606,22 @@ _Tested by:_
         - a notice delivered before counts its recipients, and one not delivered counts none
         - a second run keeps the number of a notice whose recipients were forgotten
         - an installation without notices and ends is left without them, and runs through
+    - an installation mark says how the installation operates, and an older one is live
+        - a mark that stood before the migration is live, after one run and after two
+        - a database from before gains the column as the fragments declare it
+        - a test operation stays one when the migration runs again
+    - an invoice records whether it was issued in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - an invoice issued before the migration is live, after one run and after two
+        - a second run leaves an invoice issued in between as a test as it was written
+        - an installation without invoices is left without them, and runs through
+    - a confirmation records whether it was made in a test operation, and an older one is live
+        - a database from before gains the column as the fragments declare it
+        - a confirmation rendered before the migration is live, after one run and after two
+        - a second run leaves a confirmation rendered in between as a test as it was written
+        - an installation without confirmations still gains the column on its invoices, and runs
+          through
+        - an installation without invoices still gains the column on its confirmations
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

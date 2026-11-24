@@ -565,6 +565,10 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'This database is marked as installation {marked} already; replacing that mark is a deliberate step of its own.',
     INSTALLATION_MARK_MOVED:
         'The mark of this database changed while it was being replaced. Nothing was written; read it again.',
+    INSTALLATION_OPERATION_FIXED:
+        "This installation has issued documents in a {issued} operation, so it cannot be marked as a {requested} one: an installation's operation is fixed with its first document. Nothing was written.",
+    INSTALLATION_DOCUMENTS_NOT_READABLE:
+        'This installation stays a {standing} operation and is not marked as a {requested} one: the documents it issued cannot be read here, so nothing shows that none exists, and its operation is fixed with its first one. Nothing was written.',
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED: 'The tax adapter {adapter} does not support this case: {reason}',
     TAX_VAT_ID_CHECK_NOT_COMPLETED:

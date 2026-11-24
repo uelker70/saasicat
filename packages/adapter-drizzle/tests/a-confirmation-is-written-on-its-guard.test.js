@@ -36,7 +36,15 @@ const RENDERING = {
     renderedAt: AT,
 };
 /** A `contract_confirmations` row as the transport answers it, in column order. */
-const ROW = [CONTRACT, CHECKSUM, 'application/pdf', 'contract-7.pdf', 512, '2026-10-23 07:00:00'];
+const ROW = [
+    CONTRACT,
+    CHECKSUM,
+    'application/pdf',
+    'contract-7.pdf',
+    512,
+    '2026-10-23 07:00:00',
+    false,
+];
 const STANDING = [...ROW, null, null, null, null];
 
 /** A database over a transport that records each statement and answers the next rows given. */
@@ -148,6 +156,34 @@ describe('where a confirmation stands, as Drizzle writes it', () => {
         );
     });
 
+    test('a replacement sets the file alone, and leaves the operation recorded first', async () => {
+        const { db, statements } = recording([STANDING]);
+
+        await new DrizzleContractConfirmationRepository(db).replaceRendering(
+            CONTRACT,
+            { ...RENDERING, testOperation: true },
+            'f'.repeat(64),
+        );
+
+        const set = statements[0].sql.slice(0, statements[0].sql.indexOf(' where '));
+        assert.ok(set.includes('"checksum" = '), set);
+        assert.equal(set.includes('"testOperation"'), false, set);
+    });
+
+    test('the operations the confirmations recorded are read as their distinct values, at most two', async () => {
+        const { db, statements } = recording([[true]]);
+
+        assert.deepEqual(await new DrizzleContractConfirmationRepository(db).recordedOperations(), {
+            test: true,
+            live: false,
+        });
+        assert.match(
+            statements[0].sql,
+            /^select distinct "testOperation" from "contract_confirmations" limit \$1$/,
+        );
+        assert.deepEqual(statements[0].params, [2]);
+    });
+
     test('the contracts due one are the contracts marked due, joined to their confirmation', async () => {
         const { db, statements } = recording([['contract-8']], [['contract-9']]);
         const repository = new DrizzleContractConfirmationRepository(db);
@@ -182,7 +218,7 @@ describe('each contract’s standing, as Drizzle reads it', () => {
     test('is the contracts asked for, joined to their confirmation, by id', async () => {
         const { db, statements } = recording([
             [CONTRACT, true, ...STANDING],
-            ['contract-8', false, null, null, null, null, null, null, null, null, null, null],
+            ['contract-8', false, null, null, null, null, null, null, null, null, null, null, null],
         ]);
 
         const standings = await new DrizzleContractConfirmationRepository(db).listStandings([

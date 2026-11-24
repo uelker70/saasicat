@@ -13,8 +13,9 @@ import type {
  *
  * The notes app sends no e-mail, so it writes each one to its log — which
  * invoice or contract, whose, and the name and size of each file it would
- * attach. Not the file, which is the subscriber's invoice, and not the address,
- * so the log carries nobody's e-mail; the platform records where each went.
+ * attach, and whether it is a test document, as a real message has to say. Not
+ * the file, which is the subscriber's invoice, and not the address, so the log
+ * carries nobody's e-mail; the platform records where each went.
  * A real app words the message in the subscriber's language and sends it
  * with its own mail infrastructure, attaching the files; a rejection there is
  * what makes the platform show the failure and try again on its next run.
@@ -25,8 +26,9 @@ export class NotesInvoiceMailLog implements InvoiceMailPort {
 
     async deliver(mail: InvoiceMail): Promise<void> {
         const { invoice } = mail;
+        const what = invoice.testOperation ? 'Test invoice' : 'Invoice';
         this.logger.log(
-            `Invoice ${invoice.number} to the invoice email of subscriber ${invoice.subscriberId}, ` +
+            `${what} ${invoice.number} to the invoice email of subscriber ${invoice.subscriberId}, ` +
                 `attaching ${described(mail.document)}.`,
         );
     }
@@ -41,8 +43,9 @@ export class NotesInvoiceMailLog implements InvoiceMailPort {
 
     async deliverConfirmation(mail: ContractConfirmationMail): Promise<void> {
         const { contract } = mail;
+        const what = mail.testOperation ? 'Test confirmation' : 'Confirmation';
         this.logger.log(
-            `Confirmation of contract ${contract.id} to the invoice email of subscriber ` +
+            `${what} of contract ${contract.id} to the invoice email of subscriber ` +
                 `${contract.subscriberId}, attaching ${mail.documents.map(described).join(' and ')}.`,
         );
     }

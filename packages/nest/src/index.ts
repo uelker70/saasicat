@@ -24,6 +24,7 @@
 export * from './core/di.js';
 export * from './core/email.tokens.js';
 export * from './core/public-route.js';
+export * from './core/operator-command-line.js';
 export * from './promo/index.js';
 export * from './billing/index.js';
 export * from './entitlement/index.js';

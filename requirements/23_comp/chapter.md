@@ -708,6 +708,8 @@ _Tested by:_
         - a rendering recorded before under another checksum is refused, and none at all is said
         - ${what} is one update on its guard, answered by whether it took the row
         - a rendering is replaced in place of the recorded checksum while nothing is archived
+        - a replacement sets the file alone, and leaves the operation recorded first
+        - the operations the confirmations recorded are read as their distinct values, at most two
         - the contracts due one are the contracts marked due, joined to their confirmation
         - a confirmation is found by its contract, and nothing where none is recorded
     - each contract’s standing, as Drizzle reads it
@@ -849,6 +851,8 @@ _Tested by:_
           checksum
         - a rendering neither written nor found is said
         - a rendering replaced in place of the one recorded is read back, and nothing where none was
+        - a replacement writes the file alone, and leaves the operation recorded first
+        - the operations the confirmations recorded are read as their distinct values, at most two
         - the contracts due one are read over the contracts, those for the mail over the
           confirmations, page by page
         - a confirmation is found by its contract, and nothing where none is recorded
@@ -865,7 +869,7 @@ _Tested by:_
         - no row is no mark
         - marking leaves the refusal to the primary key, and answers what stands after it
         - a row gone after the insert is an error, not a mark that was never written
-        - a replacement is guarded on the identifier the caller read
+        - a replacement is guarded on the identifier and the operation the caller read
         - a replacement that matched nothing answers null and reads nothing back
 - `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
     - writing an invoice’s next attempt
@@ -1433,6 +1437,7 @@ _Tested by:_
 - `examples/notesapp/tests/the-notes-app-cli-marks-its-installation.test.mjs`
     - the notes app's command line
         - offers the installation status, marking it, and the doctor — and no other command
+        - says it is an operator command line, which the application does not
         - runs the platform's checks in the doctor, the installation's mark among them
     - the notes app's operators
         - finds the seeded SuperAdmin by its e-mail, under the id its second factor is kept by
@@ -1465,6 +1470,7 @@ _Tested by:_
     - the notes app's invoice mail
         - writes the invoice, its subscriber, its file and its size — not the file, not the address
         - writes a contract's confirmation with each file it attaches
+        - names a test invoice and a test confirmation as tests, and a live one as neither
         - writes a notice about collecting an invoice by its kind and invoice
     - the notes app with invoices on
         - passes the start checks of invoicing and composes the invoice run

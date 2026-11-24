@@ -2,7 +2,9 @@
 // it (`SC-PRIV-021`): the identifier of the environment the process runs in,
 // which a deletion compares with the mark of the database, and where that mark
 // is read from. The sentences are shared by the start rules of `SaaSiCatModule`
-// and by `TenantBillingModule` wired by hand, so both say the same.
+// and by `TenantBillingModule` wired by hand, so both say the same — and the
+// one about the mark by every kind of document that records the operation it
+// says.
 
 import {
     INSTALLATION_IDENTIFIER_MAX_LENGTH,
@@ -52,5 +54,20 @@ export function installationMarksNotWired(option: string): string {
         'installation is read before a tenant is deleted (SC-PRIV-021), and a brake that ' +
         'cannot be read cannot hold — pass an InstallationMarkPort, which both shipped ' +
         'persistence adapters provide from the `InstallationMark` model of `@saasicat/spec`.'
+    );
+}
+
+/**
+ * Why a start is refused where documents record the operation the
+ * installation's mark says and the mark cannot be read: `recording` says which
+ * documents and what they record.
+ */
+export function installationMarkNotWired(recording: string): string {
+    return (
+        `${recording}, which the installation's mark says ` +
+        '(`<app> installation mark <identifier> --operation test|live`): wire ' +
+        '`subscriptionEnds.deletion.marks` — `SaaSiCatModule` takes ' +
+        '`persistence.core.installationMark` — with an InstallationMarkPort, which both ' +
+        'shipped persistence adapters provide.'
     );
 }

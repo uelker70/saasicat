@@ -19,6 +19,7 @@ import {
 import { alias } from 'drizzle-orm/pg-core';
 import type {
     CanonicalInvoiceCorrection,
+    DocumentOperations,
     InvoiceRegisterPage,
     InvoiceRegisterRange,
     IssuedInvoiceAmounts,
@@ -37,6 +38,7 @@ import type {
 } from '@saasicat/core';
 import {
     CORRECTION_ORIGIN,
+    documentOperationsOf,
     formatInvoiceNumber,
     subscriptionInvoiceAlreadyCancelled,
     subscriptionInvoiceCancellationColumns,
@@ -464,6 +466,14 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
             .orderBy(asc(subscriptionInvoices.numberPrefix))
             .limit(2);
         return rows.map((row) => row.numberPrefix);
+    }
+
+    async issuedOperations(tx?: TransactionContext): Promise<DocumentOperations> {
+        const rows = await resolveDb(this.db, tx)
+            .selectDistinct({ testOperation: subscriptionInvoices.testOperation })
+            .from(subscriptionInvoices)
+            .limit(2);
+        return documentOperationsOf(rows.map((row) => row.testOperation));
     }
 
     async recordRendering(
