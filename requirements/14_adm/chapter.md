@@ -1345,6 +1345,8 @@ _Tested by:_
     - a deletion done, on the record of its subscriber
         - is read once the application has no tenant any more, with every store, the commercial
           record, the reminders and the downloads, naming no person
+        - of a tenant that came back once, keeps the reminders and downloads of the end it was
+          deleted for
         - names no person while the deletion is under way and the rows still name them
         - counts a reminder that reached nobody as 0, and one not delivered as not delivered
         - says on both pages that a suspension kept the export from being taken between the end and

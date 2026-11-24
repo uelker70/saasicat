@@ -82,6 +82,7 @@ describe('the run that records the subscriptions that ended', () => {
                     deletesOn: '2027-01-31',
                     recordedAt: FIRST_RUN,
                     recordedBy: RUN,
+                    liftedAt: null,
                 },
             ],
         );
@@ -177,6 +178,26 @@ describe('the run that records the subscriptions that ended', () => {
 
         assert.equal(ends.ends.length, 1);
         assert.equal((await endedHolds(holds, 't-1')).length, 1);
+    });
+
+    // @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+    test('a run that read the subscription before its tenant came back records nothing, and holds the tenant no second time', async () => {
+        const { service, ends, holds } = runOver([cancelled('t-1', NEW_YEAR)]);
+        assert.deepEqual(await service.recordEnded(FIRST_RUN), { ended: 1 });
+        const cameBack = new Date('2027-01-10T09:00:00.000Z');
+        const [held] = await endedHolds(holds, 't-1');
+        assert.ok(await holds.lift(held.id, cameBack, 'web:admin@t-1.example:app'));
+        assert.equal(await ends.lift('sub-t-1', cameBack), true);
+
+        // The port still lists the cancellation the new subscription cleared, as a
+        // run that read it a moment before the tenant came back has it.
+        assert.deepEqual(await service.recordEnded(new Date('2027-01-10T09:15:00.000Z')), {
+            ended: 0,
+        });
+
+        assert.deepEqual(await endedHolds(holds, 't-1'), [], 'the tenant stays open');
+        assert.deepEqual(await ends.listFor(['sub-t-1']), []);
+        assert.equal(ends.ends.length, 1, 'the lifted end is not recorded again');
     });
 
     test('a run that fails while holding the tenant records no end, so the next one records both', async () => {

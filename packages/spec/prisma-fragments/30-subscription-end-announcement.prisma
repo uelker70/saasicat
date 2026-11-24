@@ -14,8 +14,14 @@
 // change to the read-only period in `config/saas.yaml` nor a cancellation that
 // lands earlier than it was to gives a tenant another day.
 //
-// At most ONE row per subscription: the unique key on `subscriptionId` is what
-// makes a repeated confirmation, or two at once, announce a day once.
+// A new subscription that lifts the end lifts the day told for it as well
+// (`SC-CANC-034`): the row stays with `liftedAt` set, and the next
+// cancellation of the subscription is told a day of its own.
+//
+// At most ONE row per subscription is not lifted, and no two of one
+// subscription share their `endsAt`: a partial unique index in
+// sql/constraints.postgres.sql and the unique key below, which make a
+// repeated confirmation, or two at once, announce a day once.
 //
 // Required wherever tenants are served, together with fragment 29.
 
@@ -24,7 +30,7 @@ model SubscriptionEndAnnouncement {
     // The tenant whose subscription is ending. Not a relation: the tenant model
     // is the application's, and the record outlives the subscription row.
     tenantId       String
-    subscriptionId String   @unique
+    subscriptionId String
     // The moment the cancellation was to land when it was confirmed.
     endsAt         DateTime
     // The read-only period, in days, the deletion day was counted with.
@@ -36,8 +42,11 @@ model SubscriptionEndAnnouncement {
     // as the audit log writes it).
     announcedAt    DateTime
     announcedBy    String
-    createdAt      DateTime @default(now())
+    // When a new subscription lifted the end this day was told for.
+    liftedAt       DateTime?
+    createdAt      DateTime  @default(now())
 
+    @@unique([subscriptionId, endsAt])
     @@index([tenantId])
     @@map("subscription_end_announcements")
 }

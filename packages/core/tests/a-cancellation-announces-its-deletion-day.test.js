@@ -191,7 +191,19 @@ describe('an announcement read back from a store', () => {
         readOnlyDays: 30,
         announcedAt: new Date('2026-11-10T09:15:00.000Z'),
         announcedBy: 'user:admin-1',
+        liftedAt: null,
     };
+
+    // @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+    test('says whether, and when, a new subscription lifted it', () => {
+        const lifted = new Date('2027-01-20T08:00:00.000Z');
+        const read = toSubscriptionEndAnnouncement({
+            ...row,
+            deletesOn: '2027-05-01',
+            liftedAt: lifted,
+        });
+        assert.equal(read.liftedAt, lifted);
+    });
 
     // @requirement SC-CANC-021 — The read-only period and the deletion date are stated before a tenant cancels
     test("takes its day from Prisma's date at midnight UTC and from Drizzle's text alike, and keeps its period", () => {

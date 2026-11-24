@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { asc, eq, gt, inArray } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull } from 'drizzle-orm';
 import {
     type CalendarDay,
     type NewSubscriptionEnd,
@@ -27,10 +27,11 @@ export class DrizzleSubscriptionEndRepository implements SubscriptionEndPort {
     constructor(@Inject(DRIZZLE_DB_TOKEN) private readonly db: DrizzleClient) {}
 
     /**
-     * `ON CONFLICT DO NOTHING`: the unique key on `subscriptionId` is what
-     * refuses a second end. The id is a uuid made here, so the primary key
-     * cannot be the key it met: no row back means the subscription has an end
-     * already.
+     * `ON CONFLICT DO NOTHING`: the partial unique index on the end not lifted
+     * and the unique key on `(subscriptionId, endsAt)` are what refuse a second
+     * end. The id is a uuid made here, so the primary key cannot be the key it
+     * met: no row back means the subscription has an end standing, or had one
+     * at that moment.
      */
     async record(end: NewSubscriptionEnd): Promise<SubscriptionEnd | null> {
         const [row] = await this.db
@@ -46,7 +47,12 @@ export class DrizzleSubscriptionEndRepository implements SubscriptionEndPort {
         const rows = await this.db
             .select()
             .from(subscriptionEnds)
-            .where(inArray(subscriptionEnds.subscriptionId, [...subscriptionIds]))
+            .where(
+                and(
+                    inArray(subscriptionEnds.subscriptionId, [...subscriptionIds]),
+                    isNull(subscriptionEnds.liftedAt),
+                ),
+            )
             .orderBy(asc(subscriptionEnds.subscriptionId));
         return rows.map(toSubscriptionEnd);
     }
@@ -56,15 +62,15 @@ export class DrizzleSubscriptionEndRepository implements SubscriptionEndPort {
         const rows = await this.db
             .select()
             .from(subscriptionEnds)
-            .where(gt(subscriptionEnds.deletesOn, day))
+            .where(and(gt(subscriptionEnds.deletesOn, day), isNull(subscriptionEnds.liftedAt)))
             .orderBy(asc(subscriptionEnds.deletesOn), asc(subscriptionEnds.subscriptionId));
         return rows.map(toSubscriptionEnd);
     }
 
     /**
-     * `ON CONFLICT DO NOTHING`, as `record`: the unique key on
-     * `subscriptionId` is what refuses a second announcement, and the id is a
-     * uuid made here, so no row back means the subscription has one already.
+     * `ON CONFLICT DO NOTHING`, as `record`: the same two keys refuse a second
+     * announcement, and the id is a uuid made here, so no row back means the
+     * subscription has one standing, or had one for that moment.
      */
     async announce(
         announcement: NewSubscriptionEndAnnouncement,
@@ -84,9 +90,45 @@ export class DrizzleSubscriptionEndRepository implements SubscriptionEndPort {
         const rows = await this.db
             .select()
             .from(subscriptionEndAnnouncements)
-            .where(inArray(subscriptionEndAnnouncements.subscriptionId, [...subscriptionIds]))
+            .where(
+                and(
+                    inArray(subscriptionEndAnnouncements.subscriptionId, [...subscriptionIds]),
+                    isNull(subscriptionEndAnnouncements.liftedAt),
+                ),
+            )
             .orderBy(asc(subscriptionEndAnnouncements.subscriptionId));
         return rows.map(toSubscriptionEndAnnouncement);
+    }
+
+    /**
+     * Two conditional `UPDATE`s in one transaction — the caller's, inside a
+     * savepoint, or one of its own: the announcement is lifted only where the
+     * end was, and a lift that finds the end lifted already lifts nothing.
+     */
+    async lift(subscriptionId: string, liftedAt: Date, tx?: TransactionContext): Promise<boolean> {
+        return resolveDb(this.db, tx).transaction(async (transaction) => {
+            const lifted = await transaction
+                .update(subscriptionEnds)
+                .set({ liftedAt })
+                .where(
+                    and(
+                        eq(subscriptionEnds.subscriptionId, subscriptionId),
+                        isNull(subscriptionEnds.liftedAt),
+                    ),
+                )
+                .returning({ id: subscriptionEnds.id });
+            if (lifted.length === 0) return false;
+            await transaction
+                .update(subscriptionEndAnnouncements)
+                .set({ liftedAt })
+                .where(
+                    and(
+                        eq(subscriptionEndAnnouncements.subscriptionId, subscriptionId),
+                        isNull(subscriptionEndAnnouncements.liftedAt),
+                    ),
+                );
+            return true;
+        });
     }
 
     /** A plain insert: no key refuses a second download of one subscription. */

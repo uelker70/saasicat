@@ -24,6 +24,7 @@ import type {
     NewSubscriptionEnd,
     NewSubscriptionEndAnnouncement,
     NewTenantExportDownload,
+    SubscriptionEndPort,
     CreateSubscriberData,
     SubscriberSearch,
     SubscriberJoinState,
@@ -14758,6 +14759,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         deletesOn: '2027-01-31',
                         recordedAt: RECORDED_AT,
                         recordedBy: RUN,
+                        liftedAt: null,
                     },
                 ]);
                 assert.deepEqual(await port.listFor([]), []);
@@ -14804,6 +14806,194 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     ),
                     ['tenant-ended/sub-ended', 'tenant-other/sub-other'],
                 );
+            });
+
+            test('is refused beside one that stands, whenever it landed', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const first = await port.record(endOf());
+                assert.ok(first);
+                assert.equal(
+                    await port.record(endOf({ endsAt: new Date('2027-06-30T22:00:00.000Z') })),
+                    null,
+                );
+                assert.deepEqual(await port.listFor(['sub-ended']), [first]);
+            });
+        });
+
+        // @requirement SC-CANC-034
+        describe('the end a new subscription lifts', () => {
+            const TENANT = 'tenant-back';
+            const SUBSCRIPTION = 'sub-back';
+            const FIRST_END = new Date('2026-09-30T22:00:00.000Z');
+            const CAME_BACK = new Date('2026-10-20T08:00:00.123Z');
+            const SECOND_END = new Date('2027-03-31T22:00:00.000Z');
+            const endAt = (endsAt: Date, deletesOn: string, minute = 5): NewSubscriptionEnd => ({
+                tenantId: TENANT,
+                subscriptionId: SUBSCRIPTION,
+                endsAt,
+                deletesOn,
+                recordedAt: new Date(endsAt.getTime() + minute * 60_000),
+                recordedBy: 'job:platform:subscription-ends',
+            });
+            const announcementAt = (
+                endsAt: Date,
+                deletesOn: string,
+            ): NewSubscriptionEndAnnouncement => ({
+                tenantId: TENANT,
+                subscriptionId: SUBSCRIPTION,
+                endsAt,
+                readOnlyDays: 30,
+                deletesOn,
+                announcedAt: new Date(endsAt.getTime() - 14 * 86_400_000),
+                announcedBy: 'web:admin@weber.example:app',
+            });
+            /** The first end and the day it was told, as they stand before the tenant comes back. */
+            const endedOnce = async (port: SubscriptionEndPort) => {
+                const announced = await port.announce(announcementAt(FIRST_END, '2026-10-31'));
+                const end = await port.record(endAt(FIRST_END, '2026-10-31'));
+                assert.ok(announced && end);
+                return { announced, end };
+            };
+
+            test('is lifted with the day it was told, and the subscription ends again with a day of its own', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const first = await endedOnce(port);
+
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), true);
+                assert.deepEqual(await port.listFor([SUBSCRIPTION]), [], 'no end stands');
+                assert.deepEqual(await port.listAnnouncedFor([SUBSCRIPTION]), [], 'no day stands');
+
+                const announced = await port.announce(announcementAt(SECOND_END, '2027-05-01'));
+                assert.ok(announced, 'the next cancellation is told a day of its own');
+                const end = await port.record(endAt(SECOND_END, '2027-05-01'));
+                assert.ok(end, 'and its end is recorded');
+                assert.deepEqual(await port.listFor([SUBSCRIPTION]), [end]);
+                assert.deepEqual(await port.listAnnouncedFor([SUBSCRIPTION]), [announced]);
+                assert.deepEqual(await port.listEndsOfTenant(TENANT), [
+                    { ...first.end, liftedAt: CAME_BACK },
+                    end,
+                ]);
+                assert.deepEqual(await port.listAnnouncedOfTenant(TENANT), [
+                    { ...first.announced, liftedAt: CAME_BACK },
+                    announced,
+                ]);
+            });
+
+            test('is not recorded again by a run that read the subscription before it came back', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                await endedOnce(port);
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), true);
+
+                assert.equal(await port.record(endAt(FIRST_END, '2026-11-02', 9)), null);
+                assert.equal(await port.announce(announcementAt(FIRST_END, '2026-11-02')), null);
+                assert.deepEqual(await port.listFor([SUBSCRIPTION]), []);
+                assert.deepEqual(await port.listAnnouncedFor([SUBSCRIPTION]), []);
+            });
+
+            test('leaves the reminders of its deletion', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                await endedOnce(port);
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), true);
+                assert.deepEqual(await port.listDeletingAfter('2026-10-01'), []);
+            });
+
+            test('is lifted once: with no end standing nothing is lifted, not even a day told', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const told = await port.announce(announcementAt(FIRST_END, '2026-10-31'));
+                assert.ok(told);
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), false, 'no end recorded');
+                assert.deepEqual(await port.listAnnouncedFor([SUBSCRIPTION]), [told]);
+
+                assert.ok(await port.record(endAt(FIRST_END, '2026-10-31')));
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), true);
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), false, 'lifted already');
+                assert.equal(await port.lift('sub-never-ended', CAME_BACK), false);
+            });
+
+            test('is lifted by one of two at once', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                await endedOnce(port);
+                // One connection per racer first, as for the end's race above.
+                await Promise.all([1, 2].map(() => port.listFor([SUBSCRIPTION])));
+                const lifted = await Promise.all([
+                    port.lift(SUBSCRIPTION, CAME_BACK),
+                    port.lift(SUBSCRIPTION, new Date(CAME_BACK.getTime() + 1)),
+                ]);
+                assert.deepEqual([...lifted].sort(), [false, true]);
+                const ends = await port.listEndsOfTenant(TENANT);
+                assert.equal(ends.length, 1);
+                assert.ok(ends[0]?.liftedAt, 'the end is lifted');
+            });
+
+            test('stays where the transaction that lifted it rolls back, and is lifted where it commits', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const first = await endedOnce(port);
+                await assert.rejects(
+                    harness.adapter.transactionRunner.run(async (tx) => {
+                        assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK, tx), true);
+                        throw new Error('rolled back');
+                    }),
+                    /rolled back/,
+                );
+                assert.deepEqual(await port.listFor([SUBSCRIPTION]), [first.end]);
+                assert.deepEqual(await port.listAnnouncedFor([SUBSCRIPTION]), [first.announced]);
+
+                await harness.adapter.transactionRunner.run(async (tx) => {
+                    assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK, tx), true);
+                });
+                assert.deepEqual(await port.listFor([SUBSCRIPTION]), []);
+                assert.deepEqual(await port.listAnnouncedFor([SUBSCRIPTION]), []);
+            });
+
+            test("leaves another subscription's end and day as they were", async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                await endedOnce(port);
+                const otherTold = await port.announce({
+                    ...announcementAt(FIRST_END, '2026-10-31'),
+                    tenantId: 'tenant-other',
+                    subscriptionId: 'sub-other',
+                });
+                const otherEnd = await port.record({
+                    ...endAt(FIRST_END, '2026-10-31'),
+                    tenantId: 'tenant-other',
+                    subscriptionId: 'sub-other',
+                });
+                assert.ok(otherTold && otherEnd);
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), true);
+                assert.deepEqual(await port.listFor(['sub-other']), [otherEnd]);
+                assert.deepEqual(await port.listAnnouncedFor(['sub-other']), [otherTold]);
             });
         });
 
@@ -14858,6 +15048,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 assert.deepEqual(listed[0], {
                     ...endDeletedOn('tenant-a', 'sub-d', '2027-02-01'),
                     id: recorded.id,
+                    liftedAt: null,
                 });
             });
 
@@ -14922,6 +15113,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     deletesOn: '2027-05-01',
                     announcedAt: ANNOUNCED_AT,
                     announcedBy: TENANT_ADMIN,
+                    liftedAt: null,
                 };
                 assert.deepEqual(announced, asWritten, 'the answer is the row as stored');
                 assert.ok(

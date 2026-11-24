@@ -18,6 +18,7 @@ import {
     type SubscriptionEndPort,
     type TenantExportDeliverer,
     type TenantExportDownload,
+    downloadBelongsToEnd,
     tenantsBeingDeleted,
 } from '@saasicat/core';
 
@@ -90,6 +91,9 @@ export class TenantExportDownloads implements EndedSubscriptionSource {
      * Read past the tenants' policy, as every read of the administration is
      * (`SC-SEC-020`): the operator's detail page asks outside any tenant's
      * scope. Held to `tenantId`, one read of the ends and one of the downloads.
+     * Each end that stands is listed with the downloads taken for it alone: a
+     * download of an earlier end the tenant came back from is kept under the
+     * same subscription, and acknowledged that end (`SC-PRIV-024`).
      */
     async endsWithDownloadsOf(
         tenantId: string,
@@ -110,7 +114,8 @@ export class TenantExportDownloads implements EndedSubscriptionSource {
                 downloads: downloads.filter(
                     (download) =>
                         download.tenantId === tenantId &&
-                        download.subscriptionId === end.subscriptionId,
+                        download.subscriptionId === end.subscriptionId &&
+                        downloadBelongsToEnd(download, end),
                 ),
             }));
     }

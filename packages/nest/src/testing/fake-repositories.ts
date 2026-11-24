@@ -1122,9 +1122,11 @@ export class FakeTenantAccessHoldRepository implements TenantAccessHoldPort {
 }
 
 /**
- * In-memory `SubscriptionEndPort` for tests: one end and one announcement per
- * subscription, as the unique keys hold them in the database, and every
- * download of the export, as no key refuses one. Starts empty.
+ * In-memory `SubscriptionEndPort` for tests: at most one end and one
+ * announcement of a subscription not lifted, and none twice for one moment, as
+ * the unique keys hold them in the database, and every download of the export,
+ * as no key refuses one. Starts empty. A row a test pushes without `liftedAt`
+ * stands, as one written before the column was.
  */
 export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
     readonly ends: SubscriptionEnd[] = [];
@@ -1133,23 +1135,21 @@ export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
     private nextId = 1;
 
     async record(end: NewSubscriptionEnd): Promise<SubscriptionEnd | null> {
-        if (this.ends.some((recorded) => recorded.subscriptionId === end.subscriptionId)) {
-            return null;
-        }
-        const recorded: SubscriptionEnd = { ...end, id: `end-${this.nextId++}` };
+        if (keptAlready(this.ends, end)) return null;
+        const recorded: SubscriptionEnd = { ...end, id: `end-${this.nextId++}`, liftedAt: null };
         this.ends.push(recorded);
         return { ...recorded };
     }
 
     async listFor(subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]> {
         return this.ends
-            .filter((end) => subscriptionIds.includes(end.subscriptionId))
+            .filter((end) => standing(end) && subscriptionIds.includes(end.subscriptionId))
             .map((end) => ({ ...end }));
     }
 
     async listDeletingAfter(day: CalendarDay): Promise<SubscriptionEnd[]> {
         return this.ends
-            .filter((end) => end.deletesOn > day)
+            .filter((end) => standing(end) && end.deletesOn > day)
             .sort((a, b) =>
                 a.deletesOn !== b.deletesOn
                     ? a.deletesOn < b.deletesOn
@@ -1165,16 +1165,11 @@ export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
     async announce(
         announcement: NewSubscriptionEndAnnouncement,
     ): Promise<SubscriptionEndAnnouncement | null> {
-        if (
-            this.announcements.some(
-                (announced) => announced.subscriptionId === announcement.subscriptionId,
-            )
-        ) {
-            return null;
-        }
+        if (keptAlready(this.announcements, announcement)) return null;
         const announced: SubscriptionEndAnnouncement = {
             ...announcement,
             id: `announcement-${this.nextId++}`,
+            liftedAt: null,
         };
         this.announcements.push(announced);
         return { ...announced };
@@ -1184,8 +1179,22 @@ export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
         subscriptionIds: readonly string[],
     ): Promise<SubscriptionEndAnnouncement[]> {
         return this.announcements
-            .filter((announced) => subscriptionIds.includes(announced.subscriptionId))
+            .filter(
+                (announced) =>
+                    standing(announced) && subscriptionIds.includes(announced.subscriptionId),
+            )
             .map((announced) => ({ ...announced }));
+    }
+
+    async lift(subscriptionId: string, liftedAt: Date): Promise<boolean> {
+        const ofIt = (row: { subscriptionId: string; liftedAt?: Date | null }) =>
+            row.subscriptionId === subscriptionId && standing(row);
+        const end = this.ends.find(ofIt);
+        if (!end) return false;
+        end.liftedAt = liftedAt;
+        const announced = this.announcements.find(ofIt);
+        if (announced) announced.liftedAt = liftedAt;
+        return true;
     }
 
     async recordExportDownload(download: NewTenantExportDownload): Promise<TenantExportDownload> {
@@ -1250,6 +1259,23 @@ export class FakeSubscriptionEndRepository implements SubscriptionEndPort {
             if (download) Object.assign(download, { downloadedBy, downloadedByUserId });
         }
     }
+}
+
+/** Whether an end or announcement stands: not lifted, or pushed by a test without the field. */
+function standing(row: { liftedAt?: Date | null }): boolean {
+    return !row.liftedAt;
+}
+
+/** Whether `rows` hold one of `next`'s subscription it would stand beside or repeat. */
+function keptAlready(
+    rows: readonly { subscriptionId: string; endsAt: Date; liftedAt?: Date | null }[],
+    next: { subscriptionId: string; endsAt: Date },
+): boolean {
+    return rows.some(
+        (row) =>
+            row.subscriptionId === next.subscriptionId &&
+            (standing(row) || row.endsAt.getTime() === next.endsAt.getTime()),
+    );
 }
 
 /** Copies of `rows`, the oldest by `at` first, then by id. */

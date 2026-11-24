@@ -285,6 +285,12 @@ export class SubscriptionEndService implements OnModuleInit {
      * nothing holds. The deletion day is the one announced where there is an
      * `announcement` and the end landed no later than the one it was made
      * for, and counted now otherwise.
+     *
+     * An end the store refuses although none of the subscription stands is
+     * one a new subscription lifted (`SC-CANC-034`): `subscription` was read
+     * before the tenant came back. The reason held for it here is lifted
+     * again, or the tenant that came back would be read-only for an end that
+     * no longer holds.
      */
     private async recordOne(
         subscription: LandedSubscription,
@@ -292,7 +298,7 @@ export class SubscriptionEndService implements OnModuleInit {
         now: Date,
         recordedBy: string,
     ): Promise<SubscriptionEnd | null> {
-        await this.holds?.record({
+        const held = await this.holds?.record({
             tenantId: subscription.tenantId,
             kind: 'ended',
             reference: subscription.subscriptionId,
@@ -300,6 +306,20 @@ export class SubscriptionEndService implements OnModuleInit {
             since: subscription.endsAt,
             recordedBy,
         });
+        const recorded = await this.recordEndOnly(subscription, announcement, now, recordedBy);
+        if (recorded || !held) return recorded;
+        const [standing] = await this.ends.listFor([subscription.subscriptionId]);
+        if (!standing) await this.holds?.lift(held.id, now, recordedBy);
+        return null;
+    }
+
+    /** The end of `subscription`, with its deletion day; null where the store refuses it. */
+    private recordEndOnly(
+        subscription: LandedSubscription,
+        announcement: SubscriptionEndAnnouncement | null,
+        now: Date,
+        recordedBy: string,
+    ): Promise<SubscriptionEnd | null> {
         return this.ends.record({
             tenantId: subscription.tenantId,
             subscriptionId: subscription.subscriptionId,

@@ -6,6 +6,13 @@
 // records the end with the day the tenant's data is deleted on, and holds the
 // tenant read-only until then (`SC-ADM-060`).
 //
+// A tenant that takes out a new subscription before that day comes back on the
+// same subscription (`SC-CANC-034`): the end and the day it was told are
+// lifted, not deleted, and the new subscription's own end is a row of its own
+// with a day of its own. At most one end and one announcement of a
+// subscription stand unlifted, and every reader of "the end of a subscription"
+// reads that one.
+//
 // The deletion day is fixed when the end is recorded. Where the tenant was
 // told a day when it confirmed its cancellation, or ended its subscription at
 // once — an announcement, kept apart from the end because the end has not
@@ -29,10 +36,15 @@ export interface SubscriptionEnd {
     /** When the end was recorded, and who recorded it, as the audit log tags an actor, or the run. */
     recordedAt: Date;
     recordedBy: string;
+    /**
+     * When a new subscription lifted the end, its deletion day with it
+     * (`SC-CANC-034`); null while the end stands.
+     */
+    liftedAt: Date | null;
 }
 
-/** An end to record: the id is the store's to assign. */
-export type NewSubscriptionEnd = Omit<SubscriptionEnd, 'id'>;
+/** An end to record: the id is the store's to assign, and an end recorded stands. */
+export type NewSubscriptionEnd = Omit<SubscriptionEnd, 'id' | 'liftedAt'>;
 
 /**
  * The day a tenant's data is deleted on: the first day after `readOnlyDays`,
@@ -68,8 +80,9 @@ export interface AnnouncedDeletion {
 
 /**
  * The day a tenant was told when it confirmed the end of its subscription, as
- * a store reads it back. One per subscription, kept beside the end that is
- * later recorded with its day; it does not itself mean the subscription ended.
+ * a store reads it back. One per subscription stands unlifted, kept beside the
+ * end that is later recorded with its day; it does not itself mean the
+ * subscription ended.
  */
 export interface SubscriptionEndAnnouncement {
     id: string;
@@ -84,10 +97,15 @@ export interface SubscriptionEndAnnouncement {
     /** When the cancellation was confirmed, and who confirmed it, as the audit log tags an actor. */
     announcedAt: Date;
     announcedBy: string;
+    /**
+     * When a new subscription lifted the end this day was told for
+     * (`SC-CANC-034`); null while it stands.
+     */
+    liftedAt: Date | null;
 }
 
-/** An announcement to record: the id is the store's to assign. */
-export type NewSubscriptionEndAnnouncement = Omit<SubscriptionEndAnnouncement, 'id'>;
+/** An announcement to record: the id is the store's to assign, and one recorded stands. */
+export type NewSubscriptionEndAnnouncement = Omit<SubscriptionEndAnnouncement, 'id' | 'liftedAt'>;
 
 /**
  * What cancelling so that the subscription ends at `endsAt`, confirmed at

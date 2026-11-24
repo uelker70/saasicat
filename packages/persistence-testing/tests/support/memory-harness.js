@@ -2095,8 +2095,9 @@ export function createMemoryHarness() {
     };
 
     /**
-     * Subscription ends and their announcements: one of each per subscription, as the unique keys
-     * keep them. The downloads of a tenant's export: every one kept, as no key refuses one.
+     * Subscription ends and their announcements: at most one of each per subscription not lifted,
+     * and none twice for one moment, as the unique keys keep them. The downloads of a tenant's
+     * export: every one kept, as no key refuses one.
      */
     /** The rows of `tenantId`, by the moment `at` names, then by id. */
     const oldestFirst = (rows, tenantId, at) =>
@@ -2105,26 +2106,34 @@ export function createMemoryHarness() {
                 .filter((row) => row.tenantId === tenantId)
                 .sort((a, b) => a[at] - b[at] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
         );
+    /** Whether `rows` hold one of `subscriptionId` that `next` would stand beside or repeat. */
+    const keptAlready = (rows, next) =>
+        rows.some(
+            (row) =>
+                row.subscriptionId === next.subscriptionId &&
+                (row.liftedAt === null || row.endsAt.getTime() === next.endsAt.getTime()),
+        );
     const subscriptionEnds = {
         async record(end) {
-            if (state.subscriptionEnds.some((row) => row.subscriptionId === end.subscriptionId)) {
-                return null;
-            }
-            const row = { id: nextId('end'), ...structuredClone(end) };
+            if (keptAlready(state.subscriptionEnds, end)) return null;
+            const row = { id: nextId('end'), ...structuredClone(end), liftedAt: null };
             state.subscriptionEnds.push(row);
             return structuredClone(row);
         },
         async listFor(subscriptionIds) {
             return structuredClone(
                 state.subscriptionEnds
-                    .filter((row) => subscriptionIds.includes(row.subscriptionId))
+                    .filter(
+                        (row) =>
+                            row.liftedAt === null && subscriptionIds.includes(row.subscriptionId),
+                    )
                     .sort((a, b) => (a.subscriptionId < b.subscriptionId ? -1 : 1)),
             );
         },
         async listDeletingAfter(day) {
             return structuredClone(
                 state.subscriptionEnds
-                    .filter((row) => row.deletesOn > day)
+                    .filter((row) => row.liftedAt === null && row.deletesOn > day)
                     .sort((a, b) =>
                         a.deletesOn !== b.deletesOn
                             ? a.deletesOn < b.deletesOn
@@ -2137,23 +2146,34 @@ export function createMemoryHarness() {
             );
         },
         async announce(announcement) {
-            if (
-                state.subscriptionEndAnnouncements.some(
-                    (row) => row.subscriptionId === announcement.subscriptionId,
-                )
-            ) {
-                return null;
-            }
-            const row = { id: nextId('announcement'), ...structuredClone(announcement) };
+            if (keptAlready(state.subscriptionEndAnnouncements, announcement)) return null;
+            const row = {
+                id: nextId('announcement'),
+                ...structuredClone(announcement),
+                liftedAt: null,
+            };
             state.subscriptionEndAnnouncements.push(row);
             return structuredClone(row);
         },
         async listAnnouncedFor(subscriptionIds) {
             return structuredClone(
                 state.subscriptionEndAnnouncements
-                    .filter((row) => subscriptionIds.includes(row.subscriptionId))
+                    .filter(
+                        (row) =>
+                            row.liftedAt === null && subscriptionIds.includes(row.subscriptionId),
+                    )
                     .sort((a, b) => (a.subscriptionId < b.subscriptionId ? -1 : 1)),
             );
+        },
+        async lift(subscriptionId, liftedAt) {
+            const standing = (row) =>
+                row.subscriptionId === subscriptionId && row.liftedAt === null;
+            const end = state.subscriptionEnds.find(standing);
+            if (!end) return false;
+            end.liftedAt = new Date(liftedAt);
+            const announced = state.subscriptionEndAnnouncements.find(standing);
+            if (announced) announced.liftedAt = new Date(liftedAt);
+            return true;
         },
         async recordExportDownload(download) {
             const row = { id: nextId('download'), ...structuredClone(download) };

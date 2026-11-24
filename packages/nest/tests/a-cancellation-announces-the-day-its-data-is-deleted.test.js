@@ -329,6 +329,7 @@ describe('confirming a cancellation', () => {
                 deletesOn: '2100-01-31',
                 announcedAt: confirmed.canceledAt,
                 announcedBy: ADMIN_TAG,
+                liftedAt: null,
             },
         ]);
         assert.equal(audited.length, 1);

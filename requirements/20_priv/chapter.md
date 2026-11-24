@@ -838,6 +838,8 @@ _Tested by:_
     - a deletion done, on the record of its subscriber
         - is read once the application has no tenant any more, with every store, the commercial
           record, the reminders and the downloads, naming no person
+        - of a tenant that came back once, keeps the reminders and downloads of the end it was
+          deleted for
         - names no person while the deletion is under way and the rows still name them
         - counts a reminder that reached nobody as 0, and one not delivered as not delivered
         - says on both pages that a suspension kept the export from being taken between the end and
@@ -868,14 +870,21 @@ _Tested by:_
         - says a suspension kept it from being taken where one held after the end
         - deletes the tenant on its day though nobody ever took its export
         - says none did where the suspension was lifted before the end
+- `packages/nest/tests/the-days-and-downloads-of-an-ended-subscription-are-shown.test.js`
+    - the operator's page names the day and every download of the export
+        - a tenant that came back and ended again is listed the downloads of this end alone
 - `packages/nest/tests/where-a-deletion-stands-is-read-naming-no-person.test.js`
     - a deletion done, on the record of its subscriber
         - is read once the application has no tenant any more, with every store, the commercial
           record, the reminders and the downloads, naming no person
+        - of a tenant that came back once, keeps the reminders and downloads of the end it was
+          deleted for
         - names no person while the deletion is under way and the rows still name them
         - counts a reminder that reached nobody as 0, and one not delivered as not delivered
         - says on both pages that a suspension kept the export from being taken between the end and
           the deletion
+        - of a tenant that came back once, keeps the reminders and downloads of the end it was
+          deleted for
 - `packages/ui-vue/tests/component/subscriber-record-shows-its-deletions.test.ts`
     - the subscriber's record shows its tenants' deletions
         - a tenant the application no longer has, named by its id, with all that is recorded of its

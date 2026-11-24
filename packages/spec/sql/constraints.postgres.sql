@@ -123,6 +123,16 @@ ALTER TABLE tenant_access_holds
     ADD CONSTRAINT tenant_access_holds_known_kind
     CHECK ("kind" IN ('suspended', 'overdue', 'ended', 'deleting'));
 
+-- At most ONE end of a subscription, and ONE day told for its cancellation,
+-- stand unlifted. A tenant that comes back with a new subscription lifts both,
+-- and the rows leave the indexes, so the new subscription can end and be told
+-- a day of its own (`SC-CANC-034`). A run repeated, or two at once, therefore
+-- record an end once, and two confirmations at once announce a day once.
+CREATE UNIQUE INDEX IF NOT EXISTS subscription_ends_one_not_lifted
+    ON subscription_ends ("subscriptionId") WHERE "liftedAt" IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS subscription_end_announcements_one_not_lifted
+    ON subscription_end_announcements ("subscriptionId") WHERE "liftedAt" IS NULL;
+
 -- At most ONE withdrawal of a feature is not lifted. A lifted one keeps its row
 -- with `liftedFrom` set and leaves the index, so the feature can be withdrawn
 -- again from that date. Two operators announcing at the same moment therefore

@@ -8709,6 +8709,8 @@ _Tested by:_
     - a deletion done, on the record of its subscriber
         - is read once the application has no tenant any more, with every store, the commercial
           record, the reminders and the downloads, naming no person
+        - of a tenant that came back once, keeps the reminders and downloads of the end it was
+          deleted for
         - names no person while the deletion is under way and the rows still name them
         - counts a reminder that reached nobody as 0, and one not delivered as not delivered
         - says on both pages that a suspension kept the export from being taken between the end and
@@ -8960,6 +8962,7 @@ _Tested by:_
         - none taken yet is an empty list, not an absent one
         - every other reason carries neither a day nor downloads
         - an ended subscription whose end is not recorded yet carries no day and no downloads
+        - a tenant that came back and ended again is listed the downloads of this end alone
         - another tenant's downloads under the same subscription are not listed
         - the ends and the downloads are read once each, past the tenants’ policy
         - and not at all where no subscription ended
@@ -9117,6 +9120,7 @@ _Tested by:_
         - an end recorded before it lands counts from the day it lands
     - an end read back from a store
         - takes its day from Prisma's date at midnight UTC and from Drizzle's text alike
+        - says whether, and when, a new subscription lifted it
         - refuses a column that holds no day, naming it
 - `packages/nest/tests/a-setting-comes-from-the-file.test.js`
     - the value the code runs on is the value in the file
@@ -9154,6 +9158,8 @@ _Tested by:_
         - counts an end it learns of late from its own day, so nobody gets less notice
         - moves no day already recorded when the period changes
         - finishes what a run that stopped after holding the tenant left, without holding it twice
+        - a run that read the subscription before its tenant came back records nothing, and holds
+          the tenant no second time
         - a run that fails while holding the tenant records no end, so the next one records both
         - reads the ends a thousand subscriptions at a time, however many ended before
         - holds each subscription's own tenant, and no other
@@ -9206,6 +9212,9 @@ _Source:_ #276 · #337 · #339 (decided 2026-11-17)
 
 _Tested by:_
 
+- `packages/core/tests/a-cancellation-announces-its-deletion-day.test.js`
+    - an announcement read back from a store
+        - says whether, and when, a new subscription lifted it
 - `packages/core/tests/a-tenant-comes-back-before-its-deletion-day.test.js`
     - whether a tenant whose subscription ended can come back
         - in its read-only period it can
@@ -9224,6 +9233,13 @@ _Tested by:_
         - to whoever may take out a subscription, while the rule lets it
         - to nobody else of the tenant
         - nowhere the rule refuses it
+- `packages/core/tests/an-ended-subscription-is-deleted-on-a-fixed-day.test.js`
+    - an end read back from a store
+        - says whether, and when, a new subscription lifted it
+- `packages/nest/tests/an-ended-subscription-is-recorded-once.test.js`
+    - the run that records the subscriptions that ended
+        - a run that read the subscription before its tenant came back records nothing, and holds
+          the tenant no second time
 
 <!-- END proof -->
 
@@ -18377,6 +18393,8 @@ _Tested by:_
     - a deletion done, on the record of its subscriber
         - is read once the application has no tenant any more, with every store, the commercial
           record, the reminders and the downloads, naming no person
+        - of a tenant that came back once, keeps the reminders and downloads of the end it was
+          deleted for
         - names no person while the deletion is under way and the rows still name them
         - counts a reminder that reached nobody as 0, and one not delivered as not delivered
         - says on both pages that a suspension kept the export from being taken between the end and
@@ -26858,6 +26876,8 @@ _Tested by:_
     - a deletion done, on the record of its subscriber
         - is read once the application has no tenant any more, with every store, the commercial
           record, the reminders and the downloads, naming no person
+        - of a tenant that came back once, keeps the reminders and downloads of the end it was
+          deleted for
         - names no person while the deletion is under way and the rows still name them
         - counts a reminder that reached nobody as 0, and one not delivered as not delivered
         - says on both pages that a suspension kept the export from being taken between the end and
@@ -26888,14 +26908,21 @@ _Tested by:_
         - says a suspension kept it from being taken where one held after the end
         - deletes the tenant on its day though nobody ever took its export
         - says none did where the suspension was lifted before the end
+- `packages/nest/tests/the-days-and-downloads-of-an-ended-subscription-are-shown.test.js`
+    - the operator's page names the day and every download of the export
+        - a tenant that came back and ended again is listed the downloads of this end alone
 - `packages/nest/tests/where-a-deletion-stands-is-read-naming-no-person.test.js`
     - a deletion done, on the record of its subscriber
         - is read once the application has no tenant any more, with every store, the commercial
           record, the reminders and the downloads, naming no person
+        - of a tenant that came back once, keeps the reminders and downloads of the end it was
+          deleted for
         - names no person while the deletion is under way and the rows still name them
         - counts a reminder that reached nobody as 0, and one not delivered as not delivered
         - says on both pages that a suspension kept the export from being taken between the end and
           the deletion
+        - of a tenant that came back once, keeps the reminders and downloads of the end it was
+          deleted for
 - `packages/ui-vue/tests/component/subscriber-record-shows-its-deletions.test.ts`
     - the subscriber's record shows its tenants' deletions
         - a tenant the application no longer has, named by its id, with all that is recorded of its

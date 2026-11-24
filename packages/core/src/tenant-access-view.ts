@@ -117,8 +117,9 @@ export interface TenantAccessViewOptions {
     isTenantAdministrator: boolean;
     /**
      * The deletion day of each ended subscription the reasons name, by
-     * subscription id: read only where an `ended` reason is open. A
-     * subscription absent from it has no end recorded yet.
+     * subscription id — of its end that is not lifted: read only where an
+     * `ended` reason is open. A subscription absent from it has no end
+     * recorded yet.
      */
     deletionDays?: ReadonlyMap<string, CalendarDay>;
     /**

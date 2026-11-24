@@ -14,8 +14,16 @@
 // change to the read-only period in `config/saas.yaml` applies to ends recorded
 // after it.
 //
-// At most ONE row per subscription: the unique key on `subscriptionId` is what
-// makes a repeated run, or two runs at once, record an end once.
+// A tenant that takes out a new subscription before that day lifts the end
+// (`SC-CANC-034`): the row stays with `liftedAt` set, and the new
+// subscription's own end, on the same `subscriptionId`, is a row of its own.
+//
+// At most ONE row per subscription is not lifted, and no two of one
+// subscription share their `endsAt`. The first is a partial unique index
+// Prisma cannot express, in sql/constraints.postgres.sql; the second is the
+// unique key below. Together they make a repeated run, or two runs at once,
+// record an end once — and a run that read the subscription before it came
+// back record the lifted end no second time.
 //
 // Required wherever tenants are served: the platform refuses to start without
 // a place to keep the ends, since a deletion day that is not recorded cannot be
@@ -26,7 +34,7 @@ model SubscriptionEnd {
     // The tenant whose subscription ended. Not a relation: the tenant model is
     // the application's, and the record outlives the subscription row.
     tenantId       String
-    subscriptionId String   @unique
+    subscriptionId String
     // The moment the cancellation landed.
     endsAt         DateTime
     // The installation's day the tenant's data is deleted on: the first day
@@ -36,8 +44,11 @@ model SubscriptionEnd {
     // log writes it, or the run that did).
     recordedAt     DateTime
     recordedBy     String
-    createdAt      DateTime @default(now())
+    // When a new subscription lifted the end, and its deletion day with it.
+    liftedAt       DateTime?
+    createdAt      DateTime  @default(now())
 
+    @@unique([subscriptionId, endsAt])
     @@index([tenantId])
     // The reminders of a deletion read the ends by their day.
     @@index([deletesOn])
