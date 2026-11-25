@@ -256,11 +256,22 @@ const REFUSED: Readonly<
         new ConflictException(codedError(TENANT_ACCESS_ERROR_CODES.TENANT_RETURN_NOT_ENDED)),
     'deletion-day-reached': (_open, end) =>
         new ConflictException(
-            codedError(TENANT_ACCESS_ERROR_CODES.TENANT_RETURN_DELETION_DAY_REACHED, {
-                deletesOn: end?.deletesOn ?? null,
-            }),
+            namingTheDeletionDay(
+                TENANT_ACCESS_ERROR_CODES.TENANT_RETURN_DELETION_DAY_REACHED,
+                end?.deletesOn ?? null,
+            ),
         ),
 };
+
+/** A refusal naming the deletion day, said to be a day, so a page writes it as it writes days. */
+function namingTheDeletionDay(
+    code:
+        | typeof TENANT_ACCESS_ERROR_CODES.TENANT_RETURN_DELETION_DAY_REACHED
+        | typeof TENANT_ACCESS_ERROR_CODES.TENANT_RETURN_DELETION_DAY_CHANGED,
+    deletesOn: CalendarDay | null,
+): ReturnType<typeof codedError> & { readonly dayParams: readonly string[] } {
+    return { ...codedError(code, { deletesOn }), dayParams: ['deletesOn'] };
+}
 
 @Injectable()
 export class SubscriptionReturnService implements SubscriptionReturnSource, OnModuleInit {
@@ -413,9 +424,10 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
         if ('refusal' in returnable) throw refused(returnable.refusal, standing);
         if (deletionDayDiffersFromShown(choice.expectedDeletesOn, returnable.end)) {
             throw new ConflictException(
-                codedError(TENANT_ACCESS_ERROR_CODES.TENANT_RETURN_DELETION_DAY_CHANGED, {
-                    deletesOn: returnable.end.deletesOn,
-                }),
+                namingTheDeletionDay(
+                    TENANT_ACCESS_ERROR_CODES.TENANT_RETURN_DELETION_DAY_CHANGED,
+                    returnable.end.deletesOn,
+                ),
             );
         }
         const holds = this.holds;

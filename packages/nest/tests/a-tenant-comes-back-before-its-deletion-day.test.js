@@ -319,7 +319,12 @@ describe('the deletion day, in the installation’s days, is where coming back s
         );
         await assert.rejects(
             tenant.service.takeOut(TENANT, STANDARD_MONTHLY, ADMIN, DELETION_DAY),
-            (error) => error.response.params.deletesOn === DELETES_ON,
+            (error) => {
+                assert.equal(error.response.params.deletesOn, DELETES_ON);
+                // Said to be a day, so a page writes it as it writes days.
+                assert.deepEqual(error.response.dayParams, ['deletesOn']);
+                return true;
+            },
         );
     });
 });

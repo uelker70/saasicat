@@ -99,6 +99,7 @@ async function mountBanner(
             http,
             // The day the instant falls on in the viewer's zone, as an application's formatter writes it.
             formatDate: (iso: string) => new Date(iso).toLocaleDateString('de-DE'),
+            formatCurrency: (amount: number) => `${amount.toFixed(2)} €`,
             onTakeExport: options.onTakeExport,
         },
         attachTo: document.body,

@@ -231,6 +231,7 @@ describe('coming back through the route', () => {
             assert.ok(error instanceof ConflictException);
             assert.equal(error.getResponse().code, 'TENANT_RETURN_DELETION_DAY_REACHED');
             assert.deepEqual(error.getResponse().params, { deletesOn: DELETES_ON });
+            assert.deepEqual(error.getResponse().dayParams, ['deletesOn']);
             return true;
         });
     });
@@ -259,6 +260,7 @@ describe('coming back through the route', () => {
                 assert.ok(error instanceof ConflictException);
                 assert.equal(error.getResponse().code, 'TENANT_RETURN_DELETION_DAY_CHANGED');
                 assert.deepEqual(error.getResponse().params, { deletesOn: DELETES_ON });
+                assert.deepEqual(error.getResponse().dayParams, ['deletesOn']);
                 return true;
             },
         );

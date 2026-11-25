@@ -588,6 +588,46 @@ export interface TenantPlanSectionI18n {
      */
     accessKeepLine: string;
     /**
+     * To the tenant's administrator once its subscription has ended and until
+     * its deletion day (`SC-CANC-034`): opens the dialog that takes a new
+     * subscription out, and is that dialog's title.
+     */
+    returnAction: string;
+    /** Above the plans the dialog offers: what a new subscription runs on. */
+    returnIntro: string;
+    /** The plans could not be read. */
+    returnPlansLoadFailed: string;
+    /** No plan is offered to come back on. */
+    returnNoPlans: string;
+    /**
+     * One period of the new contract: `{net}` and `{gross}` as the application
+     * writes amounts, `{unit}` the period's word beside a net price, `{vatRate}`
+     * the rate in percent.
+     */
+    returnPriceGross: string;
+    /** As `returnPriceGross`, where the installation keeps no contract to say the tax: `{net} {unit}`. */
+    returnPriceNet: string;
+    /** The first period, from its first day, `{start}`, to and including its last, `{end}`. */
+    returnPeriod: string;
+    /** The days of notice a cancellation of the new subscription is owed: `{days}`. */
+    returnNotice: string;
+    /** As `returnNotice`, where none are owed. */
+    returnNoNotice: string;
+    /** The deletion the new subscription lifts, on `{deletesOn}`. */
+    returnDeletionLifted: string;
+    /** As `returnDeletionLifted`, where no day is named. */
+    returnDeletionLiftedUndated: string;
+    /** That the tenant is open again once it has come back. */
+    returnOpensAtOnce: string;
+    /** Instead of `returnOpensAtOnce`, where an unpaid invoice holds the tenant too. */
+    returnUnpaidStays: string;
+    /** Where a payment method has to be entered first and this user cannot: who can. */
+    returnPaymentMethodByBilling: string;
+    /** The confirmation that takes the new subscription out, which costs money. */
+    returnConfirm: string;
+    /** While the new subscription is being taken out. */
+    returnConfirmInProgress: string;
+    /**
      * Texts for the coded blockers and warnings a plan-change preview returns,
      * keyed by `BILLING_ERROR_CODES`. Sits here rather than in a prop of its
      * own so that an app translating this map translates its blockers in the
@@ -1041,6 +1081,24 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     accessExportFailed: 'Der Export konnte nicht heruntergeladen werden.',
     accessKeepHeading: 'Für Ihre eigenen Unterlagen aufbewahren',
     accessKeepLine: '{label}: {count}',
+    returnAction: 'Wieder abonnieren',
+    returnIntro:
+        'Wählen Sie einen Plan und einen Abrechnungsrhythmus. Das neue Abonnement gilt zu den heutigen Preisen und Bedingungen.',
+    returnPlansLoadFailed: 'Die Pläne konnten nicht geladen werden.',
+    returnNoPlans: 'Hier lässt sich derzeit kein Plan abonnieren.',
+    returnPriceGross: '{net} {unit}, {gross} inkl. {vatRate} % USt.',
+    returnPriceNet: '{net} {unit}',
+    returnPeriod: 'Beginnt am {start}; der erste Zeitraum läuft bis einschließlich {end}.',
+    returnNotice: 'Kündbar zum Ende eines Zeitraums mit einer Frist von {days} Tagen.',
+    returnNoNotice: 'Kündbar zum Ende jedes Zeitraums.',
+    returnDeletionLifted: 'Ihre Daten werden dann nicht mehr am {deletesOn} gelöscht.',
+    returnDeletionLiftedUndated: 'Ihre Daten werden dann nicht mehr gelöscht.',
+    returnOpensAtOnce: 'Das Konto lässt sich sofort wieder ändern.',
+    returnUnpaidStays:
+        'Eine noch unbezahlte Rechnung hält das Konto auf Nur-Lesen, bis sie bezahlt ist.',
+    returnPaymentMethodByBilling: 'Hinterlegen kann es, wer bei Ihnen die Abrechnung betreut.',
+    returnConfirm: 'Kostenpflichtig abonnieren',
+    returnConfirmInProgress: 'Wird abonniert …',
     issueMessages: ERROR_MESSAGES_DE,
 };
 
@@ -1479,6 +1537,23 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     accessExportFailed: 'The export could not be downloaded.',
     accessKeepHeading: 'Keep for your own records',
     accessKeepLine: '{label}: {count}',
+    returnAction: 'Subscribe again',
+    returnIntro:
+        "Choose a plan and a billing rhythm. The new subscription runs on today's prices and terms.",
+    returnPlansLoadFailed: 'The plans could not be loaded.',
+    returnNoPlans: 'No plan can be subscribed to here at the moment.',
+    returnPriceGross: '{net} {unit}, {gross} including {vatRate} % VAT',
+    returnPriceNet: '{net} {unit}',
+    returnPeriod: 'Starts on {start}; the first period runs to the end of {end}.',
+    returnNotice: "Can be cancelled to the end of a period with {days} days' notice.",
+    returnNoNotice: 'Can be cancelled to the end of any period.',
+    returnDeletionLifted: 'Your data is then no longer deleted on {deletesOn}.',
+    returnDeletionLiftedUndated: 'Your data is then no longer deleted.',
+    returnOpensAtOnce: 'The account can be changed again at once.',
+    returnUnpaidStays: 'An invoice still unpaid keeps the account read-only until it is paid.',
+    returnPaymentMethodByBilling: 'Whoever looks after billing in your organisation can enter it.',
+    returnConfirm: 'Subscribe and pay',
+    returnConfirmInProgress: 'Subscribing …',
     issueMessages: ERROR_MESSAGES_EN,
 };
 

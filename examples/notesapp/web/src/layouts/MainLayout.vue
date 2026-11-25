@@ -25,11 +25,14 @@
                 <q-btn flat dense icon="logout" label="Logout" class="q-ml-sm" @click="onLogout" />
             </q-toolbar>
             <!-- Why the tenant is held back, on every page behind the sign-in: shows
-                 nothing while it is open. -->
+                 nothing while it is open. Once its subscription has ended, its
+                 administrator subscribes again from here at the plans' prices. -->
             <TenantAccessBanner
                 :http="platformHttp"
                 api-prefix="/billing"
                 :format-date="formatDate"
+                :format-currency="formatCurrency"
+                :quota-label="quotaLabel"
             />
         </q-header>
 
@@ -43,7 +46,8 @@
 import TenantAccessBanner from '@saasicat/ui-vue-tenant/TenantAccessBanner.vue';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
-import { formatDate } from '../formats';
+import { formatCurrency, formatDate } from '../formats';
+import { quotaLabel } from '../labels';
 import { platformHttp } from '../services/http';
 import { useSessionStore } from '../stores/session';
 

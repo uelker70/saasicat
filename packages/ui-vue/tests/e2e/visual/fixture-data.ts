@@ -1123,6 +1123,15 @@ const TENANT_ACCESS_ENDED = {
     mayReturn: false,
 };
 
+// The same end before its deletion day with nothing unpaid, as its
+// administrator reads it: taking the export and subscribing again offered.
+const TENANT_ACCESS_RETURNABLE = {
+    ...TENANT_ACCESS_ENDED,
+    reasons: TENANT_ACCESS_ENDED.reasons.filter((reason) => reason.kind === 'ended'),
+    mayPay: false,
+    mayReturn: true,
+};
+
 // What the tenant's account owes, which the banner reads to offer paying.
 const TENANT_ACCESS_ACCOUNT = {
     balances: [{ currency: 'EUR', owed: 138, overdue: 138, credit: 0 }],
@@ -2267,6 +2276,10 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/keep-billing/access', TENANT_ACCESS_ENDED],
     ['/api/keep-billing/access/keep', TENANT_KEEP],
     ['/api/keep-billing/account', TENANT_ACCESS_ACCOUNT],
+    // The banner of a tenant that can subscribe again: a prefix of its own, so
+    // the cases above keep rendering it without that button.
+    ['/api/return-billing/access', TENANT_ACCESS_RETURNABLE],
+    ['/api/return-billing/access/keep', { keep: [] }],
 ];
 
 /**

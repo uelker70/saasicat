@@ -11,7 +11,8 @@
 // invoice comes due, a payment lifts the hold —, so a page reads it on mount
 // and again every `pollMs`, as `useMaintenanceStatus` reads the lock. Only the
 // answer to the latest read is kept: one that arrives after a newer one does
-// not put back what the newer one replaced.
+// not put back what the newer one replaced. A change made on the page itself
+// (`announceTenantAccessChanged`) is read at once.
 
 import { getCurrentScope, onScopeDispose, ref, type Ref } from 'vue';
 import type { TenantAccessState, TenantAccessView } from '@saasicat/core';
@@ -19,6 +20,7 @@ import type { TenantAccessState, TenantAccessView } from '@saasicat/core';
 import { httpStatusOf } from '../client/admin-error.js';
 import { isHiddenFromThisUser } from '../client/billing-area.js';
 import { getJson, trimTrailingSlashes } from '../client/http-json.js';
+import { onTenantAccessChanged } from '../client/tenant-access-changed.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
 /** How often a page reads the state again while it is open. */
@@ -136,6 +138,13 @@ export function useTenantAccessState(
             disposed = true;
             if (timer !== null) clearTimeout(timer);
         });
+    }
+
+    // What the page itself changed — a return taken out — is read at once
+    // rather than at the next poll. Only within a scope, which is what stops
+    // hearing it.
+    if (getCurrentScope() !== undefined) {
+        onScopeDispose(onTenantAccessChanged(() => void reload()));
     }
 
     return { view, loading, error, reload };

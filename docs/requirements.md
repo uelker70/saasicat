@@ -9358,6 +9358,44 @@ _Tested by:_
     - the run that records the subscriptions that ended
         - a run that read the subscription before its tenant came back records nothing, and holds
           the tenant no second time
+- `packages/ui-vue/tests/a-tenant-comes-back-from-its-page.test.js`
+    - what a tenant would come back on
+        - is asked for the plan and the rhythm chosen, under the prefix the app gives, and answered
+          as the server says
+        - is why it cannot, where the server says so
+        - answered with neither terms nor a refusal, is an error rather than terms nobody stated
+    - taking the return out
+        - sends the version and the deletion day the preview showed, and every reader of the state
+          reads it again
+        - names no version where the installation binds none
+        - refused, reaches the caller with its code and the preview as it now stands, and the state
+          is read again
+        - a reader whose page is gone is not told
+- `packages/ui-vue-tenant/tests/component/a-tenant-comes-back.test.ts`
+    - the banner offers to subscribe again
+        - to whoever the server says may, and to nobody else
+    - before confirming, the tenant reads what it comes back on
+        - the price, the first period, the notice and the deletion lifted, each day the server's
+        - with an invoice still unpaid, that it keeps the account read-only until it is paid
+        - what stands in the way of the plan, which keeps the confirmation locked
+        - where the server says it cannot come back, why, naming the day
+    - without a payment method, it is entered first
+        - by a user holding the billing permission, here, and the confirmation stays locked until
+          then
+        - by whoever looks after billing, which a user without the permission is told
+    - confirming
+        - sends the version and the deletion day shown, closes the dialog, and the banner goes
+        - with an invoice still unpaid, the banner stays for it alone
+        - refused because the deletion day came after it was opened: says why with the day, and the
+          state is read again
+        - refused because the plan changed since: shows it as it stands, and the next confirmation
+          sends its version
+    - the dialog, by keyboard
+        - is named by its title, takes the focus, and Escape closes it and gives the focus back
+    - the plan section of an ended subscription
+        - offers it where the server says this reader may, and opens the dialog on the plans it read
+        - does not offer it where the server says not
+        - a header told nothing offers nothing
 
 <!-- END proof -->
 
