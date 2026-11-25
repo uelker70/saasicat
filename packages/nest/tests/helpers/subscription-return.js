@@ -146,11 +146,14 @@ const ARCHIVE = { bundleKey: 'ARCHIVE', label: 'Archive', features: ['ARCHIVE'],
 /**
  * The tenant's one subscription row, as the application keeps it: read by
  * each port in the shape it wants, and started again as both adapters do —
- * only while the cancellation read still stands, and taken back with the
+ * only while the cancellation read still stands and, where asked for alone,
+ * while the version still takes bookings, and taken back with the
  * transaction it was written in.
  */
 export class SubscriptionRow {
     bindsPlanVersion = true;
+    /** Versions that stopped taking bookings after the return read them on sale, before its write. */
+    versionsEndedSinceRead = new Set();
 
     constructor(overrides = {}) {
         this.row = {
@@ -199,7 +202,8 @@ export class SubscriptionRow {
         const row = this.row;
         if (
             tenantId !== row.tenantId ||
-            row.canceledEffectiveAt?.getTime() !== input.expectedCanceledEffectiveAt.getTime()
+            row.canceledEffectiveAt?.getTime() !== input.expectedCanceledEffectiveAt.getTime() ||
+            (input.quotedVersionOnly && this.versionsEndedSinceRead.has(input.planVersionId))
         ) {
             return { claimed: false, endedSpecialTerms: [] };
         }

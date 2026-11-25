@@ -430,6 +430,10 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
                     periodEnd: returned.periodEnd,
                     expectedCanceledEffectiveAt: endsAt,
                     planVersionId: returned.planVersionId,
+                    // The version checked above, and no other: one that stops
+                    // taking bookings between the check and the write leaves
+                    // the row unclaimed rather than bound to what is not sold.
+                    quotedVersionOnly: returned.planVersionId !== null,
                 },
                 tx,
             );

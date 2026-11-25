@@ -45,7 +45,10 @@ import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { mayChangeWhatTheTenantPays } from './tenant-roles.js';
 import { initialPeriodWindow } from './billing-period.js';
-import { PlanChangePreviewService } from './plan-change-preview.service.js';
+import {
+    PlanChangePreviewService,
+    type PlanChangePreviewDto,
+} from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
 import { VersionSwitchService } from './version-switch.service.js';
 import { RetirementSwitchService } from './retirement-switch.service.js';
@@ -132,6 +135,9 @@ import {
 interface RequestLike {
     user?: { tenantId?: string; sub?: string; id?: string };
 }
+
+/** The moments a plan-change preview answers with, each handed out with its days. */
+const PLAN_PREVIEW_MOMENTS = ['effectiveAt', 'projectedTrialEndsAt'] as const;
 
 /** What `GET /billing/usage` reads, before the days of its moments are put beside them. */
 interface UsageMomentsAnswer {
@@ -519,12 +525,22 @@ export class TenantBillingController {
     @WritesNothing()
     async previewPlanChange(@Req() req: RequestLike, @Body() dto: PreviewPlanChangeDto) {
         const tenantId = this.requireTenantId(req);
-        const preview = withDays(
+        return this.previewHandedOut(
+            req,
             await this.planPreview.preview(tenantId, dto.plan, dto.billingCycle),
-            ['effectiveAt', 'projectedTrialEndsAt'],
-            this.zone(),
         );
-        return { ...preview, mayChange: mayChangeWhatTheTenantPays(req) };
+    }
+
+    /**
+     * `preview` as the tenant is shown it — by the preview route, and by a
+     * change refused for a price it was not shown: its moments with their
+     * days in the installation's zone, and whether `req` may make the change.
+     */
+    private previewHandedOut(req: RequestLike, preview: PlanChangePreviewDto) {
+        return {
+            ...withDays(preview, PLAN_PREVIEW_MOMENTS, this.zone()),
+            mayChange: mayChangeWhatTheTenantPays(req),
+        };
     }
 
     // ---------------------------------------------------------------------
@@ -665,7 +681,7 @@ export class TenantBillingController {
         await assertNamesTheVersionShown(
             { planKey: dto.plan, planVersionId: dto.planVersionId },
             quotedVersionId,
-            () => Promise.resolve(decision),
+            () => Promise.resolve(this.previewHandedOut(req, decision)),
         );
 
         // The decisions above were taken against the cancellation as it stood

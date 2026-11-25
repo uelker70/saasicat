@@ -9,6 +9,7 @@ import type {
     EndTrialInput,
     EndSubscriptionNowResult,
     ImmediatePlanChangeInput,
+    PlanVersionRow,
     PromoCodeRedemptionRecord,
     RedeemPromoInTransactionCallback,
     ScheduledPlanChangeInput,
@@ -268,7 +269,9 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
      * a savepoint, so the return's contract and the lifted end share it, and in
      * one of its own otherwise: the row is locked first, so the special terms
      * it answers with are the ones the write ended. The version bound is the
-     * one the new contract was composed for, never the one in effect instead.
+     * one the new contract was composed for, never the one in effect instead;
+     * asked for alone (`quotedVersionOnly`) and taking no bookings by the
+     * first period, it claims nothing.
      */
     async startAgain(
         tenantId: string,
@@ -287,6 +290,9 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 `A return for tenant ${tenantId} names plan version ${input.planVersionId}, ` +
                     `which is not one of ${input.planId}.`,
             );
+        }
+        if (input.quotedVersionOnly && !takesBookingsAt(version, input.periodStart)) {
+            return { claimed: false, endedSpecialTerms: [] };
         }
         const planVersionId = input.planVersionId;
         return resolveDb(this.db, tx).transaction(async (transaction) => {
@@ -484,8 +490,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         const quoted = await this.plans.findVersionById(quotedVersionId, tx);
         if (!quoted || quoted.planId !== input.planId) return null;
         if (input.restoresQuotedVersion) return quotedVersionId;
-        if (quoted.validFrom && new Date(quoted.validFrom) > asOf) return null;
-        return quoted.endsAt && new Date(quoted.endsAt) <= asOf ? null : quotedVersionId;
+        return takesBookingsAt(quoted, asOf) ? quotedVersionId : null;
     }
 }
 
@@ -516,6 +521,19 @@ function asChangedIs(putBack: SubscriptionPutBack): SQL[] {
         ),
         columnIs(subscriptions.pendingAgreedAt, claimed.pendingAgreedAt),
     ];
+}
+
+/**
+ * Whether `version` takes bookings at `asOf`: it has begun, and it has not
+ * ended (`SC-PLAN-016`). A window closed by a successor's publication does not
+ * count against it.
+ */
+function takesBookingsAt(
+    version: Pick<PlanVersionRow, 'validFrom' | 'endsAt'>,
+    asOf: Date,
+): boolean {
+    if (version.validFrom && new Date(version.validFrom) > asOf) return false;
+    return !(version.endsAt && new Date(version.endsAt) <= asOf);
 }
 
 /** `= NULL` is never true in SQL — an expected-null claim needs `IS NULL`. */

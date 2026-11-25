@@ -822,6 +822,18 @@ describe('the version it comes back on is the one its preview showed', () => {
         assert.equal(tenant.subscription.row.planVersionId, V4.id);
     });
 
+    test('one that stops taking bookings between the check and the write is not bound, and nothing is written', async () => {
+        const tenant = await aTenantThatEnded();
+        // Read on sale by the return, ended before its write.
+        tenant.subscription.versionsEndedSinceRead.add(V3.id);
+
+        await refusedWritingNothing(
+            tenant,
+            tenant.service.takeOut(TENANT, STANDARD_MONTHLY, ADMIN, RETURN_AT),
+            'SUBSCRIPTION_CHANGED',
+        );
+    });
+
     for (const [what, planVersionId] of [
         ['none at all', undefined],
         ['null', null],

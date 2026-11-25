@@ -9319,6 +9319,8 @@ _Tested by:_
         - named, and still on sale a millisecond before its successor, it is bound and priced
         - no longer on sale from its successor’s start, it is refused with the preview as it stands,
           and nothing is written
+        - one that stops taking bookings between the check and the write is not bound, and nothing
+          is written
         - naming ${what} is refused, naming the plan, and nothing is written
         - where the installation binds no version, its preview shows none and the return names none
     - taking the tenant back inside a transaction of the caller

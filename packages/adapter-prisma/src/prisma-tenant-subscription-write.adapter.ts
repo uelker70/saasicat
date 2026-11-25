@@ -476,7 +476,9 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
      * cancellation that landed by its date left as it stood. In the caller's
      * transaction where one is given, so the return's contract and the lifted
      * end share it, and in one of its own otherwise: the row is locked first,
-     * so the special terms it answers with are the ones the write ended.
+     * so the special terms it answers with are the ones the write ended. A
+     * version asked for alone (`quotedVersionOnly`) that takes no bookings by
+     * the first period claims nothing either.
      */
     async startAgain(
         tenantId: string,
@@ -485,7 +487,12 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
     ): Promise<StartAgainResult> {
         const binds = this.schema.tenantSubscription.synchronizePlanVersion;
         if (binds) {
-            await this.assertBindsTheVersionOfThePlan(tx ?? this.prisma, tenantId, input);
+            const takesBookings = await this.versionNamedTakesBookings(
+                tx ?? this.prisma,
+                tenantId,
+                input,
+            );
+            if (input.quotedVersionOnly && !takesBookings) return NOTHING_STARTED;
         } else if (input.planVersionId !== null) {
             throw new Error(
                 `A return for tenant ${tenantId} asked for plan version ${input.planVersionId} ` +
@@ -524,13 +531,14 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
     /**
      * Refuses a return that names no version, or one of another plan, where
      * the write binds one: the version bound is the one the new contract was
-     * composed for, never the one in effect instead.
+     * composed for, never the one in effect instead. Answers whether that
+     * version still takes bookings when the subscription starts again.
      */
-    private async assertBindsTheVersionOfThePlan(
+    private async versionNamedTakesBookings(
         client: unknown,
         tenantId: string,
         input: StartAgainInput,
-    ): Promise<void> {
+    ): Promise<boolean> {
         if (input.planVersionId === null) {
             throw new Error(
                 `A return for tenant ${tenantId} names no plan version, and this write binds one: ` +
@@ -547,6 +555,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                     `which is not one of ${input.planId}.`,
             );
         }
+        return bookableOn(version, storagePlanId, input.periodStart);
     }
 
     /**

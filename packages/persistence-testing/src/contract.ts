@@ -17500,6 +17500,14 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 };
             };
             const NOTHING_STARTED = { claimed: false, endedSpecialTerms: [] };
+            /** The plan repository's `terminate`, or null with the case skipped where it ends no versions. */
+            const endingOr = (t: TestContext) => {
+                const end = harness.adapter.planRepository?.terminate?.bind(
+                    harness.adapter.planRepository,
+                );
+                if (!end) t.skip('the plan repository ends no versions');
+                return end ?? null;
+            };
 
             test('is a new subscription on the same row: the plan sold, from the moment it came back, on the catalogue’s terms alone', async (t) => {
                 const writer = writerOr(t);
@@ -17651,6 +17659,53 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 await writer.startAgain('tenant-listed', input('tenant-listed', onSale));
 
                 assert.ok(!(await listed()).includes('tenant-listed'));
+            });
+
+            test('asked for the version alone, binds it while it takes bookings, and nothing once it has ended', async (t) => {
+                const writer = writerOr(t);
+                if (!writer) return;
+                const end = endingOr(t);
+                if (!end) return;
+                // Ended at the very moment it would be started on: it takes
+                // no booking then, so nothing is bound in its place.
+                const { onSale: endedThen } = await ended('tenant-version-ended');
+                await end(endedThen, CAME_BACK);
+                const before = await asRead('tenant-version-ended');
+
+                const refused = await writer.startAgain('tenant-version-ended', {
+                    ...input('tenant-version-ended', endedThen),
+                    quotedVersionOnly: true,
+                });
+
+                assert.deepEqual(refused, NOTHING_STARTED);
+                assert.deepEqual(await asRead('tenant-version-ended'), before);
+
+                const { onSale: endsLater } = await ended('tenant-version-ending');
+                await end(endsLater, new Date(CAME_BACK.getTime() + 1));
+                const started = await writer.startAgain('tenant-version-ending', {
+                    ...input('tenant-version-ending', endsLater),
+                    quotedVersionOnly: true,
+                });
+
+                assert.equal(started.claimed, true);
+                assert.equal((await asRead('tenant-version-ending')).planVersionId, endsLater);
+            });
+
+            test('not asked for the version alone, binds it as named, ended or not', async (t) => {
+                const writer = writerOr(t);
+                if (!writer) return;
+                const end = endingOr(t);
+                if (!end) return;
+                const { onSale: endedThen } = await ended('tenant-as-named');
+                await end(endedThen, CAME_BACK);
+
+                const started = await writer.startAgain(
+                    'tenant-as-named',
+                    input('tenant-as-named', endedThen),
+                );
+
+                assert.equal(started.claimed, true);
+                assert.equal((await asRead('tenant-as-named')).planVersionId, endedThen);
             });
 
             test('refuses, writing nothing, without the version it binds, or with one of another plan', async (t) => {

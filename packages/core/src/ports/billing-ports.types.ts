@@ -421,11 +421,23 @@ export interface StartAgainInput {
      * version (`bindsPlanVersion` false).
      */
     readonly planVersionId: string | null;
+    /**
+     * `true`: bind `planVersionId` or nothing, as a plan change's
+     * `quotedVersionOnly` does. Where that version no longer takes bookings by
+     * `periodStart` — it has not begun, or it has ended (`SC-PLAN-016`) — the
+     * write claims nothing and answers `claimed: false`. A return passes it
+     * for the version its preview showed, which it read on sale a moment
+     * before. Left out, `planVersionId` is bound as named.
+     */
+    readonly quotedVersionOnly?: boolean;
 }
 
 /** What `startAgain` answers with. */
 export interface StartAgainResult {
-    /** False where the cancellation read moved, or never landed, and nothing was written. */
+    /**
+     * False where the cancellation read moved, or never landed, or the version
+     * asked for alone takes no bookings, and nothing was written.
+     */
     readonly claimed: boolean;
     /**
      * The special terms the subscription carried as it was started again,
@@ -2061,8 +2073,9 @@ export interface TenantSubscriptionWritePort {
      * end, the note on the special contract and the trial's end stay as what
      * they were. Answers with the special terms it ended (`specialTermsOf` the
      * row as it read it, locked), and `claimed: false`, writing nothing,
-     * where the cancellation moved or was never there. A conditional claim,
-     * like `endNow`, in `tx` where one is given.
+     * where the cancellation moved or was never there, and where
+     * `input.quotedVersionOnly` asks for a version that no longer takes
+     * bookings. A conditional claim, like `endNow`, in `tx` where one is given.
      *
      * Throws, writing nothing, where the binding cannot be what the caller
      * composed the contract for: a version named to a write that binds none, a

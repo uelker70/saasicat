@@ -320,10 +320,7 @@ export function createMemoryHarness() {
             const quotedRow = state.planVersions.find(
                 (version) => version.id === input.quotedPlanVersionId,
             );
-            const takesBookings =
-                quotedRow &&
-                !(quotedRow.validFrom && new Date(quotedRow.validFrom) > asOf) &&
-                !(quotedRow.endsAt && new Date(quotedRow.endsAt) <= asOf);
+            const takesBookings = quotedRow && takesBookingsAt(quotedRow, asOf);
             const quoted =
                 quotedRow &&
                 quotedRow.planId === input.planId &&
@@ -484,6 +481,9 @@ export function createMemoryHarness() {
                     `A return for tenant ${tenantId} names plan version ${input.planVersionId}, ` +
                         `which is not one of ${input.planId}.`,
                 );
+            }
+            if (input.quotedVersionOnly && !takesBookingsAt(version, input.periodStart)) {
+                return { claimed: false, endedSpecialTerms: [] };
             }
             const row = state.subscriptions.find((s) => s.tenantId === tenantId);
             const stored = row?.canceledEffectiveAt ?? null;
@@ -4349,6 +4349,12 @@ export function createMemoryHarness() {
             state = freshState();
         },
     };
+}
+
+/** Whether `version` takes bookings at `asOf`: it has begun, and it has not ended. */
+function takesBookingsAt(version, asOf) {
+    if (version.validFrom && new Date(version.validFrom) > asOf) return false;
+    return !(version.endsAt && new Date(version.endsAt) <= asOf);
 }
 
 /** `AuditQuery.actorTag`: a tag exactly, or a pattern with a star at either end, without case. */
