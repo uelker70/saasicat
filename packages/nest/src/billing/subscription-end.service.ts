@@ -9,7 +9,9 @@
 // declared for, in every tenant, and records an end for each one that has
 // landed and has none yet — whichever path declared it: the tenant's own
 // cancellation, one the application declared for a trial that ran out, or the
-// operator's own path in the application.
+// operator's own path in the application. An end the tenant came back from
+// (`SC-CANC-034`) is not one of them, even where the way back left the
+// cancellation standing.
 //
 // The deletion day never moves once a tenant has been told it. Where the
 // tenant confirmed its cancellation, or ended its subscription at once, the
@@ -300,11 +302,16 @@ export class SubscriptionEndService implements OnModuleInit {
      * announced where there is an `announcement` and the end landed no later
      * than the one it was made for, and counted now otherwise.
      *
-     * An end the store refuses although none of the subscription stands is
-     * one a new subscription lifted (`SC-CANC-034`): `subscription` was read
-     * before the tenant came back. The reason held for it here is lifted
-     * again, or the tenant that came back would be read-only for an end that
-     * no longer holds.
+     * An end its tenant came back from (`SC-CANC-034`) is not recorded again,
+     * and holds the tenant no second time: nothing is written for it
+     * (`cameBackFrom`). Its tenant may come back between that read and the
+     * record, from an end another instance of the run records meanwhile; the
+     * store refuses the end then although none of the subscription stands,
+     * and the reason held for it here is lifted again, or the tenant that came
+     * back would be read-only for an end that no longer holds. That is said
+     * before it is lifted: a run that stops in between leaves the tenant
+     * read-only, and no run comes back to a subscription whose cancellation
+     * was emptied.
      */
     private async recordOne(
         subscription: LandedSubscription,
@@ -312,6 +319,7 @@ export class SubscriptionEndService implements OnModuleInit {
         now: Date,
         recordedBy: string,
     ): Promise<SubscriptionEnd | null> {
+        if (await this.cameBackFrom(subscription)) return null;
         if (this.bookings) {
             await endBookingsWithTheirSubscription(
                 this.bookings,
@@ -330,8 +338,56 @@ export class SubscriptionEndService implements OnModuleInit {
         const recorded = await this.recordEndOnly(subscription, announcement, now, recordedBy);
         if (recorded || !held) return recorded;
         const [standing] = await this.ends.listFor([subscription.subscriptionId]);
-        if (!standing) await this.holds?.lift(held.id, now, recordedBy);
+        if (!standing) {
+            this.logger.warn(
+                `Subscription ${subscription.subscriptionId} of tenant ${subscription.tenantId}: ` +
+                    `its tenant came back from the end at ${subscription.endsAt.toISOString()} ` +
+                    `while this run recorded it, so the reason ${held.id} it held the tenant in ` +
+                    'is lifted again. Should that not finish, the tenant stays read-only for an ' +
+                    'end that no longer holds, and no run comes back to it (SC-CANC-034).',
+            );
+            await this.holds?.lift(held.id, now, recordedBy);
+        }
         return null;
+    }
+
+    /**
+     * Whether the tenant of `subscription` came back from this end: an end of
+     * the subscription that landed at the same moment stands lifted. Where the
+     * subscription, read again, still ends there, the way back left its
+     * cancellation standing, and that is said: the platform reads the
+     * subscription as ended, grants and charges nothing of it, while its
+     * tenant is open. Where it does not, `subscription` was read before the
+     * tenant came back, and there is nothing to say.
+     */
+    private async cameBackFrom(subscription: LandedSubscription): Promise<boolean> {
+        const ends = await this.ends.listEndsOfTenant(subscription.tenantId);
+        const lifted = ends.some(
+            (end) =>
+                end.subscriptionId === subscription.subscriptionId &&
+                end.liftedAt !== null &&
+                end.endsAt.getTime() === subscription.endsAt.getTime(),
+        );
+        if (!lifted) return false;
+        if (await this.stillEndsAt(subscription)) {
+            this.logger.error(
+                `Subscription ${subscription.subscriptionId} of tenant ${subscription.tenantId} ` +
+                    `still ends at ${subscription.endsAt.toISOString()}, an end its tenant came ` +
+                    'back from: the way back left its cancellation standing. No end is recorded ' +
+                    'and the tenant is not held again, but the platform reads the subscription ' +
+                    'as ended and grants and charges nothing of it. Whoever takes a tenant back ' +
+                    'empties the cancellation dates, `canceledAt` and `canceledEffectiveAt`, as ' +
+                    '`TenantSubscriptionWritePort.startAgain` does (SC-CANC-034).',
+            );
+        }
+        return true;
+    }
+
+    /** Whether the subscription of `subscription`'s tenant, as it reads now, ends at its `endsAt`. */
+    private async stillEndsAt(subscription: LandedSubscription): Promise<boolean> {
+        const current = await this.subscriptions.findForTenant(subscription.tenantId);
+        if (!current) return false;
+        return cancellationLandsAt(current)?.getTime() === subscription.endsAt.getTime();
     }
 
     /** The end of `subscription`, with its deletion day; null where the store refuses it. */

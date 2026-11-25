@@ -502,7 +502,11 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
      * come back from it. Audits nothing: whoever writes the contract audits
      * the conclusion, as the platform audits the returns it concludes itself,
      * through its route and through a checkout offer. What stays either way
-     * is the end, lifted, and its reason, lifted by `by`.
+     * is the end, lifted, and its reason, lifted by `by`. The path starts the
+     * subscription again with its cancellation dates emptied, as
+     * `TenantSubscriptionWritePort.startAgain` does: one it leaves standing
+     * keeps the subscription ended for the platform, and the run that records
+     * the ends says so.
      */
     async takeBackWithin(
         tenantId: string,

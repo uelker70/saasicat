@@ -9159,6 +9159,8 @@ _Tested by:_
         - finishes what a run that stopped after holding the tenant left, without holding it twice
         - a run that read the subscription before its tenant came back records nothing, and holds
           the tenant no second time
+        - a tenant that comes back while the run records its end is held no longer, and the run says
+          so while it still holds it
         - a run that fails while holding the tenant records no end, so the next one records both
         - reads the ends a thousand subscriptions at a time, however many ended before
         - holds each subscription's own tenant, and no other
@@ -9256,6 +9258,10 @@ _Tested by:_
         - while the operator suspends it
         - where the application’s own writes fail: the end and its reason stay, the offer stays
           open, no contract
+    - an offer whose own writes leave the subscription it takes back ended
+        - is refused for the application’s developer, naming what `within` owes, and nothing stays
+        - reads the subscription on the conclusion’s transaction, where `within` started it again
+          before that commits
     - a tenant without an end concludes an offer as before
         - one in its trial: the contract is written, nothing is lifted or audited
         - one the operator suspends without an end: concluded, its suspension left as it is
@@ -9266,6 +9272,7 @@ _Tested by:_
           refused
     - an application that composes the platform
         - concludes an offer through it that takes a tenant whose subscription ended back
+        - refuses through it an offer that leaves the subscription of that tenant ended
 - `packages/nest/tests/a-read-only-tenant-may-come-back.test.js`
     - a read-only tenant entering the payment method it comes back with
         - is let through until its deletion day, though no invoice is open
@@ -9358,10 +9365,18 @@ _Tested by:_
     - taking the tenant back inside a transaction of the caller
         - lifts the end and its reason in it, and with it taken back, nothing is lifted
         - answers none where no end stands, and refuses from the deletion day
+    - a way back of the application’s own that leaves the cancellation standing
+        - the run records no end of it and holds the tenant no second time, and says why, naming the
+          subscription
+        - nor does the run after it, which says so again
+    - a run that read the subscription before its tenant came back through the route
+        - records no end and holds the tenant no second time, and has nothing to say
 - `packages/nest/tests/an-ended-subscription-is-recorded-once.test.js`
     - the run that records the subscriptions that ended
         - a run that read the subscription before its tenant came back records nothing, and holds
           the tenant no second time
+        - a tenant that comes back while the run records its end is held no longer, and the run says
+          so while it still holds it
     - the add-ons of a subscription that ended end with it
         - a booking not cancelled ends at the end, and the end is recorded
         - one cancelled for a date after the end ends at the end as well

@@ -39,9 +39,11 @@ suspended or being deleted, a return is refused.
   new subscription, through the return, a checkout offer or a conclusion of
   your own.
 - A checkout offer concluded for a tenant whose subscription ended lifts the
-  end in the same transaction. An application that concludes in a way of its
-  own calls `SubscriptionReturnService.takeBackWithin` in its transaction and
-  marks its route `@Returns()`.
+  end in the same transaction; its `within` empties the subscription's
+  cancellation dates, as `startAgain` does, or the conclusion is refused and
+  nothing is written. An application that concludes in a way of its own calls
+  `SubscriptionReturnService.takeBackWithin` in its transaction and marks its
+  route `@Returns()`.
 - Breaking for an implementation of your own: `SubscriptionEndPort.lift`,
   `TenantSubscriptionWritePort.startAgain` and `ContractFreezePort.composeFor`
   are new. Apply

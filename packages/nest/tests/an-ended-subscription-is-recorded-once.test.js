@@ -209,6 +209,39 @@ describe('the run that records the subscriptions that ended', () => {
         assert.equal(ends.ends.length, 1, 'the lifted end is not recorded again');
     });
 
+    // @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+    test('a tenant that comes back while the run records its end is held no longer, and the run says so while it still holds it', async () => {
+        const { service, ends, holds } = runOver([cancelled('t-1', NEW_YEAR)]);
+        const said = [];
+        service.logger.warn = (message) =>
+            said.push({ message, heldThen: holds.holds.filter((h) => !h.liftedAt).length });
+        service.logger.error = (message) => said.push({ message });
+        // Another instance records the end, and the tenant comes back from it,
+        // once this run has read that no end of it was lifted.
+        const listEndsOfTenant = ends.listEndsOfTenant.bind(ends);
+        ends.listEndsOfTenant = async (tenantId) => {
+            const read = await listEndsOfTenant(tenantId);
+            await ends.record({
+                tenantId: 't-1',
+                subscriptionId: 'sub-t-1',
+                endsAt: NEW_YEAR,
+                deletesOn: '2027-01-31',
+                recordedAt: FIRST_RUN,
+                recordedBy: RUN,
+            });
+            await ends.lift('sub-t-1', FIRST_RUN);
+            return read;
+        };
+
+        assert.deepEqual(await service.recordEnded(FIRST_RUN), { ended: 0 });
+
+        assert.deepEqual(await endedHolds(holds, 't-1'), [], 'the tenant stays open');
+        assert.equal(said.length, 1);
+        assert.equal(said[0].heldThen, 1, 'said before the reason is lifted');
+        assert.ok(said[0].message.includes('sub-t-1'), said[0].message);
+        assert.ok(said[0].message.includes(holds.holds[0].id), said[0].message);
+    });
+
     test('a run that fails while holding the tenant records no end, so the next one records both', async () => {
         const holds = new FakeTenantAccessHoldRepository();
         const record = holds.record.bind(holds);

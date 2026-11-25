@@ -180,6 +180,7 @@ export function buildOfferService(overrides = {}) {
         subscriptionUsage: null,
         bookings: null,
         returns: null,
+        subscriptionRows: null,
         ...overrides,
     };
     const pricing = new CheckoutOfferPricing(
@@ -203,6 +204,7 @@ export function buildOfferService(overrides = {}) {
         deps.subscriptionUsage,
         deps.bookings,
         deps.returns,
+        deps.subscriptionRows,
     );
     return { service, pricing, ...deps };
 }

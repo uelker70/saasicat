@@ -5810,10 +5810,15 @@ tenant is shown and what it is refused with:
 3. **Where your application concludes a subscription itself**, without a checkout offer, call
    `SubscriptionReturnService.takeBackWithin(tenantId, at, by, tx)` in the transaction that writes
    the subscription and its contract, write the subscription with its cancellation dates emptied,
-   mark the route `@Returns()`, and audit the conclusion as you audit it today. A conclusion
-   through `CheckoutOfferService.conclude` needs nothing: the offer takes the tenant back itself.
-   Without the call nothing is lost — the platform deletes no tenant under a contract running past
-   its end (`SC-PRIV-026`) — but the tenant stays read-only while it pays.
+   mark the route `@Returns()`, and audit the conclusion as you audit it today. Without the call
+   nothing is lost — the platform deletes no tenant under a contract running past its end
+   (`SC-PRIV-026`) — but the tenant stays read-only while it pays. Dates left standing keep the
+   subscription ended for the platform: the run that records the ends holds the tenant no second
+   time, and logs an error naming the subscription. A conclusion through
+   `CheckoutOfferService.conclude` takes the tenant back itself; its `within` starts the
+   subscription again and empties its cancellation dates, `canceledAt` and `canceledEffectiveAt`,
+   as `TenantSubscriptionWritePort.startAgain` does, or the conclusion is refused with an error and
+   nothing is written.
 
 - **A store of your own** implements what the shipped adapters do:
   `SubscriptionEndPort.lift(subscriptionId, liftedAt, tx?)` lifts the end of the subscription that

@@ -2494,7 +2494,11 @@ nothing to wire.
   `409 SUBSCRIPTION_CONTRACT_CHANGED`.
 - **A checkout offer** concluded for such a tenant through `CheckoutOfferService.conclude` takes it
   back by itself, in the conclusion's transaction, and is refused as the route is, the offer left
-  open. It is audited as `SUBSCRIPTION_RETURNED` too, naming the offer and no person.
+  open. It is audited as `SUBSCRIPTION_RETURNED` too, naming the offer and no person. Its `within`
+  starts the subscription again and empties its cancellation dates, `canceledAt` and
+  `canceledEffectiveAt`, as `TenantSubscriptionWritePort.startAgain` does for the route: read again
+  on the transaction once `within` ran, a subscription whose cancellation has still landed is
+  refused with an error for you, and nothing is written.
 - **A way of your own to conclude** a subscription — a route that writes the subscription and its
   contract itself, without an offer — calls
   `SubscriptionReturnService.takeBackWithin(tenantId, at, by, tx)` from `@saasicat/nest/billing`
@@ -2506,7 +2510,9 @@ nothing to wire.
   keeps it, and reads as the tenant's administrator once the tenant is deleted. Write the
   subscription as running again, its cancellation dates emptied, as
   `TenantSubscriptionWritePort.startAgain` does for the route: a subscription whose cancellation
-  has landed stays ended for the platform, which grants and charges nothing of it. Mark the route
+  has landed stays ended for the platform, which grants and charges nothing of it. The run that
+  records the ends finds such an end lifted, records none and holds the tenant no second time, and
+  logs an error naming the subscription on every run until its dates are emptied. Mark the route
   `@Returns()` from `@saasicat/nest`, which your guard's `enforce` reads as the platform does, so a
   read-only tenant gets through; nothing that does more than come back, since everything a marked
   route writes is let through. The platform audits nothing on this path: whoever writes the

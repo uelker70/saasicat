@@ -33,6 +33,7 @@ import {
     aDeletionHeldAtItsBeginning,
     aReturnHeldAfterItsChecks,
     aReturnHeldAtItsWrite,
+    aRunThatListed,
     aTenantThatEnded,
     contractsOf,
     deletedAfterASecondEnd,
@@ -896,5 +897,90 @@ describe('taking the tenant back inside a transaction of the caller', () => {
             refusedWith('TENANT_RETURN_DELETION_DAY_REACHED'),
         );
         assert.equal(endsOf(late)[0].liftedAt, null);
+    });
+});
+
+/** A quarter of an hour after the return, and the one after: the runs that record the ends. */
+const RUN_AFTER_THE_RETURN = new Date('2026-10-20T08:15:00.000Z');
+const NEXT_RUN = new Date('2026-10-20T08:30:00.000Z');
+
+/** What `service` logs as errors and as warnings from now on. */
+function whatItSays(service) {
+    const said = { errors: [], warnings: [] };
+    service.logger.error = (message) => said.errors.push(message);
+    service.logger.warn = (message) => said.warnings.push(message);
+    return said;
+}
+
+/**
+ * A way back of the application's own that leaves the cancellation standing:
+ * the end lifted in its transaction, and its subscription written as running
+ * again from the return with both cancellation dates as they were.
+ */
+const takenBackLeavingTheCancellation = (tenant) =>
+    tenant.transactions.run(async (tx) => {
+        await tenant.service.takeBackWithin(TENANT, RETURN_AT, ADMIN_TAG, tx);
+        Object.assign(tenant.subscription.row, {
+            currentPeriodStart: RETURN_AT,
+            currentPeriodEnd: FIRST_PERIOD_ENDS,
+        });
+    });
+
+// @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+describe('a way back of the application’s own that leaves the cancellation standing', () => {
+    test('the run records no end of it and holds the tenant no second time, and says why, naming the subscription', async () => {
+        const tenant = await aTenantThatEnded();
+        await takenBackLeavingTheCancellation(tenant);
+        const said = whatItSays(tenant.subscriptionEnds);
+
+        assert.deepEqual(await tenant.subscriptionEnds.recordEnded(RUN_AFTER_THE_RETURN), {
+            ended: 0,
+        });
+
+        assert.deepEqual(
+            reasonsOf(tenant).map((reason) => [reason.kind, reason.liftedBy]),
+            [['ended', ADMIN_TAG]],
+            'no reason beside the one the way back lifted',
+        );
+        assert.deepEqual(
+            endsOf(tenant).map((end) => end.liftedAt),
+            [RETURN_AT],
+        );
+        assert.equal((await accessOver(tenant).accessOf(TENANT)).state, 'open');
+        assert.equal(said.errors.length, 1);
+        assert.ok(said.errors[0].includes(SUBSCRIPTION), said.errors[0]);
+        assert.ok(said.errors[0].includes('left its cancellation standing'), said.errors[0]);
+        assert.deepEqual(said.warnings, []);
+    });
+
+    test('nor does the run after it, which says so again', async () => {
+        const tenant = await aTenantThatEnded();
+        await takenBackLeavingTheCancellation(tenant);
+        const said = whatItSays(tenant.subscriptionEnds);
+        await tenant.subscriptionEnds.recordEnded(RUN_AFTER_THE_RETURN);
+
+        assert.deepEqual(await tenant.subscriptionEnds.recordEnded(NEXT_RUN), { ended: 0 });
+
+        assert.equal(reasonsOf(tenant).length, 1);
+        assert.equal(endsOf(tenant).length, 1);
+        assert.equal((await accessOver(tenant).accessOf(TENANT)).state, 'open');
+        assert.equal(said.errors.length, 2);
+        assert.deepEqual(said.warnings, []);
+    });
+});
+
+// @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+describe('a run that read the subscription before its tenant came back through the route', () => {
+    test('records no end and holds the tenant no second time, and has nothing to say', async () => {
+        const tenant = await aTenantThatEnded();
+        const run = aRunThatListed(tenant, await tenant.subscription.listCancelled());
+        await tenant.service.takeOut(TENANT, STANDARD_MONTHLY, ADMIN, RETURN_AT);
+        const said = whatItSays(run);
+
+        assert.deepEqual(await run.recordEnded(RUN_AFTER_THE_RETURN), { ended: 0 });
+
+        assert.equal(reasonsOf(tenant).length, 1);
+        assert.equal((await accessOver(tenant).accessOf(TENANT)).state, 'open');
+        assert.deepEqual(said, { errors: [], warnings: [] });
     });
 });

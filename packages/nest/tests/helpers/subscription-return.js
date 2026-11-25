@@ -134,6 +134,9 @@ const ON_SALE = {
 };
 const versionById = (id) => VERSIONS.find((version) => version.id === id) ?? null;
 
+/** How long an ended tenant reads before its deletion day, and when it is reminded. */
+const END_OF_SUBSCRIPTION = { readOnlyDays: 30, reminderDaysBefore: [10, 3] };
+
 /** What the operator sells only by a contract of its own, and lets nobody leave by themselves. */
 export const BLOCKED = { asTarget: ['ENTERPRISE'], asSource: ['ENTERPRISE'] };
 
@@ -472,7 +475,7 @@ export async function aTenantThatEnded({
     const subscriptionEnds = new SubscriptionEndService(
         subscription,
         ports.ends,
-        { readOnlyDays: 30, reminderDaysBefore: [10, 3] },
+        END_OF_SUBSCRIPTION,
         ZONE,
         null,
         ports.holds,
@@ -501,6 +504,28 @@ export async function aTenantThatEnded({
         access,
         subscriptionEnds,
     };
+}
+
+/**
+ * The run that records the ends over `tenant`'s stores, as one that listed
+ * the cancelled subscriptions as `listed`, a moment before, and reads the
+ * tenant's subscription as it stands.
+ */
+export function aRunThatListed(tenant, listed) {
+    const run = new SubscriptionEndService(
+        {
+            findForTenant: (tenantId) => tenant.subscription.findForTenant(tenantId),
+            listCancelled: async () => listed,
+        },
+        tenant.ends,
+        END_OF_SUBSCRIPTION,
+        ZONE,
+        null,
+        tenant.holds,
+        tenant.bookings,
+    );
+    run.onModuleInit();
+    return run;
 }
 
 /** The tenant's reasons, as kept. */

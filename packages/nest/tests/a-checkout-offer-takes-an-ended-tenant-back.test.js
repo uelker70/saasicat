@@ -3,8 +3,10 @@
 // in the conclusion's transaction, the end and the reason it put the tenant in
 // are lifted, the reason locked first, as a deletion that begins beside it and
 // a return beside it lock it. Where the tenant cannot come back, the offer is
-// refused as the return is, before anything is written, and stays open. A
-// tenant without an end concludes as before.
+// refused as the return is, before anything is written, and stays open. An
+// offer whose own writes leave the subscription ended is the application's
+// error: refused, and nothing stays. A tenant without an end concludes as
+// before.
 //
 // Fahrschule Weber's subscription ended on 30 September, its data is deleted
 // on 30 October, Berlin time. The application concludes an offer of its own
@@ -74,10 +76,11 @@ const concludedFor = (at) => ({ tenantId: TENANT, effectiveFrom: at });
 
 /**
  * An offer service over `tenant`'s database, concluding with its subscriber
- * and its contract store and taking it back through its return service, and
- * an open offer of STANDARD, monthly, naming the add-on versions
- * `bundleVersionIds`; `services` replaces others the offer service is built
- * with. The offer store takes a consume back with the transaction it ran on.
+ * and its contract store, taking it back through its return service and
+ * reading its subscription row, and an open offer of STANDARD, monthly,
+ * naming the add-on versions `bundleVersionIds`; `services` replaces others
+ * the offer service is built with. The offer store takes a consume back with
+ * the transaction it ran on.
  */
 async function anOfferFor(tenant, { bundleVersionIds = [], ...services } = {}) {
     const repo = fakeOfferRepo();
@@ -93,6 +96,7 @@ async function anOfferFor(tenant, { bundleVersionIds = [], ...services } = {}) {
         transactions: tenant.transactions,
         subscribers: tenant.subscriber,
         returns: tenant.service,
+        subscriptionRows: tenant.subscription,
         ...services,
     });
     const offer = await service.create({
@@ -123,6 +127,24 @@ function startingTheSubscription(tenant, at, ran = []) {
         });
     };
 }
+
+/** What `startingTheSubscription` writes, but with the subscription's cancellation left as it was. */
+function startingItAgainLeavingItsCancellation(tenant, at) {
+    const starting = startingTheSubscription(tenant, at);
+    return async (tx) => {
+        const { canceledAt, canceledEffectiveAt } = tenant.subscription.row;
+        await starting(tx);
+        Object.assign(tenant.subscription.row, { canceledAt, canceledEffectiveAt });
+    };
+}
+
+/** The sentence an offer is refused with whose `within` leaves the subscription ended. */
+const WITHIN_OWES =
+    '`within` starts the subscription again and empties its cancellation dates, ' +
+    '`canceledAt` and `canceledEffectiveAt`';
+
+/** Whether `error` is the application developer's, naming what `within` owes. */
+const owedByWithin = (error) => error.response === undefined && error.message.includes(WITHIN_OWES);
 
 /** Holds the tenant back with an open reason of `kind`. */
 const heldBy = (tenant, kind) =>
@@ -392,6 +414,51 @@ describe('an offer for a tenant that cannot come back is refused as a return is,
 });
 
 // @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+describe('an offer whose own writes leave the subscription it takes back ended', () => {
+    test('is refused for the application’s developer, naming what `within` owes, and nothing stays', async (t) => {
+        t.mock.timers.enable({ apis: ['Date'], now: RETURN_AT });
+        const tenant = await aTenantThatEnded();
+        const { offers, offer, statusOf } = await anOfferFor(tenant);
+        const before = await whatIsKept(tenant, statusOf);
+
+        await assert.rejects(
+            offers.conclude(
+                offer.id,
+                concludedFor(RETURN_AT),
+                startingItAgainLeavingItsCancellation(tenant, RETURN_AT),
+            ),
+            (error) => owedByWithin(error) && error.message.includes(offer.id),
+        );
+
+        assert.deepEqual(await whatIsKept(tenant, statusOf), before);
+        assert.equal(statusOf(), 'open');
+        assert.deepEqual(tenant.calls.audited, []);
+    });
+
+    test('reads the subscription on the conclusion’s transaction, where `within` started it again before that commits', async (t) => {
+        t.mock.timers.enable({ apis: ['Date'], now: RETURN_AT });
+        const tenant = await aTenantThatEnded();
+        const committed = await tenant.subscription.findByTenantId(TENANT);
+        let writtenOn = null;
+        // As a database answers: what `within` wrote is seen on its own
+        // transaction alone until that commits.
+        const subscriptionRows = {
+            findByTenantIdLocked: async (tenantId, tx) =>
+                tx === writtenOn ? tenant.subscription.findByTenantId(tenantId) : committed,
+        };
+        const { offers, offer } = await anOfferFor(tenant, { subscriptionRows });
+        const starting = startingTheSubscription(tenant, RETURN_AT);
+
+        await offers.conclude(offer.id, concludedFor(RETURN_AT), async (tx) => {
+            writtenOn = tx;
+            await starting(tx);
+        });
+
+        assert.equal((await contractsOf(tenant)).length, 1);
+    });
+});
+
+// @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
 describe('a tenant without an end concludes an offer as before', () => {
     test('one in its trial: the contract is written, nothing is lifted or audited', async (t) => {
         t.mock.timers.enable({ apis: ['Date'], now: RETURN_AT });
@@ -515,8 +582,10 @@ describe('an offer, a deletion and a return beside it lock one reason', { timeou
  * The platform as an application composes it, with tenant billing recording
  * the ends of subscriptions and checkout offers concluded through the
  * platform, every adapter a fake; `TENANT`'s subscription ended at `ENDED`.
+ * Its subscription repository answers `subscription` as read on a
+ * transaction, and none outside one.
  */
-async function aPlatformWithAnEndedTenant() {
+async function aPlatformWithAnEndedTenant({ subscription = null } = {}) {
     const holds = new FakeTenantAccessHoldRepository();
     const ends = new FakeSubscriptionEndRepository();
     await holds.record({
@@ -576,7 +645,10 @@ async function aPlatformWithAnEndedTenant() {
                     findById: async () => null,
                     listTenantLinks: async () => [],
                 },
-                subscriptionRepository: { findByTenantId: async () => null },
+                subscriptionRepository: {
+                    findByTenantId: async () => null,
+                    findByTenantIdLocked: async () => subscription,
+                },
                 planVersionRepository: { findById: async () => null },
                 subscriptionContractRepository: new FakeSubscriptionContractRepository(),
             },
@@ -619,6 +691,25 @@ describe('an application that composes the platform', () => {
                 platform.holds.holds.map((hold) => hold.liftedBy),
                 [`checkout-offer:${offer.id}`],
             );
+        } finally {
+            await platform.moduleRef.close();
+        }
+    });
+
+    test('refuses through it an offer that leaves the subscription of that tenant ended', async (t) => {
+        t.mock.timers.enable({ apis: ['Date'], now: RETURN_AT });
+        const platform = await aPlatformWithAnEndedTenant({
+            subscription: {
+                tenantId: TENANT,
+                canceledAt: new Date('2026-08-20T09:00:00.000Z'),
+                canceledEffectiveAt: ENDED,
+            },
+        });
+        try {
+            const offers = platform.moduleRef.get(CheckoutOfferService, { strict: false });
+            const offer = await offers.create({ planKey: 'STANDARD', billingCycle: 'monthly' });
+
+            await assert.rejects(offers.conclude(offer.id, concludedFor(RETURN_AT)), owedByWithin);
         } finally {
             await platform.moduleRef.close();
         }
