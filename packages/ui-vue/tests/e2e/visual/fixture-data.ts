@@ -1123,14 +1123,9 @@ const TENANT_ACCESS_ENDED = {
     mayReturn: false,
 };
 
-// The same end before its deletion day with nothing unpaid, as its
-// administrator reads it: taking the export and subscribing again offered.
-const TENANT_ACCESS_RETURNABLE = {
-    ...TENANT_ACCESS_ENDED,
-    reasons: TENANT_ACCESS_ENDED.reasons.filter((reason) => reason.kind === 'ended'),
-    mayPay: false,
-    mayReturn: true,
-};
+// The same tenant before its deletion day where its administrator may
+// subscribe again: paying, taking the export and subscribing again offered.
+const TENANT_ACCESS_RETURNABLE = { ...TENANT_ACCESS_ENDED, mayReturn: true };
 
 // What the tenant's account owes, which the banner reads to offer paying.
 const TENANT_ACCESS_ACCOUNT = {
@@ -2280,6 +2275,7 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     // the cases above keep rendering it without that button.
     ['/api/return-billing/access', TENANT_ACCESS_RETURNABLE],
     ['/api/return-billing/access/keep', { keep: [] }],
+    ['/api/return-billing/account', TENANT_ACCESS_ACCOUNT],
 ];
 
 /**
