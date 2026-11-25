@@ -9236,6 +9236,34 @@ _Tested by:_
 - `packages/core/tests/an-ended-subscription-is-deleted-on-a-fixed-day.test.js`
     - an end read back from a store
         - says whether, and when, a new subscription lifted it
+- `packages/nest/tests/a-checkout-offer-takes-an-ended-tenant-back.test.js`
+    - a checkout offer for a tenant whose subscription ended takes it back
+        - on 20 October: its contract is written, and the end and its reason are lifted as of then,
+          by the offer
+        - the last moment of the day before the deletion day is still in time
+        - is audited as a return, naming the offer, its contract and the end it lifted, and no
+          person
+        - concluded already for the tenant, it answers the conclusion that stands and lifts nothing
+          a second time
+        - once deleted after a later end, the reason it lifted names the tenant’s administrator, not
+          the operator
+    - an offer for a tenant that cannot come back is refused as a return is, and stays open
+        - from midnight of the deletion day, naming the day
+        - once its deletion has begun, as the tenant is told wherever it asks — before what the
+          offer itself is asked
+        - while the operator suspends it
+        - where the application’s own writes fail: the end and its reason stay, the offer stays
+          open, no contract
+    - a tenant without an end concludes an offer as before
+        - one in its trial: the contract is written, nothing is lifted or audited
+        - one the operator suspends without an end: concluded, its suspension left as it is
+    - an offer, a deletion and a return beside it lock one reason
+        - the deletion first: the offer waits for it, finds the tenant being deleted and is refused
+        - the offer first: the deletion waits for it, finds the reason lifted and begins nothing
+        - a return through the route first: the offer waits for it, finds a contract in force and is
+          refused
+    - an application that composes the platform
+        - concludes an offer through it that takes a tenant whose subscription ended back
 - `packages/nest/tests/a-read-only-tenant-may-come-back.test.js`
     - a read-only tenant entering the payment method it comes back with
         - is let through until its deletion day, though no invoice is open
@@ -9325,7 +9353,7 @@ _Tested by:_
         - where the installation binds no version, its preview shows none and the return names none
     - taking the tenant back inside a transaction of the caller
         - lifts the end and its reason in it, and with it taken back, nothing is lifted
-        - answers false where no end stands, and refuses from the deletion day
+        - answers none where no end stands, and refuses from the deletion day
 - `packages/nest/tests/an-ended-subscription-is-recorded-once.test.js`
     - the run that records the subscriptions that ended
         - a run that read the subscription before its tenant came back records nothing, and holds

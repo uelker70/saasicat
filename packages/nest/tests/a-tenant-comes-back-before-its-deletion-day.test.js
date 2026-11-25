@@ -30,10 +30,13 @@ import {
     V2,
     V3,
     V4,
-    aBarrier,
+    aDeletionHeldAtItsBeginning,
+    aReturnHeldAtItsWrite,
     aTenantThatEnded,
     contractsOf,
+    deletedAfterASecondEnd,
     endsOf,
+    firstEndedReasonOf,
     reasonsOf,
     untilItWaitsOrEnds,
 } from './helpers/subscription-return.js';
@@ -482,12 +485,7 @@ describe('with a payment method where a gateway takes them', () => {
 describe('a return and a deletion beside it lock the same reason', { timeout: 5000 }, () => {
     test('the deletion first: the return waits for it, finds the tenant being deleted and is refused', async () => {
         const tenant = await aTenantThatEnded();
-        const held = aBarrier();
-        const begin = tenant.records.begin.bind(tenant.records);
-        tenant.records.begin = async (record, tx) => {
-            await held.pass();
-            return begin(record, tx);
-        };
+        const held = aDeletionHeldAtItsBeginning(tenant);
 
         const deleting = tenant.run.service.deleteDue(DELETION_DAY);
         await held.arrived;
@@ -504,12 +502,7 @@ describe('a return and a deletion beside it lock the same reason', { timeout: 50
 
     test('the return first: the deletion waits for it, finds the reason lifted and begins nothing', async () => {
         const tenant = await aTenantThatEnded();
-        const held = aBarrier();
-        const startAgain = tenant.subscription.startAgain.bind(tenant.subscription);
-        tenant.subscription.startAgain = async (tenantId, input, tx) => {
-            await held.pass();
-            return startAgain(tenantId, input, tx);
-        };
+        const held = aReturnHeldAtItsWrite(tenant);
 
         const returning = tenant.service.takeOut(TENANT, STANDARD_MONTHLY, ADMIN, LAST_MOMENT);
         await held.arrived;
@@ -589,26 +582,12 @@ describe('after it came back', () => {
     test('once deleted after a later end, the reason it lifted names the tenant’s administrator, not the operator', async () => {
         const tenant = await aTenantThatEnded();
         await tenant.service.takeOut(TENANT, STANDARD_MONTHLY, ADMIN, RETURN_AT);
-        const secondEnd = new Date('2027-03-31T22:00:00.000Z');
-        Object.assign(tenant.subscription.row, {
-            canceledAt: new Date('2027-02-10T09:00:00.000Z'),
-            canceledEffectiveAt: secondEnd,
-        });
         const [contract] = await contractsOf(tenant);
-        await tenant.contracts.terminate(contract.id, {
-            tenantId: TENANT,
-            effectiveUntil: secondEnd,
-            status: 'terminated',
-        });
-        await tenant.subscriptionEnds.recordEnded(secondEnd);
 
-        const deleted = await tenant.run.service.deleteDue(new Date('2027-05-01T00:00:00.000Z'));
+        const deleted = await deletedAfterASecondEnd(tenant, contract.id);
 
         assert.equal(deleted.deleted, 1);
-        const lifted = reasonsOf(tenant).find(
-            (reason) => reason.kind === 'ended' && reason.since.getTime() === ENDED.getTime(),
-        );
-        assert.equal(lifted.liftedBy, 'tenant-admin');
+        assert.equal(firstEndedReasonOf(tenant).liftedBy, 'tenant-admin');
     });
 });
 
@@ -883,7 +862,7 @@ describe('taking the tenant back inside a transaction of the caller', () => {
         const lifted = await tenant.transactions.run((tx) =>
             tenant.service.takeBackWithin(TENANT, RETURN_AT, ADMIN_TAG, tx),
         );
-        assert.equal(lifted, true);
+        assert.deepEqual([lifted.subscriptionId, lifted.endsAt], [SUBSCRIPTION, ENDED]);
         assert.equal(endsOf(tenant)[0].liftedAt, RETURN_AT);
         assert.equal(reasonsOf(tenant)[0].liftedBy, ADMIN_TAG);
 
@@ -898,13 +877,13 @@ describe('taking the tenant back inside a transaction of the caller', () => {
         assert.equal(reasonsOf(again)[0].liftedAt, null);
     });
 
-    test('answers false where no end stands, and refuses from the deletion day', async () => {
+    test('answers none where no end stands, and refuses from the deletion day', async () => {
         const open = await aTenantThatEnded({ ended: false });
         assert.equal(
             await open.transactions.run((tx) =>
                 open.service.takeBackWithin(TENANT, RETURN_AT, ADMIN_TAG, tx),
             ),
-            false,
+            null,
         );
 
         const late = await aTenantThatEnded();

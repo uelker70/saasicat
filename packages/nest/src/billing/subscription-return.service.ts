@@ -12,7 +12,10 @@
 // deletion begins on the strength of the same reason and locks it first too,
 // so of a return and a deletion that begins beside it exactly one acts: a
 // return that waited finds the tenant being deleted and is refused, and a
-// deletion that waited finds the reason lifted and begins nothing.
+// deletion that waited finds the reason lifted and begins nothing. A path
+// that concludes the new subscription itself, a checkout offer among them,
+// takes the tenant back in its own transaction (`takeBackWithin`), under the
+// same lock and the same rule.
 //
 // The subscription, its contract and the lift of the end and its reason are
 // one transaction: where any of them fails, none of them is written. What can
@@ -46,12 +49,12 @@ import {
 import {
     BILLING_ERROR_CODES,
     TENANT_ACCESS_ERROR_CODES,
-    type SubscriptionSpecialTerm,
     installationZoneOf,
     openEndedHoldOf,
     subscriptionReturnRefusal,
     withDays,
     type AdminActor,
+    type AuditActor,
     type BillingCycle,
     type CalendarDay,
     type CreateSubscriptionContractData,
@@ -64,6 +67,7 @@ import {
     type SubscriptionEnd,
     type SubscriptionEndPort,
     type SubscriptionReturnRefusal,
+    type SubscriptionSpecialTerm,
     type SubscriptionUsagePort,
     type TenantAccessHold,
     type TenantAccessHoldPort,
@@ -73,7 +77,7 @@ import {
     type WithDays,
 } from '@saasicat/core';
 
-import { AdminAuditService } from '../admin/admin-audit.service.js';
+import { AdminAuditService, platformJobActor } from '../admin/admin-audit.service.js';
 import { PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { actorTagOf } from '../core/web-audit.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
@@ -118,6 +122,13 @@ import { assertNamesTheVersionShown } from './version-shown.js';
 
 /** What the audit log names a return under. */
 const AUDITED_ACTION = 'SUBSCRIPTION_RETURNED';
+
+/**
+ * Who a return through a checkout offer is audited as: no person, since a
+ * conclusion carries none, and the audit log's one actor without a person is
+ * the platform's.
+ */
+const THROUGH_AN_OFFER = platformJobActor('checkout-offer');
 
 /** The plan and the rhythm a tenant comes back on, and the version and deletion day its page showed. */
 export interface SubscriptionReturnChoice {
@@ -167,6 +178,27 @@ export interface SubscriptionReturnTerms extends SubscriptionReturned {
     /** Whether a payment method has to be entered first (`TENANT_RETURN_PAYMENT_METHOD_REQUIRED`). */
     readonly paymentMethodRequired: boolean;
 }
+
+/** The checkout offer whose conclusion took a tenant back, as the audit names it. */
+export interface ReturnThroughOffer {
+    readonly offerId: string;
+    /** The contract the offer was concluded into. */
+    readonly contractId: string;
+    readonly plan: string;
+    readonly billingCycle: BillingCycle;
+    readonly planVersionId: string | null;
+}
+
+/** What the audit of a return names: the end it lifted, and what the tenant came back on and how. */
+type ReturnAudited = {
+    readonly endedAt: string;
+    readonly deletesOn: CalendarDay;
+} & (
+    | (Pick<SubscriptionReturned, 'plan' | 'billingCycle' | 'planVersionId'> & {
+          readonly endedSpecialTerms: readonly SubscriptionSpecialTerm[];
+      })
+    | (ReturnThroughOffer & { readonly via: 'checkout-offer' })
+);
 
 /** Why a tenant cannot come back, and the deletion day of the end that stands, where one does. */
 export interface SubscriptionReturnRefused {
@@ -446,7 +478,13 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
         });
         this.entitlements.invalidateTenant(tenantId);
         await recordChargesAfter(this.charges, tenantId, 'a return', this.logger);
-        await this.audited(actor, tenantId, returned, returnable.end, endedSpecialTerms);
+        await this.audited(actor, tenantId, {
+            plan: returned.plan,
+            billingCycle: returned.billingCycle,
+            planVersionId: returned.planVersionId,
+            ...endChanges(returnable.end),
+            endedSpecialTerms: [...endedSpecialTerms],
+        });
         return returned;
     }
 
@@ -454,29 +492,53 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
      * Takes `tenantId` back in the caller's transaction `tx`, as of `at`, for
      * `by` as the audit log tags an actor: the end of its subscription and the
      * reason it put the tenant in are lifted, nothing else is written — for a
-     * path that concludes the new subscription itself. Answers false where no
-     * end stands to lift, and refuses as a return is refused where the tenant
-     * cannot come back.
+     * path that concludes the new subscription itself. Answers the end it
+     * lifted, or null where none stands to lift: a tenant without an end
+     * concludes as it would without this call, a suspended one included.
+     * Refuses as a return is refused where an end stands and the tenant cannot
+     * come back from it.
      */
     async takeBackWithin(
         tenantId: string,
         at: Date,
         by: string,
         tx: TransactionContext,
-    ): Promise<boolean> {
+    ): Promise<SubscriptionEnd | null> {
         const holds = this.holds;
-        if (!holds) return false;
-        const standing = await this.standingOf(tenantId);
-        const returnable = this.decide(standing, at);
-        if ('refusal' in returnable) {
-            if (returnable.refusal === 'not-ended') return false;
-            throw refused(returnable.refusal, standing);
-        }
+        if (!holds) return null;
+        const returnable = await this.endToTakeBack(tenantId, at);
+        if (!returnable) return null;
         const locked = await this.lockedStanding(holds, tenantId, returnable, at, tx);
-        if (locked.refusal === 'not-ended') return false;
+        if (locked.refusal === 'not-ended') return null;
         if (locked.refusal) throw refused(locked.refusal, locked);
         await this.liftEnd(holds, returnable, at, by, tx);
-        return true;
+        return returnable.end;
+    }
+
+    /**
+     * Refuses, before the caller's transaction, what `takeBackWithin` would
+     * refuse at `at`: a tenant with an end it cannot come back from. Passes a
+     * tenant without an end, and one that can come back.
+     */
+    async assertMayBeTakenBack(tenantId: string, at: Date): Promise<void> {
+        await this.endToTakeBack(tenantId, at);
+    }
+
+    /**
+     * Audits a return through checkout offer `offer`, which lifted `end`, once
+     * its conclusion committed: as a return through the route is, with the
+     * offer named and no person. A failure to audit is logged, not answered.
+     */
+    async auditReturnThroughOffer(
+        tenantId: string,
+        end: SubscriptionEnd,
+        offer: ReturnThroughOffer,
+    ): Promise<void> {
+        await this.audited(THROUGH_AN_OFFER, tenantId, {
+            via: 'checkout-offer',
+            ...offer,
+            ...endChanges(end),
+        });
     }
 
     /** The tenant's open reasons, the one its end put it in, and that end as it stands. */
@@ -485,6 +547,19 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
         const ended = openEndedHoldOf(holds);
         const [end] = ended?.reference ? await this.ends.listFor([ended.reference]) : [];
         return { holds, ended, end: end ?? null };
+    }
+
+    /**
+     * The end the tenant can be taken back from at `at`; null where no end
+     * stands, before anything else is asked of the tenant; refused as a return
+     * is where one stands and the tenant cannot come back from it.
+     */
+    private async endToTakeBack(tenantId: string, at: Date): Promise<Returnable | null> {
+        const standing = await this.standingOf(tenantId);
+        if (!standing.ended || !standing.end) return null;
+        const returnable = this.decide(standing, at);
+        if ('refusal' in returnable) throw refused(returnable.refusal, standing);
+        return returnable;
     }
 
     /** The end the tenant can come back from at `now`, or why it cannot. */
@@ -644,11 +719,9 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
 
     /** Audits a return that stands; a failure to audit is logged, not answered. */
     private async audited(
-        actor: AdminActor,
+        actor: AuditActor,
         tenantId: string,
-        returned: SubscriptionReturned,
-        end: SubscriptionEnd,
-        endedSpecialTerms: readonly SubscriptionSpecialTerm[],
+        changes: ReturnAudited,
     ): Promise<void> {
         if (!this.audit) return;
         try {
@@ -658,14 +731,8 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
                 entityId: tenantId,
                 tenantId,
                 action: AUDITED_ACTION,
-                changes: {
-                    plan: returned.plan,
-                    billingCycle: returned.billingCycle,
-                    planVersionId: returned.planVersionId,
-                    endedAt: end.endsAt.toISOString(),
-                    deletesOn: end.deletesOn,
-                    endedSpecialTerms: [...endedSpecialTerms],
-                },
+                // Copied: the port takes a record, which an interface is not.
+                changes: { ...changes },
             });
         } catch (error) {
             this.logger.error(
@@ -674,6 +741,11 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
             );
         }
     }
+}
+
+/** What the audit of a return says of the end it lifted. */
+function endChanges(end: SubscriptionEnd): Pick<ReturnAudited, 'endedAt' | 'deletesOn'> {
+    return { endedAt: end.endsAt.toISOString(), deletesOn: end.deletesOn };
 }
 
 /** What a tenant that cannot come back for `refusal` is answered, `standing` naming its reasons and end. */

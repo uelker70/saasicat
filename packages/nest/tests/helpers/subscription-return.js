@@ -325,7 +325,8 @@ function aSubscriber(state) {
 /**
  * The tenant `TENANT`, its subscription ended at `ENDED` with `DELETES_ON` as
  * its deletion day, the run that deletes tenants, and the service it comes
- * back through — over one database. `row` changes the subscription row,
+ * back through — over one database, with the contract service and the
+ * subscriber the return concludes with, for a conclusion of another path. `row` changes the subscription row,
  * `gateway` makes the installation take payment methods through a gateway,
  * `paymentMethod` is the subscriber's one in use there, `usage` what the
  * tenant uses today, `successorFrom` the moment V4 succeeds V3 on sale, and
@@ -382,7 +383,8 @@ export async function aTenantThatEnded({
         calls.invalidated.push(tenantId);
         invalidate(tenantId);
     };
-    const contracts = new SubscriptionContractService(ports.contracts, aSubscriber(state));
+    const subscriber = aSubscriber(state);
+    const contracts = new SubscriptionContractService(ports.contracts, subscriber);
     const freeze = new SubscriptionContractFreezeService(
         catalogs,
         entitlements,
@@ -491,6 +493,8 @@ export async function aTenantThatEnded({
         bookings,
         entitlements,
         freeze,
+        contractService: contracts,
+        subscriber,
         state,
         calls,
         service,
@@ -507,6 +511,54 @@ export const endsOf = (tenant) => tenant.ends.ends.filter((end) => end.tenantId 
 
 /** The tenant's contracts, as kept. */
 export const contractsOf = (tenant) => tenant.contracts.list({ tenantId: TENANT });
+
+/** The reason the end at `ENDED` put the tenant in, as kept. */
+export const firstEndedReasonOf = (tenant) =>
+    reasonsOf(tenant).find(
+        (reason) => reason.kind === 'ended' && reason.since.getTime() === ENDED.getTime(),
+    );
+
+/**
+ * Ends the subscription the tenant came back on with `contractId` on 31 March
+ * 2027, records that end, and runs the deletion on its deletion day: what the
+ * run reports.
+ */
+export async function deletedAfterASecondEnd(tenant, contractId) {
+    const secondEnd = new Date('2027-03-31T22:00:00.000Z');
+    Object.assign(tenant.subscription.row, {
+        canceledAt: new Date('2027-02-10T09:00:00.000Z'),
+        canceledEffectiveAt: secondEnd,
+    });
+    await tenant.contracts.terminate(contractId, {
+        tenantId: TENANT,
+        effectiveUntil: secondEnd,
+        status: 'terminated',
+    });
+    await tenant.subscriptionEnds.recordEnded(secondEnd);
+    return tenant.run.service.deleteDue(new Date('2027-05-01T00:00:00.000Z'));
+}
+
+/** A barrier the tenant's deletion run waits at once it has the reason locked, before it begins. */
+export function aDeletionHeldAtItsBeginning(tenant) {
+    const held = aBarrier();
+    const begin = tenant.records.begin.bind(tenant.records);
+    tenant.records.begin = async (record, tx) => {
+        await held.pass();
+        return begin(record, tx);
+    };
+    return held;
+}
+
+/** A barrier a return waits at once it has the reason locked, before it starts the subscription again. */
+export function aReturnHeldAtItsWrite(tenant) {
+    const held = aBarrier();
+    const startAgain = tenant.subscription.startAgain.bind(tenant.subscription);
+    tenant.subscription.startAgain = async (tenantId, input, tx) => {
+        await held.pass();
+        return startAgain(tenantId, input, tx);
+    };
+    return held;
+}
 
 /**
  * A point a test holds a call at: `pass` is awaited by the call, `arrived`
