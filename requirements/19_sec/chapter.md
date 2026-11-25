@@ -627,7 +627,7 @@ is checked against that subscriber first, and another subscriber's invoice or co
 as one that does not exist. Two checks of a tenant's request read past the policy as well, because
 they run in guards and interceptors, before the installation opens the request's frame, and so read
 the same wherever they are asked: in a guard, in a handler, in a job and on an operator's route. The
-check of what a tenant's users may do (`SC-ADM-055`) reads the tenant's reasons and what they name —
+check of what a tenant's users may do (`SC-ADM-060`) reads the tenant's reasons and what they name —
 an invoice's number, the deletion day of an ended subscription — and, where a read-only tenant
 starts a payment, whether one of its subscriber's invoices is open. The checks of what its plan
 allows read its subscription — and where the full entitlement answers, the contract in force and the

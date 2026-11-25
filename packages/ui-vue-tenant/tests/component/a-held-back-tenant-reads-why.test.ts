@@ -63,6 +63,7 @@ const toBilling = (overrides: Partial<TenantAccessView> = {}): TenantAccessView 
     mayPay: true,
     mayExport: false,
     exportDeliveredBy: null,
+    mayReturn: false,
     ...overrides,
 });
 const ACCOUNT = {
@@ -98,6 +99,7 @@ async function mountBanner(
             http,
             // The day the instant falls on in the viewer's zone, as an application's formatter writes it.
             formatDate: (iso: string) => new Date(iso).toLocaleDateString('de-DE'),
+            formatCurrency: (amount: number) => `${amount.toFixed(2)} €`,
             onTakeExport: options.onTakeExport,
         },
         attachTo: document.body,
@@ -357,6 +359,7 @@ const endedToAnyone = (overrides: Partial<TenantAccessView> = {}): TenantAccessV
     mayPay: false,
     mayExport: false,
     exportDeliveredBy: null,
+    mayReturn: false,
     ...overrides,
 });
 /** What the tenant's administrator reads of it: they may take the export, which the platform serves. */

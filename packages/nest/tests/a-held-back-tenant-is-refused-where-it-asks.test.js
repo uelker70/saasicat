@@ -92,7 +92,7 @@ const PLATFORMS = [
 ];
 
 for (const platform of PLATFORMS) {
-    // @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+    // @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
     describe(`a tenant's state on its requests, on ${platform.name}`, () => {
         const holds = new FakeTenantAccessHoldRepository();
         let app;

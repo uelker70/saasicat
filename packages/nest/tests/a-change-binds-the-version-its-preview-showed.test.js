@@ -111,14 +111,20 @@ describe('a change to another plan', () => {
     test('naming a version no longer on sale is refused, and shown the preview as it stands', async () => {
         const port = writePort();
         const preview = previewNaming('pv-pro-2');
+        const controller = controllerOver(preview, port);
+        const shownNow = await controller.previewPlanChange(request, toPro());
 
         await assert.rejects(
-            () => controllerOver(preview, port).changePlan(request, toPro('pv-pro-1')),
+            () => controller.changePlan(request, toPro('pv-pro-1')),
             (error) => {
                 refusedWith(409, 'PLAN_CHANGE_QUOTE_CHANGED')(error);
                 const body = error.getResponse();
                 assert.deepEqual(body.params, { planVersionId: 'pv-pro-1' });
-                assert.equal(body.preview, preview.decision, 'the current preview travels with it');
+                assert.deepEqual(
+                    body.preview,
+                    shownNow,
+                    'the current preview travels with it, as the preview route hands it out',
+                );
                 return true;
             },
         );
@@ -142,7 +148,12 @@ describe('a change to another plan', () => {
                     request,
                     toPro('pv-pro-1'),
                 ),
-            refusedWith(409, 'PLAN_CHANGE_QUOTE_CHANGED'),
+            (error) => {
+                refusedWith(409, 'PLAN_CHANGE_QUOTE_CHANGED')(error);
+                // The day it would take effect, which the page writes in its sentence.
+                assert.equal(error.getResponse().preview.effectiveDays.from, '2026-06-01');
+                return true;
+            },
         );
         assert.equal(stale.scheduled.length, 0);
 

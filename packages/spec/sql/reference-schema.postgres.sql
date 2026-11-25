@@ -1189,6 +1189,7 @@ CREATE TABLE "subscription_ends" (
     "deletesOn" DATE NOT NULL,
     "recordedAt" TIMESTAMP(3) NOT NULL,
     "recordedBy" TEXT NOT NULL,
+    "liftedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "subscription_ends_pkey" PRIMARY KEY ("id")
@@ -1204,6 +1205,7 @@ CREATE TABLE "subscription_end_announcements" (
     "deletesOn" DATE NOT NULL,
     "announcedAt" TIMESTAMP(3) NOT NULL,
     "announcedBy" TEXT NOT NULL,
+    "liftedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "subscription_end_announcements_pkey" PRIMARY KEY ("id")
@@ -1682,19 +1684,19 @@ CREATE INDEX "subscriber_joins_intoSubscriberId_idx" ON "subscriber_joins"("into
 CREATE INDEX "tenant_access_holds_tenantId_liftedAt_idx" ON "tenant_access_holds"("tenantId", "liftedAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "subscription_ends_subscriptionId_key" ON "subscription_ends"("subscriptionId");
-
--- CreateIndex
 CREATE INDEX "subscription_ends_tenantId_idx" ON "subscription_ends"("tenantId");
 
 -- CreateIndex
 CREATE INDEX "subscription_ends_deletesOn_idx" ON "subscription_ends"("deletesOn");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "subscription_end_announcements_subscriptionId_key" ON "subscription_end_announcements"("subscriptionId");
+CREATE UNIQUE INDEX "subscription_ends_subscriptionId_endsAt_key" ON "subscription_ends"("subscriptionId", "endsAt");
 
 -- CreateIndex
 CREATE INDEX "subscription_end_announcements_tenantId_idx" ON "subscription_end_announcements"("tenantId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscription_end_announcements_subscriptionId_endsAt_key" ON "subscription_end_announcements"("subscriptionId", "endsAt");
 
 -- CreateIndex
 CREATE INDEX "tenant_export_downloads_subscriptionId_idx" ON "tenant_export_downloads"("subscriptionId");
@@ -2042,6 +2044,16 @@ ALTER TABLE tenant_access_holds DROP CONSTRAINT IF EXISTS tenant_access_holds_kn
 ALTER TABLE tenant_access_holds
     ADD CONSTRAINT tenant_access_holds_known_kind
     CHECK ("kind" IN ('suspended', 'overdue', 'ended', 'deleting'));
+
+-- At most ONE end of a subscription, and ONE day told for its cancellation,
+-- stand unlifted. A tenant that comes back with a new subscription lifts both,
+-- and the rows leave the indexes, so the new subscription can end and be told
+-- a day of its own (`SC-CANC-034`). A run repeated, or two at once, therefore
+-- record an end once, and two confirmations at once announce a day once.
+CREATE UNIQUE INDEX IF NOT EXISTS subscription_ends_one_not_lifted
+    ON subscription_ends ("subscriptionId") WHERE "liftedAt" IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS subscription_end_announcements_one_not_lifted
+    ON subscription_end_announcements ("subscriptionId") WHERE "liftedAt" IS NULL;
 
 -- At most ONE withdrawal of a feature is not lifted. A lifted one keeps its row
 -- with `liftedFrom` set and leaves the index, so the feature can be withdrawn

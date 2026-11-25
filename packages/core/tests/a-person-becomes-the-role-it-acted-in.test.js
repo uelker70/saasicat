@@ -7,11 +7,13 @@
 // A run and the command line say their role in the tag. A `web:` tag does not:
 // the operator and the tenant's administrator sign in alike, so the role is the
 // one the column is written in — a suspension and a lift are the operator's,
-// the end, the announcement and the download the tenant's administrator's, and
-// any other hold the run's. An operator acting as the tenant on its routes is
-// written as the tenant's administrator, whose role it acted in. A tag that is
-// none of the three is read as `web:` would be, and is never kept. A row the
-// deletion wrote names the role itself, and is read as that role.
+// but for the lift of an ended subscription's reason, which a new subscription
+// makes; that one, the end, the announcement and the download are the tenant's
+// administrator's, and any other hold the run's. An operator acting as the
+// tenant on its routes is written as the tenant's administrator, whose role it
+// acted in. A tag that is none of the three is read as `web:` would be, and is
+// never kept. A row the deletion wrote names the role itself, and is read as
+// that role.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,6 +24,7 @@ const COLUMNS = [
     'hold.recordedBy.suspended',
     'hold.recordedBy.other',
     'hold.liftedBy',
+    'hold.liftedBy.ended',
     'end.recordedBy',
     'announcement.announcedBy',
     'download.downloadedBy',
@@ -51,6 +54,10 @@ describe('a person in a row that outlives its tenant becomes the role it acted i
 
     test('a hold lifted from the web is the operator', () => {
         assert.equal(actorRoleOf('web:a@b:app', 'hold.liftedBy'), 'operator');
+    });
+
+    test('an ended subscription’s reason lifted from the web is the tenant administrator, who came back', () => {
+        assert.equal(actorRoleOf('web:a@b:app', 'hold.liftedBy.ended'), 'tenant-admin');
     });
 
     test('an end recorded from the web is the tenant administrator', () => {

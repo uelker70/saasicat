@@ -394,6 +394,11 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 severity: 'high',
             },
             {
+                key: 'SUBSCRIPTION_RETURNED',
+                label: 'Tenant came back before its deletion day: a new subscription, and its end, deletion day and read-only state lifted',
+                severity: 'high',
+            },
+            {
                 key: 'TENANT_DELETION_BEGUN',
                 label: "Tenant's deletion begun on its day: recorded with its subscriber, and the tenant held back for good",
                 severity: 'high',

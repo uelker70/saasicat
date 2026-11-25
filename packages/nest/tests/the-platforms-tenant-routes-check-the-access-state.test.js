@@ -1,5 +1,5 @@
 // The platform's own tenant routes hold a tenant to its state, behind the
-// application's guards (`SC-ADM-055`).
+// application's guards (`SC-ADM-060`).
 //
 // Every tenant route of the platform passes through `ComposedTenantAuthGuard`,
 // which runs the application's guards and then the access check, so the check
@@ -78,7 +78,7 @@ const guardWith = ({ appGuards = [{ canActivate: () => true }], store, resolver 
 
 const asTenant = (tenantId, method = 'GET') => ({ method, user: { tenantId }, headers: {} });
 
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe("the platform's tenant guard asks the state once the application let the request in", () => {
     test('an application guard that refuses ends it before the state is read', async () => {
         const store = countedStore();
@@ -245,7 +245,7 @@ function handlersOf(controller) {
         }));
 }
 
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe('which routes the check reaches', () => {
     // Add-on bookings are switched on here as well: the shared fixture leaves
     // them off, and a derivation over it would never see their tenant routes.
@@ -279,6 +279,7 @@ describe('which routes the check reaches', () => {
             'POST billing/plan/preview',
             'POST billing/subscription-bundles/preview',
             'POST billing/subscription-bundles/prices',
+            'POST billing/subscription/return/preview',
         ]);
     });
 
@@ -310,6 +311,17 @@ describe('which routes the check reaches', () => {
             'POST billing/feature-withdrawals/:id/bookings/:subscriptionBundleId/end',
             'POST billing/feature-withdrawals/:id/end',
         ]);
+    });
+
+    // Writes all the same, let through under read-only only while the tenant
+    // can come back (`a-read-only-tenant-may-come-back`).
+    test('exactly these routes let a tenant come back', () => {
+        const returning = tenantControllers
+            .flatMap(handlersOf)
+            .filter((handler) => handler.mark === 'returns')
+            .map((handler) => `${handler.method} ${handler.path}`)
+            .sort();
+        assert.deepEqual(returning, ['POST billing/subscription/return']);
     });
 
     // Let through in every state, so each of them is a decision somebody has

@@ -83,6 +83,7 @@ import type {
 } from '../subscriber-reconciliation.types.js';
 import type { CalendarDay } from '../zoned-day.js';
 import type { SubscriptionPutBack } from '../plan-change-put-back.js';
+import type { SubscriptionSpecialTerm } from '../special-terms.js';
 import type {
     InvoiceRegisterPage,
     InvoiceRegisterRange,
@@ -396,6 +397,54 @@ export interface EndNowInput {
     readonly at: Date;
     /** The effective date of the cancellation the caller read: the write is conditional on it. */
     readonly expectedCanceledEffectiveAt: Date;
+}
+
+/**
+ * What starting a subscription again after its end landed takes: the tenant
+ * came back before its deletion day with a new subscription on the same row
+ * (`SC-CANC-034`).
+ */
+export interface StartAgainInput {
+    readonly planId: string;
+    readonly cycle: string;
+    /** The new subscription's first period, which it is billed from. */
+    readonly periodStart: Date;
+    readonly periodEnd: Date;
+    /**
+     * The effective date of the landed cancellation the caller decided from:
+     * the write takes the row only while that cancellation stands.
+     */
+    readonly expectedCanceledEffectiveAt: Date;
+    /**
+     * The version the new subscription's contract was composed for, bound
+     * exactly — never the one in effect instead. Null where the write binds no
+     * version (`bindsPlanVersion` false).
+     */
+    readonly planVersionId: string | null;
+    /**
+     * `true`: bind `planVersionId` or nothing, as a plan change's
+     * `quotedVersionOnly` does. Where that version no longer takes bookings by
+     * `periodStart` — it has not begun, or it has ended (`SC-PLAN-016`) — the
+     * write claims nothing and answers `claimed: false`. A return passes it
+     * for the version its preview showed, which it read on sale a moment
+     * before. Left out, `planVersionId` is bound as named.
+     */
+    readonly quotedVersionOnly?: boolean;
+}
+
+/** What `startAgain` answers with. */
+export interface StartAgainResult {
+    /**
+     * False where the cancellation read moved, or never landed, or the version
+     * asked for alone takes no bookings, and nothing was written.
+     */
+    readonly claimed: boolean;
+    /**
+     * The special terms the subscription carried as it was started again,
+     * which starting it ended; empty where it carried none, or claimed
+     * nothing.
+     */
+    readonly endedSpecialTerms: readonly SubscriptionSpecialTerm[];
 }
 
 /** What ending a trial that ran out takes. */
@@ -2009,6 +2058,34 @@ export interface TenantSubscriptionWritePort {
      * `TrialEndService.endRanOut` refuses to end a trial (`SC-CANC-027`).
      */
     endTrial?(tenantId: string, input: EndTrialInput): Promise<EndSubscriptionNowResult>;
+
+    /**
+     * Starts the subscription of `tenantId` again, whose cancellation landed at
+     * `input.expectedCanceledEffectiveAt`, provided that is still the
+     * cancellation stored: the plan, the rhythm, the first period and the day
+     * it is billed on are written, the status becomes `ACTIVE`, both
+     * cancellation dates and any change scheduled are emptied, and
+     * `input.planVersionId` is bound. Its special terms end with it, so the
+     * catalogue's terms are what it runs on: a pilot — `isPilot` becomes
+     * false, so the plan bought decides the entitlements and nothing holds the
+     * subscription as a pilot — and the operator's own limits and price,
+     * `customLimits` and `customMonthlyNet`, become null. The pilot's note and
+     * end, the note on the special contract and the trial's end stay as what
+     * they were. Answers with the special terms it ended (`specialTermsOf` the
+     * row as it read it, locked), and `claimed: false`, writing nothing,
+     * where the cancellation moved or was never there, and where
+     * `input.quotedVersionOnly` asks for a version that no longer takes
+     * bookings. A conditional claim, like `endNow`, in `tx` where one is given.
+     *
+     * Throws, writing nothing, where the binding cannot be what the caller
+     * composed the contract for: a version named to a write that binds none, a
+     * write that binds one named none, or a version of another plan.
+     */
+    startAgain(
+        tenantId: string,
+        input: StartAgainInput,
+        tx?: TransactionContext,
+    ): Promise<StartAgainResult>;
 
     /**
      * Atomic onboarding creation: sets plan + cycle + period window

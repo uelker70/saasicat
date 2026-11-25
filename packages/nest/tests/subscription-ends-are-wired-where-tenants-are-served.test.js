@@ -24,7 +24,11 @@ import {
 import { ENTITLEMENT_SERVICE_TOKEN } from '../dist/entitlement/index.js';
 import { storeSecretsInPlainText } from '../dist/index.js';
 import { SaaSiCatModule, findViolations } from '../dist/platform/index.js';
-import { FakeSubscriptionEndRepository } from '../dist/testing/index.js';
+import {
+    FakeSubscriptionBundleRepository,
+    FakeSubscriptionEndRepository,
+    FakeTenantAccessHoldRepository,
+} from '../dist/testing/index.js';
 import {
     bootable,
     controllersIn,
@@ -120,6 +124,66 @@ describe('an installation that serves tenants', () => {
             'callable from a scheduler of its own',
         );
         assert.equal(own.cron, null);
+    });
+
+    test('hands the run the add-ons booked, so they end with their subscription', async () => {
+        const endsAt = new Date('2026-12-31T23:00:00.000Z');
+        const bookings = new FakeSubscriptionBundleRepository();
+        const booked = await bookings.add({
+            subscriptionId: 'sub-t-1',
+            bundleVersionId: 'bv-1',
+            startedAt: new Date('2026-03-01T00:00:00.000Z'),
+        });
+        // Every port answers everything, but for the three the run reads here.
+        const options = bootable(withEnds(undefined));
+        const { persistence } = options;
+        const cancelled = {
+            tenantId: 't-1',
+            subscriptionId: 'sub-t-1',
+            canceledAt: new Date('2026-10-01T09:00:00.000Z'),
+            canceledEffectiveAt: endsAt,
+        };
+        const moduleRef = await Test.createTestingModule({
+            imports: [
+                SaaSiCatModule.forRoot({
+                    ...options,
+                    persistence: {
+                        ...persistence,
+                        core: {
+                            ...persistence.core,
+                            rlsBypass: { runWithBypass: (work) => work() },
+                            subscriptionEnds: new FakeSubscriptionEndRepository(),
+                            tenantAccessHolds: new FakeTenantAccessHoldRepository(),
+                        },
+                        entitlement: {
+                            ...persistence.entitlement,
+                            subscriptionBundleRepository: bookings,
+                        },
+                        tenantBilling: {
+                            ...persistence.tenantBilling,
+                            subscriptionUsagePort: {
+                                findForTenant: async () => null,
+                                listCancelled: async () => [cancelled],
+                            },
+                        },
+                    },
+                }),
+            ],
+        }).compile();
+        const service = moduleRef.get(SubscriptionEndService, { strict: false });
+        // The run binds the port's `listCancelled` as the application starts;
+        // started alone, as every other service here answers everything.
+        service.onModuleInit();
+
+        try {
+            assert.deepEqual(await service.recordEnded(new Date('2026-12-31T23:15:00.000Z')), {
+                ended: 1,
+            });
+            const kept = await bookings.findById(booked.id);
+            assert.deepEqual([kept.canceledAt, kept.canceledEffectiveAt], [endsAt, endsAt]);
+        } finally {
+            await moduleRef.close();
+        }
     });
 
     test('refuses to start where the file says nothing of the end, naming the setting', async () => {

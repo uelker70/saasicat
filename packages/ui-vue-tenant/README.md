@@ -135,11 +135,22 @@ Behind the sign-in, put `TenantAccessBanner` above the pages. It shows nothing w
 open; held back, it tells every user why and since when, and lets a user holding the billing
 permission pay an unpaid invoice from there. Once the tenant's subscription has ended, it names the
 last day the tenant can read and the day its data is deleted on, and offers the tenant's
-administrator the tenant's full export as a download, which the server records:
+administrator the tenant's full export as a download, which the server records. Until that day it
+also offers the administrator to subscribe again: a dialog states what the new subscription costs —
+written by your `formatCurrency`, as on the plan section — and that the deletion is lifted, and
+takes it out once confirmed:
 
 ```vue
-<TenantAccessBanner :http="http" api-prefix="/billing" :format-date="formatDate" />
+<TenantAccessBanner
+    :http="http"
+    api-prefix="/billing"
+    :format-date="formatDate"
+    :format-currency="formatCurrency"
+/>
 ```
+
+`quotaLabel` and `formatQuotaValue` name the quotas of the plans offered, as they do on
+`TenantPlanSection`.
 
 Where your application delivers the export from a download of its own
 (`subscriptionEnds.export: { deliveredBy: 'application' }` on the server), the server says so in the
@@ -149,7 +160,12 @@ it as a failed download is. Where nothing is bound, the banner says so in the br
 soon as it offers the export, and pressing the button says the export did not arrive:
 
 ```vue
-<TenantAccessBanner :http="http" :format-date="formatDate" @take-export="startTenantExport" />
+<TenantAccessBanner
+    :http="http"
+    :format-date="formatDate"
+    :format-currency="formatCurrency"
+    @take-export="startTenantExport"
+/>
 ```
 
 Import the platform theme once in your app so these components pick up the

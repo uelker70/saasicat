@@ -468,7 +468,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     // The banner above the application of a tenant held back: the state, each
     // reason with an ended subscription's days, and the two buttons a tenant's
-    // administrator is offered. No other case renders it.
+    // administrator is offered. The two cases below render it with one thing more each.
     visualCase({
         id: 'tenant-access-banner',
         load: () => import('@saasicat/ui-vue-tenant/TenantAccessBanner.vue'),
@@ -476,6 +476,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             http,
             apiPrefix: '/api/access-billing',
             formatDate: (iso: string) => String(iso).slice(0, 10),
+            formatCurrency: (n: number) => `€ ${n.toFixed(2)}`,
         }),
     }),
     // The same banner with what the tenant keeps for obligations of its own,
@@ -487,6 +488,19 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             http,
             apiPrefix: '/api/keep-billing',
             formatDate: (iso: string) => String(iso).slice(0, 10),
+            formatCurrency: (n: number) => `€ ${n.toFixed(2)}`,
+        }),
+    }),
+    // The same banner where the tenant's administrator can subscribe again
+    // before its deletion day, beside taking the export.
+    visualCase({
+        id: 'tenant-access-banner-return',
+        load: () => import('@saasicat/ui-vue-tenant/TenantAccessBanner.vue'),
+        props: ({ http }) => ({
+            http,
+            apiPrefix: '/api/return-billing',
+            formatDate: (iso: string) => String(iso).slice(0, 10),
+            formatCurrency: (n: number) => `€ ${n.toFixed(2)}`,
         }),
     }),
     visualCase({

@@ -253,6 +253,12 @@ function createHarness() {
                     canceledAt: input.canceledAt ?? null,
                     canceledEffectiveAt: input.canceledEffectiveAt ?? null,
                     trialEndsAt: input.trialEndsAt ?? null,
+                    isPilot: input.isPilot ?? false,
+                    pilotEndsAt: input.pilotEndsAt ?? null,
+                    customMonthlyNet:
+                        input.customMonthlyNet === undefined
+                            ? null
+                            : String(input.customMonthlyNet),
                     updatedAt: new Date(),
                 });
                 return { subscriptionId: id };

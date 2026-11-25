@@ -60,7 +60,7 @@ export interface TenantPaymentMethodAnswer {
  * tenant's view of what its subscriber pays with, behind the billing
  * permission for reading and changing alike. Replacing it starts a payment,
  * which a read-only tenant may do, as it may pay now, while one of its
- * subscriber's invoices is open (`SC-ADM-055`).
+ * subscriber's invoices is open (`SC-ADM-060`).
  */
 @Controller('billing/payment-method')
 @UseGuards(ComposedTenantAuthGuard, BillingPermissionGuard)

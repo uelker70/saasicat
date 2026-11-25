@@ -544,7 +544,7 @@ function priceOf(version: PlanVersionRow, billingCycle: Cycle): number | null {
 }
 
 /** The billing module spells rhythms in capitals; an offer spells them in lower case. */
-function wireCycle(billingCycle: Cycle): 'MONTHLY' | 'YEARLY' {
+export function wireCycle(billingCycle: Cycle): 'MONTHLY' | 'YEARLY' {
     return billingCycle === 'yearly' ? 'YEARLY' : 'MONTHLY';
 }
 

@@ -95,8 +95,10 @@
                     :bills-again="billsAgain"
                     :format-currency="formatCurrency"
                     :format-date="formatDate"
+                    :may-return="returnOffer.offered"
                     @change-plan="showWizard = true"
                     @cancel-subscription="openCancelConfirm"
+                    @subscribe-again="showReturn = true"
                 />
 
                 <hr class="sp-divider" />
@@ -219,6 +221,21 @@
                 @confirm="confirmCancelSubscription"
             />
 
+            <!-- Subscribing again once the subscription has ended (`SC-CANC-034`). -->
+            <TenantReturnDialog
+                v-model="showReturn"
+                :http="http"
+                :api-prefix="apiPrefix"
+                :plans="bookablePlans"
+                :format-date="formatDate"
+                :format-currency="formatCurrency"
+                :quota-label="quotaLabelResolved"
+                :format-quota-value="quotaValueResolved"
+                :holds-billing-permission="returnOffer.holdsBillingPermission"
+                :unpaid-stays="returnOffer.unpaidStays"
+                @returned="billing.reload()"
+            />
+
             <!-- P11.4: Frozen CheckoutOffer snapshot (read-only) — only
                  when the subscription originates from a website offer (#20).
                  Without a snapshot the "not via website offer" empty text
@@ -276,6 +293,7 @@ import CancelSubscriptionDialog, {
 } from './tenant-plan-section/CancelSubscriptionDialog.vue';
 import TenantBundleStore from './tenant-plan-section/TenantBundleStore.vue';
 import TenantPaymentMethodCard from './TenantPaymentMethodCard.vue';
+import TenantReturnDialog from './tenant-access/TenantReturnDialog.vue';
 import TenantFeatureMatrix from './tenant-plan-section/TenantFeatureMatrix.vue';
 import TenantPlanCardHeader from './tenant-plan-section/TenantPlanCardHeader.vue';
 import TenantUsageGrid from './tenant-plan-section/TenantUsageGrid.vue';
@@ -287,6 +305,7 @@ import './ui/tenant-ui.css';
 import { useSubscriptionHasEnded } from './use-subscription-ended.js';
 import { latestAnswerWins } from './latest-answer-wins.js';
 import {
+    useTenantAccessState,
     useTenantBilling,
     type BundlePreviewShape,
     type PlanChangePreviewIssueShape,
@@ -605,6 +624,30 @@ const currentPriceUnit = computed(() =>
 // billing date.
 /** Shared by the badge, its tone and the billing date — one timer, one answer. */
 const hasEnded = useSubscriptionHasEnded(() => usage.value);
+
+// Whether the reader can subscribe again is the tenant's state's to say, read
+// once the subscription has ended rather than polled beside the banner's.
+const access = useTenantAccessState({
+    http: props.http,
+    apiPrefix: props.apiPrefix,
+    autoLoad: false,
+});
+watch(
+    hasEnded,
+    (ended) => {
+        if (ended) void access.reload();
+    },
+    { immediate: true },
+);
+const showReturn = ref(false);
+const returnOffer = computed(() => {
+    const view = access.view.value;
+    return {
+        offered: hasEnded.value && view?.mayReturn === true,
+        holdsBillingPermission: view?.holdsBillingPermission === true,
+        unpaidStays: view?.reasons.some((reason) => reason.kind === 'overdue') ?? false,
+    };
+});
 
 const billsAgain = computed(() => {
     const u = usage.value;

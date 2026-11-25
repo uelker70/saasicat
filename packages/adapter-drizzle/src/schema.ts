@@ -688,35 +688,36 @@ export const subscriberLedgerEntries = pgTable('subscriber_ledger_entries', {
 /** A calendar day, read and written as its `YYYY-MM-DD` text. */
 const day = (name: string) => date(name, { mode: 'string' });
 
-// One end per subscription that ended, with the day its tenant's data is
-// deleted on. The DDL authority, the unique key a second end of one
-// subscription collides with, is `subscription_ends_subscriptionId_key`.
+// The ends of subscriptions, with the day each tenant's data is deleted on; a
+// lifted one has `liftedAt` set. The DDL authority, the keys a second end of one
+// subscription collides with, are `subscription_ends_one_not_lifted` — one
+// end not lifted — and `subscription_ends_subscriptionId_endsAt_key`.
 export const subscriptionEnds = pgTable('subscription_ends', {
     id: text('id').primaryKey(),
     tenantId: text('tenantId').notNull(),
-    subscriptionId: text('subscriptionId').notNull().unique('subscription_ends_subscriptionId_key'),
+    subscriptionId: text('subscriptionId').notNull(),
     endsAt: ts('endsAt').notNull(),
     deletesOn: day('deletesOn').notNull(),
     recordedAt: ts('recordedAt').notNull(),
     recordedBy: text('recordedBy').notNull(),
+    liftedAt: ts('liftedAt'),
     createdAt: writtenAt('createdAt'),
 });
 
-// One announcement per subscription whose cancellation was confirmed with a
-// deletion day. The DDL authority, the unique key a second announcement for one
-// subscription collides with, is
-// `subscription_end_announcements_subscriptionId_key`.
+// The days told when a cancellation was confirmed; a lifted one has `liftedAt`
+// set. The DDL authority, the keys a second announcement for one subscription
+// collides with, are `subscription_end_announcements_one_not_lifted` and
+// `subscription_end_announcements_subscriptionId_endsAt_key`.
 export const subscriptionEndAnnouncements = pgTable('subscription_end_announcements', {
     id: text('id').primaryKey(),
     tenantId: text('tenantId').notNull(),
-    subscriptionId: text('subscriptionId')
-        .notNull()
-        .unique('subscription_end_announcements_subscriptionId_key'),
+    subscriptionId: text('subscriptionId').notNull(),
     endsAt: ts('endsAt').notNull(),
     readOnlyDays: integer('readOnlyDays').notNull(),
     deletesOn: day('deletesOn').notNull(),
     announcedAt: ts('announcedAt').notNull(),
     announcedBy: text('announcedBy').notNull(),
+    liftedAt: ts('liftedAt'),
     createdAt: writtenAt('createdAt'),
 });
 

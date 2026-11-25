@@ -2,7 +2,7 @@
 
 // The administration's tenant routes: the application's rows with the
 // platform's state beside each, and a suspension that is the platform's own
-// record (`SC-ADM-055`). The application's port is a fake that answers reads
+// record (`SC-ADM-060`). The application's port is a fake that answers reads
 // and has nothing to write: suspending or reactivating writes neither its
 // tenant row nor a subscription.
 
@@ -106,7 +106,7 @@ const deletionBegun = (holds, tenantId) =>
         recordedBy: 'job:platform:tenant-deletions',
     });
 
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe("a suspension is the platform's record", () => {
     // @requirement SC-AUD-021 — An audit entry names the tenant it concerns, so the tenant's deletion takes it along
     test('suspending records the reason with its note and who, audits it, and answers the state', async () => {
@@ -217,7 +217,7 @@ describe("a suspension is the platform's record", () => {
     });
 });
 
-// @requirement SC-ADM-055 — A suspended tenant cannot act, and a read-only one writes only to pay or to leave
+// @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 describe("the administration reads each tenant with the platform's state", () => {
     test('every row carries its state, and a suspended tenant is not active', async () => {
         const { service } = platform();

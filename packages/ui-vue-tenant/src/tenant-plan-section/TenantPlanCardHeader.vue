@@ -78,6 +78,15 @@
             >
                 {{ i18n.changePlanButton }}
             </TenantButton>
+            <!-- Until its deletion day the tenant can subscribe again, where the server says this reader may. -->
+            <TenantButton
+                v-if="hasEnded && mayReturn"
+                variant="solid"
+                tone="accent"
+                @click="emit('subscribeAgain')"
+            >
+                {{ i18n.returnAction }}
+            </TenantButton>
             <TenantButton
                 v-if="!landsAt && mayChange"
                 variant="quiet"
@@ -121,11 +130,14 @@ const props = defineProps<{
     formatCurrency: (value: number) => string;
     /** Handed noon of a day the server named, which it writes in the viewer's zone. */
     formatDate: (value: string | Date) => string;
+    /** Whether the tenant's state says this reader can subscribe again (`mayReturn`). */
+    mayReturn?: boolean;
 }>();
 
 const emit = defineEmits<{
     (e: 'changePlan'): void;
     (e: 'cancelSubscription'): void;
+    (e: 'subscribeAgain'): void;
 }>();
 
 /** When the cancellation lands, or null while none was declared. */

@@ -64,6 +64,21 @@ export function mayTakeTheTenantsExport(request: unknown, actingAsOperator: bool
     return isTenantAdministrator(request) && !isTheOperator(request, actingAsOperator);
 }
 
+/**
+ * Whether the user a request carries may take out a new subscription for the
+ * tenant after its own ended — what the tenant's state answers as `mayReturn`
+ * for its reader, by the rules the return is refused by: the tenant's own
+ * administrator alone. The subscription is the subscriber's to take out, and
+ * the operator acting as the tenant cannot conclude it in its name
+ * (`SC-CANC-034`).
+ */
+export function mayTakeOutTheTenantsSubscription(
+    request: unknown,
+    actingAsOperator: boolean,
+): boolean {
+    return isTenantAdministrator(request) && !isTheOperator(request, actingAsOperator);
+}
+
 /** Whether the user a request carries holds `TENANT_ADMIN` or `SUPER_ADMIN`. */
 function isTenantAdministrator(request: unknown): boolean {
     const role = roleOf(request);

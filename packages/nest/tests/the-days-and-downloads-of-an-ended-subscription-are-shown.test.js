@@ -265,6 +265,32 @@ describe("the operator's page names the day and every download of the export", (
         assert.deepEqual([reason.deletesOn, reason.exportDownloads], [null, []]);
     });
 
+    // @requirement SC-PRIV-024 — A tenant is deleted only after its full export was offered in the read-only period
+    test('a tenant that came back and ended again is listed the downloads of this end alone', async () => {
+        const { admin, ends } = await installation();
+        await downloaded(ends, FIRST);
+        assert.equal(await ends.lift('sub-t1', new Date('2026-12-05T10:00:00.000Z')), true);
+        const endedAgain = new Date('2027-03-31T22:00:00.000Z');
+        await ends.record({
+            tenantId: ACME.id,
+            subscriptionId: 'sub-t1',
+            endsAt: endedAgain,
+            deletesOn: '2027-05-01',
+            recordedAt: new Date('2027-03-31T22:05:00.000Z'),
+            recordedBy: 'job:platform:subscription-ends',
+        });
+        const afterTheSecondEnd = new Date('2027-04-02T09:00:00.000Z');
+        await downloaded(ends, afterTheSecondEnd);
+
+        const [reason] = (await admin.getTenantDetail('acme')).accessReasons;
+
+        assert.equal(reason.deletesOn, '2027-05-01');
+        assert.deepEqual(
+            reason.exportDownloads.map((download) => download.at),
+            [afterTheSecondEnd.toISOString()],
+        );
+    });
+
     test("another tenant's downloads under the same subscription are not listed", async () => {
         const { admin, ends } = await installation();
         await downloaded(ends, FIRST, 't2', 'sub-t1');

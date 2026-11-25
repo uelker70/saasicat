@@ -11,6 +11,8 @@ import type {
     PromoCodeRedemptionRecord,
     RedeemPromoInTransactionCallback,
     ScheduledPlanChangeInput,
+    StartAgainInput,
+    StartAgainResult,
     TenantSubscriptionWritePort,
     TransactionContext,
 } from '@saasicat/core';
@@ -24,7 +26,9 @@ import {
     buildActivePlanVersionWhere,
     noActivePlanVersion,
     scheduledChangeAfterWrite,
+    specialTermsOf,
     subscriptionGone,
+    type SpecialTermFields,
 } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 import {
@@ -79,6 +83,40 @@ function bookableOn(version: PlanVersionIdentityDbRow, planId: string, asOf: Dat
 /** Structural minimum of the root client; model delegates are configurable. */
 interface TransactionalPrismaClient {
     $transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>;
+}
+
+/** The raw statements a return takes beside the configurable subscription delegate. */
+interface RawSubscriptionClient {
+    $queryRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<unknown>;
+    $executeRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<number>;
+}
+
+/** What `startAgain` answers where it claims nothing. */
+const NOTHING_STARTED: StartAgainResult = { claimed: false, endedSpecialTerms: [] };
+
+function rawClientOf(client: unknown): RawSubscriptionClient {
+    // SAFETY: a Prisma client, and the transaction client its `$transaction`
+    // hands out, both carry `$queryRaw` and `$executeRaw`.
+    return client as RawSubscriptionClient;
+}
+
+/**
+ * Locks the tenant's subscription row for the rest of the transaction `client`
+ * is on, and reads the fields that hold its special terms; null where the
+ * tenant has no subscription. Addresses the canonical physical `subscriptions`
+ * table, as the locked read of the subscription repository does.
+ */
+async function lockedSpecialTerms(
+    client: unknown,
+    tenantId: string,
+): Promise<SpecialTermFields | null> {
+    const rows = await rawClientOf(client).$queryRaw`
+        SELECT "isPilot", "customLimits", "customMonthlyNet" FROM subscriptions
+        WHERE "tenantId" = ${tenantId} FOR UPDATE`;
+    // SAFETY: the statement selects these three columns of the one row a
+    // tenant's subscription has, or none.
+    const [row] = rows as SpecialTermFields[];
+    return row ?? null;
 }
 
 /**
@@ -429,6 +467,95 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             canceledEffectiveAt: current.canceledEffectiveAt ?? null,
             status: current.status,
         };
+    }
+
+    /**
+     * The same conditional claim as `endNow`, on the landed cancellation the
+     * caller read: one that moved, or a subscription never cancelled, leaves
+     * the count at zero and nothing written. Not on the status, which a
+     * cancellation that landed by its date left as it stood. In the caller's
+     * transaction where one is given, so the return's contract and the lifted
+     * end share it, and in one of its own otherwise: the row is locked first,
+     * so the special terms it answers with are the ones the write ended. A
+     * version asked for alone (`quotedVersionOnly`) that takes no bookings by
+     * the first period claims nothing either.
+     */
+    async startAgain(
+        tenantId: string,
+        input: StartAgainInput,
+        tx?: TransactionContext,
+    ): Promise<StartAgainResult> {
+        const binds = this.schema.tenantSubscription.synchronizePlanVersion;
+        if (binds) {
+            const takesBookings = await this.versionNamedTakesBookings(
+                tx ?? this.prisma,
+                tenantId,
+                input,
+            );
+            if (input.quotedVersionOnly && !takesBookings) return NOTHING_STARTED;
+        } else if (input.planVersionId !== null) {
+            throw new Error(
+                `A return for tenant ${tenantId} asked for plan version ${input.planVersionId} ` +
+                    'to be bound, and this write binds no version: ' +
+                    '`tenantSubscription.synchronizePlanVersion` is false.',
+            );
+        }
+        const columns = {
+            plan: input.planId,
+            billingCycle: input.cycle,
+            status: 'ACTIVE',
+            ...columnsOfPeriodOpened(input.periodStart, input.periodEnd),
+            canceledAt: null,
+            canceledEffectiveAt: null,
+            ...NO_SCHEDULED_CHANGE,
+            isPilot: false,
+            customMonthlyNet: null,
+        };
+        const startIn = async (client: unknown): Promise<StartAgainResult> => {
+            const carried = await lockedSpecialTerms(client, tenantId);
+            const claimed = await this.subscription(client).updateMany({
+                where: { tenantId, canceledEffectiveAt: input.expectedCanceledEffectiveAt },
+                data: binds ? { ...columns, planVersionId: input.planVersionId } : columns,
+            });
+            if (claimed.count !== 1 || carried === null) return NOTHING_STARTED;
+            // Prisma takes no plain null for a JSON column, and this package
+            // has no `DbNull` to give it instead.
+            await rawClientOf(client).$executeRaw`
+                UPDATE subscriptions SET "customLimits" = NULL WHERE "tenantId" = ${tenantId}`;
+            return { claimed: true, endedSpecialTerms: specialTermsOf(carried) };
+        };
+        if (tx) return startIn(tx);
+        return this.prisma.$transaction(startIn);
+    }
+
+    /**
+     * Refuses a return that names no version, or one of another plan, where
+     * the write binds one: the version bound is the one the new contract was
+     * composed for, never the one in effect instead. Answers whether that
+     * version still takes bookings when the subscription starts again.
+     */
+    private async versionNamedTakesBookings(
+        client: unknown,
+        tenantId: string,
+        input: StartAgainInput,
+    ): Promise<boolean> {
+        if (input.planVersionId === null) {
+            throw new Error(
+                `A return for tenant ${tenantId} names no plan version, and this write binds one: ` +
+                    'the version the new contract was composed for.',
+            );
+        }
+        const storagePlanId = await this.planBinding.toStoragePlanId(client, input.planId);
+        const version = await this.planVersions(client).findUnique({
+            where: { id: input.planVersionId },
+        });
+        if (version?.planId !== storagePlanId) {
+            throw new Error(
+                `A return for tenant ${tenantId} names plan version ${input.planVersionId}, ` +
+                    `which is not one of ${input.planId}.`,
+            );
+        }
+        return bookableOn(version, storagePlanId, input.periodStart);
     }
 
     /**

@@ -4,14 +4,17 @@
 // on a suspension and the subscriber whose record lists an invoice; a tenant's
 // users are told neither. They are told what holds them back and from which
 // day, and the invoice by its number only where they hold the billing
-// permission — the permission that lets them pay it (`SC-ADM-055`). Where a
+// permission — the permission that lets them pay it (`SC-ADM-060`). Where a
 // subscription ended, every one of them is told the last day the tenant can
 // still read and the day its data is deleted on (`SC-CANC-033`), and whether
 // that day has come: until the deletion runs the data is still there, and a
 // tenant read-only past the day is not to be told it can read only until a day
 // gone by. Whether they can take the tenant's export, and who delivers it, is
-// said to the tenant's administrator alone (`SC-PRIV-020`).
+// said to the tenant's administrator alone (`SC-PRIV-020`); whether they can
+// come back with a new subscription, to whoever may take one out, by the rule
+// the route that takes it out refuses by (`SC-CANC-034`).
 
+import { openEndedHoldOf, subscriptionReturnRefusal } from './subscription-return.js';
 import {
     holdsOldestFirst,
     type TenantAccess,
@@ -82,6 +85,14 @@ export interface TenantAccessView {
      * `take-export` listener. `null` where `mayExport` is false.
      */
     exportDeliveredBy: TenantExportDeliverer | null;
+    /**
+     * Whether this user can come back here with a new subscription: they may
+     * take one out for the tenant, and `subscriptionReturnRefusal` refuses
+     * nothing — its subscription ended, its end is recorded, its deletion day
+     * has not come in the installation's zone, and neither a suspension nor a
+     * deletion under way holds it.
+     */
+    mayReturn: boolean;
 }
 
 /** Who is told, and what the view of them is made from. */
@@ -106,8 +117,9 @@ export interface TenantAccessViewOptions {
     isTenantAdministrator: boolean;
     /**
      * The deletion day of each ended subscription the reasons name, by
-     * subscription id: read only where an `ended` reason is open. A
-     * subscription absent from it has no end recorded yet.
+     * subscription id — of its end that is not lifted: read only where an
+     * `ended` reason is open. A subscription absent from it has no end
+     * recorded yet.
      */
     deletionDays?: ReadonlyMap<string, CalendarDay>;
     /**
@@ -118,6 +130,12 @@ export interface TenantAccessViewOptions {
     exportWired?: boolean;
     /** Who delivers the export where it is wired. Default `'platform'`. */
     exportDeliveredBy?: TenantExportDeliverer;
+    /**
+     * Whether this user may take out a subscription for the tenant, as the
+     * route that takes it out decides who: the view adds only whether the
+     * tenant can come back now. Default `false`.
+     */
+    mayTakeOutSubscription?: boolean;
 }
 
 /** What `access` tells a user of the tenant, as `options` says who is asking. */
@@ -156,5 +174,19 @@ export function tenantAccessViewOf(
         mayPay: options.holdsBillingPermission && options.mayPay,
         mayExport,
         exportDeliveredBy: mayExport ? (options.exportDeliveredBy ?? 'platform') : null,
+        mayReturn: options.mayTakeOutSubscription === true && mayComeBack(access, options),
     };
+}
+
+/** Whether the rule lets the tenant come back now, its end's day read from `options`. */
+function mayComeBack(access: TenantAccess, options: TenantAccessViewOptions): boolean {
+    const reference = openEndedHoldOf(access.holds)?.reference ?? null;
+    const deletesOn = reference === null ? undefined : options.deletionDays?.get(reference);
+    const refusal = subscriptionReturnRefusal({
+        holds: access.holds,
+        end: deletesOn === undefined ? null : { deletesOn },
+        now: options.now,
+        timeZone: options.timeZone,
+    });
+    return refusal === null;
 }

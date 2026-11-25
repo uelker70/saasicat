@@ -261,7 +261,7 @@ out after it has already erased. Each eraser treats what is already gone as done
 partway is reported and repeated rather than left half-finished, and the deletion record
 (`SC-PRIV-023`) is written only when every store has confirmed. Once a run has begun the tenant is
 being deleted: nobody writes to it any more, the operator acting as the tenant included
-(`SC-ADM-055`). Before its first destructive call, each store counts what it is about to erase and
+(`SC-ADM-060`). Before its first destructive call, each store counts what it is about to erase and
 keeps those counts with the run, so a call whose answer was lost, and a repeat that finds the store
 already empty, still leave the counts that were erased rather than a record that nothing was
 deleted.
@@ -333,7 +333,7 @@ offered while the data is there. The tenant is always the session's, never one t
 The application either hands the file over for the platform to serve, or declares that it delivers
 the export from a download of its own; it does not start with neither, nor with a declaration naming
 anybody else as delivering it. Where the platform serves the file, a suspension or a deletion under
-way refuses the download as it refuses every request of the tenant's users (`SC-ADM-055`), and any
+way refuses the download as it refuses every request of the tenant's users (`SC-ADM-060`), and any
 other download outside these rules is refused with a stable code; the application is asked on every
 download, the download is recorded only once the application has handed the whole file over, and the
 file is sent only once its download is recorded, so a file never leaves without its record and a
@@ -808,6 +808,8 @@ _Tested by:_
         - a suspension recorded from the web is the operator
         - any other hold recorded from the web is the run
         - a hold lifted from the web is the operator
+        - an ended subscription’s reason lifted from the web is the tenant administrator, who came
+          back
         - an end recorded from the web is the tenant administrator
         - an announcement from the web is the tenant administrator
         - a download from the web is the tenant administrator
@@ -836,6 +838,8 @@ _Tested by:_
     - a deletion done, on the record of its subscriber
         - is read once the application has no tenant any more, with every store, the commercial
           record, the reminders and the downloads, naming no person
+        - of a tenant that came back once, keeps the reminders and downloads of the end it was
+          deleted for
         - names no person while the deletion is under way and the rows still name them
         - counts a reminder that reached nobody as 0, and one not delivered as not delivered
         - says on both pages that a suspension kept the export from being taken between the end and
@@ -857,19 +861,30 @@ _Source:_ #338 (decided 2026-11-15)
 
 _Tested by:_
 
+- `packages/core/tests/a-tenant-comes-back-before-its-deletion-day.test.js`
+    - a download of the export belongs to the end it was offered for
+        - taken the moment the end was recorded, it is that end’s
+        - taken a moment before, it is not: an earlier end of the subscription offered it
 - `packages/nest/tests/a-tenant-is-deleted-on-its-day-and-only-there.test.js`
     - the record of when the export could be taken
         - says a suspension kept it from being taken where one held after the end
         - deletes the tenant on its day though nobody ever took its export
         - says none did where the suspension was lifted before the end
+- `packages/nest/tests/the-days-and-downloads-of-an-ended-subscription-are-shown.test.js`
+    - the operator's page names the day and every download of the export
+        - a tenant that came back and ended again is listed the downloads of this end alone
 - `packages/nest/tests/where-a-deletion-stands-is-read-naming-no-person.test.js`
     - a deletion done, on the record of its subscriber
         - is read once the application has no tenant any more, with every store, the commercial
           record, the reminders and the downloads, naming no person
+        - of a tenant that came back once, keeps the reminders and downloads of the end it was
+          deleted for
         - names no person while the deletion is under way and the rows still name them
         - counts a reminder that reached nobody as 0, and one not delivered as not delivered
         - says on both pages that a suspension kept the export from being taken between the end and
           the deletion
+        - of a tenant that came back once, keeps the reminders and downloads of the end it was
+          deleted for
 - `packages/ui-vue/tests/component/subscriber-record-shows-its-deletions.test.ts`
     - the subscriber's record shows its tenants' deletions
         - a tenant the application no longer has, named by its id, with all that is recorded of its
@@ -900,13 +915,13 @@ _Tested by:_
 one exception, so that none is left standing, or naming a person, once the tenant is gone. An
 invoice records or lifts no reason on it any more, neither through the quarter-hourly run nor
 through the payment that settles it (`SC-PRIC-104`), and the operator cannot suspend it: the
-deletion already holds it back more strictly than either (`SC-ADM-055`). The exception is lifting a
+deletion already holds it back more strictly than either (`SC-ADM-060`). The exception is lifting a
 suspension that stands, which stays the operator's (`SC-ADM-005`), and whose record names a role
 once the tenant is gone (`SC-PRIV-023`). When the deletion closes, every reason of the tenant still
 open — an unpaid invoice, a suspension, the end of its subscription — is lifted by the run, and only
 the deletion's own stays open, since nobody acts in a deleted tenant again. Nothing is recorded
 against the tenant afterwards while its subscriber still owes: the claim itself stays in the
-subscriber's ledger (`SC-PRIV-013`) and is settled without a tenant (`SC-ADM-055`).
+subscriber's ledger (`SC-PRIV-013`) and is settled without a tenant (`SC-ADM-060`).
 
 _Source:_ #338 (decided 2026-11-16)
 
@@ -943,7 +958,7 @@ deletion does not begin while a contract of the tenant is in force at that end o
 one concluded since, as a checkout offer may be for a tenant whose earlier contract has ended
 (`SC-MKT-028`). The run holds it, writes nothing and says so in the server log, and asks again on
 its next run; a contract that ended before that end, or with it, does not hold it. It holds beside
-the new subscription that lifts the deletion day (`SC-CANC-028`), so that no tenant under contract
+the new subscription that lifts the deletion day (`SC-CANC-034`), so that no tenant under contract
 is erased for an end its contracts have moved past. Where it stops: the contracts are read just
 before the deletion begins rather than in the transaction that begins it, so one concluded in that
 moment is not seen, and a deletion already begun is not stopped by one concluded afterwards.

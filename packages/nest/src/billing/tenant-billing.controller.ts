@@ -45,7 +45,10 @@ import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { mayChangeWhatTheTenantPays } from './tenant-roles.js';
 import { initialPeriodWindow } from './billing-period.js';
-import { PlanChangePreviewService } from './plan-change-preview.service.js';
+import {
+    PlanChangePreviewService,
+    type PlanChangePreviewDto,
+} from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
 import { VersionSwitchService } from './version-switch.service.js';
 import { RetirementSwitchService } from './retirement-switch.service.js';
@@ -95,6 +98,7 @@ import {
 } from './tenant-billing.tokens.js';
 import { resolvePlanAnchorDay } from './bundle-period.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
+import { assertNamesTheVersionShown } from './version-shown.js';
 import {
     requireTenantUserId,
     tenantActorOf,
@@ -131,6 +135,9 @@ import {
 interface RequestLike {
     user?: { tenantId?: string; sub?: string; id?: string };
 }
+
+/** The moments a plan-change preview answers with, each handed out with its days. */
+const PLAN_PREVIEW_MOMENTS = ['effectiveAt', 'projectedTrialEndsAt'] as const;
 
 /** What `GET /billing/usage` reads, before the days of its moments are put beside them. */
 interface UsageMomentsAnswer {
@@ -518,12 +525,22 @@ export class TenantBillingController {
     @WritesNothing()
     async previewPlanChange(@Req() req: RequestLike, @Body() dto: PreviewPlanChangeDto) {
         const tenantId = this.requireTenantId(req);
-        const preview = withDays(
+        return this.previewHandedOut(
+            req,
             await this.planPreview.preview(tenantId, dto.plan, dto.billingCycle),
-            ['effectiveAt', 'projectedTrialEndsAt'],
-            this.zone(),
         );
-        return { ...preview, mayChange: mayChangeWhatTheTenantPays(req) };
+    }
+
+    /**
+     * `preview` as the tenant is shown it — by the preview route, and by a
+     * change refused for a price it was not shown: its moments with their
+     * days in the installation's zone, and whether `req` may make the change.
+     */
+    private previewHandedOut(req: RequestLike, preview: PlanChangePreviewDto) {
+        return {
+            ...withDays(preview, PLAN_PREVIEW_MOMENTS, this.zone()),
+            mayChange: mayChangeWhatTheTenantPays(req),
+        };
     }
 
     // ---------------------------------------------------------------------
@@ -646,11 +663,11 @@ export class TenantBillingController {
         // (`SC-CHG-023`). The preview is read again here, at the moment the
         // change is submitted; a version that went on sale since — a successor
         // whose start passed while the page was open — is not bound at a price
-        // nobody saw. The caller is shown the preview as it stands. Only a
-        // change that keeps the version bound names none: the preview kept it,
-        // as it does when the plan stays (`SC-SUB-024`). A subscription bound
-        // to no version has nothing to keep, so its preview quotes the version
-        // on sale, and the change names it like a change to another plan.
+        // nobody saw (`assertNamesTheVersionShown`). Only a change that keeps
+        // the version bound names none: the preview kept it, as it does when
+        // the plan stays (`SC-SUB-024`). A subscription bound to no version has
+        // nothing to keep, so its preview quotes the version on sale, and the
+        // change names it like a change to another plan.
         const boundVersionId = sub.planVersion?.id ?? null;
         const quotedVersionId =
             decision.target.planVersionId !== boundVersionId ? decision.target.planVersionId : null;
@@ -661,24 +678,11 @@ export class TenantBillingController {
             this.subscriptionWrite.bindsPlanVersion !== false
                 ? { expectedPlanVersionId: boundVersionId }
                 : {};
-        if (quotedVersionId !== null) {
-            if (!dto.planVersionId) {
-                throw new BadRequestException({
-                    code: BILLING_ERROR_CODES.PLAN_CHANGE_VERSION_NOT_NAMED,
-                    message: 'A plan change has to name the version its preview showed.',
-                    params: { planKey: dto.plan },
-                });
-            }
-            if (dto.planVersionId !== quotedVersionId) {
-                throw new ConflictException({
-                    code: BILLING_ERROR_CODES.PLAN_CHANGE_QUOTE_CHANGED,
-                    message:
-                        'This plan changed since it was shown. Look at it again before changing to it.',
-                    params: { planVersionId: dto.planVersionId },
-                    preview: decision,
-                });
-            }
-        }
+        await assertNamesTheVersionShown(
+            { planKey: dto.plan, planVersionId: dto.planVersionId },
+            quotedVersionId,
+            () => Promise.resolve(this.previewHandedOut(req, decision)),
+        );
 
         // The decisions above were taken against the cancellation as it stood
         // when this route read it, and the write claims the row only while that

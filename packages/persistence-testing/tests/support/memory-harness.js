@@ -14,6 +14,8 @@ import {
     columnsClaimedByPutBack,
     columnsOfPeriodOpened,
     columnsPutBack,
+    NO_SCHEDULED_CHANGE,
+    specialTermsOf,
     formatCustomerNumber,
     formatInvoiceNumber,
     identityCorrectionDelta,
@@ -318,10 +320,7 @@ export function createMemoryHarness() {
             const quotedRow = state.planVersions.find(
                 (version) => version.id === input.quotedPlanVersionId,
             );
-            const takesBookings =
-                quotedRow &&
-                !(quotedRow.validFrom && new Date(quotedRow.validFrom) > asOf) &&
-                !(quotedRow.endsAt && new Date(quotedRow.endsAt) <= asOf);
+            const takesBookings = quotedRow && takesBookingsAt(quotedRow, asOf);
             const quoted =
                 quotedRow &&
                 quotedRow.planId === input.planId &&
@@ -467,6 +466,52 @@ export function createMemoryHarness() {
                 canceledEffectiveAt: row.canceledEffectiveAt ?? null,
                 status: row.status,
             };
+        },
+        async startAgain(tenantId, input) {
+            if (input.planVersionId === null) {
+                throw new Error(
+                    `A return for tenant ${tenantId} names no plan version, and this write binds one.`,
+                );
+            }
+            const version = state.planVersions.find(
+                (candidate) => candidate.id === input.planVersionId,
+            );
+            if (version?.planId !== input.planId) {
+                throw new Error(
+                    `A return for tenant ${tenantId} names plan version ${input.planVersionId}, ` +
+                        `which is not one of ${input.planId}.`,
+                );
+            }
+            if (input.quotedVersionOnly && !takesBookingsAt(version, input.periodStart)) {
+                return { claimed: false, endedSpecialTerms: [] };
+            }
+            const row = state.subscriptions.find((s) => s.tenantId === tenantId);
+            const stored = row?.canceledEffectiveAt ?? null;
+            if (
+                stored === null ||
+                stored.getTime() !== input.expectedCanceledEffectiveAt.getTime()
+            ) {
+                return { claimed: false, endedSpecialTerms: [] };
+            }
+            const endedSpecialTerms = specialTermsOf({
+                isPilot: row.isPilot ?? false,
+                customLimits: row.customLimits ?? null,
+                customMonthlyNet: row.customMonthlyNet ?? null,
+            });
+            Object.assign(row, {
+                plan: input.planId,
+                billingCycle: input.cycle,
+                status: 'ACTIVE',
+                planVersionId: input.planVersionId,
+                ...columnsOfPeriodOpened(input.periodStart, input.periodEnd),
+                canceledAt: null,
+                canceledEffectiveAt: null,
+                ...NO_SCHEDULED_CHANGE,
+                isPilot: false,
+                customLimits: null,
+                customMonthlyNet: null,
+            });
+            return { claimed: true, endedSpecialTerms };
         },
         async endNow(tenantId, input) {
             const row = state.subscriptions.find((s) => s.tenantId === tenantId);
@@ -1864,6 +1909,9 @@ export function createMemoryHarness() {
                 canceledAt: input.canceledAt ?? null,
                 canceledEffectiveAt: input.canceledEffectiveAt ?? null,
                 trialEndsAt: input.trialEndsAt ?? null,
+                isPilot: input.isPilot ?? false,
+                pilotEndsAt: input.pilotEndsAt ?? null,
+                customMonthlyNet: input.customMonthlyNet ?? null,
             };
             state.subscriptions.push(row);
             return { subscriptionId: row.id };
@@ -2095,8 +2143,9 @@ export function createMemoryHarness() {
     };
 
     /**
-     * Subscription ends and their announcements: one of each per subscription, as the unique keys
-     * keep them. The downloads of a tenant's export: every one kept, as no key refuses one.
+     * Subscription ends and their announcements: at most one of each per subscription not lifted,
+     * and none twice for one moment, as the unique keys keep them. The downloads of a tenant's
+     * export: every one kept, as no key refuses one.
      */
     /** The rows of `tenantId`, by the moment `at` names, then by id. */
     const oldestFirst = (rows, tenantId, at) =>
@@ -2105,26 +2154,34 @@ export function createMemoryHarness() {
                 .filter((row) => row.tenantId === tenantId)
                 .sort((a, b) => a[at] - b[at] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
         );
+    /** Whether `rows` hold one of `subscriptionId` that `next` would stand beside or repeat. */
+    const keptAlready = (rows, next) =>
+        rows.some(
+            (row) =>
+                row.subscriptionId === next.subscriptionId &&
+                (row.liftedAt === null || row.endsAt.getTime() === next.endsAt.getTime()),
+        );
     const subscriptionEnds = {
         async record(end) {
-            if (state.subscriptionEnds.some((row) => row.subscriptionId === end.subscriptionId)) {
-                return null;
-            }
-            const row = { id: nextId('end'), ...structuredClone(end) };
+            if (keptAlready(state.subscriptionEnds, end)) return null;
+            const row = { id: nextId('end'), ...structuredClone(end), liftedAt: null };
             state.subscriptionEnds.push(row);
             return structuredClone(row);
         },
         async listFor(subscriptionIds) {
             return structuredClone(
                 state.subscriptionEnds
-                    .filter((row) => subscriptionIds.includes(row.subscriptionId))
+                    .filter(
+                        (row) =>
+                            row.liftedAt === null && subscriptionIds.includes(row.subscriptionId),
+                    )
                     .sort((a, b) => (a.subscriptionId < b.subscriptionId ? -1 : 1)),
             );
         },
         async listDeletingAfter(day) {
             return structuredClone(
                 state.subscriptionEnds
-                    .filter((row) => row.deletesOn > day)
+                    .filter((row) => row.liftedAt === null && row.deletesOn > day)
                     .sort((a, b) =>
                         a.deletesOn !== b.deletesOn
                             ? a.deletesOn < b.deletesOn
@@ -2137,23 +2194,34 @@ export function createMemoryHarness() {
             );
         },
         async announce(announcement) {
-            if (
-                state.subscriptionEndAnnouncements.some(
-                    (row) => row.subscriptionId === announcement.subscriptionId,
-                )
-            ) {
-                return null;
-            }
-            const row = { id: nextId('announcement'), ...structuredClone(announcement) };
+            if (keptAlready(state.subscriptionEndAnnouncements, announcement)) return null;
+            const row = {
+                id: nextId('announcement'),
+                ...structuredClone(announcement),
+                liftedAt: null,
+            };
             state.subscriptionEndAnnouncements.push(row);
             return structuredClone(row);
         },
         async listAnnouncedFor(subscriptionIds) {
             return structuredClone(
                 state.subscriptionEndAnnouncements
-                    .filter((row) => subscriptionIds.includes(row.subscriptionId))
+                    .filter(
+                        (row) =>
+                            row.liftedAt === null && subscriptionIds.includes(row.subscriptionId),
+                    )
                     .sort((a, b) => (a.subscriptionId < b.subscriptionId ? -1 : 1)),
             );
+        },
+        async lift(subscriptionId, liftedAt) {
+            const standing = (row) =>
+                row.subscriptionId === subscriptionId && row.liftedAt === null;
+            const end = state.subscriptionEnds.find(standing);
+            if (!end) return false;
+            end.liftedAt = new Date(liftedAt);
+            const announced = state.subscriptionEndAnnouncements.find(standing);
+            if (announced) announced.liftedAt = new Date(liftedAt);
+            return true;
         },
         async recordExportDownload(download) {
             const row = { id: nextId('download'), ...structuredClone(download) };
@@ -4281,6 +4349,12 @@ export function createMemoryHarness() {
             state = freshState();
         },
     };
+}
+
+/** Whether `version` takes bookings at `asOf`: it has begun, and it has not ended. */
+function takesBookingsAt(version, asOf) {
+    if (version.validFrom && new Date(version.validFrom) > asOf) return false;
+    return !(version.endsAt && new Date(version.endsAt) <= asOf);
 }
 
 /** `AuditQuery.actorTag`: a tag exactly, or a pattern with a star at either end, without case. */

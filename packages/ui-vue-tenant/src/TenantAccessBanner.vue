@@ -26,12 +26,15 @@
                 </li>
             </ul>
         </template>
-        <div v-if="payable || exportable" class="sp-access-banner__actions">
+        <div v-if="payable || exportable || returnable" class="sp-access-banner__actions">
             <TenantButton v-if="payable" :loading="account.paying.value" @click="pay">
                 {{ i18n.accountPayNow }}
             </TenantButton>
             <TenantButton v-if="exportable" :loading="exportBusy" @click="takeExport">
                 {{ i18n.accessExport }}
+            </TenantButton>
+            <TenantButton v-if="returnable" @click="returnOpen = true">
+                {{ i18n.returnAction }}
             </TenantButton>
         </div>
         <template v-if="payable">
@@ -47,6 +50,17 @@
         <p v-if="exportFailure" class="sp-access-banner__error" role="alert">
             {{ exportFailure }}
         </p>
+        <TenantReturnDialog
+            v-model="returnOpen"
+            :http="http"
+            :api-prefix="apiPrefix"
+            :format-date="formatDate"
+            :format-currency="formatCurrency"
+            :quota-label="quotaLabel"
+            :format-quota-value="formatQuotaValue"
+            :holds-billing-permission="held.holdsBillingPermission"
+            :unpaid-stays="unpaid"
+        />
     </div>
 </template>
 
@@ -69,6 +83,7 @@ import {
     heldBackView,
     keepLines,
 } from './tenant-access/access-lines.js';
+import TenantReturnDialog from './tenant-access/TenantReturnDialog.vue';
 import { useTenantI18n } from './tenant-i18n.js';
 import TenantButton from './ui/TenantButton.vue';
 import './ui/tenant-ui.css';
@@ -96,6 +111,12 @@ import './ui/tenant-ui.css';
 // `take-export` listener. A download that fails says why beneath and leaves
 // the banner as it was.
 //
+// Until its deletion day, the tenant's administrator can subscribe again from
+// here where the server says they may (`mayReturn`, `SC-CANC-034`): a dialog
+// of its own states what the new subscription costs and that the deletion is
+// lifted, and once it is taken out the state is read again — the banner goes,
+// or stays for an invoice still unpaid.
+//
 // While an end holds the tenant to reading, every user also reads what the
 // tenant keeps for obligations of its own (`SC-PRIV-022`), in the reader's
 // language. The application is asked for it once per page, not with each read
@@ -117,6 +138,15 @@ const props = defineProps<{
     apiPrefix?: string;
     /** A day, as the application writes days. */
     formatDate: (iso: string) => string;
+    /**
+     * A net amount in the installation's currency, as the application writes
+     * amounts: the prices of the plans a tenant can subscribe to again.
+     */
+    formatCurrency: (amount: number) => string;
+    /** A quota's label in those plans. Default: its key. */
+    quotaLabel?: (key: string) => string;
+    /** A quota's value in those plans. Default: unlimited as ∞, storage in GB, a count in the reader's locale. */
+    formatQuotaValue?: (key: string, value: number) => string;
     /**
      * Starts the application's own download of the tenant's export — bound as
      * `@take-export` — where the server says the application delivers it
@@ -143,6 +173,7 @@ const { locale, intlLocale } = useSuperAdminI18n();
 const keepId = useId();
 const exportFailure = ref<string | null>(null);
 const startingApplicationExport = ref(false);
+const returnOpen = ref(false);
 
 const held = computed(() => heldBackView(access.view.value));
 const stateSentence = computed(() =>
@@ -165,17 +196,19 @@ const reasonLines = computed(() => {
 // An unpaid invoice can be paid now only while the tenant is read-only: a
 // suspension and a deletion under way let no payment through. Both what is
 // offered to a user who may pay and what anybody else is told follow from it.
-const payableNow = computed(
-    () =>
-        held.value?.state === 'read-only' &&
-        held.value.reasons.some((reason) => reason.kind === 'overdue'),
+const unpaid = computed(
+    () => held.value?.reasons.some((reason) => reason.kind === 'overdue') ?? false,
 );
+const payableNow = computed(() => held.value?.state === 'read-only' && unpaid.value);
 const payable = computed(() => payableNow.value && held.value?.mayPay === true);
 const askBilling = computed(() => payableNow.value && held.value?.holdsBillingPermission === false);
 // The server says it only to the tenant's administrator, and only where the
 // export would be delivered — and says by whom.
 const exportable = computed(() => held.value?.mayExport === true);
 const deliveredByTheApplication = computed(() => held.value?.exportDeliveredBy === 'application');
+// The server says it only to whoever may take a subscription out, and only
+// until the deletion day.
+const returnable = computed(() => held.value?.mayReturn === true);
 const exportBusy = computed(
     () => tenantExport.downloading.value || startingApplicationExport.value,
 );

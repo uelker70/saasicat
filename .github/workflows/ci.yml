@@ -308,8 +308,11 @@ jobs:
             # What a deletion takes is decided by the `ON DELETE` of every
             # foreign key on the reference integration's schema: its eraser
             # deletes a tenant's row, and the subscriber's commercial record has
-            # to be there after it.
-            - name: Erase a tenant of the notes app against PostgreSQL
+            # to be there after it. A tenant that comes back has its end
+            # lifted, and the next end of its subscription is recorded beside
+            # it under a partial unique index of the shipped constraints, which
+            # only a database holds.
+            - name: Erase a tenant of the notes app, and take one back, against PostgreSQL
               env:
                   SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
               run: pnpm --filter notesapp-example test:integration

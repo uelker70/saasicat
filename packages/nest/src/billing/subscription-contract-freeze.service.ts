@@ -40,8 +40,10 @@ import {
     CONTRACT_FREEZE_SOURCE_PORT_TOKEN,
     type AddOnSwitchContractTerms,
     type ContractChangeTerms,
+    type ContractFreezeBundleSnapshot,
     type ContractFreezePort,
     type ContractFreezeSourcePort,
+    type ContractTarget,
     type RetirementContractTerms,
 } from './contract-freeze.tokens.js';
 import {
@@ -68,6 +70,9 @@ import { FeatureWithdrawalContractService } from './feature-withdrawal-contract.
 // Generic: uses EntitlementService + SubscriptionContractService + PlanCatalogSource.
 // Consumer-specific is only the bundle/version data access
 // (`ContractFreezeSourcePort`).
+
+/** What a contract that books no add-on carries of them. */
+const NOTHING_BOOKED: ContractFreezeBundleSnapshot = { lineItems: [], bundleVersionIds: [] };
 
 @Injectable()
 export class SubscriptionContractFreezeService implements ContractFreezePort {
@@ -122,21 +127,29 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
 
     async assertContractFor(
         tenantId: string,
-        target: { readonly plan: string; readonly planVersionId: string | null },
+        target: ContractTarget,
         intended: IntendedContract | null,
     ): Promise<void> {
-        const version = intended ? await this.versionToBind(tenantId, target) : null;
-        if (!intended || !version) {
-            await this.contracts.assertPartyFor(tenantId, intended);
-            return;
-        }
-        await this.compose(
+        const composed = intended ? await this.composeFor(tenantId, target, intended) : null;
+        if (!composed) await this.contracts.assertPartyFor(tenantId, intended);
+    }
+
+    async composeFor(
+        tenantId: string,
+        target: ContractTarget,
+        intended: IntendedContract,
+    ): Promise<CreateSubscriptionContractData | null> {
+        const version = await this.versionToBind(tenantId, target);
+        if (!version) return null;
+        return this.compose(
             tenantId,
             target.plan,
             () => Promise.resolve(version),
             intended.cycle,
             intended.effectiveFrom,
             intended.endsAt,
+            undefined,
+            target.startsAgain === true,
         );
     }
 
@@ -147,7 +160,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
      */
     private async versionToBind(
         tenantId: string,
-        target: { readonly plan: string; readonly planVersionId: string | null },
+        target: ContractTarget,
     ): Promise<PlanVersionRow | null> {
         const version =
             target.planVersionId === null
@@ -243,7 +256,11 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         return this.compose(tenantId, newPlan, bound, billingCycle, effectiveFrom, endsAt, terms);
     }
 
-    /** The contract on `newPlan` at the version `versionOf` reads, checked and not written. */
+    /**
+     * The contract on `newPlan` at the version `versionOf` reads, checked and
+     * not written. `startsAgain`: for the subscription that ended, as started
+     * again on that version (`ContractTarget.startsAgain`).
+     */
     private async compose(
         tenantId: string,
         newPlan: string,
@@ -252,6 +269,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         effectiveFrom: Date,
         endsAt: Date | null,
         terms?: ContractChangeTerms,
+        startsAgain = false,
     ): Promise<CreateSubscriptionContractData> {
         const cycle: 'monthly' | 'yearly' = billingCycle === 'YEARLY' ? 'yearly' : 'monthly';
         const retirement = terms && 'retirementId' in terms ? terms : undefined;
@@ -285,7 +303,9 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
                 contractTaxPeriod({ effectiveFrom, effectiveUntil: endsAt, billingCycle }),
             )) as number);
 
-        const bundles = await this.source.loadBookedBundles(tenantId, cycle);
+        const bundles = startsAgain
+            ? NOTHING_BOOKED
+            : await this.source.loadBookedBundles(tenantId, cycle);
         assertTheMovedBookingHasItsLine(
             tenantId,
             bundles.lineItems,
@@ -311,12 +331,9 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
                 retirement && !retirement.addOn ? { retirementId: retirement.retirementId } : null,
         };
 
-        const redeemed = await this.redeemedCodeNotYetRecorded(
-            tenantId,
-            planPriceNet,
-            billingCycle,
-            vatRate,
-        );
+        const redeemed = startsAgain
+            ? null
+            : await this.redeemedCodeNotYetRecorded(tenantId, planPriceNet, billingCycle, vatRate);
 
         // One recording for every line, plan and add-on alike: the currency,
         // the rate and each line's share of the tax are the installation's, so
@@ -377,6 +394,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             tenantId,
             effectiveFrom,
             catalog,
+            startsAgain ? bound : undefined,
         );
 
         const data: CreateSubscriptionContractData = {

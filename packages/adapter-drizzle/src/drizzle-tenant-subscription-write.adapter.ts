@@ -9,9 +9,12 @@ import type {
     EndTrialInput,
     EndSubscriptionNowResult,
     ImmediatePlanChangeInput,
+    PlanVersionRow,
     PromoCodeRedemptionRecord,
     RedeemPromoInTransactionCallback,
     ScheduledPlanChangeInput,
+    StartAgainInput,
+    StartAgainResult,
     SubscriptionPutBack,
     TenantSubscriptionWritePort,
     TransactionContext,
@@ -24,9 +27,10 @@ import {
     noActivePlanVersion,
     pendingAgreementColumns,
     scheduledChangeAfterWrite,
+    specialTermsOf,
     subscriptionGone,
 } from '@saasicat/core';
-import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
+import { DRIZZLE_DB_TOKEN, type DrizzleClient, resolveDb } from './client.js';
 import { DrizzlePlanRepository } from './drizzle-plan.repository.js';
 import { subscriptions } from './schema.js';
 
@@ -258,6 +262,78 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
     }
 
     /**
+     * The same conditional claim as `endNow`, on the landed cancellation the
+     * caller read: one that moved, or a subscription never cancelled, claims
+     * nothing. Not on the status, which a cancellation that landed by its date
+     * left as it stood. In the caller's transaction where one is given, inside
+     * a savepoint, so the return's contract and the lifted end share it, and in
+     * one of its own otherwise: the row is locked first, so the special terms
+     * it answers with are the ones the write ended. The version bound is the
+     * one the new contract was composed for, never the one in effect instead;
+     * asked for alone (`quotedVersionOnly`) and taking no bookings by the
+     * first period, it claims nothing.
+     */
+    async startAgain(
+        tenantId: string,
+        input: StartAgainInput,
+        tx?: TransactionContext,
+    ): Promise<StartAgainResult> {
+        if (input.planVersionId === null) {
+            throw new Error(
+                `A return for tenant ${tenantId} names no plan version, and this write binds one: ` +
+                    'the version the new contract was composed for.',
+            );
+        }
+        const version = await this.plans.findVersionById(input.planVersionId, tx);
+        if (version?.planId !== input.planId) {
+            throw new Error(
+                `A return for tenant ${tenantId} names plan version ${input.planVersionId}, ` +
+                    `which is not one of ${input.planId}.`,
+            );
+        }
+        if (input.quotedVersionOnly && !takesBookingsAt(version, input.periodStart)) {
+            return { claimed: false, endedSpecialTerms: [] };
+        }
+        const planVersionId = input.planVersionId;
+        return resolveDb(this.db, tx).transaction(async (transaction) => {
+            const [carried] = await transaction
+                .select({
+                    isPilot: subscriptions.isPilot,
+                    customLimits: subscriptions.customLimits,
+                    customMonthlyNet: subscriptions.customMonthlyNet,
+                })
+                .from(subscriptions)
+                .where(eq(subscriptions.tenantId, tenantId))
+                .for('update');
+            const claimed = await transaction
+                .update(subscriptions)
+                .set({
+                    plan: input.planId,
+                    billingCycle: input.cycle,
+                    status: 'ACTIVE',
+                    planVersionId,
+                    ...columnsOfPeriodOpened(input.periodStart, input.periodEnd),
+                    canceledAt: null,
+                    canceledEffectiveAt: null,
+                    ...NO_SCHEDULED_CHANGE,
+                    isPilot: false,
+                    customLimits: null,
+                    customMonthlyNet: null,
+                    updatedAt: new Date(),
+                })
+                .where(
+                    and(
+                        eq(subscriptions.tenantId, tenantId),
+                        eq(subscriptions.canceledEffectiveAt, input.expectedCanceledEffectiveAt),
+                    ),
+                )
+                .returning({ id: subscriptions.id });
+            if (claimed.length !== 1 || !carried) return { claimed: false, endedSpecialTerms: [] };
+            return { claimed: true, endedSpecialTerms: specialTermsOf(carried) };
+        });
+    }
+
+    /**
      * The same conditional claim, on the trial the caller read: still a trial,
      * still ending at `input.trialEndsAt`, and not cancelled.
      */
@@ -414,8 +490,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         const quoted = await this.plans.findVersionById(quotedVersionId, tx);
         if (!quoted || quoted.planId !== input.planId) return null;
         if (input.restoresQuotedVersion) return quotedVersionId;
-        if (quoted.validFrom && new Date(quoted.validFrom) > asOf) return null;
-        return quoted.endsAt && new Date(quoted.endsAt) <= asOf ? null : quotedVersionId;
+        return takesBookingsAt(quoted, asOf) ? quotedVersionId : null;
     }
 }
 
@@ -446,6 +521,19 @@ function asChangedIs(putBack: SubscriptionPutBack): SQL[] {
         ),
         columnIs(subscriptions.pendingAgreedAt, claimed.pendingAgreedAt),
     ];
+}
+
+/**
+ * Whether `version` takes bookings at `asOf`: it has begun, and it has not
+ * ended (`SC-PLAN-016`). A window closed by a successor's publication does not
+ * count against it.
+ */
+function takesBookingsAt(
+    version: Pick<PlanVersionRow, 'validFrom' | 'endsAt'>,
+    asOf: Date,
+): boolean {
+    if (version.validFrom && new Date(version.validFrom) > asOf) return false;
+    return !(version.endsAt && new Date(version.endsAt) <= asOf);
 }
 
 /** `= NULL` is never true in SQL — an expected-null claim needs `IS NULL`. */

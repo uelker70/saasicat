@@ -67,6 +67,7 @@ describe('an end read back from a store', () => {
         endsAt: new Date('2026-12-31T23:00:00.000Z'),
         recordedAt: new Date('2027-01-01T00:05:00.000Z'),
         recordedBy: 'job:platform:subscription-ends',
+        liftedAt: null,
     };
 
     test("takes its day from Prisma's date at midnight UTC and from Drizzle's text alike", () => {
@@ -77,6 +78,16 @@ describe('an end read back from a store', () => {
         const fromDrizzle = toSubscriptionEnd({ ...row, deletesOn: '2027-01-31' });
         assert.equal(fromPrisma.deletesOn, '2027-01-31');
         assert.deepEqual(fromPrisma, fromDrizzle);
+    });
+
+    // @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+    test('says whether, and when, a new subscription lifted it', () => {
+        const lifted = new Date('2027-01-20T08:00:00.000Z');
+        assert.equal(toSubscriptionEnd({ ...row, deletesOn: '2027-01-31' }).liftedAt, null);
+        assert.equal(
+            toSubscriptionEnd({ ...row, deletesOn: '2027-01-31', liftedAt: lifted }).liftedAt,
+            lifted,
+        );
     });
 
     test('refuses a column that holds no day, naming it', () => {

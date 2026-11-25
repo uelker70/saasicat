@@ -60,7 +60,11 @@ import {
 } from './self-service-policy.js';
 import { computeNewPeriodCharge, computeProration, type ProrationDto } from './proration.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
-import { exceedsTarget, quotaOverTargetBlockers } from './quota-over-target.js';
+import {
+    exceedsTarget,
+    quotaOverTargetBlockers,
+    type QuotaAgainstTarget,
+} from './quota-over-target.js';
 import { versionOnSale } from './version-on-sale.js';
 
 // PlanChangePreviewService — platform variant (data-driven).
@@ -302,13 +306,7 @@ export class PlanChangePreviewService {
         // from the same plans.
         const catalog = await this.catalogs.current();
         const targetPlanDef = findPlan(catalog, targetPlan);
-        if (!targetPlanDef) {
-            throw new NotFoundException({
-                code: BILLING_ERROR_CODES.PLAN_NOT_IN_CATALOG,
-                message: `Plan "${targetPlan}" is not in the catalog`,
-                params: { planKey: targetPlan },
-            });
-        }
+        if (!targetPlanDef) throw planNotInCatalog(targetPlan);
 
         const ctx: PlanChangeContext = {
             currentPeriodStart: sub.currentPeriodStart,
@@ -483,22 +481,7 @@ export class PlanChangePreviewService {
             });
         }
 
-        const blockedTargets = this.blockedPlans?.asTarget ?? [];
         const blockedSources = this.blockedPlans?.asSource ?? [];
-
-        // A change that keeps the version is sold in the rhythm that version
-        // carries, whatever the catalogue offers new customers.
-        const soldAs = keptDef ?? quotedDef;
-        if (isPlanNotSoldInCycle(soldAs, targetCycle as BillingCycle)) {
-            blockers.push(planNotSoldInCycle(soldAs, targetCycle as BillingCycle));
-        }
-        if (blockedTargets.includes(targetPlan)) {
-            blockers.push({
-                code: BILLING_ERROR_CODES.PLAN_NOT_SELF_SERVICE,
-                message: `${targetSnap.name} is only activated via a special contract. Please contact the contract manager.`,
-                params: { planName: targetSnap.name, planKey: targetPlan },
-            });
-        }
         if (blockedSources.includes(sub.plan)) {
             blockers.push({
                 code: BILLING_ERROR_CODES.PLAN_LOCKED,
@@ -507,15 +490,22 @@ export class PlanChangePreviewService {
             });
         }
 
-        // Downgrade pre-check per quotaKey
+        // SAFETY: the routes declare the rhythm as MONTHLY or YEARLY; one an
+        // application let through unvalidated is compared with YEARLY alone,
+        // and so read as the monthly rhythm.
+        const askedCycle = targetCycle as BillingCycle;
+        // A change that keeps the version is sold in the rhythm that version
+        // carries, whatever the catalogue offers new customers.
         blockers.push(
-            ...quotaOverTargetBlockers(
+            ...this.targetBlockers(
+                keptDef ?? quotedDef,
+                { key: targetPlan, name: targetSnap.name },
+                askedCycle,
                 Object.entries(limitsCheck).map(([quotaKey, { used, targetMax }]) => ({
                     quotaKey,
                     used,
                     targetMax,
                 })),
-                targetSnap.name,
             ),
         );
 
@@ -630,6 +620,42 @@ export class PlanChangePreviewService {
         };
     }
 
+    /**
+     * What stands in the way of a subscription that ended starting again on
+     * `targetPlan` in `targetCycle` at `now` (`SC-CANC-034`): what the target
+     * refuses a plan change onto it (`targetBlockers`), asked of its version
+     * on sale, which starting again binds. Nothing of the subscription that
+     * ended is asked — its end is what starting again lifts, its add-ons end
+     * with it, and the plan it was on, a special contract's included, is over
+     * rather than left. `preview` and `assertChangeAllowed` read the
+     * subscription as it stands, which for one that ended refuses every
+     * change.
+     */
+    async blockersOfStartingAgain(
+        tenantId: string,
+        targetPlan: string,
+        targetCycle: BillingCycle,
+        now: Date,
+    ): Promise<PlanChangePreviewIssue[]> {
+        const catalog = await this.catalogs.current();
+        const targetPlanDef = findPlan(catalog, targetPlan);
+        if (!targetPlanDef) throw planNotInCatalog(targetPlan);
+        const onSale = await this.readVersionOnSale(catalog, targetPlan, now);
+        const soldAs = onSale?.plan ?? targetPlanDef;
+        const usage = await this.usageSnapshot.snapshot(tenantId);
+        const quotaKeys = new Set([...Object.keys(soldAs.quotas), ...Object.keys(usage)]);
+        return this.targetBlockers(
+            soldAs,
+            { key: targetPlan, name: targetPlanDef.name ?? targetPlanDef.id },
+            targetCycle,
+            [...quotaKeys].map((quotaKey) => ({
+                quotaKey,
+                used: usage[quotaKey] ?? 0,
+                targetMax: soldAs.quotas[quotaKey] ?? 0,
+            })),
+        );
+    }
+
     /** Like `preview`, but only the blocker list — for a server-side
      * pre-check before the `changePlan` mutation (defense-in-depth). */
     async assertChangeAllowed(
@@ -641,6 +667,32 @@ export class PlanChangePreviewService {
     ): Promise<PlanChangePreviewIssue[]> {
         const dto = await this.preview(tenantId, targetPlan, targetCycle, now, options);
         return dto.blockers;
+    }
+
+    /**
+     * What a plan change meets of the target itself, sold as `soldAs`: a
+     * rhythm it is not sold in, a plan sold only by a contract of its own, and
+     * usage today it would not hold. One answer for a change and for a
+     * subscription that starts again on the target, so the two are refused
+     * alike.
+     */
+    private targetBlockers(
+        soldAs: PlanDef,
+        target: { readonly key: string; readonly name: string },
+        cycle: BillingCycle,
+        quotas: readonly QuotaAgainstTarget[],
+    ): PlanChangePreviewIssue[] {
+        const blockers: PlanChangePreviewIssue[] = [];
+        if (isPlanNotSoldInCycle(soldAs, cycle)) blockers.push(planNotSoldInCycle(soldAs, cycle));
+        if ((this.blockedPlans?.asTarget ?? []).includes(target.key)) {
+            blockers.push({
+                code: BILLING_ERROR_CODES.PLAN_NOT_SELF_SERVICE,
+                message: `${target.name} is only activated via a special contract. Please contact the contract manager.`,
+                params: { planName: target.name, planKey: target.key },
+            });
+        }
+        blockers.push(...quotaOverTargetBlockers(quotas, target.name));
+        return blockers;
     }
 
     /** Catalog order decides which plan is higher; equal keys are `SAME`. */
@@ -852,6 +904,14 @@ export class PlanChangePreviewService {
         if (planLine.billingCycle !== cycle.toLowerCase()) return null;
         return planLine.priceNet;
     }
+}
+
+function planNotInCatalog(planKey: string): NotFoundException {
+    return new NotFoundException({
+        code: BILLING_ERROR_CODES.PLAN_NOT_IN_CATALOG,
+        message: `Plan "${planKey}" is not in the catalog`,
+        params: { planKey },
+    });
 }
 
 function priceForCycle(snap: PlanSnapshotDto, cycle: string): number | null {

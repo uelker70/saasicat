@@ -5,7 +5,10 @@
 // `conclude` on subscription completion, which consumes the offer and writes
 // its contract together (`consume` alone freezes the offer and leaves the
 // contract to the caller). Every amount on an offer comes from
-// `CheckoutOfferPricing`; a caller only chooses.
+// `CheckoutOfferPricing`; a caller only chooses. An offer concluded for a
+// tenant whose subscription ended takes it back, as a return does
+// (`SC-CANC-034`): its new contract lifts the end, its deletion day and the
+// read-only state that end put the tenant in.
 
 import { isDeepStrictEqual } from 'node:util';
 
@@ -29,14 +32,19 @@ import type {
     CheckoutOfferSelectionUpdate,
     NewSubscriberDetails,
     SubscriptionContractRecord,
+    SubscriptionEnd,
+    SubscriptionRepository,
     TransactionContext,
     TransactionRunner,
 } from '@saasicat/core';
 import { CONTRACT_ERROR_CODES, SUBSCRIBER_ERROR_CODES } from '@saasicat/core';
 
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
+import { SUBSCRIPTION_REPOSITORY_TOKEN } from '../entitlement/entitlement.tokens.js';
+import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { sameAddOn } from '../billing/add-on-already-booked.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';
+import { SubscriptionReturnService } from '../billing/subscription-return.service.js';
 import { SUBSCRIPTION_USAGE_PORT_TOKEN } from '../billing/tenant-billing.tokens.js';
 import { bundleVersionNotBookableReason, isValidUntilExpired } from './bundle-version-bookable.js';
 import {
@@ -47,7 +55,7 @@ import { settleNewSubscriberDetails } from '../subscriber/subscriber-details.js'
 import { SubscriberService } from '../subscriber/subscriber.service.js';
 import { codedError } from '../errors/coded-error.js';
 import { PromoCodesService } from '../promo/promo.service.js';
-import { CheckoutOfferPricing } from './checkout-offer-pricing.js';
+import { CheckoutOfferPricing, wireCycle } from './checkout-offer-pricing.js';
 import {
     CHECKOUT_OFFER_REPOSITORY_TOKEN,
     CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN,
@@ -63,6 +71,14 @@ const DEFAULT_OFFER_LOCALE = 'de';
  * change that crossed the first.
  */
 const HOLD_ATTEMPTS = 3;
+
+/**
+ * How the reason a tenant's end put it in reads as lifted by an offer: the
+ * offer, and no person, since a conclusion carries none.
+ */
+function takenBackBy(offerId: string): string {
+    return `checkout-offer:${offerId}`;
+}
 
 /** What concluding an offer produced: the consumed offer and its contract. */
 export interface ConcludedCheckoutOffer {
@@ -86,7 +102,9 @@ export interface ConcludeCheckoutOfferOptions extends CreateContractFromOfferOpt
      * sign-up's activation does: the gateway's confirmation is claimed on it,
      * and the offer, the subscriber, the contract and `within` are written on
      * it and undone with it. Left out, the conclusion opens a transaction of
-     * its own.
+     * its own. The audit entry of a tenant taken back is written as the
+     * conclusion returns, which on a caller's transaction is before it
+     * commits.
      */
     tx?: TransactionContext;
 }
@@ -95,11 +113,24 @@ export interface ConcludeCheckoutOfferOptions extends CreateContractFromOfferOpt
  * The application's own writes that belong to concluding an offer, such as
  * starting its subscription. They run on the same transaction, after the offer
  * is consumed and its contract written; throwing undoes all of it.
+ *
+ * Where the offer takes back a tenant whose subscription ended
+ * (`SC-CANC-034`), they start the subscription again and empty its
+ * cancellation dates, `canceledAt` and `canceledEffectiveAt`, as
+ * `TenantSubscriptionWritePort.startAgain` does for a return through the
+ * platform. Read again once they ran, a subscription whose cancellation has
+ * still landed is refused with an error, and nothing is written.
  */
 export type ConcludeCheckoutOfferWithin = (
     tx: TransactionContext,
     concluded: ConcludedCheckoutOffer,
 ) => Promise<void>;
+
+/** A conclusion, and the end of the tenant it took back, where it took one back. */
+interface ConcludedTakingBack {
+    readonly concluded: ConcludedCheckoutOffer;
+    readonly takenBack: SubscriptionEnd | null;
+}
 
 @Injectable()
 export class CheckoutOfferService {
@@ -135,6 +166,25 @@ export class CheckoutOfferService {
         @Optional()
         @Inject(SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN)
         private readonly bookings: SubscriptionBundleRepository | null = null,
+        // Where tenant billing records the ends of subscriptions: a tenant
+        // whose subscription ended is taken back by the offer's contract.
+        @Optional()
+        @Inject(SubscriptionReturnService)
+        private readonly returns: Pick<
+            SubscriptionReturnService,
+            'assertMayBeTakenBack' | 'takeBackWithin' | 'auditReturnThroughOffer'
+        > | null = null,
+        // Wherever `returns` is: tenant billing registers the entitlements,
+        // and this repository with them, for every module. It reads the
+        // subscription a tenant taken back was started again on, in the
+        // conclusion's transaction; without it the run that records the ends
+        // still refuses to hold such a tenant again, and says why.
+        @Optional()
+        @Inject(SUBSCRIPTION_REPOSITORY_TOKEN)
+        private readonly subscriptionRows: Pick<
+            SubscriptionRepository,
+            'findByTenantIdLocked'
+        > | null = null,
     ) {}
 
     list(filter: CheckoutOfferFilter): Promise<CheckoutOfferRow[]> {
@@ -256,7 +306,7 @@ export class CheckoutOfferService {
                 checkoutOfferId: id,
                 code,
                 planId: offer.planKey,
-                billingCycle: offer.billingCycle === 'yearly' ? 'YEARLY' : 'MONTHLY',
+                billingCycle: wireCycle(offer.billingCycle),
                 email: hold.email,
                 until: hold.until,
             });
@@ -309,6 +359,26 @@ export class CheckoutOfferService {
      * contract is written, and `within` runs; an error in any of them undoes
      * the others, and the offer can be concluded again.
      *
+     * A tenant whose subscription ended is taken back by the contract, as a
+     * return is (`SC-CANC-034`): in the same transaction, once the offer is
+     * consumed and before the contract is asked about again, the end and the
+     * reason it put the tenant in are lifted, the reason locked first as a
+     * deletion beginning beside it locks it. It is refused as a return is —
+     * from the deletion day, while its deletion has begun, while the operator
+     * suspends it —, first ahead of the offer's own checks and again once the
+     * reason is locked, nothing written. A return that took the tenant back
+     * meanwhile leaves a contract in force, which refuses the offer. A tenant
+     * without an end — in a trial, or suspended without one — concludes as
+     * before. The return is audited once the conclusion stands.
+     *
+     * Starting the subscription again is the application's, in `within`: once
+     * it ran, the subscription of a tenant taken back is read again on the
+     * transaction, and one whose cancellation still lands by now is an error
+     * of the application's, thrown and undoing everything. The platform would
+     * read that subscription as ended still, grant and charge nothing of it,
+     * and its run that records the ends would find an end the tenant came
+     * back from.
+     *
      * An offer that is already concluded for the same tenant answers with its
      * contract rather than a refusal, so a caller retrying after a lost answer,
      * or losing a race to another call for that tenant, gets the conclusion that
@@ -348,6 +418,10 @@ export class CheckoutOfferService {
         const standing = await this.standingConclusion(await this.getById(id), contracts, tenantId);
         if (standing) return standing;
 
+        // One moment for the check and the lift: the day it decides is the day
+        // the end is lifted on.
+        const now = new Date();
+        await this.returns?.assertMayBeTakenBack(tenantId, now);
         const existing = await this.assertConsumable(id);
         await this.assertFirstContract(contracts, existing.id, contractOptions);
         await this.assertBookedVersionsAgree(existing, tenantId);
@@ -367,7 +441,7 @@ export class CheckoutOfferService {
         );
         const checked = contracts.prepareFromOffer(existing, contractOptions, rate);
         let consumeFailed = false;
-        const concludeOn = async (tx: TransactionContext): Promise<ConcludedCheckoutOffer> => {
+        const concludeOn = async (tx: TransactionContext): Promise<ConcludedTakingBack> => {
             // Per attempt: a runner may run this again, and a consume refused
             // in an earlier attempt says nothing about the one that failed.
             consumeFailed = false;
@@ -389,6 +463,13 @@ export class CheckoutOfferService {
             // written.
             const data = contracts.createDataFromOffer(offer, contractOptions, rate);
             if (!isDeepStrictEqual(data, checked)) throw offerChanged(id);
+            // Before the contract is asked about again, and before `within`
+            // writes the application's subscription: the reason is locked
+            // ahead of the subscription row, as a return locks them, and a
+            // return that took the tenant back while this waited for the
+            // reason has a contract in force by then.
+            const takenBack =
+                (await this.returns?.takeBackWithin(tenantId, now, takenBackBy(id), tx)) ?? null;
             // Asked again, as late as it can be: a contract another conclusion
             // wrote since the check above would otherwise run beside this one.
             await this.assertFirstContract(contracts, id, contractOptions);
@@ -397,11 +478,13 @@ export class CheckoutOfferService {
             const concluded = { offer, contract };
             const handedOver = (await this.promoCodes?.handOverCheckoutHold(id, tx)) ?? false;
             if (within) await within(tx, concluded);
+            if (takenBack) await this.assertStartedAgain(id, tenantId, now, tx);
             if (handedOver) await this.promoCodes?.releaseCheckoutHold(id, tx);
-            return concluded;
+            return { concluded, takenBack };
         };
+        let outcome: ConcludedTakingBack;
         try {
-            return await (callersTransaction === undefined
+            outcome = await (callersTransaction === undefined
                 ? transactions.run(concludeOn)
                 : concludeOn(callersTransaction));
         } catch (error) {
@@ -421,6 +504,17 @@ export class CheckoutOfferService {
             if (concludedMeanwhile) return concludedMeanwhile;
             throw error;
         }
+        const { concluded, takenBack } = outcome;
+        if (takenBack) {
+            await this.returns?.auditReturnThroughOffer(tenantId, takenBack, {
+                offerId: id,
+                contractId: concluded.contract.id,
+                plan: concluded.offer.planKey,
+                billingCycle: wireCycle(concluded.offer.billingCycle),
+                planVersionId: concluded.offer.planVersionId,
+            });
+        }
+        return concluded;
     }
 
     /**
@@ -444,6 +538,29 @@ export class CheckoutOfferService {
                 'has one. A running subscription changes through its plan and its add-ons.',
             params: { offerId, contractId: running.id },
         });
+    }
+
+    /**
+     * Throws where the subscription of `tenantId`, taken back by offer
+     * `offerId` at `now`, still has a cancellation landed by then, as `tx`
+     * reads it once `within` ran. Read on `tx`, since what `within` wrote is
+     * not committed yet.
+     */
+    private async assertStartedAgain(
+        offerId: string,
+        tenantId: string,
+        now: Date,
+        tx: TransactionContext,
+    ): Promise<void> {
+        const subscription = await this.subscriptionRows?.findByTenantIdLocked(tenantId, tx);
+        if (!subscription || !cancellationHasLanded(subscription, now)) return;
+        throw new Error(
+            `Checkout offer '${offerId}' takes tenant '${tenantId}' back from the end of its ` +
+                'subscription, and once `within` ran, its cancellation has still landed. ' +
+                '`within` starts the subscription again and empties its cancellation dates, ' +
+                '`canceledAt` and `canceledEffectiveAt`, as `TenantSubscriptionWritePort.startAgain` ' +
+                'does for a return through the platform. Nothing was written (SC-CANC-034).',
+        );
     }
 
     /**

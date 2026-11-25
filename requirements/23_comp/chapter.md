@@ -1417,6 +1417,10 @@ _Tested by:_
     - the vite config reads the ports from the file, not from the shell
     - ${variable}: the config fallback equals the compose default
     - .env.example documents the same defaults it tells people to override
+- `examples/notesapp/tests/integration/a-tenant-comes-back-before-its-deletion-day.integration.test.mjs`
+    - a tenant of the notes app comes back before its deletion day, on PostgreSQL
+        - its trial ended, it comes back on STARTER, and the end of the new subscription has a day
+          of its own
 - `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
     - the notes app's eraser on PostgreSQL
         - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what

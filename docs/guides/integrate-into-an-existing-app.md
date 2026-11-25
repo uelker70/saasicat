@@ -217,7 +217,7 @@ None of `GET admin/tenants`, `GET admin/tenants/:slug`, the `suspend` and
 `reactivate` routes, `GET admin/users`, `GET admin/audit` and
 `GET admin/subscriptions` is mounted then, so yours start beside the platform's.
 The routes are yours, but the platform's access state is not: a `suspended` hold is
-what `TenantAccessService.enforce` refuses a tenant on (`SC-ADM-055`), and the reasons a
+what `TenantAccessService.enforce` refuses a tenant on (`SC-ADM-060`), and the reasons a
 tenant is held back — a suspension, an overdue invoice, an ended subscription
 (`SC-ADM-053`) — come with the tenant's detail. So let your own suspend, reactivate and
 tenant detail routes delegate to `AdminResourcesService.suspendTenant`,

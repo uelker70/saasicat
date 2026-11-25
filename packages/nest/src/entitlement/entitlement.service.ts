@@ -20,6 +20,7 @@ import type {
     PlanCatalog,
     PlanCatalogSettings,
     PlanVersionRepository,
+    PlanVersionRow,
     RlsBypassPort,
     SubscriptionBundleRepository,
     SubscriptionContractRecord,
@@ -111,6 +112,8 @@ interface AnswerOptions {
      * a successor is measured without the agreement it replaces.
      */
     freezing?: boolean;
+    /** Answers without the subscription's bookings: none of them is the answer's to grant. */
+    withoutBookings?: boolean;
     /** The feature withdrawals on record, read once for the answer. */
     withdrawals?: readonly FeatureWithdrawalRecord[];
 }
@@ -285,13 +288,21 @@ export class EntitlementService {
      * needs nobody to write the contract again. Frozen into the snapshot, they
      * would be granted for as long as the contract runs. Never cached, like
      * `computeLimits` with a catalogue.
+     *
+     * With `startsAgainOn`, for the subscription as starting it again on that
+     * version will leave it (`SC-CANC-034`), before that is written: the
+     * contract of a tenant coming back is composed while its subscription
+     * still reads as ended, which grants nothing. Its bookings belonged to the
+     * subscription that ended and are not counted.
      */
     async computeContractLimits(
         tenantId: string,
         now: Date,
         catalog: PlanCatalog,
+        startsAgainOn?: PlanVersionRow,
     ): Promise<ContractLimits> {
-        const sub = await this.requireSubscription(tenantId);
+        const stored = await this.requireSubscription(tenantId);
+        const sub = startsAgainOn ? startedAgainOn(stored, startsAgainOn) : stored;
         // No withdrawals are handed in: a contract records what was agreed, and
         // a withdrawal takes a feature away at the moment of asking and gives it
         // back when it is lifted, without anybody writing a contract.
@@ -300,7 +311,7 @@ export class EntitlementService {
             now,
             catalog,
             undefined,
-            { freezing: true },
+            { freezing: true, withoutBookings: startsAgainOn !== undefined },
         );
         return { limits, leftOutBundleVersionIds };
     }
@@ -484,7 +495,9 @@ export class EntitlementService {
             return { limits, nextBookingEnd: null, leftOutBundleVersionIds: [] };
         }
 
-        const bundles = await this.loadSubscriptionBundleSnapshots(sub.id, now, tx);
+        const bundles = options.withoutBookings
+            ? []
+            : await this.loadSubscriptionBundleSnapshots(sub.id, now, tx);
         const leftOut = options.freezing ? bundles.filter(isCancellationDeclared) : [];
         const counted = bundles.filter((booking) => !leftOut.includes(booking));
         const leftOutBundleVersionIds = leftOut.map((booking) => booking.bundleVersionId);
@@ -746,4 +759,30 @@ function firstAfter(now: Date, dates: ReadonlyArray<Date | null>): Date | null {
         if (first === null || date < first) first = date;
     }
     return first;
+}
+
+/**
+ * `sub` as `TenantSubscriptionWritePort.startAgain` leaves it on `version`:
+ * on the version's plan, running, with nothing cancelled or scheduled, and on
+ * the catalogue's terms alone — a pilot no more, without limits of the
+ * operator's own.
+ */
+function startedAgainOn(sub: SubscriptionRecord, version: PlanVersionRow): SubscriptionRecord {
+    return {
+        ...sub,
+        plan: version.planId,
+        status: 'ACTIVE',
+        isPilot: false,
+        customLimits: null,
+        pendingPlan: null,
+        pendingEffectiveAt: null,
+        planVersionId: version.id,
+        planVersion: {
+            planId: version.planId,
+            quotas: version.quotas ?? {},
+            features: version.features,
+        },
+        canceledAt: null,
+        canceledEffectiveAt: null,
+    };
 }

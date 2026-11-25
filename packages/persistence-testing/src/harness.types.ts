@@ -343,6 +343,11 @@ export interface ContractSeed {
         canceledEffectiveAt?: Date;
         /** The end of a trial; defaults to null. */
         trialEndsAt?: Date;
+        /** A pilot, and the day it ends; default not a pilot, with no end. */
+        isPilot?: boolean;
+        pilotEndsAt?: Date;
+        /** The operator's own monthly price, net; defaults to null. */
+        customMonthlyNet?: number;
     }): Promise<{ subscriptionId: string }>;
     /**
      * A published BundleVersion to book against.
@@ -507,6 +512,7 @@ export type ContractGap =
     | 'bookingsEndedNow'
     | 'bookingsEndPutBack'
     | 'subscriptionsEndedNow'
+    | 'subscriptionsStartedAgain'
     | 'trialsEnded';
 
 export interface PersistenceAdapterContractOptions {

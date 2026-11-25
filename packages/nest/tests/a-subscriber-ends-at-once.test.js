@@ -727,6 +727,7 @@ describe('the day its data is deleted on, where a subscription ends at once', ()
                 deletesOn: '2026-07-15',
                 announcedAt: NOW,
                 announcedBy: CONFIRMED.by,
+                liftedAt: null,
             },
         ]);
         assert.deepEqual(

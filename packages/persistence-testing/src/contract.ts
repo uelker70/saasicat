@@ -24,6 +24,7 @@ import type {
     NewSubscriptionEnd,
     NewSubscriptionEndAnnouncement,
     NewTenantExportDownload,
+    SubscriptionEndPort,
     CreateSubscriberData,
     SubscriberSearch,
     SubscriberJoinState,
@@ -748,6 +749,12 @@ const CONTRACT_GAPS: Record<
     subscriptionsEndedNow: {
         reason: 'adapter provides no TenantSubscriptionWritePort that ends a cancelled subscription at once',
         present: ({ adapter }) => typeof adapter.tenantSubscriptionWrite?.endNow === 'function',
+    },
+    subscriptionsStartedAgain: {
+        reason: 'adapter provides no TenantSubscriptionWritePort and SubscriptionUsagePort to start an ended subscription again and read it back',
+        present: ({ adapter }) =>
+            typeof adapter.tenantSubscriptionWrite?.startAgain === 'function' &&
+            Boolean(adapter.subscriptionUsage),
     },
     trialsEnded: {
         reason: 'adapter provides no TenantSubscriptionWritePort that ends a trial that ran out',
@@ -14758,6 +14765,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         deletesOn: '2027-01-31',
                         recordedAt: RECORDED_AT,
                         recordedBy: RUN,
+                        liftedAt: null,
                     },
                 ]);
                 assert.deepEqual(await port.listFor([]), []);
@@ -14804,6 +14812,194 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     ),
                     ['tenant-ended/sub-ended', 'tenant-other/sub-other'],
                 );
+            });
+
+            test('is refused beside one that stands, whenever it landed', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const first = await port.record(endOf());
+                assert.ok(first);
+                assert.equal(
+                    await port.record(endOf({ endsAt: new Date('2027-06-30T22:00:00.000Z') })),
+                    null,
+                );
+                assert.deepEqual(await port.listFor(['sub-ended']), [first]);
+            });
+        });
+
+        // @requirement SC-CANC-034
+        describe('the end a new subscription lifts', () => {
+            const TENANT = 'tenant-back';
+            const SUBSCRIPTION = 'sub-back';
+            const FIRST_END = new Date('2026-09-30T22:00:00.000Z');
+            const CAME_BACK = new Date('2026-10-20T08:00:00.123Z');
+            const SECOND_END = new Date('2027-03-31T22:00:00.000Z');
+            const endAt = (endsAt: Date, deletesOn: string, minute = 5): NewSubscriptionEnd => ({
+                tenantId: TENANT,
+                subscriptionId: SUBSCRIPTION,
+                endsAt,
+                deletesOn,
+                recordedAt: new Date(endsAt.getTime() + minute * 60_000),
+                recordedBy: 'job:platform:subscription-ends',
+            });
+            const announcementAt = (
+                endsAt: Date,
+                deletesOn: string,
+            ): NewSubscriptionEndAnnouncement => ({
+                tenantId: TENANT,
+                subscriptionId: SUBSCRIPTION,
+                endsAt,
+                readOnlyDays: 30,
+                deletesOn,
+                announcedAt: new Date(endsAt.getTime() - 14 * 86_400_000),
+                announcedBy: 'web:admin@weber.example:app',
+            });
+            /** The first end and the day it was told, as they stand before the tenant comes back. */
+            const endedOnce = async (port: SubscriptionEndPort) => {
+                const announced = await port.announce(announcementAt(FIRST_END, '2026-10-31'));
+                const end = await port.record(endAt(FIRST_END, '2026-10-31'));
+                assert.ok(announced && end);
+                return { announced, end };
+            };
+
+            test('is lifted with the day it was told, and the subscription ends again with a day of its own', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const first = await endedOnce(port);
+
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), true);
+                assert.deepEqual(await port.listFor([SUBSCRIPTION]), [], 'no end stands');
+                assert.deepEqual(await port.listAnnouncedFor([SUBSCRIPTION]), [], 'no day stands');
+
+                const announced = await port.announce(announcementAt(SECOND_END, '2027-05-01'));
+                assert.ok(announced, 'the next cancellation is told a day of its own');
+                const end = await port.record(endAt(SECOND_END, '2027-05-01'));
+                assert.ok(end, 'and its end is recorded');
+                assert.deepEqual(await port.listFor([SUBSCRIPTION]), [end]);
+                assert.deepEqual(await port.listAnnouncedFor([SUBSCRIPTION]), [announced]);
+                assert.deepEqual(await port.listEndsOfTenant(TENANT), [
+                    { ...first.end, liftedAt: CAME_BACK },
+                    end,
+                ]);
+                assert.deepEqual(await port.listAnnouncedOfTenant(TENANT), [
+                    { ...first.announced, liftedAt: CAME_BACK },
+                    announced,
+                ]);
+            });
+
+            test('is not recorded again by a run that read the subscription before it came back', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                await endedOnce(port);
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), true);
+
+                assert.equal(await port.record(endAt(FIRST_END, '2026-11-02', 9)), null);
+                assert.equal(await port.announce(announcementAt(FIRST_END, '2026-11-02')), null);
+                assert.deepEqual(await port.listFor([SUBSCRIPTION]), []);
+                assert.deepEqual(await port.listAnnouncedFor([SUBSCRIPTION]), []);
+            });
+
+            test('leaves the reminders of its deletion', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                await endedOnce(port);
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), true);
+                assert.deepEqual(await port.listDeletingAfter('2026-10-01'), []);
+            });
+
+            test('is lifted once: with no end standing nothing is lifted, not even a day told', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const told = await port.announce(announcementAt(FIRST_END, '2026-10-31'));
+                assert.ok(told);
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), false, 'no end recorded');
+                assert.deepEqual(await port.listAnnouncedFor([SUBSCRIPTION]), [told]);
+
+                assert.ok(await port.record(endAt(FIRST_END, '2026-10-31')));
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), true);
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), false, 'lifted already');
+                assert.equal(await port.lift('sub-never-ended', CAME_BACK), false);
+            });
+
+            test('is lifted by one of two at once', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                await endedOnce(port);
+                // One connection per racer first, as for the end's race above.
+                await Promise.all([1, 2].map(() => port.listFor([SUBSCRIPTION])));
+                const lifted = await Promise.all([
+                    port.lift(SUBSCRIPTION, CAME_BACK),
+                    port.lift(SUBSCRIPTION, new Date(CAME_BACK.getTime() + 1)),
+                ]);
+                assert.equal(lifted.filter((done) => done).length, 1, 'one of the two lifts it');
+                const ends = await port.listEndsOfTenant(TENANT);
+                assert.equal(ends.length, 1);
+                assert.ok(ends[0]?.liftedAt, 'the end is lifted');
+            });
+
+            test('stays where the transaction that lifted it rolls back, and is lifted where it commits', async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                const first = await endedOnce(port);
+                await assert.rejects(
+                    harness.adapter.transactionRunner.run(async (tx) => {
+                        assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK, tx), true);
+                        throw new Error('rolled back');
+                    }),
+                    /rolled back/,
+                );
+                assert.deepEqual(await port.listFor([SUBSCRIPTION]), [first.end]);
+                assert.deepEqual(await port.listAnnouncedFor([SUBSCRIPTION]), [first.announced]);
+
+                await harness.adapter.transactionRunner.run(async (tx) => {
+                    assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK, tx), true);
+                });
+                assert.deepEqual(await port.listFor([SUBSCRIPTION]), []);
+                assert.deepEqual(await port.listAnnouncedFor([SUBSCRIPTION]), []);
+            });
+
+            test("leaves another subscription's end and day as they were", async (t) => {
+                const port = harness.adapter.subscriptionEnds;
+                if (!port) {
+                    missing(t, 'subscriptionEnds');
+                    return;
+                }
+                await endedOnce(port);
+                const otherTold = await port.announce({
+                    ...announcementAt(FIRST_END, '2026-10-31'),
+                    tenantId: 'tenant-other',
+                    subscriptionId: 'sub-other',
+                });
+                const otherEnd = await port.record({
+                    ...endAt(FIRST_END, '2026-10-31'),
+                    tenantId: 'tenant-other',
+                    subscriptionId: 'sub-other',
+                });
+                assert.ok(otherTold && otherEnd);
+                assert.equal(await port.lift(SUBSCRIPTION, CAME_BACK), true);
+                assert.deepEqual(await port.listFor(['sub-other']), [otherEnd]);
+                assert.deepEqual(await port.listAnnouncedFor(['sub-other']), [otherTold]);
             });
         });
 
@@ -14858,6 +15054,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 assert.deepEqual(listed[0], {
                     ...endDeletedOn('tenant-a', 'sub-d', '2027-02-01'),
                     id: recorded.id,
+                    liftedAt: null,
                 });
             });
 
@@ -14922,6 +15119,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     deletesOn: '2027-05-01',
                     announcedAt: ANNOUNCED_AT,
                     announcedBy: TENANT_ADMIN,
+                    liftedAt: null,
                 };
                 assert.deepEqual(announced, asWritten, 'the answer is the row as stored');
                 assert.ok(
@@ -17213,6 +17411,319 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 );
                 assert.equal(running.canceledEffectiveAt, null);
                 assert.equal(running.status, 'ACTIVE');
+            });
+        });
+
+        // @requirement SC-CANC-034
+        describe('a subscription whose cancellation landed, started again', () => {
+            const LANDED = new Date('2026-09-30T22:00:00.000Z');
+            const CAME_BACK = new Date('2026-10-20T08:00:00.000Z');
+            const NEXT_PERIOD = new Date('2026-11-20T08:00:00.000Z');
+            const PILOT_ENDED = new Date('2026-06-30T00:00:00.000Z');
+            const TRIAL_ENDED = new Date('2026-04-01T00:00:00.000Z');
+            /**
+             * `tenantId` on the plan `OLD_<tenantId>`, its cancellation landed
+             * at `LANDED` with `status` left as it stood, a pilot whose pilot
+             * ended, on limits and a price of the operator's own, with a change
+             * scheduled; and the version of `NEW_<tenantId>` on sale, which a
+             * return binds.
+             */
+            async function ended(tenantId: string, status = 'ACTIVE') {
+                const { planVersionId: endedOn } = await harness.seed.createPlanVersion({
+                    planKey: `OLD_${tenantId}`,
+                    version: 1,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                });
+                const { planVersionId: onSale } = await harness.seed.createPlanVersion({
+                    planKey: `NEW_${tenantId}`,
+                    version: 1,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                });
+                await harness.seed.createSubscription({
+                    tenantId,
+                    plan: `OLD_${tenantId}`,
+                    planVersionId: endedOn,
+                    pendingChangeVersionId: endedOn,
+                    status,
+                    billingCycle: 'YEARLY',
+                    canceledAt: new Date('2026-08-15T10:00:00.000Z'),
+                    canceledEffectiveAt: LANDED,
+                    trialEndsAt: TRIAL_ENDED,
+                    isPilot: true,
+                    pilotEndsAt: PILOT_ENDED,
+                    customLimits: { quotas: { users: 50 } },
+                    customMonthlyNet: 99,
+                });
+                return { endedOn, onSale };
+            }
+            const input = (tenantId: string, planVersionId: string | null) => ({
+                planId: `NEW_${tenantId}`,
+                cycle: 'MONTHLY',
+                periodStart: CAME_BACK,
+                periodEnd: NEXT_PERIOD,
+                expectedCanceledEffectiveAt: LANDED,
+                planVersionId,
+            });
+            /** The write port, or null with the gap named where the harness has none. */
+            const writerOr = (t: TestContext) => {
+                const writer = harness.adapter.tenantSubscriptionWrite;
+                if (!writer?.startAgain || !harness.adapter.subscriptionUsage) {
+                    missing(t, 'subscriptionsStartedAgain');
+                    return null;
+                }
+                return writer;
+            };
+            /** What a reader of the subscription is told of it now. */
+            const asRead = async (tenantId: string) => {
+                const usage = await harness.adapter.subscriptionUsage?.findForTenant(tenantId);
+                const record =
+                    await harness.adapter.subscriptionRepository.findByTenantId(tenantId);
+                return {
+                    plan: usage?.plan,
+                    billingCycle: usage?.billingCycle,
+                    status: usage?.status,
+                    planVersionId: record?.planVersionId,
+                    currentPeriodStart: usage?.currentPeriodStart?.toISOString(),
+                    currentPeriodEnd: usage?.currentPeriodEnd?.toISOString(),
+                    billingAnchorDay: usage?.billingAnchorDay,
+                    canceledAt: usage?.canceledAt?.toISOString() ?? null,
+                    canceledEffectiveAt: usage?.canceledEffectiveAt?.toISOString() ?? null,
+                    pendingChangeVersionId: usage?.pendingChangeVersionId ?? null,
+                    isPilot: usage?.isPilot,
+                    pilotEndsAt: usage?.pilotEndsAt?.toISOString(),
+                    trialEndsAt: usage?.trialEndsAt?.toISOString(),
+                    customLimits: record?.customLimits ?? null,
+                };
+            };
+            const NOTHING_STARTED = { claimed: false, endedSpecialTerms: [] };
+            /** The plan repository's `terminate`, or null with the case skipped where it ends no versions. */
+            const endingOr = (t: TestContext) => {
+                const end = harness.adapter.planRepository?.terminate?.bind(
+                    harness.adapter.planRepository,
+                );
+                if (!end) t.skip('the plan repository ends no versions');
+                return end ?? null;
+            };
+
+            test('is a new subscription on the same row: the plan sold, from the moment it came back, on the catalogue’s terms alone', async (t) => {
+                const writer = writerOr(t);
+                if (!writer) return;
+                const { onSale } = await ended('tenant-back');
+
+                const started = await writer.startAgain(
+                    'tenant-back',
+                    input('tenant-back', onSale),
+                );
+
+                assert.deepEqual(started, {
+                    claimed: true,
+                    endedSpecialTerms: ['isPilot', 'customLimits', 'customMonthlyNet'],
+                });
+                assert.deepEqual(await asRead('tenant-back'), {
+                    plan: 'NEW_tenant-back',
+                    billingCycle: 'MONTHLY',
+                    status: 'ACTIVE',
+                    planVersionId: onSale,
+                    currentPeriodStart: CAME_BACK.toISOString(),
+                    currentPeriodEnd: NEXT_PERIOD.toISOString(),
+                    billingAnchorDay: 20,
+                    canceledAt: null,
+                    canceledEffectiveAt: null,
+                    pendingChangeVersionId: null,
+                    isPilot: false,
+                    pilotEndsAt: PILOT_ENDED.toISOString(),
+                    trialEndsAt: TRIAL_ENDED.toISOString(),
+                    customLimits: null,
+                });
+            });
+
+            test('carries none of the special terms it ended into its next return', async (t) => {
+                const writer = writerOr(t);
+                if (!writer) return;
+                const { onSale } = await ended('tenant-twice');
+                await writer.startAgain('tenant-twice', input('tenant-twice', onSale));
+                const endsAgain = new Date('2027-01-31T23:00:00.000Z');
+                await writer.cancelSubscription('tenant-twice', {
+                    canceledAt: new Date('2026-12-01T09:00:00.000Z'),
+                    effectiveAt: endsAgain,
+                    terminateNow: false,
+                });
+
+                const again = await writer.startAgain('tenant-twice', {
+                    ...input('tenant-twice', onSale),
+                    expectedCanceledEffectiveAt: endsAgain,
+                });
+
+                assert.deepEqual(again, { claimed: true, endedSpecialTerms: [] });
+            });
+
+            test('whatever status the landed cancellation left it in', async (t) => {
+                const writer = writerOr(t);
+                if (!writer) return;
+                const { onSale } = await ended('tenant-terminated', 'CANCELED');
+
+                const started = await writer.startAgain(
+                    'tenant-terminated',
+                    input('tenant-terminated', onSale),
+                );
+
+                assert.equal(started.claimed, true);
+                assert.equal((await asRead('tenant-terminated')).status, 'ACTIVE');
+            });
+
+            test('writes nothing where the cancellation read is not the one stored, or there is none', async (t) => {
+                const writer = writerOr(t);
+                if (!writer) return;
+                const { onSale } = await ended('tenant-moved');
+                const before = await asRead('tenant-moved');
+
+                const moved = await writer.startAgain('tenant-moved', {
+                    ...input('tenant-moved', onSale),
+                    expectedCanceledEffectiveAt: new Date('2026-10-31T23:00:00.000Z'),
+                });
+
+                assert.deepEqual(moved, NOTHING_STARTED);
+                assert.deepEqual(await asRead('tenant-moved'), before);
+
+                const { planVersionId } = await harness.seed.createPlanVersion({
+                    planKey: 'RUNNING_PLAN',
+                    version: 1,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                });
+                await harness.seed.createSubscription({
+                    tenantId: 'tenant-running',
+                    plan: 'RUNNING_PLAN',
+                    planVersionId,
+                    status: 'ACTIVE',
+                });
+                const running = await writer.startAgain('tenant-running', {
+                    ...input('tenant-running', planVersionId),
+                    planId: 'RUNNING_PLAN',
+                });
+                assert.deepEqual(running, NOTHING_STARTED);
+                assert.equal((await asRead('tenant-running')).plan, 'RUNNING_PLAN');
+            });
+
+            test('is claimed once, however many start it at once', async (t) => {
+                const writer = writerOr(t);
+                if (!writer) return;
+                const { onSale } = await ended('tenant-raced');
+                const starts = await Promise.all([
+                    writer.startAgain('tenant-raced', input('tenant-raced', onSale)),
+                    writer.startAgain('tenant-raced', input('tenant-raced', onSale)),
+                ]);
+                assert.equal(starts.filter((start) => start.claimed).length, 1, 'one of the two');
+            });
+
+            test('stays ended where the transaction that started it rolls back', async (t) => {
+                const writer = writerOr(t);
+                if (!writer) return;
+                const { onSale } = await ended('tenant-undone');
+                const before = await asRead('tenant-undone');
+
+                await assert.rejects(
+                    harness.adapter.transactionRunner.run(async (tx) => {
+                        const started = await writer.startAgain(
+                            'tenant-undone',
+                            input('tenant-undone', onSale),
+                            tx,
+                        );
+                        assert.equal(started.claimed, true);
+                        throw new Error('rolled back');
+                    }),
+                    /rolled back/,
+                );
+
+                assert.deepEqual(await asRead('tenant-undone'), before);
+            });
+
+            test('is no longer among the cancelled subscriptions', async (t) => {
+                const writer = writerOr(t);
+                if (!writer) return;
+                const usage = harness.adapter.subscriptionUsage;
+                if (!usage?.listCancelled) {
+                    missing(t, 'cancelledSubscriptions');
+                    return;
+                }
+                const { onSale } = await ended('tenant-listed');
+                const listed = async () =>
+                    (await usage.listCancelled!()).map((subscription) => subscription.tenantId);
+                assert.ok((await listed()).includes('tenant-listed'));
+
+                await writer.startAgain('tenant-listed', input('tenant-listed', onSale));
+
+                assert.ok(!(await listed()).includes('tenant-listed'));
+            });
+
+            test('asked for the version alone, binds it while it takes bookings, and nothing once it has ended', async (t) => {
+                const writer = writerOr(t);
+                if (!writer) return;
+                const end = endingOr(t);
+                if (!end) return;
+                // Ended at the very moment it would be started on: it takes
+                // no booking then, so nothing is bound in its place.
+                const { onSale: endedThen } = await ended('tenant-version-ended');
+                await end(endedThen, CAME_BACK);
+                const before = await asRead('tenant-version-ended');
+
+                const refused = await writer.startAgain('tenant-version-ended', {
+                    ...input('tenant-version-ended', endedThen),
+                    quotedVersionOnly: true,
+                });
+
+                assert.deepEqual(refused, NOTHING_STARTED);
+                assert.deepEqual(await asRead('tenant-version-ended'), before);
+
+                const { onSale: endsLater } = await ended('tenant-version-ending');
+                await end(endsLater, new Date(CAME_BACK.getTime() + 1));
+                const started = await writer.startAgain('tenant-version-ending', {
+                    ...input('tenant-version-ending', endsLater),
+                    quotedVersionOnly: true,
+                });
+
+                assert.equal(started.claimed, true);
+                assert.equal((await asRead('tenant-version-ending')).planVersionId, endsLater);
+            });
+
+            test('not asked for the version alone, binds it as named, ended or not', async (t) => {
+                const writer = writerOr(t);
+                if (!writer) return;
+                const end = endingOr(t);
+                if (!end) return;
+                const { onSale: endedThen } = await ended('tenant-as-named');
+                await end(endedThen, CAME_BACK);
+
+                const started = await writer.startAgain(
+                    'tenant-as-named',
+                    input('tenant-as-named', endedThen),
+                );
+
+                assert.equal(started.claimed, true);
+                assert.equal((await asRead('tenant-as-named')).planVersionId, endedThen);
+            });
+
+            test('refuses, writing nothing, without the version it binds, or with one of another plan', async (t) => {
+                const writer = writerOr(t);
+                if (!writer) return;
+                const { endedOn } = await ended('tenant-unbound');
+                const before = await asRead('tenant-unbound');
+
+                await assert.rejects(
+                    writer.startAgain('tenant-unbound', input('tenant-unbound', null)),
+                    /plan version/,
+                );
+                await assert.rejects(
+                    writer.startAgain('tenant-unbound', input('tenant-unbound', endedOn)),
+                    /plan version/,
+                );
+
+                assert.deepEqual(await asRead('tenant-unbound'), before);
             });
         });
 

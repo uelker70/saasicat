@@ -23,6 +23,7 @@ import {
     actorRoleOf,
     dayInZone,
     deletionReminderSubjectIn,
+    downloadBelongsToEnd,
     installationZoneOf,
     tenantDeletionStatusOf,
     type AdminSubscriberDeletions,
@@ -254,9 +255,13 @@ export class TenantDeletionReadingService {
             closedAt: momentAsText(record.closedAt),
             attempts: record.attempts,
             lastFailure: record.lastFailure && failureAsText(record.lastFailure),
-            reminders: remindersOf(notices),
+            reminders: remindersOf(notices, record.subscriptionEndId),
             downloads: trail.downloads
-                .filter((download) => download.subscriptionId === record.subscriptionId)
+                .filter(
+                    (download) =>
+                        download.subscriptionId === record.subscriptionId &&
+                        downloadBelongsToEnd(download, { recordedAt: record.exportOfferedFrom }),
+                )
                 .map((download) => ({
                     at: download.downloadedAt.toISOString(),
                     size: download.size,
@@ -267,15 +272,20 @@ export class TenantDeletionReadingService {
 }
 
 /**
- * The reminders among the notices of one subscription, the first recorded
- * first: those of its end, since a subscription has one end.
+ * The reminders of `subscriptionEndId` among the notices of its subscription,
+ * the first recorded first. A subscription its tenant came back on keeps the
+ * reminders of the end that was lifted as well, and they were about another
+ * day.
  */
-function remindersOf(notices: readonly SubscriptionNoticeRecord[]): AdminTenantDeletionReminder[] {
+function remindersOf(
+    notices: readonly SubscriptionNoticeRecord[],
+    subscriptionEndId: string,
+): AdminTenantDeletionReminder[] {
     const reminders: { readonly at: Date; readonly view: AdminTenantDeletionReminder }[] = [];
     for (const notice of notices) {
         if (notice.kind !== REMINDER_KIND) continue;
         const subject = deletionReminderSubjectIn(notice.subject);
-        if (!subject) continue;
+        if (subject?.subscriptionEndId !== subscriptionEndId) continue;
         const delivered = notice.deliveredAt !== null;
         reminders.push({
             at: notice.createdAt,

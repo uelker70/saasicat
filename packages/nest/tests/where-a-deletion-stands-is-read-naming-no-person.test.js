@@ -258,6 +258,37 @@ describe('a deletion done, on the record of its subscriber', () => {
         assertNamesNoPerson(deletions);
     });
 
+    // @requirement SC-PRIV-024 — A tenant is deleted only after its full export was offered in the read-only period
+    test('of a tenant that came back once, keeps the reminders and downloads of the end it was deleted for', async () => {
+        const run = await setUp();
+        const first = await endedAt(run, 't1', {
+            subscriptionId: 'subscription-t1',
+            endsAt: new Date('2026-08-31T22:00:00.000Z'),
+            deletesOn: '2026-10-01',
+        });
+        await reminded(run, first, 30, new Date('2026-09-01T08:00:00.000Z'));
+        await downloaded(run, first, new Date('2026-09-03T10:00:00.000Z'));
+        const cameBack = new Date('2026-09-20T09:00:00.000Z');
+        assert.equal(await run.ends.lift('subscription-t1', cameBack), true);
+        const [standing] = await run.holds.listOpen('t1');
+        assert.ok(await run.holds.lift(standing.id, cameBack, ANNA));
+        const second = await ended(run, 't1');
+        await reminded(run, second, 7, new Date('2026-11-24T08:00:00.000Z'));
+        await downloaded(run, second, new Date('2026-11-03T10:00:00.000Z'));
+        assert.deepEqual(await run.service.deleteDue(DAY), { deleted: 1, halted: 0, failed: 0 });
+
+        const [{ record }] = (await aReaderOf(run).ofSubscriber('subscriber-t1', LATER)).deletions;
+
+        assert.deepEqual(
+            record.reminders.map((reminder) => reminder.daysBefore),
+            [7],
+        );
+        assert.deepEqual(
+            record.downloads.map((download) => download.at),
+            ['2026-11-03T10:00:00.000Z'],
+        );
+    });
+
     test('names no person while the deletion is under way and the rows still name them', async () => {
         const run = await setUp({
             answers: { data: { erase: () => Promise.reject(new Error('down')) } },

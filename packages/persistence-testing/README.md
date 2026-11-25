@@ -144,6 +144,7 @@ persistenceAdapterContract({
         'bundleVersionRetirements',
         'subscriptionsById',
         'featureWithdrawals',
+        'subscriptionsStartedAgain',
     ],
 });
 ```

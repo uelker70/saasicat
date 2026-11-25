@@ -205,14 +205,17 @@ export type ActorColumn =
     | 'hold.recordedBy.suspended'
     | 'hold.recordedBy.other'
     | 'hold.liftedBy'
+    | 'hold.liftedBy.ended'
     | 'end.recordedBy'
     | 'announcement.announcedBy'
     | 'download.downloadedBy';
 
 /**
  * The role a `web:` tag in each column acted in. Only the operator suspends a
- * tenant or lifts a reason from the web; the other reasons are recorded by
- * runs; ending a subscription, being told its day and taking the export happen
+ * tenant or lifts a reason from the web, but for an ended subscription's
+ * reason, which the tenant lifts by coming back with a new subscription
+ * (`SC-CANC-034`); the other reasons are recorded by runs; ending a
+ * subscription, being told its day, taking the export and coming back happen
  * on the tenant's routes, where an operator acting as the tenant acts in the
  * tenant administrator's role.
  */
@@ -220,6 +223,7 @@ const ROLE_OF_COLUMN: Readonly<Record<ActorColumn, DeletionActorRole>> = {
     'hold.recordedBy.suspended': 'operator',
     'hold.recordedBy.other': 'run',
     'hold.liftedBy': 'operator',
+    'hold.liftedBy.ended': 'tenant-admin',
     'end.recordedBy': 'tenant-admin',
     'announcement.announcedBy': 'tenant-admin',
     'download.downloadedBy': 'tenant-admin',

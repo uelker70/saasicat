@@ -249,7 +249,7 @@ export interface AdminTenantSummary {
  * What a tenant's state is to the administration: the row the application
  * gives, with `isActive` narrowed to whether the tenant may act at all — false
  * where the application deactivated it, and false where the platform suspended
- * it or is deleting it — and the platform's state beside it (`SC-ADM-055`).
+ * it or is deleting it — and the platform's state beside it (`SC-ADM-060`).
  */
 export interface TenantAccessOverlay {
     access: TenantAccessState;

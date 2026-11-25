@@ -25,6 +25,7 @@ import {
 } from '../dist/billing/index.js';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import {
+    FakeSubscriptionBundleRepository,
     FakeSubscriptionContractRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
@@ -1060,6 +1061,10 @@ async function platformOver({
     });
     composed.persistence.core.rlsBypass = { runWithBypass: (work) => work() };
     composed.persistence.entitlement.subscriptionContractRepository = contracts;
+    // The run ends the add-ons of a subscription before it records its end,
+    // and asks a store that lists them, which the stub of the options does not.
+    composed.persistence.entitlement.subscriptionBundleRepository =
+        new FakeSubscriptionBundleRepository();
     composed.persistence.core.subscriptionEnds = new FakeSubscriptionEndRepository();
     composed.persistence.core.tenantAccessHolds = holds ?? new FakeTenantAccessHoldRepository();
     composed.persistence.tenantBilling.subscriptionUsagePort = {

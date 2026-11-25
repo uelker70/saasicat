@@ -1147,7 +1147,7 @@ export type MaintenanceErrorCode =
     (typeof MAINTENANCE_ERROR_CODES)[keyof typeof MAINTENANCE_ERROR_CODES];
 
 /**
- * Codes of a tenant's access state (`SC-ADM-055`): the refusals a held-back
+ * Codes of a tenant's access state (`SC-ADM-060`): the refusals a held-back
  * tenant's users meet, the operator's suspension, and the export a tenant
  * whose subscription ended takes before its deletion. A refusal of the state
  * carries the open reasons as `params.reasons`, each with its `kind` and
@@ -1207,6 +1207,43 @@ export const TENANT_ACCESS_ERROR_CODES = {
      * again once the other has arrived (`409`).
      */
     TENANT_EXPORT_IN_PROGRESS: 'TENANT_EXPORT_IN_PROGRESS',
+    /**
+     * The tenant has no ended subscription to take out again (`SC-CANC-034`,
+     * `409`): its subscription runs — it never ended, or the tenant came back
+     * already — or the end that landed is not recorded yet, which the
+     * quarter-hourly run does. Nothing was written.
+     */
+    TENANT_RETURN_NOT_ENDED: 'TENANT_RETURN_NOT_ENDED',
+    /**
+     * The installation's day has reached the deletion day of the tenant's end,
+     * `params.deletesOn` (`SC-CANC-034`, `409`): from then on the tenant does
+     * not come back, even where its deletion is held on that day. The way back
+     * is a new tenant, which the operator assigns to the subscriber
+     * (`SC-ADM-027`). Nothing was written.
+     */
+    TENANT_RETURN_DELETION_DAY_REACHED: 'TENANT_RETURN_DELETION_DAY_REACHED',
+    /**
+     * The installation takes payment methods through a gateway, and the
+     * tenant's subscriber has none in use (`SC-CANC-034`, `409`): a tenant
+     * enters one before it subscribes again, so that the new subscription is
+     * paid. Nothing was written.
+     */
+    TENANT_RETURN_PAYMENT_METHOD_REQUIRED: 'TENANT_RETURN_PAYMENT_METHOD_REQUIRED',
+    /**
+     * The page showed another deletion day than the one the tenant's end
+     * names now, `params.deletesOn` (`SC-CANC-034`, `409`): the tenant is not
+     * taken back on a page that told it of another end. Nothing was written;
+     * look again before subscribing.
+     */
+    TENANT_RETURN_DELETION_DAY_CHANGED: 'TENANT_RETURN_DELETION_DAY_CHANGED',
+    /**
+     * A new subscription for the tenant was asked by the operator — a user
+     * holding `SUPER_ADMIN`, or one the application's check let through as
+     * acting as the tenant (`SC-CANC-034`, `403`): the subscription is the
+     * subscriber's to take out, through its own administrator. Nothing was
+     * written.
+     */
+    TENANT_RETURN_NOT_FOR_OPERATOR: 'TENANT_RETURN_NOT_FOR_OPERATOR',
 } as const;
 export type TenantAccessErrorCode =
     (typeof TENANT_ACCESS_ERROR_CODES)[keyof typeof TENANT_ACCESS_ERROR_CODES];

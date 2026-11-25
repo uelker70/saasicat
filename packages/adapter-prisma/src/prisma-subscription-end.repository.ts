@@ -28,7 +28,8 @@ interface SubscriptionEndPrisma {
 }
 
 /**
- * What the constructor takes: a client that has all three delegates. A client
+ * What the constructor takes: a client that has all three delegates, and the
+ * interactive transaction a lift without the caller's runs in. A client
  * generated from a schema without fragment 29, 30 or 31 fails to compile here
  * rather than at the first run.
  */
@@ -36,6 +37,7 @@ interface SubscriptionEndRepositoryClient {
     subscriptionEnd: unknown;
     subscriptionEndAnnouncement: unknown;
     tenantExportDownload: unknown;
+    $transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>;
 }
 
 /** The columns a read asks for, named, so a column a later release adds is not read. */
@@ -47,6 +49,7 @@ const COLUMNS = {
     deletesOn: true,
     recordedAt: true,
     recordedBy: true,
+    liftedAt: true,
 } as const;
 
 /** The columns an announcement read asks for, named for the same reason. */
@@ -59,6 +62,7 @@ const ANNOUNCEMENT_COLUMNS = {
     deletesOn: true,
     announcedAt: true,
     announcedBy: true,
+    liftedAt: true,
 } as const;
 
 /** The columns a download read asks for, named for the same reason. */
@@ -99,9 +103,10 @@ export class PrismaSubscriptionEndRepository implements SubscriptionEndPort {
 
     /**
      * One statement, `skipDuplicates` being `ON CONFLICT DO NOTHING`: the
-     * unique key on `subscriptionId` is what refuses a second end, and it
-     * refuses by returning no row rather than by raising. The id is a uuid made
-     * here, so the primary key cannot be the key it met.
+     * partial unique index on the end not lifted and the unique key on
+     * `(subscriptionId, endsAt)` are what refuse a second end, and they refuse
+     * by returning no row rather than by raising. The id is a uuid made here,
+     * so the primary key cannot be the key it met.
      */
     async record(end: NewSubscriptionEnd): Promise<SubscriptionEnd | null> {
         const [row] = await this.db.subscriptionEnd.createManyAndReturn({
@@ -114,7 +119,7 @@ export class PrismaSubscriptionEndRepository implements SubscriptionEndPort {
     async listFor(subscriptionIds: readonly string[]): Promise<SubscriptionEnd[]> {
         if (subscriptionIds.length === 0) return [];
         const rows = await this.db.subscriptionEnd.findMany({
-            where: { subscriptionId: { in: [...subscriptionIds] } },
+            where: { subscriptionId: { in: [...subscriptionIds] }, liftedAt: null },
             select: COLUMNS,
             orderBy: { subscriptionId: 'asc' },
         });
@@ -124,7 +129,7 @@ export class PrismaSubscriptionEndRepository implements SubscriptionEndPort {
     /** `deletesOn` is a `@db.Date`, so the day is compared as its midnight UTC. */
     async listDeletingAfter(day: CalendarDay): Promise<SubscriptionEnd[]> {
         const rows = await this.db.subscriptionEnd.findMany({
-            where: { deletesOn: { gt: utcMidnightOf(day) } },
+            where: { deletesOn: { gt: utcMidnightOf(day) }, liftedAt: null },
             select: COLUMNS,
             orderBy: [{ deletesOn: 'asc' }, { subscriptionId: 'asc' }],
         });
@@ -133,8 +138,8 @@ export class PrismaSubscriptionEndRepository implements SubscriptionEndPort {
 
     /**
      * One statement, as `record`: `skipDuplicates` is `ON CONFLICT DO
-     * NOTHING`, so the unique key on `subscriptionId` refuses a second
-     * announcement by returning no row rather than by raising.
+     * NOTHING`, so the same two keys refuse a second announcement by returning
+     * no row rather than by raising.
      */
     async announce(
         announcement: NewSubscriptionEndAnnouncement,
@@ -157,11 +162,33 @@ export class PrismaSubscriptionEndRepository implements SubscriptionEndPort {
     ): Promise<SubscriptionEndAnnouncement[]> {
         if (subscriptionIds.length === 0) return [];
         const rows = await this.db.subscriptionEndAnnouncement.findMany({
-            where: { subscriptionId: { in: [...subscriptionIds] } },
+            where: { subscriptionId: { in: [...subscriptionIds] }, liftedAt: null },
             select: ANNOUNCEMENT_COLUMNS,
             orderBy: { subscriptionId: 'asc' },
         });
         return rows.map(toSubscriptionEndAnnouncement);
+    }
+
+    /**
+     * Two conditional `UPDATE`s in the caller's transaction, or in one of its
+     * own: the announcement is lifted only where the end was, and a lift that
+     * finds the end lifted already lifts nothing.
+     */
+    async lift(subscriptionId: string, liftedAt: Date, tx?: TransactionContext): Promise<boolean> {
+        const liftIn = async (db: SubscriptionEndPrisma): Promise<boolean> => {
+            const { count } = await db.subscriptionEnd.updateMany({
+                where: { subscriptionId, liftedAt: null },
+                data: { liftedAt },
+            });
+            if (count === 0) return false;
+            await db.subscriptionEndAnnouncement.updateMany({
+                where: { subscriptionId, liftedAt: null },
+                data: { liftedAt },
+            });
+            return true;
+        };
+        if (tx) return liftIn(this.dbOf(tx));
+        return this.prisma.$transaction((own) => liftIn(this.dbOf(own)));
     }
 
     /** A plain insert: no key refuses a second download of one subscription. */

@@ -32,6 +32,7 @@ export function toSubscriptionEnd(row: CanonicalSubscriptionEndRow): Subscriptio
         }),
         recordedAt: row.recordedAt,
         recordedBy: row.recordedBy,
+        liftedAt: row.liftedAt,
     };
 }
 
@@ -63,6 +64,7 @@ export function toSubscriptionEndAnnouncement(
         }),
         announcedAt: row.announcedAt,
         announcedBy: row.announcedBy,
+        liftedAt: row.liftedAt,
     };
 }
 
