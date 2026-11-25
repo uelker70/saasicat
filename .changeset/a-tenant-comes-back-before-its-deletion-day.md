@@ -30,8 +30,10 @@ suspended or being deleted, a return is refused.
   which supersedes `SC-ADM-055`).
 - `TenantAccessBanner` offers "Subscribe again" to whoever the server says
   may (`mayReturn`), in a dialog that states the price, the first period, the
-  notice and the deletion it lifts. The banner now requires `formatCurrency`,
-  as `TenantPlanSection` does; `useTenantReturn` is the composable beneath it.
+  notice and the deletion it lifts; `TenantPlanSection` offers the same dialog
+  on the plan card of an ended subscription. The banner now requires
+  `formatCurrency`, as `TenantPlanSection` does; `useTenantReturn` is the
+  composable beneath it.
 - A checkout offer concluded for a tenant whose subscription ended lifts the
   end in the same transaction. An application that concludes in a way of its
   own calls `SubscriptionReturnService.takeBackWithin` in its transaction and

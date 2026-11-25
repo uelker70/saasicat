@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 21      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 734 entries: 🟢 639 stand today, 🟡 23 decided but not yet delivered, ⚪ 0 drafts,
+Of 734 entries: 🟢 640 stand today, 🟡 22 decided but not yet delivered, ⚪ 0 drafts,
 🔵 65 superseded, 🔴 7 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -140,7 +140,6 @@ Of 734 entries: 🟢 639 stand today, 🟡 23 decided but not yet delivered, ⚪
 [SC-SUB-017](#sc-sub-017--a-subscribers-legal-identity-can-be-corrected-not-replaced-under-a-running-contract),
 [SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
 [SC-CANC-027](#sc-canc-027--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
-[SC-CANC-034](#sc-canc-034--a-tenant-whose-subscription-ended-can-come-back-until-its-deletion-day),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
 [SC-PRIC-095](#sc-pric-095--an-issued-invoice-is-never-edited-its-cancellation-corrects-what-was-not-owed),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
@@ -9197,14 +9196,13 @@ _Source:_ #276 · #337 (decided 2026-11-10)
 
 ### SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Until the day its end names, in the installation's days, and
-while its deletion has not begun, the tenant's administrator can enter a payment method and take out
-a new subscription at the catalogue's current terms, and a checkout offer concluded for the tenant
-does the same (`SC-MKT-028`). The new subscription lifts the end, its deletion day and the read-only
-state that end put the tenant in, in the moment it is concluded; an invoice still unpaid keeps the
-tenant read-only until it is paid (`SC-PRIC-104`). From the deletion day on, or once the deletion
-has begun, it is refused with a stable code. The new subscription's own end records a day of its
-own.
+🟢 🔒 Until the day its end names, in the installation's days, and while its deletion has not begun,
+the tenant's administrator can enter a payment method and take out a new subscription at the
+catalogue's current terms, and a checkout offer concluded for the tenant does the same
+(`SC-MKT-028`). The new subscription lifts the end, its deletion day and the read-only state that
+end put the tenant in, in the moment it is concluded; an invoice still unpaid keeps the tenant
+read-only until it is paid (`SC-PRIC-104`). From the deletion day on, or once the deletion has
+begun, it is refused with a stable code. The new subscription's own end records a day of its own.
 
 _Source:_ #276 · #337 · #339 (decided 2026-11-17)
 
@@ -9396,6 +9394,10 @@ _Tested by:_
         - offers it where the server says this reader may, and opens the dialog on the plans it read
         - does not offer it where the server says not
         - a header told nothing offers nothing
+- `examples/notesapp/tests/integration/a-tenant-comes-back-before-its-deletion-day.integration.test.mjs`
+    - a tenant of the notes app comes back before its deletion day, on PostgreSQL
+        - its trial ended, it comes back on STARTER, and the end of the new subscription has a day
+          of its own
 
 <!-- END proof -->
 
@@ -30443,6 +30445,10 @@ _Tested by:_
     - the vite config reads the ports from the file, not from the shell
     - ${variable}: the config fallback equals the compose default
     - .env.example documents the same defaults it tells people to override
+- `examples/notesapp/tests/integration/a-tenant-comes-back-before-its-deletion-day.integration.test.mjs`
+    - a tenant of the notes app comes back before its deletion day, on PostgreSQL
+        - its trial ended, it comes back on STARTER, and the end of the new subscription has a day
+          of its own
 - `examples/notesapp/tests/integration/a-tenants-erasure-leaves-its-subscribers-record.integration.test.mjs`
     - the notes app's eraser on PostgreSQL
         - takes the tenant's own rows and leaves the subscriber's commercial record whole, and what

@@ -4787,7 +4787,11 @@ application delivers it, and report each download once it has gone out in full:
 3. Bind the banner's button to the download your client starts, which saves the stream itself:
 
     ```vue
-    <TenantAccessBanner :format-date="formatDate" @take-export="startTenantExport" />
+    <TenantAccessBanner
+        :format-date="formatDate"
+        :format-currency="formatCurrency"
+        @take-export="startTenantExport"
+    />
     ```
 
 - **What is recorded** is what a download the platform serves records: one row in
@@ -5764,6 +5768,103 @@ command line built without `CliContextModule` imports `OperatorCommandLineModule
   strings needs nothing.
 - **No codemod step**: a store's columns, a renderer's page, a mail's wording and how a reader takes
   the export apart are your application's, and none of them is a rename.
+
+### A tenant comes back before its deletion day
+
+New, and required wherever `tenantBilling.subscriptionEnds` is on: until the deletion day of its
+end, the administrator of a tenant whose subscription ended can take out a new subscription at the
+catalogue's current terms, which lifts the end, its deletion day and the read-only state that end
+put the tenant in (`SC-CANC-034`, which supersedes `SC-CANC-028`). Coming back is read-only's third
+exception, beside paying and leaving (`SC-ADM-060`, which supersedes `SC-ADM-055`). What the
+tenant is shown and what it is refused with:
+[A tenant comes back](wire-the-backend.md#a-tenant-comes-back).
+
+1. **Adopt the changed `prisma-fragments/29-subscription-end.prisma` and
+   `30-subscription-end-announcement.prisma`**, and run the migration once, before `db push` where
+   you use one:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-subscription-ends-are-lifted-by-a-new-subscription.postgres.sql
+    ```
+
+    Both tables gain `liftedAt`, empty on every row there is, and the key of one row per
+    subscription gives way to one row per subscription and `endsAt`, with at most one of a
+    subscription not lifted — a partial unique index that `constraints.postgres.sql` declares too,
+    so apply that file after a push as before. The file is safe to run twice.
+
+2. **Where you mount `TenantAccessBanner`**, give it `formatCurrency`, as `TenantPlanSection` takes
+   it: the dialog behind "Subscribe again" states the plans' prices, and the catalogue names no
+   currency to guess one from. `vue-tsc` names every mount without it, and Vue warns of one at run
+   time. `quotaLabel` and `formatQuotaValue` name the quotas of the plans offered, as on the plan
+   section.
+
+    ```vue
+    <TenantAccessBanner
+        :http="http"
+        api-prefix="/billing"
+        :format-date="formatDate"
+        :format-currency="formatCurrency"
+    />
+    ```
+
+3. **Where your application concludes a subscription itself**, without a checkout offer, call
+   `SubscriptionReturnService.takeBackWithin(tenantId, at, by, tx)` in the transaction that writes
+   the subscription and its contract, write the subscription with its cancellation dates emptied,
+   mark the route `@Returns()`, and audit the conclusion as you audit it today. A conclusion
+   through `CheckoutOfferService.conclude` needs nothing: the offer takes the tenant back itself.
+   Without the call nothing is lost — the platform deletes no tenant under a contract running past
+   its end (`SC-PRIV-026`) — but the tenant stays read-only while it pays.
+
+- **A store of your own** implements what the shipped adapters do:
+  `SubscriptionEndPort.lift(subscriptionId, liftedAt, tx?)` lifts the end of the subscription that
+  is not lifted and the announcement beside it, in the caller's transaction where one is given and
+  in one of its own otherwise, and answers `false`, changing nothing, where no end of the
+  subscription stands. `SubscriptionEnd` and `SubscriptionEndAnnouncement` carry `liftedAt`:
+  `listFor`, `listAnnouncedFor` and `listDeletingAfter` answer only the rows not lifted,
+  `listEndsOfTenant` and `listAnnouncedOfTenant` every row with its `liftedAt`, and `record` and
+  `announce` answer `null` where the subscription has a row not lifted, or one for the same
+  `endsAt`.
+  `TenantSubscriptionWritePort.startAgain(tenantId, input, tx?)` starts the subscription again
+  where its cancellation landed at `input.expectedCanceledEffectiveAt` and is still the one stored:
+  plan, rhythm, first period, the day it is billed on and the version are written, the status
+  becomes `ACTIVE`, both cancellation dates and any change scheduled are emptied, and a pilot,
+  `customLimits` and `customMonthlyNet` end. With `quotedVersionOnly: true` it binds the version
+  named only while it takes bookings on `periodStart`. It answers `claimed: false` where it wrote
+  nothing, and the special terms it ended as `endedSpecialTerms`. The persistence contract holds
+  both; a harness of yours without `startAgain` declares the gap `subscriptionsStartedAgain`, and
+  its `createSubscription` seed takes `isPilot`, `pilotEndsAt` and `customMonthlyNet`.
+- **A `ContractFreezePort` of your own** adds `composeFor(tenantId, target, intended)`: the contract
+  `assertContractFor` checks, handed back instead of written, or `null` where the version cannot be
+  read as one of the plan's. A `ContractTarget` with `startsAgain` composes the contract for the
+  subscription as `startAgain` will leave it, not as it is stored, since an ended subscription
+  grants nothing.
+- **A route of your own through which a tenant comes back** carries `@Returns()` from
+  `@saasicat/nest`, which your guard's `TenantAccessService.enforce` reads as the platform's check
+  does, and nothing that does more than come back. `TenantAccessService.assertAllowed` takes
+  `returns: true` for the same exception where there is no request, and an exhaustive `switch` of
+  yours over `TenantAccessMark` gains `'returns'`.
+- **Replacing the payment method** (`starts-payment`) is let through for a read-only tenant also
+  while it can come back, though no invoice is open: coming back takes a payment method first
+  wherever `payments.newPaymentMethods` names an account.
+- **The tenant's state** answers `mayReturn`, whether the reader may come back now: the tenant's
+  administrator, never the operator, until the deletion day. `tenantAccessViewOf` in
+  `@saasicat/core` takes `mayTakeOutSubscription` for it. A banner of your own offers coming back
+  where it is `true`, through `useTenantReturn({ http, apiPrefix })` from `@saasicat/ui-vue`: its
+  `preview` and `takeOut` ask the two routes, and every reader of the state reads it again once
+  `takeOut` is answered, refused or not.
+- **The audit log** gains `SUBSCRIPTION_RETURNED`: the end lifted (`endedAt`, `deletesOn`), and
+  either the plan, the rhythm, the version and the special terms that ended, for a return through
+  the route, or `via: 'checkout-offer'` with the offer and its contract, for one through an offer.
+- **Refusals** gain `TENANT_RETURN_NOT_ENDED`, `TENANT_RETURN_DELETION_DAY_REACHED` and
+  `TENANT_RETURN_DELETION_DAY_CHANGED` — both with the day in `params.deletesOn`, named in
+  `dayParams` —, `TENANT_RETURN_PAYMENT_METHOD_REQUIRED` and `TENANT_RETURN_NOT_FOR_OPERATOR`.
+- **`TenantPlanSectionI18n`** gains the `return*` messages of the dialog. A catalogue you build
+  whole adds them; one that overrides single strings needs nothing. `TenantPlanCardHeader` takes
+  `mayReturn` and emits `subscribeAgain`.
+- **Requirement identifiers** you wrote down: `SC-CANC-028` is superseded by `SC-CANC-034`, and
+  `SC-ADM-055` by `SC-ADM-060`.
+- **No codemod step**: the currency your pages write in, your own conclusion and your stores are
+  your application's, and none of them is a rename.
 
 ## What the codemod leaves to you
 

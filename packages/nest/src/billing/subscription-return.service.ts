@@ -508,7 +508,10 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
      * lifted, or null where none stands to lift: a tenant without an end
      * concludes as it would without this call, a suspended one included.
      * Refuses as a return is refused where an end stands and the tenant cannot
-     * come back from it.
+     * come back from it. Audits nothing: whoever writes the contract audits
+     * the conclusion, as the platform audits the returns it concludes itself,
+     * through its route and through a checkout offer. What stays either way
+     * is the end, lifted, and its reason, lifted by `by`.
      */
     async takeBackWithin(
         tenantId: string,

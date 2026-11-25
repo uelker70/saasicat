@@ -1320,14 +1320,13 @@ _Source:_ #276 · #337 (decided 2026-11-10)
 
 ### SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
 
-🟡 _(Decided, not yet delivered.)_ 🔒 Until the day its end names, in the installation's days, and
-while its deletion has not begun, the tenant's administrator can enter a payment method and take out
-a new subscription at the catalogue's current terms, and a checkout offer concluded for the tenant
-does the same (`SC-MKT-028`). The new subscription lifts the end, its deletion day and the read-only
-state that end put the tenant in, in the moment it is concluded; an invoice still unpaid keeps the
-tenant read-only until it is paid (`SC-PRIC-104`). From the deletion day on, or once the deletion
-has begun, it is refused with a stable code. The new subscription's own end records a day of its
-own.
+🟢 🔒 Until the day its end names, in the installation's days, and while its deletion has not begun,
+the tenant's administrator can enter a payment method and take out a new subscription at the
+catalogue's current terms, and a checkout offer concluded for the tenant does the same
+(`SC-MKT-028`). The new subscription lifts the end, its deletion day and the read-only state that
+end put the tenant in, in the moment it is concluded; an invoice still unpaid keeps the tenant
+read-only until it is paid (`SC-PRIC-104`). From the deletion day on, or once the deletion has
+begun, it is refused with a stable code. The new subscription's own end records a day of its own.
 
 _Source:_ #276 · #337 · #339 (decided 2026-11-17)
 
@@ -1519,5 +1518,9 @@ _Tested by:_
         - offers it where the server says this reader may, and opens the dialog on the plans it read
         - does not offer it where the server says not
         - a header told nothing offers nothing
+- `examples/notesapp/tests/integration/a-tenant-comes-back-before-its-deletion-day.integration.test.mjs`
+    - a tenant of the notes app comes back before its deletion day, on PostgreSQL
+        - its trial ended, it comes back on STARTER, and the end of the new subscription has a day
+          of its own
 
 <!-- END proof -->

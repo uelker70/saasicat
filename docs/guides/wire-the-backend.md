@@ -2124,9 +2124,12 @@ makes the tenant read-only in that run.
 - **Starting a payment is left**: a user of a read-only tenant holding the billing permission can
   pay now (`POST billing/account/pay`) and replace the payment method
   (`POST billing/payment-method/setup`) while one of the subscriber's invoices is open, and either
-  collects it — a card at once. Your own authentication guard, which calls
-  `TenantAccessService.enforce`, lets both routes through as the platform does, since they carry the
-  mark the check reads (`starts-payment`). A suspended tenant, and one being deleted, cannot.
+  collects it — a card at once. Replacing the payment method is left too while the tenant can come
+  back after its subscription ended, though no invoice is open, since coming back takes one where a
+  gateway is wired ([A tenant comes back](#a-tenant-comes-back)). Your own authentication guard,
+  which calls `TenantAccessService.enforce`, lets both routes through as the platform does, since
+  they carry the mark the check reads (`starts-payment`). A suspended tenant, and one being deleted,
+  cannot.
 - **Leaving is left too** (`SC-ADM-060`, `SC-CANC-001`): the tenant's administrator declares the
   cancellation of its subscription, cancels an add-on, and ends either at once while a feature is
   withdrawn, whatever it owes, since a tenant is never told it may not leave. The four routes carry
@@ -2143,7 +2146,9 @@ makes the tenant read-only in that run.
   tenant can read and the day its data is deleted on, `readOnlyUntil` and `deletesOn`
   (`SC-CANC-033`), and whether that day has come, `deletionDue` — until the deletion runs the data
   is still there — and both answer `mayExport`, whether this reader can take the tenant's export
-  now, and `exportDeliveredBy`, `'platform'` or `'application'` where they can and `null` where not.
+  now, and `exportDeliveredBy`, `'platform'` or `'application'` where they can and `null` where not,
+  and `mayReturn`, whether this reader can take out a new subscription now
+  ([A tenant comes back](#a-tenant-comes-back)).
   Both are let through in every state, suspended and being deleted included, since they carry the
   mark `reads-its-state`, which your guard's `enforce` reads as the platform does. Mount
   `TenantAccessBanner` from `@saasicat/ui-vue-tenant` behind your sign-in to show it.
@@ -2424,11 +2429,88 @@ From that moment the tenant is read-only until the day its data is deleted (`SC-
     an object with `deliveredBy` is never a port.
 
     ```vue
-    <TenantAccessBanner :format-date="formatDate" @take-export="startTenantExport" />
+    <TenantAccessBanner
+        :format-date="formatDate"
+        :format-currency="formatCurrency"
+        @take-export="startTenantExport"
+    />
     ```
 
 On that day the tenant is deleted, through your application's erasers and only in a database
-marked as this installation's: the next two sections.
+marked as this installation's:
+[Mark the installation before the first deletion](#mark-the-installation-before-the-first-deletion)
+and [Erase a tenant's stores](#erase-a-tenants-stores). Until then it can come back.
+
+#### A tenant comes back
+
+Until the deletion day of its end, and while its deletion has not begun, the administrator of a
+tenant whose subscription ended can take out a new subscription at the catalogue's current terms
+(`SC-CANC-034`). It lifts the end, its deletion day and the read-only state that end put the tenant
+in, in the moment it is concluded: no reminder follows, the export is no longer offered, and a later
+end of the new subscription gets a deletion day of its own. `TenantAccessBanner` offers it — "Subscribe
+again", in a dialog that states the price, the first period, the notice and the deletion it lifts —
+to whoever the server says may (`mayReturn` in `GET billing/access`), and `TenantPlanSection` offers
+the same dialog on the plan card of the ended subscription, so where either is mounted there is
+nothing to wire.
+
+- **The preview**, `POST billing/subscription/return/preview` with `plan` and `billingCycle`, answers
+  what the tenant would come back on: the version on sale, `planVersionId`, its `price`, its first
+  period from now, `periodStart` and `periodEnd` with their days, the days of notice
+  (`cancellationNoticeDays`), the deletion day it lifts (`deletesOn`), what stands in the way of the
+  plan (`blockers`, as a plan change's preview lists them) and whether a payment method has to be
+  entered first (`paymentMethodRequired`). Where the tenant cannot come back it answers why,
+  `refusal`, and the deletion day. It writes nothing, and every user of the tenant may ask it.
+- **Coming back**, `POST billing/subscription/return`, takes the same two fields, the
+  `planVersionId` the preview showed — as the plan route takes it, and required wherever your
+  installation binds versions — and the `deletesOn` it showed, as `expectedDeletesOn`. It starts
+  the subscription again on that version from the moment it is confirmed, without a trial, an
+  add-on or a code, writes its contract, and lifts the end and its reason, in one transaction; the
+  next invoice run charges the first period. It is audited as `SUBSCRIPTION_RETURNED`. A pilot,
+  limits or a price the operator granted, and the add-ons booked, end with the old subscription:
+  the new one is the catalogue's, and the operator grants special terms again where he wants to. An
+  invoice still unpaid keeps the tenant read-only until it is paid, and "Pay now" stays where it
+  was.
+- **Who may**: the tenant's administrator alone, behind `TenantAdminGuard`
+  (`403 TENANT_ADMIN_REQUIRED`). The operator acting as the tenant is refused with
+  `403 TENANT_RETURN_NOT_FOR_OPERATOR`: the subscription is the subscriber's to take out.
+- **What it is refused with**, writing nothing: `409 TENANT_RETURN_NOT_ENDED` where no end stands;
+  `409 TENANT_RETURN_DELETION_DAY_REACHED`, naming the day, from midnight of the deletion day in the
+  installation's zone — even where the deletion is halted that day; the way back is then a new
+  tenant [joined to the old subscriber](#joining-a-returning-customers-subscriber) —;
+  `409 TENANT_RETURN_DELETION_DAY_CHANGED`, with the day that applies, where the page showed
+  another; `403 TENANT_SUSPENDED` and `403 TENANT_BEING_DELETED`, as the check answers them
+  everywhere. The plan is refused as a plan change to it would be: `400 PLAN_CHANGE_BLOCKED` with
+  the `blockers` — a rhythm it is not sold in, a use over its limits —, `403 PLAN_NOT_SELF_SERVICE`,
+  `404 PLAN_NOT_IN_CATALOG`, `400 PLAN_CHANGE_VERSION_NOT_NAMED`, and
+  `409 PLAN_CHANGE_QUOTE_CHANGED` with the preview as it stands where the version shown is no longer
+  on sale. Where `payments.newPaymentMethods` names an account and the subscriber has no payment
+  method in use, `409 TENANT_RETURN_PAYMENT_METHOD_REQUIRED`; a read-only tenant may enter one while
+  it can come back, though no invoice is open ([Starting a payment is
+  left](#an-invoice-unpaid-on-its-due-date)). Where a contract of the tenant runs already,
+  `409 SUBSCRIPTION_CONTRACT_CHANGED`.
+- **A checkout offer** concluded for such a tenant through `CheckoutOfferService.conclude` takes it
+  back by itself, in the conclusion's transaction, and is refused as the route is, the offer left
+  open. It is audited as `SUBSCRIPTION_RETURNED` too, naming the offer and no person.
+- **A way of your own to conclude** a subscription — a route that writes the subscription and its
+  contract itself, without an offer — calls
+  `SubscriptionReturnService.takeBackWithin(tenantId, at, by, tx)` from `@saasicat/nest/billing`
+  inside the transaction that writes them, before it writes them. It lifts the end and its reason in
+  `tx` and answers the end it lifted, or `null` where none stands — a tenant in its trial concludes
+  as it did before —, and refuses as the route does where an end stands that the tenant cannot come
+  back from. `assertMayBeTakenBack(tenantId, at)` asks the same before your transaction opens. `by`
+  is the actor as your audit log tags it, `web:<email>:<context>` for a person; the lifted reason
+  keeps it, and reads as the tenant's administrator once the tenant is deleted. Write the
+  subscription as running again, its cancellation dates emptied, as
+  `TenantSubscriptionWritePort.startAgain` does for the route: a subscription whose cancellation
+  has landed stays ended for the platform, which grants and charges nothing of it. Mark the route
+  `@Returns()` from `@saasicat/nest`, which your guard's `enforce` reads as the platform does, so a
+  read-only tenant gets through; nothing that does more than come back, since everything a marked
+  route writes is let through. The platform audits nothing on this path: whoever writes the
+  contract audits the conclusion, as it audits the returns it concludes itself. What it
+  keeps on every path is the end, lifted (`liftedAt`), and its reason.
+- **Where your way does not call it**, nothing is lost: the platform deletes no tenant under a
+  contract running past its end (`SC-PRIV-026`), and the operator reads that on the tenant's page.
+  But the tenant stays read-only while it pays.
 
 ### Mark the installation before the first deletion
 

@@ -14,7 +14,7 @@
         "typecheck": "tsc --noEmit -p tsconfig.json",
         "pretest": "pnpm run build",
         "test": "node --test tests/*.test.mjs",
-        "test:integration": "node --test 'tests/integration/*.test.mjs'",
+        "test:integration": "node --test --test-concurrency=1 'tests/integration/*.test.mjs'",
         "start": "node dist/main.js",
         "cli": "node dist/cli/main.js",
         "db:push": "prisma db push",
