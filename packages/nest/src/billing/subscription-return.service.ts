@@ -1,10 +1,10 @@
 // A tenant whose subscription ended comes back before its deletion day
 // (`SC-CANC-034`): its administrator takes out a new subscription on the same
-// row, at the catalogue's current terms — the version on sale, from the moment
-// of the return, without a trial, an add-on or a code — and the new
-// subscription lifts the end, its deletion day and the read-only state that
-// end put the tenant in. Another reason that holds the tenant stays: an
-// invoice still unpaid keeps it read-only until it is paid.
+// row, at the catalogue's current terms — the version on sale, which its
+// preview showed, from the moment of the return, without a trial, an add-on
+// or a code — and the new subscription lifts the end, its deletion day and the
+// read-only state that end put the tenant in. Another reason that holds the
+// tenant stays: an invoice still unpaid keeps it read-only until it is paid.
 //
 // Whether the tenant can come back is decided by `subscriptionReturnRefusal`,
 // asked twice: before anything is written, and again in the transaction that
@@ -50,6 +50,7 @@ import {
     installationZoneOf,
     openEndedHoldOf,
     subscriptionReturnRefusal,
+    withDays,
     type AdminActor,
     type BillingCycle,
     type CalendarDay,
@@ -69,6 +70,7 @@ import {
     type TenantSubscriptionWritePort,
     type TransactionContext,
     type TransactionRunner,
+    type WithDays,
 } from '@saasicat/core';
 
 import { AdminAuditService } from '../admin/admin-audit.service.js';
@@ -112,14 +114,21 @@ import {
     SUBSCRIPTION_WRITE_PORT_TOKEN,
 } from './tenant-billing.tokens.js';
 import { versionOnSale } from './version-on-sale.js';
+import { assertNamesTheVersionShown } from './version-shown.js';
 
 /** What the audit log names a return under. */
 const AUDITED_ACTION = 'SUBSCRIPTION_RETURNED';
 
-/** The plan and the rhythm a tenant comes back on, and the deletion day its page showed. */
+/** The plan and the rhythm a tenant comes back on, and the version and deletion day its page showed. */
 export interface SubscriptionReturnChoice {
     readonly plan: string;
     readonly billingCycle: BillingCycle;
+    /**
+     * The version the preview showed, its `planVersionId`: the return binds it
+     * only while it is still the one on sale (`PLAN_CHANGE_QUOTE_CHANGED`), and
+     * has to be told it wherever it binds one (`PLAN_CHANGE_VERSION_NOT_NAMED`).
+     */
+    readonly planVersionId?: string | null;
     /**
      * The deletion day the page showed, where it sent one: the tenant is taken
      * back only from the end that names it (`TENANT_RETURN_DELETION_DAY_CHANGED`).
@@ -166,6 +175,28 @@ export interface SubscriptionReturnRefused {
 }
 
 export type SubscriptionReturnPreview = SubscriptionReturnTerms | SubscriptionReturnRefused;
+
+/** The moments a return answers with, each handed out with its days in the installation's zone. */
+export const SUBSCRIPTION_RETURN_MOMENTS = ['periodStart', 'periodEnd'] as const;
+
+type SubscriptionReturnMoment = (typeof SUBSCRIPTION_RETURN_MOMENTS)[number];
+
+/** The subscription a tenant came back on, with the days of its first period. */
+export type SubscriptionReturnedWithDays = WithDays<SubscriptionReturned, SubscriptionReturnMoment>;
+
+/** What a tenant is shown before it comes back, with the days of the first period; or why it cannot. */
+export type SubscriptionReturnPreviewWithDays =
+    WithDays<SubscriptionReturnTerms, SubscriptionReturnMoment> | SubscriptionReturnRefused;
+
+/** `preview` as the tenant is handed it, the days of its first period in `timeZone`. */
+export function previewWithDays(
+    preview: SubscriptionReturnPreview,
+    timeZone: string,
+): SubscriptionReturnPreviewWithDays {
+    return preview.refusal === null
+        ? withDays(preview, SUBSCRIPTION_RETURN_MOMENTS, timeZone)
+        : preview;
+}
 
 /** The tenant's open reasons, the one its end put it in, and that end. */
 interface Standing {
@@ -333,9 +364,11 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
      * tenant cannot come back (`subscriptionReturnRefusal`), where its page
      * showed another deletion day than its end names, where something
      * stands in the way of the plan as a plan change to it would be refused
-     * (`PLAN_CHANGE_BLOCKED`), where a gateway takes payment methods and the
-     * subscriber has none in use, where a contract of the tenant runs
-     * already, and where the plan or its contract is refused.
+     * (`PLAN_CHANGE_BLOCKED`), where `choice` does not name the version on
+     * sale its preview showed, as a plan change is refused
+     * (`assertNamesTheVersionShown`), where a gateway takes payment methods
+     * and the subscriber has none in use, where a contract of the tenant
+     * runs already, and where the plan or its contract is refused.
      */
     async takeOut(
         tenantId: string,
@@ -368,6 +401,15 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
                 blockers,
             });
         }
+        await assertNamesTheVersionShown(
+            { planKey: choice.plan, planVersionId: choice.planVersionId },
+            returned.planVersionId,
+            async () =>
+                previewWithDays(
+                    await this.preview(tenantId, choice, now),
+                    installationZoneOf(this.settings),
+                ),
+        );
         if (await this.paymentMethodMissing(tenantId)) {
             throw new ConflictException(
                 codedError(TENANT_ACCESS_ERROR_CODES.TENANT_RETURN_PAYMENT_METHOD_REQUIRED),

@@ -29,6 +29,7 @@ import {
     TENANT,
     V2,
     V3,
+    V4,
     aBarrier,
     aTenantThatEnded,
     contractsOf,
@@ -38,7 +39,8 @@ import {
 } from './helpers/subscription-return.js';
 import { RUN, contracted } from './helpers/tenant-deletion.js';
 
-const STANDARD_MONTHLY = { plan: 'STANDARD', billingCycle: 'MONTHLY' };
+/** STANDARD, monthly, at the version its preview showed. */
+const STANDARD_MONTHLY = { plan: 'STANDARD', billingCycle: 'MONTHLY', planVersionId: V3.id };
 
 /** One month on from the return: the first period of the new subscription. */
 const FIRST_PERIOD_ENDS = new Date('2026-11-20T08:00:00.000Z');
@@ -764,6 +766,100 @@ describe('the plan it comes back on is refused as a plan change to it would be',
             ['QUOTA_OVER_TARGET'],
         );
         assert.equal(preview.price, null);
+    });
+});
+
+// @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+describe('the version it comes back on is the one its preview showed', () => {
+    // The page opened at 08:00 and showed V3 at 59 €; V4 at 69 € succeeds it
+    // on sale five minutes later, while the page is still open.
+    const SUCCESSOR_FROM = new Date('2026-10-20T08:05:00.000Z');
+    const JUST_BEFORE = new Date(SUCCESSOR_FROM.getTime() - 1);
+
+    test('named, and still on sale a millisecond before its successor, it is bound and priced', async () => {
+        const tenant = await aTenantThatEnded({ successorFrom: SUCCESSOR_FROM });
+        const shown = await tenant.service.preview(TENANT, STANDARD_MONTHLY, RETURN_AT);
+
+        const returned = await tenant.service.takeOut(
+            TENANT,
+            { ...STANDARD_MONTHLY, planVersionId: shown.planVersionId },
+            ADMIN,
+            JUST_BEFORE,
+        );
+
+        assert.equal(returned.planVersionId, V3.id);
+        assert.equal(tenant.subscription.row.planVersionId, V3.id);
+        const [contract] = await contractsOf(tenant);
+        assert.equal(contract.priceSnapshot.totalNet, 59);
+    });
+
+    test('no longer on sale from its successor’s start, it is refused with the preview as it stands, and nothing is written', async () => {
+        const tenant = await aTenantThatEnded({ successorFrom: SUCCESSOR_FROM });
+        const before = await whatIsKept(tenant);
+
+        await assert.rejects(
+            tenant.service.takeOut(TENANT, STANDARD_MONTHLY, ADMIN, SUCCESSOR_FROM),
+            (error) => {
+                assert.equal(error.getStatus(), 409);
+                const body = error.getResponse();
+                assert.equal(body.code, 'PLAN_CHANGE_QUOTE_CHANGED');
+                assert.deepEqual(body.params, { planVersionId: V3.id });
+                assert.equal(body.preview.planVersionId, V4.id);
+                assert.equal(body.preview.price.totalNet, 69);
+                assert.equal(body.preview.periodStartDays.from, '2026-10-20');
+                return true;
+            },
+        );
+        assert.deepEqual(await whatIsKept(tenant), before);
+        assert.deepEqual(tenant.calls.audited, []);
+
+        await tenant.service.takeOut(
+            TENANT,
+            { ...STANDARD_MONTHLY, planVersionId: V4.id },
+            ADMIN,
+            SUCCESSOR_FROM,
+        );
+        assert.equal(tenant.subscription.row.planVersionId, V4.id);
+    });
+
+    for (const [what, planVersionId] of [
+        ['none at all', undefined],
+        ['null', null],
+        ['an empty one', ''],
+    ]) {
+        test(`naming ${what} is refused, naming the plan, and nothing is written`, async () => {
+            const tenant = await aTenantThatEnded();
+            const before = await whatIsKept(tenant);
+
+            await assert.rejects(
+                tenant.service.takeOut(
+                    TENANT,
+                    { ...STANDARD_MONTHLY, planVersionId },
+                    ADMIN,
+                    RETURN_AT,
+                ),
+                (error) => {
+                    assert.equal(error.getStatus(), 400);
+                    assert.equal(error.getResponse().code, 'PLAN_CHANGE_VERSION_NOT_NAMED');
+                    assert.deepEqual(error.getResponse().params, { planKey: 'STANDARD' });
+                    return true;
+                },
+            );
+            assert.deepEqual(await whatIsKept(tenant), before);
+            assert.deepEqual(tenant.calls.audited, []);
+        });
+    }
+
+    test('where the installation binds no version, its preview shows none and the return names none', async () => {
+        const tenant = await aTenantThatEnded({ bindsPlanVersion: false });
+        const { plan, billingCycle } = STANDARD_MONTHLY;
+
+        const shown = await tenant.service.preview(TENANT, { plan, billingCycle }, RETURN_AT);
+        await tenant.service.takeOut(TENANT, { plan, billingCycle }, ADMIN, RETURN_AT);
+
+        assert.equal(shown.planVersionId, null);
+        assert.equal(tenant.subscription.row.canceledEffectiveAt, null);
+        assert.equal(tenant.subscription.row.planVersionId, null);
     });
 });
 

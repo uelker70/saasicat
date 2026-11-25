@@ -24,7 +24,6 @@ import {
     installationZoneOf,
     withDays,
     type PlanCatalogSettings,
-    type WithDays,
 } from '@saasicat/core';
 
 import { codedError } from '../errors/coded-error.js';
@@ -35,10 +34,11 @@ import { PreviewPlanChangeDto } from './dto/tenant-billing.dto.js';
 import { SubscriptionReturnDto } from './dto/subscription-return.dto.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import {
+    SUBSCRIPTION_RETURN_MOMENTS,
     SubscriptionReturnService,
-    type SubscriptionReturnRefused,
-    type SubscriptionReturnTerms,
-    type SubscriptionReturned,
+    previewWithDays,
+    type SubscriptionReturnPreviewWithDays,
+    type SubscriptionReturnedWithDays,
 } from './subscription-return.service.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import {
@@ -58,18 +58,6 @@ import {
 } from './tenant-billing.tokens.js';
 import { tenantIdOf } from './tenant-id.js';
 import { isTheOperator } from './tenant-roles.js';
-
-/** The moments a return answers with, each handed out with its days in the installation's zone. */
-const MOMENTS = ['periodStart', 'periodEnd'] as const;
-
-type Moment = (typeof MOMENTS)[number];
-
-/** The subscription a tenant came back on, with the days of its first period. */
-export type SubscriptionReturnedWithDays = WithDays<SubscriptionReturned, Moment>;
-
-/** What a tenant is shown before it comes back, with the days of the first period; or why it cannot. */
-export type SubscriptionReturnPreviewWithDays =
-    WithDays<SubscriptionReturnTerms, Moment> | SubscriptionReturnRefused;
 
 @Controller('billing/subscription/return')
 @UseGuards(ComposedTenantAuthGuard)
@@ -116,13 +104,14 @@ export class TenantSubscriptionReturnController {
             { plan: dto.plan, billingCycle: dto.billingCycle },
             new Date(),
         );
-        return preview.refusal === null ? withDays(preview, MOMENTS, this.zone()) : preview;
+        return previewWithDays(preview, this.zone());
     }
 
     /**
-     * Takes out the new subscription, as the tenant's own administrator, where
-     * the deletion day its page showed, if it sent one, is still the one its
-     * end names. The operator acting as the tenant is refused.
+     * Takes out the new subscription, as the tenant's own administrator, at
+     * the version its preview showed while that is still on sale, where the
+     * deletion day its page showed, if it sent one, is still the one its end
+     * names. The operator acting as the tenant is refused.
      */
     @Post()
     @UseGuards(TenantAdminGuard)
@@ -142,12 +131,13 @@ export class TenantSubscriptionReturnController {
             {
                 plan: dto.plan,
                 billingCycle: dto.billingCycle,
+                planVersionId: dto.planVersionId,
                 expectedDeletesOn: dto.expectedDeletesOn,
             },
             tenantActorOf(req, requireTenantUserId(req, resolvers), resolvers),
             new Date(),
         );
-        return withDays(returned, MOMENTS, this.zone());
+        return withDays(returned, SUBSCRIPTION_RETURN_MOMENTS, this.zone());
     }
 
     private zone(): string {

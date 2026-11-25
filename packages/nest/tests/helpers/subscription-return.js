@@ -113,9 +113,15 @@ export const V2 = boundPlanVersion(
 );
 /** The version on sale now, which a return buys. */
 export const V3 = boundPlanVersion(STANDARD, 'pv-standard-3');
+/** The version that succeeds V3, on sale from the moment a test names (`successorFrom`). */
+export const V4 = boundPlanVersion(
+    { ...STANDARD, monthlyNet: 69, yearlyNet: 690 },
+    'pv-standard-4',
+);
 const VERSIONS = [
     V2,
     V3,
+    V4,
     boundPlanVersion(STARTER, 'pv-starter-1'),
     boundPlanVersion(ENTERPRISE, 'pv-enterprise-1'),
     boundPlanVersion(FLEX, 'pv-flex-1'),
@@ -318,7 +324,8 @@ function aSubscriber(state) {
  * back through — over one database. `row` changes the subscription row,
  * `gateway` makes the installation take payment methods through a gateway,
  * `paymentMethod` is the subscriber's one in use there, `usage` what the
- * tenant uses today.
+ * tenant uses today, `successorFrom` the moment V4 succeeds V3 on sale, and
+ * `bindsPlanVersion: false` makes the subscription write bind no version.
  */
 export async function aTenantThatEnded({
     row = {},
@@ -326,6 +333,8 @@ export async function aTenantThatEnded({
     paymentMethod = null,
     ended = true,
     usage = {},
+    successorFrom = null,
+    bindsPlanVersion = true,
 } = {}) {
     const ports = aDatabase();
     ports.holds = new LockingHolds();
@@ -344,7 +353,10 @@ export async function aTenantThatEnded({
     const catalogs = givenPlanCatalogSource(CATALOG);
     const plans = {
         findVersionById: async (id) => versionById(id),
-        findActivePlanVersion: async (planKey) => versionById(ON_SALE[planKey]),
+        findActivePlanVersion: async (planKey, asOf) =>
+            planKey === 'STANDARD' && successorFrom !== null && asOf >= successorFrom
+                ? V4
+                : versionById(ON_SALE[planKey]),
     };
     const entitlements = new EntitlementService(
         catalogs,
@@ -401,6 +413,11 @@ export async function aTenantThatEnded({
         null,
         plans,
     );
+    // An installation whose write binds no version keeps no contracts: the
+    // freeze, built above against the binding write, refuses to start beside
+    // one, so the return is given neither.
+    subscription.bindsPlanVersion = bindsPlanVersion;
+    const keepsContracts = bindsPlanVersion;
     // The check every tenant request passes, which the return answers as the
     // module's start registers it.
     const access = new TenantAccessService(ports.holds, new Reflector());
@@ -437,8 +454,8 @@ export async function aTenantThatEnded({
         ports.holds,
         plans,
         BLOCKED,
-        freeze,
-        contracts,
+        keepsContracts ? freeze : null,
+        keepsContracts ? contracts : null,
         bookings,
         payments.methods,
         payments.gateways,

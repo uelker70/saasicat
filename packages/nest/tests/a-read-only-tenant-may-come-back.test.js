@@ -14,8 +14,11 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 
 import {
+    SubscriptionReturnDto,
     TenantAccessStateController,
     TenantAdminGuard,
     TenantBillingController,
@@ -36,7 +39,8 @@ import {
 } from './helpers/subscription-return.js';
 import { RUN, ZONE } from './helpers/tenant-deletion.js';
 
-const STANDARD_MONTHLY = { plan: 'STANDARD', billingCycle: 'MONTHLY' };
+/** STANDARD, monthly, at the version its preview showed. */
+const STANDARD_MONTHLY = { plan: 'STANDARD', billingCycle: 'MONTHLY', planVersionId: V3.id };
 
 /** The subscription as it runs: never cancelled. */
 const RUNNING = { row: { canceledAt: null, canceledEffectiveAt: null }, ended: false };
@@ -98,6 +102,13 @@ async function accessStateFor(tenant, request) {
 
 /** Runs the rest of the test at `now`, as the clock reads. */
 const at = (t, now) => t.mock.timers.enable({ apis: ['Date'], now: now.getTime() });
+
+/** The properties `validate` finds fault with in `body`, sent to the route, and what it keeps of it. */
+async function validated(body) {
+    const dto = plainToInstance(SubscriptionReturnDto, body);
+    const errors = await validate(dto, { whitelist: true });
+    return { faults: errors.map((error) => error.property), dto };
+}
 
 // @requirement SC-ADM-060 — A suspended tenant cannot act; a read-only one writes only to pay, leave or return
 // @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
@@ -344,4 +355,31 @@ describe('the other exceptions stay as they were', () => {
         assert.equal(Reflect.getMetadata(TENANT_ACCESS_MARK_KEY, route.takeOut), 'returns');
         assert.equal(Reflect.getMetadata(TENANT_ACCESS_MARK_KEY, route.preview), 'writes-nothing');
     });
+});
+
+// @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+describe('the version the route reads from the body', () => {
+    test('the version the preview showed is kept, as a plan change keeps it', async () => {
+        const { faults, dto } = await validated(STANDARD_MONTHLY);
+
+        assert.deepEqual(faults, []);
+        assert.equal(dto.planVersionId, V3.id);
+    });
+
+    test('none at all passes, for the return to say whether it binds one', async () => {
+        const { plan, billingCycle } = STANDARD_MONTHLY;
+
+        assert.deepEqual((await validated({ plan, billingCycle })).faults, []);
+    });
+
+    for (const [what, planVersionId] of [
+        ['an empty one', ''],
+        ['a number', 3],
+    ]) {
+        test(`${what} is refused`, async () => {
+            assert.deepEqual((await validated({ ...STANDARD_MONTHLY, planVersionId })).faults, [
+                'planVersionId',
+            ]);
+        });
+    }
 });

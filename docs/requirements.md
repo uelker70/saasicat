@@ -9260,6 +9260,10 @@ _Tested by:_
         - its administrator, until the deletion day
         - nobody else of the tenant, and not the operator
         - nobody from the deletion day, or while the tenant is suspended
+    - the version the route reads from the body
+        - the version the preview showed is kept, as a plan change keeps it
+        - none at all passes, for the return to say whether it binds one
+        - ${what} is refused
 - `packages/nest/tests/a-tenant-comes-back-before-its-deletion-day.test.js`
     - a tenant that comes back before its deletion day
         - on 20 October: the end and its reason lifted, the subscription running on the version on
@@ -9311,6 +9315,12 @@ _Tested by:_
         - measured against the version on sale, not the one it paid until then
         - a special contract it ended on is over, not left: it comes back on a plan of the catalogue
         - shown before it comes back, as a plan change’s preview shows them, without a price
+    - the version it comes back on is the one its preview showed
+        - named, and still on sale a millisecond before its successor, it is bound and priced
+        - no longer on sale from its successor’s start, it is refused with the preview as it stands,
+          and nothing is written
+        - naming ${what} is refused, naming the plan, and nothing is written
+        - where the installation binds no version, its preview shows none and the return names none
     - taking the tenant back inside a transaction of the caller
         - lifts the end and its reason in it, and with it taken back, nothing is lifted
         - answers false where no end stands, and refuses from the deletion day

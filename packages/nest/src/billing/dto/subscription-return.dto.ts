@@ -1,14 +1,16 @@
 import { IsISO8601, IsOptional, IsString, Matches } from 'class-validator';
 import { CALENDAR_DAY_PATTERN, type CalendarDay } from '@saasicat/core';
 
-import { PreviewPlanChangeDto } from './tenant-billing.dto.js';
+import { ChangePlanDto } from './tenant-billing.dto.js';
 
 /**
- * Coming back names the plan and the rhythm, as a plan change does, and never
- * the tenant: that is the session's. The version is the one on sale, which the
- * server reads itself.
+ * Coming back names the plan, the rhythm and the version its preview showed
+ * (`planVersionId`, the preview's own), as a plan change does, and never the
+ * tenant: that is the session's. The server binds that version only while it
+ * is still the one on sale, and has to be told it wherever the return binds
+ * one.
  */
-export class SubscriptionReturnDto extends PreviewPlanChangeDto {
+export class SubscriptionReturnDto extends ChangePlanDto {
     /**
      * The deletion day the page showed, `YYYY-MM-DD`: where the tenant's end
      * names another, the return is refused with the day that applies, and
