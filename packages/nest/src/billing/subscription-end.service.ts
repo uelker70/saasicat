@@ -23,6 +23,10 @@
 // the end is recorded where the run learns of it later, so nobody is given
 // less than the read-only period's notice.
 //
+// The add-ons of a subscription end with it: before its end is recorded,
+// every booking of it that runs past the end is ended there
+// (`bookings-end-with-their-subscription.ts`).
+//
 // Platform-wide: the subscriptions are read across tenants, through
 // `RlsBypassPort`.
 
@@ -41,6 +45,7 @@ import {
     type RlsBypassPort,
     type SubscriptionEnd,
     type SubscriptionEndAnnouncement,
+    type SubscriptionBundleRepository,
     type SubscriptionEndPort,
     type SubscriptionUsagePort,
     type TenantAccessHoldPort,
@@ -52,7 +57,9 @@ import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { actorTagOf } from '../core/web-audit.js';
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { TENANT_ACCESS_HOLDS_TOKEN } from '../tenant-access/tenant-access.tokens.js';
+import { endBookingsWithTheirSubscription } from './bookings-end-with-their-subscription.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
+import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import {
     END_OF_SUBSCRIPTION_TOKEN,
     SUBSCRIPTION_END_PORT_TOKEN,
@@ -124,6 +131,11 @@ export class SubscriptionEndService implements OnModuleInit {
         @Optional()
         @Inject(TENANT_ACCESS_HOLDS_TOKEN)
         private readonly holds: TenantAccessHoldPort | null = null,
+        // Without the bundle module nothing is booked, so nothing ends with
+        // the subscription.
+        @Optional()
+        @Inject(SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN)
+        private readonly bookings: SubscriptionBundleRepository | null = null,
     ) {}
 
     /**
@@ -278,13 +290,15 @@ export class SubscriptionEndService implements OnModuleInit {
     }
 
     /**
-     * The reason first, then the end, and null where the end was recorded
-     * already. A caller that stops between the two finds no end next time and
-     * records both again, where the store answers the reason already open with
-     * null; in the other order one that stopped would leave an end whose tenant
-     * nothing holds. The deletion day is the one announced where there is an
-     * `announcement` and the end landed no later than the one it was made
-     * for, and counted now otherwise.
+     * The subscription's bookings first, then the reason, then the end, and
+     * null where the end was recorded already. Where a booking cannot be
+     * ended, nothing is recorded, and the next call ends what is left and
+     * records both. A caller that stops between the reason and the end finds
+     * no end next time and records both again, where the store answers the
+     * reason already open with null; in the other order one that stopped would
+     * leave an end whose tenant nothing holds. The deletion day is the one
+     * announced where there is an `announcement` and the end landed no later
+     * than the one it was made for, and counted now otherwise.
      *
      * An end the store refuses although none of the subscription stands is
      * one a new subscription lifted (`SC-CANC-034`): `subscription` was read
@@ -298,6 +312,13 @@ export class SubscriptionEndService implements OnModuleInit {
         now: Date,
         recordedBy: string,
     ): Promise<SubscriptionEnd | null> {
+        if (this.bookings) {
+            await endBookingsWithTheirSubscription(
+                this.bookings,
+                subscription.subscriptionId,
+                subscription.endsAt,
+            );
+        }
         const held = await this.holds?.record({
             tenantId: subscription.tenantId,
             kind: 'ended',

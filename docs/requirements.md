@@ -9174,6 +9174,7 @@ _Tested by:_
         - without tenant billing, nothing is asked for
     - an installation that serves tenants
         - records the ends every quarter of an hour unless told not to
+        - hands the run the add-ons booked, so they end with their subscription
         - refuses to start where the file says nothing of the end, naming the setting
     - the read-only period of a catalogue built in code
         - left out, the start is refused, naming the field
@@ -9245,6 +9246,9 @@ _Tested by:_
           a second time
         - once deleted after a later end, the reason it lifted names the tenant’s administrator, not
           the operator
+    - an offer for a tenant whose subscription ended with an add-on booked
+        - takes it back without that add-on: not granted again, and not read as booked in another
+          version
     - an offer for a tenant that cannot come back is refused as a return is, and stays open
         - from midnight of the deletion day, naming the day
         - once its deletion has begun, as the tenant is told wherever it asks — before what the
@@ -9299,9 +9303,8 @@ _Tested by:_
         - a pilot that comes back is a pilot no more: its contract grants what it bought
         - limits and a price of the operator’s own end with it: its contract is the catalogue’s, and
           the audit names what ended
-        - an add-on of the subscription that ended ends with it, and no contract of the return names
-          it
-        - an add-on cancelled for a date after the end ends at the end as well
+        - an add-on of the subscription that ended stays ended with it: the return grants it not,
+          and no contract of it names it
         - an invoice still unpaid keeps it read-only for that invoice alone
     - the deletion day, in the installation’s days, is where coming back stops
         - the last moment of the day before is still in time
@@ -9324,6 +9327,9 @@ _Tested by:_
     - a return and a deletion beside it lock the same reason
         - the deletion first: the return waits for it, finds the tenant being deleted and is refused
         - the return first: the deletion waits for it, finds the reason lifted and begins nothing
+    - two returns beside each other
+        - the one that waited is refused, and ends no add-on the tenant booked once the other took
+          it back
     - after it came back
         - a cancellation that lands again is recorded as an end of its own, with a day of its own
         - its export is no longer offered: no end stands
@@ -9356,6 +9362,17 @@ _Tested by:_
     - the run that records the subscriptions that ended
         - a run that read the subscription before its tenant came back records nothing, and holds
           the tenant no second time
+    - the add-ons of a subscription that ended end with it
+        - a booking not cancelled ends at the end, and the end is recorded
+        - one cancelled for a date after the end ends at the end as well
+        - one that ended before it is left as it was
+        - only one that began before the end is the subscription’s: one that began with the end is
+          left as it is
+        - a second run, and the end recorded again at once, change nothing
+        - where one cannot be ended, neither the end nor the reason stands, and the next run records
+          both
+        - another instance ending the same bookings at the same moment leaves the end to be recorded
+        - an end recorded at once, as for a trial the application ends, ends them the same way
 - `packages/ui-vue/tests/a-tenant-comes-back-from-its-page.test.js`
     - what a tenant would come back on
         - is asked for the plan and the rhythm chosen, under the prefix the app gives, and answered

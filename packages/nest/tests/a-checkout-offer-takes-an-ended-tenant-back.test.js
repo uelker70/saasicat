@@ -28,6 +28,7 @@ import {
     FakeTenantDeletionRepository,
 } from '../dist/testing/index.js';
 import {
+    BUNDLE_VERSION,
     PLAN_VERSION,
     buildOfferService,
     fakeBundleRepo,
@@ -65,16 +66,20 @@ import { noticeRecord, sendingPort } from './helpers/version-notices.js';
 
 const refusedWith = (code) => (error) => error.response?.code === code;
 
+/** A quarter of an hour after the end: the run that records it. */
+const RECORDED = new Date('2026-09-30T22:15:00.000Z');
+
 /** The offer's contract, in force from the moment the application concludes it. */
 const concludedFor = (at) => ({ tenantId: TENANT, effectiveFrom: at });
 
 /**
  * An offer service over `tenant`'s database, concluding with its subscriber
  * and its contract store and taking it back through its return service, and
- * an open offer of STANDARD, monthly. The offer store takes a consume back
- * with the transaction it ran on.
+ * an open offer of STANDARD, monthly, naming the add-on versions
+ * `bundleVersionIds`; `services` replaces others the offer service is built
+ * with. The offer store takes a consume back with the transaction it ran on.
  */
-async function anOfferFor(tenant) {
+async function anOfferFor(tenant, { bundleVersionIds = [], ...services } = {}) {
     const repo = fakeOfferRepo();
     const consume = repo.consume.bind(repo);
     repo.consume = async (id, tx) => {
@@ -88,8 +93,13 @@ async function anOfferFor(tenant) {
         transactions: tenant.transactions,
         subscribers: tenant.subscriber,
         returns: tenant.service,
+        ...services,
     });
-    const offer = await service.create({ planKey: 'STANDARD', billingCycle: 'monthly' });
+    const offer = await service.create({
+        planKey: 'STANDARD',
+        billingCycle: 'monthly',
+        bundleVersionIds,
+    });
     return { offers: service, offer, statusOf: () => repo.rows.get(offer.id).status };
 }
 
@@ -277,6 +287,41 @@ describe('a checkout offer for a tenant whose subscription ended takes it back',
 
         assert.equal(deleted.deleted, 1);
         assert.equal(firstEndedReasonOf(tenant).liftedBy, 'tenant-admin');
+    });
+});
+
+// @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+describe('an offer for a tenant whose subscription ended with an add-on booked', () => {
+    const BOOKED = { ...BUNDLE_VERSION, version: 1 };
+    const OFFERED = { ...BUNDLE_VERSION, id: 'bv-2', version: 2 };
+
+    test('takes it back without that add-on: not granted again, and not read as booked in another version', async (t) => {
+        t.mock.timers.enable({ apis: ['Date'], now: RETURN_AT });
+        const tenant = await aTenantThatEnded({ ended: false });
+        const booked = await tenant.bookings.add({
+            subscriptionId: SUBSCRIPTION,
+            bundleVersionId: BOOKED.id,
+            startedAt: new Date('2026-03-01T00:00:00.000Z'),
+        });
+        await tenant.subscriptionEnds.recordEnded(RECORDED);
+        const { offers, offer } = await anOfferFor(tenant, {
+            bundleVersionIds: [OFFERED.id],
+            bundles: fakeBundleRepo([BOOKED, OFFERED]),
+            subscriptionUsage: tenant.subscription,
+            bookings: tenant.bookings,
+        });
+
+        await offers.conclude(
+            offer.id,
+            concludedFor(RETURN_AT),
+            startingTheSubscription(tenant, RETURN_AT),
+        );
+
+        const kept = await tenant.bookings.findById(booked.id);
+        assert.deepEqual([kept.canceledAt, kept.canceledEffectiveAt], [ENDED, ENDED]);
+        tenant.entitlements.invalidateTenant(TENANT);
+        const granted = await tenant.entitlements.computeLimits(TENANT, RETURN_AT);
+        assert.equal([...granted.features].includes('ARCHIVE'), false);
     });
 });
 

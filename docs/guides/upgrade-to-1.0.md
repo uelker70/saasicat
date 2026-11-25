@@ -5833,6 +5833,11 @@ tenant is shown and what it is refused with:
   nothing, and the special terms it ended as `endedSpecialTerms`. The persistence contract holds
   both; a harness of yours without `startAgain` declares the gap `subscriptionsStartedAgain`, and
   its `createSubscription` seed takes `isPilot`, `pilotEndsAt` and `customMonthlyNet`.
+- **A subscription's add-ons end with it.** Before the platform records an end, it ends every
+  booking of the subscription that began before the end and runs past it, through the
+  `SubscriptionBundleRepository` it is given. A booking cancelled for a later date is ended through
+  `endNow`, so a repository of your own without `endNow` leaves such an end unrecorded, and the run
+  names the booking until it has the method. The shipped adapters have it.
 - **A `ContractFreezePort` of your own** adds `composeFor(tenantId, target, intended)`: the contract
   `assertContractFor` checks, handed back instead of written, or `null` where the version cannot be
   read as one of the plan's. A `ContractTarget` with `startsAgain` composes the contract for the

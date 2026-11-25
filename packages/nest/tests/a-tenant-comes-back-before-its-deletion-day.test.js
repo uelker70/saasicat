@@ -31,6 +31,7 @@ import {
     V3,
     V4,
     aDeletionHeldAtItsBeginning,
+    aReturnHeldAfterItsChecks,
     aReturnHeldAtItsWrite,
     aTenantThatEnded,
     contractsOf,
@@ -48,7 +49,19 @@ const STANDARD_MONTHLY = { plan: 'STANDARD', billingCycle: 'MONTHLY', planVersio
 /** One month on from the return: the first period of the new subscription. */
 const FIRST_PERIOD_ENDS = new Date('2026-11-20T08:00:00.000Z');
 
+/** A quarter of an hour after the end: the run that records it. */
+const RECORDED = new Date('2026-09-30T22:15:00.000Z');
+
+/** An hour after the return: an add-on the tenant books on the subscription it came back on. */
+const BOOKED_SINCE = new Date('2026-10-20T09:00:00.000Z');
+
 const refusedWith = (code) => (error) => error.response?.code === code;
+
+/** When the booking `id` was cancelled and when that lands, as kept. */
+async function bookingEndOf(tenant, id) {
+    const booking = await tenant.bookings.findById(id);
+    return [booking.canceledAt, booking.canceledEffectiveAt];
+}
 
 /** What the stores hold of the tenant, to show a refused return wrote nothing. */
 async function whatIsKept(tenant) {
@@ -224,64 +237,26 @@ describe('a tenant that comes back before its deletion day', () => {
         ]);
     });
 
-    test('an add-on of the subscription that ended ends with it, and no contract of the return names it', async () => {
-        const tenant = await aTenantThatEnded();
-        const running = await tenant.bookings.add({
+    test('an add-on of the subscription that ended stays ended with it: the return grants it not, and no contract of it names it', async () => {
+        const tenant = await aTenantThatEnded({ ended: false });
+        const booked = await tenant.bookings.add({
             subscriptionId: SUBSCRIPTION,
             bundleVersionId: 'bv-archive-1',
             startedAt: new Date('2026-03-01T00:00:00.000Z'),
         });
-        const endedEarlier = await tenant.bookings.add({
-            subscriptionId: SUBSCRIPTION,
-            bundleVersionId: 'bv-archive-1',
-            startedAt: new Date('2026-01-01T00:00:00.000Z'),
-        });
-        const earlier = new Date('2026-02-28T23:00:00.000Z');
-        await tenant.bookings.cancel(endedEarlier.id, {
-            canceledAt: earlier,
-            canceledEffectiveAt: earlier,
-        });
+        await tenant.subscriptionEnds.recordEnded(RECORDED);
 
         await tenant.service.takeOut(TENANT, STANDARD_MONTHLY, ADMIN, RETURN_AT);
 
-        const bookings = await tenant.bookings.listBySubscription(SUBSCRIPTION);
-        const endOf = (id) => {
-            const booking = bookings.find((one) => one.id === id);
-            return [booking.canceledAt, booking.canceledEffectiveAt];
-        };
-        assert.deepEqual(endOf(running.id), [ENDED, ENDED]);
-        assert.deepEqual(endOf(endedEarlier.id), [earlier, earlier]);
+        assert.deepEqual(await bookingEndOf(tenant, booked.id), [ENDED, ENDED]);
         const [contract] = await contractsOf(tenant);
         assert.deepEqual(
             contract.lineItems.map((line) => line.kind),
             ['plan'],
         );
         assert.deepEqual(contract.entitlementSnapshot.features, ['CORE', 'REPORTS']);
-    });
-
-    test('an add-on cancelled for a date after the end ends at the end as well', async () => {
-        const tenant = await aTenantThatEnded();
-        const later = new Date('2027-02-28T23:00:00.000Z');
-        const booking = await tenant.bookings.add({
-            subscriptionId: SUBSCRIPTION,
-            bundleVersionId: 'bv-archive-1',
-            startedAt: new Date('2026-03-01T00:00:00.000Z'),
-        });
-        await tenant.bookings.cancel(booking.id, {
-            canceledAt: new Date('2026-08-01T00:00:00.000Z'),
-            canceledEffectiveAt: later,
-        });
-        const endedNow = [];
-        tenant.bookings.endNow = async (id, input) => {
-            endedNow.push({ id, ...input });
-            return tenant.bookings.findById(id);
-        };
-
-        await tenant.service.takeOut(TENANT, STANDARD_MONTHLY, ADMIN, RETURN_AT);
-
-        assert.deepEqual(endedNow, [
-            { id: booking.id, at: ENDED, expectedCanceledEffectiveAt: later },
-        ]);
+        const granted = await tenant.entitlements.computeLimits(TENANT, BOOKED_SINCE);
+        assert.deepEqual([...granted.features].sort(), ['CORE', 'REPORTS']);
     });
 
     test('an invoice still unpaid keeps it read-only for that invoice alone', async () => {
@@ -522,6 +497,28 @@ describe('a return and a deletion beside it lock the same reason', { timeout: 50
             reasonsOf(tenant).filter((reason) => reason.liftedAt === null),
             [],
         );
+    });
+});
+
+// @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+describe('two returns beside each other', { timeout: 5000 }, () => {
+    test('the one that waited is refused, and ends no add-on the tenant booked once the other took it back', async () => {
+        const tenant = await aTenantThatEnded();
+        const held = aReturnHeldAfterItsChecks(tenant);
+
+        const waiting = tenant.service.takeOut(TENANT, STANDARD_MONTHLY, ADMIN, RETURN_AT);
+        await held.arrived;
+        await tenant.service.takeOut(TENANT, STANDARD_MONTHLY, ADMIN, RETURN_AT);
+        const bookedSince = await tenant.bookings.add({
+            subscriptionId: SUBSCRIPTION,
+            bundleVersionId: 'bv-archive-1',
+            startedAt: BOOKED_SINCE,
+        });
+        held.open();
+
+        await assert.rejects(waiting, refusedWith('TENANT_RETURN_NOT_ENDED'));
+        assert.deepEqual(await bookingEndOf(tenant, bookedSince.id), [null, null]);
+        assert.equal((await contractsOf(tenant)).length, 1);
     });
 });
 

@@ -13,6 +13,7 @@ import { Logger } from '@nestjs/common';
 
 import { SubscriptionEndCron, SubscriptionEndService } from '../dist/billing/index.js';
 import {
+    FakeSubscriptionBundleRepository,
     FakeSubscriptionEndRepository,
     FakeTenantAccessHoldRepository,
 } from '../dist/testing/index.js';
@@ -25,6 +26,7 @@ const RUN = 'job:platform:subscription-ends';
 // 31 December, the first day without it 1 January.
 const NEW_YEAR = new Date('2026-12-31T23:00:00.000Z');
 const FIRST_RUN = new Date('2026-12-31T23:15:00.000Z');
+const SECOND_RUN = new Date('2026-12-31T23:30:00.000Z');
 
 /** A cancellation declared for `tenantId`, landing at `effectiveAt`. */
 const cancelled = (tenantId, effectiveAt, overrides = {}) => ({
@@ -35,8 +37,14 @@ const cancelled = (tenantId, effectiveAt, overrides = {}) => ({
     ...overrides,
 });
 
-/** The run over `subscriptions`, with the stores it writes and how often it was let across tenants. */
-function runOver(subscriptions, { period = THIRTY_DAYS, ends, holds, withHolds = true } = {}) {
+/**
+ * The run over `subscriptions`, with the stores it writes and how often it was
+ * let across tenants; `bookings` are the add-ons booked, where any are.
+ */
+function runOver(
+    subscriptions,
+    { period = THIRTY_DAYS, ends, holds, withHolds = true, bookings = null } = {},
+) {
     const stores = {
         ends: ends ?? new FakeSubscriptionEndRepository(),
         holds: holds ?? new FakeTenantAccessHoldRepository(),
@@ -56,6 +64,7 @@ function runOver(subscriptions, { period = THIRTY_DAYS, ends, holds, withHolds =
         BERLIN,
         bypass,
         withHolds ? stores.holds : null,
+        bookings,
     );
     service.onModuleInit();
     // The stores object itself, so the count read afterwards is the one the run moved.
@@ -264,6 +273,160 @@ describe('the run that records the subscriptions that ended', () => {
             BERLIN,
         );
         assert.throws(() => service.onModuleInit(), /`listCancelled`.*SC-CANC-027/s);
+    });
+});
+
+/** Booked on 1 March, when the subscription `sub-t-1` still ran. */
+const MARCH = new Date('2026-03-01T00:00:00.000Z');
+/** The last day of the period a cancellation of an add-on lands on, after the end. */
+const LATER = new Date('2027-03-31T22:00:00.000Z');
+/** When the cancellation of an add-on cancelled before the end was declared. */
+const DECLARED = new Date('2026-02-01T09:00:00.000Z');
+
+/** Add-on bookings of `sub-t-1`, one per entry: when each began and when its cancellation lands, where it has one. */
+async function bookedOn(entries) {
+    const bookings = new FakeSubscriptionBundleRepository();
+    // The shipped fake has no `endNow`; this one writes as both adapters do,
+    // conditional on the effective date read.
+    bookings.endNow = async (id, { at, expectedCanceledEffectiveAt }) => {
+        const booking = await bookings.findById(id);
+        if (booking?.canceledEffectiveAt?.getTime() !== expectedCanceledEffectiveAt.getTime()) {
+            return null;
+        }
+        return Object.assign(booking, { canceledAt: at, canceledEffectiveAt: at });
+    };
+    const booked = [];
+    for (const { startedAt = MARCH, landsAt = null } of entries) {
+        const booking = await bookings.add({
+            subscriptionId: 'sub-t-1',
+            bundleVersionId: 'bv-archive-1',
+            startedAt,
+        });
+        if (landsAt) {
+            await bookings.cancel(booking.id, {
+                canceledAt: DECLARED,
+                canceledEffectiveAt: landsAt,
+            });
+        }
+        booked.push(booking.id);
+    }
+    const endOf = async (id) => {
+        const booking = await bookings.findById(id);
+        return [booking.canceledAt, booking.canceledEffectiveAt];
+    };
+    return { bookings, booked, endOf };
+}
+
+// @requirement SC-CANC-034 — A tenant whose subscription ended can come back until its deletion day
+describe('the add-ons of a subscription that ended end with it', () => {
+    test('a booking not cancelled ends at the end, and the end is recorded', async () => {
+        const { bookings, booked, endOf } = await bookedOn([{}]);
+        const { service } = runOver([cancelled('t-1', NEW_YEAR)], { bookings });
+
+        assert.deepEqual(await service.recordEnded(FIRST_RUN), { ended: 1 });
+
+        assert.deepEqual(await endOf(booked[0]), [NEW_YEAR, NEW_YEAR]);
+    });
+
+    test('one cancelled for a date after the end ends at the end as well', async () => {
+        const { bookings, booked, endOf } = await bookedOn([{ landsAt: LATER }]);
+        const { service } = runOver([cancelled('t-1', NEW_YEAR)], { bookings });
+
+        await service.recordEnded(FIRST_RUN);
+
+        assert.deepEqual(await endOf(booked[0]), [NEW_YEAR, NEW_YEAR]);
+    });
+
+    test('one that ended before it is left as it was', async () => {
+        const earlier = new Date('2026-06-30T22:00:00.000Z');
+        const { bookings, booked, endOf } = await bookedOn([{ landsAt: earlier }]);
+        const { service } = runOver([cancelled('t-1', NEW_YEAR)], { bookings });
+
+        await service.recordEnded(FIRST_RUN);
+
+        assert.deepEqual(await endOf(booked[0]), [DECLARED, earlier]);
+    });
+
+    test('only one that began before the end is the subscription’s: one that began with the end is left as it is', async () => {
+        const { bookings, booked, endOf } = await bookedOn([
+            { startedAt: new Date(NEW_YEAR.getTime() - 1) },
+            { startedAt: NEW_YEAR },
+        ]);
+        const { service } = runOver([cancelled('t-1', NEW_YEAR)], { bookings });
+
+        await service.recordEnded(FIRST_RUN);
+
+        assert.deepEqual(await endOf(booked[0]), [NEW_YEAR, NEW_YEAR]);
+        assert.deepEqual(await endOf(booked[1]), [null, null]);
+    });
+
+    test('a second run, and the end recorded again at once, change nothing', async () => {
+        const { bookings, booked, endOf } = await bookedOn([{}, { landsAt: LATER }]);
+        const { service, ends } = runOver([cancelled('t-1', NEW_YEAR)], { bookings });
+        await service.recordEnded(FIRST_RUN);
+        const after = [await endOf(booked[0]), await endOf(booked[1])];
+
+        assert.deepEqual(await service.recordEnded(SECOND_RUN), { ended: 0 });
+        await service.recordEndOf(
+            { tenantId: 't-1', subscriptionId: 'sub-t-1', endsAt: NEW_YEAR },
+            SECOND_RUN,
+            RUN,
+        );
+
+        assert.deepEqual([await endOf(booked[0]), await endOf(booked[1])], after);
+        assert.equal(ends.ends.length, 1);
+    });
+
+    test('where one cannot be ended, neither the end nor the reason stands, and the next run records both', async () => {
+        const { bookings, booked, endOf } = await bookedOn([{}, { landsAt: LATER }]);
+        const endNow = bookings.endNow;
+        delete bookings.endNow;
+        const { service, ends, holds } = runOver([cancelled('t-1', NEW_YEAR)], { bookings });
+
+        await assert.rejects(service.recordEnded(FIRST_RUN), /has no `endNow`/);
+        assert.deepEqual(ends.ends, []);
+        assert.deepEqual(await endedHolds(holds, 't-1'), []);
+
+        bookings.endNow = endNow;
+        assert.deepEqual(await service.recordEnded(SECOND_RUN), { ended: 1 });
+        assert.deepEqual(await endOf(booked[1]), [NEW_YEAR, NEW_YEAR]);
+        assert.equal((await endedHolds(holds, 't-1')).length, 1);
+    });
+
+    test('another instance ending the same bookings at the same moment leaves the end to be recorded', async () => {
+        const { bookings, booked, endOf } = await bookedOn([{}, { landsAt: LATER }]);
+        // Each write is made twice, the first time by the other instance: the
+        // second, this run's, finds the booking ended already.
+        const cancel = bookings.cancel.bind(bookings);
+        bookings.cancel = async (id, data) => {
+            await cancel(id, data);
+            return cancel(id, data);
+        };
+        const endNow = bookings.endNow;
+        bookings.endNow = async (id, input) => {
+            await endNow(id, input);
+            return endNow(id, input);
+        };
+        const { service } = runOver([cancelled('t-1', NEW_YEAR)], { bookings });
+
+        assert.deepEqual(await service.recordEnded(FIRST_RUN), { ended: 1 });
+
+        assert.deepEqual(await endOf(booked[0]), [NEW_YEAR, NEW_YEAR]);
+        assert.deepEqual(await endOf(booked[1]), [NEW_YEAR, NEW_YEAR]);
+    });
+
+    test('an end recorded at once, as for a trial the application ends, ends them the same way', async () => {
+        const { bookings, booked, endOf } = await bookedOn([{}, { landsAt: LATER }]);
+        const { service } = runOver([], { bookings });
+
+        await service.recordEndOf(
+            { tenantId: 't-1', subscriptionId: 'sub-t-1', endsAt: NEW_YEAR },
+            FIRST_RUN,
+            'job:app:trials',
+        );
+
+        assert.deepEqual(await endOf(booked[0]), [NEW_YEAR, NEW_YEAR]);
+        assert.deepEqual(await endOf(booked[1]), [NEW_YEAR, NEW_YEAR]);
     });
 });
 

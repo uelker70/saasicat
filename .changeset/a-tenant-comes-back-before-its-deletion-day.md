@@ -24,8 +24,8 @@ suspended or being deleted, a return is refused.
 - `POST billing/subscription/return` and its `/preview` take the plan, the
   rhythm, the version the preview showed and the deletion day it named. A
   return is refused as a plan change to that plan would be; a pilot, limits
-  and a price of the operator's own end with the old subscription, and so do
-  its add-on bookings. Where a payment gateway is wired, a confirmed payment
+  and a price of the operator's own end with the old subscription. Where a
+  payment gateway is wired, a confirmed payment
   method comes first, and a read-only tenant may enter one (`SC-ADM-060`,
   which supersedes `SC-ADM-055`).
 - `TenantAccessBanner` offers "Subscribe again" to whoever the server says
@@ -34,6 +34,10 @@ suspended or being deleted, a return is refused.
   on the plan card of an ended subscription. The banner now requires
   `formatCurrency`, as `TenantPlanSection` does; `useTenantReturn` is the
   composable beneath it.
+- A subscription's add-ons end with it: before its end is recorded, every
+  booking that runs past the end is ended there, so none comes back with a
+  new subscription, through the return, a checkout offer or a conclusion of
+  your own.
 - A checkout offer concluded for a tenant whose subscription ended lifts the
   end in the same transaction. An application that concludes in a way of its
   own calls `SubscriptionReturnService.takeBackWithin` in its transaction and

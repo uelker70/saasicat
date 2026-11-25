@@ -462,7 +462,6 @@ export async function aTenantThatEnded({
         BLOCKED,
         keepsContracts ? freeze : null,
         keepsContracts ? contracts : null,
-        bookings,
         payments.methods,
         payments.gateways,
         { recordDueCharges: async (tenantId) => calls.charged.push(tenantId) },
@@ -477,6 +476,7 @@ export async function aTenantThatEnded({
         ZONE,
         null,
         ports.holds,
+        bookings,
     );
     subscriptionEnds.onModuleInit();
     if (ended) {
@@ -556,6 +556,25 @@ export function aReturnHeldAtItsWrite(tenant) {
     tenant.subscription.startAgain = async (tenantId, input, tx) => {
         await held.pass();
         return startAgain(tenantId, input, tx);
+    };
+    return held;
+}
+
+/**
+ * A barrier the first return waits at once it found no contract of the tenant
+ * running, the last thing it asks before it writes; a return after it passes.
+ */
+export function aReturnHeldAfterItsChecks(tenant) {
+    const held = aBarrier();
+    const runningFrom = tenant.contractService.runningFrom.bind(tenant.contractService);
+    let holding = true;
+    tenant.contractService.runningFrom = async (tenantId, at) => {
+        const running = await runningFrom(tenantId, at);
+        if (holding) {
+            holding = false;
+            await held.pass();
+        }
+        return running;
     };
     return held;
 }

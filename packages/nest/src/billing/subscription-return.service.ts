@@ -30,9 +30,9 @@
 // and the audit names those that did. The operator grants them again where he
 // wants to.
 //
-// A booking of the subscription that ended belonged to it, and ends at its
-// end: a return books none, and a booking left running would come back with
-// the new subscription, granted and charged without being chosen.
+// A return books no add-on, and finds none of the subscription that ended
+// running: those ended with it, before its end was recorded
+// (`bookings-end-with-their-subscription.ts`).
 
 import {
     BadRequestException,
@@ -61,8 +61,6 @@ import {
     type PlanCatalogSettings,
     type PlanRepository,
     type SelfServiceBlockedPlans,
-    type SubscriptionBundleRecord,
-    type SubscriptionBundleRepository,
     type SubscriptionContractPriceSnapshot,
     type SubscriptionEnd,
     type SubscriptionEndPort,
@@ -108,7 +106,6 @@ import { PLAN_CATALOG_SETTINGS_TOKEN, PLAN_CATALOG_SOURCE_TOKEN } from './plan-c
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { findPlan } from './plan-helpers.js';
 import { SELF_SERVICE_BLOCKED_PLANS_TOKEN } from './self-service-policy.js';
-import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { deletionDayDiffersFromShown } from './subscription-end.service.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
 import {
@@ -319,11 +316,6 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
         @Optional()
         @Inject(SubscriptionContractService)
         private readonly contracts: SubscriptionContractService | null = null,
-        // Without the bundle module nothing is booked, so nothing ends with
-        // the subscription.
-        @Optional()
-        @Inject(SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN)
-        private readonly bookings: SubscriptionBundleRepository | null = null,
         // Present where the installation takes payments: a tenant that comes
         // back where a gateway takes payment methods has one in use first.
         @Optional()
@@ -461,7 +453,6 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
         }
         const contract = await this.contractOf(tenantId, returned);
         if (await this.contracts?.runningFrom(tenantId, now)) throw contractChanged(tenantId);
-        await this.endBookingsAt(returnable.end.subscriptionId, endsAt);
         const endedSpecialTerms = await this.transactions.run(async (tx) => {
             const locked = await this.lockedStanding(holds, tenantId, returnable, now, tx);
             if (locked.refusal) throw refused(locked.refusal, locked);
@@ -715,23 +706,6 @@ export class SubscriptionReturnService implements SubscriptionReturnSource, OnMo
         return (await this.paymentMethods.current(tenantId)) === null;
     }
 
-    /**
-     * Ends at `endsAt` every booking of `subscriptionId` that runs past it.
-     * Written before the return's transaction, and without effect where the
-     * return then fails: nothing is granted or charged of a subscription past
-     * its end, so a booking ending there changes nothing until the
-     * subscription starts again — which is what it is ended for.
-     */
-    private async endBookingsAt(subscriptionId: string, endsAt: Date): Promise<void> {
-        const bookings = this.bookings;
-        if (!bookings) return;
-        for (const booking of await bookings.listBySubscription(subscriptionId)) {
-            const landsAt = cancellationLandsAt(booking);
-            if (landsAt !== null && landsAt <= endsAt) continue;
-            await endBookingAt(bookings, booking, landsAt, endsAt);
-        }
-    }
-
     /** Audits a return that stands; a failure to audit is logged, not answered. */
     private async audited(
         actor: AuditActor,
@@ -773,33 +747,4 @@ function planNotInCatalog(plan: string): NotFoundException {
     return new NotFoundException(
         codedError(BILLING_ERROR_CODES.PLAN_NOT_IN_CATALOG, { planKey: plan }),
     );
-}
-
-/**
- * Ends `booking`, whose cancellation lands at `landsAt` — none, or one after
- * `endsAt` — at `endsAt`.
- */
-async function endBookingAt(
-    bookings: SubscriptionBundleRepository,
-    booking: SubscriptionBundleRecord,
-    landsAt: Date | null,
-    endsAt: Date,
-): Promise<void> {
-    if (landsAt === null) {
-        await bookings.cancel(booking.id, { canceledAt: endsAt, canceledEffectiveAt: endsAt });
-        return;
-    }
-    if (!bookings.endNow) {
-        throw new Error(
-            `Booking ${booking.id} is cancelled for ${landsAt.toISOString()}, after its ` +
-                `subscription ended at ${endsAt.toISOString()}, and the SubscriptionBundleRepository ` +
-                'has no `endNow` to end it there before the subscription starts again. Both ' +
-                'shipped adapters have it.',
-        );
-    }
-    const ended = await bookings.endNow(booking.id, {
-        at: endsAt,
-        expectedCanceledEffectiveAt: landsAt,
-    });
-    if (!ended) throw new ConflictException(codedError(BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED));
 }

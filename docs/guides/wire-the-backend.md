@@ -2168,7 +2168,11 @@ makes the tenant read-only in that run.
 A subscription ends when its cancellation lands — the tenant's own, or one your application
 declares for a trial that ran out unbought or through the operator's path in your administration.
 From that moment the tenant is read-only until the day its data is deleted (`SC-CANC-027`,
-`SC-ADM-060`).
+`SC-ADM-060`). Its add-ons end with it: before the platform records the end, every booking of the
+subscription that began before the end and runs past it is ended there, so none comes back with a
+later subscription on the same row. A booking cancelled for a later date is ended through the
+`SubscriptionBundleRepository`'s `endNow`; a repository of your own without it leaves the end
+unrecorded, and the run names the booking.
 
 - **The period** is `tenantBilling.endOfSubscription.readOnlyDays` in `config/saas.yaml`. It is
   required and has no default: how long a former customer's data is kept is yours to decide and to
